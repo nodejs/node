@@ -264,7 +264,9 @@ public:
     // The trie stores values for lead surrogate code *units*.
     // Surrogate code *points* are inert.
     uint16_t getNorm16(UChar32 c) const {
-        return U_IS_LEAD(c) ? INERT : UCPTRIE_FAST_GET(normTrie, UCPTRIE_16, c);
+        return U_IS_LEAD(c) ?
+            static_cast<uint16_t>(INERT) :
+            UCPTRIE_FAST_GET(normTrie, UCPTRIE_16, c);
     }
     uint16_t getRawNorm16(UChar32 c) const { return UCPTRIE_FAST_GET(normTrie, UCPTRIE_16, c); }
 

@@ -18,10 +18,16 @@ U_NAMESPACE_BEGIN
 // When building DLLs for Windows this is required even though no direct access leaks out of the i18n library.
 // See digitlst.h, pluralaffix.h, datefmt.h, and others for similar examples.
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
+#if defined(_MSC_VER)
 // Ignore warning 4661 as LocalPointerBase does not use operator== or operator!=
-#pragma warning(suppress: 4661)
+#pragma warning(push)
+#pragma warning(disable: 4661)
+#endif
 template class U_I18N_API LocalPointerBase<int32_t>;
 template class U_I18N_API LocalMemory<int32_t>;
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #endif
 
 class U_I18N_API EraRules : public UMemory {
@@ -69,7 +75,8 @@ public:
 
     /**
      * Gets the current era index. This is calculated only once for an instance of
-     * EraRules.
+     * EraRules. The current era calculation is based on the default time zone at
+     * the time of instantiation.
      *
      * @return era index of current era (or 0, when current date is before the first era)
      */

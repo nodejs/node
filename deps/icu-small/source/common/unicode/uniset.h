@@ -27,7 +27,6 @@ U_NAMESPACE_BEGIN
 
 // Forward Declarations.
 class BMPSet;
-class CharacterProperties;
 class ParsePosition;
 class RBBIRuleScanner;
 class SymbolTable;
@@ -276,14 +275,23 @@ class RuleCharacterIterator;
  * @stable ICU 2.0
  */
 class U_COMMON_API UnicodeSet U_FINAL : public UnicodeFilter {
+private:
+    /**
+     * Enough for sets with few ranges.
+     * For example, White_Space has 10 ranges, list length 21.
+     */
+    static constexpr int32_t INITIAL_CAPACITY = 25;
+    // fFlags constant
+    static constexpr uint8_t kIsBogus = 1;  // This set is bogus (i.e. not valid)
 
-    int32_t len; // length of list used; 0 <= len <= capacity
-    int32_t capacity; // capacity of list
-    UChar32* list; // MUST be terminated with HIGH
-    BMPSet *bmpSet; // The set is frozen iff either bmpSet or stringSpan is not NULL.
-    UChar32* buffer; // internal buffer, may be NULL
-    int32_t bufferCapacity; // capacity of buffer
-    int32_t patLen;
+    UChar32* list = stackList; // MUST be terminated with HIGH
+    int32_t capacity = INITIAL_CAPACITY; // capacity of list
+    int32_t len = 1; // length of list used; 1 <= len <= capacity
+    uint8_t fFlags = 0;         // Bit flag (see constants above)
+
+    BMPSet *bmpSet = nullptr; // The set is frozen iff either bmpSet or stringSpan is not NULL.
+    UChar32* buffer = nullptr; // internal buffer, may be NULL
+    int32_t bufferCapacity = 0; // capacity of buffer
 
     /**
      * The pattern representation of this set.  This may not be the
@@ -294,15 +302,19 @@ class U_COMMON_API UnicodeSet U_FINAL : public UnicodeFilter {
      * indicating that toPattern() must generate a pattern
      * representation from the inversion list.
      */
-    char16_t *pat;
-    UVector* strings; // maintained in sorted order
-    UnicodeSetStringSpan *stringSpan;
+    char16_t *pat = nullptr;
+    int32_t patLen = 0;
 
-private:
-    enum { // constants
-        kIsBogus = 1       // This set is bogus (i.e. not valid)
-    };
-    uint8_t fFlags;         // Bit flag (see constants above)
+    UVector* strings = nullptr; // maintained in sorted order
+    UnicodeSetStringSpan *stringSpan = nullptr;
+
+    /**
+     * Initial list array.
+     * Avoids some heap allocations, and list is never nullptr.
+     * Increases the object size a bit.
+     */
+    UChar32 stackList[INITIAL_CAPACITY];
+
 public:
     /**
      * Determine if this object contains a valid set.
@@ -478,7 +490,7 @@ public:
      * <tt>true</tt> if the specified set is not equal to this set.
      * @stable ICU 2.0
      */
-    UBool operator!=(const UnicodeSet& o) const;
+    inline UBool operator!=(const UnicodeSet& o) const;
 
     /**
      * Returns a copy of this object.  All UnicodeFunctor objects have
@@ -1480,8 +1492,6 @@ private:
 
     friend class USetAccess;
 
-    int32_t getStringCount() const;
-
     const UnicodeString* getString(int32_t index) const;
 
     //----------------------------------------------------------------
@@ -1528,13 +1538,18 @@ private:
     // Implementation: Utility methods
     //----------------------------------------------------------------
 
-    void ensureCapacity(int32_t newLen, UErrorCode& ec);
+    static int32_t nextCapacity(int32_t minCapacity);
 
-    void ensureBufferCapacity(int32_t newLen, UErrorCode& ec);
+    bool ensureCapacity(int32_t newLen);
+
+    bool ensureBufferCapacity(int32_t newLen);
 
     void swapBuffers(void);
 
     UBool allocateStrings(UErrorCode &status);
+    UBool hasStrings() const;
+    int32_t stringsSize() const;
+    UBool stringsContains(const UnicodeString &s) const;
 
     UnicodeString& _toPattern(UnicodeString& result,
                               UBool escapeUnprintable) const;
@@ -1614,7 +1629,6 @@ private:
                               UnicodeString& rebuiltPat,
                               UErrorCode& ec);
 
-    friend class CharacterProperties;
     static const UnicodeSet* getInclusions(int32_t src, UErrorCode &status);
 
     /**
@@ -1646,7 +1660,10 @@ private:
     /**
      * Set the new pattern to cache.
      */
-    void setPattern(const UnicodeString& newPat);
+    void setPattern(const UnicodeString& newPat) {
+        setPattern(newPat.getBuffer(), newPat.length());
+    }
+    void setPattern(const char16_t *newPat, int32_t newPatLen);
     /**
      * Release existing cached pattern.
      */

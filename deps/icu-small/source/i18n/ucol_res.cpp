@@ -348,7 +348,7 @@ CollationLoader::loadFromCollations(UErrorCode &errorCode) {
     const char *actualLocale = ures_getLocaleByType(data, ULOC_ACTUAL_LOCALE, &errorCode);
     if(U_FAILURE(errorCode)) { return NULL; }
     const char *vLocale = validLocale.getBaseName();
-    UBool actualAndValidLocalesAreDifferent = uprv_strcmp(actualLocale, vLocale) != 0;
+    UBool actualAndValidLocalesAreDifferent = Locale(actualLocale) != Locale(vLocale);
 
     // Set the collation types on the informational locales,
     // except when they match the default types (for brevity and backwards compatibility).
@@ -410,7 +410,7 @@ CollationLoader::loadFromData(UErrorCode &errorCode) {
 
     const char *actualLocale = locale.getBaseName();  // without type
     const char *vLocale = validLocale.getBaseName();
-    UBool actualAndValidLocalesAreDifferent = uprv_strcmp(actualLocale, vLocale) != 0;
+    UBool actualAndValidLocalesAreDifferent = Locale(actualLocale) != Locale(vLocale);
 
     // For the actual locale, suppress the default type *according to the actual locale*.
     // For example, zh has default=pinyin and contains all of the Chinese tailorings.

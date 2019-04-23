@@ -1526,7 +1526,7 @@ u_charFromName(UCharNameChoice nameChoice,
     uint32_t i;
     UChar32 cp = 0;
     char c0;
-    UChar32 error = 0xffff;     /* Undefined, but use this for backwards compatibility. */
+    static constexpr UChar32 error = 0xffff;     /* Undefined, but use this for backwards compatibility. */
 
     if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
         return error;
@@ -1560,39 +1560,45 @@ u_charFromName(UCharNameChoice nameChoice,
 
     /* try extended names first */
     if (lower[0] == '<') {
-        if (nameChoice == U_EXTENDED_CHAR_NAME) {
+        if (nameChoice == U_EXTENDED_CHAR_NAME && lower[--i] == '>') {
             // Parse a string like "<category-HHHH>" where HHHH is a hex code point.
-            if (lower[--i] == '>' && i >= 3 && lower[--i] != '-') {
-                while (i >= 3 && lower[--i] != '-') {}
+            uint32_t limit = i;
+            while (i >= 3 && lower[--i] != '-') {}
 
-                if (i >= 2 && lower[i] == '-') {
-                    uint32_t cIdx;
+            // There should be 1 to 8 hex digits.
+            int32_t hexLength = limit - (i + 1);
+            if (i >= 2 && lower[i] == '-' && 1 <= hexLength && hexLength <= 8) {
+                uint32_t cIdx;
 
-                    lower[i] = 0;
+                lower[i] = 0;
 
-                    for (++i; lower[i] != '>'; ++i) {
-                        if (lower[i] >= '0' && lower[i] <= '9') {
-                            cp = (cp << 4) + lower[i] - '0';
-                        } else if (lower[i] >= 'a' && lower[i] <= 'f') {
-                            cp = (cp << 4) + lower[i] - 'a' + 10;
-                        } else {
-                            *pErrorCode = U_ILLEGAL_CHAR_FOUND;
-                            return error;
-                        }
+                for (++i; i < limit; ++i) {
+                    if (lower[i] >= '0' && lower[i] <= '9') {
+                        cp = (cp << 4) + lower[i] - '0';
+                    } else if (lower[i] >= 'a' && lower[i] <= 'f') {
+                        cp = (cp << 4) + lower[i] - 'a' + 10;
+                    } else {
+                        *pErrorCode = U_ILLEGAL_CHAR_FOUND;
+                        return error;
                     }
+                    // Prevent signed-integer overflow and out-of-range code points.
+                    if (cp > UCHAR_MAX_VALUE) {
+                        *pErrorCode = U_ILLEGAL_CHAR_FOUND;
+                        return error;
+                    }
+                }
 
-                    /* Now validate the category name.
-                       We could use a binary search, or a trie, if
-                       we really wanted to. */
+                /* Now validate the category name.
+                   We could use a binary search, or a trie, if
+                   we really wanted to. */
+                uint8_t cat = getCharCat(cp);
+                for (lower[i] = 0, cIdx = 0; cIdx < UPRV_LENGTHOF(charCatNames); ++cIdx) {
 
-                    for (lower[i] = 0, cIdx = 0; cIdx < UPRV_LENGTHOF(charCatNames); ++cIdx) {
-
-                        if (!uprv_strcmp(lower + 1, charCatNames[cIdx])) {
-                            if (getCharCat(cp) == cIdx) {
-                                return cp;
-                            }
-                            break;
+                    if (!uprv_strcmp(lower + 1, charCatNames[cIdx])) {
+                        if (cat == cIdx) {
+                            return cp;
                         }
+                        break;
                     }
                 }
             }

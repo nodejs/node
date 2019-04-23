@@ -90,21 +90,21 @@ public:
      * Assignment operator
      * @stable ICU 2.0
      */
-    ParsePosition&      operator=(const ParsePosition& copy);
+    inline ParsePosition&      operator=(const ParsePosition& copy);
 
     /**
      * Equality operator.
      * @return TRUE if the two parse positions are equal, FALSE otherwise.
      * @stable ICU 2.0
      */
-    UBool              operator==(const ParsePosition& that) const;
+    inline UBool              operator==(const ParsePosition& that) const;
 
     /**
      * Equality operator.
      * @return TRUE if the two parse positions are not equal, FALSE otherwise.
      * @stable ICU 2.0
      */
-    UBool              operator!=(const ParsePosition& that) const;
+    inline UBool              operator!=(const ParsePosition& that) const;
 
     /**
      * Clone this object.
@@ -126,14 +126,14 @@ public:
      * @return the current index.
      * @stable ICU 2.0
      */
-    int32_t getIndex(void) const;
+    inline int32_t getIndex(void) const;
 
     /**
      * Set the current parse position.
      * @param index the new index.
      * @stable ICU 2.0
      */
-    void setIndex(int32_t index);
+    inline void setIndex(int32_t index);
 
     /**
      * Set the index at which a parse error occurred.  Formatters
@@ -142,14 +142,14 @@ public:
      * set.
      * @stable ICU 2.0
      */
-    void setErrorIndex(int32_t ei);
+    inline void setErrorIndex(int32_t ei);
 
     /**
      * Retrieve the index at which an error occurred, or -1 if the
      * error index has not been set.
      * @stable ICU 2.0
      */
-    int32_t getErrorIndex(void) const;
+    inline int32_t getErrorIndex(void) const;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.

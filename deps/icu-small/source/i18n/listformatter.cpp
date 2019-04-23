@@ -31,6 +31,7 @@
 #include "ucln_in.h"
 #include "uresimp.h"
 #include "resource.h"
+#include "formattedval_impl.h"
 
 U_NAMESPACE_BEGIN
 
@@ -65,9 +66,20 @@ ListFormatInternal(const ListFormatInternal &other) :
 };
 
 
+#if !UCONFIG_NO_FORMATTING
+class FormattedListData : public FormattedValueFieldPositionIteratorImpl {
+public:
+    FormattedListData(UErrorCode& status) : FormattedValueFieldPositionIteratorImpl(5, status) {}
+    virtual ~FormattedListData();
+};
+
+FormattedListData::~FormattedListData() = default;
+
+UPRV_FORMATTED_VALUE_SUBCLASS_AUTO_IMPL(FormattedList)
+#endif
+
 
 static Hashtable* listPatternHash = nullptr;
-static UMutex listFormatterMutex = U_MUTEX_INITIALIZER;
 static const char STANDARD_STYLE[] = "standard";
 
 U_CDECL_BEGIN
@@ -132,6 +144,7 @@ const ListFormatInternal* ListFormatter::getListFormatInternal(
     keyBuffer.append(':', errorCode).append(style, errorCode);
     UnicodeString key(keyBuffer.data(), -1, US_INV);
     ListFormatInternal* result = nullptr;
+    static UMutex listFormatterMutex = U_MUTEX_INITIALIZER;
     {
         Mutex m(&listFormatterMutex);
         if (listPatternHash == nullptr) {
@@ -377,7 +390,7 @@ UnicodeString& ListFormatter::format(
   int32_t offset;
   FieldPositionIteratorHandler handler(posIter, errorCode);
   return format_(items, nItems, appendTo, -1, offset, &handler, errorCode);
-};
+}
 #endif
 
 UnicodeString& ListFormatter::format(
@@ -389,6 +402,44 @@ UnicodeString& ListFormatter::format(
         UErrorCode& errorCode) const {
   return format_(items, nItems, appendTo, index, offset, nullptr, errorCode);
 }
+
+#if !UCONFIG_NO_FORMATTING
+FormattedList ListFormatter::formatStringsToValue(
+        const UnicodeString items[],
+        int32_t nItems,
+        UErrorCode& errorCode) const {
+    LocalPointer<FormattedListData> result(new FormattedListData(errorCode), errorCode);
+    if (U_FAILURE(errorCode)) {
+        return FormattedList(errorCode);
+    }
+    UnicodeString string;
+    int32_t offset;
+    auto handler = result->getHandler(errorCode);
+    handler.setCategory(UFIELD_CATEGORY_LIST);
+    format_(items, nItems, string, -1, offset, &handler, errorCode);
+    handler.getError(errorCode);
+    result->appendString(string, errorCode);
+    if (U_FAILURE(errorCode)) {
+        return FormattedList(errorCode);
+    }
+
+    // Add span fields and sort
+    ConstrainedFieldPosition cfpos;
+    cfpos.constrainField(UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD);
+    int32_t i = 0;
+    handler.setCategory(UFIELD_CATEGORY_LIST_SPAN);
+    while (result->nextPosition(cfpos, errorCode)) {
+        handler.addAttribute(i++, cfpos.getStart(), cfpos.getLimit());
+    }
+    handler.getError(errorCode);
+    if (U_FAILURE(errorCode)) {
+        return FormattedList(errorCode);
+    }
+    result->sort();
+
+    return FormattedList(result.orphan());
+}
+#endif
 
 UnicodeString& ListFormatter::format_(
         const UnicodeString items[],

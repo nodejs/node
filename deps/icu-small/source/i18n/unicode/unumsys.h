@@ -105,6 +105,7 @@ U_NAMESPACE_END
 /**
  * Returns an enumeration over the names of all of the predefined numbering systems known
  * to ICU.
+ * The numbering system names will be in alphabetical (invariant) order.
  * @param status    A pointer to a UErrorCode to receive any errors.
  * @return          A pointer to a UEnumeration that must be closed with uenum_close(),
  *                  or NULL if an error occurred.

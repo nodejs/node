@@ -167,6 +167,7 @@ uregex_openUText(UText          *pattern,
                  UParseError    *pe,
                  UErrorCode     *status);
 
+#if !UCONFIG_NO_CONVERSION
 /**
   *  Open (compile) an ICU regular expression.  The resulting regular expression
   *   handle can then be used to perform various matching operations.
@@ -190,7 +191,6 @@ uregex_openUText(UText          *pattern,
   *
   * @stable ICU 3.0
   */
-#if !UCONFIG_NO_CONVERSION
 U_STABLE URegularExpression * U_EXPORT2
 uregex_openC( const char           *pattern,
                     uint32_t        flags,

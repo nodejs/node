@@ -37,8 +37,8 @@
 #ifndef DOUBLE_CONVERSION_UTILS_H_
 #define DOUBLE_CONVERSION_UTILS_H_
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 
 // ICU PATCH: Use U_ASSERT instead of <assert.h>
 #include "uassert.h"
@@ -75,7 +75,22 @@ inline void abort_noreturn() { abort(); }
 // the output of the division with the expected result. (Inlining must be
 // disabled.)
 // On Linux,x86 89255e-22 != Div_double(89255.0/1e22)
-// ICU PATCH: Enable ARM32 & ARM64 builds for Windows with 'defined(_M_ARM) || defined(_M_ARM64)'.
+//
+// For example:
+/*
+// -- in div.c
+double Div_double(double x, double y) { return x / y; }
+
+// -- in main.c
+double Div_double(double x, double y);  // Forward declaration.
+
+int main(int argc, char** argv) {
+  return Div_double(89255.0, 1e22) == 89255e-22;
+}
+*/
+// Run as follows ./main || echo "correct"
+//
+// If it prints "correct" then the architecture should be here, in the "correct" section.
 #if defined(_M_X64) || defined(__x86_64__) || \
     defined(__ARMEL__) || defined(__avr32__) || defined(_M_ARM) || defined(_M_ARM64) || \
     defined(__hppa__) || defined(__ia64__) || \
@@ -85,10 +100,13 @@ inline void abort_noreturn() { abort(); }
     defined(__sparc__) || defined(__sparc) || defined(__s390__) || \
     defined(__SH4__) || defined(__alpha__) || \
     defined(_MIPS_ARCH_MIPS32R2) || \
-    defined(__AARCH64EL__) || defined(__aarch64__) || \
-    defined(__riscv)
+    defined(__AARCH64EL__) || defined(__aarch64__) || defined(__AARCH64EB__) || \
+    defined(__riscv) || \
+    defined(__or1k__) || defined(__arc__) || \
+    defined(__EMSCRIPTEN__)
 #define DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS 1
-#elif defined(__mc68000__)
+#elif defined(__mc68000__) || \
+    defined(__pnacl__) || defined(__native_client__)
 #undef DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS
 #elif defined(_M_IX86) || defined(__i386__) || defined(__i386)
 #if defined(_WIN32)
@@ -99,12 +117,6 @@ inline void abort_noreturn() { abort(); }
 #endif  // _WIN32
 #else
 #error Target architecture was not detected as supported by Double-Conversion.
-#endif
-
-#if defined(__GNUC__)
-#define DOUBLE_CONVERSION_UNUSED __attribute__((unused))
-#else
-#define DOUBLE_CONVERSION_UNUSED
 #endif
 
 #if defined(_WIN32) && !defined(__MINGW32__)
@@ -145,8 +157,8 @@ typedef uint16_t uc16;
 
 // A macro to disallow the evil copy constructor and operator= functions
 // This should be used in the private: declarations for a class
-#ifndef DISALLOW_COPY_AND_ASSIGN
-#define DISALLOW_COPY_AND_ASSIGN(TypeName)      \
+#ifndef DC_DISALLOW_COPY_AND_ASSIGN
+#define DC_DISALLOW_COPY_AND_ASSIGN(TypeName)      \
   TypeName(const TypeName&);                    \
   void operator=(const TypeName&)
 #endif
@@ -157,10 +169,10 @@ typedef uint16_t uc16;
 // This should be used in the private: declarations for a class
 // that wants to prevent anyone from instantiating it. This is
 // especially useful for classes containing only static methods.
-#ifndef DISALLOW_IMPLICIT_CONSTRUCTORS
-#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
+#ifndef DC_DISALLOW_IMPLICIT_CONSTRUCTORS
+#define DC_DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
   TypeName();                                    \
-  DISALLOW_COPY_AND_ASSIGN(TypeName)
+  DC_DISALLOW_COPY_AND_ASSIGN(TypeName)
 #endif
 
 // ICU PATCH: Wrap in ICU namespace
@@ -305,7 +317,7 @@ class StringBuilder {
 
   bool is_finalized() const { return position_ < 0; }
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
+  DC_DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
 };
 
 // The type-based aliasing rule allows the compiler to assume that pointers of
@@ -336,8 +348,12 @@ template <class Dest, class Source>
 inline Dest BitCast(const Source& source) {
   // Compile time assertion: sizeof(Dest) == sizeof(Source)
   // A compile error here means your Dest and Source have different sizes.
-  DOUBLE_CONVERSION_UNUSED
-      typedef char VerifySizesAreEqual[sizeof(Dest) == sizeof(Source) ? 1 : -1];
+#if __cplusplus >= 201103L
+  static_assert(sizeof(Dest) == sizeof(Source),
+                "source and destination size mismatch");
+#else
+  typedef char VerifySizesAreEqual[sizeof(Dest) == sizeof(Source) ? 1 : -1];
+#endif
 
   Dest dest;
   memmove(&dest, &source, sizeof(dest));

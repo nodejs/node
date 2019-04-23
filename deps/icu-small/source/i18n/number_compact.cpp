@@ -260,7 +260,7 @@ void CompactHandler::precomputeAllModifiers(MutablePatternModifier &buildReferen
         ParsedPatternInfo patternInfo;
         PatternParser::parseToPatternInfo(UnicodeString(patternString), patternInfo, status);
         if (U_FAILURE(status)) { return; }
-        buildReference.setPatternInfo(&patternInfo);
+        buildReference.setPatternInfo(&patternInfo, UNUM_COMPACT_FIELD);
         info.mod = buildReference.createImmutable(status);
         if (U_FAILURE(status)) { return; }
         info.patternString = patternString;
@@ -297,7 +297,7 @@ void CompactHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micr
         for (; i < precomputedModsLength; i++) {
             const CompactModInfo &info = precomputedMods[i];
             if (u_strcmp(patternString, info.patternString) == 0) {
-                info.mod->applyToMicros(micros, quantity);
+                info.mod->applyToMicros(micros, quantity, status);
                 break;
             }
         }
@@ -310,7 +310,7 @@ void CompactHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micr
         ParsedPatternInfo &patternInfo = const_cast<CompactHandler *>(this)->unsafePatternInfo;
         PatternParser::parseToPatternInfo(UnicodeString(patternString), patternInfo, status);
         static_cast<MutablePatternModifier*>(const_cast<Modifier*>(micros.modMiddle))
-            ->setPatternInfo(&patternInfo);
+            ->setPatternInfo(&patternInfo, UNUM_COMPACT_FIELD);
     }
 
     // We already performed rounding. Do not perform it again.

@@ -16,6 +16,7 @@
 
 #include "unicode/umisc.h"
 #include "unicode/localpointer.h"
+#include "unicode/uformattedvalue.h"
 
 /**
  * \file
@@ -81,6 +82,15 @@
 struct UDateIntervalFormat;
 typedef struct UDateIntervalFormat UDateIntervalFormat;  /**< C typedef for struct UDateIntervalFormat. @stable ICU 4.8 */
 
+#ifndef U_HIDE_DRAFT_API
+struct UFormattedDateInterval;
+/**
+ * Opaque struct to contain the results of a UDateIntervalFormat operation.
+ * @draft ICU 64
+ */
+typedef struct UFormattedDateInterval UFormattedDateInterval;
+#endif /* U_HIDE_DRAFT_API */
+
 /**
  * Open a new UDateIntervalFormat object using the predefined rules for a
  * given locale plus a specified skeleton.
@@ -123,6 +133,55 @@ U_STABLE void U_EXPORT2
 udtitvfmt_close(UDateIntervalFormat *formatter);
 
 
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Creates an object to hold the result of a UDateIntervalFormat
+ * operation. The object can be used repeatedly; it is cleared whenever
+ * passed to a format function.
+ *
+ * @param ec Set if an error occurs.
+ * @return A pointer needing ownership.
+ * @draft ICU 64
+ */
+U_CAPI UFormattedDateInterval* U_EXPORT2
+udtitvfmt_openResult(UErrorCode* ec);
+
+/**
+ * Returns a representation of a UFormattedDateInterval as a UFormattedValue,
+ * which can be subsequently passed to any API requiring that type.
+ *
+ * The returned object is owned by the UFormattedDateInterval and is valid
+ * only as long as the UFormattedDateInterval is present and unchanged in memory.
+ *
+ * You can think of this method as a cast between types.
+ *
+ * When calling ufmtval_nextPosition():
+ * The fields are returned from left to right. The special field category
+ * UFIELD_CATEGORY_DATE_INTERVAL_SPAN is used to indicate which datetime
+ * primitives came from which arguments: 0 means fromCalendar, and 1 means
+ * toCalendar. The span category will always occur before the
+ * corresponding fields in UFIELD_CATEGORY_DATE
+ * in the ufmtval_nextPosition() iterator.
+ *
+ * @param uresult The object containing the formatted string.
+ * @param ec Set if an error occurs.
+ * @return A UFormattedValue owned by the input object.
+ * @draft ICU 64
+ */
+U_CAPI const UFormattedValue* U_EXPORT2
+udtitvfmt_resultAsValue(const UFormattedDateInterval* uresult, UErrorCode* ec);
+
+/**
+ * Releases the UFormattedDateInterval created by udtitvfmt_openResult().
+ *
+ * @param uresult The object to release.
+ * @draft ICU 64
+ */
+U_CAPI void U_EXPORT2
+udtitvfmt_closeResult(UFormattedDateInterval* uresult);
+#endif /* U_HIDE_DRAFT_API */
+
+
 #if U_SHOW_CPLUSPLUS_API
 
 U_NAMESPACE_BEGIN
@@ -137,6 +196,19 @@ U_NAMESPACE_BEGIN
  * @stable ICU 4.8
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalUDateIntervalFormatPointer, UDateIntervalFormat, udtitvfmt_close);
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * \class LocalUFormattedDateIntervalPointer
+ * "Smart pointer" class, closes a UFormattedDateInterval via udtitvfmt_close().
+ * For most methods see the LocalPointerBase base class.
+ *
+ * @see LocalPointerBase
+ * @see LocalPointer
+ * @draft ICU 64
+ */
+U_DEFINE_LOCAL_OPEN_POINTER(LocalUFormattedDateIntervalPointer, UFormattedDateInterval, udtitvfmt_closeResult);
+#endif /* U_HIDE_DRAFT_API */
 
 U_NAMESPACE_END
 
@@ -180,6 +252,34 @@ udtitvfmt_format(const UDateIntervalFormat* formatter,
                 int32_t         resultCapacity,
                 UFieldPosition* position,
                 UErrorCode*     status);
+
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Formats a date/time range using the conventions established for the
+ * UDateIntervalFormat object.
+ * @param formatter
+ *            The UDateIntervalFormat object specifying the format conventions.
+ * @param result
+ *            The UFormattedDateInterval to contain the result of the
+ *            formatting operation.
+ * @param fromDate
+ *            The starting point of the range.
+ * @param toDate
+ *            The ending point of the range.
+ * @param status
+ *            A pointer to a UErrorCode to receive any errors.
+ * @draft ICU 64
+ */
+U_DRAFT void U_EXPORT2
+udtitvfmt_formatToResult(
+                const UDateIntervalFormat* formatter,
+                UFormattedDateInterval* result,
+                UDate           fromDate,
+                UDate           toDate,
+                UErrorCode*     status);
+#endif /* U_HIDE_DRAFT_API */
+
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 

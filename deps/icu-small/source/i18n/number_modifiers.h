@@ -100,7 +100,7 @@ class U_I18N_API SimpleModifier : public Modifier, public UMemory {
      * @return The number of characters (UTF-16 code points) that were added to the StringBuilder.
      */
     int32_t
-    formatAsPrefixSuffix(NumberStringBuilder& result, int32_t startIndex, int32_t endIndex, Field field,
+    formatAsPrefixSuffix(NumberStringBuilder& result, int32_t startIndex, int32_t endIndex,
                          UErrorCode& status) const;
 
     /**

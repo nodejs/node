@@ -21,6 +21,7 @@ char kRawDefaultProperties[sizeof(DecimalFormatProperties)];
 icu::UInitOnce gDefaultPropertiesInitOnce = U_INITONCE_INITIALIZER;
 
 void U_CALLCONV initDefaultProperties(UErrorCode&) {
+    // can't fail, uses placement new into staticly allocated space.
     new(kRawDefaultProperties) DecimalFormatProperties(); // set to the default instance
 }
 
@@ -140,6 +141,12 @@ bool DecimalFormatProperties::equalsDefaultExceptFastFormat() const {
     UErrorCode localStatus = U_ZERO_ERROR;
     umtx_initOnce(gDefaultPropertiesInitOnce, &initDefaultProperties, localStatus);
     return _equals(*reinterpret_cast<DecimalFormatProperties*>(kRawDefaultProperties), true);
+}
+
+const DecimalFormatProperties& DecimalFormatProperties::getDefault() {
+    UErrorCode localStatus = U_ZERO_ERROR;
+    umtx_initOnce(gDefaultPropertiesInitOnce, &initDefaultProperties, localStatus);
+    return *reinterpret_cast<const DecimalFormatProperties*>(kRawDefaultProperties);
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
