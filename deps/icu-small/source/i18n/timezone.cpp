@@ -115,9 +115,14 @@ static const int32_t       UNKNOWN_ZONE_ID_LENGTH = 11;
 static icu::TimeZone* DEFAULT_ZONE = NULL;
 static icu::UInitOnce gDefaultZoneInitOnce = U_INITONCE_INITIALIZER;
 
-static icu::TimeZone* _GMT = NULL;
-static icu::TimeZone* _UNKNOWN_ZONE = NULL;
+alignas(icu::SimpleTimeZone)
+static char gRawGMT[sizeof(icu::SimpleTimeZone)];
+
+alignas(icu::SimpleTimeZone)
+static char gRawUNKNOWN[sizeof(icu::SimpleTimeZone)];
+
 static icu::UInitOnce gStaticZonesInitOnce = U_INITONCE_INITIALIZER;
+static UBool gStaticZonesInitialized = FALSE; // Whether the static zones are initialized and ready to use.
 
 static char TZDATA_VERSION[16];
 static icu::UInitOnce gTZDataVersionInitOnce = U_INITONCE_INITIALIZER;
@@ -142,11 +147,12 @@ static UBool U_CALLCONV timeZone_cleanup(void)
     DEFAULT_ZONE = NULL;
     gDefaultZoneInitOnce.reset();
 
-    delete _GMT;
-    _GMT = NULL;
-    delete _UNKNOWN_ZONE;
-    _UNKNOWN_ZONE = NULL;
-    gStaticZonesInitOnce.reset();
+    if (gStaticZonesInitialized) {
+        reinterpret_cast<SimpleTimeZone*>(gRawGMT)->~SimpleTimeZone();
+        reinterpret_cast<SimpleTimeZone*>(gRawUNKNOWN)->~SimpleTimeZone();
+        gStaticZonesInitialized = FALSE;
+        gStaticZonesInitOnce.reset();
+    }
 
     uprv_memset(TZDATA_VERSION, 0, sizeof(TZDATA_VERSION));
     gTZDataVersionInitOnce.reset();
@@ -272,7 +278,7 @@ static UResourceBundle* openOlsonResource(const UnicodeString& id,
                                           UResourceBundle& res,
                                           UErrorCode& ec)
 {
-#if U_DEBUG_TZ
+#ifdef U_DEBUG_TZ
     char buf[128];
     id.extract(0, sizeof(buf)-1, buf, sizeof(buf), "");
 #endif
@@ -304,8 +310,12 @@ void U_CALLCONV initStaticTimeZones() {
     // Initialize _GMT independently of other static data; it should
     // be valid even if we can't load the time zone UDataMemory.
     ucln_i18n_registerCleanup(UCLN_I18N_TIMEZONE, timeZone_cleanup);
-    _UNKNOWN_ZONE = new SimpleTimeZone(0, UnicodeString(TRUE, UNKNOWN_ZONE_ID, UNKNOWN_ZONE_ID_LENGTH));
-    _GMT = new SimpleTimeZone(0, UnicodeString(TRUE, GMT_ID, GMT_ID_LENGTH));
+
+    // new can't fail below, as we use placement new into staticly allocated space.
+    new(gRawGMT) SimpleTimeZone(0, UnicodeString(TRUE, GMT_ID, GMT_ID_LENGTH));
+    new(gRawUNKNOWN) SimpleTimeZone(0, UnicodeString(TRUE, UNKNOWN_ZONE_ID, UNKNOWN_ZONE_ID_LENGTH));
+
+    gStaticZonesInitialized = TRUE;
 }
 
 }  // anonymous namespace
@@ -314,14 +324,14 @@ const TimeZone& U_EXPORT2
 TimeZone::getUnknown()
 {
     umtx_initOnce(gStaticZonesInitOnce, &initStaticTimeZones);
-    return *_UNKNOWN_ZONE;
+    return *reinterpret_cast<SimpleTimeZone*>(gRawUNKNOWN);
 }
 
 const TimeZone* U_EXPORT2
 TimeZone::getGMT(void)
 {
     umtx_initOnce(gStaticZonesInitOnce, &initStaticTimeZones);
-    return _GMT;
+    return reinterpret_cast<SimpleTimeZone*>(gRawGMT);
 }
 
 // *****************************************************************************
@@ -382,23 +392,22 @@ createSystemTimeZone(const UnicodeString& id, UErrorCode& ec) {
         return NULL;
     }
     TimeZone* z = 0;
-    UResourceBundle res;
-    ures_initStackObject(&res);
+    StackUResourceBundle res;
     U_DEBUG_TZ_MSG(("pre-err=%s\n", u_errorName(ec)));
-    UResourceBundle *top = openOlsonResource(id, res, ec);
+    UResourceBundle *top = openOlsonResource(id, res.ref(), ec);
     U_DEBUG_TZ_MSG(("post-err=%s\n", u_errorName(ec)));
     if (U_SUCCESS(ec)) {
-        z = new OlsonTimeZone(top, &res, id, ec);
+        z = new OlsonTimeZone(top, res.getAlias(), id, ec);
         if (z == NULL) {
-          U_DEBUG_TZ_MSG(("cstz: olson time zone failed to initialize - err %s\n", u_errorName(ec)));
+            ec = U_MEMORY_ALLOCATION_ERROR;
+            U_DEBUG_TZ_MSG(("cstz: olson time zone failed to initialize - err %s\n", u_errorName(ec)));
         }
     }
-    ures_close(&res);
     ures_close(top);
     if (U_FAILURE(ec)) {
         U_DEBUG_TZ_MSG(("cstz: failed to create, err %s\n", u_errorName(ec)));
         delete z;
-        z = 0;
+        z = NULL;
     }
     return z;
 }
@@ -436,11 +445,8 @@ TimeZone::createTimeZone(const UnicodeString& ID)
     if (result == NULL) {
         U_DEBUG_TZ_MSG(("failed to load time zone with id - falling to Etc/Unknown(GMT)"));
         const TimeZone& unknown = getUnknown();
-        if (_UNKNOWN_ZONE == NULL) {                   // Cannot test (&unknown == NULL) because the
-          U_DEBUG_TZ_MSG(("failed to getUnknown()"));  // behavior of NULL references is undefined.
-        } else {
-          result = unknown.clone();
-        }
+        // Unknown zone uses staticly allocated memory, so creation of it can never fail due to OOM.
+        result = unknown.clone();
     }
     return result;
 }
@@ -450,10 +456,11 @@ TimeZone::createTimeZone(const UnicodeString& ID)
 TimeZone* U_EXPORT2
 TimeZone::detectHostTimeZone()
 {
-    // We access system timezone data through TPlatformUtilities,
-    // including tzset(), timezone, and tzname[].
+    // We access system timezone data through uprv_tzset(), uprv_tzname(), and others,
+    // which have platform specific implementations in putil.cpp
     int32_t rawOffset = 0;
     const char *hostID;
+    UBool hostDetectionSucceeded = TRUE;
 
     // First, try to create a system timezone, based
     // on the string ID in tzname[0].
@@ -464,8 +471,7 @@ TimeZone::detectHostTimeZone()
 
     // Get the timezone ID from the host.  This function should do
     // any required host-specific remapping; e.g., on Windows this
-    // function maps the Date and Time control panel setting to an
-    // ICU timezone ID.
+    // function maps the Windows Time Zone name to an ICU timezone ID.
     hostID = uprv_tzname(0);
 
     // Invert sign because UNIX semantics are backwards
@@ -473,10 +479,15 @@ TimeZone::detectHostTimeZone()
 
     TimeZone* hostZone = NULL;
 
-    /* Make sure that the string is NULL terminated to prevent BoundsChecker/Purify warnings. */
     UnicodeString hostStrID(hostID, -1, US_INV);
-    hostStrID.append((UChar)0);
-    hostStrID.truncate(hostStrID.length()-1);
+
+    if (hostStrID.length() == 0) {
+        // The host time zone detection (or remapping) above has failed and
+        // we have no name at all. Fallback to using the Unknown zone.
+        hostStrID = UnicodeString(TRUE, UNKNOWN_ZONE_ID, UNKNOWN_ZONE_ID_LENGTH);
+        hostDetectionSucceeded = FALSE;
+    }
+
     hostZone = createSystemTimeZone(hostStrID);
 
 #if U_PLATFORM_USES_ONLY_WIN32_API
@@ -496,22 +507,19 @@ TimeZone::detectHostTimeZone()
 
     // Construct a fixed standard zone with the host's ID
     // and raw offset.
-    if (hostZone == NULL) {
+    if (hostZone == NULL && hostDetectionSucceeded) {
         hostZone = new SimpleTimeZone(rawOffset, hostStrID);
     }
 
-    // If we _still_ don't have a time zone, use GMT.
+    // If we _still_ don't have a time zone, use the Unknown zone.
     //
     // Note: This is extremely unlikely situation. If
     // new SimpleTimeZone(...) above fails, the following
     // code may also fail.
     if (hostZone == NULL) {
-        const TimeZone* temptz = TimeZone::getGMT();
-        // If we can't use GMT, get out.
-        if (temptz == NULL) {
-            return NULL;
-        }
-        hostZone = temptz->clone();
+        // Unknown zone uses static allocated memory, so it must always exist.
+        // However, clone() allocates memory and can fail.
+        hostZone = TimeZone::getUnknown().clone();
     }
 
     return hostZone;
@@ -986,18 +994,14 @@ int32_t U_EXPORT2
 TimeZone::countEquivalentIDs(const UnicodeString& id) {
     int32_t result = 0;
     UErrorCode ec = U_ZERO_ERROR;
-    UResourceBundle res;
-    ures_initStackObject(&res);
+    StackUResourceBundle res;
     U_DEBUG_TZ_MSG(("countEquivalentIDs..\n"));
-    UResourceBundle *top = openOlsonResource(id, res, ec);
+    UResourceBundle *top = openOlsonResource(id, res.ref(), ec);
     if (U_SUCCESS(ec)) {
-        UResourceBundle r;
-        ures_initStackObject(&r);
-        ures_getByKey(&res, kLINKS, &r, &ec);
-        ures_getIntVector(&r, &result, &ec);
-        ures_close(&r);
+        StackUResourceBundle r;
+        ures_getByKey(res.getAlias(), kLINKS, r.getAlias(), &ec);
+        ures_getIntVector(r.getAlias(), &result, &ec);
     }
-    ures_close(&res);
     ures_close(top);
     return result;
 }
@@ -1009,24 +1013,20 @@ TimeZone::getEquivalentID(const UnicodeString& id, int32_t index) {
     U_DEBUG_TZ_MSG(("gEI(%d)\n", index));
     UnicodeString result;
     UErrorCode ec = U_ZERO_ERROR;
-    UResourceBundle res;
-    ures_initStackObject(&res);
-    UResourceBundle *top = openOlsonResource(id, res, ec);
+    StackUResourceBundle res;
+    UResourceBundle *top = openOlsonResource(id, res.ref(), ec);
     int32_t zone = -1;
     if (U_SUCCESS(ec)) {
-        UResourceBundle r;
-        ures_initStackObject(&r);
+        StackUResourceBundle r;
         int32_t size;
-        ures_getByKey(&res, kLINKS, &r, &ec);
-        const int32_t* v = ures_getIntVector(&r, &size, &ec);
+        ures_getByKey(res.getAlias(), kLINKS, r.getAlias(), &ec);
+        const int32_t *v = ures_getIntVector(r.getAlias(), &size, &ec);
         if (U_SUCCESS(ec)) {
             if (index >= 0 && index < size) {
                 zone = v[index];
             }
         }
-        ures_close(&r);
     }
-    ures_close(&res);
     if (zone >= 0) {
         UResourceBundle *ares = ures_getByKey(top, kNAMES, NULL, &ec); // dereference Zones section
         if (U_SUCCESS(ec)) {
@@ -1181,9 +1181,9 @@ TimeZone::getDisplayName(const Locale& locale, UnicodeString& result) const
 }
 
 UnicodeString&
-TimeZone::getDisplayName(UBool daylight, EDisplayType style, UnicodeString& result)  const
+TimeZone::getDisplayName(UBool inDaylight, EDisplayType style, UnicodeString& result)  const
 {
-    return getDisplayName(daylight,style, Locale::getDefault(), result);
+    return getDisplayName(inDaylight,style, Locale::getDefault(), result);
 }
 //--------------------------------------
 int32_t
@@ -1195,7 +1195,7 @@ TimeZone::getDSTSavings()const {
 }
 //---------------------------------------
 UnicodeString&
-TimeZone::getDisplayName(UBool daylight, EDisplayType style, const Locale& locale, UnicodeString& result) const
+TimeZone::getDisplayName(UBool inDaylight, EDisplayType style, const Locale& locale, UnicodeString& result) const
 {
     UErrorCode status = U_ZERO_ERROR;
     UDate date = Calendar::getNow();
@@ -1220,13 +1220,13 @@ TimeZone::getDisplayName(UBool daylight, EDisplayType style, const Locale& local
             tzfmt->format(UTZFMT_STYLE_GENERIC_SHORT, *this, date, result, &timeType);
             break;
         default:
-            U_ASSERT(FALSE);
+            UPRV_UNREACHABLE;
         }
         // Generic format many use Localized GMT as the final fallback.
         // When Localized GMT format is used, the result might not be
         // appropriate for the requested daylight value.
-        if ((daylight && timeType == UTZFMT_TIME_TYPE_STANDARD) || (!daylight && timeType == UTZFMT_TIME_TYPE_DAYLIGHT)) {
-            offset = daylight ? getRawOffset() + getDSTSavings() : getRawOffset();
+        if ((inDaylight && timeType == UTZFMT_TIME_TYPE_STANDARD) || (!inDaylight && timeType == UTZFMT_TIME_TYPE_DAYLIGHT)) {
+            offset = inDaylight ? getRawOffset() + getDSTSavings() : getRawOffset();
             if (style == SHORT_GENERIC) {
                 tzfmt->formatOffsetShortLocalizedGMT(offset, result, status);
             } else {
@@ -1239,7 +1239,7 @@ TimeZone::getDisplayName(UBool daylight, EDisplayType style, const Locale& local
             result.remove();
             return result;
         }
-        offset = daylight && useDaylightTime() ? getRawOffset() + getDSTSavings() : getRawOffset();
+        offset = inDaylight && useDaylightTime() ? getRawOffset() + getDSTSavings() : getRawOffset();
         switch (style) {
         case LONG_GMT:
             tzfmt->formatOffsetLocalizedGMT(offset, result, status);
@@ -1248,7 +1248,7 @@ TimeZone::getDisplayName(UBool daylight, EDisplayType style, const Locale& local
             tzfmt->formatOffsetISO8601Basic(offset, FALSE, FALSE, FALSE, result, status);
             break;
         default:
-            U_ASSERT(FALSE);
+            UPRV_UNREACHABLE;
         }
 
     } else {
@@ -1256,14 +1256,14 @@ TimeZone::getDisplayName(UBool daylight, EDisplayType style, const Locale& local
         UTimeZoneNameType nameType = UTZNM_UNKNOWN;
         switch (style) {
         case LONG:
-            nameType = daylight ? UTZNM_LONG_DAYLIGHT : UTZNM_LONG_STANDARD;
+            nameType = inDaylight ? UTZNM_LONG_DAYLIGHT : UTZNM_LONG_STANDARD;
             break;
         case SHORT:
         case SHORT_COMMONLY_USED:
-            nameType = daylight ? UTZNM_SHORT_DAYLIGHT : UTZNM_SHORT_STANDARD;
+            nameType = inDaylight ? UTZNM_SHORT_DAYLIGHT : UTZNM_SHORT_STANDARD;
             break;
         default:
-            U_ASSERT(FALSE);
+            UPRV_UNREACHABLE;
         }
         LocalPointer<TimeZoneNames> tznames(TimeZoneNames::createInstance(locale, status));
         if (U_FAILURE(status)) {
@@ -1275,7 +1275,7 @@ TimeZone::getDisplayName(UBool daylight, EDisplayType style, const Locale& local
         if (result.isEmpty()) {
             // Fallback to localized GMT
             LocalPointer<TimeZoneFormat> tzfmt(TimeZoneFormat::createInstance(locale, status));
-            offset = daylight && useDaylightTime() ? getRawOffset() + getDSTSavings() : getRawOffset();
+            offset = inDaylight && useDaylightTime() ? getRawOffset() + getDSTSavings() : getRawOffset();
             if (style == LONG) {
                 tzfmt->formatOffsetLocalizedGMT(offset, result, status);
             } else {
@@ -1496,8 +1496,9 @@ TimeZone::hasSameRules(const TimeZone& other) const
 static void U_CALLCONV initTZDataVersion(UErrorCode &status) {
     ucln_i18n_registerCleanup(UCLN_I18N_TIMEZONE, timeZone_cleanup);
     int32_t len = 0;
-    UResourceBundle *bundle = ures_openDirect(NULL, kZONEINFO, &status);
-    const UChar *tzver = ures_getStringByKey(bundle, kTZVERSION, &len, &status);
+    StackUResourceBundle bundle;
+    ures_openDirectFillIn(bundle.getAlias(), NULL, kZONEINFO, &status);
+    const UChar *tzver = ures_getStringByKey(bundle.getAlias(), kTZVERSION, &len, &status);
 
     if (U_SUCCESS(status)) {
         if (len >= (int32_t)sizeof(TZDATA_VERSION)) {
@@ -1506,8 +1507,6 @@ static void U_CALLCONV initTZDataVersion(UErrorCode &status) {
         }
         u_UCharsToChars(tzver, TZDATA_VERSION, len);
     }
-    ures_close(bundle);
-
 }
 
 const char*

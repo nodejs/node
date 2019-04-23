@@ -340,7 +340,7 @@ public:
      *              otherwise.
      * @stable ICU 2.0
      */
-    UBool   operator!=(const    Locale&     other) const;
+    inline UBool   operator!=(const    Locale&     other) const;
 
     /**
      * Clone this object.
@@ -962,7 +962,7 @@ public:
      * @return FALSE if it is a real locale, TRUE if it is a bogus locale
      * @stable ICU 2.1
      */
-    UBool isBogus(void) const;
+    inline UBool isBogus(void) const;
 
     /**
      * Returns a list of all installed locales.

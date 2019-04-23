@@ -32,6 +32,48 @@ enum CldrPatternStyle {
     CLDR_PATTERN_STYLE_COUNT,
 };
 
+
+/**
+ * Helper functions for dealing with the Field typedef, which stores fields
+ * in a compressed format.
+ */
+class NumFieldUtils {
+public:
+    struct CategoryFieldPair {
+        int32_t category;
+        int32_t field;
+    };
+
+    /** Compile-time function to construct a Field from a category and a field */
+    template <int32_t category, int32_t field>
+    static constexpr Field compress() {
+        static_assert(category != 0, "cannot use Undefined category in NumFieldUtils");
+        static_assert(category <= 0xf, "only 4 bits for category");
+        static_assert(field <= 0xf, "only 4 bits for field");
+        return static_cast<int8_t>((category << 4) | field);
+    }
+
+    /** Runtime inline function to unpack the category and field from the Field */
+    static inline CategoryFieldPair expand(Field field) {
+        if (field == UNUM_FIELD_COUNT) {
+            return {UFIELD_CATEGORY_UNDEFINED, 0};
+        }
+        CategoryFieldPair ret = {
+            (field >> 4),
+            (field & 0xf)
+        };
+        if (ret.category == 0) {
+            ret.category = UFIELD_CATEGORY_NUMBER;
+        }
+        return ret;
+    }
+
+    static inline bool isNumericField(Field field) {
+        int8_t category = field >> 4;
+        return category == 0 || category == UFIELD_CATEGORY_NUMBER;
+    }
+};
+
 // Namespace for naked functions
 namespace utils {
 
@@ -80,6 +122,23 @@ inline StandardPlural::Form getStandardPlural(const PluralRules *rules,
         UnicodeString ruleString = rules->select(fdec);
         return StandardPlural::orOtherFromString(ruleString);
     }
+}
+
+/**
+ * Computes the plural form after copying the number and applying rounding rules.
+ */
+inline StandardPlural::Form getPluralSafe(
+        const RoundingImpl& rounder,
+        const PluralRules* rules,
+        const DecimalQuantity& dq,
+        UErrorCode& status) {
+    // TODO(ICU-20500): Avoid the copy?
+    DecimalQuantity copy(dq);
+    rounder.apply(copy, status);
+    if (U_FAILURE(status)) {
+        return StandardPlural::Form::OTHER;
+    }
+    return getStandardPlural(rules, copy);
 }
 
 } // namespace utils

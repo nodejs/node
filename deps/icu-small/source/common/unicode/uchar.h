@@ -60,7 +60,7 @@ U_CDECL_BEGIN
  * @see u_getUnicodeVersion
  * @stable ICU 2.0
  */
-#define U_UNICODE_VERSION "11.0"
+#define U_UNICODE_VERSION "12.1"
 
 /**
  * \file
@@ -1767,6 +1767,27 @@ enum UBlockCode {
     /** @stable ICU 62 */
     UBLOCK_SOGDIAN = 291, /*[10F30]*/
 
+    // New blocks in Unicode 12.0
+
+    /** @stable ICU 64 */
+    UBLOCK_EGYPTIAN_HIEROGLYPH_FORMAT_CONTROLS = 292, /*[13430]*/
+    /** @stable ICU 64 */
+    UBLOCK_ELYMAIC = 293, /*[10FE0]*/
+    /** @stable ICU 64 */
+    UBLOCK_NANDINAGARI = 294, /*[119A0]*/
+    /** @stable ICU 64 */
+    UBLOCK_NYIAKENG_PUACHUE_HMONG = 295, /*[1E100]*/
+    /** @stable ICU 64 */
+    UBLOCK_OTTOMAN_SIYAQ_NUMBERS = 296, /*[1ED00]*/
+    /** @stable ICU 64 */
+    UBLOCK_SMALL_KANA_EXTENSION = 297, /*[1B130]*/
+    /** @stable ICU 64 */
+    UBLOCK_SYMBOLS_AND_PICTOGRAPHS_EXTENDED_A = 298, /*[1FA70]*/
+    /** @stable ICU 64 */
+    UBLOCK_TAMIL_SUPPLEMENT = 299, /*[11FC0]*/
+    /** @stable ICU 64 */
+    UBLOCK_WANCHO = 300, /*[1E2C0]*/
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UBlockCode value.
@@ -1774,7 +1795,7 @@ enum UBlockCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UBLOCK_COUNT = 292,
+    UBLOCK_COUNT = 301,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** @stable ICU 2.0 */

@@ -8,6 +8,7 @@
 #include <atomic>
 #include "unicode/appendable.h"
 #include "unicode/fieldpos.h"
+#include "unicode/formattedvalue.h"
 #include "unicode/fpositer.h"
 #include "unicode/numberformatter.h"
 
@@ -32,7 +33,8 @@
  * // => "750 m - 1.2 km"
  * </pre>
  * <p>
- * Like NumberFormatter, NumberRangeFormatter instances are immutable and thread-safe. This API is based on the
+ * Like NumberFormatter, NumberRangeFormatter instances (i.e., LocalizedNumberRangeFormatter
+ * and UnlocalizedNumberRangeFormatter) are immutable and thread-safe. This API is based on the
  * <em>fluent</em> design pattern popularized by libraries such as Google's Guava.
  *
  * @author Shane Carr
@@ -175,7 +177,7 @@ namespace impl {
 // Forward declarations:
 struct RangeMacroProps;
 class DecimalQuantity;
-struct UFormattedNumberRangeData;
+class UFormattedNumberRangeData;
 class NumberRangeFormatterImpl;
 
 } // namespace impl
@@ -185,8 +187,14 @@ class NumberRangeFormatterImpl;
  * Export an explicit template instantiation. See datefmt.h
  * (When building DLLs for Windows this is required.)
  */
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN && !defined(U_IN_DOXYGEN)
-template struct U_I18N_API std::atomic<impl::NumberRangeFormatterImpl*>;
+#if U_PLATFORM == U_PF_WINDOWS && !defined(U_IN_DOXYGEN)
+} // namespace icu::number
+U_NAMESPACE_END
+
+template struct U_I18N_API std::atomic< U_NAMESPACE_QUALIFIER number::impl::NumberRangeFormatterImpl*>;
+
+U_NAMESPACE_BEGIN
+namespace number {  // icu::number
 #endif
 /** \endcond */
 
@@ -439,6 +447,28 @@ class U_I18N_API NumberRangeFormatterSettings {
     Derived identityFallback(UNumberRangeIdentityFallback identityFallback) &&;
 
     /**
+     * Returns the current (Un)LocalizedNumberRangeFormatter as a LocalPointer
+     * wrapping a heap-allocated copy of the current object.
+     *
+     * This is equivalent to new-ing the move constructor with a value object
+     * as the argument.
+     *
+     * @return A wrapped (Un)LocalizedNumberRangeFormatter pointer, or a wrapped
+     *         nullptr on failure.
+     * @draft ICU 64
+     */
+    LocalPointer<Derived> clone() const &;
+
+    /**
+     * Overload of clone for use on an rvalue reference.
+     *
+     * @return A wrapped (Un)LocalizedNumberRangeFormatter pointer, or a wrapped
+     *         nullptr on failure.
+     * @draft ICU 64
+     */
+    LocalPointer<Derived> clone() &&;
+
+    /**
      * Sets the UErrorCode if an error occurred in the fluent chain.
      * Preserves older error codes in the outErrorCode.
      * @return TRUE if U_FAILURE(outErrorCode)
@@ -451,7 +481,7 @@ class U_I18N_API NumberRangeFormatterSettings {
         }
         fMacros.copyErrorTo(outErrorCode);
         return U_FAILURE(outErrorCode);
-    };
+    }
 
     // NOTE: Uses default copy and move constructors.
 
@@ -467,6 +497,8 @@ class U_I18N_API NumberRangeFormatterSettings {
 
 /**
  * A NumberRangeFormatter that does not yet have a locale. In order to format, a locale must be specified.
+ *
+ * Instances of this class are immutable and thread-safe.
  *
  * @see NumberRangeFormatter
  * @draft ICU 63
@@ -546,6 +578,8 @@ class U_I18N_API UnlocalizedNumberRangeFormatter
 
 /**
  * A NumberRangeFormatter that has a locale associated with it; this means .formatRange() methods are available.
+ *
+ * Instances of this class are immutable and thread-safe.
  *
  * @see NumberFormatter
  * @draft ICU 63
@@ -654,32 +688,39 @@ class U_I18N_API LocalizedNumberRangeFormatter
  * The result of a number range formatting operation. This class allows the result to be exported in several data types,
  * including a UnicodeString and a FieldPositionIterator.
  *
+ * Instances of this class are immutable and thread-safe.
+ *
  * @draft ICU 63
  */
-class U_I18N_API FormattedNumberRange : public UMemory {
+class U_I18N_API FormattedNumberRange : public UMemory, public FormattedValue {
   public:
+    // Copybrief: this method is older than the parent method
     /**
-     * Returns a UnicodeString representation of the formatted number range.
+     * @copybrief FormattedValue::toString()
      *
-     * @param status
-     *            Set if an error occurs while formatting the number to the UnicodeString.
-     * @return a UnicodeString containing the localized number range.
+     * For more information, see FormattedValue::toString()
+     *
      * @draft ICU 63
      */
-    UnicodeString toString(UErrorCode& status) const;
+    UnicodeString toString(UErrorCode& status) const U_OVERRIDE;
 
+    // Copydoc: this method is new in ICU 64
+    /** @copydoc FormattedValue::toTempString() */
+    UnicodeString toTempString(UErrorCode& status) const U_OVERRIDE;
+
+    // Copybrief: this method is older than the parent method
     /**
-     * Appends the formatted number range to an Appendable.
+     * @copybrief FormattedValue::appendTo()
      *
-     * @param appendable
-     *            The Appendable to which to append the formatted number range string.
-     * @param status
-     *            Set if an error occurs while formatting the number range to the Appendable.
-     * @return The same Appendable, for chaining.
+     * For more information, see FormattedValue::appendTo()
+     *
      * @draft ICU 63
-     * @see Appendable
      */
-    Appendable &appendTo(Appendable &appendable, UErrorCode& status) const;
+    Appendable &appendTo(Appendable &appendable, UErrorCode& status) const U_OVERRIDE;
+
+    // Copydoc: this method is new in ICU 64
+    /** @copydoc FormattedValue::nextPosition() */
+    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const U_OVERRIDE;
 
     /**
      * Determines the start (inclusive) and end (exclusive) indices of the next occurrence of the given
@@ -802,7 +843,7 @@ class U_I18N_API FormattedNumberRange : public UMemory {
 
   private:
     // Can't use LocalPointer because UFormattedNumberRangeData is forward-declared
-    const impl::UFormattedNumberRangeData *fResults;
+    const impl::UFormattedNumberRangeData *fData;
 
     // Error code for the terminal methods
     UErrorCode fErrorCode;
@@ -812,10 +853,10 @@ class U_I18N_API FormattedNumberRange : public UMemory {
      * @internal
      */
     explicit FormattedNumberRange(impl::UFormattedNumberRangeData *results)
-        : fResults(results), fErrorCode(U_ZERO_ERROR) {};
+        : fData(results), fErrorCode(U_ZERO_ERROR) {}
 
     explicit FormattedNumberRange(UErrorCode errorCode)
-        : fResults(nullptr), fErrorCode(errorCode) {};
+        : fData(nullptr), fErrorCode(errorCode) {}
 
     void getAllFieldPositionsImpl(FieldPositionIteratorHandler& fpih, UErrorCode& status) const;
 

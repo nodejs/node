@@ -16,6 +16,7 @@
 
 #include "unicode/fieldpos.h"
 #include "unicode/fpositer.h"
+#include "unicode/formattedvalue.h"
 
 U_NAMESPACE_BEGIN
 
@@ -40,6 +41,8 @@ class U_I18N_API FieldPositionHandler: public UMemory {
 
 class FieldPositionOnlyHandler : public FieldPositionHandler {
   FieldPosition& pos;
+  UBool acceptFirstOnly = FALSE;
+  UBool seenFirst = FALSE;
 
  public:
   FieldPositionOnlyHandler(FieldPosition& pos);
@@ -48,6 +51,13 @@ class FieldPositionOnlyHandler : public FieldPositionHandler {
   void addAttribute(int32_t id, int32_t start, int32_t limit) U_OVERRIDE;
   void shiftLast(int32_t delta) U_OVERRIDE;
   UBool isRecording(void) const U_OVERRIDE;
+
+  /**
+   * Enable this option to lock in the FieldPosition value after seeing the
+   * first occurrence of the field. The default behavior is to take the last
+   * occurrence.
+   */
+  void setAcceptFirstOnly(UBool acceptFirstOnly);
 };
 
 
@@ -57,21 +67,38 @@ class FieldPositionIteratorHandler : public FieldPositionHandler {
   FieldPositionIterator* iter; // can be NULL
   UVector32* vec;
   UErrorCode status;
+  UFieldCategory fCategory;
 
   // Note, we keep a reference to status, so if status is on the stack, we have
   // to be destroyed before status goes out of scope.  Easiest thing is to
   // allocate us on the stack in the same (or narrower) scope as status has.
   // This attempts to encourage that by blocking heap allocation.
-  void *operator new(size_t s);
-  void *operator new[](size_t s);
+  static void* U_EXPORT2 operator new(size_t) U_NOEXCEPT = delete;
+  static void* U_EXPORT2 operator new[](size_t) U_NOEXCEPT = delete;
+#if U_HAVE_PLACEMENT_NEW
+  static void* U_EXPORT2 operator new(size_t, void*) U_NOEXCEPT = delete;
+#endif
 
  public:
   FieldPositionIteratorHandler(FieldPositionIterator* posIter, UErrorCode& status);
+  /** If using this constructor, you must call getError() when done formatting! */
+  FieldPositionIteratorHandler(UVector32* vec, UErrorCode& status);
   ~FieldPositionIteratorHandler();
 
   void addAttribute(int32_t id, int32_t start, int32_t limit) U_OVERRIDE;
   void shiftLast(int32_t delta) U_OVERRIDE;
   UBool isRecording(void) const U_OVERRIDE;
+
+  /** Copies a failed error code into _status. */
+  inline void getError(UErrorCode& _status) {
+    if (U_SUCCESS(_status) && U_FAILURE(status)) {
+      _status = status;
+    }
+  }
+
+  inline void setCategory(UFieldCategory category) {
+    fCategory = category;
+  }
 };
 
 U_NAMESPACE_END

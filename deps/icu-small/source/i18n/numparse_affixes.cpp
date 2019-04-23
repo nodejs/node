@@ -100,7 +100,7 @@ void AffixPatternMatcherBuilder::consumeToken(AffixPatternType type, UChar32 cp,
                 addMatcher(fWarehouse.currency(status));
                 break;
             default:
-                U_ASSERT(FALSE);
+                UPRV_UNREACHABLE;
         }
 
     } else if (fIgnorables != nullptr && fIgnorables->getSet()->contains(cp)) {
@@ -109,7 +109,12 @@ void AffixPatternMatcherBuilder::consumeToken(AffixPatternType type, UChar32 cp,
 
     } else {
         // Case 3: the token is a non-ignorable literal.
-        addMatcher(fWarehouse.nextCodePointMatcher(cp));
+        if (auto* ptr = fWarehouse.nextCodePointMatcher(cp, status)) {
+            addMatcher(*ptr);
+        } else {
+            // OOM; unwind the stack
+            return;
+        }
     }
     fLastTypeOrCp = type != TYPE_CODEPOINT ? type : cp;
 }
@@ -124,51 +129,6 @@ void AffixPatternMatcherBuilder::addMatcher(NumberParseMatcher& matcher) {
 AffixPatternMatcher AffixPatternMatcherBuilder::build() {
     return AffixPatternMatcher(fMatchers, fMatchersLen, fPattern);
 }
-
-
-CodePointMatcherWarehouse::CodePointMatcherWarehouse()
-        : codePointCount(0), codePointNumBatches(0) {}
-
-CodePointMatcherWarehouse::~CodePointMatcherWarehouse() {
-    // Delete the variable number of batches of code point matchers
-    for (int32_t i = 0; i < codePointNumBatches; i++) {
-        delete[] codePointsOverflow[i];
-    }
-}
-
-CodePointMatcherWarehouse::CodePointMatcherWarehouse(CodePointMatcherWarehouse&& src) U_NOEXCEPT
-        : codePoints(std::move(src.codePoints)),
-          codePointsOverflow(std::move(src.codePointsOverflow)),
-          codePointCount(src.codePointCount),
-          codePointNumBatches(src.codePointNumBatches) {}
-
-CodePointMatcherWarehouse&
-CodePointMatcherWarehouse::operator=(CodePointMatcherWarehouse&& src) U_NOEXCEPT {
-    codePoints = std::move(src.codePoints);
-    codePointsOverflow = std::move(src.codePointsOverflow);
-    codePointCount = src.codePointCount;
-    codePointNumBatches = src.codePointNumBatches;
-    return *this;
-}
-
-NumberParseMatcher& CodePointMatcherWarehouse::nextCodePointMatcher(UChar32 cp) {
-    if (codePointCount < CODE_POINT_STACK_CAPACITY) {
-        return codePoints[codePointCount++] = {cp};
-    }
-    int32_t totalCapacity = CODE_POINT_STACK_CAPACITY + codePointNumBatches * CODE_POINT_BATCH_SIZE;
-    if (codePointCount >= totalCapacity) {
-        // Need a new batch
-        auto* nextBatch = new CodePointMatcher[CODE_POINT_BATCH_SIZE];
-        if (codePointNumBatches >= codePointsOverflow.getCapacity()) {
-            // Need more room for storing pointers to batches
-            codePointsOverflow.resize(codePointNumBatches * 2, codePointNumBatches);
-        }
-        codePointsOverflow[codePointNumBatches++] = nextBatch;
-    }
-    return codePointsOverflow[codePointNumBatches - 1][(codePointCount++ - CODE_POINT_STACK_CAPACITY) %
-                                                       CODE_POINT_BATCH_SIZE] = {cp};
-}
-
 
 AffixTokenMatcherWarehouse::AffixTokenMatcherWarehouse(const AffixTokenMatcherSetupData* setupData)
         : fSetupData(setupData) {}
@@ -197,8 +157,15 @@ IgnorablesMatcher& AffixTokenMatcherWarehouse::ignorables() {
     return fSetupData->ignorables;
 }
 
-NumberParseMatcher& AffixTokenMatcherWarehouse::nextCodePointMatcher(UChar32 cp) {
-    return fCodePoints.nextCodePointMatcher(cp);
+NumberParseMatcher* AffixTokenMatcherWarehouse::nextCodePointMatcher(UChar32 cp, UErrorCode& status) {
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
+    auto* result = fCodePoints.create(cp);
+    if (result == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+    }
+    return result;
 }
 
 

@@ -95,7 +95,7 @@ class RuleBasedBreakIterator::BreakCache: public UMemory {
                                 fTextIdx = fBI->fPosition = fBoundaries[fBufIdx];
                                 fBI->fRuleStatusIndex = fStatuses[fBufIdx];
                             }
-                };
+                }
 
 
     void        nextOL();
@@ -178,7 +178,7 @@ class RuleBasedBreakIterator::BreakCache: public UMemory {
     void dumpCache();
 
   private:
-    static inline int32_t   modChunkSize(int index) { return index & (CACHE_SIZE - 1); };
+    static inline int32_t   modChunkSize(int index) { return index & (CACHE_SIZE - 1); }
 
     static constexpr int32_t CACHE_SIZE = 128;
     static_assert((CACHE_SIZE & (CACHE_SIZE-1)) == 0, "CACHE_SIZE must be power of two.");

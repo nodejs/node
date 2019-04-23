@@ -322,7 +322,14 @@ class U_I18N_API MeasureFormat : public Format {
      * ICU use only.
      * @internal.
      */
-    const NumberFormat &getNumberFormat() const;
+    const NumberFormat &getNumberFormatInternal() const;
+
+    /**
+     * ICU use only.
+     * Always returns the short form currency formatter.
+     * @internal.
+     */
+    const NumberFormat& getCurrencyFormatInternal() const;
 
     /**
      * ICU use only.
@@ -354,27 +361,6 @@ class U_I18N_API MeasureFormat : public Format {
     // objects are relatively cheap to copy; therefore, they don't need to be
     // shared across instances.
     ListFormatter *listFormatter;
-
-    const SimpleFormatter *getFormatterOrNull(
-            const MeasureUnit &unit, UMeasureFormatWidth width, int32_t index) const;
-
-    const SimpleFormatter *getFormatter(
-            const MeasureUnit &unit, UMeasureFormatWidth width, int32_t index,
-            UErrorCode &errorCode) const;
-
-    const SimpleFormatter *getPluralFormatter(
-            const MeasureUnit &unit, UMeasureFormatWidth width, int32_t index,
-            UErrorCode &errorCode) const;
-
-    const SimpleFormatter *getPerFormatter(
-            UMeasureFormatWidth width,
-            UErrorCode &status) const;
-
-    int32_t withPerUnitAndAppend(
-        const UnicodeString &formatted,
-        const MeasureUnit &perUnit,
-        UnicodeString &appendTo,
-        UErrorCode &status) const;
 
     UnicodeString &formatMeasure(
         const Measure &measure,

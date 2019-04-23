@@ -17,6 +17,7 @@
 #include "unicode/unum.h"
 #include "unicode/udisplaycontext.h"
 #include "unicode/localpointer.h"
+#include "unicode/uformattedvalue.h"
 
 /**
  * \file
@@ -174,6 +175,27 @@ typedef enum URelativeDateTimeUnit {
 #endif  /* U_HIDE_DEPRECATED_API */
 } URelativeDateTimeUnit;
 
+#ifndef U_HIDE_DRAFT_API
+/**
+ * FieldPosition and UFieldPosition selectors for format fields
+ * defined by RelativeDateTimeFormatter.
+ * @draft ICU 64
+ */
+typedef enum URelativeDateTimeFormatterField {
+    /**
+     * Represents a literal text string, like "tomorrow" or "days ago".
+     * @draft ICU 64
+     */
+    UDAT_REL_LITERAL_FIELD,
+    /**
+     * Represents a number quantity, like "3" in "3 days ago".
+     * @draft ICU 64
+     */
+    UDAT_REL_NUMERIC_FIELD,
+} URelativeDateTimeFormatterField;
+#endif // U_HIDE_DRAFT_API
+
+
 /**
  * Opaque URelativeDateTimeFormatter object for use in C programs.
  * @stable ICU 57
@@ -230,6 +252,54 @@ ureldatefmt_open( const char*          locale,
 U_STABLE void U_EXPORT2
 ureldatefmt_close(URelativeDateTimeFormatter *reldatefmt);
 
+#ifndef U_HIDE_DRAFT_API
+struct UFormattedRelativeDateTime;
+/**
+ * Opaque struct to contain the results of a URelativeDateTimeFormatter operation.
+ * @draft ICU 64
+ */
+typedef struct UFormattedRelativeDateTime UFormattedRelativeDateTime;
+
+/**
+ * Creates an object to hold the result of a URelativeDateTimeFormatter
+ * operation. The object can be used repeatedly; it is cleared whenever
+ * passed to a format function.
+ *
+ * @param ec Set if an error occurs.
+ * @return A pointer needing ownership.
+ * @draft ICU 64
+ */
+U_DRAFT UFormattedRelativeDateTime* U_EXPORT2
+ureldatefmt_openResult(UErrorCode* ec);
+
+/**
+ * Returns a representation of a UFormattedRelativeDateTime as a UFormattedValue,
+ * which can be subsequently passed to any API requiring that type.
+ *
+ * The returned object is owned by the UFormattedRelativeDateTime and is valid
+ * only as long as the UFormattedRelativeDateTime is present and unchanged in memory.
+ *
+ * You can think of this method as a cast between types.
+ *
+ * @param ufrdt The object containing the formatted string.
+ * @param ec Set if an error occurs.
+ * @return A UFormattedValue owned by the input object.
+ * @draft ICU 64
+ */
+U_DRAFT const UFormattedValue* U_EXPORT2
+ureldatefmt_resultAsValue(const UFormattedRelativeDateTime* ufrdt, UErrorCode* ec);
+
+/**
+ * Releases the UFormattedRelativeDateTime created by ureldatefmt_openResult.
+ *
+ * @param ufrdt The object to release.
+ * @draft ICU 64
+ */
+U_DRAFT void U_EXPORT2
+ureldatefmt_closeResult(UFormattedRelativeDateTime* ufrdt);
+#endif  /* U_HIDE_DRAFT_API */
+
+
 #if U_SHOW_CPLUSPLUS_API
 
 U_NAMESPACE_BEGIN
@@ -244,6 +314,19 @@ U_NAMESPACE_BEGIN
  * @stable ICU 57
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalURelativeDateTimeFormatterPointer, URelativeDateTimeFormatter, ureldatefmt_close);
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * \class LocalUFormattedRelativeDateTimePointer
+ * "Smart pointer" class, closes a UFormattedRelativeDateTime via ureldatefmt_closeResult().
+ * For most methods see the LocalPointerBase base class.
+ *
+ * @see LocalPointerBase
+ * @see LocalPointer
+ * @draft ICU 64
+ */
+U_DEFINE_LOCAL_OPEN_POINTER(LocalUFormattedRelativeDateTimePointer, UFormattedRelativeDateTime, ureldatefmt_closeResult);
+#endif  /* U_HIDE_DRAFT_API */
 
 U_NAMESPACE_END
 
@@ -285,6 +368,39 @@ ureldatefmt_formatNumeric( const URelativeDateTimeFormatter* reldatefmt,
                     int32_t               resultCapacity,
                     UErrorCode*           status);
 
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Format a combination of URelativeDateTimeUnit and numeric
+ * offset using a numeric style, e.g. "1 week ago", "in 1 week",
+ * "5 weeks ago", "in 5 weeks".
+ *
+ * @param reldatefmt
+ *          The URelativeDateTimeFormatter object specifying the
+ *          format conventions.
+ * @param offset
+ *          The signed offset for the specified unit. This will
+ *          be formatted according to this object's UNumberFormat
+ *          object.
+ * @param unit
+ *          The unit to use when formatting the relative
+ *          date, e.g. UDAT_REL_UNIT_WEEK, UDAT_REL_UNIT_FRIDAY.
+ * @param result
+ *          A pointer to a UFormattedRelativeDateTime to populate.
+ * @param status
+ *          A pointer to a UErrorCode to receive any errors. In
+ *          case of error status, the contents of result are
+ *          undefined.
+ * @draft ICU 64
+ */
+U_DRAFT void U_EXPORT2
+ureldatefmt_formatNumericToResult(
+    const URelativeDateTimeFormatter* reldatefmt,
+    double                            offset,
+    URelativeDateTimeUnit             unit,
+    UFormattedRelativeDateTime*       result,
+    UErrorCode*                       status);
+#endif  /* U_HIDE_DRAFT_API */
+
 /**
  * Format a combination of URelativeDateTimeUnit and numeric offset
  * using a text style if possible, e.g. "last week", "this week",
@@ -320,6 +436,42 @@ ureldatefmt_format( const URelativeDateTimeFormatter* reldatefmt,
                     UChar*                result,
                     int32_t               resultCapacity,
                     UErrorCode*           status);
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Format a combination of URelativeDateTimeUnit and numeric offset
+ * using a text style if possible, e.g. "last week", "this week",
+ * "next week", "yesterday", "tomorrow". Falls back to numeric
+ * style if no appropriate text term is available for the specified
+ * offset in the object's locale.
+ *
+ * This method populates a UFormattedRelativeDateTime, which exposes more
+ * information than the string populated by format().
+ *
+ * @param reldatefmt
+ *          The URelativeDateTimeFormatter object specifying the
+ *          format conventions.
+ * @param offset
+ *          The signed offset for the specified unit.
+ * @param unit
+ *          The unit to use when formatting the relative
+ *          date, e.g. UDAT_REL_UNIT_WEEK, UDAT_REL_UNIT_FRIDAY.
+ * @param result
+ *          A pointer to a UFormattedRelativeDateTime to populate.
+ * @param status
+ *          A pointer to a UErrorCode to receive any errors. In
+ *          case of error status, the contents of result are
+ *          undefined.
+ * @draft ICU 64
+ */
+U_DRAFT void U_EXPORT2
+ureldatefmt_formatToResult(
+    const URelativeDateTimeFormatter* reldatefmt,
+    double                            offset,
+    URelativeDateTimeUnit             unit,
+    UFormattedRelativeDateTime*       result,
+    UErrorCode*                       status);
+#endif  /* U_HIDE_DRAFT_API */
 
 /**
  * Combines a relative date string and a time string in this object's

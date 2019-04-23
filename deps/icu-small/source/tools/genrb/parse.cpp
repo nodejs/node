@@ -2000,6 +2000,8 @@ parse(UCHARBUF *buf, const char *inputDir, const char *outputDir, const char *fi
 
     if (state.bundle == NULL || U_FAILURE(*status))
     {
+        delete state.bundle;
+
         return NULL;
     }
 

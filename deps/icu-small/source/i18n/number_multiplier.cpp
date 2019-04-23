@@ -65,6 +65,9 @@ Scale::Scale(Scale&& src) U_NOEXCEPT
 
 Scale& Scale::operator=(Scale&& src) U_NOEXCEPT {
     fMagnitude = src.fMagnitude;
+    if (fArbitrary != nullptr) {
+        delete fArbitrary;
+    }
     fArbitrary = src.fArbitrary;
     fError = src.fError;
     // Take ownership away from src if necessary

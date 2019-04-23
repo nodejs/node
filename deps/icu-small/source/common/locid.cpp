@@ -62,7 +62,10 @@ static Locale   *gLocaleCache = NULL;
 static UInitOnce gLocaleCacheInitOnce = U_INITONCE_INITIALIZER;
 
 // gDefaultLocaleMutex protects all access to gDefaultLocalesHashT and gDefaultLocale.
-static UMutex gDefaultLocaleMutex = U_MUTEX_INITIALIZER;
+static UMutex *gDefaultLocaleMutex() {
+    static UMutex m = U_MUTEX_INITIALIZER;
+    return &m;
+}
 static UHashtable *gDefaultLocalesHashT = NULL;
 static Locale *gDefaultLocale = NULL;
 
@@ -171,7 +174,7 @@ U_NAMESPACE_BEGIN
 
 Locale *locale_set_default_internal(const char *id, UErrorCode& status) {
     // Synchronize this entire function.
-    Mutex lock(&gDefaultLocaleMutex);
+    Mutex lock(gDefaultLocaleMutex());
 
     UBool canonicalize = FALSE;
 
@@ -569,9 +572,13 @@ Locale& Locale::init(const char* localeID, UBool canonicalize)
         variantBegin = length;
 
         /* after uloc_getName/canonicalize() we know that only '_' are separators */
+        /* But _ could also appeared in timezone such as "en@timezone=America/Los_Angeles" */
         separator = field[0] = fullName;
         fieldIdx = 1;
-        while ((separator = uprv_strchr(field[fieldIdx-1], SEP_CHAR)) != 0 && fieldIdx < UPRV_LENGTHOF(field)-1) {
+        char* at = uprv_strchr(fullName, '@');
+        while ((separator = uprv_strchr(field[fieldIdx-1], SEP_CHAR)) != 0 &&
+               fieldIdx < UPRV_LENGTHOF(field)-1 &&
+               (at == nullptr || separator < at)) {
             field[fieldIdx] = separator + 1;
             fieldLen[fieldIdx-1] = (int32_t)(separator - field[fieldIdx-1]);
             fieldIdx++;
@@ -704,7 +711,7 @@ const Locale& U_EXPORT2
 Locale::getDefault()
 {
     {
-        Mutex lock(&gDefaultLocaleMutex);
+        Mutex lock(gDefaultLocaleMutex());
         if (gDefaultLocale != NULL) {
             return *gDefaultLocale;
         }
@@ -736,46 +743,10 @@ Locale::addLikelySubtags(UErrorCode& status) {
         return;
     }
 
-    // The maximized locale ID string is often longer, but there is no good
-    // heuristic to estimate just how much longer. Leave that to CharString.
     CharString maximizedLocaleID;
-    int32_t maximizedLocaleIDCapacity = static_cast<int32_t>(uprv_strlen(fullName));
-
-    char* buffer;
-    int32_t reslen;
-
-    for (;;) {
-        buffer = maximizedLocaleID.getAppendBuffer(
-                /*minCapacity=*/maximizedLocaleIDCapacity,
-                /*desiredCapacityHint=*/maximizedLocaleIDCapacity,
-                maximizedLocaleIDCapacity,
-                status);
-
-        if (U_FAILURE(status)) {
-            return;
-        }
-
-        reslen = uloc_addLikelySubtags(
-                fullName,
-                buffer,
-                maximizedLocaleIDCapacity,
-                &status);
-
-        if (status != U_BUFFER_OVERFLOW_ERROR) {
-            break;
-        }
-
-        maximizedLocaleIDCapacity = reslen;
-        status = U_ZERO_ERROR;
-    }
-
-    if (U_FAILURE(status)) {
-        return;
-    }
-
-    maximizedLocaleID.append(buffer, reslen, status);
-    if (status == U_STRING_NOT_TERMINATED_WARNING) {
-        status = U_ZERO_ERROR;  // Terminators provided by CharString.
+    {
+        CharStringByteSink sink(&maximizedLocaleID);
+        ulocimp_addLikelySubtags(fullName, sink, &status);
     }
 
     if (U_FAILURE(status)) {
@@ -794,50 +765,10 @@ Locale::minimizeSubtags(UErrorCode& status) {
         return;
     }
 
-    // Except for a few edge cases (like the empty string, that is minimized to
-    // "en__POSIX"), minimized locale ID strings will be either the same length
-    // or shorter than their input.
     CharString minimizedLocaleID;
-    int32_t minimizedLocaleIDCapacity = static_cast<int32_t>(uprv_strlen(fullName));
-
-    char* buffer;
-    int32_t reslen;
-
-    for (;;) {
-        buffer = minimizedLocaleID.getAppendBuffer(
-                /*minCapacity=*/minimizedLocaleIDCapacity,
-                /*desiredCapacityHint=*/minimizedLocaleIDCapacity,
-                minimizedLocaleIDCapacity,
-                status);
-
-        if (U_FAILURE(status)) {
-            return;
-        }
-
-        reslen = uloc_minimizeSubtags(
-                fullName,
-                buffer,
-                minimizedLocaleIDCapacity,
-                &status);
-
-        if (status != U_BUFFER_OVERFLOW_ERROR) {
-            break;
-        }
-
-        // Because of the internal minimal buffer size of CharString, I can't
-        // think of any input data for which this could possibly ever happen.
-        // Maybe it would be better replaced with an assertion instead?
-        minimizedLocaleIDCapacity = reslen;
-        status = U_ZERO_ERROR;
-    }
-
-    if (U_FAILURE(status)) {
-        return;
-    }
-
-    minimizedLocaleID.append(buffer, reslen, status);
-    if (status == U_STRING_NOT_TERMINATED_WARNING) {
-        status = U_ZERO_ERROR;  // Terminators provided by CharString.
+    {
+        CharStringByteSink sink(&minimizedLocaleID);
+        ulocimp_minimizeSubtags(fullName, sink, &status);
     }
 
     if (U_FAILURE(status)) {
@@ -869,43 +800,16 @@ Locale::forLanguageTag(StringPiece tag, UErrorCode& status)
     // parsing. Therefore the code here explicitly calls uloc_forLanguageTag()
     // and then Locale::init(), instead of just calling the normal constructor.
 
-    // All simple language tags will have the exact same length as ICU locale
-    // ID strings as they have as BCP-47 strings (like "en_US" for "en-US").
     CharString localeID;
-    int32_t resultCapacity = tag.size();
-
-    char* buffer;
-    int32_t parsedLength, reslen;
-
-    for (;;) {
-        buffer = localeID.getAppendBuffer(
-                /*minCapacity=*/resultCapacity,
-                /*desiredCapacityHint=*/resultCapacity,
-                resultCapacity,
-                status);
-
-        if (U_FAILURE(status)) {
-            return result;
-        }
-
-        reslen = ulocimp_forLanguageTag(
+    int32_t parsedLength;
+    {
+        CharStringByteSink sink(&localeID);
+        ulocimp_forLanguageTag(
                 tag.data(),
                 tag.length(),
-                buffer,
-                resultCapacity,
+                sink,
                 &parsedLength,
                 &status);
-
-        if (status != U_BUFFER_OVERFLOW_ERROR) {
-            break;
-        }
-
-        // For all BCP-47 language tags that use extensions, the corresponding
-        // ICU locale ID will be longer but uloc_forLanguageTag() does compute
-        // the exact length needed so this memory reallocation will be done at
-        // most once.
-        resultCapacity = reslen;
-        status = U_ZERO_ERROR;
     }
 
     if (U_FAILURE(status)) {
@@ -914,15 +818,6 @@ Locale::forLanguageTag(StringPiece tag, UErrorCode& status)
 
     if (parsedLength != tag.size()) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return result;
-    }
-
-    localeID.append(buffer, reslen, status);
-    if (status == U_STRING_NOT_TERMINATED_WARNING) {
-        status = U_ZERO_ERROR;  // Terminators provided by CharString.
-    }
-
-    if (U_FAILURE(status)) {
         return result;
     }
 
@@ -945,59 +840,7 @@ Locale::toLanguageTag(ByteSink& sink, UErrorCode& status) const
         return;
     }
 
-    // All simple language tags will have the exact same length as BCP-47
-    // strings as they have as ICU locale IDs (like "en-US" for "en_US").
-    LocalMemory<char> scratch;
-    int32_t scratch_capacity = static_cast<int32_t>(uprv_strlen(fullName));
-
-    if (scratch_capacity == 0) {
-        scratch_capacity = 3;  // "und"
-    }
-
-    char* buffer;
-    int32_t result_capacity, reslen;
-
-    for (;;) {
-        if (scratch.allocateInsteadAndReset(scratch_capacity) == nullptr) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-            return;
-        }
-
-        buffer = sink.GetAppendBuffer(
-                /*min_capacity=*/scratch_capacity,
-                /*desired_capacity_hint=*/scratch_capacity,
-                scratch.getAlias(),
-                scratch_capacity,
-                &result_capacity);
-
-        reslen = uloc_toLanguageTag(
-                fullName,
-                buffer,
-                result_capacity,
-                /*strict=*/FALSE,
-                &status);
-
-        if (status != U_BUFFER_OVERFLOW_ERROR) {
-            break;
-        }
-
-        // For some very few edge cases a language tag will be longer as a
-        // BCP-47 string than it is as an ICU locale ID. Most notoriously "C"
-        // expands to the BCP-47 tag "en-US-u-va-posix", 16 times longer, and
-        // it'll take several calls to uloc_toLanguageTag() to figure that out.
-        // https://unicode-org.atlassian.net/browse/ICU-20132
-        scratch_capacity = reslen;
-        status = U_ZERO_ERROR;
-    }
-
-    if (U_FAILURE(status)) {
-        return;
-    }
-
-    sink.Append(buffer, reslen);
-    if (status == U_STRING_NOT_TERMINATED_WARNING) {
-        status = U_ZERO_ERROR;  // Terminators not used.
-    }
+    ulocimp_toLanguageTag(fullName, sink, /*strict=*/FALSE, &status);
 }
 
 Locale U_EXPORT2
@@ -1536,12 +1379,16 @@ Locale::setUnicodeKeywordValue(StringPiece keywordName,
         return;
     }
 
-    const char* legacy_value =
-        uloc_toLegacyType(keywordName_nul.data(), keywordValue_nul.data());
+    const char* legacy_value = nullptr;
 
-    if (legacy_value == nullptr) {
-        status = U_ILLEGAL_ARGUMENT_ERROR;
-        return;
+    if (!keywordValue_nul.isEmpty()) {
+        legacy_value =
+            uloc_toLegacyType(keywordName_nul.data(), keywordValue_nul.data());
+
+        if (legacy_value == nullptr) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return;
+        }
     }
 
     setKeywordValue(legacy_key, legacy_value, status);
