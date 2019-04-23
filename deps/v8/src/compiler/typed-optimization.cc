@@ -244,12 +244,13 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
       //
       //   NumberToUint32(NumberDivide(lhs, rhs))
       //
-      // and just smash the type of the {lhs} on the {node},
-      // as the truncated result must be in the same range as
-      // {lhs} since {rhs} cannot be less than 1 (due to the
+      // and just smash the type [0...lhs.Max] on the {node},
+      // as the truncated result must be loewr than {lhs}'s maximum
+      // value (note that {rhs} cannot be less than 1 due to the
       // plain-number type constraint on the {node}).
       NodeProperties::ChangeOp(node, simplified()->NumberToUint32());
-      NodeProperties::SetType(node, lhs_type);
+      NodeProperties::SetType(node,
+                              Type::Range(0, lhs_type->Max(), graph()->zone()));
       return Changed(node);
     }
   }
