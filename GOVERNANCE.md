@@ -144,21 +144,21 @@ frictionless as possible. Use the [Collaborators discussion page][] to request
 feedback from other Collaborators in private. A nominator may also work with the
 nominee to improve their contribution profile.
 
-If individuals making valuable contributions do not believe they have been
-considered for a nomination, they may log an issue or contact a Collaborator
-directly.
+It is possible that Collaborators will overlook someone with valuable
+contributions. In that case, the contributor may open an issue or contact a
+Collaborator to request a nomination.
 
 ### Onboarding
 
-When the nomination is accepted, the new Collaborator will be onboarded
-by a TSC member. See [the onboarding guide](./doc/onboarding.md) on
-details of the onboarding process. In general, the onboarding should be
-completed within a month after the nomination is accepted.
+After the nomination passes, a TSC member onboards the new Collaborator. See
+[the onboarding guide](./doc/onboarding.md) on details of the onboarding
+process. In general, the onboarding should occur within a month after the
+nomination passes.
 
 ## Consensus Seeking Process
 
-The TSC follows a [Consensus Seeking][] decision-making model as described by
-the [TSC Charter][].
+The TSC follows a [Consensus Seeking][] decision-making model per the
+[TSC Charter][].
 
 [Collaborators discussion page]: https://github.com/orgs/nodejs/teams/collaborators/discussions
 [Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
