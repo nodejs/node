@@ -8,11 +8,11 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 const server = net.createServer((conn) => {
-  conn.on('close', common.mustCall());
-
   spawn(process.execPath, ['-v'], {
     stdio: ['ignore', conn, 'ignore']
-  }).on('close', common.mustCall());
+  }).on('close', common.mustCall(() => {
+    conn.end();
+  }));
 }).listen(common.PIPE, () => {
   const client = net.connect(common.PIPE, common.mustCall());
   client.on('data', () => {
