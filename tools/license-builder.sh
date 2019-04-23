@@ -75,8 +75,8 @@ addlicense "npm" "deps/npm" "$(cat ${rootdir}/deps/npm/LICENSE)"
 # Build tools
 addlicense "GYP" "tools/gyp" "$(cat ${rootdir}/tools/gyp/LICENSE)"
 addlicense "inspector_protocol" "tools/inspector_protocol" "$(cat ${rootdir}/tools/inspector_protocol/LICENSE)"
-addlicense "jinja2" "tools/jinja2" "$(cat ${rootdir}/tools/jinja2/LICENSE)"
-addlicense "markupsafe" "tools/markupsafe" "$(cat ${rootdir}/tools/markupsafe/LICENSE)"
+addlicense "jinja2" "tools/inspector_protocol/jinja2" "$(cat ${rootdir}/tools/inspector_protocol/jinja2/LICENSE)"
+addlicense "markupsafe" "tools/inspector_protocol/markupsafe" "$(cat ${rootdir}/tools/inspector_protocol/markupsafe/LICENSE)"
 
 # Testing tools
 addlicense "cpplint.py" "tools/cpplint.py" \
