@@ -22,16 +22,53 @@ tmpdir.refresh();
 if (process.config.variables.node_shared)
   common.skip("can't test Linux perf with shared libraries yet");
 
-const perfArgs = [
+if (!common.isLinux)
+  common.skip('only testing Linux for now');
+
+const frequency = 99;
+
+const repeat = 5;
+
+// Expected number of samples we'll capture per repeat
+const sampleCount = 10;
+const sleepTime = sampleCount * (1.0 / frequency);
+
+const perfFlags = [
   'record',
-  '-F999',
+  `-F${frequency}`,
   '-g',
-  '--',
-  process.execPath,
+];
+
+const nodeCommonFlags = [
   '--perf-basic-prof',
   '--interpreted-frames-native-stack',
   '--no-turbo-inlining',  // Otherwise simple functions might get inlined.
+];
+
+const perfInterpretedFramesArgs = [
+  ...perfFlags,
+  '--',
+  process.execPath,
+  ...nodeCommonFlags,
+  '--no-opt',
   fixtures.path('linux-perf.js'),
+  `${sleepTime}`,
+  `${repeat}`,
+];
+
+const perfCompiledFramesArgs = [
+  ...perfFlags,
+  '--',
+  process.execPath,
+  ...nodeCommonFlags,
+  '--always-opt',
+  fixtures.path('linux-perf.js'),
+  `${sleepTime}`,
+  `${repeat}`,
+];
+
+const perfArgsList = [
+  perfInterpretedFramesArgs, perfCompiledFramesArgs
 ];
 
 const perfScriptArgs = [
@@ -43,25 +80,20 @@ const options = {
   encoding: 'utf-8',
 };
 
-if (!common.isLinux)
-  common.skip('only testing Linux for now');
+let output = '';
 
-const perf = spawnSync('perf', perfArgs, options);
+for (const perfArgs of perfArgsList) {
+  const perf = spawnSync('perf', perfArgs, options);
+  assert.ifError(perf.error);
+  if (perf.status !== 0)
+    throw new Error(`Failed to execute 'perf': ${perf.stderr}`);
 
-if (perf.error && perf.error.errno === 'ENOENT')
-  common.skip('perf not found on system');
+  const perfScript = spawnSync('perf', perfScriptArgs, options);
+  assert.ifError(perfScript.error);
+  if (perfScript.status !== 0)
+    throw new Error(`Failed to execute perf script: ${perfScript.stderr}`);
 
-if (perf.status !== 0) {
-  common.skip(`Failed to execute perf: ${perf.stderr}`);
-}
-
-const perfScript = spawnSync('perf', perfScriptArgs, options);
-
-if (perf.error)
-  common.skip(`perf script aborted: ${perf.error.errno}`);
-
-if (perfScript.status !== 0) {
-  common.skip(`Failed to execute perf script: ${perfScript.stderr}`);
+  output += perfScript.stdout;
 }
 
 const interpretedFunctionOneRe = /InterpretedFunction:functionOne/;
@@ -69,7 +101,6 @@ const compiledFunctionOneRe = /LazyCompile:\*functionOne/;
 const interpretedFunctionTwoRe = /InterpretedFunction:functionTwo/;
 const compiledFunctionTwoRe = /LazyCompile:\*functionTwo/;
 
-const output = perfScript.stdout;
 
 assert.ok(output.match(interpretedFunctionOneRe),
           "Couldn't find interpreted functionOne()");
