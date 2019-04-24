@@ -1,5 +1,4 @@
 // Flags: --experimental-modules
-/* eslint-disable node-core/required-modules */
 import '../common/index.mjs';
 import '../fixtures/es-modules/esm-snapshot-mutator.js';
 import one from '../fixtures/es-modules/esm-snapshot.js';

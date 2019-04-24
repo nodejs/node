@@ -46,6 +46,10 @@ module.exports = function(context) {
    * @returns {undefined|String} required module name or undefined
    */
   function getRequiredModuleName(str) {
+    if (str === '../common/index.mjs') {
+      return 'common';
+    }
+
     const value = path.basename(str);
 
     // Check if value is in required modules array
