@@ -199,8 +199,9 @@ std::shared_ptr<KVStore> KVStore::Clone(v8::Isolate* isolate) const {
   for (uint32_t i = 0; i < keys_length; i++) {
     Local<Value> key = keys->Get(context, i).ToLocalChecked();
     CHECK(key->IsString());
-    copy->Set(isolate, key.As<String>(), Get(isolate, key.As<String>())
-        .ToLocalChecked());
+    copy->Set(isolate,
+              key.As<String>(),
+              Get(isolate, key.As<String>()).ToLocalChecked());
   }
   return copy;
 }
@@ -293,11 +294,9 @@ static void EnvGetter(Local<Name> property,
   CHECK(property->IsString());
   MaybeLocal<String> value_string =
       env->env_vars()->Get(env->isolate(), property.As<String>());
-  if (value_string.IsEmpty()) {
-    info.GetReturnValue().Set(value_string.FromMaybe(Local<String>()));
-    return;
+  if (!value_string.IsEmpty()) {
+    info.GetReturnValue().Set(value_string.ToLocalChecked());
   }
-  info.GetReturnValue().Set(value_string.ToLocalChecked());
 }
 
 static void EnvSetter(Local<Name> property,
