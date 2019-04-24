@@ -1305,7 +1305,7 @@ invalid.
 <a id="ERR_INVALID_PROTOCOL"></a>
 ### ERR_INVALID_PROTOCOL
 
-An invalid `options.protocol` was passed.
+An invalid `options.protocol` was passed to `http.request()`.
 
 <a id="ERR_INVALID_REPL_EVAL_CONFIG"></a>
 ### ERR_INVALID_REPL_EVAL_CONFIG
