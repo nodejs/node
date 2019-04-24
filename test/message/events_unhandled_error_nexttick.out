@@ -13,6 +13,3 @@ Error
 Emitted 'error' event at:
     at *events_unhandled_error_nexttick.js:*:*
     at processTicksAndRejections (internal/process/task_queues.js:*:*)
-    at process.runNextTicks [as _tickCallback] (internal/process/task_queues.js:*:*)
-    at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
-    at internal/main/run_main_module.js:*:*
