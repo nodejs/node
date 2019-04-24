@@ -2885,6 +2885,7 @@ try {
   decipher.final();
 } catch (err) {
   console.error('Authentication failed!');
+  return;
 }
 
 console.log(receivedPlaintext);
