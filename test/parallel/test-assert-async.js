@@ -114,11 +114,36 @@ promises.push(assert.rejects(
   }
 ));
 
+{
+  const handler = (generated, actual, err) => {
+    assert.strictEqual(err.generatedMessage, generated);
+    assert.strictEqual(err.code, 'ERR_ASSERTION');
+    assert.strictEqual(err.actual, actual);
+    assert.strictEqual(err.operator, 'rejects');
+    assert(/rejects/.test(err.stack));
+    return true;
+  };
+  const err = new Error();
+  promises.push(assert.rejects(
+    assert.rejects(Promise.reject(null), { code: 'FOO' }),
+    handler.bind(null, true, null)
+  ));
+  promises.push(assert.rejects(
+    assert.rejects(Promise.reject(5), { code: 'FOO' }, 'AAAAA'),
+    handler.bind(null, false, 5)
+  ));
+  promises.push(assert.rejects(
+    assert.rejects(Promise.reject(err), { code: 'FOO' }, 'AAAAA'),
+    handler.bind(null, false, err)
+  ));
+}
+
 // Check `assert.doesNotReject`.
 {
   // `assert.doesNotReject` accepts a function or a promise
   // or a thenable as first argument.
-  const promise = assert.doesNotReject(() => new Map(), common.mustNotCall());
+  /* eslint-disable no-restricted-syntax */
+  let promise = assert.doesNotReject(() => new Map(), common.mustNotCall());
   promises.push(assert.rejects(promise, {
     message: 'Expected instance of Promise to be returned ' +
              'from the "promiseFn" function but got instance of Map.',
@@ -149,9 +174,7 @@ promises.push(assert.rejects(
       code: 'ERR_INVALID_RETURN_VALUE'
     })
   );
-}
 
-{
   const handler1 = (err) => {
     assert(err instanceof assert.AssertionError,
            `${err.name} is not instance of AssertionError`);
@@ -173,7 +196,7 @@ promises.push(assert.rejects(
 
   const rejectingFn = async () => assert.fail();
 
-  let promise = assert.doesNotReject(rejectingFn, common.mustCall(handler1));
+  promise = assert.doesNotReject(rejectingFn, common.mustCall(handler1));
   promises.push(assert.rejects(promise, common.mustCall(handler2)));
 
   promise = assert.doesNotReject(rejectingFn(), common.mustCall(handler1));
@@ -181,39 +204,16 @@ promises.push(assert.rejects(
 
   promise = assert.doesNotReject(() => assert.fail(), common.mustNotCall());
   promises.push(assert.rejects(promise, common.mustCall(handler1)));
-}
 
-promises.push(assert.rejects(
-  assert.doesNotReject(123),
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "promiseFn" argument must be one of type ' +
-             'Function or Promise. Received type number'
-  }
-));
-
-{
-  const handler = (generated, actual, err) => {
-    assert.strictEqual(err.generatedMessage, generated);
-    assert.strictEqual(err.code, 'ERR_ASSERTION');
-    assert.strictEqual(err.actual, actual);
-    assert.strictEqual(err.operator, 'rejects');
-    assert(/rejects/.test(err.stack));
-    return true;
-  };
-  const err = new Error();
   promises.push(assert.rejects(
-    assert.rejects(Promise.reject(null), { code: 'FOO' }),
-    handler.bind(null, true, null)
+    assert.doesNotReject(123),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "promiseFn" argument must be one of type ' +
+               'Function or Promise. Received type number'
+    }
   ));
-  promises.push(assert.rejects(
-    assert.rejects(Promise.reject(5), { code: 'FOO' }, 'AAAAA'),
-    handler.bind(null, false, 5)
-  ));
-  promises.push(assert.rejects(
-    assert.rejects(Promise.reject(err), { code: 'FOO' }, 'AAAAA'),
-    handler.bind(null, false, err)
-  ));
+  /* eslint-enable no-restricted-syntax */
 }
 
 // Make sure all async code gets properly executed.

@@ -184,7 +184,11 @@ module.exports = {
       },
       {
         selector: "CallExpression[callee.property.name='doesNotThrow']",
-        message: 'Please replace `assert.doesNotThrow()` and add a comment next to the code instead.',
+        message: 'Do not use `assert.doesNotThrow()`. Write the code without the wrapper and add a comment instead.',
+      },
+      {
+        selector: "CallExpression[callee.property.name='doesNotReject']",
+        message: 'Do not use `assert.doesNotReject()`. Write the code without the wrapper and add a comment instead.',
       },
       {
         selector: "CallExpression[callee.property.name='rejects'][arguments.length<2]",
