@@ -5,6 +5,9 @@
 
 const common = require('../common');
 
+if (!common.isWindows && process.getuid() === 0)
+  common.skip('as this test should not be run as `root`');
+
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
