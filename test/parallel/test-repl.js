@@ -338,12 +338,12 @@ const errorTests = [
     expect: '... '
   },
   {
-    send: 'return 1;',
+    send: 'return 1n;',
     expect: '... '
   },
   {
     send: '})()',
-    expect: '1'
+    expect: '1n'
   },
   // Multiline function call
   {
