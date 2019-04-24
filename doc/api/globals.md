@@ -81,6 +81,18 @@ This variable may appear to be global but is not. See [`exports`].
 ## global
 <!-- YAML
 added: v0.1.27
+deprecated: REPLACEME
+-->
+
+<!-- type=global -->
+
+> Stability: 0 - Deprecated: Use [`globalThis)`][] instead.
+
+* {Object} The global namespace object.
+
+## globalThis
+<!-- YAML
+added: REPLACEME
 -->
 
 <!-- type=global -->
