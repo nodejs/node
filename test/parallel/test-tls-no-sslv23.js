@@ -8,7 +8,10 @@ const tls = require('tls');
 
 assert.throws(function() {
   tls.createSecureContext({ secureProtocol: 'blargh' });
-}, /Unknown method/);
+}, {
+  code: 'ERR_TLS_INVALID_PROTOCOL_METHOD',
+  message: 'Unknown method: blargh',
+});
 
 const errMessageSSLv2 = /SSLv2 methods disabled/;
 
