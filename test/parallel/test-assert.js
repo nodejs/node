@@ -631,13 +631,13 @@ common.expectsError(
   }
 );
 common.expectsError(
-  () => assert(typeof 123 === 'string'),
+  () => assert(typeof 123n === 'string'),
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     generatedMessage: true,
     message: 'The expression evaluated to a falsy value:\n\n  ' +
-             "assert(typeof 123 === 'string')\n"
+             "assert(typeof 123n === 'string')\n"
   }
 );
 
