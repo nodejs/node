@@ -3,7 +3,13 @@ const assert = require('assert');
 const common = require('../common');
 const { Worker, isMainThread, parentPort } = require('worker_threads');
 
-if (isMainThread) {
+// Do not use isMainThread directly, otherwise the test would time out in case
+// it's started inside of another worker thread.
+if (!process.env.HAS_STARTED_WORKER) {
+  process.env.HAS_STARTED_WORKER = '1';
+  if (!isMainThread) {
+    common.skip('This test can only run as main thread');
+  }
   const w = new Worker(__filename);
   process.chdir('..');
   w.on('message', common.mustCall((message) => {
