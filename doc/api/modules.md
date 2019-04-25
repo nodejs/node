@@ -905,14 +905,35 @@ by the [module wrapper][]. To access it, require the `Module` module:
 const builtin = require('module').builtinModules;
 ```
 
+### module.createRequire(filename)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filename` {string|URL} Filename to be used to construct the require
+  function. Must be a file URL object, file URL string, or absolute path
+  string.
+* Returns: {require} Require function
+
+```js
+const { createRequire } = require('module');
+const requireUtil = createRequire(require.resolve('../src/utils/'));
+
+// Require `../src/utils/some-tool`
+requireUtil('./some-tool');
+```
+
 ### module.createRequireFromPath(filename)
 <!-- YAML
 added: v10.12.0
+deprecated: REPLACEME
 -->
 
 * `filename` {string} Filename to be used to construct the relative require
   function.
 * Returns: {require} Require function
+
+> Stability: 0 - Deprecated: Please use [`createRequire()`][] instead.
 
 ```js
 const { createRequireFromPath } = require('module');
@@ -926,6 +947,7 @@ requireUtil('./some-tool');
 [`Error`]: errors.html#errors_class_error
 [`__dirname`]: #modules_dirname
 [`__filename`]: #modules_filename
+[`createRequire()`]: #modules_module_createrequire_filename
 [`module` object]: #modules_the_module_object
 [`path.dirname()`]: path.html#path_path_dirname_path
 [exports shortcut]: #modules_exports_shortcut
