@@ -92,7 +92,7 @@ deprecated: REPLACEME
 
 ## globalThis
 <!-- YAML
-added: REPLACEME
+added: v11.0.0
 -->
 
 <!-- type=global -->
