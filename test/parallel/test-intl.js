@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { execFile } = require('child_process');
 
 // Does node think that i18n was enabled?
 let enablei18n = process.config.variables.v8_enable_i18n_support;
@@ -125,4 +126,11 @@ if (!common.hasIntl) {
   assert.strictEqual(coll.compare('Bluebird', 'bluebird'), 0);
   // `ffi` ligature (contraction)
   assert.strictEqual(coll.compare('\ufb03', 'ffi'), 0);
+
+  // Regression test for https://github.com/nodejs/node/issues/27379
+  execFile(
+    process.execPath, ['-p', 'new Date().toLocaleString()'],
+    { env: { LC_ALL: 'ja' }, encoding: 'utf-8' },
+    common.mustCall((e) => assert.ifError(e))
+  );
 }
