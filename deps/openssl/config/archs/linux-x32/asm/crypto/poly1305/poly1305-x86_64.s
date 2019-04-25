@@ -52,7 +52,7 @@ poly1305_init:
 .type	poly1305_blocks,@function
 .align	32
 poly1305_blocks:
-.cfi_startproc
+.cfi_startproc	
 .Lblocks:
 	shrq	$4,%rdx
 	jz	.Lno_data
@@ -161,7 +161,7 @@ poly1305_blocks:
 .Lno_data:
 .Lblocks_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	poly1305_blocks,.-poly1305_blocks
 
 .type	poly1305_emit,@function
@@ -397,7 +397,7 @@ __poly1305_init_avx:
 .type	poly1305_blocks_avx,@function
 .align	32
 poly1305_blocks_avx:
-.cfi_startproc
+.cfi_startproc	
 	movl	20(%rdi),%r8d
 	cmpq	$128,%rdx
 	jae	.Lblocks_avx
@@ -552,11 +552,11 @@ poly1305_blocks_avx:
 .Lno_data_avx:
 .Lblocks_avx_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 
 .align	32
 .Lbase2_64_avx:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-16
@@ -650,11 +650,11 @@ poly1305_blocks_avx:
 .cfi_adjust_cfa_offset	-48
 .Lbase2_64_avx_epilogue:
 	jmp	.Ldo_avx
-.cfi_endproc
+.cfi_endproc	
 
 .align	32
 .Leven_avx:
-.cfi_startproc
+.cfi_startproc	
 	vmovd	0(%rdi),%xmm0
 	vmovd	4(%rdi),%xmm1
 	vmovd	8(%rdi),%xmm2
@@ -1226,7 +1226,7 @@ poly1305_blocks_avx:
 .cfi_def_cfa	%rsp,8
 	vzeroupper
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	poly1305_blocks_avx,.-poly1305_blocks_avx
 
 .type	poly1305_emit_avx,@function
@@ -1286,7 +1286,7 @@ poly1305_emit_avx:
 .type	poly1305_blocks_avx2,@function
 .align	32
 poly1305_blocks_avx2:
-.cfi_startproc
+.cfi_startproc	
 	movl	20(%rdi),%r8d
 	cmpq	$128,%rdx
 	jae	.Lblocks_avx2
@@ -1447,11 +1447,11 @@ poly1305_blocks_avx2:
 .Lno_data_avx2:
 .Lblocks_avx2_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 
 .align	32
 .Lbase2_64_avx2:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-16
@@ -1552,11 +1552,11 @@ poly1305_blocks_avx2:
 .cfi_adjust_cfa_offset	-48
 .Lbase2_64_avx2_epilogue:
 	jmp	.Ldo_avx2
-.cfi_endproc
+.cfi_endproc	
 
 .align	32
 .Leven_avx2:
-.cfi_startproc
+.cfi_startproc	
 	movl	OPENSSL_ia32cap_P+8(%rip),%r10d
 	vmovd	0(%rdi),%xmm0
 	vmovd	4(%rdi),%xmm1
@@ -1931,12 +1931,12 @@ poly1305_blocks_avx2:
 .cfi_def_cfa	%rsp,8
 	vzeroupper
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	poly1305_blocks_avx2,.-poly1305_blocks_avx2
 .type	poly1305_blocks_avx512,@function
 .align	32
 poly1305_blocks_avx512:
-.cfi_startproc
+.cfi_startproc	
 .Lblocks_avx512:
 	movl	$15,%eax
 	kmovw	%eax,%k2
@@ -2473,7 +2473,7 @@ poly1305_blocks_avx512:
 	leaq	8(%r11),%rsp
 .cfi_def_cfa	%rsp,8
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	poly1305_blocks_avx512,.-poly1305_blocks_avx512
 .type	poly1305_init_base2_44,@function
 .align	32

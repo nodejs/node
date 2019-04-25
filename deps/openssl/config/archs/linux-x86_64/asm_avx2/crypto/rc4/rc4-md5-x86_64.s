@@ -1,10 +1,10 @@
-.text
+.text	
 .align	16
 
 .globl	rc4_md5_enc
 .type	rc4_md5_enc,@function
 rc4_md5_enc:
-.cfi_startproc
+.cfi_startproc	
 	cmpq	$0,%r9
 	je	.Labort
 	pushq	%rbx
@@ -1277,5 +1277,5 @@ rc4_md5_enc:
 .Lepilogue:
 .Labort:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	rc4_md5_enc,.-rc4_md5_enc

@@ -6,7 +6,7 @@
 .type	rsaz_512_sqr,@function
 .align	32
 rsaz_512_sqr:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-16
@@ -689,13 +689,13 @@ rsaz_512_sqr:
 .cfi_def_cfa_register	%rsp
 .Lsqr_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	rsaz_512_sqr,.-rsaz_512_sqr
 .globl	rsaz_512_mul
 .type	rsaz_512_mul,@function
 .align	32
 rsaz_512_mul:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-16
@@ -795,13 +795,13 @@ rsaz_512_mul:
 .cfi_def_cfa_register	%rsp
 .Lmul_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	rsaz_512_mul,.-rsaz_512_mul
 .globl	rsaz_512_mul_gather4
 .type	rsaz_512_mul_gather4,@function
 .align	32
 rsaz_512_mul_gather4:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-16
@@ -1228,13 +1228,13 @@ rsaz_512_mul_gather4:
 .cfi_def_cfa_register	%rsp
 .Lmul_gather4_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	rsaz_512_mul_gather4,.-rsaz_512_mul_gather4
 .globl	rsaz_512_mul_scatter4
 .type	rsaz_512_mul_scatter4,@function
 .align	32
 rsaz_512_mul_scatter4:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-16
@@ -1348,13 +1348,13 @@ rsaz_512_mul_scatter4:
 .cfi_def_cfa_register	%rsp
 .Lmul_scatter4_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	rsaz_512_mul_scatter4,.-rsaz_512_mul_scatter4
 .globl	rsaz_512_mul_by_one
 .type	rsaz_512_mul_by_one,@function
 .align	32
 rsaz_512_mul_by_one:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-16
@@ -1435,7 +1435,7 @@ rsaz_512_mul_by_one:
 .cfi_def_cfa_register	%rsp
 .Lmul_by_one_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	rsaz_512_mul_by_one,.-rsaz_512_mul_by_one
 .type	__rsaz_512_reduce,@function
 .align	32

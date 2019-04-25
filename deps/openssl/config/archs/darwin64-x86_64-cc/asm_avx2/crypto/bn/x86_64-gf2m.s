@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .p2align	4

@@ -8,7 +8,7 @@ LAES_Te:
 	mflr	3
 	addi	3,3,120
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .space	28
@@ -18,7 +18,7 @@ LAES_Td:
 	mflr	3
 	addi	3,3,2360
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .space	28
@@ -739,7 +739,7 @@ Lenc_done:
 	ld	31,248(1)
 	mtlr	0
 	addi	1,1,256
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,18,3,0
 .long	0
@@ -819,7 +819,7 @@ Lenc_loop:
 	bc	16,0,Lenc_loop
 
 	addi	7,3,2048
-	nop
+	nop	
 	lwz	12,0(5)
 	rlwinm	16,8,8,24,31
 	lwz	0,4(5)
@@ -884,7 +884,7 @@ Lenc_loop:
 	xor	9,9,0
 	xor	10,10,14
 	xor	11,11,15
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1029,7 +1029,7 @@ Lenc_compact_done:
 	xor	9,9,0
 	xor	10,10,14
 	xor	11,11,15
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1173,7 +1173,7 @@ Ldec_done:
 	ld	31,248(1)
 	mtlr	0
 	addi	1,1,256
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,18,3,0
 .long	0
@@ -1253,7 +1253,7 @@ Ldec_loop:
 	bc	16,0,Ldec_loop
 
 	addi	7,3,2048
-	nop
+	nop	
 	lwz	12,0(5)
 	rlwinm	16,8,8,24,31
 	lwz	0,4(5)
@@ -1318,7 +1318,7 @@ Ldec_loop:
 	xor	9,9,0
 	xor	10,10,14
 	xor	11,11,15
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1515,7 +1515,7 @@ Ldec_compact_done:
 	xor	9,9,0
 	xor	10,10,14
 	xor	11,11,15
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 

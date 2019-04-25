@@ -7,7 +7,7 @@
 	mr	9,3
 	li	3,0
 	cmpwi	8,32
-	bgelr
+	bgelr	
 	slwi	8,8,2
 	li	12,-4096
 	addi	3,8,256
@@ -208,7 +208,7 @@ Lcopy:
 	lwz	30,-8(12)
 	lwz	31,-4(12)
 	mr	1,12
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,12,6,0
 .long	0
@@ -776,7 +776,7 @@ Lmul4x_done:
 	lwz	30,-4*2(5)
 	lwz	31,-4*1(5)
 	mr	1,5
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0x20,0x80,18,6,0
 .long	0
@@ -1775,7 +1775,7 @@ Lsqr8x_done:
 	lwz	30,-4*2(4)
 	lwz	31,-4*1(4)
 	mr	1,4
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0x20,0x80,18,6,0
 .long	0

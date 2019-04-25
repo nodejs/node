@@ -60,7 +60,7 @@ __ChaCha20_ctr32_int:
 	lwz	31,156(1)
 	mtlr	0
 	addi	1,1,160
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,18,5,0
 .long	0
@@ -346,7 +346,7 @@ __ChaCha20_1x:
 
 	bne	.Loop_outer
 
-	blr
+	blr	
 
 .align	4
 .Ltail:
@@ -397,7 +397,7 @@ __ChaCha20_1x:
 	stw	1,80(1)
 	stw	1,84(1)
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -547,7 +547,7 @@ ChaCha20_ctr32_vmx:
 	vspltisw	28,7
 
 	mtctr	0
-	nop
+	nop	
 .Loop_vmx:
 	vadduwm	0,0,1
 	vadduwm	4,4,5
@@ -1016,7 +1016,7 @@ ChaCha20_ctr32_vmx:
 
 	cmplwi	5,255
 	bgt	.Loop_outer_vmx
-	nop
+	nop	
 
 .Ldone_vmx:
 	cmplwi	5,0
@@ -1063,7 +1063,7 @@ ChaCha20_ctr32_vmx:
 	lwz	31,316(1)
 	mtlr	0
 	addi	1,1,320
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,1,0x80,18,5,0
 .long	0
@@ -1433,7 +1433,7 @@ ChaCha20_ctr32_vsx:
 	lvx	31,11,1
 	mtlr	0
 	addi	1,1,200
-	blr
+	blr	
 
 .align	4
 .Ltail_vsx:
@@ -1471,7 +1471,7 @@ ChaCha20_ctr32_vsx:
 	mflr	12
 	addi	12,12,56
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .space	28

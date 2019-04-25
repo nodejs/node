@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .globl	RC4
@@ -8,7 +8,7 @@ RC4:	orq	%rsi,%rsi
 	jne	.Lentry
 	.byte	0xf3,0xc3
 .Lentry:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-16
@@ -527,7 +527,7 @@ RC4:	orq	%rsi,%rsi
 .cfi_adjust_cfa_offset	-24
 .Lepilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	RC4,.-RC4
 .globl	RC4_set_key
 .type	RC4_set_key,@function

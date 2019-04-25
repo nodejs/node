@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .globl	aesni_cbc_sha256_enc
@@ -77,7 +77,7 @@ K256:
 .type	aesni_cbc_sha256_enc_xop,@function
 .align	64
 aesni_cbc_sha256_enc_xop:
-.cfi_startproc
+.cfi_startproc	
 .Lxop_shortcut:
 	movq	8(%rsp),%r10
 	movq	%rsp,%rax
@@ -1236,12 +1236,12 @@ aesni_cbc_sha256_enc_xop:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_xop:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_cbc_sha256_enc_xop,.-aesni_cbc_sha256_enc_xop
 .type	aesni_cbc_sha256_enc_avx,@function
 .align	64
 aesni_cbc_sha256_enc_avx:
-.cfi_startproc
+.cfi_startproc	
 .Lavx_shortcut:
 	movq	8(%rsp),%r10
 	movq	%rsp,%rax
@@ -2431,12 +2431,12 @@ aesni_cbc_sha256_enc_avx:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_avx:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_cbc_sha256_enc_avx,.-aesni_cbc_sha256_enc_avx
 .type	aesni_cbc_sha256_enc_avx2,@function
 .align	64
 aesni_cbc_sha256_enc_avx2:
-.cfi_startproc
+.cfi_startproc	
 .Lavx2_shortcut:
 	movq	8(%rsp),%r10
 	movq	%rsp,%rax
@@ -4052,7 +4052,7 @@ aesni_cbc_sha256_enc_avx2:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_avx2:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_cbc_sha256_enc_avx2,.-aesni_cbc_sha256_enc_avx2
 .type	aesni_cbc_sha256_enc_shaext,@function
 .align	32
