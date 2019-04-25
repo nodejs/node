@@ -35,7 +35,7 @@ L<i2d_PKCS7_bio_stream(3)>
 
 =head1 HISTORY
 
-PEM_write_bio_PKCS7_stream() was added to OpenSSL 1.0.0
+The PEM_write_bio_PKCS7_stream() function was added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 

@@ -3,7 +3,7 @@
 
 /*
  * ====================================================================
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -154,9 +154,9 @@
   .register	%g2,#scratch
   .register	%g3,#scratch
 # define	FRAME_SIZE	-192
-#else 
+#else
 # define	FRAME_SIZE	-96
-#endif 
+#endif
 /*
  * GNU assembler can't stand stuw:-(
  */

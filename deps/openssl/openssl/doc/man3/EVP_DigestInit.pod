@@ -369,15 +369,15 @@ L<EVP_whirlpool(3)>
 
 =head1 HISTORY
 
-EVP_MD_CTX_create() and EVP_MD_CTX_destroy() were renamed to
-EVP_MD_CTX_new() and EVP_MD_CTX_free() in OpenSSL 1.1.0.
+The EVP_MD_CTX_create() and EVP_MD_CTX_destroy() functions were renamed to
+EVP_MD_CTX_new() and EVP_MD_CTX_free() in OpenSSL 1.1.0, respectively.
 
 The link between digests and signing algorithms was fixed in OpenSSL 1.0 and
 later, so now EVP_sha1() can be used with RSA and DSA.
 
-EVP_dss1() was removed in OpenSSL 1.1.0.
+The EVP_dss1() function was removed in OpenSSL 1.1.0.
 
-EVP_MD_CTX_set_pkey_ctx() was added in 1.1.1.
+The EVP_MD_CTX_set_pkey_ctx() function was added in 1.1.1.
 
 =head1 COPYRIGHT
 

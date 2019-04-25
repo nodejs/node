@@ -3781,7 +3781,7 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
                                   EVP_PKEY_security_bits(pkdh), 0, pkdh)) {
                 SSLerr(SSL_F_SSL3_CTX_CTRL, SSL_R_DH_KEY_TOO_SMALL);
                 EVP_PKEY_free(pkdh);
-                return 1;
+                return 0;
             }
             EVP_PKEY_free(ctx->cert->dh_tmp);
             ctx->cert->dh_tmp = pkdh;

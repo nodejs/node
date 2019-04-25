@@ -119,7 +119,7 @@ L<openssl(1)>
 
 =head1 HISTORY
 
-B<openssl> B<storeutl> was added to OpenSSL 1.1.1.
+The B<openssl> B<storeutl> app was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

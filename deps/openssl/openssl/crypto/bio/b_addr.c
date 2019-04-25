@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -782,7 +782,12 @@ int BIO_lookup_ex(const char *host, const char *service, int lookup_type,
                  * anyway [above getaddrinfo/gai_strerror is]. We just let
                  * system administrator figure this out...
                  */
+# if defined(OPENSSL_SYS_VXWORKS)
+                /* h_errno doesn't exist on VxWorks */
+                SYSerr(SYS_F_GETHOSTBYNAME, 1000 );
+# else
                 SYSerr(SYS_F_GETHOSTBYNAME, 1000 + h_errno);
+# endif
 #else
                 SYSerr(SYS_F_GETHOSTBYNAME, WSAGetLastError());
 #endif

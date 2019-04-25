@@ -177,8 +177,8 @@ L<SSL_get_session(3)>
 
 =head1 HISTORY
 
-SSL_CTX_set_session_ticket_cb(), SSSL_SESSION_set1_ticket_appdata() and
-SSL_SESSION_get_ticket_appdata() were added to OpenSSL 1.1.1.
+The SSL_CTX_set_session_ticket_cb(), SSSL_SESSION_set1_ticket_appdata()
+and SSL_SESSION_get_ticket_appdata() functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

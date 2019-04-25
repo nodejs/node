@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -88,9 +88,11 @@ sub inject_duplicate_extension
     foreach my $message (@{$proxy->message_list}) {
         if ($message->mt == $message_type) {
           my %extensions = %{$message->extension_data};
-            # Add a duplicate (unknown) extension.
-            $message->set_extension(TLSProxy::Message::EXT_DUPLICATE_EXTENSION, "");
-            $message->set_extension(TLSProxy::Message::EXT_DUPLICATE_EXTENSION, "");
+            # Add a duplicate extension. We use cryptopro_bug since we never
+            # normally write that one, and it is allowed as unsolicited in the
+            # ServerHello
+            $message->set_extension(TLSProxy::Message::EXT_CRYPTOPRO_BUG_EXTENSION, "");
+            $message->dupext(TLSProxy::Message::EXT_CRYPTOPRO_BUG_EXTENSION);
             $message->repack();
         }
     }
@@ -173,9 +175,23 @@ sub inject_unsolicited_extension
     $sent_unsolisited_extension = 1;
 }
 
+sub inject_cryptopro_extension
+{
+    my $proxy = shift;
+
+    # We're only interested in the initial ClientHello
+    if ($proxy->flight != 0) {
+        return;
+    }
+
+    my $message = ${$proxy->message_list}[0];
+    $message->set_extension(TLSProxy::Message::EXT_CRYPTOPRO_BUG_EXTENSION, "");
+    $message->repack();
+}
+
 # Test 1-2: Sending a duplicate extension should fail.
 $proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
-plan tests => 7;
+plan tests => 8;
 ok($fatal_alert, "Duplicate ClientHello extension");
 
 $fatal_alert = 0;
@@ -234,3 +250,11 @@ SKIP: {
     $proxy->start();
     ok($fatal_alert, "Unsolicited server name extension (TLSv1.3)");
 }
+
+#Test 8: Send the cryptopro extension in a ClientHello. Normally this is an
+#        unsolicited extension only ever seen in the ServerHello. We should
+#        ignore it in a ClientHello
+$proxy->clear();
+$proxy->filter(\&inject_cryptopro_extension);
+$proxy->start();
+ok(TLSProxy::Message->success(), "Cryptopro extension in ClientHello");

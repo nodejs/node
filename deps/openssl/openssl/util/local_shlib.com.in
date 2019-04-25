@@ -16,7 +16,7 @@ $
 $       NAMES := {- join(",", keys %names); -}
 {-
   join("\n", map { "\$       __$_ = \"".$names{$_}."\"" } keys %names);
--}      
+-}
 $       I = 0
 $       LOOP:
 $           E = F$ELEMENT(I,",",NAMES)

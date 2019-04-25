@@ -57,7 +57,7 @@ guidelines:
     7.  For user visible changes (API changes, behaviour changes, ...),
     consider adding a note in CHANGES.  This could be a summarising
     description of the change, and could explain the grander details.
-    Have a look through existing entries for inspiration. 
+    Have a look through existing entries for inspiration.
     Please note that this is NOT simply a copy of git-log oneliners.
     Also note that security fixes get an entry in CHANGES.
     This file helps users get more in depth information of what comes

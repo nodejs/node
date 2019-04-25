@@ -189,7 +189,7 @@ L<EVP_PKEY_derive(3)>
 
 =head1 HISTORY
 
-These functions were first added to OpenSSL 1.0.0.
+These functions were added in OpenSSL 1.0.0.
 
 EVP_PKEY_check(), EVP_PKEY_public_check() and EVP_PKEY_param_check() were added
 in OpenSSL 1.1.1.

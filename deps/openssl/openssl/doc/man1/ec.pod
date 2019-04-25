@@ -101,10 +101,6 @@ Prints out the public, private key components and parameters.
 
 This option prevents output of the encoded version of the key.
 
-=item B<-modulus>
-
-This option prints out the value of the public key component of the key.
-
 =item B<-pubin>
 
 By default, a private key is read from the input file. With this option a
@@ -197,7 +193,7 @@ L<ecparam(1)>, L<dsa(1)>, L<rsa(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2003-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2003-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

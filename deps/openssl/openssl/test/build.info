@@ -41,7 +41,7 @@ INCLUDE_MAIN___test_libtestutil_OLB = /INCLUDE=MAIN
           packettest asynctest secmemtest srptest memleaktest stack_test \
           dtlsv1listentest ct_test threadstest afalgtest d2i_test \
           ssl_test_ctx_test ssl_test x509aux cipherlist_test asynciotest \
-          bio_callback_test \
+          bio_callback_test bio_memleak_test \
           bioprinttest sslapitest dtlstest sslcorrupttest bio_enc_test \
           pkey_meth_test pkey_meth_kdf_test uitest cipherbytes_test \
           asn1_encode_test asn1_decode_test asn1_string_table_test \
@@ -299,6 +299,10 @@ INCLUDE_MAIN___test_libtestutil_OLB = /INCLUDE=MAIN
   INCLUDE[bio_callback_test]=../include
   DEPEND[bio_callback_test]=../libcrypto libtestutil.a
 
+  SOURCE[bio_memleak_test]=bio_memleak_test.c
+  INCLUDE[bio_memleak_test]=../include
+  DEPEND[bio_memleak_test]=../libcrypto libtestutil.a
+
   SOURCE[bioprinttest]=bioprinttest.c
   INCLUDE[bioprinttest]=../include
   DEPEND[bioprinttest]=../libcrypto libtestutil.a
@@ -389,7 +393,6 @@ INCLUDE_MAIN___test_libtestutil_OLB = /INCLUDE=MAIN
     PROGRAMS_NO_INST=shlibloadtest
     SOURCE[shlibloadtest]=shlibloadtest.c
     INCLUDE[shlibloadtest]=../include ../crypto/include
-    DEPEND[shlibloadtest]=libtestutil.a
   ENDIF
 
   IF[{- $disabled{shared} -}]
@@ -455,7 +458,7 @@ INCLUDE_MAIN___test_libtestutil_OLB = /INCLUDE=MAIN
       PROGRAMS_NO_INST=sm4_internal_test
     ENDIF
     IF[{- !$disabled{ec} -}]
-      PROGRAMS_NO_INST=curve448_internal_test
+      PROGRAMS_NO_INST=ec_internal_test curve448_internal_test
     ENDIF
 
     SOURCE[poly1305_internal_test]=poly1305_internal_test.c
@@ -501,6 +504,10 @@ INCLUDE_MAIN___test_libtestutil_OLB = /INCLUDE=MAIN
     SOURCE[sm4_internal_test]=sm4_internal_test.c
     INCLUDE[sm4_internal_test]=.. ../include ../crypto/include
     DEPEND[sm4_internal_test]=../libcrypto.a libtestutil.a
+
+    SOURCE[ec_internal_test]=ec_internal_test.c
+    INCLUDE[ec_internal_test]=../include ../crypto/ec ../crypto/include
+    DEPEND[ec_internal_test]=../libcrypto.a libtestutil.a
 
     SOURCE[curve448_internal_test]=curve448_internal_test.c
     INCLUDE[curve448_internal_test]=.. ../include ../crypto/ec/curve448

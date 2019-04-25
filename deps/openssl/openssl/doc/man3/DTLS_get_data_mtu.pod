@@ -22,7 +22,7 @@ Returns the maximum data payload size on success, or 0 on failure.
 
 =head1 HISTORY
 
-This function was added in OpenSSL 1.1.1
+The DTLS_get_data_mtu() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

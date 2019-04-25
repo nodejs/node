@@ -117,10 +117,10 @@ L<ssl(7)>, L<bio(7)>
 
 =head1 HISTORY
 
-SSL_stateless() was first added in OpenSSL 1.1.1.
+The SSL_stateless() function was added in OpenSSL 1.1.1.
 
-DTLSv1_listen() return codes were clarified in OpenSSL 1.1.0. The type of "peer"
-also changed in OpenSSL 1.1.0.
+The DTLSv1_listen() return codes were clarified in OpenSSL 1.1.0.
+The type of "peer" also changed in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

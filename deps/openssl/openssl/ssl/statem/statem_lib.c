@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -396,7 +396,8 @@ MSG_PROCESS_RETURN tls_process_cert_verify(SSL *s, PACKET *pkt)
 
 #ifdef SSL_DEBUG
     if (SSL_USE_SIGALGS(s))
-        fprintf(stderr, "USING TLSv1.2 HASH %s\n", EVP_MD_name(md));
+        fprintf(stderr, "USING TLSv1.2 HASH %s\n",
+                md == NULL ? "n/a" : EVP_MD_name(md));
 #endif
 
     /* Check for broken implementations of GOST ciphersuites */
@@ -439,7 +440,8 @@ MSG_PROCESS_RETURN tls_process_cert_verify(SSL *s, PACKET *pkt)
     }
 
 #ifdef SSL_DEBUG
-    fprintf(stderr, "Using client verify alg %s\n", EVP_MD_name(md));
+    fprintf(stderr, "Using client verify alg %s\n",
+            md == NULL ? "n/a" : EVP_MD_name(md));
 #endif
     if (EVP_DigestVerifyInit(mctx, &pctx, md, NULL, pkey) <= 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PROCESS_CERT_VERIFY,
@@ -611,13 +613,6 @@ int tls_construct_key_update(SSL *s, WPACKET *pkt)
 MSG_PROCESS_RETURN tls_process_key_update(SSL *s, PACKET *pkt)
 {
     unsigned int updatetype;
-
-    s->key_update_count++;
-    if (s->key_update_count > MAX_KEY_UPDATE_MESSAGES) {
-        SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_F_TLS_PROCESS_KEY_UPDATE,
-                 SSL_R_TOO_MANY_KEY_UPDATES);
-        return MSG_PROCESS_ERROR;
-    }
 
     /*
      * A KeyUpdate message signals a key change so the end of the message must
@@ -1028,6 +1023,7 @@ unsigned long ssl3_output_cert_chain(SSL *s, WPACKET *pkt, CERT_PKEY *cpk)
 WORK_STATE tls_finish_handshake(SSL *s, WORK_STATE wst, int clearbufs, int stop)
 {
     void (*cb) (const SSL *ssl, int type, int val) = NULL;
+    int cleanuphand = s->statem.cleanuphand;
 
     if (clearbufs) {
         if (!SSL_IS_DTLS(s)) {
@@ -1054,7 +1050,7 @@ WORK_STATE tls_finish_handshake(SSL *s, WORK_STATE wst, int clearbufs, int stop)
      * Only set if there was a Finished message and this isn't after a TLSv1.3
      * post handshake exchange
      */
-    if (s->statem.cleanuphand) {
+    if (cleanuphand) {
         /* skipped if we just sent a HelloRequest */
         s->renegotiate = 0;
         s->new_session = 0;
@@ -1074,15 +1070,6 @@ WORK_STATE tls_finish_handshake(SSL *s, WORK_STATE wst, int clearbufs, int stop)
             /* N.B. s->ctx may not equal s->session_ctx */
             tsan_counter(&s->ctx->stats.sess_accept_good);
             s->handshake_func = ossl_statem_accept;
-
-            if (SSL_IS_DTLS(s) && !s->hit) {
-                /*
-                 * We are finishing after the client. We start the timer going
-                 * in case there are any retransmits of our final flight
-                 * required.
-                 */
-                dtls1_start_timer(s);
-            }
         } else {
             if (SSL_IS_TLS13(s)) {
                 /*
@@ -1104,15 +1091,6 @@ WORK_STATE tls_finish_handshake(SSL *s, WORK_STATE wst, int clearbufs, int stop)
 
             s->handshake_func = ossl_statem_connect;
             tsan_counter(&s->session_ctx->stats.sess_connect_good);
-
-            if (SSL_IS_DTLS(s) && s->hit) {
-                /*
-                 * We are finishing after the server. We start the timer going
-                 * in case there are any retransmits of our final flight
-                 * required.
-                 */
-                dtls1_start_timer(s);
-            }
         }
 
         if (SSL_IS_DTLS(s)) {
@@ -1132,8 +1110,12 @@ WORK_STATE tls_finish_handshake(SSL *s, WORK_STATE wst, int clearbufs, int stop)
     /* The callback may expect us to not be in init at handshake done */
     ossl_statem_set_in_init(s, 0);
 
-    if (cb != NULL)
-        cb(s, SSL_CB_HANDSHAKE_DONE, 1);
+    if (cb != NULL) {
+        if (cleanuphand
+                || !SSL_IS_TLS13(s)
+                || SSL_IS_FIRST_HANDSHAKE(s))
+            cb(s, SSL_CB_HANDSHAKE_DONE, 1);
+    }
 
     if (!stop) {
         /* If we've got more work to do we go back into init */

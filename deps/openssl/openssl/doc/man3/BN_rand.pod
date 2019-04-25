@@ -73,7 +73,8 @@ a future release.
 
 =item *
 
-BN_priv_rand() and BN_priv_rand_range() were added in OpenSSL 1.1.1.
+The
+BN_priv_rand() and BN_priv_rand_range() functions were added in OpenSSL 1.1.1.
 
 =back
 

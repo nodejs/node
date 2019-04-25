@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL licenses, (the "License");
  * you may not use this file except in compliance with the License.
@@ -215,9 +215,44 @@ static int test_default_cipherlist_explicit(void)
     return result;
 }
 
+/* SSL_CTX_set_cipher_list() should fail if it clears all TLSv1.2 ciphers. */
+static int test_default_cipherlist_clear(void)
+{
+    SETUP_CIPHERLIST_TEST_FIXTURE();
+    SSL *s = NULL;
+
+    if (fixture == NULL)
+        return 0;
+
+    if (!TEST_int_eq(SSL_CTX_set_cipher_list(fixture->server, "no-such"), 0))
+        goto end;
+
+    if (!TEST_int_eq(ERR_GET_REASON(ERR_get_error()), SSL_R_NO_CIPHER_MATCH))
+        goto end;
+
+    s = SSL_new(fixture->client);
+
+    if (!TEST_ptr(s))
+      goto end;
+
+    if (!TEST_int_eq(SSL_set_cipher_list(s, "no-such"), 0))
+        goto end;
+
+    if (!TEST_int_eq(ERR_GET_REASON(ERR_get_error()),
+                SSL_R_NO_CIPHER_MATCH))
+        goto end;
+
+    result = 1;
+end:
+    SSL_free(s);
+    tear_down(fixture);
+    return result;
+}
+
 int setup_tests(void)
 {
     ADD_TEST(test_default_cipherlist_implicit);
     ADD_TEST(test_default_cipherlist_explicit);
+    ADD_TEST(test_default_cipherlist_clear);
     return 1;
 }

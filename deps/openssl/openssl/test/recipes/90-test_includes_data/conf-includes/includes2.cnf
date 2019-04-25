@@ -39,7 +39,7 @@ localityName			= Locality Name (eg, city)
 localityName_value		= Brisbane
 
 organizationName		= Organization Name (eg, company)
-organizationName_default	=
+organizationName_default	= 
 organizationName_value		= CryptSoft Pty Ltd
 
 organizationalUnitName		= Organizational Unit Name (eg, section)

@@ -13,7 +13,7 @@ CN="OpenSSL Test RSA SHA-512 cert" $OPENSSL req \
 	-config apps.cnf -extensions usr_cert -x509 -nodes \
 	-keyout tsha512.pem -out tsha512.pem -new -days 3650 -sha512
 
-# Create EC parameters 
+# Create EC parameters
 
 $OPENSSL ecparam -name P-256 -out ecp256.pem
 $OPENSSL ecparam -name P-384 -out ecp384.pem

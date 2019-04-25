@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -554,6 +554,7 @@ $code.=<<___;
 .type	_x86_64_AES_encrypt_compact,\@abi-omnipotent
 .align	16
 _x86_64_AES_encrypt_compact:
+.cfi_startproc
 	lea	128($sbox),$inp			# size optimization
 	mov	0-128($inp),$acc1		# prefetch Te4
 	mov	32-128($inp),$acc2
@@ -587,6 +588,7 @@ $code.=<<___;
 	xor	8($key),$s2
 	xor	12($key),$s3
 	.byte	0xf3,0xc3			# rep ret
+.cfi_endproc
 .size	_x86_64_AES_encrypt_compact,.-_x86_64_AES_encrypt_compact
 ___
 
@@ -1161,6 +1163,7 @@ $code.=<<___;
 .type	_x86_64_AES_decrypt_compact,\@abi-omnipotent
 .align	16
 _x86_64_AES_decrypt_compact:
+.cfi_startproc
 	lea	128($sbox),$inp			# size optimization
 	mov	0-128($inp),$acc1		# prefetch Td4
 	mov	32-128($inp),$acc2
@@ -1203,6 +1206,7 @@ $code.=<<___;
 	xor	8($key),$s2
 	xor	12($key),$s3
 	.byte	0xf3,0xc3			# rep ret
+.cfi_endproc
 .size	_x86_64_AES_decrypt_compact,.-_x86_64_AES_decrypt_compact
 ___
 
@@ -1365,6 +1369,7 @@ AES_set_encrypt_key:
 .type	_x86_64_AES_set_encrypt_key,\@abi-omnipotent
 .align	16
 _x86_64_AES_set_encrypt_key:
+.cfi_startproc
 	mov	%esi,%ecx			# %ecx=bits
 	mov	%rdi,%rsi			# %rsi=userKey
 	mov	%rdx,%rdi			# %rdi=key
@@ -1546,6 +1551,7 @@ $code.=<<___;
 	mov	\$-1,%rax
 .Lexit:
 	.byte	0xf3,0xc3			# rep ret
+.cfi_endproc
 .size	_x86_64_AES_set_encrypt_key,.-_x86_64_AES_set_encrypt_key
 ___
 
@@ -1728,7 +1734,9 @@ AES_cbc_encrypt:
 	cmp	\$0,%rdx	# check length
 	je	.Lcbc_epilogue
 	pushfq
-.cfi_push	49		# %rflags
+# This could be .cfi_push 49, but libunwind fails on registers it does not
+# recognize. See https://bugzilla.redhat.com/show_bug.cgi?id=217087.
+.cfi_adjust_cfa_offset	8
 	push	%rbx
 .cfi_push	%rbx
 	push	%rbp
@@ -1751,6 +1759,7 @@ AES_cbc_encrypt:
 	cmp	\$0,%r9
 	cmoveq	%r10,$sbox
 
+.cfi_remember_state
 	mov	OPENSSL_ia32cap_P(%rip),%r10d
 	cmp	\$$speed_limit,%rdx
 	jb	.Lcbc_slow_prologue
@@ -1986,6 +1995,7 @@ AES_cbc_encrypt:
 #--------------------------- SLOW ROUTINE ---------------------------#
 .align	16
 .Lcbc_slow_prologue:
+.cfi_restore_state
 	# allocate aligned stack frame...
 	lea	-88(%rsp),%rbp
 	and	\$-64,%rbp
@@ -1997,8 +2007,10 @@ AES_cbc_encrypt:
 	sub	%r10,%rbp
 
 	xchg	%rsp,%rbp
+.cfi_def_cfa_register	%rbp
 	#add	\$8,%rsp	# reserve for return address!
 	mov	%rbp,$_rsp	# save %rsp
+.cfi_cfa_expression	$_rsp,deref,+64
 .Lcbc_slow_body:
 	#mov	%rdi,$_inp	# save copy of inp
 	#mov	%rsi,$_out	# save copy of out
@@ -2187,7 +2199,9 @@ AES_cbc_encrypt:
 .cfi_def_cfa	%rsp,16
 .Lcbc_popfq:
 	popfq
-.cfi_pop	49		# %rflags
+# This could be .cfi_pop 49, but libunwind fails on registers it does not
+# recognize. See https://bugzilla.redhat.com/show_bug.cgi?id=217087.
+.cfi_adjust_cfa_offset	-8
 .Lcbc_epilogue:
 	ret
 .cfi_endproc

@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -50,6 +50,7 @@ const EC_METHOD *EC_GFp_mont_method(void)
         ec_GFp_mont_field_mul,
         ec_GFp_mont_field_sqr,
         0 /* field_div */ ,
+        ec_GFp_mont_field_inv,
         ec_GFp_mont_field_encode,
         ec_GFp_mont_field_decode,
         ec_GFp_mont_field_set_to_one,
@@ -204,6 +205,54 @@ int ec_GFp_mont_field_sqr(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a,
     }
 
     return BN_mod_mul_montgomery(r, a, a, group->field_data1, ctx);
+}
+
+/*-
+ * Computes the multiplicative inverse of a in GF(p), storing the result in r.
+ * If a is zero (or equivalent), you'll get a EC_R_CANNOT_INVERT error.
+ * We have a Mont structure, so SCA hardening is FLT inversion.
+ */
+int ec_GFp_mont_field_inv(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a,
+                            BN_CTX *ctx)
+{
+    BIGNUM *e = NULL;
+    BN_CTX *new_ctx = NULL;
+    int ret = 0;
+
+    if (group->field_data1 == NULL)
+        return 0;
+
+    if (ctx == NULL && (ctx = new_ctx = BN_CTX_secure_new()) == NULL)
+        return 0;
+
+    BN_CTX_start(ctx);
+    if ((e = BN_CTX_get(ctx)) == NULL)
+        goto err;
+
+    /* Inverse in constant time with Fermats Little Theorem */
+    if (!BN_set_word(e, 2))
+        goto err;
+    if (!BN_sub(e, group->field, e))
+        goto err;
+    /*-
+     * Exponent e is public.
+     * No need for scatter-gather or BN_FLG_CONSTTIME.
+     */
+    if (!BN_mod_exp_mont(r, a, e, group->field, ctx, group->field_data1))
+        goto err;
+
+    /* throw an error on zero */
+    if (BN_is_zero(r)) {
+        ECerr(EC_F_EC_GFP_MONT_FIELD_INV, EC_R_CANNOT_INVERT);
+        goto err;
+    }
+
+    ret = 1;
+
+  err:
+    BN_CTX_end(ctx);
+    BN_CTX_free(new_ctx);
+    return ret;
 }
 
 int ec_GFp_mont_field_encode(const EC_GROUP *group, BIGNUM *r,

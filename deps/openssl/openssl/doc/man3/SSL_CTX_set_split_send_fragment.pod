@@ -169,8 +169,8 @@ SSL_CTX_set_split_send_fragment(), SSL_set_split_send_fragment(),
 SSL_CTX_set_default_read_buffer_len() and  SSL_set_default_read_buffer_len()
 functions were added in OpenSSL 1.1.0.
 
-SSL_CTX_set_tlsext_max_fragment_length(), SSL_set_tlsext_max_fragment_length()
-and SSL_SESSION_get_max_fragment_length() were added in OpenSSL 1.1.1.
+The SSL_CTX_set_tlsext_max_fragment_length(), SSL_set_tlsext_max_fragment_length()
+and SSL_SESSION_get_max_fragment_length() functions were added in OpenSSL 1.1.1.
 
 =head1 SEE ALSO
 

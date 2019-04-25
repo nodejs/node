@@ -15,7 +15,7 @@ clients, as defined in RFC 6962. This verification can provide some confidence
 that a certificate has been publicly logged in a set of CT logs.
 
 By default, these checks are disabled. They can be enabled using
-SSL_CTX_ct_enable() or SSL_ct_enable().
+L<SSL_CTX_enable_ct(3)> or L<SSL_enable_ct(3)>.
 
 This library can also be used to parse and examine CT data structures, such as
 Signed Certificate Timestamps (SCTs), or to read a list of CT logs. There are
@@ -39,7 +39,7 @@ L<SSL_CTX_set_ct_validation_callback(3)>
 
 =head1 HISTORY
 
-This library was added in OpenSSL 1.1.0.
+The ct library was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

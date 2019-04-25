@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -810,7 +810,7 @@ int ec_GF2m_simple_ladder_post(const EC_GROUP *group,
         || !group->meth->field_mul(group, t2, t2, t0, ctx)
         || !BN_GF2m_add(t1, t2, t1)
         || !group->meth->field_mul(group, t2, p->X, t0, ctx)
-        || !BN_GF2m_mod_inv(t2, t2, group->field, ctx)
+        || !group->meth->field_inv(group, t2, t2, ctx)
         || !group->meth->field_mul(group, t1, t1, t2, ctx)
         || !group->meth->field_mul(group, r->X, r->Z, t2, ctx)
         || !BN_GF2m_add(t2, p->X, r->X)
@@ -889,6 +889,21 @@ int ec_GF2m_simple_points_mul(const EC_GROUP *group, EC_POINT *r,
     return ret;
 }
 
+/*-
+ * Computes the multiplicative inverse of a in GF(2^m), storing the result in r.
+ * If a is zero (or equivalent), you'll get a EC_R_CANNOT_INVERT error.
+ * SCA hardening is with blinding: BN_GF2m_mod_inv does that.
+ */
+static int ec_GF2m_simple_field_inv(const EC_GROUP *group, BIGNUM *r,
+                                    const BIGNUM *a, BN_CTX *ctx)
+{
+    int ret;
+
+    if (!(ret = BN_GF2m_mod_inv(r, a, group->field, ctx)))
+        ECerr(EC_F_EC_GF2M_SIMPLE_FIELD_INV, EC_R_CANNOT_INVERT);
+    return ret;
+}
+
 const EC_METHOD *EC_GF2m_simple_method(void)
 {
     static const EC_METHOD ret = {
@@ -929,6 +944,7 @@ const EC_METHOD *EC_GF2m_simple_method(void)
         ec_GF2m_simple_field_mul,
         ec_GF2m_simple_field_sqr,
         ec_GF2m_simple_field_div,
+        ec_GF2m_simple_field_inv,
         0, /* field_encode */
         0, /* field_decode */
         0, /* field_set_to_one */

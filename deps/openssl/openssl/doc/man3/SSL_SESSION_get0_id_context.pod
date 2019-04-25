@@ -42,7 +42,7 @@ L<SSL_set_session_id_context(3)>
 
 =head1 HISTORY
 
-SSL_SESSION_get0_id_context() was first added to OpenSSL 1.1.0
+The SSL_SESSION_get0_id_context() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
