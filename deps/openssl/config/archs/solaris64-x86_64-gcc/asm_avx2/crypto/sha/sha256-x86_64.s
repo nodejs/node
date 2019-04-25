@@ -1,11 +1,11 @@
-.text
+.text	
 
 
 .globl	sha256_block_data_order
 .type	sha256_block_data_order,@function
 .align	16
 sha256_block_data_order:
-.cfi_startproc
+.cfi_startproc	
 	leaq	OPENSSL_ia32cap_P(%rip),%r11
 	movl	0(%r11),%r9d
 	movl	4(%r11),%r10d
@@ -1726,7 +1726,7 @@ sha256_block_data_order:
 .cfi_def_cfa_register	%rsp
 .Lepilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha256_block_data_order,.-sha256_block_data_order
 .align	64
 .type	K256,@object
@@ -1981,7 +1981,7 @@ _shaext_shortcut:
 .type	sha256_block_data_order_ssse3,@function
 .align	64
 sha256_block_data_order_ssse3:
-.cfi_startproc
+.cfi_startproc	
 .Lssse3_shortcut:
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
@@ -3089,12 +3089,12 @@ sha256_block_data_order_ssse3:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_ssse3:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha256_block_data_order_ssse3,.-sha256_block_data_order_ssse3
 .type	sha256_block_data_order_avx,@function
 .align	64
 sha256_block_data_order_avx:
-.cfi_startproc
+.cfi_startproc	
 .Lavx_shortcut:
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
@@ -4164,12 +4164,12 @@ sha256_block_data_order_avx:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_avx:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha256_block_data_order_avx,.-sha256_block_data_order_avx
 .type	sha256_block_data_order_avx2,@function
 .align	64
 sha256_block_data_order_avx2:
-.cfi_startproc
+.cfi_startproc	
 .Lavx2_shortcut:
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
@@ -5426,5 +5426,5 @@ sha256_block_data_order_avx2:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_avx2:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha256_block_data_order_avx2,.-sha256_block_data_order_avx2

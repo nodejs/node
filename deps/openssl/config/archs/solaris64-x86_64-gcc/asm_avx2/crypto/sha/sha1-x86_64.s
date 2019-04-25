@@ -1,11 +1,11 @@
-.text
+.text	
 
 
 .globl	sha1_block_data_order
 .type	sha1_block_data_order,@function
 .align	16
 sha1_block_data_order:
-.cfi_startproc
+.cfi_startproc	
 	movl	OPENSSL_ia32cap_P+0(%rip),%r9d
 	movl	OPENSSL_ia32cap_P+4(%rip),%r8d
 	movl	OPENSSL_ia32cap_P+8(%rip),%r10d
@@ -1253,13 +1253,13 @@ sha1_block_data_order:
 .cfi_def_cfa_register	%rsp
 .Lepilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha1_block_data_order,.-sha1_block_data_order
 .type	sha1_block_data_order_shaext,@function
 .align	32
 sha1_block_data_order_shaext:
 _shaext_shortcut:
-.cfi_startproc
+.cfi_startproc	
 	movdqu	(%rdi),%xmm0
 	movd	16(%rdi),%xmm1
 	movdqa	K_XX_XX+160(%rip),%xmm3
@@ -1421,14 +1421,14 @@ _shaext_shortcut:
 	pshufd	$27,%xmm1,%xmm1
 	movdqu	%xmm0,(%rdi)
 	movd	%xmm1,16(%rdi)
-.cfi_endproc
+.cfi_endproc	
 	.byte	0xf3,0xc3
 .size	sha1_block_data_order_shaext,.-sha1_block_data_order_shaext
 .type	sha1_block_data_order_ssse3,@function
 .align	16
 sha1_block_data_order_ssse3:
 _ssse3_shortcut:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rsp,%r11
 .cfi_def_cfa_register	%r11
 	pushq	%rbx
@@ -2610,13 +2610,13 @@ _ssse3_shortcut:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_ssse3:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha1_block_data_order_ssse3,.-sha1_block_data_order_ssse3
 .type	sha1_block_data_order_avx,@function
 .align	16
 sha1_block_data_order_avx:
 _avx_shortcut:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rsp,%r11
 .cfi_def_cfa_register	%r11
 	pushq	%rbx
@@ -3738,13 +3738,13 @@ _avx_shortcut:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_avx:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha1_block_data_order_avx,.-sha1_block_data_order_avx
 .type	sha1_block_data_order_avx2,@function
 .align	16
 sha1_block_data_order_avx2:
 _avx2_shortcut:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rsp,%r11
 .cfi_def_cfa_register	%r11
 	pushq	%rbx
@@ -5431,7 +5431,7 @@ _avx2_shortcut:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_avx2:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha1_block_data_order_avx2,.-sha1_block_data_order_avx2
 .align	64
 K_XX_XX:

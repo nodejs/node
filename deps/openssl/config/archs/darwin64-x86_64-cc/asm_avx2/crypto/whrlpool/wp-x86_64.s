@@ -1,4 +1,4 @@
-.text
+.text	
 
 .globl	_whirlpool_block
 

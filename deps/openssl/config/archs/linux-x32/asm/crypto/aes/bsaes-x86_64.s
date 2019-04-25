@@ -6,6 +6,7 @@
 .type	_bsaes_encrypt8,@function
 .align	64
 _bsaes_encrypt8:
+.cfi_startproc	
 	leaq	.LBS0(%rip),%r11
 
 	movdqa	(%rax),%xmm8
@@ -473,11 +474,13 @@ _bsaes_encrypt8_bitslice:
 	pxor	%xmm7,%xmm15
 	pxor	%xmm7,%xmm0
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_bsaes_encrypt8,.-_bsaes_encrypt8
 
 .type	_bsaes_decrypt8,@function
 .align	64
 _bsaes_decrypt8:
+.cfi_startproc	
 	leaq	.LBS0(%rip),%r11
 
 	movdqa	(%rax),%xmm8
@@ -979,10 +982,12 @@ _bsaes_decrypt8:
 	pxor	%xmm7,%xmm15
 	pxor	%xmm7,%xmm0
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_bsaes_decrypt8,.-_bsaes_decrypt8
 .type	_bsaes_key_convert,@function
 .align	16
 _bsaes_key_convert:
+.cfi_startproc	
 	leaq	.Lmasks(%rip),%r11
 	movdqu	(%rcx),%xmm7
 	leaq	16(%rcx),%rcx
@@ -1061,13 +1066,14 @@ _bsaes_key_convert:
 	movdqa	80(%r11),%xmm7
 
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_bsaes_key_convert,.-_bsaes_key_convert
 
 .globl	bsaes_cbc_encrypt
 .type	bsaes_cbc_encrypt,@function
 .align	16
 bsaes_cbc_encrypt:
-.cfi_startproc
+.cfi_startproc	
 	cmpl	$0,%r9d
 	jne	asm_AES_cbc_encrypt
 	cmpq	$128,%rdx
@@ -1333,14 +1339,14 @@ bsaes_cbc_encrypt:
 .cfi_def_cfa_register	%rsp
 .Lcbc_dec_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	bsaes_cbc_encrypt,.-bsaes_cbc_encrypt
 
 .globl	bsaes_ctr32_encrypt_blocks
 .type	bsaes_ctr32_encrypt_blocks,@function
 .align	16
 bsaes_ctr32_encrypt_blocks:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rsp,%rax
 .Lctr_enc_prologue:
 	pushq	%rbp
@@ -1556,13 +1562,13 @@ bsaes_ctr32_encrypt_blocks:
 .cfi_def_cfa_register	%rsp
 .Lctr_enc_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	bsaes_ctr32_encrypt_blocks,.-bsaes_ctr32_encrypt_blocks
 .globl	bsaes_xts_encrypt
 .type	bsaes_xts_encrypt,@function
 .align	16
 bsaes_xts_encrypt:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rsp,%rax
 .Lxts_enc_prologue:
 	pushq	%rbp
@@ -2030,14 +2036,14 @@ bsaes_xts_encrypt:
 .cfi_def_cfa_register	%rsp
 .Lxts_enc_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	bsaes_xts_encrypt,.-bsaes_xts_encrypt
 
 .globl	bsaes_xts_decrypt
 .type	bsaes_xts_decrypt,@function
 .align	16
 bsaes_xts_decrypt:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rsp,%rax
 .Lxts_dec_prologue:
 	pushq	%rbp
@@ -2530,7 +2536,7 @@ bsaes_xts_decrypt:
 .cfi_def_cfa_register	%rsp
 .Lxts_dec_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	bsaes_xts_decrypt,.-bsaes_xts_decrypt
 .type	_bsaes_const,@object
 .align	64

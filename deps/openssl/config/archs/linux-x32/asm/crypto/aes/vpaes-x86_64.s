@@ -18,6 +18,7 @@
 .type	_vpaes_encrypt_core,@function
 .align	16
 _vpaes_encrypt_core:
+.cfi_startproc	
 	movq	%rdx,%r9
 	movq	$16,%r11
 	movl	240(%rdx),%eax
@@ -98,6 +99,7 @@ _vpaes_encrypt_core:
 	pxor	%xmm4,%xmm0
 .byte	102,15,56,0,193
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_encrypt_core,.-_vpaes_encrypt_core
 
 
@@ -108,6 +110,7 @@ _vpaes_encrypt_core:
 .type	_vpaes_decrypt_core,@function
 .align	16
 _vpaes_decrypt_core:
+.cfi_startproc	
 	movq	%rdx,%r9
 	movl	240(%rdx),%eax
 	movdqa	%xmm9,%xmm1
@@ -204,6 +207,7 @@ _vpaes_decrypt_core:
 	pxor	%xmm4,%xmm0
 .byte	102,15,56,0,194
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_decrypt_core,.-_vpaes_decrypt_core
 
 
@@ -214,6 +218,7 @@ _vpaes_decrypt_core:
 .type	_vpaes_schedule_core,@function
 .align	16
 _vpaes_schedule_core:
+.cfi_startproc	
 
 
 
@@ -380,6 +385,7 @@ _vpaes_schedule_core:
 	pxor	%xmm6,%xmm6
 	pxor	%xmm7,%xmm7
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_schedule_core,.-_vpaes_schedule_core
 
 
@@ -399,6 +405,7 @@ _vpaes_schedule_core:
 .type	_vpaes_schedule_192_smear,@function
 .align	16
 _vpaes_schedule_192_smear:
+.cfi_startproc	
 	pshufd	$0x80,%xmm6,%xmm1
 	pshufd	$0xFE,%xmm7,%xmm0
 	pxor	%xmm1,%xmm6
@@ -407,6 +414,7 @@ _vpaes_schedule_192_smear:
 	movdqa	%xmm6,%xmm0
 	movhlps	%xmm1,%xmm6
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_schedule_192_smear,.-_vpaes_schedule_192_smear
 
 
@@ -430,6 +438,7 @@ _vpaes_schedule_192_smear:
 .type	_vpaes_schedule_round,@function
 .align	16
 _vpaes_schedule_round:
+.cfi_startproc	
 
 	pxor	%xmm1,%xmm1
 .byte	102,65,15,58,15,200,15
@@ -483,6 +492,7 @@ _vpaes_schedule_low_round:
 	pxor	%xmm7,%xmm0
 	movdqa	%xmm0,%xmm7
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_schedule_round,.-_vpaes_schedule_round
 
 
@@ -497,6 +507,7 @@ _vpaes_schedule_low_round:
 .type	_vpaes_schedule_transform,@function
 .align	16
 _vpaes_schedule_transform:
+.cfi_startproc	
 	movdqa	%xmm9,%xmm1
 	pandn	%xmm0,%xmm1
 	psrld	$4,%xmm1
@@ -507,6 +518,7 @@ _vpaes_schedule_transform:
 .byte	102,15,56,0,193
 	pxor	%xmm2,%xmm0
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_schedule_transform,.-_vpaes_schedule_transform
 
 
@@ -535,6 +547,7 @@ _vpaes_schedule_transform:
 .type	_vpaes_schedule_mangle,@function
 .align	16
 _vpaes_schedule_mangle:
+.cfi_startproc	
 	movdqa	%xmm0,%xmm4
 	movdqa	.Lk_mc_forward(%rip),%xmm5
 	testq	%rcx,%rcx
@@ -599,6 +612,7 @@ _vpaes_schedule_mangle:
 	andq	$0x30,%r8
 	movdqu	%xmm3,(%rdx)
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_schedule_mangle,.-_vpaes_schedule_mangle
 
 
@@ -608,6 +622,7 @@ _vpaes_schedule_mangle:
 .type	vpaes_set_encrypt_key,@function
 .align	16
 vpaes_set_encrypt_key:
+.cfi_startproc	
 	movl	%esi,%eax
 	shrl	$5,%eax
 	addl	$5,%eax
@@ -618,12 +633,14 @@ vpaes_set_encrypt_key:
 	call	_vpaes_schedule_core
 	xorl	%eax,%eax
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	vpaes_set_encrypt_key,.-vpaes_set_encrypt_key
 
 .globl	vpaes_set_decrypt_key
 .type	vpaes_set_decrypt_key,@function
 .align	16
 vpaes_set_decrypt_key:
+.cfi_startproc	
 	movl	%esi,%eax
 	shrl	$5,%eax
 	addl	$5,%eax
@@ -639,33 +656,39 @@ vpaes_set_decrypt_key:
 	call	_vpaes_schedule_core
 	xorl	%eax,%eax
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	vpaes_set_decrypt_key,.-vpaes_set_decrypt_key
 
 .globl	vpaes_encrypt
 .type	vpaes_encrypt,@function
 .align	16
 vpaes_encrypt:
+.cfi_startproc	
 	movdqu	(%rdi),%xmm0
 	call	_vpaes_preheat
 	call	_vpaes_encrypt_core
 	movdqu	%xmm0,(%rsi)
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	vpaes_encrypt,.-vpaes_encrypt
 
 .globl	vpaes_decrypt
 .type	vpaes_decrypt,@function
 .align	16
 vpaes_decrypt:
+.cfi_startproc	
 	movdqu	(%rdi),%xmm0
 	call	_vpaes_preheat
 	call	_vpaes_decrypt_core
 	movdqu	%xmm0,(%rsi)
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	vpaes_decrypt,.-vpaes_decrypt
 .globl	vpaes_cbc_encrypt
 .type	vpaes_cbc_encrypt,@function
 .align	16
 vpaes_cbc_encrypt:
+.cfi_startproc	
 	xchgq	%rcx,%rdx
 	subq	$16,%rcx
 	jc	.Lcbc_abort
@@ -701,6 +724,7 @@ vpaes_cbc_encrypt:
 	movdqu	%xmm6,(%r8)
 .Lcbc_abort:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	vpaes_cbc_encrypt,.-vpaes_cbc_encrypt
 
 
@@ -711,6 +735,7 @@ vpaes_cbc_encrypt:
 .type	_vpaes_preheat,@function
 .align	16
 _vpaes_preheat:
+.cfi_startproc	
 	leaq	.Lk_s0F(%rip),%r10
 	movdqa	-32(%r10),%xmm10
 	movdqa	-16(%r10),%xmm11
@@ -720,6 +745,7 @@ _vpaes_preheat:
 	movdqa	80(%r10),%xmm15
 	movdqa	96(%r10),%xmm14
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_preheat,.-_vpaes_preheat
 
 

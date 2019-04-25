@@ -4,7 +4,7 @@
 .type	whirlpool_block,@function
 .align	16
 whirlpool_block:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
 	pushq	%rbx
@@ -605,7 +605,7 @@ whirlpool_block:
 .cfi_def_cfa_register	%rsp
 .Lepilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	whirlpool_block,.-whirlpool_block
 
 .align	64

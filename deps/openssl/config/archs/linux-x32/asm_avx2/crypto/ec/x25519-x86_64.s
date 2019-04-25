@@ -1,10 +1,10 @@
-.text
+.text	
 
 .globl	x25519_fe51_mul
 .type	x25519_fe51_mul,@function
 .align	32
 x25519_fe51_mul:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbp
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbp,-16
@@ -154,14 +154,14 @@ x25519_fe51_mul:
 	movq	32(%rsp),%rdi
 	jmp	.Lreduce51
 .Lfe51_mul_epilogue:
-.cfi_endproc
+.cfi_endproc	
 .size	x25519_fe51_mul,.-x25519_fe51_mul
 
 .globl	x25519_fe51_sqr
 .type	x25519_fe51_sqr,@function
 .align	32
 x25519_fe51_sqr:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbp
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbp,-16
@@ -340,14 +340,14 @@ x25519_fe51_sqr:
 .cfi_adjust_cfa_offset	88
 .Lfe51_sqr_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	x25519_fe51_sqr,.-x25519_fe51_sqr
 
 .globl	x25519_fe51_mul121666
 .type	x25519_fe51_mul121666,@function
 .align	32
 x25519_fe51_mul121666:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbp
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbp,-16
@@ -393,7 +393,7 @@ x25519_fe51_mul121666:
 
 	jmp	.Lreduce51
 .Lfe51_mul121666_epilogue:
-.cfi_endproc
+.cfi_endproc	
 .size	x25519_fe51_mul121666,.-x25519_fe51_mul121666
 
 .globl	x25519_fe64_eligible
@@ -412,7 +412,7 @@ x25519_fe64_eligible:
 .type	x25519_fe64_mul,@function
 .align	32
 x25519_fe64_mul:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbp
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbp,-16
@@ -504,14 +504,14 @@ x25519_fe64_mul:
 
 	jmp	.Lreduce64
 .Lfe64_mul_epilogue:
-.cfi_endproc
+.cfi_endproc	
 .size	x25519_fe64_mul,.-x25519_fe64_mul
 
 .globl	x25519_fe64_sqr
 .type	x25519_fe64_sqr,@function
 .align	32
 x25519_fe64_sqr:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbp
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbp,-16
@@ -640,7 +640,7 @@ x25519_fe64_sqr:
 .cfi_adjust_cfa_offset	88
 .Lfe64_sqr_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	x25519_fe64_sqr,.-x25519_fe64_sqr
 
 .globl	x25519_fe64_mul121666

@@ -6,7 +6,7 @@
 .type	sha1_multi_block,@function
 .align	32
 sha1_multi_block:
-.cfi_startproc
+.cfi_startproc	
 	movq	OPENSSL_ia32cap_P+4(%rip),%rcx
 	btq	$61,%rcx
 	jc	_shaext_shortcut
@@ -2560,12 +2560,12 @@ sha1_multi_block:
 .cfi_def_cfa_register	%rsp
 .Lepilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha1_multi_block,.-sha1_multi_block
 .type	sha1_multi_block_shaext,@function
 .align	32
 sha1_multi_block_shaext:
-.cfi_startproc
+.cfi_startproc	
 _shaext_shortcut:
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
@@ -2935,12 +2935,12 @@ _shaext_shortcut:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_shaext:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha1_multi_block_shaext,.-sha1_multi_block_shaext
 .type	sha1_multi_block_avx,@function
 .align	32
 sha1_multi_block_avx:
-.cfi_startproc
+.cfi_startproc	
 _avx_shortcut:
 	shrq	$32,%rcx
 	cmpl	$2,%edx
@@ -5019,12 +5019,12 @@ _avx_shortcut:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_avx:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha1_multi_block_avx,.-sha1_multi_block_avx
 .type	sha1_multi_block_avx2,@function
 .align	32
 sha1_multi_block_avx2:
-.cfi_startproc
+.cfi_startproc	
 _avx2_shortcut:
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
@@ -7248,7 +7248,7 @@ _avx2_shortcut:
 .cfi_def_cfa_register	%rsp
 .Lepilogue_avx2:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha1_multi_block_avx2,.-sha1_multi_block_avx2
 
 .align	256

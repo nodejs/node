@@ -36,7 +36,7 @@ OPENSSL_rdtsc:
 .type	OPENSSL_ia32_cpuid,@function
 .align	16
 OPENSSL_ia32_cpuid:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rbx,%r8
 .cfi_register	%rbx,%r8
 
@@ -198,7 +198,7 @@ OPENSSL_ia32_cpuid:
 .cfi_restore	%rbx
 	orq	%r9,%rax
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	OPENSSL_ia32_cpuid,.-OPENSSL_ia32_cpuid
 
 .globl	OPENSSL_cleanse

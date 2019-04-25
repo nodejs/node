@@ -1061,7 +1061,7 @@ Ldone_vmx:
 	ld	31,408(1)
 	mtlr	0
 	addi	1,1,416
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,1,0x80,18,5,0
 .long	0

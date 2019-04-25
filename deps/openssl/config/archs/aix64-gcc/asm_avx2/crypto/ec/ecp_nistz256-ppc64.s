@@ -2419,7 +2419,7 @@ ecp_nistz256_precomputed:
 	ld	30,112(1)
 	ld	31,120(1)
 	addi	1,1,128
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,10,3,0
 .long	0
@@ -2466,7 +2466,7 @@ ecp_nistz256_precomputed:
 	ld	30,112(1)
 	ld	31,120(1)
 	addi	1,1,128
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,10,2,0
 .long	0
@@ -2506,7 +2506,7 @@ ecp_nistz256_precomputed:
 	ld	30,112(1)
 	ld	31,120(1)
 	addi	1,1,128
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,4,3,0
 .long	0
@@ -2541,7 +2541,7 @@ ecp_nistz256_precomputed:
 	ld	30,112(1)
 	ld	31,120(1)
 	addi	1,1,128
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,4,2,0
 .long	0
@@ -2581,7 +2581,7 @@ ecp_nistz256_precomputed:
 	ld	30,112(1)
 	ld	31,120(1)
 	addi	1,1,128
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,4,3,0
 .long	0
@@ -2632,7 +2632,7 @@ ecp_nistz256_precomputed:
 	ld	30,112(1)
 	ld	31,120(1)
 	addi	1,1,128
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,4,2,0
 .long	0
@@ -2668,7 +2668,7 @@ ecp_nistz256_precomputed:
 	ld	30,112(1)
 	ld	31,120(1)
 	addi	1,1,128
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,4,3,0
 .long	0
@@ -2704,7 +2704,7 @@ ecp_nistz256_precomputed:
 	ld	30,112(1)
 	ld	31,120(1)
 	addi	1,1,128
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,4,2,0
 .long	0
@@ -2852,7 +2852,7 @@ __ecp_nistz256_mul_mont:
 	std	9,16(3)
 	std	10,24(3)
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,1,0
 .long	0
@@ -2986,7 +2986,7 @@ __ecp_nistz256_sqr_mont:
 	std	9,16(3)
 	std	10,24(3)
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,1,0
 .long	0
@@ -3028,7 +3028,7 @@ __ecp_nistz256_add:
 	std	9,16(3)
 	std	10,24(3)
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -3061,7 +3061,7 @@ __ecp_nistz256_sub_from:
 	std	9,16(3)
 	std	10,24(3)
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -3094,7 +3094,7 @@ __ecp_nistz256_sub_morf:
 	std	9,16(3)
 	std	10,24(3)
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -3139,7 +3139,7 @@ __ecp_nistz256_div_by_2:
 	std	9,16(3)
 	std	10,24(3)
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,1,0
 .long	0
@@ -3320,7 +3320,7 @@ Ldouble_shortcut:
 	ld	30,288-8*2(1)
 	ld	31,288-8*1(1)
 	addi	1,1,288
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,12,2,0
 .long	0
@@ -3718,7 +3718,7 @@ Ladd_done:
 	ld	30,576-8*2(1)
 	ld	31,576-8*1(1)
 	addi	1,1,576
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,16,3,0
 .long	0
@@ -4041,7 +4041,7 @@ Ladd_done:
 	ld	30,512-8*2(1)
 	ld	31,512-8*1(1)
 	addi	1,1,512
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,16,3,0
 .long	0
@@ -4293,7 +4293,7 @@ Ladd_done:
 	ld	30,144(1)
 	ld	31,152(1)
 	addi	1,1,160
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,14,3,0
 .long	0
@@ -4528,7 +4528,7 @@ Loop_ord_sqr:
 	ld	30,144(1)
 	ld	31,152(1)
 	addi	1,1,160
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,14,3,0
 .long	0
@@ -4598,7 +4598,7 @@ Loop_ord_sqr:
 	stw	10,64*6-4(3)
 	stw	11,64*7-4(3)
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -4694,7 +4694,7 @@ Loop_ord_sqr:
 	std	7,80(3)
 	std	8,88(3)
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -4731,7 +4731,7 @@ Loop_scatter_w7:
 	addi	3,3,64*8
 	bc	16,0,Loop_scatter_w7
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -4782,7 +4782,8 @@ Loop_gather_w7:
 	stdu	5,8(3)
 	bc	16,0,Loop_gather_w7
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
+
