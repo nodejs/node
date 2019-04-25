@@ -2439,6 +2439,19 @@ The `_channel` property of child process objects returned by `spawn()` and
 similar functions is not intended for public use. Use `ChildProcess.channel`
 instead.
 
+<a id="DEP0130"></a>
+### DEP00XX: Module.createRequireFromPath()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27405
+    description: Documentation-only.
+-->
+
+Type: Documentation-only
+
+Module.createRequireFromPath() is deprecated. Please use [`module.createRequire()`][] instead.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
@@ -2486,6 +2499,7 @@ instead.
 [`http.request()`]: http.html#http_http_request_options_callback
 [`https.get()`]: https.html#https_https_get_options_callback
 [`https.request()`]: https.html#https_https_request_options_callback
+[`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [`os.networkInterfaces()`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`process.env`]: process.html#process_process_env
