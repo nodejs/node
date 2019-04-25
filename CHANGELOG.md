@@ -2,7 +2,8 @@
 
 Select a Node.js version below to view the changelog history:
 
-* [Node.js 11](doc/changelogs/CHANGELOG_V11.md) - **Current**
+* [Node.js 12](doc/changelogs/CHANGELOG_V12.md) - **Current**
+* [Node.js 11](doc/changelogs/CHANGELOG_V11.md) - Current
 * [Node.js 10](doc/changelogs/CHANGELOG_V10.md) — **Long Term Support**
 * [Node.js 9](doc/changelogs/CHANGELOG_V9.md) — End-of-Life
 * [Node.js 8](doc/changelogs/CHANGELOG_V8.md) — Long Term Support
