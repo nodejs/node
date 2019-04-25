@@ -239,7 +239,7 @@ bn_sqr_comba4:
 
 	std	9,48(3)
 	std	10,56(3)
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -669,7 +669,7 @@ bn_sqr_comba8:
 	std	9, 120(3)
 
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -825,7 +825,7 @@ bn_mul_comba4:
 
 	std	10,48(3)
 	std	11,56(3)
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -1366,7 +1366,7 @@ bn_mul_comba8:
 	adde	10,10,9
 	std	12,112(3)
 	std	10,120(3)
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -1419,7 +1419,7 @@ bn_sub_words:
 .Lppcasm_sub_adios:
 	subfze	3,0
 	andi.	3,3,1
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,4,0
 .long	0
@@ -1467,7 +1467,7 @@ bn_add_words:
 	bdnz	.Lppcasm_add_mainloop
 .Lppcasm_add_adios:
 	addze	3,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,4,0
 .long	0
@@ -1498,7 +1498,7 @@ bn_div_words:
 	cmpldi	0,5,0
 	bne	.Lppcasm_div1
 	li	3,-1
-	blr
+	blr	
 .Lppcasm_div1:
 	xor	0,0,0
 	li	8,64
@@ -1585,7 +1585,7 @@ bn_div_words:
 	b	.Lppcasm_divouterloop
 .Lppcasm_div9:
 	or	3,8,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -1629,7 +1629,7 @@ bn_sqr_words:
 	stdu	8,8(3)
 	bdnz	.Lppcasm_sqr_mainloop
 .Lppcasm_sqr_adios:
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -1737,7 +1737,7 @@ bn_mul_words:
 
 .Lppcasm_mw_OVER:
 	addi	3,12,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,4,0
 .long	0
@@ -1865,7 +1865,7 @@ bn_mul_add_words:
 
 .Lppcasm_maw_adios:
 	addi	3,12,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,4,0
 .long	0

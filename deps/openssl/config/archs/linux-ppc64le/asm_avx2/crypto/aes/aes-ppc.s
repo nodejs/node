@@ -9,7 +9,7 @@
 	mflr	3
 	addi	3,3,120
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .space	28
@@ -19,7 +19,7 @@
 	mflr	3
 	addi	3,3,2360
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .space	28
@@ -767,7 +767,7 @@ AES_encrypt:
 	ld	31,248(1)
 	mtlr	0
 	addi	1,1,256
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,18,3,0
 .long	0
@@ -847,7 +847,7 @@ AES_encrypt:
 	bdnz	.Lenc_loop
 
 	addi	7,3,2048
-	nop
+	nop	
 	lwz	12,0(5)
 	rlwinm	16,8,8,24,31
 	lwz	0,4(5)
@@ -912,7 +912,7 @@ AES_encrypt:
 	xor	9,9,0
 	xor	10,10,14
 	xor	11,11,15
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1057,7 +1057,7 @@ AES_encrypt:
 	xor	9,9,0
 	xor	10,10,14
 	xor	11,11,15
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	AES_encrypt,.-AES_encrypt
@@ -1228,7 +1228,7 @@ AES_decrypt:
 	ld	31,248(1)
 	mtlr	0
 	addi	1,1,256
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,18,3,0
 .long	0
@@ -1308,7 +1308,7 @@ AES_decrypt:
 	bdnz	.Ldec_loop
 
 	addi	7,3,2048
-	nop
+	nop	
 	lwz	12,0(5)
 	rlwinm	16,8,8,24,31
 	lwz	0,4(5)
@@ -1373,7 +1373,7 @@ AES_decrypt:
 	xor	9,9,0
 	xor	10,10,14
 	xor	11,11,15
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1570,7 +1570,7 @@ AES_decrypt:
 	xor	9,9,0
 	xor	10,10,14
 	xor	11,11,15
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	AES_decrypt,.-AES_decrypt

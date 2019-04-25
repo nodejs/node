@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .globl	_aesni_cbc_sha1_enc
@@ -3016,3 +3016,4 @@ L$aesenclast14:
 	movdqu	%xmm8,(%r9)
 	movd	%xmm9,16(%r9)
 	.byte	0xf3,0xc3
+

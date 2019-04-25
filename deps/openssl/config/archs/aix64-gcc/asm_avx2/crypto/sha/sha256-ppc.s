@@ -120,7 +120,7 @@ Ldone:
 	ld	31,312(1)
 	mtlr	0
 	addi	1,1,320
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,18,3,0
 .long	0
@@ -1286,7 +1286,7 @@ Lrounds:
 	cmpld	31,5
 	stw	15,28(3)
 	bne	Lsha2_block_private
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -1297,7 +1297,7 @@ LPICmeup:
 	mflr	7
 	addi	7,7,56
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .space	28

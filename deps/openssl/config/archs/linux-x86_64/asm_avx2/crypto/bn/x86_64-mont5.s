@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 
@@ -6,7 +6,7 @@
 .type	bn_mul_mont_gather5,@function
 .align	64
 bn_mul_mont_gather5:
-.cfi_startproc
+.cfi_startproc	
 	movl	%r9d,%r9d
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
@@ -439,12 +439,12 @@ bn_mul_mont_gather5:
 .cfi_def_cfa_register	%rsp
 .Lmul_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	bn_mul_mont_gather5,.-bn_mul_mont_gather5
 .type	bn_mul4x_mont_gather5,@function
 .align	32
 bn_mul4x_mont_gather5:
-.cfi_startproc
+.cfi_startproc	
 .byte	0x67
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
@@ -544,7 +544,7 @@ bn_mul4x_mont_gather5:
 .cfi_def_cfa_register	%rsp
 .Lmul4x_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	bn_mul4x_mont_gather5,.-bn_mul4x_mont_gather5
 
 .type	mul4x_internal,@function
@@ -1076,7 +1076,7 @@ mul4x_internal:
 .type	bn_power5,@function
 .align	32
 bn_power5:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
 	movl	OPENSSL_ia32cap_P+8(%rip),%r11d
@@ -1204,7 +1204,7 @@ bn_power5:
 .cfi_def_cfa_register	%rsp
 .Lpower5_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	bn_power5,.-bn_power5
 
 .globl	bn_sqr8x_internal
@@ -2055,7 +2055,7 @@ bn_from_montgomery:
 .type	bn_from_mont8x,@function
 .align	32
 bn_from_mont8x:
-.cfi_startproc
+.cfi_startproc	
 .byte	0x67
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
@@ -2217,12 +2217,12 @@ bn_from_mont8x:
 .cfi_def_cfa_register	%rsp
 .Lfrom_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	bn_from_mont8x,.-bn_from_mont8x
 .type	bn_mulx4x_mont_gather5,@function
 .align	32
 bn_mulx4x_mont_gather5:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
 .Lmulx4x_enter:
@@ -2327,7 +2327,7 @@ bn_mulx4x_mont_gather5:
 .cfi_def_cfa_register	%rsp
 .Lmulx4x_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	bn_mulx4x_mont_gather5,.-bn_mulx4x_mont_gather5
 
 .type	mulx4x_internal,@function
@@ -2755,7 +2755,7 @@ mulx4x_internal:
 .type	bn_powerx5,@function
 .align	32
 bn_powerx5:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
 .Lpowerx5_enter:
@@ -2884,7 +2884,7 @@ bn_powerx5:
 .cfi_def_cfa_register	%rsp
 .Lpowerx5_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	bn_powerx5,.-bn_powerx5
 
 .globl	bn_sqrx8x_internal
@@ -2893,6 +2893,7 @@ bn_powerx5:
 .align	32
 bn_sqrx8x_internal:
 __bn_sqrx8x_internal:
+.cfi_startproc	
 
 
 
@@ -3504,6 +3505,7 @@ __bn_sqrx8x_reduction:
 	cmpq	8+8(%rsp),%r8
 	jb	.Lsqrx8x_reduction_loop
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	bn_sqrx8x_internal,.-bn_sqrx8x_internal
 .align	32
 __bn_postx4x_internal:

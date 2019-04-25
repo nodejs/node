@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 
@@ -2021,3 +2021,4 @@ L$oop_dec_pad:
 L$done_dec:
 	movq	%rdx,%rax
 	.byte	0xf3,0xc3
+
