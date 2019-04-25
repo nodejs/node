@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -100,7 +100,7 @@
 #include <openssl/modes.h>
 
 #ifndef HAVE_FORK
-# if defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_WINDOWS)
+# if defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_VXWORKS)
 #  define HAVE_FORK 0
 # else
 #  define HAVE_FORK 1

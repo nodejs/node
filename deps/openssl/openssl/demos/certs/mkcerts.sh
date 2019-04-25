@@ -42,7 +42,7 @@ CN="Test OCSP Responder Cert" $OPENSSL req -config ca.cnf -nodes \
 $OPENSSL x509 -req -in respreq.pem -CA intca.pem -CAkey intkey.pem -days 3600 \
 	-extfile ca.cnf -extensions ocsp_cert -CAcreateserial -out resp.pem
 
-# Example creating a PKCS#3 DH certificate. 
+# Example creating a PKCS#3 DH certificate.
 
 # First DH parameters
 

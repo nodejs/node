@@ -417,7 +417,7 @@ certain parameters. So if, for example, you want to use RC2 with a
 
 =head1 HISTORY
 
-The default digest was changed from MD5 to SHA256 in Openssl 1.1.0.
+The default digest was changed from MD5 to SHA256 in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

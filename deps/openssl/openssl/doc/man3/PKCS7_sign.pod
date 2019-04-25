@@ -108,9 +108,9 @@ L<ERR_get_error(3)>, L<PKCS7_verify(3)>
 =head1 HISTORY
 
 The B<PKCS7_PARTIAL> flag, and the ability for B<certs>, B<signcert>,
-and B<pkey> parameters to be B<NULL> to be was added in OpenSSL 1.0.0
+and B<pkey> parameters to be B<NULL> were added in OpenSSL 1.0.0.
 
-The B<PKCS7_STREAM> flag was added in OpenSSL 1.0.0
+The B<PKCS7_STREAM> flag was added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 

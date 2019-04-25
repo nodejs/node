@@ -1,4 +1,4 @@
-# Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -519,6 +519,7 @@ EC_F_ECX_PUB_ENCODE:268:ecx_pub_encode
 EC_F_EC_ASN1_GROUP2CURVE:153:ec_asn1_group2curve
 EC_F_EC_ASN1_GROUP2FIELDID:154:ec_asn1_group2fieldid
 EC_F_EC_GF2M_MONTGOMERY_POINT_MULTIPLY:208:ec_GF2m_montgomery_point_multiply
+EC_F_EC_GF2M_SIMPLE_FIELD_INV:296:ec_GF2m_simple_field_inv
 EC_F_EC_GF2M_SIMPLE_GROUP_CHECK_DISCRIMINANT:159:\
 	ec_GF2m_simple_group_check_discriminant
 EC_F_EC_GF2M_SIMPLE_GROUP_SET_CURVE:195:ec_GF2m_simple_group_set_curve
@@ -535,6 +536,7 @@ EC_F_EC_GF2M_SIMPLE_SET_COMPRESSED_COORDINATES:164:\
 	ec_GF2m_simple_set_compressed_coordinates
 EC_F_EC_GFP_MONT_FIELD_DECODE:133:ec_GFp_mont_field_decode
 EC_F_EC_GFP_MONT_FIELD_ENCODE:134:ec_GFp_mont_field_encode
+EC_F_EC_GFP_MONT_FIELD_INV:297:ec_GFp_mont_field_inv
 EC_F_EC_GFP_MONT_FIELD_MUL:131:ec_GFp_mont_field_mul
 EC_F_EC_GFP_MONT_FIELD_SET_TO_ONE:209:ec_GFp_mont_field_set_to_one
 EC_F_EC_GFP_MONT_FIELD_SQR:132:ec_GFp_mont_field_sqr
@@ -555,6 +557,7 @@ EC_F_EC_GFP_NIST_FIELD_MUL:200:ec_GFp_nist_field_mul
 EC_F_EC_GFP_NIST_FIELD_SQR:201:ec_GFp_nist_field_sqr
 EC_F_EC_GFP_NIST_GROUP_SET_CURVE:202:ec_GFp_nist_group_set_curve
 EC_F_EC_GFP_SIMPLE_BLIND_COORDINATES:287:ec_GFp_simple_blind_coordinates
+EC_F_EC_GFP_SIMPLE_FIELD_INV:298:ec_GFp_simple_field_inv
 EC_F_EC_GFP_SIMPLE_GROUP_CHECK_DISCRIMINANT:165:\
 	ec_GFp_simple_group_check_discriminant
 EC_F_EC_GFP_SIMPLE_GROUP_SET_CURVE:166:ec_GFp_simple_group_set_curve
@@ -737,6 +740,7 @@ EVP_F_EVP_DECRYPTFINAL_EX:101:EVP_DecryptFinal_ex
 EVP_F_EVP_DECRYPTUPDATE:166:EVP_DecryptUpdate
 EVP_F_EVP_DIGESTFINALXOF:174:EVP_DigestFinalXOF
 EVP_F_EVP_DIGESTINIT_EX:128:EVP_DigestInit_ex
+EVP_F_EVP_ENCRYPTDECRYPTUPDATE:219:evp_EncryptDecryptUpdate
 EVP_F_EVP_ENCRYPTFINAL_EX:127:EVP_EncryptFinal_ex
 EVP_F_EVP_ENCRYPTUPDATE:167:EVP_EncryptUpdate
 EVP_F_EVP_MD_CTX_COPY_EX:110:EVP_MD_CTX_copy_ex
@@ -2115,6 +2119,7 @@ EC_R_ASN1_ERROR:115:asn1 error
 EC_R_BAD_SIGNATURE:156:bad signature
 EC_R_BIGNUM_OUT_OF_RANGE:144:bignum out of range
 EC_R_BUFFER_TOO_SMALL:100:buffer too small
+EC_R_CANNOT_INVERT:165:cannot invert
 EC_R_COORDINATES_OUT_OF_RANGE:146:coordinates out of range
 EC_R_CURVE_DOES_NOT_SUPPORT_ECDH:160:curve does not support ecdh
 EC_R_CURVE_DOES_NOT_SUPPORT_SIGNING:159:curve does not support signing
@@ -2722,6 +2727,8 @@ SSL_R_MISSING_SRP_PARAM:358:can't find SRP server param
 SSL_R_MISSING_SUPPORTED_GROUPS_EXTENSION:209:missing supported groups extension
 SSL_R_MISSING_TMP_DH_KEY:171:missing tmp dh key
 SSL_R_MISSING_TMP_ECDH_KEY:311:missing tmp ecdh key
+SSL_R_MIXED_HANDSHAKE_AND_NON_HANDSHAKE_DATA:293:\
+	mixed handshake and non handshake data
 SSL_R_NOT_ON_RECORD_BOUNDARY:182:not on record boundary
 SSL_R_NOT_REPLACING_CERTIFICATE:289:not replacing certificate
 SSL_R_NOT_SERVER:284:not server

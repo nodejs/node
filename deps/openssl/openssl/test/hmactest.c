@@ -245,3 +245,4 @@ int setup_tests(void)
     ADD_TEST(test_hmac_copy);
     return 1;
 }
+

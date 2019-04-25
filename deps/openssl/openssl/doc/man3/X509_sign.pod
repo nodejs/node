@@ -81,11 +81,11 @@ L<X509_verify_cert(3)>
 
 =head1 HISTORY
 
-X509_sign(), X509_REQ_sign() and X509_CRL_sign() are available in all
-versions of OpenSSL.
+The X509_sign(), X509_REQ_sign() and X509_CRL_sign() functions are
+available in all versions of OpenSSL.
 
-X509_sign_ctx(), X509_REQ_sign_ctx() and X509_CRL_sign_ctx() were first added
-to OpenSSL 1.0.1.
+The X509_sign_ctx(), X509_REQ_sign_ctx()
+and X509_CRL_sign_ctx() functions were added OpenSSL 1.0.1.
 
 =head1 COPYRIGHT
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,6 +21,10 @@
 #include "internal/nelem.h"
 #include "handshake_helper.h"
 #include "testutil.h"
+
+#if !defined(OPENSSL_NO_SCTP) && !defined(OPENSSL_NO_SOCK)
+#include <netinet/sctp.h>
+#endif
 
 HANDSHAKE_RESULT *HANDSHAKE_RESULT_new(void)
 {
@@ -1282,13 +1286,33 @@ static int peer_pkey_type(SSL *s)
 #if !defined(OPENSSL_NO_SCTP) && !defined(OPENSSL_NO_SOCK)
 static int set_sock_as_sctp(int sock)
 {
+    struct sctp_assocparams assocparams;
+    struct sctp_rtoinfo rto_info;
+    BIO *tmpbio;
+
+    /*
+     * To allow tests to fail fast (within a second or so), reduce the
+     * retransmission timeouts and the number of retransmissions.
+     */
+    memset(&rto_info, 0, sizeof(struct sctp_rtoinfo));
+    rto_info.srto_initial = 100;
+    rto_info.srto_max = 200;
+    rto_info.srto_min = 50;
+    (void)setsockopt(sock, IPPROTO_SCTP, SCTP_RTOINFO,
+                     (const void *)&rto_info, sizeof(struct sctp_rtoinfo));
+    memset(&assocparams, 0, sizeof(struct sctp_assocparams));
+    assocparams.sasoc_asocmaxrxt = 2;
+    (void)setsockopt(sock, IPPROTO_SCTP, SCTP_ASSOCINFO,
+                     (const void *)&assocparams,
+                     sizeof(struct sctp_assocparams));
+
     /*
      * For SCTP we have to set various options on the socket prior to
      * connecting. This is done automatically by BIO_new_dgram_sctp().
      * We don't actually need the created BIO though so we free it again
      * immediately.
      */
-    BIO *tmpbio = BIO_new_dgram_sctp(sock, BIO_NOCLOSE);
+    tmpbio = BIO_new_dgram_sctp(sock, BIO_NOCLOSE);
 
     if (tmpbio == NULL)
         return 0;
@@ -1437,6 +1461,13 @@ static HANDSHAKE_RESULT *do_handshake_internal(
         TEST_note("configure_handshake_ctx");
         return NULL;
     }
+
+#if !defined(OPENSSL_NO_SCTP) && !defined(OPENSSL_NO_SOCK)
+    if (test_ctx->enable_client_sctp_label_bug)
+        SSL_CTX_set_mode(client_ctx, SSL_MODE_DTLS_SCTP_LABEL_LENGTH_BUG);
+    if (test_ctx->enable_server_sctp_label_bug)
+        SSL_CTX_set_mode(server_ctx, SSL_MODE_DTLS_SCTP_LABEL_LENGTH_BUG);
+#endif
 
     /* Setup SSL and buffers; additional configuration happens below. */
     if (!create_peer(&server, server_ctx)) {

@@ -128,8 +128,7 @@ L<ssl(7)>, L<SSL_new(3)>
 
 =head1 HISTORY
 
-The pseudo content type B<SSL3_RT_INNER_CONTENT_TYPE> was added in OpenSSL
-1.1.1.
+The pseudo content type B<SSL3_RT_INNER_CONTENT_TYPE> was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

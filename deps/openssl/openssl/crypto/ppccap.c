@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2009-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -168,16 +168,50 @@ void OPENSSL_altivec_probe(void);
 void OPENSSL_crypto207_probe(void);
 void OPENSSL_madd300_probe(void);
 
-/*
- * Use a weak reference to getauxval() so we can use it if it is available
- * but don't break the build if it is not. Note that this is *link-time*
- * feature detection, not *run-time*. In other words if we link with
- * symbol present, it's expected to be present even at run-time.
- */
-#if defined(__GNUC__) && __GNUC__>=2 && defined(__ELF__)
-extern unsigned long getauxval(unsigned long type) __attribute__ ((weak));
-#else
-static unsigned long (*getauxval) (unsigned long) = NULL;
+long OPENSSL_rdtsc_mftb(void);
+long OPENSSL_rdtsc_mfspr268(void);
+
+uint32_t OPENSSL_rdtsc(void)
+{
+    if (OPENSSL_ppccap_P & PPC_MFTB)
+        return OPENSSL_rdtsc_mftb();
+    else if (OPENSSL_ppccap_P & PPC_MFSPR268)
+        return OPENSSL_rdtsc_mfspr268();
+    else
+        return 0;
+}
+
+size_t OPENSSL_instrument_bus_mftb(unsigned int *, size_t);
+size_t OPENSSL_instrument_bus_mfspr268(unsigned int *, size_t);
+
+size_t OPENSSL_instrument_bus(unsigned int *out, size_t cnt)
+{
+    if (OPENSSL_ppccap_P & PPC_MFTB)
+        return OPENSSL_instrument_bus_mftb(out, cnt);
+    else if (OPENSSL_ppccap_P & PPC_MFSPR268)
+        return OPENSSL_instrument_bus_mfspr268(out, cnt);
+    else
+        return 0;
+}
+
+size_t OPENSSL_instrument_bus2_mftb(unsigned int *, size_t, size_t);
+size_t OPENSSL_instrument_bus2_mfspr268(unsigned int *, size_t, size_t);
+
+size_t OPENSSL_instrument_bus2(unsigned int *out, size_t cnt, size_t max)
+{
+    if (OPENSSL_ppccap_P & PPC_MFTB)
+        return OPENSSL_instrument_bus2_mftb(out, cnt, max);
+    else if (OPENSSL_ppccap_P & PPC_MFSPR268)
+        return OPENSSL_instrument_bus2_mfspr268(out, cnt, max);
+    else
+        return 0;
+}
+
+#if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
+# if __GLIBC_PREREQ(2, 16)
+#  include <sys/auxv.h>
+#  define OSSL_IMPLEMENT_GETAUXVAL
+# endif
 #endif
 
 /* I wish <sys/auxv.h> was universally available */
@@ -277,7 +311,8 @@ void OPENSSL_cpuid_setup(void)
     }
 #endif
 
-    if (getauxval != NULL) {
+#ifdef OSSL_IMPLEMENT_GETAUXVAL
+    {
         unsigned long hwcap = getauxval(HWCAP);
 
         if (hwcap & HWCAP_FPU) {
@@ -304,9 +339,8 @@ void OPENSSL_cpuid_setup(void)
         if (hwcap & HWCAP_ARCH_3_00) {
             OPENSSL_ppccap_P |= PPC_MADD300;
         }
-
-        return;
     }
+#endif
 
     sigfillset(&all_masked);
     sigdelset(&all_masked, SIGILL);
@@ -325,15 +359,16 @@ void OPENSSL_cpuid_setup(void)
     sigprocmask(SIG_SETMASK, &ill_act.sa_mask, &oset);
     sigaction(SIGILL, &ill_act, &ill_oact);
 
+#ifndef OSSL_IMPLEMENT_GETAUXVAL
     if (sigsetjmp(ill_jmp,1) == 0) {
         OPENSSL_fpu_probe();
         OPENSSL_ppccap_P |= PPC_FPU;
 
         if (sizeof(size_t) == 4) {
-#ifdef __linux
+# ifdef __linux
             struct utsname uts;
             if (uname(&uts) == 0 && strcmp(uts.machine, "ppc64") == 0)
-#endif
+# endif
                 if (sigsetjmp(ill_jmp, 1) == 0) {
                     OPENSSL_ppc64_probe();
                     OPENSSL_ppccap_P |= PPC_FPU64;
@@ -357,6 +392,15 @@ void OPENSSL_cpuid_setup(void)
     if (sigsetjmp(ill_jmp, 1) == 0) {
         OPENSSL_madd300_probe();
         OPENSSL_ppccap_P |= PPC_MADD300;
+    }
+#endif
+
+    if (sigsetjmp(ill_jmp, 1) == 0) {
+        OPENSSL_rdtsc_mftb();
+        OPENSSL_ppccap_P |= PPC_MFTB;
+    } else if (sigsetjmp(ill_jmp, 1) == 0) {
+        OPENSSL_rdtsc_mfspr268();
+        OPENSSL_ppccap_P |= PPC_MFSPR268;
     }
 
     sigaction(SIGILL, &ill_oact, NULL);

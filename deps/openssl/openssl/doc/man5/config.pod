@@ -42,6 +42,13 @@ working directory so unless the configuration file containing the
 B<.include> directive is application specific the inclusion will not
 work as expected.
 
+There can be optional B<=> character and whitespace characters between
+B<.include> directive and the path which can be useful in cases the
+configuration file needs to be loaded by old OpenSSL versions which do
+not support the B<.include> syntax. They would bail out with error
+if the B<=> character is not present but with it they just ignore
+the include.
+
 Each section in a configuration file consists of a number of name and
 value pairs of the form B<name=value>
 
@@ -419,7 +426,7 @@ L<x509(1)>, L<req(1)>, L<ca(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

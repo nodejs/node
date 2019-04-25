@@ -277,7 +277,7 @@ internally by OpenSSL and 0 otherwise.
 
 =head1 HISTORY
 
-The function SSL_CTX_add_custom_ext() was added in OpenSSL 1.1.1.
+The SSL_CTX_add_custom_ext() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

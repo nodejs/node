@@ -11,7 +11,7 @@ SSL_CTX_set_ssl_version, SSL_set_ssl_method, SSL_get_ssl_method
 
  int SSL_CTX_set_ssl_version(SSL_CTX *ctx, const SSL_METHOD *method);
  int SSL_set_ssl_method(SSL *s, const SSL_METHOD *method);
- const SSL_METHOD *SSL_get_ssl_method(SSL *ssl);
+ const SSL_METHOD *SSL_get_ssl_method(const SSL *ssl);
 
 =head1 DESCRIPTION
 
@@ -60,7 +60,7 @@ L<SSL_set_connect_state(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -173,7 +173,7 @@ options. See the B<TEXT OPTIONS> section for more information.
 
 =item B<-noout>
 
-This option prevents output of the encoded version of the request.
+This option prevents output of the encoded version of the certificate.
 
 =item B<-pubkey>
 
@@ -925,7 +925,7 @@ the old form must have their links rebuilt using B<c_rehash> or similar.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -109,12 +109,14 @@ L<X509_verify_cert(3)>
 
 =head1 HISTORY
 
-X509_get0_signature() and X509_get_signature_nid() were first added to
-OpenSSL 1.0.2.
+The
+X509_get0_signature() and X509_get_signature_nid() functions were
+added in OpenSSL 1.0.2.
 
+The
 X509_REQ_get0_signature(), X509_REQ_get_signature_nid(),
-X509_CRL_get0_signature() and X509_CRL_get_signature_nid() were first added
-to OpenSSL 1.1.0.
+X509_CRL_get0_signature() and X509_CRL_get_signature_nid() were
+added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

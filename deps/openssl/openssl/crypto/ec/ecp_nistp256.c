@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1810,6 +1810,7 @@ const EC_METHOD *EC_GFp_nistp256_method(void)
         ec_GFp_nist_field_mul,
         ec_GFp_nist_field_sqr,
         0 /* field_div */ ,
+        ec_GFp_simple_field_inv,
         0 /* field_encode */ ,
         0 /* field_decode */ ,
         0,                      /* field_set_to_one */

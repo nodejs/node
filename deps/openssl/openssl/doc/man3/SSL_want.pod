@@ -101,7 +101,8 @@ L<ssl(7)>, L<SSL_get_error(3)>
 
 =head1 HISTORY
 
-SSL_want_client_hello_cb() and SSL_CLIENT_HELLO_CB were added in OpenSSL 1.1.1.
+The SSL_want_client_hello_cb() function and the SSL_CLIENT_HELLO_CB return value
+were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

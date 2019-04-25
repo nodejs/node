@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -439,19 +439,6 @@ int dtls1_read_bytes(SSL *s, int type, int *recvd_type, unsigned char *buf,
     if (SSL3_RECORD_get_type(rr) != SSL3_RT_ALERT
             && SSL3_RECORD_get_length(rr) != 0)
         s->rlayer.alert_count = 0;
-
-    if (SSL3_RECORD_get_type(rr) != SSL3_RT_HANDSHAKE
-            && SSL3_RECORD_get_type(rr) != SSL3_RT_CHANGE_CIPHER_SPEC
-            && !SSL_in_init(s)
-            && (s->d1->next_timeout.tv_sec != 0
-                || s->d1->next_timeout.tv_usec != 0)) {
-        /*
-         * The timer is still running but we've received something that isn't
-         * handshake data - so the peer must have finished processing our
-         * last handshake flight. Stop the timer.
-         */
-        dtls1_stop_timer(s);
-    }
 
     /* we now have a packet which can be read and processed */
 

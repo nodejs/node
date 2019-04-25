@@ -58,3 +58,4 @@ static const ASN1_STRING_TABLE tbl_standard[] = {
     {NID_countryCode3n, 3, 3, B_ASN1_NUMERICSTRING, STABLE_NO_MASK},
     {NID_dnsName, 0, -1, B_ASN1_UTF8STRING, STABLE_NO_MASK}
 };
+

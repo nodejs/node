@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -51,6 +51,7 @@ const EC_METHOD *EC_GFp_simple_method(void)
         ec_GFp_simple_field_mul,
         ec_GFp_simple_field_sqr,
         0 /* field_div */ ,
+        ec_GFp_simple_field_inv,
         0 /* field_encode */ ,
         0 /* field_decode */ ,
         0,                      /* field_set_to_one */
@@ -553,7 +554,7 @@ int ec_GFp_simple_point_get_affine_coordinates(const EC_GROUP *group,
             }
         }
     } else {
-        if (!BN_mod_inverse(Z_1, Z_, group->field, ctx)) {
+        if (!group->meth->field_inv(group, Z_1, Z_, ctx)) {
             ECerr(EC_F_EC_GFP_SIMPLE_POINT_GET_AFFINE_COORDINATES,
                   ERR_R_BN_LIB);
             goto err;
@@ -1266,7 +1267,7 @@ int ec_GFp_simple_points_make_affine(const EC_GROUP *group, size_t num,
      * points[i]->Z by its inverse.
      */
 
-    if (!BN_mod_inverse(tmp, prod_Z[num - 1], group->field, ctx)) {
+    if (!group->meth->field_inv(group, tmp, prod_Z[num - 1], ctx)) {
         ECerr(EC_F_EC_GFP_SIMPLE_POINTS_MAKE_AFFINE, ERR_R_BN_LIB);
         goto err;
     }
@@ -1367,6 +1368,50 @@ int ec_GFp_simple_field_sqr(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a,
                             BN_CTX *ctx)
 {
     return BN_mod_sqr(r, a, group->field, ctx);
+}
+
+/*-
+ * Computes the multiplicative inverse of a in GF(p), storing the result in r.
+ * If a is zero (or equivalent), you'll get a EC_R_CANNOT_INVERT error.
+ * Since we don't have a Mont structure here, SCA hardening is with blinding.
+ */
+int ec_GFp_simple_field_inv(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a,
+                            BN_CTX *ctx)
+{
+    BIGNUM *e = NULL;
+    BN_CTX *new_ctx = NULL;
+    int ret = 0;
+
+    if (ctx == NULL && (ctx = new_ctx = BN_CTX_secure_new()) == NULL)
+        return 0;
+
+    BN_CTX_start(ctx);
+    if ((e = BN_CTX_get(ctx)) == NULL)
+        goto err;
+
+    do {
+        if (!BN_priv_rand_range(e, group->field))
+        goto err;
+    } while (BN_is_zero(e));
+
+    /* r := a * e */
+    if (!group->meth->field_mul(group, r, a, e, ctx))
+        goto err;
+    /* r := 1/(a * e) */
+    if (!BN_mod_inverse(r, r, group->field, ctx)) {
+        ECerr(EC_F_EC_GFP_SIMPLE_FIELD_INV, EC_R_CANNOT_INVERT);
+        goto err;
+    }
+    /* r := e/(a * e) = 1/a */
+    if (!group->meth->field_mul(group, r, r, e, ctx))
+        goto err;
+
+    ret = 1;
+
+ err:
+    BN_CTX_end(ctx);
+    BN_CTX_free(new_ctx);
+    return ret;
 }
 
 /*-

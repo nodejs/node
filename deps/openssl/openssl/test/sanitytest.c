@@ -100,3 +100,4 @@ int setup_tests(void)
     ADD_TEST(test_sanity_memcmp);
     return 1;
 }
+

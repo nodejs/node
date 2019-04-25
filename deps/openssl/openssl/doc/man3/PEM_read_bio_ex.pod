@@ -56,7 +56,7 @@ L<PEM(3)>
 
 =head1 HISTORY
 
-PEM_read_bio_ex() was added in OpenSSL 1.1.1.
+The PEM_read_bio_ex() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

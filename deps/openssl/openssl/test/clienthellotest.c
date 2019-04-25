@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -99,8 +99,9 @@ static int test_client_hello(int currtest)
          * ClientHello is already going to be quite long. To avoid getting one
          * that is too long for this test we use a restricted ciphersuite list
          */
-        if (!TEST_true(SSL_CTX_set_cipher_list(ctx, "")))
+        if (!TEST_false(SSL_CTX_set_cipher_list(ctx, "")))
             goto end;
+        ERR_clear_error();
          /* Fall through */
     case TEST_ADD_PADDING:
     case TEST_PADDING_NOT_NEEDED:

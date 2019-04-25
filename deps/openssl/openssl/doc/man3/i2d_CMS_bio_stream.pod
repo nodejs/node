@@ -39,7 +39,7 @@ L<PEM_write_bio_CMS_stream(3)>
 
 =head1 HISTORY
 
-i2d_CMS_bio_stream() was added to OpenSSL 1.0.0
+The i2d_CMS_bio_stream() function was added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 

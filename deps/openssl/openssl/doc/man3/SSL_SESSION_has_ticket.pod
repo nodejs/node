@@ -44,8 +44,8 @@ L<SSL_SESSION_free(3)>
 
 =head1 HISTORY
 
-SSL_SESSION_has_ticket, SSL_SESSION_get_ticket_lifetime_hint and
-SSL_SESSION_get0_ticket were added in OpenSSL 1.1.0.
+The SSL_SESSION_has_ticket(), SSL_SESSION_get_ticket_lifetime_hint()
+and SSL_SESSION_get0_ticket() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

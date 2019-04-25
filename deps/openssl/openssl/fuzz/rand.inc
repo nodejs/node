@@ -36,3 +36,5 @@ void FuzzerSetRand(void)
 {
     RAND_set_rand_method(&fuzz_rand_method);
 }
+
+
