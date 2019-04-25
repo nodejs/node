@@ -159,8 +159,8 @@ L<X509_VERIFY_PARAM_set_flags(3)>
 
 =head1 HISTORY
 
-X509_STORE_CTX_set0_crls() was first added to OpenSSL 1.0.0
-X509_STORE_CTX_get_num_untrusted() was first added to OpenSSL 1.1.0
+The X509_STORE_CTX_set0_crls() function was added in OpenSSL 1.0.0.
+The X509_STORE_CTX_get_num_untrusted() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

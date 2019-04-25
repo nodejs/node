@@ -368,11 +368,11 @@ L<x509(1)>
 
 =head1 HISTORY
 
-The B<X509_V_FLAG_NO_ALT_CHAINS> flag was added in OpenSSL 1.1.0
-The flag B<X509_V_FLAG_CB_ISSUER_CHECK> was deprecated in
-OpenSSL 1.1.0, and has no effect.
+The B<X509_V_FLAG_NO_ALT_CHAINS> flag was added in OpenSSL 1.1.0.
+The flag B<X509_V_FLAG_CB_ISSUER_CHECK> was deprecated in OpenSSL 1.1.0
+and has no effect.
 
-X509_VERIFY_PARAM_get_hostflags() was added in OpenSSL 1.1.0i.
+The X509_VERIFY_PARAM_get_hostflags() function was added in OpenSSL 1.1.0i.
 
 =head1 COPYRIGHT
 

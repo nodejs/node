@@ -77,7 +77,7 @@ L<CONF_modules_load_file(3)>
 
 =head1 HISTORY
 
-SSL_CTX_config() and SSL_config() were first added to OpenSSL 1.1.0
+The SSL_CTX_config() and SSL_config() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

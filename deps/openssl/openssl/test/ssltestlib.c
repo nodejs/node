@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,18 +17,28 @@
 #ifdef OPENSSL_SYS_UNIX
 # include <unistd.h>
 
-static ossl_inline void ossl_sleep(unsigned int millis) {
+static ossl_inline void ossl_sleep(unsigned int millis)
+{
+# ifdef OPENSSL_SYS_VXWORKS
+    struct timespec ts;
+    ts.tv_sec = (long int) (millis / 1000);
+    ts.tv_nsec = (long int) (millis % 1000) * 1000000ul;
+    nanosleep(&ts, NULL);
+# else
     usleep(millis * 1000);
+# endif
 }
 #elif defined(_WIN32)
 # include <windows.h>
 
-static ossl_inline void ossl_sleep(unsigned int millis) {
+static ossl_inline void ossl_sleep(unsigned int millis)
+{
     Sleep(millis);
 }
 #else
 /* Fallback to a busy wait */
-static ossl_inline void ossl_sleep(unsigned int millis) {
+static ossl_inline void ossl_sleep(unsigned int millis)
+{
     struct timeval start, now;
     unsigned int elapsedms;
 
@@ -428,7 +438,7 @@ int mempacket_test_inject(BIO *bio, const char *in, int inl, int pktnum,
 {
     MEMPACKET_TEST_CTX *ctx = BIO_get_data(bio);
     MEMPACKET *thispkt = NULL, *looppkt, *nextpkt, *allpkts[3];
-    int i, duprec = ctx->duprec > 0;
+    int i, duprec;
     const unsigned char *inu = (const unsigned char *)in;
     size_t len = ((inu[RECORD_LEN_HI] << 8) | inu[RECORD_LEN_LO])
                  + DTLS1_RT_HEADER_LENGTH;
@@ -441,6 +451,8 @@ int mempacket_test_inject(BIO *bio, const char *in, int inl, int pktnum,
 
     if ((size_t)inl == len)
         duprec = 0;
+    else
+        duprec = ctx->duprec > 0;
 
     /* We don't support arbitrary injection when duplicating records */
     if (duprec && pktnum != -1)
@@ -717,8 +729,12 @@ int create_ssl_objects(SSL_CTX *serverctx, SSL_CTX *clientctx, SSL **sssl,
 /*
  * Create an SSL connection, but does not ready any post-handshake
  * NewSessionTicket messages.
+ * If |read| is set and we're using DTLS then we will attempt to SSL_read on
+ * the connection once we've completed one half of it, to ensure any retransmits
+ * get triggered.
  */
-int create_bare_ssl_connection(SSL *serverssl, SSL *clientssl, int want)
+int create_bare_ssl_connection(SSL *serverssl, SSL *clientssl, int want,
+                               int read)
 {
     int retc = -1, rets = -1, err, abortctr = 0;
     int clienterr = 0, servererr = 0;
@@ -756,11 +772,24 @@ int create_bare_ssl_connection(SSL *serverssl, SSL *clientssl, int want)
             return 0;
         if (clienterr && servererr)
             return 0;
-        if (isdtls) {
-            if (rets > 0 && retc <= 0)
-                DTLSv1_handle_timeout(serverssl);
-            if (retc > 0 && rets <= 0)
-                DTLSv1_handle_timeout(clientssl);
+        if (isdtls && read) {
+            unsigned char buf[20];
+
+            /* Trigger any retransmits that may be appropriate */
+            if (rets > 0 && retc <= 0) {
+                if (SSL_read(serverssl, buf, sizeof(buf)) > 0) {
+                    /* We don't expect this to succeed! */
+                    TEST_info("Unexpected SSL_read() success!");
+                    return 0;
+                }
+            }
+            if (retc > 0 && rets <= 0) {
+                if (SSL_read(clientssl, buf, sizeof(buf)) > 0) {
+                    /* We don't expect this to succeed! */
+                    TEST_info("Unexpected SSL_read() success!");
+                    return 0;
+                }
+            }
         }
         if (++abortctr == MAXLOOPS) {
             TEST_info("No progress made");
@@ -789,7 +818,7 @@ int create_ssl_connection(SSL *serverssl, SSL *clientssl, int want)
     unsigned char buf;
     size_t readbytes;
 
-    if (!create_bare_ssl_connection(serverssl, clientssl, want))
+    if (!create_bare_ssl_connection(serverssl, clientssl, want, 1))
         return 0;
 
     /*

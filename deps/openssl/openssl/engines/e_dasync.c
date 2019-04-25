@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -138,7 +138,6 @@ struct dasync_pipeline_ctx {
     unsigned char **inbufs;
     unsigned char **outbufs;
     size_t *lens;
-    int enc;
     unsigned char tlsaad[SSL_MAX_PIPELINES][EVP_AEAD_TLS1_AAD_LEN];
     unsigned int aadctr;
 };
@@ -156,6 +155,14 @@ static const EVP_CIPHER *dasync_aes_128_cbc(void)
 /*
  * Holds the EVP_CIPHER object for aes_128_cbc_hmac_sha1 in this engine. Set up
  * once only during engine bind and can then be reused many times.
+ *
+ * This 'stitched' cipher depends on the EVP_aes_128_cbc_hmac_sha1() cipher,
+ * which is implemented only if the AES-NI instruction set extension is available
+ * (see OPENSSL_IA32CAP(3)). If that's not the case, then this cipher will not
+ * be available either.
+ *
+ * Note: Since it is a legacy mac-then-encrypt cipher, modern TLS peers (which
+ * negotiate the encrypt-then-mac extension) won't negotiate it anyway.
  */
 static EVP_CIPHER *_hidden_aes_128_cbc_hmac_sha1 = NULL;
 static const EVP_CIPHER *dasync_aes_128_cbc_hmac_sha1(void)
@@ -603,7 +610,7 @@ static int dasync_cipher_ctrl_helper(EVP_CIPHER_CTX *ctx, int type, int arg,
 
             len = p[arg - 2] << 8 | p[arg - 1];
 
-            if (pipe_ctx->enc) {
+            if (EVP_CIPHER_CTX_encrypting(ctx)) {
                 if ((p[arg - 4] << 8 | p[arg - 3]) >= TLS1_1_VERSION) {
                     if (len < AES_BLOCK_SIZE)
                         return 0;
@@ -752,6 +759,10 @@ static int dasync_aes128_cbc_hmac_sha1_init_key(EVP_CIPHER_CTX *ctx,
                                                 const unsigned char *iv,
                                                 int enc)
 {
+    /*
+     * We can safely assume that EVP_aes_128_cbc_hmac_sha1() != NULL,
+     * see comment before the definition of dasync_aes_128_cbc_hmac_sha1().
+     */
     return dasync_cipher_init_key_helper(ctx, key, iv, enc,
                                          EVP_aes_128_cbc_hmac_sha1());
 }
@@ -766,5 +777,9 @@ static int dasync_aes128_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx,
 
 static int dasync_aes128_cbc_hmac_sha1_cleanup(EVP_CIPHER_CTX *ctx)
 {
+    /*
+     * We can safely assume that EVP_aes_128_cbc_hmac_sha1() != NULL,
+     * see comment before the definition of dasync_aes_128_cbc_hmac_sha1().
+     */
     return dasync_cipher_cleanup_helper(ctx, EVP_aes_128_cbc_hmac_sha1());
 }

@@ -16,11 +16,12 @@ CMS_get0_type, CMS_set1_eContentType, CMS_get0_eContentType, CMS_get0_content - 
 =head1 DESCRIPTION
 
 CMS_get0_type() returns the content type of a CMS_ContentInfo structure as
-and ASN1_OBJECT pointer. An application can then decide how to process the
+an ASN1_OBJECT pointer. An application can then decide how to process the
 CMS_ContentInfo structure based on this value.
 
 CMS_set1_eContentType() sets the embedded content type of a CMS_ContentInfo
-structure. It should be called with CMS functions with the B<CMS_PARTIAL>
+structure. It should be called with CMS functions (such as L<CMS_sign>, L<CMS_encrypt>)
+with the B<CMS_PARTIAL>
 flag and B<before> the structure is finalised, otherwise the results are
 undefined.
 
@@ -60,7 +61,7 @@ embedded content as it is normally set by higher level functions.
 
 =head1 RETURN VALUES
 
-CMS_get0_type() and CMS_get0_eContentType() return and ASN1_OBJECT structure.
+CMS_get0_type() and CMS_get0_eContentType() return an ASN1_OBJECT structure.
 
 CMS_set1_eContentType() returns 1 for success or 0 if an error occurred.  The
 error can be obtained from ERR_get_error(3).
@@ -71,7 +72,7 @@ L<ERR_get_error(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

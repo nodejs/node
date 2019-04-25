@@ -296,3 +296,4 @@ char *glue_strings(const char *list[], size_t *out_len)
 
     return ret;
 }
+

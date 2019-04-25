@@ -138,17 +138,20 @@ Details depend on the application.
 
 =item SSL_ERROR_SYSCALL
 
-Some non-recoverable I/O error occurred.
-The OpenSSL error queue may contain more information on the error.
-For socket I/O on Unix systems, consult B<errno> for details.
+Some non-recoverable, fatal I/O error occurred. The OpenSSL error queue may
+contain more information on the error. For socket I/O on Unix systems, consult
+B<errno> for details. If this error occurs then no further I/O operations should
+be performed on the connection and SSL_shutdown() must not be called.
 
 This value can also be returned for other errors, check the error queue for
 details.
 
 =item SSL_ERROR_SSL
 
-A failure in the SSL library occurred, usually a protocol error.  The
-OpenSSL error queue contains more information on the error.
+A non-recoverable, fatal error in the SSL library occurred, usually a protocol
+error.  The OpenSSL error queue contains more information on the error. If this
+error occurs then no further I/O operations should be performed on the
+connection and SSL_shutdown() must not be called.
 
 =back
 
@@ -158,8 +161,8 @@ L<ssl(7)>
 
 =head1 HISTORY
 
-SSL_ERROR_WANT_ASYNC was added in OpenSSL 1.1.0.
-SSL_ERROR_WANT_CLIENT_HELLO_CB was added in OpenSSL 1.1.1.
+The SSL_ERROR_WANT_ASYNC error code was added in OpenSSL 1.1.0.
+The SSL_ERROR_WANT_CLIENT_HELLO_CB error code was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

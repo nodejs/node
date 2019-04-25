@@ -762,7 +762,7 @@ L<x509(1)>
 
 =head1 HISTORY
 
-The B<-show_chain> option was first added to OpenSSL 1.1.0.
+The B<-show_chain> option was added in OpenSSL 1.1.0.
 
 The B<-issuer_checks> option is deprecated as of OpenSSL 1.1.0 and
 is silently ignored.

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -28,7 +28,7 @@ map { s/\^// } @conf_files if $^O eq "VMS";
 
 # We hard-code the number of tests to double-check that the globbing above
 # finds all files as expected.
-plan tests => 28;  # = scalar @conf_srcs
+plan tests => 29;  # = scalar @conf_srcs
 
 # Some test results depend on the configuration of enabled protocols. We only
 # verify generated sources in the default configuration.
@@ -102,6 +102,7 @@ my %skip = (
   "24-padding.conf" => disabled("tls1_3"),
   "25-cipher.conf" => disabled("ec") || disabled("tls1_2"),
   "26-tls13_client_auth.conf" => disabled("tls1_3"),
+  "29-dtls-sctp-label-bug.conf" => disabled("sctp") || disabled("sock"),
 );
 
 foreach my $conf (@conf_files) {

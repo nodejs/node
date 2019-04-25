@@ -42,7 +42,7 @@
  for now is to rename the OpenSSL source directory, as follows (please
  adjust for the actual source directory name you have):
 
-    $ rename openssl-1^.1^.0.DIR openssl-1_1_0.DIR 
+    $ rename openssl-1^.1^.0.DIR openssl-1_1_0.DIR
 
 
  About MMS and DCL

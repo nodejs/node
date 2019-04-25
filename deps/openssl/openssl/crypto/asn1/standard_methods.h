@@ -58,3 +58,4 @@ static const EVP_PKEY_ASN1_METHOD *standard_methods[] = {
     &sm2_asn1_meth,
 #endif
 };
+

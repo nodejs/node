@@ -36,7 +36,7 @@ L<ssl(7)>
 
 =head1 HISTORY
 
-SSL_SESSION_set1_id() was first added to OpenSSL 1.1.0
+The SSL_SESSION_set1_id() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

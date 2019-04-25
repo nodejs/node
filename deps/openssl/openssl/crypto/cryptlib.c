@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -457,6 +457,16 @@ int CRYPTO_memcmp(const void * in_a, const void * in_b, size_t len)
  * For systems that don't provide an instruction counter register or equivalent.
  */
 uint32_t OPENSSL_rdtsc(void)
+{
+    return 0;
+}
+
+size_t OPENSSL_instrument_bus(unsigned int *out, size_t cnt)
+{
+    return 0;
+}
+
+size_t OPENSSL_instrument_bus2(unsigned int *out, size_t cnt, size_t max)
 {
     return 0;
 }

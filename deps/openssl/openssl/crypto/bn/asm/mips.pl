@@ -798,6 +798,11 @@ $code.=<<___;
 	move	$a0,$v0
 .end	bn_sub_words_internal
 
+#if 0
+/*
+ * The bn_div_3_words entry point is re-used for constant-time interface.
+ * Implementation is retained as hystorical reference.
+ */
 .align 5
 .globl	bn_div_3_words
 .ent	bn_div_3_words
@@ -877,6 +882,7 @@ $code.=<<___;
 	jr	$ra
 	move	$a0,$v0
 .end	bn_div_3_words_internal
+#endif
 
 .align	5
 .globl	bn_div_words

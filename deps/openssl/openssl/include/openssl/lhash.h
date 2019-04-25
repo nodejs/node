@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -127,52 +127,52 @@ void OPENSSL_LH_node_usage_stats_bio(const OPENSSL_LHASH *lh, BIO *out);
         return (LHASH_OF(type) *) \
             OPENSSL_LH_new((OPENSSL_LH_HASHFUNC)hfn, (OPENSSL_LH_COMPFUNC)cfn); \
     } \
-    static ossl_inline void lh_##type##_free(LHASH_OF(type) *lh) \
+    static ossl_unused ossl_inline void lh_##type##_free(LHASH_OF(type) *lh) \
     { \
         OPENSSL_LH_free((OPENSSL_LHASH *)lh); \
     } \
-    static ossl_inline type *lh_##type##_insert(LHASH_OF(type) *lh, type *d) \
+    static ossl_unused ossl_inline type *lh_##type##_insert(LHASH_OF(type) *lh, type *d) \
     { \
         return (type *)OPENSSL_LH_insert((OPENSSL_LHASH *)lh, d); \
     } \
-    static ossl_inline type *lh_##type##_delete(LHASH_OF(type) *lh, const type *d) \
+    static ossl_unused ossl_inline type *lh_##type##_delete(LHASH_OF(type) *lh, const type *d) \
     { \
         return (type *)OPENSSL_LH_delete((OPENSSL_LHASH *)lh, d); \
     } \
-    static ossl_inline type *lh_##type##_retrieve(LHASH_OF(type) *lh, const type *d) \
+    static ossl_unused ossl_inline type *lh_##type##_retrieve(LHASH_OF(type) *lh, const type *d) \
     { \
         return (type *)OPENSSL_LH_retrieve((OPENSSL_LHASH *)lh, d); \
     } \
-    static ossl_inline int lh_##type##_error(LHASH_OF(type) *lh) \
+    static ossl_unused ossl_inline int lh_##type##_error(LHASH_OF(type) *lh) \
     { \
         return OPENSSL_LH_error((OPENSSL_LHASH *)lh); \
     } \
-    static ossl_inline unsigned long lh_##type##_num_items(LHASH_OF(type) *lh) \
+    static ossl_unused ossl_inline unsigned long lh_##type##_num_items(LHASH_OF(type) *lh) \
     { \
         return OPENSSL_LH_num_items((OPENSSL_LHASH *)lh); \
     } \
-    static ossl_inline void lh_##type##_node_stats_bio(const LHASH_OF(type) *lh, BIO *out) \
+    static ossl_unused ossl_inline void lh_##type##_node_stats_bio(const LHASH_OF(type) *lh, BIO *out) \
     { \
         OPENSSL_LH_node_stats_bio((const OPENSSL_LHASH *)lh, out); \
     } \
-    static ossl_inline void lh_##type##_node_usage_stats_bio(const LHASH_OF(type) *lh, BIO *out) \
+    static ossl_unused ossl_inline void lh_##type##_node_usage_stats_bio(const LHASH_OF(type) *lh, BIO *out) \
     { \
         OPENSSL_LH_node_usage_stats_bio((const OPENSSL_LHASH *)lh, out); \
     } \
-    static ossl_inline void lh_##type##_stats_bio(const LHASH_OF(type) *lh, BIO *out) \
+    static ossl_unused ossl_inline void lh_##type##_stats_bio(const LHASH_OF(type) *lh, BIO *out) \
     { \
         OPENSSL_LH_stats_bio((const OPENSSL_LHASH *)lh, out); \
     } \
-    static ossl_inline unsigned long lh_##type##_get_down_load(LHASH_OF(type) *lh) \
+    static ossl_unused ossl_inline unsigned long lh_##type##_get_down_load(LHASH_OF(type) *lh) \
     { \
         return OPENSSL_LH_get_down_load((OPENSSL_LHASH *)lh); \
     } \
-    static ossl_inline void lh_##type##_set_down_load(LHASH_OF(type) *lh, unsigned long dl) \
+    static ossl_unused ossl_inline void lh_##type##_set_down_load(LHASH_OF(type) *lh, unsigned long dl) \
     { \
         OPENSSL_LH_set_down_load((OPENSSL_LHASH *)lh, dl); \
     } \
-    static ossl_inline void lh_##type##_doall(LHASH_OF(type) *lh, \
-                                         void (*doall)(type *)) \
+    static ossl_unused ossl_inline void lh_##type##_doall(LHASH_OF(type) *lh, \
+                                                          void (*doall)(type *)) \
     { \
         OPENSSL_LH_doall((OPENSSL_LHASH *)lh, (OPENSSL_LH_DOALL_FUNC)doall); \
     } \
@@ -185,7 +185,7 @@ void OPENSSL_LH_node_usage_stats_bio(const OPENSSL_LHASH *lh, BIO *out);
     int_implement_lhash_doall(type, argtype, type)
 
 #define int_implement_lhash_doall(type, argtype, cbargtype) \
-    static ossl_inline void \
+    static ossl_unused ossl_inline void \
         lh_##type##_doall_##argtype(LHASH_OF(type) *lh, \
                                    void (*fn)(cbargtype *, argtype *), \
                                    argtype *arg) \
@@ -209,6 +209,31 @@ DEFINE_LHASH_OF(OPENSSL_CSTRING);
 # ifdef _MSC_VER
 #  pragma warning (pop)
 # endif
+
+/*
+ * If called without higher optimization (min. -xO3) the Oracle Developer
+ * Studio compiler generates code for the defined (static inline) functions
+ * above.
+ * This would later lead to the linker complaining about missing symbols when
+ * this header file is included but the resulting object is not linked against
+ * the Crypto library (openssl#6912).
+ */
+# ifdef __SUNPRO_C
+#  pragma weak OPENSSL_LH_new
+#  pragma weak OPENSSL_LH_free
+#  pragma weak OPENSSL_LH_insert
+#  pragma weak OPENSSL_LH_delete
+#  pragma weak OPENSSL_LH_retrieve
+#  pragma weak OPENSSL_LH_error
+#  pragma weak OPENSSL_LH_num_items
+#  pragma weak OPENSSL_LH_node_stats_bio
+#  pragma weak OPENSSL_LH_node_usage_stats_bio
+#  pragma weak OPENSSL_LH_stats_bio
+#  pragma weak OPENSSL_LH_get_down_load
+#  pragma weak OPENSSL_LH_set_down_load
+#  pragma weak OPENSSL_LH_doall
+#  pragma weak OPENSSL_LH_doall_arg
+# endif /* __SUNPRO_C */
 
 #ifdef  __cplusplus
 }

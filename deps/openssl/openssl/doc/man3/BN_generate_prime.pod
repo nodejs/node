@@ -197,8 +197,8 @@ L<RSA_generate_key(3)>, L<ERR_get_error(3)>, L<RAND_bytes(3)>
 
 =head1 HISTORY
 
-BN_GENCB_new(), BN_GENCB_free(),
-and BN_GENCB_get_arg() were added in OpenSSL 1.1.0
+The BN_GENCB_new(), BN_GENCB_free(),
+and BN_GENCB_get_arg() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

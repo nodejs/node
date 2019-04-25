@@ -26,7 +26,7 @@ algorithm/mode pair are;
      EVP_EncryptInit(&ctx, cipher, key, iv);
      [ ... use EVP_EncryptUpdate() and EVP_EncryptFinal() ...]
 
-(ii) indirectly; 
+(ii) indirectly;
      OpenSSL_add_all_ciphers();
      cipher = EVP_get_cipherbyname("des_cbc");
      EVP_EncryptInit(&ctx, cipher, key, iv);

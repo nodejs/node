@@ -3,7 +3,7 @@
 .ident	"ia64.S, Version 2.1"
 .ident	"IA-64 ISA artwork by Andy Polyakov <appro@openssl.org>"
 
-// Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+// Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
 //
 // Licensed under the OpenSSL license (the "License").  You may not use
 // this file except in compliance with the License.  You can obtain a copy
@@ -48,7 +48,7 @@
 // on Itanium2! What to do? Reschedule loops for Itanium2? But then
 // Itanium would exhibit anti-scalability. So I've chosen to reschedule
 // for worst latency for every instruction aiming for best *all-round*
-// performance.  
+// performance.
 
 // Q.	How much faster does it get?
 // A.	Here is the output from 'openssl speed rsa dsa' for vanilla
@@ -472,7 +472,7 @@ bn_mul_add_words:
 .global	bn_sqr_words#
 .proc	bn_sqr_words#
 .align	64
-.skip	32	// makes the loop body aligned at 64-byte boundary 
+.skip	32	// makes the loop body aligned at 64-byte boundary
 bn_sqr_words:
 	.prologue
 	.save	ar.pfs,r2

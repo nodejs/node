@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -74,6 +74,7 @@ static void print_stuff(BIO *berr, SSL *con, int full);
 static int ocsp_resp_cb(SSL *s, void *arg);
 #endif
 static int ldap_ExtendedResponse_parse(const char *buf, long rem);
+static int is_dNS_name(const char *host);
 
 static int saved_errno;
 
@@ -596,6 +597,7 @@ typedef enum OPTION_choice {
 #endif
     OPT_DANE_TLSA_RRDATA, OPT_DANE_EE_NO_NAME,
     OPT_ENABLE_PHA,
+    OPT_SCTP_LABEL_BUG,
     OPT_R_ENUM
 } OPTION_CHOICE;
 
@@ -750,6 +752,7 @@ const OPTIONS s_client_options[] = {
 #endif
 #ifndef OPENSSL_NO_SCTP
     {"sctp", OPT_SCTP, '-', "Use SCTP"},
+    {"sctp_label_bug", OPT_SCTP_LABEL_BUG, '-', "Enable SCTP label length bug"},
 #endif
 #ifndef OPENSSL_NO_SSL_TRACE
     {"trace", OPT_TRACE, '-', "Show trace output of protocol messages"},
@@ -976,6 +979,9 @@ int s_client_main(int argc, char **argv)
 #endif
     char *psksessf = NULL;
     int enable_pha = 0;
+#ifndef OPENSSL_NO_SCTP
+    int sctp_label_bug = 0;
+#endif
 
     FD_ZERO(&readfds);
     FD_ZERO(&writefds);
@@ -1121,6 +1127,7 @@ int s_client_main(int argc, char **argv)
                 goto opthelp;
             break;
         case OPT_VERIFY_RET_ERROR:
+            verify = SSL_VERIFY_PEER;
             verify_args.return_error = 1;
             break;
         case OPT_VERIFY_QUIET:
@@ -1321,6 +1328,11 @@ int s_client_main(int argc, char **argv)
         case OPT_SCTP:
 #ifndef OPENSSL_NO_SCTP
             protocol = IPPROTO_SCTP;
+#endif
+            break;
+        case OPT_SCTP_LABEL_BUG:
+#ifndef OPENSSL_NO_SCTP
+            sctp_label_bug = 1;
 #endif
             break;
         case OPT_TIMEOUT:
@@ -1707,6 +1719,11 @@ int s_client_main(int argc, char **argv)
         }
     }
 
+#ifndef OPENSSL_NO_SCTP
+    if (protocol == IPPROTO_SCTP && sctp_label_bug == 1)
+        SSL_CTX_set_mode(ctx, SSL_MODE_DTLS_SCTP_LABEL_LENGTH_BUG);
+#endif
+
     if (min_version != 0
         && SSL_CTX_set_min_proto_version(ctx, min_version) == 0)
         goto end;
@@ -1975,9 +1992,11 @@ int s_client_main(int argc, char **argv)
         SSL_set_mode(con, SSL_MODE_SEND_FALLBACK_SCSV);
 
     if (!noservername && (servername != NULL || dane_tlsa_domain == NULL)) {
-        if (servername == NULL)
-            servername = (host == NULL) ? "localhost" : host;
-        if (!SSL_set_tlsext_host_name(con, servername)) {
+        if (servername == NULL) {
+            if(host == NULL || is_dNS_name(host)) 
+                servername = (host == NULL) ? "localhost" : host;
+        }
+        if (servername != NULL && !SSL_set_tlsext_host_name(con, servername)) {
             BIO_printf(bio_err, "Unable to set TLS servername extension.\n");
             ERR_print_errors(bio_err);
             goto end;
@@ -3031,9 +3050,7 @@ int s_client_main(int argc, char **argv)
                 BIO_printf(bio_err, "RENEGOTIATING\n");
                 SSL_renegotiate(con);
                 cbuf_len = 0;
-            }
-
-            if (!c_ign_eof && (cbuf[0] == 'K' || cbuf[0] == 'k' )
+	    } else if (!c_ign_eof && (cbuf[0] == 'K' || cbuf[0] == 'k' )
                     && cmdletters) {
                 BIO_printf(bio_err, "KEYUPDATE\n");
                 SSL_key_update(con,
@@ -3459,4 +3476,69 @@ static int ldap_ExtendedResponse_parse(const char *buf, long rem)
     return ret;
 }
 
+/*
+ * Host dNS Name verifier: used for checking that the hostname is in dNS format 
+ * before setting it as SNI
+ */
+static int is_dNS_name(const char *host)
+{
+    const size_t MAX_LABEL_LENGTH = 63;
+    size_t i;
+    int isdnsname = 0;
+    size_t length = strlen(host);
+    size_t label_length = 0;
+    int all_numeric = 1;
+
+    /*
+     * Deviation from strict DNS name syntax, also check names with '_'
+     * Check DNS name syntax, any '-' or '.' must be internal,
+     * and on either side of each '.' we can't have a '-' or '.'.
+     *
+     * If the name has just one label, we don't consider it a DNS name.
+     */
+    for (i = 0; i < length && label_length < MAX_LABEL_LENGTH; ++i) {
+        char c = host[i];
+
+        if ((c >= 'a' && c <= 'z')
+            || (c >= 'A' && c <= 'Z')
+            || c == '_') {
+            label_length += 1;
+            all_numeric = 0;
+            continue;
+        }
+
+        if (c >= '0' && c <= '9') {
+            label_length += 1;
+            continue;
+        }
+
+        /* Dot and hyphen cannot be first or last. */
+        if (i > 0 && i < length - 1) {
+            if (c == '-') {
+                label_length += 1;
+                continue;
+            }
+            /*
+             * Next to a dot the preceding and following characters must not be
+             * another dot or a hyphen.  Otherwise, record that the name is
+             * plausible, since it has two or more labels.
+             */
+            if (c == '.'
+                && host[i + 1] != '.'
+                && host[i - 1] != '-'
+                && host[i + 1] != '-') {
+                label_length = 0;
+                isdnsname = 1;
+                continue;
+            }
+        }
+        isdnsname = 0;
+        break;
+    }
+
+    /* dNS name must not be all numeric and labels must be shorter than 64 characters. */
+    isdnsname &= !all_numeric && !(label_length == MAX_LABEL_LENGTH);
+
+    return isdnsname;
+}
 #endif                          /* OPENSSL_NO_SOCK */

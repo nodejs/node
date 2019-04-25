@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -121,6 +121,7 @@ $code.=<<___;
 .align	5
 KeccakF1600_int:
 	adr	$C[2],iotas
+	.inst	0xd503233f			// paciasp
 	stp	$C[2],x30,[sp,#16]		// 32 bytes on top are mine
 	b	.Loop
 .align	4
@@ -292,12 +293,14 @@ $code.=<<___;
 	bne	.Loop
 
 	ldr	x30,[sp,#24]
+	.inst	0xd50323bf			// autiasp
 	ret
 .size	KeccakF1600_int,.-KeccakF1600_int
 
 .type	KeccakF1600,%function
 .align	5
 KeccakF1600:
+	.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -347,6 +350,7 @@ KeccakF1600:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#128
+	.inst	0xd50323bf			// autiasp
 	ret
 .size	KeccakF1600,.-KeccakF1600
 
@@ -354,6 +358,7 @@ KeccakF1600:
 .type	SHA3_absorb,%function
 .align	5
 SHA3_absorb:
+	.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -451,6 +456,7 @@ $code.=<<___;
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#128
+	.inst	0xd50323bf			// autiasp
 	ret
 .size	SHA3_absorb,.-SHA3_absorb
 ___
@@ -461,6 +467,7 @@ $code.=<<___;
 .type	SHA3_squeeze,%function
 .align	5
 SHA3_squeeze:
+	.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-48]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -523,6 +530,7 @@ SHA3_squeeze:
 	ldp	x19,x20,[sp,#16]
 	ldp	x21,x22,[sp,#32]
 	ldp	x29,x30,[sp],#48
+	.inst	0xd50323bf			// autiasp
 	ret
 .size	SHA3_squeeze,.-SHA3_squeeze
 ___
@@ -649,6 +657,7 @@ $code.=<<___;
 .type	KeccakF1600_cext,%function
 .align	5
 KeccakF1600_cext:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-80]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#16]		// per ABI requirement
@@ -681,6 +690,7 @@ $code.=<<___;
 	ldp	d12,d13,[sp,#48]
 	ldp	d14,d15,[sp,#64]
 	ldr	x29,[sp],#80
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	KeccakF1600_cext,.-KeccakF1600_cext
 ___
@@ -693,6 +703,7 @@ $code.=<<___;
 .type	SHA3_absorb_cext,%function
 .align	5
 SHA3_absorb_cext:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-80]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#16]		// per ABI requirement
@@ -764,6 +775,7 @@ $code.=<<___;
 	ldp	d12,d13,[sp,#48]
 	ldp	d14,d15,[sp,#64]
 	ldp	x29,x30,[sp],#80
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	SHA3_absorb_cext,.-SHA3_absorb_cext
 ___
@@ -775,6 +787,7 @@ $code.=<<___;
 .type	SHA3_squeeze_cext,%function
 .align	5
 SHA3_squeeze_cext:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	mov	x9,$ctx
@@ -830,6 +843,7 @@ SHA3_squeeze_cext:
 
 .Lsqueeze_done_ce:
 	ldr	x29,[sp],#16
+	.inst	0xd50323bf		// autiasp
 	ret
 .size	SHA3_squeeze_cext,.-SHA3_squeeze_cext
 ___

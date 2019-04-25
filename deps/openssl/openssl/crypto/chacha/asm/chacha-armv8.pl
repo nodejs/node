@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -157,6 +157,7 @@ ChaCha20_ctr32:
 	b.ne	ChaCha20_neon
 
 .Lshort:
+	.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
@@ -276,6 +277,7 @@ $code.=<<___;
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+	.inst	0xd50323bf			// autiasp
 .Labort:
 	ret
 
@@ -332,6 +334,7 @@ $code.=<<___;
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+	.inst	0xd50323bf			// autiasp
 	ret
 .size	ChaCha20_ctr32,.-ChaCha20_ctr32
 ___
@@ -377,6 +380,7 @@ $code.=<<___;
 .type	ChaCha20_neon,%function
 .align	5
 ChaCha20_neon:
+	.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
@@ -575,6 +579,7 @@ $code.=<<___;
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+	.inst	0xd50323bf			// autiasp
 	ret
 
 .Ltail_neon:
@@ -684,6 +689,7 @@ $code.=<<___;
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+	.inst	0xd50323bf			// autiasp
 	ret
 .size	ChaCha20_neon,.-ChaCha20_neon
 ___
@@ -696,6 +702,7 @@ $code.=<<___;
 .type	ChaCha20_512_neon,%function
 .align	5
 ChaCha20_512_neon:
+	.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
@@ -1114,6 +1121,7 @@ $code.=<<___;
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+	.inst	0xd50323bf			// autiasp
 	ret
 .size	ChaCha20_512_neon,.-ChaCha20_512_neon
 ___

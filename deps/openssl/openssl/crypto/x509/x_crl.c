@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -158,6 +158,18 @@ static int crl_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
     int idx;
 
     switch (operation) {
+    case ASN1_OP_D2I_PRE:
+        if (crl->meth->crl_free) {
+            if (!crl->meth->crl_free(crl))
+                return 0;
+        }
+        AUTHORITY_KEYID_free(crl->akid);
+        ISSUING_DIST_POINT_free(crl->idp);
+        ASN1_INTEGER_free(crl->crl_number);
+        ASN1_INTEGER_free(crl->base_crl_number);
+        sk_GENERAL_NAMES_pop_free(crl->issuers, GENERAL_NAMES_free);
+        /* fall thru */
+
     case ASN1_OP_NEW_POST:
         crl->idp = NULL;
         crl->akid = NULL;

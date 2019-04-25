@@ -237,8 +237,9 @@ L<CMS_verify(3)>
 
 =head1 HISTORY
 
-X509_STORE_set_verify_cb() was added to OpenSSL 1.0.0.
+The X509_STORE_set_verify_cb() function was added in OpenSSL 1.0.0.
 
+The functions
 X509_STORE_set_verify_cb(), X509_STORE_get_verify_cb(),
 X509_STORE_set_verify(), X509_STORE_CTX_get_verify(),
 X509_STORE_set_get_issuer(), X509_STORE_get_get_issuer(),
@@ -250,8 +251,8 @@ X509_STORE_set_cert_crl(), X509_STORE_get_cert_crl(),
 X509_STORE_set_check_policy(), X509_STORE_get_check_policy(),
 X509_STORE_set_lookup_certs(), X509_STORE_get_lookup_certs(),
 X509_STORE_set_lookup_crls(), X509_STORE_get_lookup_crls(),
-X509_STORE_set_cleanup() and X509_STORE_get_cleanup() were added in
-OpenSSL 1.1.0.
+X509_STORE_set_cleanup() and X509_STORE_get_cleanup()
+were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

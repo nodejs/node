@@ -38,7 +38,7 @@ ticket information or it starts a full TLS handshake to create a new session
 ticket.
 
 Before the callback function is started I<ctx> and I<hctx> have been
-initialised with EVP_CIPHER_CTX_init and HMAC_CTX_init respectively.
+initialised with L<EVP_CIPHER_CTX_reset(3)> and L<HMAC_CTX_reset(3)> respectively.
 
 For new sessions tickets, when the client doesn't present a session ticket, or
 an attempted retrieval of the ticket failed, or a renew option was indicated,

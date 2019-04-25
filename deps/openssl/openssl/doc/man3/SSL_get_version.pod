@@ -97,7 +97,7 @@ L<ssl(7)>
 
 =head1 HISTORY
 
-SSL_is_dtls() was added in OpenSSL 1.1.0.
+The SSL_is_dtls() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
