@@ -328,6 +328,21 @@ const errorTests = [
     send: '1 }',
     expect: '{ a: 1 }'
   },
+  // Multiline class with private member.
+  {
+    send: 'class Foo { #private = true ',
+    expect: '... '
+  },
+  // Class field with bigint.
+  {
+    send: 'num = 123456789n',
+    expect: '... '
+  },
+  // Static class features.
+  {
+    send: 'static foo = "bar" }',
+    expect: 'undefined'
+  },
   // Multiline anonymous function with comment
   {
     send: '(function() {',
