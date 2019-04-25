@@ -127,10 +127,13 @@ if (!common.hasIntl) {
   // `ffi` ligature (contraction)
   assert.strictEqual(coll.compare('\ufb03', 'ffi'), 0);
 
-  // Regression test for https://github.com/nodejs/node/issues/27379
-  execFile(
-    process.execPath, ['-p', 'new Date().toLocaleString()'],
-    { env: { LC_ALL: 'ja' }, encoding: 'utf-8' },
-    common.mustCall((e) => assert.ifError(e))
-  );
+  {
+    // Regression test for https://github.com/nodejs/node/issues/27379
+    const env = { ...process.env, LC_ALL: 'ja' };
+    execFile(
+      process.execPath, ['-p', 'new Date().toLocaleString()'],
+      { env },
+      common.mustCall((e) => assert.ifError(e))
+    );
+  }
 }
