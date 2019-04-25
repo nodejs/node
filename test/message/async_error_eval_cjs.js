@@ -1,13 +1,16 @@
 'use strict';
 
 require('../common');
-const fixtures = require('../common/fixtures');
-const errorModule = fixtures.path('async-error.js');
 const { spawnSync } = require('child_process');
 
-const main = `'use strict';
+const four = require('../common/fixtures')
+  .readSync('async-error.js')
+  .toString()
+  .split('\n')
+  .slice(2, -2)
+  .join('\n');
 
-const four = require('${errorModule}');
+const main = `${four}
 
 async function main() {
   try {
