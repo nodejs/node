@@ -132,6 +132,13 @@ variable. Since the module lookups using `node_modules` folders are all
 relative, and based on the real path of the files making the calls to
 `require()`, the packages themselves can be anywhere.
 
+## Addenda: The .mjs extension
+
+It is not possible to `require()` files that have the `.mjs` extension.
+Attempting to do so will throw [an error][]. The `.mjs` extension is
+reserved for [ECMAScript Modules][] which cannot be loaded via `require()`.
+See [ECMAScript Modules][] for more details.
+
 ## All Together...
 
 <!-- type=misc -->
@@ -950,6 +957,8 @@ requireUtil('./some-tool');
 [`createRequire()`]: #modules_module_createrequire_filename
 [`module` object]: #modules_the_module_object
 [`path.dirname()`]: path.html#path_path_dirname_path
+[ECMAScript Modules]: esm.html
+[an error]: errors.html#errors_err_require_esm
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together
 [module wrapper]: #modules_the_module_wrapper
