@@ -225,3 +225,30 @@ assert.strictEqual(newObject.test_string, 'test string');
   assert.deepStrictEqual(test_object.GetPropertyNames(object),
                          ['5', 'normal', 'inherited']);
 }
+
+// Verify that passing NULL to napi_set_property() results in the correct
+// error.
+assert.deepStrictEqual(test_object.TestSetProperty(), {
+  envIsNull: 'pass',
+  objectIsNull: 'pass',
+  keyIsNull: 'pass',
+  valueIsNull: 'pass'
+});
+
+// Verify that passing NULL to napi_has_property() results in the correct
+// error.
+assert.deepStrictEqual(test_object.TestHasProperty(), {
+  envIsNull: 'pass',
+  objectIsNull: 'pass',
+  keyIsNull: 'pass',
+  resultIsNull: 'pass'
+});
+
+// Verify that passing NULL to napi_get_property() results in the correct
+// error.
+assert.deepStrictEqual(test_object.TestGetProperty(), {
+  envIsNull: 'pass',
+  objectIsNull: 'pass',
+  keyIsNull: 'pass',
+  resultIsNull: 'pass'
+});
