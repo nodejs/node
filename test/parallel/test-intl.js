@@ -136,4 +136,15 @@ if (!common.hasIntl) {
       common.mustCall((e) => assert.ifError(e))
     );
   }
+
+  {
+    // Regression test for https://github.com/nodejs/node/issues/27418
+    const env = { ...process.env, LC_ALL: 'fr@EURO' };
+    execFile(
+      process.execPath,
+      ['-p', 'new Intl.NumberFormat().resolvedOptions().locale'],
+      { env },
+      common.mustCall((e) => assert.ifError(e))
+    );
+  }
 }
