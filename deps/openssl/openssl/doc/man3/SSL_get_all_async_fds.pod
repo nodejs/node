@@ -73,8 +73,8 @@ L<SSL_get_error(3)>, L<SSL_CTX_set_mode(3)>
 
 =head1 HISTORY
 
-SSL_waiting_for_async(), SSL_get_all_async_fds() and SSL_get_changed_async_fds()
-were first added to OpenSSL 1.1.0.
+The SSL_waiting_for_async(), SSL_get_all_async_fds()
+and SSL_get_changed_async_fds() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

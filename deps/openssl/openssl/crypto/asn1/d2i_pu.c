@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -32,7 +32,7 @@ EVP_PKEY *d2i_PublicKey(int type, EVP_PKEY **a, const unsigned char **pp,
     } else
         ret = *a;
 
-    if (!EVP_PKEY_set_type(ret, type)) {
+    if (type != EVP_PKEY_id(ret) && !EVP_PKEY_set_type(ret, type)) {
         ASN1err(ASN1_F_D2I_PUBLICKEY, ERR_R_EVP_LIB);
         goto err;
     }

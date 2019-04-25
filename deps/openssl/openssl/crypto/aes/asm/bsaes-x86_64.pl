@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2011-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -816,6 +816,7 @@ $code.=<<___;
 .type	_bsaes_encrypt8,\@abi-omnipotent
 .align	64
 _bsaes_encrypt8:
+.cfi_startproc
 	lea	.LBS0(%rip), $const	# constants table
 
 	movdqa	($key), @XMM[9]		# round 0 key
@@ -875,11 +876,13 @@ $code.=<<___;
 	pxor	@XMM[8], @XMM[0]
 	pxor	@XMM[8], @XMM[1]
 	ret
+.cfi_endproc
 .size	_bsaes_encrypt8,.-_bsaes_encrypt8
 
 .type	_bsaes_decrypt8,\@abi-omnipotent
 .align	64
 _bsaes_decrypt8:
+.cfi_startproc
 	lea	.LBS0(%rip), $const	# constants table
 
 	movdqa	($key), @XMM[9]		# round 0 key
@@ -937,6 +940,7 @@ $code.=<<___;
 	pxor	@XMM[8], @XMM[0]
 	pxor	@XMM[8], @XMM[1]
 	ret
+.cfi_endproc
 .size	_bsaes_decrypt8,.-_bsaes_decrypt8
 ___
 }
@@ -971,6 +975,7 @@ $code.=<<___;
 .type	_bsaes_key_convert,\@abi-omnipotent
 .align	16
 _bsaes_key_convert:
+.cfi_startproc
 	lea	.Lmasks(%rip), $const
 	movdqu	($inp), %xmm7		# load round 0 key
 	lea	0x10($inp), $inp
@@ -1049,6 +1054,7 @@ _bsaes_key_convert:
 	movdqa	0x50($const), %xmm7	# .L63
 	#movdqa	%xmm6, ($out)		# don't save last round key
 	ret
+.cfi_endproc
 .size	_bsaes_key_convert,.-_bsaes_key_convert
 ___
 }

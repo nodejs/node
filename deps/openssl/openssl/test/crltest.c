@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -357,6 +357,20 @@ static int test_unknown_critical_crl(int n)
     return r;
 }
 
+static int test_reuse_crl(void)
+{
+    X509_CRL *reused_crl = CRL_from_strings(kBasicCRL);
+    char *p;
+    BIO *b = glue2bio(kRevokedCRL, &p);
+
+    reused_crl = PEM_read_bio_X509_CRL(b, &reused_crl, NULL, NULL);
+
+    OPENSSL_free(p);
+    BIO_free(b);
+    X509_CRL_free(reused_crl);
+    return 1;
+}
+
 int setup_tests(void)
 {
     if (!TEST_ptr(test_root = X509_from_strings(kCRLTestRoot))
@@ -368,6 +382,7 @@ int setup_tests(void)
     ADD_TEST(test_bad_issuer_crl);
     ADD_TEST(test_known_critical_crl);
     ADD_ALL_TESTS(test_unknown_critical_crl, OSSL_NELEM(unknown_critical_crls));
+    ADD_TEST(test_reuse_crl);
     return 1;
 }
 

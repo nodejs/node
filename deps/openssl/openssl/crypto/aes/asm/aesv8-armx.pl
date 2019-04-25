@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -262,6 +262,7 @@ $code.=<<___;
 ${prefix}_set_decrypt_key:
 ___
 $code.=<<___	if ($flavour =~ /64/);
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 ___
@@ -305,6 +306,7 @@ $code.=<<___	if ($flavour !~ /64/);
 ___
 $code.=<<___	if ($flavour =~ /64/);
 	ldp	x29,x30,[sp],#16
+	.inst	0xd50323bf		// autiasp
 	ret
 ___
 $code.=<<___;

@@ -28,12 +28,20 @@ reads configuration information from B<cnf>.
 
 The following B<flags> are currently recognized:
 
-B<CONF_MFLAGS_IGNORE_ERRORS> if set errors returned by individual
+If B<CONF_MFLAGS_IGNORE_ERRORS> is set errors returned by individual
 configuration modules are ignored. If not set the first module error is
 considered fatal and no further modules are loaded.
 
 Normally any modules errors will add error information to the error queue. If
 B<CONF_MFLAGS_SILENT> is set no error information is added.
+
+If B<CONF_MFLAGS_IGNORE_RETURN_CODES> is set the function unconditionally
+returns success.
+This is used by default in L<OPENSSL_init_crypto(3)> to ignore any errors in
+the default system-wide configuration file, as having all OpenSSL applications
+fail to start when there are potentially minor issues in the file is too risky.
+Applications calling B<CONF_modules_load_file> explicitly should not generally
+set this flag.
 
 If B<CONF_MFLAGS_NO_DSO> is set configuration module loading from DSOs is
 disabled.
@@ -126,7 +134,7 @@ L<config(5)>, L<OPENSSL_config(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2004-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -51,9 +51,6 @@ X509_NAME_ENTRY_get_object() and X509_NAME_ENTRY_get_data() can be
 used to examine an B<X509_NAME_ENTRY> function as returned by
 X509_NAME_get_entry() for example.
 
-X509_NAME_ENTRY_create_by_txt(), X509_NAME_ENTRY_create_by_NID(),
-and X509_NAME_ENTRY_create_by_OBJ() create and return an
-
 X509_NAME_ENTRY_create_by_txt(), X509_NAME_ENTRY_create_by_OBJ(),
 X509_NAME_ENTRY_create_by_NID() and X509_NAME_ENTRY_set_data()
 are seldom used in practice because B<X509_NAME_ENTRY> structures

@@ -47,6 +47,7 @@ int ERR_load_EVP_strings(void);
 # define EVP_F_EVP_DECRYPTUPDATE                          166
 # define EVP_F_EVP_DIGESTFINALXOF                         174
 # define EVP_F_EVP_DIGESTINIT_EX                          128
+# define EVP_F_EVP_ENCRYPTDECRYPTUPDATE                   219
 # define EVP_F_EVP_ENCRYPTFINAL_EX                        127
 # define EVP_F_EVP_ENCRYPTUPDATE                          167
 # define EVP_F_EVP_MD_CTX_COPY_EX                         110

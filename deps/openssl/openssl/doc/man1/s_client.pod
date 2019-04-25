@@ -100,6 +100,7 @@ B<openssl> B<s_client>
 [B<-dtls1>]
 [B<-dtls1_2>]
 [B<-sctp>]
+[B<-sctp_label_bug>]
 [B<-fallback_scsv>]
 [B<-async>]
 [B<-max_send_frag>]
@@ -190,14 +191,17 @@ Use IPv6 only.
 =item B<-servername name>
 
 Set the TLS SNI (Server Name Indication) extension in the ClientHello message to
-the given value. If both this option and the B<-noservername> are not given, the
-TLS SNI extension is still set to the hostname provided to the B<-connect> option,
-or "localhost" if B<-connect> has not been supplied. This is default since OpenSSL
-1.1.1.
+the given value. 
+If B<-servername> is not provided, the TLS SNI extension will be populated with 
+the name given to B<-connect> if it follows a DNS name format. If B<-connect> is 
+not provided either, the SNI is set to "localhost".
+This is the default since OpenSSL 1.1.1.
 
-Even though SNI name should normally be a DNS name and not an IP address, this
-option will not make the distinction when parsing B<-connect> and will send
-IP address if one passed.
+Even though SNI should normally be a DNS name and not an IP address, if 
+B<-servername> is provided then that name will be sent, regardless of whether 
+it is a DNS name or not.
+
+This option cannot be used in conjuction with B<-noservername>.
 
 =item B<-noservername>
 
@@ -487,6 +491,14 @@ respectively.
 
 Use SCTP for the transport protocol instead of UDP in DTLS. Must be used in
 conjunction with B<-dtls>, B<-dtls1> or B<-dtls1_2>. This option is only
+available where OpenSSL has support for SCTP enabled.
+
+=item B<-sctp_label_bug>
+
+Use the incorrect behaviour of older OpenSSL implementations when computing
+endpoint-pair shared secrets for DTLS/SCTP. This allows communication with
+older broken implementations but breaks interoperability with correct
+implementations. Must be used in conjunction with B<-sctp>. This option is only
 available where OpenSSL has support for SCTP enabled.
 
 =item B<-fallback_scsv>
@@ -811,12 +823,12 @@ L<SSL_CTX_set_max_pipelines(3)>
 
 =head1 HISTORY
 
-The B<-no_alt_chains> option was first added to OpenSSL 1.1.0.
+The B<-no_alt_chains> option was added in OpenSSL 1.1.0.
 The B<-name> option was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2013-2014 Timo Teräs <timo.teras@gmail.com>
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -50,6 +50,26 @@
 #  define NAME_MAX 255
 # endif
 # define MAX_COLLISIONS  256
+
+# if defined(OPENSSL_SYS_VXWORKS)
+/*
+ * VxWorks has no symbolic links
+ */
+
+#  define lstat(path, buf) stat(path, buf)
+
+int symlink(const char *target, const char *linkpath)
+{
+    errno = ENOSYS;
+    return -1;
+}
+
+ssize_t readlink(const char *pathname, char *buf, size_t bufsiz)
+{
+    errno = ENOSYS;
+    return -1;
+}
+# endif
 
 typedef struct hentry_st {
     struct hentry_st *next;

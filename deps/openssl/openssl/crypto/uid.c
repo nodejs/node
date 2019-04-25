@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,12 +34,13 @@ int OPENSSL_issetugid(void)
 # if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
 #  if __GLIBC_PREREQ(2, 16)
 #   include <sys/auxv.h>
+#   define OSSL_IMPLEMENT_GETAUXVAL
 #  endif
 # endif
 
 int OPENSSL_issetugid(void)
 {
-# ifdef AT_SECURE
+# ifdef OSSL_IMPLEMENT_GETAUXVAL
     return getauxval(AT_SECURE) != 0;
 # else
     return getuid() != geteuid() || getgid() != getegid();

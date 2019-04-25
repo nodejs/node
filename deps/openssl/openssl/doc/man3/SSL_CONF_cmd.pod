@@ -308,11 +308,6 @@ Attempts to pad TLSv1.3 records so that they are a multiple of B<value> in
 length on send. A B<value> of 0 or 1 turns off padding. Otherwise, the
 B<value> must be >1 or <=16384.
 
-=item B<NoRenegotiation>
-
-Disables all attempts at renegotiation in TLSv1.2 and earlier, same as setting
-B<SSL_OP_NO_RENEGOTIATION>.
-
 =item B<SignatureAlgorithms>
 
 This sets the supported signature algorithms for TLSv1.2 and TLSv1.3.
@@ -455,6 +450,9 @@ Only used by servers.
 
 B<NoResumptionOnRenegotiation>: set
 B<SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION> flag. Only used by servers.
+
+B<NoRenegotiation>: disables all attempts at renegotiation in TLSv1.2 and
+earlier, same as setting B<SSL_OP_NO_RENEGOTIATION>.
 
 B<UnsafeLegacyRenegotiation>: permits the use of unsafe legacy renegotiation.
 Equivalent to B<SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION>.
@@ -670,12 +668,12 @@ L<SSL_CTX_set_options(3)>
 
 =head1 HISTORY
 
-SSL_CONF_cmd() was first added to OpenSSL 1.0.2
+The SSL_CONF_cmd() function was added in OpenSSL 1.0.2.
 
-B<SSL_OP_NO_SSL2> doesn't have effect since 1.1.0, but the macro is retained
-for backwards compatibility.
+The B<SSL_OP_NO_SSL2> option doesn't have effect since 1.1.0, but the macro
+is retained for backwards compatibility.
 
-B<SSL_CONF_TYPE_NONE> was first added to OpenSSL 1.1.0. In earlier versions of
+The B<SSL_CONF_TYPE_NONE> was added in OpenSSL 1.1.0. In earlier versions of
 OpenSSL passing a command which didn't take an argument would return
 B<SSL_CONF_TYPE_UNKNOWN>.
 
@@ -685,7 +683,7 @@ B<AllowNoDHEKEX> and B<PrioritizeChaCha> were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2012-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

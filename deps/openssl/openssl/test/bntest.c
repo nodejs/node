@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -123,7 +123,7 @@ static int getint(STANZA *s, int *out, const char *attribute)
 
     *out = (int)word;
     st = 1;
-err:
+ err:
     BN_free(ret);
     return st;
 }
@@ -138,7 +138,6 @@ static int equalBN(const char *op, const BIGNUM *expected, const BIGNUM *actual)
     return 0;
 }
 
-
 /*
  * Return a "random" flag for if a BN should be negated.
  */
@@ -149,7 +148,6 @@ static int rand_neg(void)
 
     return sign[(neg++) % 8];
 }
-
 
 static int test_swap(void)
 {
@@ -166,7 +164,7 @@ static int test_swap(void)
     BN_bntest_rand(b, 1024, 1, 0);
     BN_copy(c, a);
     BN_copy(d, b);
-    top = BN_num_bits(a)/BN_BITS2;
+    top = BN_num_bits(a) / BN_BITS2;
 
     /* regular swap */
     BN_swap(a, b);
@@ -252,13 +250,12 @@ static int test_sub(void)
             goto err;
     }
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(b);
     BN_free(c);
     return st;
 }
-
 
 static int test_div_recip(void)
 {
@@ -293,7 +290,7 @@ static int test_div_recip(void)
             goto err;
     }
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(b);
     BN_free(c);
@@ -302,7 +299,6 @@ err:
     BN_RECP_CTX_free(recp);
     return st;
 }
-
 
 static int test_mod(void)
 {
@@ -328,7 +324,7 @@ static int test_mod(void)
             goto err;
     }
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(b);
     BN_free(c);
@@ -519,6 +515,31 @@ static int test_modexp_mont5(void)
     if (!TEST_BN_eq(c, d))
         goto err;
 
+    /*
+     * rsaz_1024_mul_avx2 expects fully-reduced inputs.
+     * BN_mod_exp_mont_consttime should reduce the input first.
+     */
+    BN_hex2bn(&a,
+        "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+        "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+        "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+        "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF2020202020DF");
+    BN_hex2bn(&b,
+        "1FA53F26F8811C58BE0357897AA5E165693230BC9DF5F01DFA6A2D59229EC69D"
+        "9DE6A89C36E3B6957B22D6FAAD5A3C73AE587B710DBE92E83D3A9A3339A085CB"
+        "B58F508CA4F837924BB52CC1698B7FDC2FD74362456A595A5B58E38E38E38E38"
+        "E38E38E38E38E38E38E38E38E38E38E38E38E38E38E38E38E38E38E38E38E38E");
+    BN_hex2bn(&n,
+        "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+        "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+        "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+        "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF2020202020DF");
+    BN_MONT_CTX_set(mont, n, ctx);
+    BN_mod_exp_mont_consttime(c, a, b, n, ctx, mont);
+    BN_zero(d);
+    if (!TEST_BN_eq(c, d))
+        goto err;
+
     /* Zero input */
     BN_bntest_rand(p, 1024, 0, 0);
     BN_zero(a);
@@ -548,7 +569,7 @@ static int test_modexp_mont5(void)
 
     st = 1;
 
-err:
+ err:
     BN_MONT_CTX_free(mont);
     BN_free(a);
     BN_free(p);
@@ -1116,7 +1137,7 @@ static int file_sum(STANZA *s)
     }
     st = 1;
 
-err:
+ err:
     BN_free(a);
     BN_free(b);
     BN_free(sum);
@@ -1165,7 +1186,7 @@ static int file_lshift1(STANZA *s)
         goto err;
 
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(lshift1);
     BN_free(zero);
@@ -1194,7 +1215,7 @@ static int file_lshift(STANZA *s)
         goto err;
 
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(lshift);
     BN_free(ret);
@@ -1224,7 +1245,7 @@ static int file_rshift(STANZA *s)
     }
     st = 1;
 
-err:
+ err:
     BN_free(a);
     BN_free(rshift);
     BN_free(ret);
@@ -1281,7 +1302,7 @@ static int file_square(STANZA *s)
 #endif
 
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(square);
     BN_free(zero);
@@ -1318,7 +1339,7 @@ static int file_product(STANZA *s)
         goto err;
 
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(b);
     BN_free(product);
@@ -1401,7 +1422,7 @@ static int file_quotient(STANZA *s)
     }
 
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(b);
     BN_free(quotient);
@@ -1455,7 +1476,7 @@ static int file_modmul(STANZA *s)
     }
 
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(b);
     BN_free(m);
@@ -1507,7 +1528,7 @@ static int file_modexp(STANZA *s)
         goto err;
 
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(b);
     BN_free(c);
@@ -1535,7 +1556,7 @@ static int file_exp(STANZA *s)
         goto err;
 
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(e);
     BN_free(exp);
@@ -1566,7 +1587,7 @@ static int file_modsqrt(STANZA *s)
         goto err;
 
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(p);
     BN_free(mod_sqrt);
@@ -1596,8 +1617,8 @@ static int test_bn2padded(void)
 
     /* Test a random numbers at various byte lengths. */
     for (size_t bytes = 128 - 7; bytes <= 128; bytes++) {
-#define TOP_BIT_ON 0
-#define BOTTOM_BIT_NOTOUCH 0
+# define TOP_BIT_ON 0
+# define BOTTOM_BIT_NOTOUCH 0
         if (!TEST_true(BN_rand(n, bytes * 8, TOP_BIT_ON, BOTTOM_BIT_NOTOUCH)))
             goto err;
         if (!TEST_int_eq(BN_num_bytes(n),A) bytes
@@ -1628,7 +1649,7 @@ static int test_bn2padded(void)
     }
 
     st = 1;
-err:
+ err:
     BN_free(n);
     return st;
 #else
@@ -1700,7 +1721,7 @@ static int test_dec2bn(void)
         goto err;
 
     st = 1;
-err:
+ err:
     BN_free(bn);
     return st;
 }
@@ -1766,7 +1787,7 @@ static int test_hex2bn(void)
         goto err;
     st = 1;
 
-err:
+ err:
     BN_free(bn);
     return st;
 }
@@ -1820,7 +1841,7 @@ static int test_asc2bn(void)
         goto err;
 
     st = 1;
-err:
+ err:
     BN_free(bn);
     return st;
 }
@@ -1864,7 +1885,7 @@ static int test_mpi(int i)
     BN_free(bn2);
 
     st = 1;
-err:
+ err:
     BN_free(bn);
     return st;
 }
@@ -1890,7 +1911,7 @@ static int test_rand(void)
         goto err;
 
     st = 1;
-err:
+ err:
     BN_free(bn);
     return st;
 }
@@ -1954,7 +1975,7 @@ static int test_negzero(void)
         goto err;
     st = 1;
 
-err:
+ err:
     BN_free(a);
     BN_free(b);
     BN_free(c);
@@ -1995,7 +2016,7 @@ static int test_badmod(void)
     ERR_clear_error();
 
     if (!TEST_false(BN_mod_exp_mont_consttime(a, BN_value_one(), BN_value_one(),
-                                             zero, ctx, NULL)))
+                                              zero, ctx, NULL)))
         goto err;
     ERR_clear_error();
 
@@ -2017,12 +2038,12 @@ static int test_badmod(void)
     ERR_clear_error();
 
     if (!TEST_false(BN_mod_exp_mont_consttime(a, BN_value_one(), BN_value_one(),
-                                  b, ctx, NULL)))
+                                              b, ctx, NULL)))
         goto err;
     ERR_clear_error();
 
     st = 1;
-err:
+ err:
     BN_free(a);
     BN_free(b);
     BN_free(zero);
@@ -2056,7 +2077,7 @@ static int test_expmodzero(void)
         goto err;
 
     st = 1;
-err:
+ err:
     BN_free(zero);
     BN_free(a);
     BN_free(r);
@@ -2102,7 +2123,7 @@ static int test_expmodone(void)
     }
 
     ret = 1;
-err:
+ err:
     BN_free(r);
     BN_free(a);
     BN_free(p);
@@ -2123,7 +2144,7 @@ static int test_smallprime(void)
         goto err;
 
     st = 1;
-err:
+ err:
     BN_free(r);
     return st;
 }
@@ -2147,7 +2168,7 @@ static int test_is_prime(int i)
     }
 
     ret = 1;
-err:
+ err:
     BN_free(r);
     return ret;
 }
@@ -2170,9 +2191,95 @@ static int test_not_prime(int i)
     }
 
     ret = 1;
-err:
+ err:
     BN_free(r);
     return ret;
+}
+
+static int test_ctx_set_ct_flag(BN_CTX *c)
+{
+    int st = 0;
+    size_t i;
+    BIGNUM *b[15];
+
+    BN_CTX_start(c);
+    for (i = 0; i < OSSL_NELEM(b); i++) {
+        if (!TEST_ptr(b[i] = BN_CTX_get(c)))
+            goto err;
+        if (i % 2 == 1)
+            BN_set_flags(b[i], BN_FLG_CONSTTIME);
+    }
+
+    st = 1;
+ err:
+    BN_CTX_end(c);
+    return st;
+}
+
+static int test_ctx_check_ct_flag(BN_CTX *c)
+{
+    int st = 0;
+    size_t i;
+    BIGNUM *b[30];
+
+    BN_CTX_start(c);
+    for (i = 0; i < OSSL_NELEM(b); i++) {
+        if (!TEST_ptr(b[i] = BN_CTX_get(c)))
+            goto err;
+        if (!TEST_false(BN_get_flags(b[i], BN_FLG_CONSTTIME)))
+            goto err;
+    }
+
+    st = 1;
+ err:
+    BN_CTX_end(c);
+    return st;
+}
+
+static int test_ctx_consttime_flag(void)
+{
+    /*-
+     * The constant-time flag should not "leak" among BN_CTX frames:
+     *
+     * - test_ctx_set_ct_flag() starts a frame in the given BN_CTX and
+     *   sets the BN_FLG_CONSTTIME flag on some of the BIGNUMs obtained
+     *   from the frame before ending it.
+     * - test_ctx_check_ct_flag() then starts a new frame and gets a
+     *   number of BIGNUMs from it. In absence of leaks, none of the
+     *   BIGNUMs in the new frame should have BN_FLG_CONSTTIME set.
+     *
+     * In actual BN_CTX usage inside libcrypto the leak could happen at
+     * any depth level in the BN_CTX stack, with varying results
+     * depending on the patterns of sibling trees of nested function
+     * calls sharing the same BN_CTX object, and the effect of
+     * unintended BN_FLG_CONSTTIME on the called BN_* functions.
+     *
+     * This simple unit test abstracts away this complexity and verifies
+     * that the leak does not happen between two sibling functions
+     * sharing the same BN_CTX object at the same level of nesting.
+     *
+     */
+    BN_CTX *nctx = NULL;
+    BN_CTX *sctx = NULL;
+    size_t i = 0;
+    int st = 0;
+
+    if (!TEST_ptr(nctx = BN_CTX_new())
+            || !TEST_ptr(sctx = BN_CTX_secure_new()))
+        goto err;
+
+    for (i = 0; i < 2; i++) {
+        BN_CTX *c = i == 0 ? nctx : sctx;
+        if (!TEST_true(test_ctx_set_ct_flag(c))
+                || !TEST_true(test_ctx_check_ct_flag(c)))
+            goto err;
+    }
+
+    st = 1;
+ err:
+    BN_CTX_free(nctx);
+    BN_CTX_free(sctx);
+    return st;
 }
 
 static int file_test_run(STANZA *s)
@@ -2262,6 +2369,7 @@ int setup_tests(void)
         ADD_TEST(test_expmodone);
         ADD_TEST(test_smallprime);
         ADD_TEST(test_swap);
+        ADD_TEST(test_ctx_consttime_flag);
 #ifndef OPENSSL_NO_EC2M
         ADD_TEST(test_gf2m_add);
         ADD_TEST(test_gf2m_mod);

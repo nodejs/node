@@ -1,4 +1,4 @@
-# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -25,7 +25,7 @@ sub new
         $records,
         $startoffset,
         $message_frag_lens) = @_;
-    
+
     my $self = $class->SUPER::new(
         $server,
         TLSProxy::Message::MT_SERVER_HELLO,
@@ -78,7 +78,7 @@ sub parse
     my $extension_data;
     if ($extensions_len != 0) {
         $extension_data = substr($self->data, $ptr);
-    
+
         if (length($extension_data) != $extensions_len) {
             die "Invalid extension length\n";
         }
@@ -154,7 +154,7 @@ sub set_message_contents
         $extensions .= pack("n", $key);
         $extensions .= pack("n", length($extdata));
         $extensions .= $extdata;
-        if ($key == TLSProxy::Message::EXT_DUPLICATE_EXTENSION) {
+        if ($key == $self->dupext) {
           $extensions .= pack("n", $key);
           $extensions .= pack("n", length($extdata));
           $extensions .= $extdata;

@@ -179,7 +179,7 @@ OSSL_STORE_SEARCH_get0_name(),
 OSSL_STORE_SEARCH_get0_serial(),
 OSSL_STORE_SEARCH_get0_bytes(),
 and OSSL_STORE_SEARCH_get0_string()
-were added to OpenSSL 1.1.1.
+were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 

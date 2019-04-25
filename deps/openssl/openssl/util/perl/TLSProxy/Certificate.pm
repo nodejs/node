@@ -1,4 +1,4 @@
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -138,11 +138,6 @@ sub set_message_contents
             $extensions .= pack("n", $key);
             $extensions .= pack("n", length($extdata));
             $extensions .= $extdata;
-            if ($key == TLSProxy::Message::EXT_DUPLICATE_EXTENSION) {
-              $extensions .= pack("n", $key);
-              $extensions .= pack("n", length($extdata));
-              $extensions .= $extdata;
-            }
         }
         $data = pack('C', length($self->context()));
         $data .= $self->context;

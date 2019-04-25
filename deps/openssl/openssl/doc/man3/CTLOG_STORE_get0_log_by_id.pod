@@ -35,7 +35,7 @@ L<CTLOG_STORE_new(3)>
 
 =head1 HISTORY
 
-This function was added in OpenSSL 1.1.0.
+The CTLOG_STORE_get0_log_by_id() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

@@ -120,7 +120,7 @@ L<BN_new(3)>
 
 =head1 HISTORY
 
-OPENSSL_secure_clear_free() was added in OpenSSL 1.1.0g.
+The OPENSSL_secure_clear_free() function was added in OpenSSL 1.1.0g.
 
 =head1 COPYRIGHT
 

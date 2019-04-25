@@ -510,7 +510,7 @@ structures may cause parsing errors.
 The use of multiple B<-signer> options and the B<-resign> command were first
 added in OpenSSL 1.0.0
 
-The -no_alt_chains options was first added to OpenSSL 1.1.0.
+The -no_alt_chains option was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 

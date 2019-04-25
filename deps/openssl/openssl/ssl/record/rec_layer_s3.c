@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1314,6 +1314,14 @@ int ssl3_read_bytes(SSL *s, int type, int *recvd_type, unsigned char *buf,
         }
     } while (num_recs == 0);
     rr = &rr[curr_rec];
+
+    if (s->rlayer.handshake_fragment_len > 0
+            && SSL3_RECORD_get_type(rr) != SSL3_RT_HANDSHAKE
+            && SSL_IS_TLS13(s)) {
+        SSLfatal(s, SSL_AD_UNEXPECTED_MESSAGE, SSL_F_SSL3_READ_BYTES,
+                 SSL_R_MIXED_HANDSHAKE_AND_NON_HANDSHAKE_DATA);
+        return -1;
+    }
 
     /*
      * Reset the count of consecutive warning alerts if we've got a non-empty
