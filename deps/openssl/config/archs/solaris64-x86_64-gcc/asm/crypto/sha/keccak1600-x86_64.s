@@ -1,4 +1,4 @@
-.text
+.text	
 
 .type	__KeccakF1600,@function
 .align	32
@@ -260,7 +260,7 @@ __KeccakF1600:
 .type	KeccakF1600,@function
 .align	32
 KeccakF1600:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-16
@@ -326,13 +326,13 @@ KeccakF1600:
 .cfi_adjust_cfa_offset	-8
 .cfi_restore	%rbx
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	KeccakF1600,.-KeccakF1600
 .globl	SHA3_absorb
 .type	SHA3_absorb,@function
 .align	32
 SHA3_absorb:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-16
@@ -427,13 +427,13 @@ SHA3_absorb:
 .cfi_adjust_cfa_offset	-8
 .cfi_restore	%rbx
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	SHA3_absorb,.-SHA3_absorb
 .globl	SHA3_squeeze
 .type	SHA3_squeeze,@function
 .align	32
 SHA3_squeeze:
-.cfi_startproc
+.cfi_startproc	
 	pushq	%r12
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%r12,-16
@@ -488,7 +488,7 @@ SHA3_squeeze:
 .cfi_adjust_cfa_offset	-8
 .cfi_restore	%r13
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	SHA3_squeeze,.-SHA3_squeeze
 .align	256
 .quad	0,0,0,0,0,0,0,0

@@ -1,4 +1,4 @@
-.text
+.text	
 .globl	_ecp_nistz256_precomputed
 
 .p2align	12
@@ -2372,7 +2372,7 @@ _ecp_nistz256_precomputed:
 .long	0x2a849870,0x4d33dd99,0x41576335,0xa716964b,0x179be0e5,0xff5e3a9b,0x83b13632,0x5b9d6b1b,0xa52f313b,0x3b8bd7d4,0x637a4660,0xc9dd95a0,0x0b3e218f,0x30035962,0xc7b28a3c,0xce1481a3
 .long	0x43228d83,0xab41b43a,0x4ad63f99,0x24ae1c30,0x46a51229,0x8e525f1a,0xcd26d2b4,0x14af860f,0x3f714aa1,0xd6baef61,0xeb78795e,0xf51865ad,0xe6a9d694,0xd3e21fce,0x8a37b527,0x82ceb1dd
 
-.text
+.text	
 
 
 
@@ -3919,6 +3919,7 @@ L$mul_epilogue:
 __ecp_nistz256_mul_montq:
 
 
+
 	movq	%rax,%rbp
 	mulq	%r9
 	movq	L$poly+8(%rip),%r14
@@ -4137,6 +4138,7 @@ __ecp_nistz256_mul_montq:
 
 
 
+
 .globl	_ecp_nistz256_sqr_mont
 
 .p2align	5
@@ -4199,6 +4201,7 @@ L$sqr_epilogue:
 
 .p2align	5
 __ecp_nistz256_sqr_montq:
+
 	movq	%rax,%r13
 	mulq	%r14
 	movq	%rax,%r9
@@ -4358,8 +4361,10 @@ __ecp_nistz256_sqr_montq:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	5
 __ecp_nistz256_mul_montx:
+
 
 
 	mulxq	%r9,%r8,%r9
@@ -4525,8 +4530,10 @@ __ecp_nistz256_mul_montx:
 
 
 
+
 .p2align	5
 __ecp_nistz256_sqr_montx:
+
 	mulxq	%r14,%r9,%r10
 	mulxq	%r15,%rcx,%r11
 	xorl	%eax,%eax
@@ -4650,6 +4657,7 @@ __ecp_nistz256_sqr_montx:
 	movq	%r15,24(%rdi)
 
 	.byte	0xf3,0xc3
+
 
 
 
@@ -4787,6 +4795,7 @@ _ecp_nistz256_scatter_w5:
 
 .p2align	5
 _ecp_nistz256_gather_w5:
+
 	movl	_OPENSSL_ia32cap_P+8(%rip),%eax
 	testl	$32,%eax
 	jnz	L$avx2_gather_w5
@@ -4841,6 +4850,7 @@ L$select_loop_sse_w5:
 	movdqu	%xmm6,64(%rdi)
 	movdqu	%xmm7,80(%rdi)
 	.byte	0xf3,0xc3
+
 L$SEH_end_ecp_nistz256_gather_w5:
 
 
@@ -4869,6 +4879,7 @@ _ecp_nistz256_scatter_w7:
 
 .p2align	5
 _ecp_nistz256_gather_w7:
+
 	movl	_OPENSSL_ia32cap_P+8(%rip),%eax
 	testl	$32,%eax
 	jnz	L$avx2_gather_w7
@@ -4912,6 +4923,7 @@ L$select_loop_sse_w7:
 	movdqu	%xmm4,32(%rdi)
 	movdqu	%xmm5,48(%rdi)
 	.byte	0xf3,0xc3
+
 L$SEH_end_ecp_nistz256_gather_w7:
 
 
@@ -4919,6 +4931,7 @@ L$SEH_end_ecp_nistz256_gather_w7:
 
 .p2align	5
 ecp_nistz256_avx2_gather_w5:
+
 L$avx2_gather_w5:
 	vzeroupper
 	vmovdqa	L$Two(%rip),%ymm0
@@ -4973,6 +4986,7 @@ L$select_loop_avx2_w5:
 	vmovdqu	%ymm4,64(%rdi)
 	vzeroupper
 	.byte	0xf3,0xc3
+
 L$SEH_end_ecp_nistz256_avx2_gather_w5:
 
 
@@ -4982,6 +4996,7 @@ L$SEH_end_ecp_nistz256_avx2_gather_w5:
 
 .p2align	5
 _ecp_nistz256_avx2_gather_w7:
+
 L$avx2_gather_w7:
 	vzeroupper
 	vmovdqa	L$Three(%rip),%ymm0
@@ -5051,11 +5066,13 @@ L$select_loop_avx2_w7:
 	vmovdqu	%ymm3,32(%rdi)
 	vzeroupper
 	.byte	0xf3,0xc3
+
 L$SEH_end_ecp_nistz256_avx2_gather_w7:
 
 
 .p2align	5
 __ecp_nistz256_add_toq:
+
 	xorq	%r11,%r11
 	addq	0(%rbx),%r12
 	adcq	8(%rbx),%r13
@@ -5086,8 +5103,10 @@ __ecp_nistz256_add_toq:
 
 
 
+
 .p2align	5
 __ecp_nistz256_sub_fromq:
+
 	subq	0(%rbx),%r12
 	sbbq	8(%rbx),%r13
 	movq	%r12,%rax
@@ -5117,8 +5136,10 @@ __ecp_nistz256_sub_fromq:
 
 
 
+
 .p2align	5
 __ecp_nistz256_subq:
+
 	subq	%r12,%rax
 	sbbq	%r13,%rbp
 	movq	%rax,%r12
@@ -5144,8 +5165,10 @@ __ecp_nistz256_subq:
 
 
 
+
 .p2align	5
 __ecp_nistz256_mul_by_2q:
+
 	xorq	%r11,%r11
 	addq	%r12,%r12
 	adcq	%r13,%r13
@@ -5173,6 +5196,7 @@ __ecp_nistz256_mul_by_2q:
 	movq	%r9,24(%rdi)
 
 	.byte	0xf3,0xc3
+
 
 .globl	_ecp_nistz256_point_double
 
@@ -5593,7 +5617,9 @@ L$add_doubleq:
 .byte	102,72,15,126,206
 .byte	102,72,15,126,199
 	addq	$416,%rsp
+
 	jmp	L$point_double_shortcutq
+
 
 .p2align	5
 L$add_proceedq:
@@ -6149,6 +6175,7 @@ L$add_affineq_epilogue:
 
 .p2align	5
 __ecp_nistz256_add_tox:
+
 	xorq	%r11,%r11
 	adcq	0(%rbx),%r12
 	adcq	8(%rbx),%r13
@@ -6180,8 +6207,10 @@ __ecp_nistz256_add_tox:
 
 
 
+
 .p2align	5
 __ecp_nistz256_sub_fromx:
+
 	xorq	%r11,%r11
 	sbbq	0(%rbx),%r12
 	sbbq	8(%rbx),%r13
@@ -6213,8 +6242,10 @@ __ecp_nistz256_sub_fromx:
 
 
 
+
 .p2align	5
 __ecp_nistz256_subx:
+
 	xorq	%r11,%r11
 	sbbq	%r12,%rax
 	sbbq	%r13,%rbp
@@ -6242,8 +6273,10 @@ __ecp_nistz256_subx:
 
 
 
+
 .p2align	5
 __ecp_nistz256_mul_by_2x:
+
 	xorq	%r11,%r11
 	adcq	%r12,%r12
 	adcq	%r13,%r13
@@ -6272,6 +6305,7 @@ __ecp_nistz256_mul_by_2x:
 	movq	%r9,24(%rdi)
 
 	.byte	0xf3,0xc3
+
 
 
 .p2align	5
@@ -6684,7 +6718,9 @@ L$add_doublex:
 .byte	102,72,15,126,206
 .byte	102,72,15,126,199
 	addq	$416,%rsp
+
 	jmp	L$point_double_shortcutx
+
 
 .p2align	5
 L$add_proceedx:
@@ -7231,3 +7267,5 @@ L$add_affinex_body:
 
 L$add_affinex_epilogue:
 	.byte	0xf3,0xc3
+
+

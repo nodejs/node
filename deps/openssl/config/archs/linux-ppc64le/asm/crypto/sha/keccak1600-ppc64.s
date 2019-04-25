@@ -175,7 +175,7 @@ KeccakF1600_int:
 
 	bdnz	.Loop
 
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	KeccakF1600_int,.-KeccakF1600_int
@@ -292,7 +292,7 @@ KeccakF1600:
 	ld	31,264(1)
 	mtlr	0
 	addi	1,1,272
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,18,1,0
 .long	0
@@ -318,7 +318,7 @@ dword_le_load:
 	lbzu	4,1(3)
 	insrdi	0,5,8,8
 	insrdi	0,4,8,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,1,0
 .long	0
@@ -545,7 +545,7 @@ SHA3_absorb:
 	ld	31,264(1)
 	mtlr	0
 	addi	1,1,272
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,18,4,0
 .long	0
@@ -622,7 +622,7 @@ SHA3_squeeze:
 	ld	31,72(1)
 	mtlr	0
 	addi	1,1,80
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,4,4,0
 .long	0
@@ -634,7 +634,7 @@ PICmeup:
 	mflr	12
 	addi	12,12,56
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .space	28

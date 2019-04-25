@@ -315,7 +315,7 @@ _aesni_ctr32_ghash_6x:
 .type	aesni_gcm_decrypt,@function
 .align	32
 aesni_gcm_decrypt:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%r10,%r10
 	cmpq	$0x60,%rdx
 	jb	.Lgcm_dec_abort
@@ -411,7 +411,7 @@ aesni_gcm_decrypt:
 .Lgcm_dec_abort:
 	movq	%r10,%rax
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_gcm_decrypt,.-aesni_gcm_decrypt
 .type	_aesni_ctr32_6x,@function
 .align	32
@@ -508,7 +508,7 @@ _aesni_ctr32_6x:
 .type	aesni_gcm_encrypt,@function
 .align	32
 aesni_gcm_encrypt:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%r10,%r10
 	cmpq	$288,%rdx
 	jb	.Lgcm_enc_abort
@@ -768,7 +768,7 @@ aesni_gcm_encrypt:
 .Lgcm_enc_abort:
 	movq	%r10,%rax
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_gcm_encrypt,.-aesni_gcm_encrypt
 .align	64
 .Lbswap_mask:

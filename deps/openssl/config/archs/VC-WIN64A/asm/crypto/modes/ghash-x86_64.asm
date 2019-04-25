@@ -720,6 +720,7 @@ global	gcm_init_clmul
 
 ALIGN	16
 gcm_init_clmul:
+
 $L$_init_clmul:
 $L$SEH_begin_gcm_init_clmul:
 
@@ -879,10 +880,12 @@ DB	102,15,58,15,227,8
 $L$SEH_end_gcm_init_clmul:
 	DB	0F3h,0C3h		;repret
 
+
 global	gcm_gmult_clmul
 
 ALIGN	16
 gcm_gmult_clmul:
+
 $L$_gmult_clmul:
 	movdqu	xmm0,XMMWORD[rcx]
 	movdqa	xmm5,XMMWORD[$L$bswap_mask]
@@ -930,10 +933,12 @@ DB	102,15,56,0,197
 	movdqu	XMMWORD[rcx],xmm0
 	DB	0F3h,0C3h		;repret
 
+
 global	gcm_ghash_clmul
 
 ALIGN	32
 gcm_ghash_clmul:
+
 $L$_ghash_clmul:
 	lea	rax,[((-136))+rsp]
 $L$SEH_begin_gcm_ghash_clmul:
@@ -1339,10 +1344,12 @@ DB	102,65,15,56,0,194
 $L$SEH_end_gcm_ghash_clmul:
 	DB	0F3h,0C3h		;repret
 
+
 global	gcm_init_avx
 
 ALIGN	32
 gcm_init_avx:
+
 $L$SEH_begin_gcm_init_avx:
 
 DB	0x48,0x83,0xec,0x18
@@ -1453,16 +1460,20 @@ $L$init_start_avx:
 $L$SEH_end_gcm_init_avx:
 	DB	0F3h,0C3h		;repret
 
+
 global	gcm_gmult_avx
 
 ALIGN	32
 gcm_gmult_avx:
+
 	jmp	NEAR $L$_gmult_clmul
+
 
 global	gcm_ghash_avx
 
 ALIGN	32
 gcm_ghash_avx:
+
 	lea	rax,[((-136))+rsp]
 $L$SEH_begin_gcm_ghash_avx:
 
@@ -1860,6 +1871,7 @@ $L$tail_no_xor_avx:
 	lea	rsp,[168+rsp]
 $L$SEH_end_gcm_ghash_avx:
 	DB	0F3h,0C3h		;repret
+
 
 ALIGN	64
 $L$bswap_mask:

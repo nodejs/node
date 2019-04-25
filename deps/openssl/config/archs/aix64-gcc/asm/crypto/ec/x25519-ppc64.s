@@ -201,7 +201,7 @@ Lfe51_reduce:
 	ld	30,128(1)
 	ld	31,136(1)
 	addi	1,1,144
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,11,3,0
 .long	0
@@ -335,3 +335,4 @@ Lfe51_reduce:
 .long	0
 .byte	0,12,4,0,0x80,11,2,0
 .long	0
+

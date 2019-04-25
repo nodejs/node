@@ -787,7 +787,7 @@ bn_mul4x_mont_int:
 	ld	30,-8*2(5)
 	ld	31,-8*1(5)
 	mr	1,5
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0x20,0x80,18,6,0
 .long	0
@@ -1787,7 +1787,7 @@ __bn_sqr8x_mont:
 	ld	30,-8*2(4)
 	ld	31,-8*1(4)
 	mr	1,4
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0x20,0x80,18,6,0
 .long	0

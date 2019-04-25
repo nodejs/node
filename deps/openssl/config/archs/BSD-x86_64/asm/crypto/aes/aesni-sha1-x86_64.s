@@ -21,7 +21,7 @@ aesni_cbc_sha1_enc:
 .type	aesni_cbc_sha1_enc_ssse3,@function
 .align	32
 aesni_cbc_sha1_enc_ssse3:
-.cfi_startproc
+.cfi_startproc	
 	movq	8(%rsp),%r10
 
 
@@ -1393,12 +1393,12 @@ aesni_cbc_sha1_enc_ssse3:
 .cfi_def_cfa	%rsp,8
 .Lepilogue_ssse3:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_cbc_sha1_enc_ssse3,.-aesni_cbc_sha1_enc_ssse3
 .type	aesni_cbc_sha1_enc_avx,@function
 .align	32
 aesni_cbc_sha1_enc_avx:
-.cfi_startproc
+.cfi_startproc	
 	movq	8(%rsp),%r10
 
 
@@ -2714,7 +2714,7 @@ aesni_cbc_sha1_enc_avx:
 .cfi_def_cfa	%rsp,8
 .Lepilogue_avx:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_cbc_sha1_enc_avx,.-aesni_cbc_sha1_enc_avx
 .align	64
 K_XX_XX:

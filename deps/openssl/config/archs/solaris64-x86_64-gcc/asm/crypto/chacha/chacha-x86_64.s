@@ -37,7 +37,7 @@
 .type	ChaCha20_ctr32,@function
 .align	64
 ChaCha20_ctr32:
-.cfi_startproc
+.cfi_startproc	
 	cmpq	$0,%rdx
 	je	.Lno_data
 	movq	OPENSSL_ia32cap_P+4(%rip),%r10
@@ -324,12 +324,12 @@ ChaCha20_ctr32:
 .cfi_def_cfa_register	%rsp
 .Lno_data:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ChaCha20_ctr32,.-ChaCha20_ctr32
 .type	ChaCha20_ssse3,@function
 .align	32
 ChaCha20_ssse3:
-.cfi_startproc
+.cfi_startproc	
 .LChaCha20_ssse3:
 	movq	%rsp,%r9
 .cfi_def_cfa_register	%r9
@@ -464,12 +464,12 @@ ChaCha20_ssse3:
 .cfi_def_cfa_register	%rsp
 .Lssse3_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ChaCha20_ssse3,.-ChaCha20_ssse3
 .type	ChaCha20_128,@function
 .align	32
 ChaCha20_128:
-.cfi_startproc
+.cfi_startproc	
 .LChaCha20_128:
 	movq	%rsp,%r9
 .cfi_def_cfa_register	%r9
@@ -620,12 +620,12 @@ ChaCha20_128:
 .cfi_def_cfa_register	%rsp
 .L128_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ChaCha20_128,.-ChaCha20_128
 .type	ChaCha20_4x,@function
 .align	32
 ChaCha20_4x:
-.cfi_startproc
+.cfi_startproc	
 .LChaCha20_4x:
 	movq	%rsp,%r9
 .cfi_def_cfa_register	%r9
@@ -1172,12 +1172,12 @@ ChaCha20_4x:
 .cfi_def_cfa_register	%rsp
 .L4x_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ChaCha20_4x,.-ChaCha20_4x
 .type	ChaCha20_4xop,@function
 .align	32
 ChaCha20_4xop:
-.cfi_startproc
+.cfi_startproc	
 .LChaCha20_4xop:
 	movq	%rsp,%r9
 .cfi_def_cfa_register	%r9
@@ -1587,12 +1587,12 @@ ChaCha20_4xop:
 .cfi_def_cfa_register	%rsp
 .L4xop_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ChaCha20_4xop,.-ChaCha20_4xop
 .type	ChaCha20_8x,@function
 .align	32
 ChaCha20_8x:
-.cfi_startproc
+.cfi_startproc	
 .LChaCha20_8x:
 	movq	%rsp,%r9
 .cfi_def_cfa_register	%r9
@@ -2193,12 +2193,12 @@ ChaCha20_8x:
 .cfi_def_cfa_register	%rsp
 .L8x_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ChaCha20_8x,.-ChaCha20_8x
 .type	ChaCha20_avx512,@function
 .align	32
 ChaCha20_avx512:
-.cfi_startproc
+.cfi_startproc	
 .LChaCha20_avx512:
 	movq	%rsp,%r9
 .cfi_def_cfa_register	%r9
@@ -2388,12 +2388,12 @@ ChaCha20_avx512:
 .cfi_def_cfa_register	%rsp
 .Lavx512_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ChaCha20_avx512,.-ChaCha20_avx512
 .type	ChaCha20_avx512vl,@function
 .align	32
 ChaCha20_avx512vl:
-.cfi_startproc
+.cfi_startproc	
 .LChaCha20_avx512vl:
 	movq	%rsp,%r9
 .cfi_def_cfa_register	%r9
@@ -2540,12 +2540,12 @@ ChaCha20_avx512vl:
 .cfi_def_cfa_register	%rsp
 .Lavx512vl_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ChaCha20_avx512vl,.-ChaCha20_avx512vl
 .type	ChaCha20_16x,@function
 .align	32
 ChaCha20_16x:
-.cfi_startproc
+.cfi_startproc	
 .LChaCha20_16x:
 	movq	%rsp,%r9
 .cfi_def_cfa_register	%r9
@@ -3005,12 +3005,12 @@ ChaCha20_16x:
 .cfi_def_cfa_register	%rsp
 .L16x_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ChaCha20_16x,.-ChaCha20_16x
 .type	ChaCha20_8xvl,@function
 .align	32
 ChaCha20_8xvl:
-.cfi_startproc
+.cfi_startproc	
 .LChaCha20_8xvl:
 	movq	%rsp,%r9
 .cfi_def_cfa_register	%r9
@@ -3424,5 +3424,5 @@ ChaCha20_8xvl:
 .cfi_def_cfa_register	%rsp
 .L8xvl_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ChaCha20_8xvl,.-ChaCha20_8xvl

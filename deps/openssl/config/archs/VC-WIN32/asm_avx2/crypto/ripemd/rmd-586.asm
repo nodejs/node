@@ -21,7 +21,7 @@ L$_ripemd160_block_asm_data_order_begin:
 	push	ebx
 	sub	esp,108
 L$000start:
-	;
+	; 
 	mov	ebx,DWORD [eax]
 	mov	ebp,DWORD [4+eax]
 	mov	DWORD [esp],ebx

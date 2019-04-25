@@ -6,7 +6,7 @@
 .type	aesni_multi_cbc_encrypt,@function
 .align	32
 aesni_multi_cbc_encrypt:
-.cfi_startproc
+.cfi_startproc	
 	cmpl	$2,%edx
 	jb	.Lenc_non_avx
 	movl	OPENSSL_ia32cap_P+4(%rip),%ecx
@@ -281,14 +281,14 @@ aesni_multi_cbc_encrypt:
 .cfi_def_cfa_register	%rsp
 .Lenc4x_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_multi_cbc_encrypt,.-aesni_multi_cbc_encrypt
 
 .globl	aesni_multi_cbc_decrypt
 .type	aesni_multi_cbc_decrypt,@function
 .align	32
 aesni_multi_cbc_decrypt:
-.cfi_startproc
+.cfi_startproc	
 	cmpl	$2,%edx
 	jb	.Ldec_non_avx
 	movl	OPENSSL_ia32cap_P+4(%rip),%ecx
@@ -554,12 +554,12 @@ aesni_multi_cbc_decrypt:
 .cfi_def_cfa_register	%rsp
 .Ldec4x_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_multi_cbc_decrypt,.-aesni_multi_cbc_decrypt
 .type	aesni_multi_cbc_encrypt_avx,@function
 .align	32
 aesni_multi_cbc_encrypt_avx:
-.cfi_startproc
+.cfi_startproc	
 _avx_cbc_enc_shortcut:
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
@@ -1008,13 +1008,13 @@ _avx_cbc_enc_shortcut:
 .cfi_def_cfa_register	%rsp
 .Lenc8x_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_multi_cbc_encrypt_avx,.-aesni_multi_cbc_encrypt_avx
 
 .type	aesni_multi_cbc_decrypt_avx,@function
 .align	32
 aesni_multi_cbc_decrypt_avx:
-.cfi_startproc
+.cfi_startproc	
 _avx_cbc_dec_shortcut:
 	movq	%rsp,%rax
 .cfi_def_cfa_register	%rax
@@ -1503,5 +1503,5 @@ _avx_cbc_dec_shortcut:
 .cfi_def_cfa_register	%rsp
 .Ldec8x_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_multi_cbc_decrypt_avx,.-aesni_multi_cbc_decrypt_avx

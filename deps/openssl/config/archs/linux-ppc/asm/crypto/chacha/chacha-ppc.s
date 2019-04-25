@@ -1063,7 +1063,7 @@ ChaCha20_ctr32_vmx:
 	lwz	31,316(1)
 	mtlr	0
 	addi	1,1,320
-	blr
+	blr	
 .long	0
 .byte	0,12,0x04,1,0x80,18,5,0
 .long	0

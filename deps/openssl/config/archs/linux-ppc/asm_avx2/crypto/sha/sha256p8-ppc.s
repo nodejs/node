@@ -645,7 +645,7 @@ sha256_block_p8:
 	lwz	30,320(1)
 	lwz	31,324(1)
 	addi	1,1,328
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,6,3,0
 .long	0
@@ -657,7 +657,7 @@ sha256_block_p8:
 	mflr	6
 	addi	6,6,56
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .space	28

@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .globl	_sha256_block_data_order
@@ -5426,3 +5426,5 @@ L$done_avx2:
 
 L$epilogue_avx2:
 	.byte	0xf3,0xc3
+
+

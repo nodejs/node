@@ -1,4 +1,4 @@
-.text
+.text	
 
 .globl	_x25519_fe51_mul
 
