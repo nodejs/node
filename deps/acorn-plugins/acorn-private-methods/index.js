@@ -1,6 +1,6 @@
 "use strict"
 
-const privateClassElements = require('internal/deps/acorn-plugins/acorn-private-class-elements')
+const privateClassElements = require('internal/deps/acorn-plugins/acorn-private-class-elements/index')
 
 module.exports = function(Parser) {
   const ExtendedParser = privateClassElements(Parser)
