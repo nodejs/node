@@ -9,6 +9,7 @@ This directory contains modules used to test the Node.js implementation.
 * [Countdown module](#countdown-module)
 * [DNS module](#dns-module)
 * [Duplex pair helper](#duplex-pair-helper)
+* [Environment variables](#environment-variables)
 * [Fixtures module](#fixtures-module)
 * [Heap dump checker module](#heap-dump-checker-module)
 * [HTTP2 module](#http2-module)
@@ -494,6 +495,17 @@ which returns an object `{ clientSide, serverSide }` where each side is a
 `Duplex` stream connected to the other side.
 
 There is no difference between client or server side beyond their names.
+
+## Environment variables
+
+The behavior of the Node.js test suite can be altered using the following
+environment variables.
+
+### NODE_TEST_KNOWN_GLOBALS
+
+A comma-separated list of variables names that are appended to the global
+variable whitelist. Alternatively, if `NODE_TEST_KNOWN_GLOBALS` is set to `'0'`,
+global leak detection is disabled.
 
 ## Fixtures Module
 
