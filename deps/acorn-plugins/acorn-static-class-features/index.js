@@ -14,7 +14,7 @@ function maybeParseFieldValue(field) {
   } else field.value = null
 }
 
-const privateClassElements = require("internal/deps/acorn/acorn-private-class-elements/index")
+const privateClassElements = require("internal/deps/acorn-plugins/acorn-private-class-elements")
 
 module.exports = function(Parser) {
   const ExtendedParser = privateClassElements(Parser)

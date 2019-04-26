@@ -2,7 +2,7 @@
 
 const acorn = require('internal/deps/acorn/acorn/dist/acorn')
 const tt = acorn.tokTypes
-const privateClassElements = require('internal/deps/acorn/acorn-private-class-elements/index')
+const privateClassElements = require('internal/deps/acorn-plugins/acorn-private-class-elements/index')
 
 function maybeParseFieldValue(field) {
   if (this.eat(tt.eq)) {
