@@ -4,6 +4,7 @@ This directory contains modules used to test the Node.js implementation.
 
 ## Table of Contents
 
+* [ArrayStream module](#arraystream-module)
 * [Benchmark module](#benchmark-module)
 * [Common module API](#common-module-api)
 * [Countdown module](#countdown-module)
@@ -12,8 +13,10 @@ This directory contains modules used to test the Node.js implementation.
 * [Environment variables](#environment-variables)
 * [Fixtures module](#fixtures-module)
 * [Heap dump checker module](#heap-dump-checker-module)
+* [hijackstdio module](#hijackstdio-module)
 * [HTTP2 module](#http2-module)
 * [Internet module](#internet-module)
+* [ongc module](#ongc-module)
 * [Report module](#report-module)
 * [tick module](#tick-module)
 * [tmpdir module](#tmpdir-module)
