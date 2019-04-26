@@ -1840,9 +1840,10 @@ If Node.js was not spawned with an IPC channel, `process.send()` will be
 The message goes through serialization and parsing. The resulting message might
 not be the same as what is originally sent.
 
-The optional `callback` is a function that is invoked after the message is
-sent but before the parent process may have received it. The function is called with a
-single argument: `null` on success, or an [`Error`][] object on failure.
+The optional `callback` is a function that is invoked after the message is sent
+but before the parent process may have received it.
+The function is called with a single argument: `null` on success,
+or an [`Error`][] object on failure.
 
 If no `callback` function is provided and the message cannot be sent, an
 `'error'` event will be emitted by the [`Process`][] object. This can
