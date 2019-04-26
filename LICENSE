@@ -1126,7 +1126,7 @@ The externally maintained libraries used by Node.js are:
     // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   """
 
-- jinja2, located at tools/jinja2, is licensed as follows:
+- jinja2, located at tools/inspector_protocol/jinja2, is licensed as follows:
   """
     Copyright (c) 2009 by the Jinja Team, see AUTHORS for more details.
 
@@ -1161,7 +1161,7 @@ The externally maintained libraries used by Node.js are:
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   """
 
-- markupsafe, located at tools/markupsafe, is licensed as follows:
+- markupsafe, located at tools/inspector_protocol/markupsafe, is licensed as follows:
   """
     Copyright (c) 2010 by Armin Ronacher and contributors.  See AUTHORS
     for more details.
@@ -1278,7 +1278,7 @@ The externally maintained libraries used by Node.js are:
     WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   """
 
-- gtest, located at deps/gtest, is licensed as follows:
+- gtest, located at test/cctest/gtest, is licensed as follows:
   """
     Copyright 2008, Google Inc.
     All rights reserved.
