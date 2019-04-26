@@ -2883,10 +2883,12 @@ const receivedPlaintext = decipher.update(ciphertext, null, 'utf8');
 
 try {
   decipher.final();
-  console.log(receivedPlaintext);
 } catch (err) {
   console.error('Authentication failed!');
+  return;
 }
+
+console.log(receivedPlaintext);
 ```
 
 ## Crypto Constants
