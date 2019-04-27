@@ -56,7 +56,7 @@ server.listen(0, function() {
     path: '/',
     port: this.address().port,
     host: '127.0.0.1',
-    servername: false,
+    servername: '',
     rejectUnauthorized: false
   }, expectResponse(false));
 });
