@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#12.1.0">12.1.0</a><br/>
 <a href="#12.0.0">12.0.0</a><br/>
 </td>
 </tr>
@@ -27,6 +28,68 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.1.0"></a>
+## 2019-04-29, Version 12.1.0 (Current), @targos
+
+### Notable changes
+
+* **intl**:
+  * Update ICU to 64.2. This adds support for Japanese Era (Reiwa) (Ujjwal Sharma) [#27361](https://github.com/nodejs/node/pull/27361).
+  * Fixes a bug in ICU that affected Node.js 12.0.0 in the case where `new Date().toLocaleString()` was called with a non-default locale (Steven R. Loomis) [#27415](https://github.com/nodejs/node/pull/27415).
+* **C++ API**:
+  * Added an overload `EmitAsyncDestroy` that can be used during garbage collection (Anna Henningsen) [#27255](https://github.com/nodejs/node/pull/27255).
+
+### Commits
+
+* [[`8ca110cc6f`](https://github.com/nodejs/node/commit/8ca110cc6f)] - **benchmark**: fix http bench-parser.js (Rich Trott) [#27359](https://github.com/nodejs/node/pull/27359)
+* [[`2f9bafba08`](https://github.com/nodejs/node/commit/2f9bafba08)] - **bootstrap**: delay the instantiation of maps in per-context scripts (Joyee Cheung) [#27371](https://github.com/nodejs/node/pull/27371)
+* [[`e7026f1428`](https://github.com/nodejs/node/commit/e7026f1428)] - **build**: allow icu download to use other hashes besides md5 (Steven R. Loomis) [#27370](https://github.com/nodejs/node/pull/27370)
+* [[`50234460f9`](https://github.com/nodejs/node/commit/50234460f9)] - **build**: disable custom v8 snapshot by default (Joyee Cheung) [#27365](https://github.com/nodejs/node/pull/27365)
+* [[`b21b28f653`](https://github.com/nodejs/node/commit/b21b28f653)] - **crypto**: update root certificates (Sam Roberts) [#27374](https://github.com/nodejs/node/pull/27374)
+* [[`3282ccb845`](https://github.com/nodejs/node/commit/3282ccb845)] - **deps**: backport ICU-20575 to fix err/crasher (Steven R. Loomis) [#27435](https://github.com/nodejs/node/pull/27435)
+* [[`e922a22725`](https://github.com/nodejs/node/commit/e922a22725)] - **deps**: backport ICU-20558 to fix Intl crasher (Steven R. Loomis) [#27415](https://github.com/nodejs/node/pull/27415)
+* [[`d852d9e904`](https://github.com/nodejs/node/commit/d852d9e904)] - **deps**: update ICU to 64.2 (Ujjwal Sharma) [#27361](https://github.com/nodejs/node/pull/27361)
+* [[`ee80a210ff`](https://github.com/nodejs/node/commit/ee80a210ff)] - **dgram**: change 'this' to 'self' for 'isConnected' (MaleDong) [#27338](https://github.com/nodejs/node/pull/27338)
+* [[`8302148c83`](https://github.com/nodejs/node/commit/8302148c83)] - **doc**: add Node 12 to the first list of versions (Rivaldo Junior) [#27414](https://github.com/nodejs/node/pull/27414)
+* [[`f6ceefa4bd`](https://github.com/nodejs/node/commit/f6ceefa4bd)] - **doc**: update comment in bootstrap for primordials (Myles Borins) [#27398](https://github.com/nodejs/node/pull/27398)
+* [[`9c30806fb5`](https://github.com/nodejs/node/commit/9c30806fb5)] - **doc**: simplify GOVERNANCE.md text (Rich Trott) [#27354](https://github.com/nodejs/node/pull/27354)
+* [[`453510c7ef`](https://github.com/nodejs/node/commit/453510c7ef)] - **doc**: fix pull request number (Ruben Bridgewater) [#27336](https://github.com/nodejs/node/pull/27336)
+* [[`36762883a0`](https://github.com/nodejs/node/commit/36762883a0)] - **doc**: clarify behaviour of writeFile(fd) (Sam Roberts) [#27282](https://github.com/nodejs/node/pull/27282)
+* [[`f70588fb67`](https://github.com/nodejs/node/commit/f70588fb67)] - **doc**: fix v12.0.0 changelog id (Beth Griggs) [#27368](https://github.com/nodejs/node/pull/27368)
+* [[`a6d1fa5954`](https://github.com/nodejs/node/commit/a6d1fa5954)] - **doc**: simplify Collaborator pre-nomination text (Rich Trott) [#27348](https://github.com/nodejs/node/pull/27348)
+* [[`dd709fc84a`](https://github.com/nodejs/node/commit/dd709fc84a)] - **lib**: throw a special error in internal/assert (Joyee Cheung) [#26635](https://github.com/nodejs/node/pull/26635)
+* [[`4dfe54a89a`](https://github.com/nodejs/node/commit/4dfe54a89a)] - **module**: initialize module\_wrap.callbackMap during pre-execution (Joyee Cheung) [#27323](https://github.com/nodejs/node/pull/27323)
+* [[`8b5d73867f`](https://github.com/nodejs/node/commit/8b5d73867f)] - **(SEMVER-MINOR)** **n-api**: do not require JS Context for `napi\_async\_destroy()` (Anna Henningsen) [#27255](https://github.com/nodejs/node/pull/27255)
+* [[`d00014e599`](https://github.com/nodejs/node/commit/d00014e599)] - **process**: reduce the number of internal frames in async stack trace (Joyee Cheung) [#27392](https://github.com/nodejs/node/pull/27392)
+* [[`dc510fb435`](https://github.com/nodejs/node/commit/dc510fb435)] - **report**: print common items first for readability (gengjiawen) [#27367](https://github.com/nodejs/node/pull/27367)
+* [[`3614a00276`](https://github.com/nodejs/node/commit/3614a00276)] - **src**: refactor deprecated UVException in node\_file.cc (gengjiawen) [#27280](https://github.com/nodejs/node/pull/27280)
+* [[`071300b39d`](https://github.com/nodejs/node/commit/071300b39d)] - **src**: move OnMessage to node\_errors.cc (Joyee Cheung) [#27304](https://github.com/nodejs/node/pull/27304)
+* [[`81e7b49c8f`](https://github.com/nodejs/node/commit/81e7b49c8f)] - **src**: use predefined AliasedBuffer types in the code base (Joyee Cheung) [#27334](https://github.com/nodejs/node/pull/27334)
+* [[`8089d29567`](https://github.com/nodejs/node/commit/8089d29567)] - **src**: apply clang-tidy modernize-deprecated-headers found by Jenkins CI (gengjiawen) [#27279](https://github.com/nodejs/node/pull/27279)
+* [[`619c5b6eb3`](https://github.com/nodejs/node/commit/619c5b6eb3)] - **(SEMVER-MINOR)** **src**: do not require JS Context for `\~AsyncResoure()` (Anna Henningsen) [#27255](https://github.com/nodejs/node/pull/27255)
+* [[`809cf595eb`](https://github.com/nodejs/node/commit/809cf595eb)] - **(SEMVER-MINOR)** **src**: add `Environment` overload of `EmitAsyncDestroy` (Anna Henningsen) [#27255](https://github.com/nodejs/node/pull/27255)
+* [[`7bc47cba2e`](https://github.com/nodejs/node/commit/7bc47cba2e)] - **src**: apply clang-tidy rule modernize-use-equals-default (gengjiawen) [#27264](https://github.com/nodejs/node/pull/27264)
+* [[`ad42cd69cf`](https://github.com/nodejs/node/commit/ad42cd69cf)] - **src**: use std::vector\<size\_t\> instead of IndexArray (Joyee Cheung) [#27321](https://github.com/nodejs/node/pull/27321)
+* [[`228127fc67`](https://github.com/nodejs/node/commit/228127fc67)] - **src**: enable context snapshot after running per-context scripts (Joyee Cheung) [#27321](https://github.com/nodejs/node/pull/27321)
+* [[`45d6106129`](https://github.com/nodejs/node/commit/45d6106129)] - **src**: enable snapshot with per-isolate data (Joyee Cheung) [#27321](https://github.com/nodejs/node/pull/27321)
+* [[`631bea8fd2`](https://github.com/nodejs/node/commit/631bea8fd2)] - **src**: implement IsolateData serialization and deserialization (Joyee Cheung) [#27321](https://github.com/nodejs/node/pull/27321)
+* [[`a636338945`](https://github.com/nodejs/node/commit/a636338945)] - **src**: allow creating NodeMainInstance that does not own the isolate (Joyee Cheung) [#27321](https://github.com/nodejs/node/pull/27321)
+* [[`50732c1b3f`](https://github.com/nodejs/node/commit/50732c1b3f)] - **test**: refactor net-connect-handle-econnrefused (Luigi Pinca) [#27014](https://github.com/nodejs/node/pull/27014)
+* [[`e9021cc498`](https://github.com/nodejs/node/commit/e9021cc498)] - **test**: move test-net-connect-handle-econnrefused (Luigi Pinca) [#27014](https://github.com/nodejs/node/pull/27014)
+* [[`ebbed6047d`](https://github.com/nodejs/node/commit/ebbed6047d)] - **test**: rework to remove flakiness, and be parallel (Sam Roberts) [#27300](https://github.com/nodejs/node/pull/27300)
+* [[`f0b2992f5c`](https://github.com/nodejs/node/commit/f0b2992f5c)] - **test**: fix ineffective error tests (Masashi Hirano) [#27333](https://github.com/nodejs/node/pull/27333)
+* [[`d84a6d05a1`](https://github.com/nodejs/node/commit/d84a6d05a1)] - **test**: make test-worker-esm-missing-main more robust (Rich Trott) [#27340](https://github.com/nodejs/node/pull/27340)
+* [[`8486917b9a`](https://github.com/nodejs/node/commit/8486917b9a)] - **test**: increase coverage in lib/internal/dns/promises.js (Rich Trott) [#27330](https://github.com/nodejs/node/pull/27330)
+* [[`6ca0270320`](https://github.com/nodejs/node/commit/6ca0270320)] - **tls**: include invalid method name in thrown error (Sam Roberts) [#27390](https://github.com/nodejs/node/pull/27390)
+* [[`dcbe5b9dff`](https://github.com/nodejs/node/commit/dcbe5b9dff)] - **tools**: update certdata.txt (Sam Roberts) [#27374](https://github.com/nodejs/node/pull/27374)
+* [[`53f0ef36c0`](https://github.com/nodejs/node/commit/53f0ef36c0)] - **tools**: update LICENSE and tools/icu/current\_ver.dep (Ujjwal Sharma) [#27361](https://github.com/nodejs/node/pull/27361)
+* [[`481789c235`](https://github.com/nodejs/node/commit/481789c235)] - **tools**: fix use-after-free mkcodecache warning (Ben Noordhuis) [#27332](https://github.com/nodejs/node/pull/27332)
+* [[`d62a3243b1`](https://github.com/nodejs/node/commit/d62a3243b1)] - **tools**: update tools/license-builder.sh (Ujjwal Sharma) [#27362](https://github.com/nodejs/node/pull/27362)
+* [[`b44323f3de`](https://github.com/nodejs/node/commit/b44323f3de)] - **tools**: implement node\_mksnapshot (Joyee Cheung) [#27321](https://github.com/nodejs/node/pull/27321)
+* [[`ae2333db65`](https://github.com/nodejs/node/commit/ae2333db65)] - **util**: add prototype support for boxed primitives (Ruben Bridgewater) [#27351](https://github.com/nodejs/node/pull/27351)
+* [[`8f3442809a`](https://github.com/nodejs/node/commit/8f3442809a)] - **util**: rename setIteratorBraces to getIteratorBraces (Ruben Bridgewater) [#27342](https://github.com/nodejs/node/pull/27342)
+* [[`973d705aa9`](https://github.com/nodejs/node/commit/973d705aa9)] - **util**: improve `Symbol.toStringTag` handling (Ruben Bridgewater) [#27342](https://github.com/nodejs/node/pull/27342)
 
 <a id="12.0.0"></a>
 ## 2019-04-23, Version 12.0.0 (Current), @BethGriggs
