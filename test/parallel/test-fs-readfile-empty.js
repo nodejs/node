@@ -23,10 +23,10 @@
 
 // Trivial test of fs.readFile on an empty file.
 
-const assert = require('assert');
 const fs = require('fs');
-const fixtures = require('../common/fixtures');
+const assert = require('assert');
 const { mustCall } = require('../common');
+const fixtures = require('../common/fixtures');
 
 const fn = fixtures.path('empty.txt');
 
