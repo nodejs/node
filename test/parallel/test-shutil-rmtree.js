@@ -25,12 +25,9 @@ function setupFiles() {
 }
 
 function assertGone(path) {
-  assert.throws(
-    () => fs.readdirSync(path),
-    {
-      code: 'ENOENT'
-    }
-  );
+  assert.throws(() => fs.readdirSync(path), {
+    code: 'ENOENT'
+  });
 }
 
 function test_rmtree_sync(path) {
@@ -42,6 +39,23 @@ function test_rmtree_sync(path) {
   assertGone(path);
 }
 
+function test_invalid_path() {
+  assert.throws(() => shutil.rmtreeSync(1), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+}
+
+function test_invalid_options(path) {
+  assert.throws(() => shutil.rmtreeSync(path, 1), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+}
+
+function test_invalid_callback(path) {
+  assert.throws(() => shutil.rmtree(path, {}, 1), {
+    code: 'ERR_INVALID_CALLBACK'
+  });
+}
 
 function test_rmtree(path) {
   setupFiles();
@@ -52,4 +66,7 @@ function test_rmtree(path) {
 }
 
 test_rmtree_sync(baseDir);
+test_invalid_path();
+test_invalid_options(baseDir);
+test_invalid_callback(baseDir);
 test_rmtree(baseDir);

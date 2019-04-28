@@ -195,6 +195,7 @@
       'lib/internal/v8_prof_polyfill.js',
       'lib/internal/v8_prof_processor.js',
       'lib/internal/validators.js',
+      'lib/internal/shutil.js',
       'lib/internal/stream_base_commons.js',
       'lib/internal/vm/source_text_module.js',
       'lib/internal/worker.js',
