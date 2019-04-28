@@ -31,15 +31,15 @@ const { mustCall } = require('../common')
 
 const fn = fixtures.path('empty.txt');
 
-fs.readFile(fn, mustCall(function (err, data) {
+fs.readFile(fn, mustCall((err, data) => {
   assert.ok(data);
 }));
 
-fs.readFile(fn, 'utf8', mustCall(function (err, data) {
+fs.readFile(fn, 'utf8', mustCall((err, data) => {
   assert.strictEqual(data, '');
 }));
 
-fs.readFile(fn, { encoding: 'utf8' }, mustCall(function (err, data) {
+fs.readFile(fn, { encoding: 'utf8' }, mustCall((err, data) => {
   assert.strictEqual(data, '');
 }));
 
