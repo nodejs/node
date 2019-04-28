@@ -24,10 +24,10 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const server = net.createServer(function(s) {
+const server = net.createServer(common.mustCall(function(s) {
   console.error('SERVER: got connection');
   s.end();
-});
+}));
 
 server.listen(0, common.mustCall(function() {
   const c = net.createConnection(this.address().port);
