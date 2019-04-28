@@ -20,27 +20,26 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
 
 // Trivial test of fs.readFile on an empty file.
-
-const assert = require('assert');
+const common = require('../common');
 const fs = require('fs');
+const assert = require('assert');
 const fixtures = require('../common/fixtures');
 
 const fn = fixtures.path('empty.txt');
 
-fs.readFile(fn, function(err, data) {
+fs.readFile(fn, common.mustCall((err, data) => {
   assert.ok(data);
-});
+}));
 
-fs.readFile(fn, 'utf8', function(err, data) {
+fs.readFile(fn, 'utf8', common.mustCall((err, data) => {
   assert.strictEqual(data, '');
-});
+}));
 
-fs.readFile(fn, { encoding: 'utf8' }, function(err, data) {
+fs.readFile(fn, { encoding: 'utf8' }, common.mustCall((err, data) => {
   assert.strictEqual(data, '');
-});
+}));
 
 assert.ok(fs.readFileSync(fn));
 assert.strictEqual(fs.readFileSync(fn, 'utf8'), '');
