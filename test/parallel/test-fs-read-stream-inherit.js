@@ -26,7 +26,7 @@ const rangeFile = fixtures.path('x.txt');
     file.resume();
   }));
 
-  file.on('data', function(data) {
+  file.on('data', common.mustCallAtLeast(function(data) {
     assert.ok(data instanceof Buffer);
     assert.ok(!paused);
     file.length += data.length;
@@ -38,7 +38,7 @@ const rangeFile = fixtures.path('x.txt');
       paused = false;
       file.resume();
     }, 10);
-  });
+  }));
 
 
   file.on('end', common.mustCall());
