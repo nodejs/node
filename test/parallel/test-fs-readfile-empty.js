@@ -27,20 +27,21 @@ require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const fixtures = require('../common/fixtures');
+const { mustCall } = require('../common')
 
 const fn = fixtures.path('empty.txt');
 
-fs.readFile(fn, function(err, data) {
+fs.readFile(fn, mustCall(function (err, data) {
   assert.ok(data);
-});
+}));
 
-fs.readFile(fn, 'utf8', function(err, data) {
+fs.readFile(fn, 'utf8', mustCall(function (err, data) {
   assert.strictEqual(data, '');
-});
+}));
 
-fs.readFile(fn, { encoding: 'utf8' }, function(err, data) {
+fs.readFile(fn, { encoding: 'utf8' }, mustCall(function (err, data) {
   assert.strictEqual(data, '');
-});
+}));
 
 assert.ok(fs.readFileSync(fn));
 assert.strictEqual(fs.readFileSync(fn, 'utf8'), '');
