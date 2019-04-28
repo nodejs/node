@@ -26,7 +26,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const fixtures = require('../common/fixtures');
-const { mustCall } = require('../common')
+const { mustCall } = require('../common');
 
 const fn = fixtures.path('empty.txt');
 
