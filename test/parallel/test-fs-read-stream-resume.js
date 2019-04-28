@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
@@ -32,13 +32,13 @@ let first = true;
 
 const stream = fs.createReadStream(file);
 stream.setEncoding('utf8');
-stream.on('data', function(chunk) {
+stream.on('data', common.mustCallAtLeast(function(chunk) {
   data += chunk;
   if (first) {
     first = false;
     stream.resume();
   }
-});
+}));
 
 process.nextTick(function() {
   stream.pause();
