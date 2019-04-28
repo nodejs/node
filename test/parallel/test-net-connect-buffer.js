@@ -33,11 +33,11 @@ const tcp = net.Server(common.mustCall((s) => {
     buf += d;
   });
 
-  s.on('end', function() {
+  s.on('end', common.mustCall(function() {
     console.error('SERVER: end', buf);
     assert.strictEqual(buf, "L'État, c'est moi");
     s.end();
-  });
+  }));
 }));
 
 tcp.listen(0, common.mustCall(function() {
