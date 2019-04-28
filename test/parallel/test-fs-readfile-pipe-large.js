@@ -29,7 +29,7 @@ const exec = require('child_process').exec;
 const f = JSON.stringify(__filename);
 const node = JSON.stringify(process.execPath);
 const cmd = `cat ${filename} | ${node} ${f} child`;
-exec(cmd, { maxBuffer: 1000000 }, function(err, stdout, stderr) {
+exec(cmd, { maxBuffer: 1000000 }, common.mustCall((err, stdout, stderr) => {
   assert.ifError(err);
   assert.strictEqual(
     stdout,
@@ -42,7 +42,7 @@ exec(cmd, { maxBuffer: 1000000 }, function(err, stdout, stderr) {
     `expect that it does not write to stderr, but got : ${stderr}`
   );
   console.log('ok');
-});
+}));
 
 process.on('exit', function() {
   fs.unlinkSync(filename);
