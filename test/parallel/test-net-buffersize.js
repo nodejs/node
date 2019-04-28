@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -36,12 +36,12 @@ const server = net.createServer(function(socket) {
   });
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const client = net.connect(this.address().port);
 
-  client.on('finish', function() {
+  client.on('finish', common.mustCall(() => {
     assert.strictEqual(client.bufferSize, 0);
-  });
+  }));
 
   for (let i = 1; i < iter; i++) {
     client.write('a');
@@ -49,4 +49,4 @@ server.listen(0, function() {
   }
 
   client.end();
-});
+}));
