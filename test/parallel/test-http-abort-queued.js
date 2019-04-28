@@ -26,7 +26,7 @@ const http = require('http');
 
 let complete;
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(common.mustCall((req, res) => {
   // We should not see the queued /thatotherone request within the server
   // as it should be aborted before it is sent.
   assert.strictEqual(req.url, '/');
@@ -37,10 +37,9 @@ const server = http.createServer((req, res) => {
   complete = complete || function() {
     res.end();
   };
-});
+}));
 
-
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const agent = new http.Agent({ maxSockets: 1 });
   assert.strictEqual(Object.keys(agent.sockets).length, 0);
 
@@ -93,4 +92,4 @@ server.listen(0, () => {
   });
 
   req1.end();
-});
+}));
