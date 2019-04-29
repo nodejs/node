@@ -31,51 +31,51 @@
 
 namespace node {
 
-#define NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                                \
-  V(NONE)                                                                      \
-  V(DNSCHANNEL)                                                                \
-  V(FILEHANDLE)                                                                \
-  V(FILEHANDLECLOSEREQ)                                                        \
-  V(FSEVENTWRAP)                                                               \
-  V(FSREQCALLBACK)                                                             \
-  V(FSREQPROMISE)                                                              \
-  V(GETADDRINFOREQWRAP)                                                        \
-  V(GETNAMEINFOREQWRAP)                                                        \
-  V(HEAPSNAPSHOT)                                                              \
-  V(HTTP2SESSION)                                                              \
-  V(HTTP2STREAM)                                                               \
-  V(HTTP2PING)                                                                 \
-  V(HTTP2SETTINGS)                                                             \
-  V(HTTPINCOMINGMESSAGE)                                                       \
-  V(HTTPCLIENTREQUEST)                                                         \
-  V(JSSTREAM)                                                                  \
-  V(MESSAGEPORT)                                                               \
-  V(PIPECONNECTWRAP)                                                           \
-  V(PIPESERVERWRAP)                                                            \
-  V(PIPEWRAP)                                                                  \
-  V(PROCESSWRAP)                                                               \
-  V(PROMISE)                                                                   \
-  V(QUERYWRAP)                                                                 \
-  V(SHUTDOWNWRAP)                                                              \
-  V(SIGNALWRAP)                                                                \
-  V(STATWATCHER)                                                               \
-  V(STREAMPIPE)                                                                \
-  V(TCPCONNECTWRAP)                                                            \
-  V(TCPSERVERWRAP)                                                             \
-  V(TCPWRAP)                                                                   \
-  V(TTYWRAP)                                                                   \
-  V(UDPSENDWRAP)                                                               \
-  V(UDPWRAP)                                                                   \
-  V(WORKER)                                                                    \
-  V(WRITEWRAP)                                                                 \
+#define NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                               \
+  V(NONE)                                                                     \
+  V(DNSCHANNEL)                                                               \
+  V(FILEHANDLE)                                                               \
+  V(FILEHANDLECLOSEREQ)                                                       \
+  V(FSEVENTWRAP)                                                              \
+  V(FSREQCALLBACK)                                                            \
+  V(FSREQPROMISE)                                                             \
+  V(GETADDRINFOREQWRAP)                                                       \
+  V(GETNAMEINFOREQWRAP)                                                       \
+  V(HEAPSNAPSHOT)                                                             \
+  V(HTTP2SESSION)                                                             \
+  V(HTTP2STREAM)                                                              \
+  V(HTTP2PING)                                                                \
+  V(HTTP2SETTINGS)                                                            \
+  V(HTTPINCOMINGMESSAGE)                                                      \
+  V(HTTPCLIENTREQUEST)                                                        \
+  V(JSSTREAM)                                                                 \
+  V(MESSAGEPORT)                                                              \
+  V(PIPECONNECTWRAP)                                                          \
+  V(PIPESERVERWRAP)                                                           \
+  V(PIPEWRAP)                                                                 \
+  V(PROCESSWRAP)                                                              \
+  V(PROMISE)                                                                  \
+  V(QUERYWRAP)                                                                \
+  V(SHUTDOWNWRAP)                                                             \
+  V(SIGNALWRAP)                                                               \
+  V(STATWATCHER)                                                              \
+  V(STREAMPIPE)                                                               \
+  V(TCPCONNECTWRAP)                                                           \
+  V(TCPSERVERWRAP)                                                            \
+  V(TCPWRAP)                                                                  \
+  V(TTYWRAP)                                                                  \
+  V(UDPSENDWRAP)                                                              \
+  V(UDPWRAP)                                                                  \
+  V(WORKER)                                                                   \
+  V(WRITEWRAP)                                                                \
   V(ZLIB)
 
 #if HAVE_OPENSSL
-#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                    \
-  V(PBKDF2REQUEST)                                                             \
-  V(KEYPAIRGENREQUEST)                                                         \
-  V(RANDOMBYTESREQUEST)                                                        \
-  V(SCRYPTREQUEST)                                                             \
+#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
+  V(PBKDF2REQUEST)                                                            \
+  V(KEYPAIRGENREQUEST)                                                        \
+  V(RANDOMBYTESREQUEST)                                                       \
+  V(SCRYPTREQUEST)                                                            \
   V(TLSWRAP)
 #else
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
@@ -88,9 +88,9 @@ namespace node {
 #define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
 #endif  // HAVE_INSPECTOR
 
-#define NODE_ASYNC_PROVIDER_TYPES(V)                                           \
-  NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                                      \
-  NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                          \
+#define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
+  NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                                     \
+  NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                         \
   NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
 
 class Environment;
@@ -103,7 +103,7 @@ class AsyncWrap : public BaseObject {
     PROVIDER_ ## PROVIDER,
     NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
-        PROVIDERS_LENGTH,
+    PROVIDERS_LENGTH,
   };
 
   AsyncWrap(Environment* env,
@@ -131,7 +131,7 @@ class AsyncWrap : public BaseObject {
   static void PopAsyncIds(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncReset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QueueDestroyAsyncId(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+    const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void EmitAsyncInit(Environment* env,
                             v8::Local<v8::Object> object,
@@ -187,7 +187,7 @@ class AsyncWrap : public BaseObject {
   virtual std::string diagnostic_name() const;
   std::string MemoryInfoName() const override;
 
-  static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam>& info);
+  static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam> &info);
 
   // Returns the object that 'owns' an async wrap. For example, for a
   // TCP connection handle, this is the corresponding net.Socket.
