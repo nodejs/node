@@ -1614,7 +1614,7 @@ util.inspect(process);
   assert.strict.equal(out, expected);
 }
 
-{ // Test WeakMap
+{ // Test WeakMap && WeakSet
   const obj = {};
   const arr = [];
   const weakMap = new WeakMap([[obj, arr], [arr, obj]]);
@@ -1634,16 +1634,16 @@ util.inspect(process);
   out = util.inspect(weakMap, { maxArrayLength: 1, showHidden: true });
   // It is not possible to determine the output reliable.
   expect = 'WeakMap { [ [length]: 0 ] => {}, ... 1 more item, extra: true }';
-  const expectAlt = 'WeakMap { {} => [ [length]: 0 ], ... 1 more item, ' +
-                    'extra: true }';
+  let expectAlt = 'WeakMap { {} => [ [length]: 0 ], ... 1 more item, ' +
+                  'extra: true }';
   assert(out === expect || out === expectAlt,
          `Found: "${out}"\nrather than: "${expect}"\nor: "${expectAlt}"`);
-}
 
-{ // Test WeakSet
-  const weakSet = new WeakSet([{}, [1]]);
-  let out = util.inspect(weakSet, { showHidden: true });
-  let expect = 'WeakSet { [ 1, [length]: 1 ], {} }';
+  // Test WeakSet
+  arr.push(1);
+  const weakSet = new WeakSet([obj, arr]);
+  out = util.inspect(weakSet, { showHidden: true });
+  expect = 'WeakSet { [ 1, [length]: 1 ], {} }';
   assert.strictEqual(out, expect);
 
   out = util.inspect(weakSet);
@@ -1658,10 +1658,12 @@ util.inspect(process);
   out = util.inspect(weakSet, { maxArrayLength: 1, showHidden: true });
   // It is not possible to determine the output reliable.
   expect = 'WeakSet { {}, ... 1 more item, extra: true }';
-  const expectAlt = 'WeakSet { [ 1, [length]: 1 ], ... 1 more item, ' +
-                    'extra: true }';
+  expectAlt = 'WeakSet { [ 1, [length]: 1 ], ... 1 more item, extra: true }';
   assert(out === expect || out === expectAlt,
          `Found: "${out}"\nrather than: "${expect}"\nor: "${expectAlt}"`);
+  // Keep references to the WeakMap entries, otherwise they could be GCed too
+  // early.
+  assert(obj && arr);
 }
 
 { // Test argument objects.
