@@ -24,13 +24,14 @@ function main({ len, n }) {
     bench.start();
     for (var i = 0; i < n; i++) {
       parser.execute(header, 0, header.length);
-      parser.initialize(REQUEST, header);
+      parser.initialize(REQUEST, {});
     }
     bench.end(n);
   }
 
   function newParser(type) {
-    const parser = new HTTPParser(type);
+    const parser = new HTTPParser();
+    parser.initialize(type, {});
 
     parser.headers = [];
 
