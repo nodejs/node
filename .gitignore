@@ -42,9 +42,7 @@ coverage/
 /out
 
 # various stuff that VC++ produces/uses and is not in /out
-/Debug/
 /Debug
-/Release/
 /Release
 !doc/blog/**
 *.sln
