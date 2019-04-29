@@ -441,6 +441,30 @@ node --experimental-modules index.mjs # fails
 node --experimental-modules --experimental-json-modules index.mjs # works
 ```
 
+## Experimental Wasm Modules
+
+Importing Web Assembly modules is supported under the
+`--experimental-wasm-modules` flag, allowing any `.wasm` files to be
+imported as normal modules while also supporting their module imports.
+
+This integration is in line with the
+[ES Module Integration Proposal for Web Assembly][].
+
+For example, an `index.mjs` containing:
+
+```js
+import * as M from './module.wasm';
+console.log(M);
+```
+
+executed under:
+
+```bash
+node --experimental-modules --experimental-wasm-modules index.mjs
+```
+
+would provide the exports interface for the instantiation of `module.wasm`.
+
 ## Experimental Loader hooks
 
 **Note: This API is currently being redesigned and will still change.**
@@ -484,11 +508,12 @@ module. This can be one of the following:
 
 | `format` | Description |
 | --- | --- |
-| `'module'` | Load a standard JavaScript module |
-| `'commonjs'` | Load a Node.js CommonJS module |
 | `'builtin'` | Load a Node.js builtin module |
-| `'json'` | Load a JSON file |
+| `'commonjs'` | Load a Node.js CommonJS module |
 | `'dynamic'` | Use a [dynamic instantiate hook][] |
+| `'json'` | Load a JSON file |
+| `'module'` | Load a standard JavaScript module |
+| `'wasm'` | Load a WebAssembly module |
 
 For example, a dummy loader to load JavaScript restricted to browser resolution
 rules with only JS file extension and Node.js builtin modules support could
@@ -585,8 +610,8 @@ format for that resolved URL given by the **ESM_FORMAT** routine.
 
 The _"module"_ format is returned for an ECMAScript Module, while the
 _"commonjs"_ format is used to indicate loading through the legacy
-CommonJS loader. Additional formats such as _"wasm"_ or _"addon"_ can be
-extended in future updates.
+CommonJS loader. Additional formats such as _"addon"_ can be extended in future
+updates.
 
 In the following algorithms, all subroutine errors are propagated as errors
 of these top-level routines.
@@ -739,5 +764,6 @@ success!
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [WHATWG JSON modules]: https://github.com/whatwg/html/issues/4315
+[ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules

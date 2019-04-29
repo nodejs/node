@@ -122,6 +122,11 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
                       "--experimental-modules be enabled");
   }
 
+  if (experimental_wasm_modules && !experimental_modules) {
+    errors->push_back("--experimental-wasm-modules requires "
+                      "--experimental-modules be enabled");
+  }
+
   if (!es_module_specifier_resolution.empty()) {
     if (!experimental_modules) {
       errors->push_back("--es-module-specifier-resolution requires "
@@ -273,6 +278,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-modules",
             "experimental ES Module support and caching modules",
             &EnvironmentOptions::experimental_modules,
+            kAllowedInEnvironment);
+  AddOption("--experimental-wasm-modules",
+            "experimental ES Module support for webassembly modules",
+            &EnvironmentOptions::experimental_wasm_modules,
             kAllowedInEnvironment);
   AddOption("--experimental-policy",
             "use the specified file as a "
