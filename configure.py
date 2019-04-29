@@ -1604,8 +1604,6 @@ if options.prefix:
 
 config = '\n'.join(['='.join(item) for item in config.items()]) + '\n'
 
-
-sys.argv.append("-DPYTHON_EXECUTABLE=" + sys.executable)
 os.environ['PYTHON_EXECUTABLE'] = sys.executable
 
 write('config.mk', do_not_edit + config)
