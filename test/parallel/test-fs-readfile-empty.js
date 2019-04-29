@@ -22,23 +22,22 @@
 'use strict';
 
 // Trivial test of fs.readFile on an empty file.
-
+const common = require('../common');
 const fs = require('fs');
 const assert = require('assert');
-const { mustCall } = require('../common');
 const fixtures = require('../common/fixtures');
 
 const fn = fixtures.path('empty.txt');
 
-fs.readFile(fn, mustCall((err, data) => {
+fs.readFile(fn, common.mustCall((err, data) => {
   assert.ok(data);
 }));
 
-fs.readFile(fn, 'utf8', mustCall((err, data) => {
+fs.readFile(fn, 'utf8', common.mustCall((err, data) => {
   assert.strictEqual(data, '');
 }));
 
-fs.readFile(fn, { encoding: 'utf8' }, mustCall((err, data) => {
+fs.readFile(fn, { encoding: 'utf8' }, common.mustCall((err, data) => {
   assert.strictEqual(data, '');
 }));
 
