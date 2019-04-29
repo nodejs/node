@@ -610,6 +610,8 @@ void AsyncWrap::AsyncReset(Local<Object> resource,
                            bool skip_destroy,
                            double execution_async_id,
                            bool silent) {
+  CHECK_NE(provider_type(), PROVIDER_NONE);
+
   if (!skip_destroy && (async_id_ != invalid_async_id)) {
     // This instance was in use before, we have already emitted an init with
     // its previous async_id and need to emit a matching destroy for that

@@ -154,17 +154,16 @@ struct StringPtr {
 
 class Parser : public AsyncWrap, public StreamListener {
  public:
-  Parser(Environment* env, Local<Object> wrap, parser_type_t type)
-      : AsyncWrap(env, wrap,
-                  type == HTTP_REQUEST ?
-                      AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE :
-                      AsyncWrap::PROVIDER_HTTPCLIENTREQUEST,
+  Parser(Environment* env, Local<Object> wrap)
+      : AsyncWrap(env,
+                  wrap,
+                  // AsyncWrap::PROVIDER_NONE would match better here but
+                  // there is an assert in AsyncWrap() which avoid this.
+                  AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE,
                   AsyncWrap::invalid_async_id, true),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
-    Init(type);
   }
-
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("current_buffer", current_buffer_);
@@ -427,11 +426,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
-    CHECK(args[0]->IsInt32());
-    parser_type_t type =
-        static_cast<parser_type_t>(args[0].As<Int32>()->Value());
-    CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
-    new Parser(env, args.This(), type);
+    new Parser(env, args.This());
   }
 
 

@@ -7,7 +7,6 @@ const common = require('../common');
 const assert = require('assert');
 const httpCommon = require('_http_common');
 const { HTTPParser } = require('_http_common');
-const { AsyncResource } = require('async_hooks');
 const net = require('net');
 
 const COUNT = httpCommon.parsers.max + 1;
@@ -25,7 +24,7 @@ function execAndClose() {
   process.stdout.write('.');
 
   const parser = parsers.pop();
-  parser.initialize(HTTPParser.RESPONSE, new AsyncResource('ClientRequest'));
+  parser.initialize(HTTPParser.RESPONSE, {});
 
   const socket = net.connect(common.PORT);
   socket.on('error', (e) => {

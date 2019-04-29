@@ -7,8 +7,8 @@ const { getOptionValue } = require('internal/options');
 
 // Monkey patch before requiring anything
 class DummyParser {
-  constructor(type) {
-    this.test_type = type;
+  constructor() {
+    this.test_type = DummyParser.REQUEST;
   }
 }
 DummyParser.REQUEST = Symbol();
