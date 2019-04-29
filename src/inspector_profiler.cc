@@ -50,45 +50,54 @@ void V8ProfilerConnection::DispatchMessage(Local<String> message) {
   session_->Dispatch(ToProtocolString(env()->isolate(), message)->string());
 }
 
-bool V8ProfilerConnection::WriteResult(const char* path, Local<String> result) {
-  int ret = WriteFileSync(env()->isolate(), path, result);
+static void WriteResult(Environment* env,
+                        const char* path,
+                        Local<String> result) {
+  int ret = WriteFileSync(env->isolate(), path, result);
   if (ret != 0) {
     char err_buf[128];
     uv_err_name_r(ret, err_buf, sizeof(err_buf));
     fprintf(stderr, "%s: Failed to write file %s\n", err_buf, path);
-    return false;
-  }
-  Debug(
-      env(), DebugCategory::INSPECTOR_PROFILER, "Written result to %s\n", path);
-  return true;
-}
-
-void V8CoverageConnection::OnMessage(const v8_inspector::StringView& message) {
-  Debug(env(),
-        DebugCategory::INSPECTOR_PROFILER,
-        "Receive coverage message, ending = %s\n",
-        ending_ ? "true" : "false");
-  if (!ending_) {
     return;
   }
-  Isolate* isolate = env()->isolate();
-  Local<Context> context = env()->context();
+  Debug(env, DebugCategory::INSPECTOR_PROFILER, "Written result to %s\n", path);
+}
+
+void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
+    const v8_inspector::StringView& message) {
+  Environment* env = connection_->env();
+  Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
-  Context::Scope context_scope(context);
-  Local<String> result;
+  Context::Scope context_scope(env->context());
+
+  // TODO(joyeecheung): always parse the message so that we can use the id to
+  // identify ending messages as well as printing the message in the debug
+  // output when there is an error.
+  const char* type = connection_->type();
+  Debug(env,
+        DebugCategory::INSPECTOR_PROFILER,
+        "Receive %s profile message, ending = %s\n",
+        type,
+        connection_->ending() ? "true" : "false");
+  if (!connection_->ending()) {
+    return;
+  }
+
+  // Convert StringView to a Local<String>.
+  Local<String> message_str;
   if (!String::NewFromTwoByte(isolate,
                               message.characters16(),
                               NewStringType::kNormal,
                               message.length())
-           .ToLocal(&result)) {
-    fprintf(stderr, "Failed to covert coverage message\n");
+           .ToLocal(&message_str)) {
+    fprintf(stderr, "Failed to covert %s profile message\n", type);
+    return;
   }
-  WriteCoverage(result);
+
+  connection_->WriteProfile(message_str);
 }
 
-bool V8CoverageConnection::WriteCoverage(Local<String> message) {
-  const std::string& directory = env()->coverage_directory();
-  CHECK(!directory.empty());
+static bool EnsureDirectory(const std::string& directory, const char* type) {
   uv_fs_t req;
   int ret = fs::MKDirpSync(nullptr, &req, directory, 0777, nullptr);
   uv_fs_req_cleanup(&req);
@@ -96,12 +105,16 @@ bool V8CoverageConnection::WriteCoverage(Local<String> message) {
     char err_buf[128];
     uv_err_name_r(ret, err_buf, sizeof(err_buf));
     fprintf(stderr,
-            "%s: Failed to create coverage directory %s\n",
+            "%s: Failed to create %s profile directory %s\n",
             err_buf,
+            type,
             directory.c_str());
     return false;
   }
+  return true;
+}
 
+std::string V8CoverageConnection::GetFilename() const {
   std::string thread_id = std::to_string(env()->thread_id());
   std::string pid = std::to_string(uv_os_getpid());
   std::string timestamp = std::to_string(
@@ -113,44 +126,79 @@ bool V8CoverageConnection::WriteCoverage(Local<String> message) {
            pid.c_str(),
            timestamp.c_str(),
            thread_id.c_str());
-  std::string target = directory + kPathSeparator + filename;
-  MaybeLocal<String> result = GetResult(message);
-  if (result.IsEmpty()) {
-    return false;
-  }
-  return WriteResult(target.c_str(), result.ToLocalChecked());
+  return filename;
 }
 
-MaybeLocal<String> V8CoverageConnection::GetResult(Local<String> message) {
-  Local<Context> context = env()->context();
-  Isolate* isolate = env()->isolate();
+static MaybeLocal<Object> ParseProfile(Environment* env,
+                                       Local<String> message,
+                                       const char* type) {
+  Local<Context> context = env->context();
+  Isolate* isolate = env->isolate();
+
+  // Get message.result from the response
   Local<Value> parsed;
   if (!v8::JSON::Parse(context, message).ToLocal(&parsed) ||
       !parsed->IsObject()) {
-    fprintf(stderr, "Failed to parse coverage result as JSON object\n");
-    return MaybeLocal<String>();
+    fprintf(stderr, "Failed to parse %s profile result as JSON object\n", type);
+    return MaybeLocal<Object>();
   }
 
   Local<Value> result_v;
   if (!parsed.As<Object>()
            ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "result"))
            .ToLocal(&result_v)) {
-    fprintf(stderr, "Failed to get result from coverage message\n");
-    return MaybeLocal<String>();
+    fprintf(stderr, "Failed to get 'result' from %s profile message\n", type);
+    return MaybeLocal<Object>();
   }
 
-  if (result_v->IsUndefined()) {
-    fprintf(stderr, "'result' from coverage message is undefined\n");
-    return MaybeLocal<String>();
+  if (!result_v->IsObject()) {
+    fprintf(
+        stderr, "'result' from %s profile message is not an object\n", type);
+    return MaybeLocal<Object>();
   }
 
+  return result_v.As<Object>();
+}
+
+void V8ProfilerConnection::WriteProfile(Local<String> message) {
+  Local<Context> context = env_->context();
+
+  // Get message.result from the response.
+  Local<Object> result;
+  if (!ParseProfile(env_, message, type()).ToLocal(&result)) {
+    return;
+  }
+  // Generate the profile output from the subclass.
+  Local<Object> profile;
+  if (!GetProfile(result).ToLocal(&profile)) {
+    return;
+  }
   Local<String> result_s;
-  if (!v8::JSON::Stringify(context, result_v).ToLocal(&result_s)) {
-    fprintf(stderr, "Failed to stringify coverage result\n");
-    return MaybeLocal<String>();
+  if (!v8::JSON::Stringify(context, profile).ToLocal(&result_s)) {
+    fprintf(stderr, "Failed to stringify %s profile result\n", type());
+    return;
   }
 
-  return result_s;
+  // Create the directory if necessary.
+  std::string directory = GetDirectory();
+  DCHECK(!directory.empty());
+  if (!EnsureDirectory(directory, type())) {
+    return;
+  }
+
+  std::string filename = GetFilename();
+  DCHECK(!filename.empty());
+  std::string path = directory + kPathSeparator + filename;
+
+  WriteResult(env_, path.c_str(), result_s);
+}
+
+MaybeLocal<Object> V8CoverageConnection::GetProfile(Local<Object> result) {
+  return result;
+}
+
+std::string V8CoverageConnection::GetDirectory() const {
+  return env()->coverage_directory();
 }
 
 void V8CoverageConnection::Start() {
@@ -184,92 +232,28 @@ void V8CoverageConnection::End() {
   DispatchMessage(end);
 }
 
-void V8CpuProfilerConnection::OnMessage(
-    const v8_inspector::StringView& message) {
-  Debug(env(),
-        DebugCategory::INSPECTOR_PROFILER,
-        "Receive cpu profiling message, ending = %s\n",
-        ending_ ? "true" : "false");
-  if (!ending_) {
-    return;
-  }
-  Isolate* isolate = env()->isolate();
-  HandleScope handle_scope(isolate);
-  Local<Context> context = env()->context();
-  Context::Scope context_scope(context);
-  Local<String> result;
-  if (!String::NewFromTwoByte(isolate,
-                              message.characters16(),
-                              NewStringType::kNormal,
-                              message.length())
-           .ToLocal(&result)) {
-    fprintf(stderr, "Failed to convert profiling message\n");
-  }
-  WriteCpuProfile(result);
+std::string V8CpuProfilerConnection::GetDirectory() const {
+  return env()->cpu_prof_dir();
 }
 
-void V8CpuProfilerConnection::WriteCpuProfile(Local<String> message) {
-  const std::string& filename = env()->cpu_prof_name();
-  const std::string& directory = env()->cpu_prof_dir();
-  CHECK(!filename.empty());
-  CHECK(!directory.empty());
-  uv_fs_t req;
-  int ret = fs::MKDirpSync(nullptr, &req, directory, 0777, nullptr);
-  uv_fs_req_cleanup(&req);
-  if (ret < 0 && ret != UV_EEXIST) {
-    char err_buf[128];
-    uv_err_name_r(ret, err_buf, sizeof(err_buf));
-    fprintf(stderr,
-            "%s: Failed to create cpu profile directory %s\n",
-            err_buf,
-            directory.c_str());
-    return;
-  }
-  MaybeLocal<String> result = GetResult(message);
-  std::string target = directory + kPathSeparator + filename;
-  if (!result.IsEmpty()) {
-    WriteResult(target.c_str(), result.ToLocalChecked());
-  }
+std::string V8CpuProfilerConnection::GetFilename() const {
+  return env()->cpu_prof_name();
 }
 
-MaybeLocal<String> V8CpuProfilerConnection::GetResult(Local<String> message) {
-  Local<Context> context = env()->context();
-  Isolate* isolate = env()->isolate();
-  Local<Value> parsed;
-  if (!v8::JSON::Parse(context, message).ToLocal(&parsed) ||
-      !parsed->IsObject()) {
-    fprintf(stderr, "Failed to parse CPU profile result as JSON object\n");
-    return MaybeLocal<String>();
-  }
-
-  Local<Value> result_v;
-  if (!parsed.As<Object>()
-           ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "result"))
-           .ToLocal(&result_v)) {
-    fprintf(stderr, "Failed to get result from CPU profile message\n");
-    return MaybeLocal<String>();
-  }
-
-  if (!result_v->IsObject()) {
-    fprintf(stderr, "'result' from CPU profile message is not an object\n");
-    return MaybeLocal<String>();
-  }
-
+MaybeLocal<Object> V8CpuProfilerConnection::GetProfile(Local<Object> result) {
   Local<Value> profile_v;
-  if (!result_v.As<Object>()
-           ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "profile"))
+  if (!result
+           ->Get(env()->context(),
+                 FIXED_ONE_BYTE_STRING(env()->isolate(), "profile"))
            .ToLocal(&profile_v)) {
     fprintf(stderr, "'profile' from CPU profile result is undefined\n");
-    return MaybeLocal<String>();
+    return MaybeLocal<Object>();
   }
-
-  Local<String> result_s;
-  if (!v8::JSON::Stringify(context, profile_v).ToLocal(&result_s)) {
-    fprintf(stderr, "Failed to stringify CPU profile result\n");
-    return MaybeLocal<String>();
+  if (!profile_v->IsObject()) {
+    fprintf(stderr, "'profile' from CPU profile result is not an Object\n");
+    return MaybeLocal<Object>();
   }
-
-  return result_s;
+  return profile_v.As<Object>();
 }
 
 void V8CpuProfilerConnection::Start() {
@@ -298,16 +282,16 @@ void V8CpuProfilerConnection::End() {
 // in the future.
 void EndStartedProfilers(Environment* env) {
   Debug(env, DebugCategory::INSPECTOR_PROFILER, "EndStartedProfilers\n");
-  V8ProfilerConnection* connection = env->coverage_connection();
+  V8ProfilerConnection* connection = env->cpu_profiler_connection();
   if (connection != nullptr && !connection->ending()) {
-    Debug(
-        env, DebugCategory::INSPECTOR_PROFILER, "Ending coverage collection\n");
+    Debug(env, DebugCategory::INSPECTOR_PROFILER, "Ending cpu profiling\n");
     connection->End();
   }
 
-  connection = env->cpu_profiler_connection();
+  connection = env->coverage_connection();
   if (connection != nullptr && !connection->ending()) {
-    Debug(env, DebugCategory::INSPECTOR_PROFILER, "Ending cpu profiling\n");
+    Debug(
+        env, DebugCategory::INSPECTOR_PROFILER, "Ending coverage collection\n");
     connection->End();
   }
 }

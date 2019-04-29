@@ -24,9 +24,7 @@ class V8ProfilerConnection {
         : connection_(connection) {}
 
     void SendMessageToFrontend(
-        const v8_inspector::StringView& message) override {
-      connection_->OnMessage(message);
-    }
+        const v8_inspector::StringView& message) override;
 
    private:
     V8ProfilerConnection* connection_;
@@ -34,20 +32,30 @@ class V8ProfilerConnection {
 
   explicit V8ProfilerConnection(Environment* env);
   virtual ~V8ProfilerConnection() = default;
-  Environment* env() { return env_; }
+
+  Environment* env() const { return env_; }
+  void DispatchMessage(v8::Local<v8::String> message);
 
   // Use DispatchMessage() to dispatch necessary inspector messages
+  // to start and end the profiling.
   virtual void Start() = 0;
   virtual void End() = 0;
-  // Override this to respond to the messages sent from the session.
-  virtual void OnMessage(const v8_inspector::StringView& message) = 0;
-  virtual bool ending() const = 0;
 
-  void DispatchMessage(v8::Local<v8::String> message);
-  // Write the result to a path
-  bool WriteResult(const char* path, v8::Local<v8::String> result);
+  // Return a descriptive name of the profile for debugging.
+  virtual const char* type() const = 0;
+  // Return if the profile is ending and the response can be parsed.
+  virtual bool ending() const = 0;
+  // Return the directory where the profile should be placed.
+  virtual std::string GetDirectory() const = 0;
+  // Return the filename the profile should be written as.
+  virtual std::string GetFilename() const = 0;
+  // Return the profile object parsed from `message.result`,
+  // which will be then written as a JSON.
+  virtual v8::MaybeLocal<v8::Object> GetProfile(
+      v8::Local<v8::Object> result) = 0;
 
  private:
+  void WriteProfile(v8::Local<v8::String> message);
   std::unique_ptr<inspector::InspectorSession> session_;
   Environment* env_ = nullptr;
 };
@@ -58,14 +66,18 @@ class V8CoverageConnection : public V8ProfilerConnection {
 
   void Start() override;
   void End() override;
-  void OnMessage(const v8_inspector::StringView& message) override;
+
+  const char* type() const override { return type_.c_str(); }
   bool ending() const override { return ending_; }
 
+  std::string GetDirectory() const override;
+  std::string GetFilename() const override;
+  v8::MaybeLocal<v8::Object> GetProfile(v8::Local<v8::Object> result) override;
+
  private:
-  bool WriteCoverage(v8::Local<v8::String> message);
-  v8::MaybeLocal<v8::String> GetResult(v8::Local<v8::String> message);
   std::unique_ptr<inspector::InspectorSession> session_;
   bool ending_ = false;
+  std::string type_ = "coverage";
 };
 
 class V8CpuProfilerConnection : public V8ProfilerConnection {
@@ -75,15 +87,18 @@ class V8CpuProfilerConnection : public V8ProfilerConnection {
 
   void Start() override;
   void End() override;
-  void OnMessage(const v8_inspector::StringView& message) override;
+
+  const char* type() const override { return type_.c_str(); }
   bool ending() const override { return ending_; }
 
- private:
-  void WriteCpuProfile(v8::Local<v8::String> message);
-  v8::MaybeLocal<v8::String> GetResult(v8::Local<v8::String> message);
+  std::string GetDirectory() const override;
+  std::string GetFilename() const override;
+  v8::MaybeLocal<v8::Object> GetProfile(v8::Local<v8::Object> result) override;
 
+ private:
   std::unique_ptr<inspector::InspectorSession> session_;
   bool ending_ = false;
+  std::string type_ = "CPU";
 };
 
 }  // namespace profiler
