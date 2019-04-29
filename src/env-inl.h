@@ -673,16 +673,16 @@ Environment::cpu_profiler_connection() {
   return cpu_profiler_connection_.get();
 }
 
-inline void Environment::set_cpu_profile_path(const std::string& path) {
-  cpu_profile_path_ = path;
+inline void Environment::set_cpu_prof_name(const std::string& name) {
+  cpu_prof_name_ = name;
 }
 
-inline const std::string& Environment::cpu_profile_path() const {
-  return cpu_profile_path_;
+inline const std::string& Environment::cpu_prof_name() const {
+  return cpu_prof_name_;
 }
 
-inline void Environment::set_cpu_prof_dir(const std::string& path) {
-  cpu_prof_dir_ = path;
+inline void Environment::set_cpu_prof_dir(const std::string& dir) {
+  cpu_prof_dir_ = dir;
 }
 
 inline const std::string& Environment::cpu_prof_dir() const {

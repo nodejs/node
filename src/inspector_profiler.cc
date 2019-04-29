@@ -209,26 +209,26 @@ void V8CpuProfilerConnection::OnMessage(
 }
 
 void V8CpuProfilerConnection::WriteCpuProfile(Local<String> message) {
-  const std::string& path = env()->cpu_profile_path();
-  CHECK(!path.empty());
-  std::string directory = path.substr(0, path.find_last_of(kPathSeparator));
-  if (directory != path) {
-    uv_fs_t req;
-    int ret = fs::MKDirpSync(nullptr, &req, directory, 0777, nullptr);
-    uv_fs_req_cleanup(&req);
-    if (ret < 0 && ret != UV_EEXIST) {
-      char err_buf[128];
-      uv_err_name_r(ret, err_buf, sizeof(err_buf));
-      fprintf(stderr,
-              "%s: Failed to create cpu profile directory %s\n",
-              err_buf,
-              directory.c_str());
-      return;
-    }
+  const std::string& filename = env()->cpu_prof_name();
+  const std::string& directory = env()->cpu_prof_dir();
+  CHECK(!filename.empty());
+  CHECK(!directory.empty());
+  uv_fs_t req;
+  int ret = fs::MKDirpSync(nullptr, &req, directory, 0777, nullptr);
+  uv_fs_req_cleanup(&req);
+  if (ret < 0 && ret != UV_EEXIST) {
+    char err_buf[128];
+    uv_err_name_r(ret, err_buf, sizeof(err_buf));
+    fprintf(stderr,
+            "%s: Failed to create cpu profile directory %s\n",
+            err_buf,
+            directory.c_str());
+    return;
   }
   MaybeLocal<String> result = GetResult(message);
+  std::string target = directory + kPathSeparator + filename;
   if (!result.IsEmpty()) {
-    WriteResult(path.c_str(), result.ToLocalChecked());
+    WriteResult(target.c_str(), result.ToLocalChecked());
   }
 }
 
@@ -312,24 +312,42 @@ void EndStartedProfilers(Environment* env) {
   }
 }
 
-void StartCoverageCollection(Environment* env) {
-  CHECK_NULL(env->coverage_connection());
-  env->set_coverage_connection(std::make_unique<V8CoverageConnection>(env));
-  env->coverage_connection()->Start();
+std::string GetCwd() {
+  char cwd[CWD_BUFSIZE];
+  size_t size = CWD_BUFSIZE;
+  int err = uv_cwd(cwd, &size);
+  // This can fail if the cwd is deleted.
+  // TODO(joyeecheung): store this in the Environment during Environment
+  // creation and fallback to exec_path and argv0, then we no longer need
+  // SetCoverageDirectory().
+  CHECK_EQ(err, 0);
+  CHECK_GT(size, 0);
+  return cwd;
 }
 
-void StartCpuProfiling(Environment* env, const std::string& profile_name) {
-  std::string path = env->cpu_prof_dir() + std::string(kPathSeparator);
-  if (profile_name.empty()) {
-    DiagnosticFilename filename(env, "CPU", "cpuprofile");
-    path += *filename;
-  } else {
-    path += profile_name;
+void StartProfilers(Environment* env) {
+  Isolate* isolate = env->isolate();
+  Local<String> coverage_str = env->env_vars()->Get(
+      isolate, FIXED_ONE_BYTE_STRING(isolate, "NODE_V8_COVERAGE"));
+  if (!coverage_str.IsEmpty() && coverage_str->Length() > 0) {
+    CHECK_NULL(env->coverage_connection());
+    env->set_coverage_connection(std::make_unique<V8CoverageConnection>(env));
+    env->coverage_connection()->Start();
   }
-  env->set_cpu_profile_path(std::move(path));
-  env->set_cpu_profiler_connection(
-      std::make_unique<V8CpuProfilerConnection>(env));
-  env->cpu_profiler_connection()->Start();
+  if (env->options()->cpu_prof) {
+    const std::string& dir = env->options()->cpu_prof_dir;
+    env->set_cpu_prof_dir(dir.empty() ? GetCwd() : dir);
+    if (env->options()->cpu_prof_name.empty()) {
+      DiagnosticFilename filename(env, "CPU", "cpuprofile");
+      env->set_cpu_prof_name(*filename);
+    } else {
+      env->set_cpu_prof_name(env->options()->cpu_prof_name);
+    }
+    CHECK_NULL(env->cpu_profiler_connection());
+    env->set_cpu_profiler_connection(
+        std::make_unique<V8CpuProfilerConnection>(env));
+    env->cpu_profiler_connection()->Start();
+  }
 }
 
 static void SetCoverageDirectory(const FunctionCallbackInfo<Value>& args) {
