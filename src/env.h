@@ -1140,13 +1140,11 @@ class Environment : public MemoryRetainer {
       std::unique_ptr<profiler::V8CpuProfilerConnection> connection);
   profiler::V8CpuProfilerConnection* cpu_profiler_connection();
 
-  inline void set_cpu_profile_path(const std::string& path);
-  inline const std::string& cpu_profile_path() const;
+  inline void set_cpu_prof_name(const std::string& name);
+  inline const std::string& cpu_prof_name() const;
 
-  inline void set_cpu_prof_dir(const std::string& path);
+  inline void set_cpu_prof_dir(const std::string& dir);
   inline const std::string& cpu_prof_dir() const;
-
-  void InitializeCPUProfDir(const std::string& dir);
 #endif  // HAVE_INSPECTOR
 
  private:
@@ -1184,7 +1182,7 @@ class Environment : public MemoryRetainer {
   std::unique_ptr<profiler::V8CpuProfilerConnection> cpu_profiler_connection_;
   std::string coverage_directory_;
   std::string cpu_prof_dir_;
-  std::string cpu_profile_path_;
+  std::string cpu_prof_name_;
 #endif  // HAVE_INSPECTOR
 
   std::shared_ptr<EnvironmentOptions> options_;

@@ -227,21 +227,8 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
 
-  Local<String> coverage_str = env->env_vars()->Get(
-      isolate, FIXED_ONE_BYTE_STRING(isolate, "NODE_V8_COVERAGE"));
-  if (!coverage_str.IsEmpty() && coverage_str->Length() > 0) {
 #if HAVE_INSPECTOR
-    profiler::StartCoverageCollection(env);
-#else
-    fprintf(stderr, "NODE_V8_COVERAGE cannot be used without inspector\n");
-#endif  // HAVE_INSPECTOR
-  }
-
-#if HAVE_INSPECTOR
-  if (env->options()->cpu_prof) {
-    env->InitializeCPUProfDir(env->options()->cpu_prof_dir);
-    profiler::StartCpuProfiling(env, env->options()->cpu_prof_name);
-  }
+  profiler::StartProfilers(env);
 #endif  // HAVE_INSPECTOR
 
   // Add a reference to the global object
