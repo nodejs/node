@@ -1523,40 +1523,6 @@ def configure_inspector(o):
                        options.without_ssl)
   o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
 
-
-def make_bin_override():
-  if sys.platform == 'win32':
-    raise Exception('make_bin_override should not be called on win32.')
-  # If the system python is not the python we are running (which should be
-  # python 2), then create a directory with a symlink called `python` to our
-  # sys.executable. This directory will be prefixed to the PATH, so that
-  # other tools that shell out to `python` will use the appropriate python
-
-  which_python = which('python')
-  if (which_python and
-      os.path.realpath(which_python) == os.path.realpath(sys.executable)):
-    return
-
-  bin_override = os.path.abspath('out/tools/bin')
-  try:
-    os.makedirs(bin_override)
-  except OSError as e:
-    if e.errno != errno.EEXIST: raise e
-
-  python_link = os.path.join(bin_override, 'python')
-  try:
-    os.unlink(python_link)
-  except OSError as e:
-    if e.errno != errno.ENOENT: raise e
-  os.symlink(sys.executable, python_link)
-
-  # We need to set the environment right now so that when gyp (in run_gyp)
-  # shells out, it finds the right python (specifically at
-  # https://github.com/nodejs/node/blob/d82e107/deps/v8/gypfiles/toolchain.gypi#L43)
-  os.environ['PATH'] = bin_override + ':' + os.environ['PATH']
-
-  return bin_override
-
 output = {
   'variables': {},
   'include_dirs': [],
@@ -1638,14 +1604,13 @@ if options.prefix:
 
 config = '\n'.join(['='.join(item) for item in config.items()]) + '\n'
 
-# On Windows there's no reason to search for a different python binary.
-bin_override = None if sys.platform == 'win32' else make_bin_override()
-if bin_override:
-  config = 'export PATH:=' + bin_override + ':$(PATH)\n' + config
+
+sys.argv.append("-DPYTHON_EXECUTABLE=" + sys.executable)
+os.environ['PYTHON_EXECUTABLE'] = sys.executable
 
 write('config.mk', do_not_edit + config)
 
-gyp_args = ['--no-parallel', '-Dconfiguring_node=1']
+gyp_args = ['--no-parallel', '-Dconfiguring_node=1', "-DPYTHON_EXECUTABLE=" + os.path.realpath(sys.executable)]
 
 if options.use_ninja:
   gyp_args += ['-f', 'ninja']
