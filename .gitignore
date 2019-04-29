@@ -42,8 +42,8 @@ coverage/
 /out
 
 # various stuff that VC++ produces/uses and is not in /out
-/Debug/
-/Release/
+/Debug
+/Release
 !doc/blog/**
 *.sln
 !nodemsi.sln
