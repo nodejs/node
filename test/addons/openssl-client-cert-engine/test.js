@@ -29,10 +29,10 @@ const serverOptions = {
   rejectUnauthorized: true
 };
 
-const server = https.createServer(serverOptions, (req, res) => {
+const server = https.createServer(serverOptions, common.mustCall((req, res) => {
   res.writeHead(200);
   res.end('hello world');
-}).listen(0, common.localhostIPv4, () => {
+})).listen(0, common.localhostIPv4, common.mustCall(() => {
   const clientOptions = {
     method: 'GET',
     host: common.localhostIPv4,
@@ -57,4 +57,4 @@ const server = https.createServer(serverOptions, (req, res) => {
   }));
 
   req.end();
-});
+}));
