@@ -85,7 +85,7 @@ if (process.argv[2] === 'child') {
   const report_msg = 'Report files were written: unexpectedly';
   child.stdout.on('data', (chunk) => { stdout += chunk; });
   child.on('exit', common.mustCall((code, signal) => {
-    assert.deepStrictEqual(code, 0, 'Process exited unexpectedly with code' +
+    assert.deepStrictEqual(code, 0, 'Process exited unexpectedly with code: ' +
                            `${code}`);
     assert.deepStrictEqual(signal, null, 'Process should have exited cleanly,' +
                             ` but did not: ${signal}`);
