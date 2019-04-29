@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <assert.h>
 #include <js_native_api.h>
 #include "../common.h"
 
@@ -135,6 +136,9 @@ static napi_value GetReferenceValue(napi_env env, napi_callback_info info) {
 static void DeleteBeforeFinalizeFinalizer(
     napi_env env, void* finalize_data, void* finalize_hint) {
   napi_ref* ref = (napi_ref*)finalize_data;
+  napi_value value;
+  assert(napi_get_reference_value(env, *ref, &value) == napi_ok);
+  assert(value == NULL);
   napi_delete_reference(env, *ref);
   free(ref);
 }
