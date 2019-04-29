@@ -907,20 +907,6 @@ void Environment::stop_sub_worker_contexts() {
 
 #if HAVE_INSPECTOR
 
-void Environment::InitializeCPUProfDir(const std::string& dir) {
-  if (!dir.empty()) {
-    cpu_prof_dir_ = dir;
-    return;
-  }
-  char cwd[CWD_BUFSIZE];
-  size_t size = CWD_BUFSIZE;
-  int err = uv_cwd(cwd, &size);
-  // TODO(joyeecheung): fallback to exec path / argv[0]
-  CHECK_EQ(err, 0);
-  CHECK_GT(size, 0);
-  cpu_prof_dir_ = cwd;
-}
-
 #endif  // HAVE_INSPECTOR
 
 void MemoryTracker::TrackField(const char* edge_name,
