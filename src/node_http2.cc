@@ -2368,7 +2368,7 @@ void Http2Session::SetNextStreamID(const FunctionCallbackInfo<Value>& args) {
 
 // Set local window size (local endpoints's window size) to the given
 // window_size for the stream denoted by 0.
-// If successful, returns 0.
+// This function returns 0 if it succeeds, or one of a negative codes
 void Http2Session::SetConnectionWindowSize(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);

@@ -526,11 +526,11 @@ registered as a listener on the `'timeout'` event.
 
 #### http2session.setConnectionWindowSize(windowSize)
 <!-- YAML
-added: v12.0.0
+added: REPLACEME
 -->
 
 * `windowSize` {number}
-* Returns: 0 
+* Returns: 0 if it succeeds, or one of a negative codes
 In case of allocation error, a new `ERR_OUT_OF_RANGE`
 error will be thrown.
 
