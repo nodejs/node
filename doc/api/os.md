@@ -391,6 +391,19 @@ changes:
 The `os.tmpdir()` method returns a string specifying the operating system's
 default directory for temporary files.
 
+## os.tmpDir()
+<!-- YAML
+added: v0.7.11
+deprecated: v7.0.0
+-->
+
+> Stability: 0 - Deprecated: Use `os.tmpdir()` instead.
+
+* Returns: {string}
+
+Returns a string specifying the operating system's
+default directory for temporary files.
+
 ## os.totalmem()
 <!-- YAML
 added: v0.3.3
