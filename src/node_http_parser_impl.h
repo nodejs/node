@@ -160,7 +160,7 @@ class Parser : public AsyncWrap, public StreamListener {
                   // AsyncWrap::PROVIDER_NONE would match better here but
                   // there is an assert in AsyncWrap() which avoid this.
                   AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE,
-                  AsyncWrap::invalid_async_id, true),
+                  AsyncWrap::kInvalidAsyncId, true),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
   }

@@ -109,14 +109,14 @@ class AsyncWrap : public BaseObject {
   AsyncWrap(Environment* env,
             v8::Local<v8::Object> object,
             ProviderType provider,
-            double execution_async_id = invalid_async_id,
+            double execution_async_id = kInvalidAsyncId,
             bool silent = false);
 
   ~AsyncWrap() override;
 
   AsyncWrap() = delete;
 
-  static constexpr double invalid_async_id = -1;
+  static constexpr double kInvalidAsyncId = -1;
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
@@ -161,10 +161,10 @@ class AsyncWrap : public BaseObject {
 
   void AsyncReset(v8::Local<v8::Object> resource,
                   bool skip_destroy,
-                  double execution_async_id = invalid_async_id,
+                  double execution_async_id = kInvalidAsyncId,
                   bool silent = false);
 
-  void AsyncReset(double execution_async_id = invalid_async_id,
+  void AsyncReset(double execution_async_id = kInvalidAsyncId,
                   bool silent = false);
 
   // Only call these within a valid HandleScope.
@@ -210,7 +210,7 @@ class AsyncWrap : public BaseObject {
  private:
   ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.
-  double async_id_ = invalid_async_id;
+  double async_id_ = kInvalidAsyncId;
   double trigger_async_id_;
 };
 
