@@ -190,7 +190,7 @@
             }],
           ],
           'action': [
-            'python', '<(V8_ROOT)/tools/testrunner/utils/dump_build_config_gyp.py',
+            '<(PYTHON_EXECUTABLE)', '<(V8_ROOT)/tools/testrunner/utils/dump_build_config_gyp.py',
             '<@(v8_dump_build_config_args)',
           ],
         },
@@ -2633,7 +2633,7 @@
             '<(SHARED_INTERMEDIATE_DIR)/debug-support.cc',
           ],
           'action': [
-            'python',
+            '<(PYTHON_EXECUTABLE)',
             '<(V8_ROOT)/tools/gen-postmortem-metadata.py',
             '<@(_outputs)',
             '<@(heapobject_files)'
@@ -2702,7 +2702,7 @@
             '<(generate_bytecode_builtins_list_output)',
           ],
           'action': [
-            'python',
+            '<(PYTHON_EXECUTABLE)',
             '<(V8_ROOT)/tools/run.py',
             '<@(_inputs)',
             '<@(_outputs)',

@@ -149,7 +149,7 @@
               ],
               'outputs': ['<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin'],
               'action': [
-                'python',
+                '<(PYTHON_EXECUTABLE)',
                 '<(V8_ROOT)/tools/js2c.py',
                 '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
                 'EXTRAS',
@@ -172,14 +172,14 @@
                         '<(PRODUCT_DIR)/natives_blob_host.bin',
                       ],
                       'action': [
-                        'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob_host.bin'
+                        '<(PYTHON_EXECUTABLE)', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob_host.bin'
                       ],
                     }, {
                        'outputs': [
                          '<(PRODUCT_DIR)/natives_blob.bin',
                        ],
                        'action': [
-                         'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
+                         '<(PYTHON_EXECUTABLE)', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
                        ],
                      }],
                   ],
@@ -188,7 +188,7 @@
                      '<(PRODUCT_DIR)/natives_blob.bin',
                    ],
                    'action': [
-                     'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
+                     '<(PYTHON_EXECUTABLE)', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
                    ],
                  }],
               ],
