@@ -1627,23 +1627,35 @@ write('config.status', '#!/bin/sh\nset -x\nexec ./configure ' +
       ' '.join([pipes.quote(arg) for arg in original_argv]) + '\n')
 os.chmod('config.status', 0o775)
 
+
 config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
-  'PYTHON': sys.executable,
   'NODE_TARGET_TYPE': variables['node_target_type'],
 }
+
+# Not needed for trivial case. Useless when it's a win32 path.
+if sys.executable != 'python' and ':\\' not in sys.executable:
+  config['PYTHON'] = sys.executable
 
 if options.prefix:
   config['PREFIX'] = options.prefix
 
-config = '\n'.join(['='.join(item) for item in config.items()]) + '\n'
+if options.use_ninja:
+  config['BUILD_WITH'] = 'ninja'
+
+config_lines = ['='.join((k,v)) for k,v in config.items()]
+# Add a blank string to get a blank line at the end.
+config_lines += ['']
+config_str = '\n'.join(config_lines)
 
 # On Windows there's no reason to search for a different python binary.
 bin_override = None if sys.platform == 'win32' else make_bin_override()
 if bin_override:
-  config = 'export PATH:=' + bin_override + ':$(PATH)\n' + config
+  config_str = 'export PATH:=' + bin_override + ':$(PATH)\n' + config_str
 
-write('config.mk', do_not_edit + config)
+write('config.mk', do_not_edit + config_str)
+
+
 
 gyp_args = ['--no-parallel', '-Dconfiguring_node=1']
 

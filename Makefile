@@ -16,6 +16,7 @@ GTEST_FILTER ?= "*"
 GNUMAKEFLAGS += --no-print-directory
 GCOV ?= gcov
 PWD = $(CURDIR)
+BUILD_WITH ?= make
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
@@ -95,6 +96,7 @@ help: ## Print help for targets with comments.
 # Without the check there is a race condition between the link being deleted
 # and recreated which can break the addons build when running test-ci
 # See comments on the build-addons target for some more info
+ifeq ($(BUILD_WITH), make)
 $(NODE_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Release V=$(V)
 	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
@@ -102,6 +104,29 @@ $(NODE_EXE): config.gypi out/Makefile
 $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
+else
+ifeq ($(BUILD_WITH), ninja)
+ifeq ($(V),1)
+  NINJA_ARGS := $(NINJA_ARGS) -v
+endif
+ifdef JOBS
+  NINJA_ARGS := $(NINJA_ARGS) -j$(JOBS)
+else
+  NINJA_ARGS := $(NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
+endif
+$(NODE_EXE): config.gypi out/Release/build.ninja
+	ninja -C out/Release $(NINJA_ARGS)
+	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
+
+$(NODE_G_EXE): config.gypi out/Debug/build.ninja
+	ninja -C out/Debug $(NINJA_ARGS)
+	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
+else
+$(NODE_EXE) $(NODE_G_EXE):
+	echo This Makefile currently only supports building with 'make' or 'ninja'
+endif
+endif
+
 
 ifeq ($(BUILDTYPE),Debug)
 CONFIG_FLAGS += --debug
