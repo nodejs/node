@@ -586,6 +586,9 @@ connection is open.
 <!-- YAML
 added: v0.11.4
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27497
+    description: The `enableTrace` option is now supported.
   - version: v5.0.0
     pr-url: https://github.com/nodejs/node/pull/2564
     description: ALPN options are supported now.
@@ -596,6 +599,7 @@ changes:
   instance of [`net.Socket`][] (for generic `Duplex` stream support
   on the client side, [`tls.connect()`][] must be used).
 * `options` {Object}
+  * `enableTrace`: See [`tls.createServer()`][]
   * `isServer`: The SSL/TLS protocol is asymmetrical, TLSSockets must know if
     they are to behave as a server or a client. If `true` the TLS socket will be
     instantiated as a server. **Default:** `false`.
@@ -1125,6 +1129,9 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27497
+    description: The `enableTrace` option is now supported.
   - version: v11.8.0
     pr-url: https://github.com/nodejs/node/pull/25517
     description: The `timeout` option is supported now.
@@ -1144,6 +1151,7 @@ changes:
 -->
 
 * `options` {Object}
+  * `enableTrace`: See [`tls.createServer()`][]
   * `host` {string} Host the client should connect to. **Default:**
     `'localhost'`.
   * `port` {number} Port the client should connect to.
@@ -1647,6 +1655,7 @@ changes:
 * `rejectUnauthorized` {boolean} If not `false` a server automatically reject
   clients with invalid certificates. Only applies when `isServer` is `true`.
 * `options`
+  * `enableTrace`: See [`tls.createServer()`][]
   * `secureContext`: A TLS context object from [`tls.createSecureContext()`][]
   * `isServer`: If `true` the TLS socket will be instantiated in server-mode.
     **Default:** `false`.
