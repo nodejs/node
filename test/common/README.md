@@ -505,6 +505,11 @@ There is no difference between client or server side beyond their names.
 The behavior of the Node.js test suite can be altered using the following
 environment variables.
 
+### NODE_COMMON_PORT
+
+If set, `NODE_COMMON_PORT`'s value overrides the `common.PORT` default value of
+12346.
+
 ### NODE_SKIP_FLAG_CHECK
 
 If set, command line arguments passed to individual tests are not validated.
