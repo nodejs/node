@@ -632,6 +632,14 @@ added: v2.1.0
 Prints a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
 
+### `--trace-tls`
+<!-- YAML
+added: REPLACEME
+-->
+
+Prints TLS packet trace information to `stderr`. This can be used to debug TLS
+connection problems.
+
 ### `--trace-warnings`
 <!-- YAML
 added: v6.0.0
@@ -889,6 +897,7 @@ Node.js options that are allowed are:
 - `--trace-event-file-pattern`
 - `--trace-events-enabled`
 - `--trace-sync-io`
+- `--trace-tls`
 - `--trace-warnings`
 - `--track-heap-objects`
 - `--unhandled-rejections`

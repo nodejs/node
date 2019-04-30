@@ -373,6 +373,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "first tick",
             &EnvironmentOptions::trace_sync_io,
             kAllowedInEnvironment);
+  AddOption("--trace-tls",
+            "prints TLS packet trace information to stderr",
+            &EnvironmentOptions::trace_tls,
+            kAllowedInEnvironment);
   AddOption("--trace-warnings",
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
