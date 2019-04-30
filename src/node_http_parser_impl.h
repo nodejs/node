@@ -155,12 +155,7 @@ struct StringPtr {
 class Parser : public AsyncWrap, public StreamListener {
  public:
   Parser(Environment* env, Local<Object> wrap)
-      : AsyncWrap(env,
-                  wrap,
-                  // AsyncWrap::PROVIDER_NONE would match better here but
-                  // there is an assert in AsyncWrap() which avoid this.
-                  AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE,
-                  AsyncWrap::kInvalidAsyncId, true),
+      : AsyncWrap(env, wrap),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
   }
@@ -522,7 +517,7 @@ class Parser : public AsyncWrap, public StreamListener {
             : AsyncWrap::PROVIDER_HTTPCLIENTREQUEST);
 
     parser->set_provider_type(provider);
-    parser->AsyncReset(args[1].As<Object>(), true);
+    parser->AsyncReset(args[1].As<Object>());
     parser->Init(type);
   }
 

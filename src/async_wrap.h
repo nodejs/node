@@ -109,8 +109,11 @@ class AsyncWrap : public BaseObject {
   AsyncWrap(Environment* env,
             v8::Local<v8::Object> object,
             ProviderType provider,
-            double execution_async_id = kInvalidAsyncId,
-            bool silent = false);
+            double execution_async_id = kInvalidAsyncId);
+
+  // This constructor creates a reuseable instance where user is responsible
+  // to call set_provider_type() and AsyncReset() before use.
+  AsyncWrap(Environment* env, v8::Local<v8::Object> object);
 
   ~AsyncWrap() override;
 
@@ -160,7 +163,6 @@ class AsyncWrap : public BaseObject {
   inline double get_trigger_async_id() const;
 
   void AsyncReset(v8::Local<v8::Object> resource,
-                  bool skip_destroy,
                   double execution_async_id = kInvalidAsyncId,
                   bool silent = false);
 
@@ -208,6 +210,13 @@ class AsyncWrap : public BaseObject {
   };
 
  private:
+  friend class PromiseWrap;
+
+  AsyncWrap(Environment* env,
+            v8::Local<v8::Object> promise,
+            ProviderType provider,
+            double execution_async_id,
+            bool silent);
   ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.
   double async_id_ = kInvalidAsyncId;

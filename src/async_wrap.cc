@@ -552,6 +552,13 @@ void AsyncWrap::Initialize(Local<Object> target,
   }
 }
 
+
+AsyncWrap::AsyncWrap(Environment* env,
+                     Local<Object> object,
+                     ProviderType provider,
+                     double execution_async_id)
+    : AsyncWrap(env, object, provider, execution_async_id, false) {}
+
 AsyncWrap::AsyncWrap(Environment* env,
                      Local<Object> object,
                      ProviderType provider,
@@ -564,6 +571,12 @@ AsyncWrap::AsyncWrap(Environment* env,
 
   // Use AsyncReset() call to execute the init() callbacks.
   AsyncReset(execution_async_id, silent);
+}
+
+AsyncWrap::AsyncWrap(Environment* env, v8::Local<v8::Object> object)
+    : BaseObject(env, object),
+      provider_type_(PROVIDER_NONE) {
+  CHECK_GE(object->InternalFieldCount(), 1);
 }
 
 
@@ -601,23 +614,21 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
 }
 
 void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
-  AsyncReset(object(), false, execution_async_id, silent);
+  AsyncReset(object(), execution_async_id, silent);
 }
 
 // Generalized call for both the constructor and for handles that are pooled
 // and reused over their lifetime. This way a new uid can be assigned when
 // the resource is pulled out of the pool and put back into use.
-void AsyncWrap::AsyncReset(Local<Object> resource,
-                           bool skip_destroy,
-                           double execution_async_id,
+void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
                            bool silent) {
   CHECK_NE(provider_type(), PROVIDER_NONE);
 
-  if (!skip_destroy && (async_id_ != kInvalidAsyncId)) {
+  if (async_id_ != kInvalidAsyncId) {
     // This instance was in use before, we have already emitted an init with
     // its previous async_id and need to emit a matching destroy for that
     // before generating a new async_id.
-    EmitDestroy(env(), async_id_);
+    EmitDestroy();
   }
 
   // Now we can assign a new async_id_ to this instance.
