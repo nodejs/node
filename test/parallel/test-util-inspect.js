@@ -1661,7 +1661,7 @@ util.inspect(process);
   expectAlt = 'WeakSet { [ 1, [length]: 1 ], ... 1 more item, extra: true }';
   assert(out === expect || out === expectAlt,
          `Found: "${out}"\nrather than: "${expect}"\nor: "${expectAlt}"`);
-  // Keep references to the WeakMap entries, otherwise they could be GCed to
+  // Keep references to the WeakMap entries, otherwise they could be GCed too
   // early.
   assert(obj && arr);
 }
