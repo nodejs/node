@@ -123,7 +123,7 @@ the tty [getColorDepth()](tty.html#tty_writestream_getcolordepth_env) doc.
 
 ## Legacy mode
 
-Legacy mode uses the [Abstract Equality Comparison][] in:
+Legacy mode uses a variety of the [Abstract Equality Comparison][] in:
 
 * [`assert.deepEqual()`][]
 * [`assert.equal()`][]
@@ -137,13 +137,11 @@ const assert = require('assert');
 ```
 
 Whenever possible, use the [`strict` mode][] instead. Otherwise, the
-[Abstract Equality Comparison][] may cause surprising results. This is
-especially true for [`assert.deepEqual()`][], where the comparison rules are
-lax:
+[Abstract Equality Comparison][] may cause surprising results.
 
 ```js
 // WARNING: This does not throw an AssertionError!
-assert.deepEqual(/a/gi, new Date());
+assert.deepEqual('+00000000', false);
 ```
 
 ## assert(value\[, message\])
@@ -579,8 +577,9 @@ An alias of [`assert.strictEqual()`][].
 > Stability: 0 - Deprecated: Use [`assert.strictEqual()`][] instead.
 
 Tests shallow, coercive equality between the `actual` and `expected` parameters
-using the [Abstract Equality Comparison][] ( `==` ). `NaN` is special handled
-and treated as being identical in case both sides are `NaN`.
+using the [Abstract Equality Comparison][] ( `==` ) for primitive values and
+reference equality for objects. `NaN` is treated as being identical in case both
+sides are `NaN`.
 
 ```js
 const assert = require('assert');
@@ -593,9 +592,14 @@ assert.equal(NaN, NaN);
 // OK
 
 assert.equal(1, 2);
-// AssertionError: 1 == 2
+// AssertionError [ERR_ASSERTION]: Expected values to be loosely equal:
+// 1 should equal 2
 assert.equal({ a: { b: 1 } }, { a: { b: 1 } });
-// AssertionError: { a: { b: 1 } } == { a: { b: 1 } }
+// AssertionError [ERR_ASSERTION]: Expected values to be loosely equal:
+// { a: { b: 1 } } should equal { a: { b: 1 } }
+assert.equal(0, []);
+// AssertionError [ERR_ASSERTION]: Expected values to be loosely equal:
+// 0 should equal []
 ```
 
 If the values are not equal, an [`AssertionError`][] is thrown with a `message`
@@ -890,8 +894,8 @@ An alias of [`assert.notStrictEqual()`][].
 > Stability: 0 - Deprecated: Use [`assert.notStrictEqual()`][] instead.
 
 Tests shallow, coercive inequality with the [Abstract Equality Comparison][]
-(`!=` ). `NaN` is special handled and treated as being identical in case both
-sides are `NaN`.
+( `!=` ) for primitive values and reference equality for objects. `NaN` is
+treated as being identical in case both sides are `NaN`.
 
 ```js
 const assert = require('assert');
@@ -900,10 +904,11 @@ assert.notEqual(1, 2);
 // OK
 
 assert.notEqual(1, 1);
-// AssertionError: 1 != 1
-
+// AssertionError [ERR_ASSERTION]: Expected "actual" to be loosely unequal to:
+// 1
 assert.notEqual(1, '1');
-// AssertionError: 1 != '1'
+// AssertionError [ERR_ASSERTION]: Expected "actual" to be loosely unequal to:
+// 1
 ```
 
 If the values are equal, an [`AssertionError`][] is thrown with a `message`

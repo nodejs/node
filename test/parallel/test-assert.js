@@ -72,6 +72,28 @@ a.equal(null, undefined);
 a.equal(true, true);
 a.equal(2, '2');
 a.notEqual(true, false);
+assert.throws(() => {
+  a.equal(0, []);
+}, {
+  actual: 0,
+  expected: [],
+  operator: 'equal',
+  generatedMessage: true
+});
+assert.throws(() => {
+  a.equal({ [Symbol.toPrimitive]() { return 5; } }, 5);
+}, {
+  operator: 'equal',
+  generatedMessage: true
+});
+assert.throws(() => {
+  a.notEqual(null, undefined);
+}, {
+  operator: 'notEqual',
+  actual: null,
+  expected: undefined,
+  generatedMessage: true
+});
 
 assert.throws(() => a.notEqual(true, true),
               a.AssertionError, 'notEqual(true, true)');
