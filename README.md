@@ -445,8 +445,6 @@ For information about the governance of the Node.js project, see
 **Steven R Loomis** &lt;srloomis@us.ibm.com&gt;
 * [starkwang](https://github.com/starkwang) -
 **Weijia Wang** &lt;starkwang@126.com&gt;
-* [stefanmb](https://github.com/stefanmb) -
-**Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [targos](https://github.com/targos) -
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
@@ -520,6 +518,8 @@ For information about the governance of the Node.js project, see
 **Robert Kowalski** &lt;rok@kowalski.gd&gt;
 * [romankl](https://github.com/romankl) -
 **Roman Klauke** &lt;romaaan.git@gmail.com&gt;
+* [stefanmb](https://github.com/stefanmb) -
+**Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [tellnes](https://github.com/tellnes) -
 **Christian Tellnes** &lt;christian@tellnes.no&gt;
 * [tunniclm](https://github.com/tunniclm) -
