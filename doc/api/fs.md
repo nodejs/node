@@ -2206,8 +2206,8 @@ are given to the completion callback.
 
 The optional `options` argument can be an integer specifying mode (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
-property indicating whether parent folders should be created. Calling `fs.mkdir`
-with a path to a directory that exists results in an error an error only
+property indicating whether parent folders should be created. Calling `fs.mkdir()`
+when `path` is a directory that exists results in an error only
 when `recursive` is false.
 
 ```js
@@ -4290,8 +4290,8 @@ arguments upon success.
 
 The optional `options` argument can be an integer specifying mode (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
-property indicating whether parent folders should be created. Calling `fs.mkdir`
-with a path to a directory that exists results in an error an error only
+property indicating whether parent folders should be created. Calling `fsPromises.mkdir()`
+when `path` is a directory that exists results in an error only
 when `recursive` is false.
 
 ### fsPromises.mkdtemp(prefix[, options])
