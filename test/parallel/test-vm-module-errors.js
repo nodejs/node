@@ -250,6 +250,20 @@ async function checkExecution() {
   })();
 }
 
+// Check for error thrown when breakOnSigint is not a boolean for evaluate()
+async function checkInvalidOptionForEvaluate() {
+  await assert.rejects(async () => {
+    const m = new SourceTextModule('export const a = 1; export var b = 2');
+    await m.evaluate({ breakOnSigint: 'a-string' });
+  }, {
+    name: 'TypeError',
+    message:
+      'The "options.breakOnSigint" property must be of type boolean. ' +
+      'Received type string',
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+}
+
 const finished = common.mustCall();
 
 (async function main() {
@@ -257,5 +271,6 @@ const finished = common.mustCall();
   await checkModuleState();
   await checkLinking();
   await checkExecution();
+  await checkInvalidOptionForEvaluate();
   finished();
 })();
