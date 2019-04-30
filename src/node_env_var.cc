@@ -111,6 +111,10 @@ void RealEnvStore::Set(Isolate* isolate,
 
   node::Utf8Value key(isolate, property);
   node::Utf8Value val(isolate, value);
+
+#ifdef _WIN32
+  if (key[0] == L'=') return;
+#endif
   uv_os_setenv(*key, *val);
   DateTimeConfigurationChangeNotification(isolate, key);
 }
@@ -119,9 +123,17 @@ int32_t RealEnvStore::Query(Isolate* isolate, Local<String> property) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
 
   node::Utf8Value key(isolate, property);
+#ifdef _WIN32
+  if (key[0] == L'=')
+    return static_cast<int32_t>(v8::ReadOnly) |
+           static_cast<int32_t>(v8::DontDelete) |
+           static_cast<int32_t>(v8::DontEnum);
+#endif
+
   char val[2];
   size_t init_sz = sizeof(val);
   int ret = uv_os_getenv(*key, val, &init_sz);
+
   if (ret == UV_ENOENT) {
     return -1;
   }
