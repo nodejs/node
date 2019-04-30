@@ -32,9 +32,7 @@ const https = require('https');
 const host = '*'.repeat(64);
 const MAX_TRIES = 5;
 
-let errCode = 'ENOTFOUND';
-if (common.isOpenBSD)
-  errCode = 'EAI_FAIL';
+const errCodes = ['ENOTFOUND', 'EAI_FAIL'];
 
 function tryGet(mod, tries) {
   // Bad host name should not throw an uncatchable exception.
@@ -45,7 +43,7 @@ function tryGet(mod, tries) {
       tryGet(mod, ++tries);
       return;
     }
-    assert.strictEqual(err.code, errCode);
+    assert(errCodes.includes(err.code), err);
   }));
   // http.get() called req1.end() for us
 }
@@ -61,7 +59,7 @@ function tryRequest(mod, tries) {
       tryRequest(mod, ++tries);
       return;
     }
-    assert.strictEqual(err.code, errCode);
+    assert(errCodes.includes(err.code), err);
   }));
   req.end();
 }
