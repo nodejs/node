@@ -5,6 +5,10 @@
 
 #include "node.h"
 
+using v8::Isolate;
+using v8::MaybeLocal;
+using v8::String;
+
 namespace node {
 
 class StringDecoder {
@@ -22,13 +26,13 @@ class StringDecoder {
   // less data may have been read because it ended on an incomplete character
   // and more data may have been read because a previously incomplete character
   // was finished.
-  v8::MaybeLocal<v8::String> DecodeData(v8::Isolate* isolate,
-                                        const char* data,
-                                        size_t* nread);
+  MaybeLocal<String> DecodeData(Isolate* isolate,
+                                const char* data,
+                                size_t* nread);
   // Flush an incomplete character. For character encodings like UTF8 this
   // means printing replacement characters, buf for e.g. Base64 the returned
   // string contains more data.
-  v8::MaybeLocal<v8::String> FlushData(v8::Isolate* isolate);
+  MaybeLocal<String> FlushData(Isolate* isolate);
 
   enum Fields {
     kIncompleteCharactersStart = 0,
