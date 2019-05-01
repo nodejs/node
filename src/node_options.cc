@@ -433,6 +433,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set default TLS minimum to TLSv1.1 (default: TLSv1.2)",
             &EnvironmentOptions::tls_min_v1_1,
             kAllowedInEnvironment);
+  AddOption("--tls-min-v1.2",
+            "set default TLS minimum to TLSv1.2 (default: TLSv1.2)",
+            &EnvironmentOptions::tls_min_v1_2,
+            kAllowedInEnvironment);
   AddOption("--tls-min-v1.3",
             "set default TLS minimum to TLSv1.3 (default: TLSv1.2)",
             &EnvironmentOptions::tls_min_v1_3,
