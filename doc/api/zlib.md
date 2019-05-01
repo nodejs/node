@@ -304,7 +304,7 @@ Compression strategy.
 
 ### Brotli constants
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 
 There are several options and other constants available for Brotli-based
@@ -411,7 +411,7 @@ See the description of `deflateInit2` and `inflateInit2` at
 
 ## Class: BrotliOptions
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 
 <!--type=misc-->
@@ -438,14 +438,14 @@ const stream = zlib.createBrotliCompress({
 
 ## Class: zlib.BrotliCompress
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 
 Compress data using the Brotli algorithm.
 
 ## Class: zlib.BrotliDecompress
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 
 Decompress data using the Brotli algorithm.
@@ -526,7 +526,7 @@ the header.
 <!-- YAML
 added: v0.5.8
 changes:
-  - version: REPLACEME
+  - version: v10.16.0
     pr-url: https://github.com/nodejs/node/pull/24939
     description: This class was renamed from `Zlib` to `ZlibBase`.
 -->
@@ -620,7 +620,7 @@ Provides an object enumerating Zlib-related constants.
 
 ## zlib.createBrotliCompress([options])
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 
 * `options` {brotli options}
@@ -629,7 +629,7 @@ Creates and returns a new [`BrotliCompress`][] object.
 
 ## zlib.createBrotliDecompress([options])
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 
 * `options` {brotli options}
@@ -720,7 +720,7 @@ without a callback.
 
 ### zlib.brotliCompress(buffer[, options], callback)
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 * `options` {brotli options}
@@ -728,7 +728,7 @@ added: REPLACEME
 
 ### zlib.brotliCompressSync(buffer[, options])
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 * `options` {brotli options}
@@ -737,7 +737,7 @@ Compress a chunk of data with [`BrotliCompress`][].
 
 ### zlib.brotliDecompress(buffer[, options], callback)
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 * `options` {brotli options}
@@ -745,7 +745,7 @@ added: REPLACEME
 
 ### zlib.brotliDecompressSync(buffer[, options])
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 * `options` {brotli options}

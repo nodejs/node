@@ -655,7 +655,7 @@ emitter.emit('log');
 
 ## events.once(emitter, name)
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 * `emitter` {EventEmitter}
 * `name` {string}

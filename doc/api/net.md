@@ -727,7 +727,7 @@ Useful to throttle back an upload.
 
 ### socket.pending
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 
 * {boolean}

@@ -963,7 +963,7 @@ similar to:
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: REPLACEME
+  - version: v10.16.0
     pr-url: https://github.com/nodejs/node/pull/25517
     description: The `timeout` option is supported now.
   - version: v8.0.0
@@ -1112,7 +1112,7 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v10.16.0
     pr-url: https://github.com/nodejs/node/pull/24405
     description: The `minVersion` and `maxVersion` can be used to restrict
                  the allowed TLS protocol versions.

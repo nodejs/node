@@ -1014,7 +1014,7 @@ the `'aborted'` event will have been emitted.
 
 #### http2stream.bufferSize
 <!-- YAML
-added: REPLACEME
+added: v10.16.0
 -->
 * {number}
 
