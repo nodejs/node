@@ -59,13 +59,6 @@ Mutex umask_mutex;
 // used in Hrtime() and Uptime() below
 #define NANOS_PER_SEC 1000000000
 
-#ifdef _WIN32
-/* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
-#define CHDIR_BUFSIZE (MAX_PATH * 4)
-#else
-#define CHDIR_BUFSIZE (PATH_MAX)
-#endif
-
 static void Abort(const FunctionCallbackInfo<Value>& args) {
   Abort();
 }
@@ -81,7 +74,7 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   if (err) {
     // Also include the original working directory, since that will usually
     // be helpful information when debugging a `chdir()` failure.
-    char buf[CHDIR_BUFSIZE];
+    char buf[PATH_MAX_BYTES];
     size_t cwd_len = sizeof(buf);
     uv_cwd(buf, &cwd_len);
     return env->ThrowUVException(err, "chdir", nullptr, buf, *path);
@@ -119,7 +112,7 @@ static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
 static void Cwd(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(env->has_run_bootstrapping_code());
-  char buf[CHDIR_BUFSIZE];
+  char buf[PATH_MAX_BYTES];
   size_t cwd_len = sizeof(buf);
   int err = uv_cwd(buf, &cwd_len);
   if (err)

@@ -27,6 +27,7 @@
 #include "v8.h"
 
 #include <cassert>
+#include <climits>  // PATH_MAX
 #include <csignal>
 #include <cstddef>
 #include <cstdio>
@@ -42,6 +43,16 @@
 #include <utility>
 
 namespace node {
+
+// Maybe remove kPathSeparator when cpp17 is ready
+#ifdef _WIN32
+    constexpr char kPathSeparator = '\\';
+/* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
+#define PATH_MAX_BYTES (MAX_PATH * 4)
+#else
+    constexpr char kPathSeparator = '/';
+#define PATH_MAX_BYTES (PATH_MAX)
+#endif
 
 // These should be used in our code as opposed to the native
 // versions as they abstract out some platform and or

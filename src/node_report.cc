@@ -1,8 +1,8 @@
-
 #include "node_report.h"
 #include "debug_utils.h"
 #include "node_internals.h"
 #include "node_metadata.h"
+#include "util.h"
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -17,14 +17,6 @@
 #include <cwctype>
 #include <fstream>
 #include <iomanip>
-#include <climits>  // PATH_MAX
-
-#ifdef _WIN32
-/* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
-#define PATH_MAX_BYTES (MAX_PATH * 4)
-#else
-#define PATH_MAX_BYTES (PATH_MAX)
-#endif
 
 #ifndef _WIN32
 extern char** environ;
@@ -110,7 +102,7 @@ std::string TriggerNodeReport(Isolate* isolate,
     // Regular file. Append filename to directory path if one was specified
     if (env != nullptr && options->report_directory.length() > 0) {
       std::string pathname = options->report_directory;
-      pathname += PATHSEP;
+      pathname += node::kPathSeparator;
       pathname += filename;
       outfile.open(pathname, std::ios::out | std::ios::binary);
     } else {

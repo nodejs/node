@@ -38,14 +38,6 @@
 
 #include <utility>
 
-#ifdef _WIN32
-/* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
-#define CWD_BUFSIZE (MAX_PATH * 4)
-#else
-#include <climits>  // PATH_MAX on Solaris.
-#define CWD_BUFSIZE (PATH_MAX)
-#endif
-
 namespace node {
 
 inline v8::Isolate* IsolateData::isolate() const {
