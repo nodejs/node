@@ -60,6 +60,7 @@ using v8::PrimitiveArray;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::PropertyDescriptor;
+using v8::PropertyHandlerFlags;
 using v8::Script;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
@@ -148,13 +149,15 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
   if (!CreateDataWrapper(env).ToLocal(&data_wrapper))
     return MaybeLocal<Context>();
 
-  NamedPropertyHandlerConfiguration config(PropertyGetterCallback,
-                                           PropertySetterCallback,
-                                           PropertyDescriptorCallback,
-                                           PropertyDeleterCallback,
-                                           PropertyEnumeratorCallback,
-                                           PropertyDefinerCallback,
-                                           data_wrapper);
+  NamedPropertyHandlerConfiguration config(
+      PropertyGetterCallback,
+      PropertySetterCallback,
+      PropertyDescriptorCallback,
+      PropertyDeleterCallback,
+      PropertyEnumeratorCallback,
+      PropertyDefinerCallback,
+      data_wrapper,
+      PropertyHandlerFlags::kHasNoSideEffect);
 
   IndexedPropertyHandlerConfiguration indexed_config(
       IndexedPropertyGetterCallback,
@@ -163,7 +166,8 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
       IndexedPropertyDeleterCallback,
       PropertyEnumeratorCallback,
       IndexedPropertyDefinerCallback,
-      data_wrapper);
+      data_wrapper,
+      PropertyHandlerFlags::kHasNoSideEffect);
 
   object_template->SetHandler(config);
   object_template->SetHandler(indexed_config);
