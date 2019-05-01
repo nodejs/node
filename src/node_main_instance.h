@@ -65,13 +65,12 @@ class NodeMainInstance {
   static v8::StartupData* GetEmbeddedSnapshotBlob();
 
   static const size_t kNodeContextIndex = 0;
-
- private:
   NodeMainInstance(const NodeMainInstance&) = delete;
   NodeMainInstance& operator=(const NodeMainInstance&) = delete;
   NodeMainInstance(NodeMainInstance&&) = delete;
   NodeMainInstance& operator=(NodeMainInstance&&) = delete;
 
+ private:
   NodeMainInstance(v8::Isolate* isolate,
                    uv_loop_t* event_loop,
                    MultiIsolatePlatform* platform,
