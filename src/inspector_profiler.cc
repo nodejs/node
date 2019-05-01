@@ -5,6 +5,7 @@
 #include "node_file.h"
 #include "node_internals.h"
 #include "v8-inspector.h"
+#include "util.h"
 
 namespace node {
 namespace profiler {
@@ -22,16 +23,6 @@ using v8::String;
 using v8::Value;
 
 using v8_inspector::StringView;
-
-#ifdef _WIN32
-const char* const kPathSeparator = "\\/";
-/* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
-#define CWD_BUFSIZE (MAX_PATH * 4)
-#else
-#include <climits>  // PATH_MAX on Solaris.
-const char* const kPathSeparator = "/";
-#define CWD_BUFSIZE (PATH_MAX)
-#endif
 
 V8ProfilerConnection::V8ProfilerConnection(Environment* env)
     : session_(env->inspector_agent()->Connect(
@@ -284,8 +275,8 @@ void EndStartedProfilers(Environment* env) {
 }
 
 std::string GetCwd() {
-  char cwd[CWD_BUFSIZE];
-  size_t size = CWD_BUFSIZE;
+  char cwd[PATH_MAX_BYTES];
+  size_t size = PATH_MAX_BYTES;
   int err = uv_cwd(cwd, &size);
   // This can fail if the cwd is deleted.
   // TODO(joyeecheung): store this in the Environment during Environment
