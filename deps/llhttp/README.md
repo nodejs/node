@@ -1,5 +1,5 @@
 # llhttp
-[![Build Status](https://secure.travis-ci.org/indutny/llhttp.svg)](http://travis-ci.org/indutny/llhttp)
+[![Build Status](https://secure.travis-ci.org/nodejs/llhttp.svg)](http://travis-ci.org/nodejs/llhttp)
 
 Port of [http_parser][0] to [llparse][1].
 
@@ -120,7 +120,7 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 [0]: https://github.com/nodejs/http-parser
-[1]: https://github.com/indutny/llparse
+[1]: https://github.com/nodejs/llparse
 [2]: https://en.wikipedia.org/wiki/Register_allocation#Spilling
 [3]: https://en.wikipedia.org/wiki/Tail_call
 [4]: https://llvm.org/docs/LangRef.html
