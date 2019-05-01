@@ -185,13 +185,13 @@ void PrintException(Isolate* isolate,
   fprintf(stderr, "%s\n", source.c_str());
   fprintf(stderr, "%s\n", *reason);
 
-  Local<v8::StackTrace> stack = message->GetStackTrace();
+  Local<StackTrace> stack = message->GetStackTrace();
   if (!stack.IsEmpty()) PrintStackTrace(isolate, stack);
 }
 
 void PrintCaughtException(Isolate* isolate,
                           Local<Context> context,
-                          const v8::TryCatch& try_catch) {
+                          const TryCatch& try_catch) {
   CHECK(try_catch.HasCaught());
   PrintException(isolate, context, try_catch.Exception(), try_catch.Message());
 }
@@ -340,7 +340,7 @@ void ReportException(Environment* env,
 #endif
 }
 
-void ReportException(Environment* env, const v8::TryCatch& try_catch) {
+void ReportException(Environment* env, const TryCatch& try_catch) {
   ReportException(env, try_catch.Exception(), try_catch.Message());
 }
 
@@ -755,7 +755,7 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
       warning << ":";
       warning << message->GetLineNumber(env->context()).FromMaybe(-1);
       warning << " ";
-      v8::String::Utf8Value msg(isolate, message->Get());
+      String::Utf8Value msg(isolate, message->Get());
       warning << *msg;
       USE(ProcessEmitWarningGeneric(env, warning.str().c_str(), "V8"));
       break;

@@ -16,6 +16,9 @@ namespace node {
 
 using v8::Local;
 using v8::Message;
+using v8::String;
+using v8::TryCatch;
+using v8::TypedArray;
 using v8::Value;
 
 enum ErrorHandlingMode { CONTEXTIFY_ERROR, FATAL_ERROR, MODULE_ERROR };
@@ -29,17 +32,15 @@ void OnFatalError(const char* location, const char* message);
 
 void PrintErrorString(const char* format, ...);
 
-void ReportException(Environment* env, const v8::TryCatch& try_catch);
+void ReportException(Environment* env, const TryCatch& try_catch);
 
-void ReportException(Environment* env,
-                     Local<Value> er,
-                     Local<Message> message);
+void ReportException(Environment* env, Local<Value> er, Local<Message> message);
 
-void FatalException(v8::Isolate* isolate,
+void FatalException(Isolate* isolate,
                     Local<Value> error,
                     Local<Message> message);
 
-void FatalException(v8::Isolate* isolate,
+void FatalException(Isolate* isolate,
                     Local<Value> error,
                     Local<Message> message,
                     bool from_promise);
@@ -136,19 +137,21 @@ inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
   THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message.str().c_str());
 }
 
-inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
+inline Local<Value> ERR_BUFFER_TOO_LARGE(Isolate* isolate) {
   char message[128];
-  snprintf(message, sizeof(message),
-      "Cannot create a Buffer larger than 0x%zx bytes",
-      v8::TypedArray::kMaxLength);
+  snprintf(message,
+           sizeof(message),
+           "Cannot create a Buffer larger than 0x%zx bytes",
+           TypedArray::kMaxLength);
   return ERR_BUFFER_TOO_LARGE(isolate, message);
 }
 
-inline v8::Local<v8::Value> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {
+inline Local<Value> ERR_STRING_TOO_LONG(Isolate* isolate) {
   char message[128];
-  snprintf(message, sizeof(message),
-      "Cannot create a string longer than 0x%x characters",
-      v8::String::kMaxLength);
+  snprintf(message,
+           sizeof(message),
+           "Cannot create a string longer than 0x%x characters",
+           String::kMaxLength);
   return ERR_STRING_TOO_LONG(isolate, message);
 }
 
@@ -168,12 +171,12 @@ inline v8::Local<v8::Value> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {
 
 namespace errors {
 
-class TryCatchScope : public v8::TryCatch {
+class TryCatchScope : public TryCatch {
  public:
   enum class CatchMode { kNormal, kFatal };
 
   explicit TryCatchScope(Environment* env, CatchMode mode = CatchMode::kNormal)
-      : v8::TryCatch(env->isolate()), env_(env), mode_(mode) {}
+      : TryCatch(env->isolate()), env_(env), mode_(mode) {}
   ~TryCatchScope();
 
   // Since the dtor is not virtual we need to make sure no one creates
@@ -191,8 +194,7 @@ class TryCatchScope : public v8::TryCatch {
 };
 
 const char* errno_string(int errorno);
-void PerIsolateMessageListener(v8::Local<v8::Message> message,
-                               v8::Local<v8::Value> error);
+void PerIsolateMessageListener(Local<Message> message, Local<Value> error);
 
 }  // namespace errors
 
