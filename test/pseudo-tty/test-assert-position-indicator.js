@@ -13,6 +13,6 @@ assert.throws(
 
 // Confirm that there is a position indicator.
 assert.throws(
-  () => { assert.deepStrictEqual('aaa', 'aaaa'); },
+  () => { assert.deepStrictEqual('aaaa', 'aaaaa'); },
   (err) => err.message.includes('^')
 );
