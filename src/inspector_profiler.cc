@@ -70,6 +70,9 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(env->context());
 
+  // TODO(joyeecheung): always parse the message so that we can use the id to
+  // identify ending messages as well as printing the message in the debug
+  // output when there is an error.
   const char* type = connection_->type();
   Debug(env,
         DebugCategory::INSPECTOR_PROFILER,
@@ -80,7 +83,7 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
     return;
   }
 
-  // Convert StringView to a Local<String>
+  // Convert StringView to a Local<String>.
   Local<String> message_str;
   if (!String::NewFromTwoByte(isolate,
                               message.characters16(),
@@ -96,7 +99,8 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
 
 static bool EnsureDirectory(const std::string& directory, const char* type) {
   // TODO(joyeecheung): MKDirp functions should stat first to see if
-  // the directory exists.
+  // the directory exists. We should also use *at functions here and in
+  // MKDirp to avoid TOCTOU bugs at least on platforms with those APIs.
   uv_fs_t req;
   int ret = fs::MKDirpSync(nullptr, &req, directory, 0777, nullptr);
   uv_fs_req_cleanup(&req);
@@ -162,7 +166,7 @@ static MaybeLocal<Object> ParseProfile(Environment* env,
 void V8ProfilerConnection::WriteProfile(Local<String> message) {
   Local<Context> context = env_->context();
 
-  // Get message.result from the response
+  // Get message.result from the response.
   Local<Object> result;
   if (!ParseProfile(env_, message, type()).ToLocal(&result)) {
     return;
@@ -178,7 +182,7 @@ void V8ProfilerConnection::WriteProfile(Local<String> message) {
     return;
   }
 
-  // Create the directory if necessary
+  // Create the directory if necessary.
   std::string directory = GetDirectory();
   DCHECK(!directory.empty());
   if (!EnsureDirectory(directory, type())) {
