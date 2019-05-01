@@ -278,6 +278,10 @@ or servers.
 Set default minVersion to 'TLSv1.1'. Use for compatibility with old TLS clients
 or servers.
 .
+.It Fl -tls-min-v1.2
+Set default minVersion to 'TLSv1.2'. This is the default for 12.x and later,
+but the option is supported for compatibility with older Node.js versions.
+.
 .It Fl -tls-min-v1.3
 Set default minVersion to 'TLSv1.3'. Use to disable support for TLSv1.2 in
 favour of TLSv1.3, which is more secure.
