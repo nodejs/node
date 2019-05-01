@@ -8,6 +8,18 @@
 #include "sharedarraybuffer_metadata.h"
 #include <list>
 
+using v8::Context;
+using v8::Function;
+using v8::FunctionCallbackInfo;
+using v8::Local;
+using v8::Maybe;
+using v8::MaybeLocal;
+using v8::Object;
+using v8::ObjectTemplate;
+using v8::String;
+using v8::Value;
+using v8::WasmModuleObject;
+
 namespace node {
 namespace worker {
 
@@ -26,20 +38,18 @@ class Message : public MemoryRetainer {
 
   // Deserialize the contained JS value. May only be called once, and only
   // after Serialize() has been called (e.g. by another thread).
-  v8::MaybeLocal<v8::Value> Deserialize(Environment* env,
-                                        v8::Local<v8::Context> context);
+  MaybeLocal<Value> Deserialize(Environment* env, Local<Context> context);
 
   // Serialize a JS value, and optionally transfer objects, into this message.
   // The Message object retains ownership of all transferred objects until
   // deserialization.
   // The source_port parameter, if provided, will make Serialize() throw a
   // "DataCloneError" DOMException if source_port is found in transfer_list.
-  v8::Maybe<bool> Serialize(Environment* env,
-                            v8::Local<v8::Context> context,
-                            v8::Local<v8::Value> input,
-                            v8::Local<v8::Value> transfer_list,
-                            v8::Local<v8::Object> source_port =
-                                v8::Local<v8::Object>());
+  Maybe<bool> Serialize(Environment* env,
+                        Local<Context> context,
+                        Local<Value> input,
+                        Local<Value> transfer_list,
+                        Local<Object> source_port = Local<Object>());
 
   // Internal method of Message that is called when a new SharedArrayBuffer
   // object is encountered in the incoming value's structure.
@@ -49,7 +59,7 @@ class Message : public MemoryRetainer {
   void AddMessagePort(std::unique_ptr<MessagePortData>&& data);
   // Internal method of Message that is called when a new WebAssembly.Module
   // object is encountered in the incoming value's structure.
-  uint32_t AddWASMModule(v8::WasmModuleObject::TransferrableModule&& mod);
+  uint32_t AddWASMModule(WasmModuleObject::TransferrableModule&& mod);
 
   // The MessagePorts that will be transferred, as recorded by Serialize().
   // Used for warning user about posting the target MessagePort to itself,
@@ -68,7 +78,7 @@ class Message : public MemoryRetainer {
   std::vector<MallocedBuffer<char>> array_buffer_contents_;
   std::vector<SharedArrayBufferMetadataReference> shared_array_buffers_;
   std::vector<std::unique_ptr<MessagePortData>> message_ports_;
-  std::vector<v8::WasmModuleObject::TransferrableModule> wasm_modules_;
+  std::vector<WasmModuleObject::TransferrableModule> wasm_modules_;
 
   friend class MessagePort;
 };
@@ -135,23 +145,21 @@ class MessagePort : public HandleWrap {
  public:
   // Create a new MessagePort. The `context` argument specifies the Context
   // instance that is used for creating the values emitted from this port.
-  MessagePort(Environment* env,
-              v8::Local<v8::Context> context,
-              v8::Local<v8::Object> wrap);
+  MessagePort(Environment* env, Local<Context> context, Local<Object> wrap);
   ~MessagePort() override;
 
   // Create a new message port instance, optionally over an existing
   // `MessagePortData` object.
   static MessagePort* New(Environment* env,
-                          v8::Local<v8::Context> context,
+                          Local<Context> context,
                           std::unique_ptr<MessagePortData> data = nullptr);
 
   // Send a message, i.e. deliver it into the sibling's incoming queue.
   // If this port is closed, or if there is no sibling, this message is
   // serialized with transfers, then silently discarded.
-  v8::Maybe<bool> PostMessage(Environment* env,
-                              v8::Local<v8::Value> message,
-                              v8::Local<v8::Value> transfer);
+  Maybe<bool> PostMessage(Environment* env,
+                          Local<Value> message,
+                          Local<Value> transfer);
 
   // Start processing messages on this port as a receiving end.
   void Start();
@@ -159,15 +167,15 @@ class MessagePort : public HandleWrap {
   void Stop();
 
   /* constructor */
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void New(const FunctionCallbackInfo<Value>& args);
   /* prototype methods */
-  static void PostMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Drain(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PostMessage(const FunctionCallbackInfo<Value>& args);
+  static void Start(const FunctionCallbackInfo<Value>& args);
+  static void Stop(const FunctionCallbackInfo<Value>& args);
+  static void Drain(const FunctionCallbackInfo<Value>& args);
 
   /* static */
-  static void MoveToContext(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void MoveToContext(const FunctionCallbackInfo<Value>& args);
 
   // Turns `a` and `b` into siblings, i.e. connects the sending side of one
   // to the receiving side of the other. This is not thread-safe.
@@ -180,8 +188,7 @@ class MessagePort : public HandleWrap {
   std::unique_ptr<MessagePortData> Detach();
 
   bool IsSiblingClosed() const;
-  void Close(
-      v8::Local<v8::Value> close_callback = v8::Local<v8::Value>()) override;
+  void Close(Local<Value> close_callback = Local<Value>()) override;
 
   // Returns true if either data_ has been freed, or if the handle is being
   // closed. Equivalent to the [[Detached]] internal slot in the HTML Standard.
@@ -210,8 +217,8 @@ class MessagePort : public HandleWrap {
   friend class MessagePortData;
 };
 
-v8::MaybeLocal<v8::Function> GetMessagePortConstructor(
-    Environment* env, v8::Local<v8::Context> context);
+MaybeLocal<Function> GetMessagePortConstructor(Environment* env,
+                                               Local<Context> context);
 
 }  // namespace worker
 }  // namespace node
