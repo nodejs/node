@@ -28,6 +28,14 @@
 #include "connection_wrap.h"
 #include "env.h"
 
+using v8::Context;
+using v8::Isolate;
+using v8::Local;
+using v8::MaybeLocal;
+using v8::Object;
+using v8::FunctionCallbackInfo;
+using v8::Value;
+
 namespace node {
 
 class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
@@ -38,12 +46,12 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
     IPC
   };
 
-  static v8::MaybeLocal<v8::Object> Instantiate(Environment* env,
-                                                AsyncWrap* parent,
-                                                SocketType type);
-  static void Initialize(v8::Local<v8::Object> target,
-                         v8::Local<v8::Value> unused,
-                         v8::Local<v8::Context> context,
+  static MaybeLocal<Object> Instantiate(Environment* env,
+                                        AsyncWrap* parent,
+                                        SocketType type);
+  static void Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context,
                          void* priv);
 
   SET_NO_MEMORY_INFO()
@@ -52,23 +60,21 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
 
  private:
   PipeWrap(Environment* env,
-           v8::Local<v8::Object> object,
+           Local<Object> object,
            ProviderType provider,
            bool ipc);
 
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Bind(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Listen(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void New(const FunctionCallbackInfo<Value>& args);
+  static void Bind(const FunctionCallbackInfo<Value>& args);
+  static void Listen(const FunctionCallbackInfo<Value>& args);
+  static void Connect(const FunctionCallbackInfo<Value>& args);
+  static void Open(const FunctionCallbackInfo<Value>& args);
 
 #ifdef _WIN32
-  static void SetPendingInstances(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetPendingInstances(const FunctionCallbackInfo<Value>& args);
 #endif
-  static void Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Fchmod(const FunctionCallbackInfo<Value>& args);
 };
-
 
 }  // namespace node
 
