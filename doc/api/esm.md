@@ -62,9 +62,9 @@ or when referenced by `import` statements within ES module code:
 
 ### `package.json` `"type"` field
 
-Files ending with `.js` or `.mjs`, or lacking any extension,
-will be loaded as ES modules when the nearest parent `package.json` file
-contains a top-level field `"type"` with a value of `"module"`.
+Files ending with `.js` or lacking any extension will be loaded as ES modules
+when the nearest parent `package.json` file contains a top-level field `"type"`
+with a value of `"module"`.
 
 The nearest parent `package.json` is defined as the first `package.json` found
 when searching in the current folder, that folder’s parent, and so on up
@@ -103,6 +103,9 @@ sources are CommonJS. Being explicit about the `type` of the package will
 future-proof the package in case the default type of Node.js ever changes, and
 it will also make things easier for build tools and loaders to determine how the
 files in the package should be interpreted.
+
+Regardless of the value of the `"type"` field, `.mjs` files are always treated
+as ES modules and `.cjs` files are always treated as CommonJS.
 
 ### Package Scope and File Extensions
 
