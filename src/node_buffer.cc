@@ -77,6 +77,7 @@ using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Value;
 using v8::WeakCallbackInfo;
+using v8::WeakCallbackType;
 
 namespace {
 
@@ -135,7 +136,7 @@ CallbackInfo::CallbackInfo(Isolate* isolate,
   if (object->ByteLength() != 0)
     CHECK_NOT_NULL(data_);
 
-  persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+  persistent_.SetWeak(this, WeakCallback, WeakCallbackType::kParameter);
   isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
 }
 

@@ -25,45 +25,51 @@
 #include "node.h"
 #include "v8.h"
 
+using v8::Isolate;
+using v8::Local;
+using v8::MaybeLocal;
+using v8::Object;
+using v8::String;
+using v8::TypedArray;
+using v8::Value;
+
 namespace node {
 
 namespace Buffer {
 
-static const unsigned int kMaxLength = v8::TypedArray::kMaxLength;
+static const unsigned int kMaxLength = TypedArray::kMaxLength;
 
 typedef void (*FreeCallback)(char* data, void* hint);
 
-NODE_EXTERN bool HasInstance(v8::Local<v8::Value> val);
-NODE_EXTERN bool HasInstance(v8::Local<v8::Object> val);
-NODE_EXTERN char* Data(v8::Local<v8::Value> val);
-NODE_EXTERN char* Data(v8::Local<v8::Object> val);
-NODE_EXTERN size_t Length(v8::Local<v8::Value> val);
-NODE_EXTERN size_t Length(v8::Local<v8::Object> val);
+NODE_EXTERN bool HasInstance(Local<Value> val);
+NODE_EXTERN bool HasInstance(Local<Object> val);
+NODE_EXTERN char* Data(Local<Value> val);
+NODE_EXTERN char* Data(Local<Object> val);
+NODE_EXTERN size_t Length(Local<Value> val);
+NODE_EXTERN size_t Length(Local<Object> val);
 
 // public constructor - data is copied
-NODE_EXTERN v8::MaybeLocal<v8::Object> Copy(v8::Isolate* isolate,
-                                            const char* data,
-                                            size_t len);
+NODE_EXTERN MaybeLocal<Object> Copy(Isolate* isolate,
+                                    const char* data,
+                                    size_t len);
 
 // public constructor
-NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate, size_t length);
+NODE_EXTERN MaybeLocal<Object> New(Isolate* isolate, size_t length);
 
 // public constructor from string
-NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate,
-                                           v8::Local<v8::String> string,
-                                           enum encoding enc = UTF8);
+NODE_EXTERN MaybeLocal<Object> New(Isolate* isolate,
+                                   Local<String> string,
+                                   enum encoding enc = UTF8);
 
 // public constructor - data is used, callback is passed data on object gc
-NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate,
-                                           char* data,
-                                           size_t length,
-                                           FreeCallback callback,
-                                           void* hint);
+NODE_EXTERN MaybeLocal<Object> New(Isolate* isolate,
+                                   char* data,
+                                   size_t length,
+                                   FreeCallback callback,
+                                   void* hint);
 
 // public constructor - data is used.
-NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate,
-                                           char* data,
-                                           size_t len);
+NODE_EXTERN MaybeLocal<Object> New(Isolate* isolate, char* data, size_t len);
 
 // This is verbose to be explicit with inline commenting
 static inline bool IsWithinBounds(size_t off, size_t len, size_t max) {
