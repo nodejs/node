@@ -80,9 +80,17 @@ assert.throws(
 assert.throws(
   () => a.notStrictEqual('a '.repeat(30), 'a '.repeat(30)),
   {
-    message: 'Expected "actual" to be strictly unequal to: ' +
+    message: 'Expected "actual" to be strictly unequal to:\n\n' +
              `'${'a '.repeat(30)}'`,
     name: 'AssertionError'
+  }
+);
+
+assert.throws(
+  () => a.notEqual(1, 1),
+  {
+    message: '1 != 1',
+    operator: '!='
   }
 );
 
@@ -281,12 +289,12 @@ testShortAssertionMessage('a', '"a"');
 testShortAssertionMessage('foo', '\'foo\'');
 testShortAssertionMessage(0, '0');
 testShortAssertionMessage(Symbol(), 'Symbol()');
+testShortAssertionMessage(undefined, 'undefined');
+testShortAssertionMessage(-Infinity, '-Infinity');
 testAssertionMessage([], '[]');
 testAssertionMessage(/a/, '/a/');
 testAssertionMessage(/abc/gim, '/abc/gim');
 testAssertionMessage({}, '{}');
-testAssertionMessage(undefined, 'undefined');
-testAssertionMessage(-Infinity, '-Infinity');
 testAssertionMessage([1, 2, 3], '[\n+   1,\n+   2,\n+   3\n+ ]');
 testAssertionMessage(function f() {}, '[Function: f]');
 testAssertionMessage(function() {}, '[Function (anonymous)]');
@@ -579,12 +587,12 @@ assert.throws(
     `${actExp} ... Lines skipped\n` +
     '\n' +
     '  [\n' +
-    '+   1,\n'.repeat(10) +
+    '+   1,\n'.repeat(25) +
     '...\n' +
-    '-   2,\n'.repeat(10) +
+    '-   2,\n'.repeat(25) +
     '...';
   assert.throws(
-    () => assert.deepEqual(Array(12).fill(1), Array(12).fill(2)),
+    () => assert.deepEqual(Array(28).fill(1), Array(28).fill(2)),
     { message });
 
   const obj1 = {};
@@ -612,8 +620,8 @@ assert.throws(
   );
 
   message = 'Expected "actual" not to be strictly deep-equal to:' +
-            `\n\n[${'\n  1,'.repeat(25)}\n...\n`;
-  const data = Array(31).fill(1);
+            `\n\n[${'\n  1,'.repeat(45)}\n...\n`;
+  const data = Array(51).fill(1);
   assert.throws(
     () => assert.notDeepEqual(data, data),
     { message });
