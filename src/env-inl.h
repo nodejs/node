@@ -1106,13 +1106,13 @@ void AsyncRequest::set_stopped(bool flag) {
   inline void Environment::set_ ## PropertyName(v8::Local<TypeName> value) {  \
     PropertyName ## _.Reset(isolate(), value);                                \
   }
-  ENVIRONMENT_STRONG_PERSISTENT_DATA(V)
+  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATE(V)
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
-  inline v8::Local<v8::Context> Environment::context() const {
-    return PersistentToLocal::Strong(context_);
-  }
+inline v8::Local<v8::Context> Environment::context() const {
+  return PersistentToLocal::Strong(context_);
+}
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
