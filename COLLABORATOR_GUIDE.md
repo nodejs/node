@@ -89,36 +89,35 @@ to land but is [author ready](#author-ready-pull-requests), add the
 
 ## Accepting Modifications
 
-Contributors propose modifications to Node.js using GitHub pull requests. This
-includes modifications proposed by TSC members and other Collaborators. A pull
-request must pass code review and CI before landing into the codebase.
+Contributors propose modifications to Node.js using GitHub PRs (Pull Requests).
+This includes modifications proposed by Collaborators and TSC members. A pull
+request must have consensus and pass CI testing before landing in the codebase.
 
 ### Code Reviews
 
-At least two Collaborators must approve a pull request before the pull request
-lands. One Collaborator approval is enough if the pull request has been open
-for more than seven days.
+Approving a pull request indicates that the Collaborator accepts shared
+responsibility for the change.
 
-Approving a pull request indicates that the Collaborator accepts responsibility
-for the change.
-
-Approval must be from Collaborators who are not authors of the change.
+Every PR should be reviewed and approved by a Collaborator who is not the
+author. A PR can land without explicit approval if it has been open for seven
+days (168 hours), has not been objected to, and has no unresolved Change
+Requests.
 
 In some cases, it may be necessary to summon a GitHub team to a pull request for
-review by @-mention.
-See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
+review by @-mention. See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
-If you are the first Collaborator to approve a pull request that has no CI yet,
-please [start one](#testing-and-ci). Post the link to the CI in the PR. Please
-also start a new CI if the PR creator pushed new code since the last CI run.
+If you are the first Collaborator to approve a pull request that has not been
+CI tested, [please do so](#testing-and-ci). Please also start a new CI job if
+new code was pushed since the last CI run.
 
 ### Consensus Seeking
 
-If there are no objecting Collaborators, a pull request may land if it has the
-needed [approvals](#code-reviews), [CI](#testing-and-ci), and
-[wait time](#waiting-for-approvals). If a pull request meets all requirements
-except the [wait time](#waiting-for-approvals), please add the
-[`author ready`](#author-ready-pull-requests) label.
+A pull request may land if:
+* There are no objections from Collaborators.
+* It has passed [CI](#testing-and-ci) testing.
+* [wait time](#waiting-for-approvals) has elapsed.
+
+When a PR is [author ready](#author-ready-pull-requests), please add the label.
 
 Where there is disagreement among Collaborators, consensus should be sought if
 possible. If reaching consensus is not possible, a Collaborator may escalate the
@@ -126,7 +125,6 @@ issue to the TSC.
 
 Collaborators should not block a pull request without providing a reason.
 Another Collaborator may ask an objecting Collaborator to explain their
-objection. If the objector is unresponsive, another Collaborator may dismiss the
 objection.
 
 [Breaking changes](#breaking-changes) must receive
