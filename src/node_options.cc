@@ -148,6 +148,11 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     errors->push_back("invalid value for --unhandled-rejections");
   }
 
+  if (tls_min_v1_3 && tls_max_v1_2) {
+    errors->push_back("either --tls-min-v1.3 or --tls-max-v1.2 can be "
+                      "used, not both");
+  }
+
 #if HAVE_INSPECTOR
   if (!cpu_prof) {
     if (!cpu_prof_name.empty()) {
