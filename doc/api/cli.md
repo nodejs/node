@@ -586,6 +586,15 @@ added: v12.0.0
 Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.1'. Use for compatibility
 with old TLS clients or servers.
 
+### `--tls-min-v1.2`
+<!-- YAML
+added: REPLACEME
+-->
+
+Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.2'. This is the default for
+12.x and later, but the option is supported for compatibility with older Node.js
+versions.
+
 ### `--tls-min-v1.3`
 <!-- YAML
 added: v12.0.0
