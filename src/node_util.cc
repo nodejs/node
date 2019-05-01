@@ -58,6 +58,16 @@ static void GetOwnNonIndexProperties(
   args.GetReturnValue().Set(properties);
 }
 
+static void GetConstructorName(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+
+  Local<Object> object = args[0].As<Object>();
+  Local<String> name = object->GetConstructorName();
+
+  args.GetReturnValue().Set(name);
+}
+
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
   // Return undefined if it's not a Promise.
   if (!args[0]->IsPromise())
@@ -262,6 +272,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "previewEntries", PreviewEntries);
   env->SetMethodNoSideEffect(target, "getOwnNonIndexProperties",
                                      GetOwnNonIndexProperties);
+  env->SetMethodNoSideEffect(target, "getConstructorName", GetConstructorName);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
   Local<Object> constants = Object::New(env->isolate());

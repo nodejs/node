@@ -2003,11 +2003,11 @@ assert.strictEqual(
   Object.setPrototypeOf(obj, value);
   assert.strictEqual(
     util.inspect(obj),
-    '<[Function (null prototype) (anonymous)]> { a: true }'
+    'Object <[Function (null prototype) (anonymous)]> { a: true }'
   );
   assert.strictEqual(
     util.inspect(obj, { colors: true }),
-    '<\u001b[36m[Function (null prototype) (anonymous)]\u001b[39m> ' +
+    'Object <\u001b[36m[Function (null prototype) (anonymous)]\u001b[39m> ' +
       '{ a: \u001b[33mtrue\u001b[39m }'
   );
 
@@ -2017,14 +2017,14 @@ assert.strictEqual(
   Object.setPrototypeOf(obj, value);
   assert.strictEqual(
     util.inspect(obj),
-    '<[Array: null prototype] []> { a: true }'
+    'Object <[Array: null prototype] []> { a: true }'
   );
 
   function StorageObject() {}
   StorageObject.prototype = Object.create(null);
   assert.strictEqual(
     util.inspect(new StorageObject()),
-    '<[Object: null prototype] {}> {}'
+    'StorageObject <[Object: null prototype] {}> {}'
   );
 
   obj = [1, 2, 3];
@@ -2034,7 +2034,7 @@ assert.strictEqual(
   Object.setPrototypeOf(obj, Object.create(null));
   assert.strictEqual(
     inspect(obj),
-    "<[Object: null prototype] {}> { '0': 1, '1': 2, '2': 3 }"
+    "Array <[Object: null prototype] {}> { '0': 1, '1': 2, '2': 3 }"
   );
 }
 
