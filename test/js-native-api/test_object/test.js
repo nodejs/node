@@ -202,3 +202,26 @@ assert.strictEqual(newObject.test_string, 'test string');
   assert.strictEqual(test_object.Delete(obj, 'foo'), true);
   assert.strictEqual(obj.foo, 'baz');
 }
+
+{
+  // Verify that napi_get_property_names gets the right set of property names,
+  // i.e.: includes prototypes, only enumerable properties, skips symbols,
+  // and includes indices and converts them to strings.
+
+  const object = Object.create({
+    inherited: 1
+  });
+
+  object.normal = 2;
+  object[Symbol('foo')] = 3;
+  Object.defineProperty(object, 'unenumerable', {
+    value: 4,
+    enumerable: false,
+    writable: true,
+    configurable: true
+  });
+  object[5] = 5;
+
+  assert.deepStrictEqual(test_object.GetPropertyNames(object),
+                         ['5', 'normal', 'inherited']);
+}
