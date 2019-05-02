@@ -5678,8 +5678,10 @@ engines/padlock-dso-e_padlock.obj: engines/padlock-dso-e_padlock.d
 engines/padlock.def: util/engines.num  util/mkdef.pl
 	$(PERL) util/mkdef.pl --ordinals util/engines.num --name padlock --OS windows > engines/padlock.def
 
-distclean:
+clean:
+	$(RM) $(GENERATED_MANDATORY)
 	$(RM) $(GENERATED)
+distclean:
 	$(RM) configdata.pm
 	$(RM) makefile
 	$(RM) NUL

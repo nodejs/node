@@ -17,6 +17,7 @@ MINOR=1.1
 SHLIB_VERSION_NUMBER=1.1
 
 GENERATED_MANDATORY=crypto/include/internal/bn_conf.h crypto/include/internal/dso_conf.h include/openssl/opensslconf.h
+GENERATED=crypto/buildinf.h apps/progs.h
 
 INSTALL_LIBS="libcrypto.lib" "libssl.lib"
 INSTALL_SHLIBS="libcrypto-1_1-arm64.dll" "libssl-1_1-arm64.dll"
@@ -141,7 +142,9 @@ include/openssl/opensslconf.h:
 	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
 	    "-omakefile" "include/openssl/opensslconf.h.in" > $@
 
-distclean:
+clean:
+	$(RM) $(GENERATED_MANDATORY)
 	$(RM) $(GENERATED)
+distclean:
 	$(RM) /Q /F configdata.pm
 	$(RM) /Q /F makefile
