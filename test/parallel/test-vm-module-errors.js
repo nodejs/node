@@ -258,8 +258,8 @@ async function checkInvalidOptionForEvaluate() {
   }, {
     name: 'TypeError',
     message:
-      'The "options.breakOnSigint" property must be of type boolean. \
-Received type string',
+      'The "options.breakOnSigint" property must be of type boolean. ' +
+      'Received type string',
     code: 'ERR_INVALID_ARG_TYPE'
   });
 }
