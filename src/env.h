@@ -420,8 +420,8 @@ class IsolateData : public MemoryRetainer {
               MultiIsolatePlatform* platform = nullptr,
               ArrayBufferAllocator* node_allocator = nullptr,
               const std::vector<size_t>* indexes = nullptr);
-  SET_MEMORY_INFO_NAME(IsolateData);
-  SET_SELF_SIZE(IsolateData);
+  SET_MEMORY_INFO_NAME(IsolateData)
+  SET_SELF_SIZE(IsolateData)
   void MemoryInfo(MemoryTracker* tracker) const override;
   std::vector<size_t> Serialize(v8::SnapshotCreator* creator);
 
@@ -584,8 +584,8 @@ extern std::shared_ptr<KVStore> system_environment;
 
 class AsyncHooks : public MemoryRetainer {
  public:
-  SET_MEMORY_INFO_NAME(AsyncHooks);
-  SET_SELF_SIZE(AsyncHooks);
+  SET_MEMORY_INFO_NAME(AsyncHooks)
+  SET_SELF_SIZE(AsyncHooks)
   void MemoryInfo(MemoryTracker* tracker) const override;
 
   // Reason for both UidFields and Fields are that one is stored as a double*
@@ -687,8 +687,8 @@ class ImmediateInfo : public MemoryRetainer {
   ImmediateInfo(const ImmediateInfo&) = delete;
   ImmediateInfo& operator=(const ImmediateInfo&) = delete;
 
-  SET_MEMORY_INFO_NAME(ImmediateInfo);
-  SET_SELF_SIZE(ImmediateInfo);
+  SET_MEMORY_INFO_NAME(ImmediateInfo)
+  SET_SELF_SIZE(ImmediateInfo)
   void MemoryInfo(MemoryTracker* tracker) const override;
 
  private:
@@ -706,8 +706,8 @@ class TickInfo : public MemoryRetainer {
   inline bool has_tick_scheduled() const;
   inline bool has_rejection_to_warn() const;
 
-  SET_MEMORY_INFO_NAME(TickInfo);
-  SET_SELF_SIZE(TickInfo);
+  SET_MEMORY_INFO_NAME(TickInfo)
+  SET_SELF_SIZE(TickInfo)
   void MemoryInfo(MemoryTracker* tracker) const override;
 
   TickInfo(const TickInfo&) = delete;
@@ -786,7 +786,7 @@ class Environment : public MemoryRetainer {
   Environment(const Environment&) = delete;
   Environment& operator=(const Environment&) = delete;
 
-  SET_MEMORY_INFO_NAME(Environment);
+  SET_MEMORY_INFO_NAME(Environment)
 
   inline size_t SelfSize() const override;
   bool IsRootNode() const override { return true; }
