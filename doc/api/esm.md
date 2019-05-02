@@ -467,7 +467,7 @@ export async function resolve(specifier,
                               defaultResolver) {
   return {
     url: new URL(specifier, parentModuleURL).href,
-    format: 'esm'
+    format: 'module'
   };
 }
 ```
@@ -526,7 +526,7 @@ export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
   }
   return {
     url: resolved.href,
-    format: 'esm'
+    format: 'module'
   };
 }
 ```
