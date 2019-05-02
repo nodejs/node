@@ -1,4 +1,5 @@
 #include "inspector_profiler.h"
+#include <sstream>
 #include "base_object-inl.h"
 #include "debug_utils.h"
 #include "node_file.h"
@@ -33,12 +34,6 @@ const char* const kPathSeparator = "/";
 #define CWD_BUFSIZE (PATH_MAX)
 #endif
 
-std::unique_ptr<StringBuffer> ToProtocolString(Isolate* isolate,
-                                               Local<Value> value) {
-  TwoByteValue buffer(isolate, value);
-  return StringBuffer::create(StringView(*buffer, buffer.length()));
-}
-
 V8ProfilerConnection::V8ProfilerConnection(Environment* env)
     : session_(env->inspector_agent()->Connect(
           std::make_unique<V8ProfilerConnection::V8ProfilerSessionDelegate>(
@@ -46,8 +41,27 @@ V8ProfilerConnection::V8ProfilerConnection(Environment* env)
           false)),
       env_(env) {}
 
-void V8ProfilerConnection::DispatchMessage(Local<String> message) {
-  session_->Dispatch(ToProtocolString(env()->isolate(), message)->string());
+size_t V8ProfilerConnection::DispatchMessage(const char* method,
+                                             const char* params) {
+  std::stringstream ss;
+  size_t id = next_id();
+  ss << R"({ "id": )" << id;
+  DCHECK(method != nullptr);
+  ss << R"(, "method": ")" << method << '"';
+  if (params != nullptr) {
+    ss << R"(, "params": )" << params;
+  }
+  ss << " }";
+  std::string message = ss.str();
+  const uint8_t* message_data =
+      reinterpret_cast<const uint8_t*>(message.c_str());
+  Debug(env(),
+        DebugCategory::INSPECTOR_PROFILER,
+        "Dispatching message %s\n",
+        message.c_str());
+  session_->Dispatch(StringView(message_data, message.length()));
+  // TODO(joyeecheung): use this to identify the ending message.
+  return id;
 }
 
 static void WriteResult(Environment* env,
@@ -202,34 +216,15 @@ std::string V8CoverageConnection::GetDirectory() const {
 }
 
 void V8CoverageConnection::Start() {
-  Debug(env(),
-        DebugCategory::INSPECTOR_PROFILER,
-        "Sending Profiler.startPreciseCoverage\n");
-  Isolate* isolate = env()->isolate();
-  Local<String> enable = FIXED_ONE_BYTE_STRING(
-      isolate, R"({"id": 1, "method": "Profiler.enable"})");
-  Local<String> start = FIXED_ONE_BYTE_STRING(isolate, R"({
-      "id": 2,
-      "method": "Profiler.startPreciseCoverage",
-      "params": { "callCount": true, "detailed": true }
-  })");
-  DispatchMessage(enable);
-  DispatchMessage(start);
+  DispatchMessage("Profiler.enable");
+  DispatchMessage("Profiler.startPreciseCoverage",
+                  R"({ "callCount": true, "detailed": true })");
 }
 
 void V8CoverageConnection::End() {
   CHECK_EQ(ending_, false);
   ending_ = true;
-  Debug(env(),
-        DebugCategory::INSPECTOR_PROFILER,
-        "Sending Profiler.takePreciseCoverage\n");
-  Isolate* isolate = env()->isolate();
-  HandleScope scope(isolate);
-  Local<String> end = FIXED_ONE_BYTE_STRING(isolate, R"({
-      "id": 3,
-      "method": "Profiler.takePreciseCoverage"
-  })");
-  DispatchMessage(end);
+  DispatchMessage("Profiler.takePreciseCoverage");
 }
 
 std::string V8CpuProfilerConnection::GetDirectory() const {
@@ -257,25 +252,14 @@ MaybeLocal<Object> V8CpuProfilerConnection::GetProfile(Local<Object> result) {
 }
 
 void V8CpuProfilerConnection::Start() {
-  Debug(env(), DebugCategory::INSPECTOR_PROFILER, "Sending Profiler.start\n");
-  Isolate* isolate = env()->isolate();
-  Local<String> enable = FIXED_ONE_BYTE_STRING(
-      isolate, R"({"id": 1, "method": "Profiler.enable"})");
-  Local<String> start = FIXED_ONE_BYTE_STRING(
-      isolate, R"({"id": 2, "method": "Profiler.start"})");
-  DispatchMessage(enable);
-  DispatchMessage(start);
+  DispatchMessage("Profiler.enable");
+  DispatchMessage("Profiler.start");
 }
 
 void V8CpuProfilerConnection::End() {
   CHECK_EQ(ending_, false);
   ending_ = true;
-  Debug(env(), DebugCategory::INSPECTOR_PROFILER, "Sending Profiler.stop\n");
-  Isolate* isolate = env()->isolate();
-  HandleScope scope(isolate);
-  Local<String> end =
-      FIXED_ONE_BYTE_STRING(isolate, R"({"id": 3, "method": "Profiler.stop"})");
-  DispatchMessage(end);
+  DispatchMessage("Profiler.stop");
 }
 
 // For now, we only support coverage profiling, but we may add more
