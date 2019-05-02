@@ -46,7 +46,7 @@ my $makefile = $is_win ? "../config/Makefile_$arch": "Makefile";
 # Generate arch dependent header files with Makefile
 my $buildinf = "crypto/buildinf.h";
 my $progs = "apps/progs.h";
-my $cmd1 = "cd ../openssl; make -f $makefile build_generated $buildinf $progs;";
+my $cmd1 = "cd ../openssl; make -f $makefile clean build_generated $buildinf $progs;";
 system($cmd1) == 0 or die "Error in system($cmd1)";
 
 # Copy and move all arch dependent header files into config/archs
