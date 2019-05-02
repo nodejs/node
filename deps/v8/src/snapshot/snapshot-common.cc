@@ -229,7 +229,9 @@ uint32_t Snapshot::ExtractContextOffset(const v8::StartupData* data,
 
 bool Snapshot::ExtractRehashability(const v8::StartupData* data) {
   CHECK_LT(kRehashabilityOffset, static_cast<uint32_t>(data->raw_size));
-  return GetHeaderValue(data, kRehashabilityOffset) != 0;
+  uint32_t rehashability = GetHeaderValue(data, kRehashabilityOffset);
+  CHECK_IMPLIES(rehashability != 0, rehashability == 1);
+  return rehashability != 0;
 }
 
 namespace {
