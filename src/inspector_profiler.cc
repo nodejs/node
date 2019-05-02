@@ -21,7 +21,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
 
 #ifdef _WIN32
@@ -254,6 +253,10 @@ MaybeLocal<Object> V8CpuProfilerConnection::GetProfile(Local<Object> result) {
 void V8CpuProfilerConnection::Start() {
   DispatchMessage("Profiler.enable");
   DispatchMessage("Profiler.start");
+  std::string params = R"({ "interval": )";
+  params += std::to_string(env()->cpu_prof_interval());
+  params += " }";
+  DispatchMessage("Profiler.setSamplingInterval", params.c_str());
 }
 
 void V8CpuProfilerConnection::End() {
@@ -304,6 +307,7 @@ void StartProfilers(Environment* env) {
   }
   if (env->options()->cpu_prof) {
     const std::string& dir = env->options()->cpu_prof_dir;
+    env->set_cpu_prof_interval(env->options()->cpu_prof_interval);
     env->set_cpu_prof_dir(dir.empty() ? GetCwd() : dir);
     if (env->options()->cpu_prof_name.empty()) {
       DiagnosticFilename filename(env, "CPU", "cpuprofile");

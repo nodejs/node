@@ -673,6 +673,14 @@ Environment::cpu_profiler_connection() {
   return cpu_profiler_connection_.get();
 }
 
+inline void Environment::set_cpu_prof_interval(uint64_t interval) {
+  cpu_prof_interval_ = interval;
+}
+
+inline uint64_t Environment::cpu_prof_interval() const {
+  return cpu_prof_interval_;
+}
+
 inline void Environment::set_cpu_prof_name(const std::string& name) {
   cpu_prof_name_ = name;
 }
