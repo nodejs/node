@@ -2950,7 +2950,9 @@ engines/e_padlock.d: "engines/e_padlock.c"
 engines/e_padlock.obj: engines/e_padlock.d
 	$(CC)  $(DSO_CFLAGS) /I "include" $(DSO_CPPFLAGS) -c $(COUTFLAG)$@ "engines/e_padlock.c"
 
-distclean:
+clean:
+	$(RM) $(GENERATED_MANDATORY)
 	$(RM) $(GENERATED)
+distclean:
 	$(RM) /Q /F configdata.pm
 	$(RM) /Q /F makefile
