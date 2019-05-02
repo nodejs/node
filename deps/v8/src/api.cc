@@ -887,6 +887,11 @@ StartupData SnapshotCreator::CreateBlob(
   return result;
 }
 
+bool StartupData::CanBeRehashed() const {
+  DCHECK(i::Snapshot::VerifyChecksum(this));
+  return i::Snapshot::ExtractRehashability(this);
+}
+
 void V8::SetDcheckErrorHandler(DcheckErrorCallback that) {
   v8::base::SetDcheckFunction(that);
 }

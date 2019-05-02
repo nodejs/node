@@ -8609,6 +8609,13 @@ class V8_EXPORT Isolate {
 
 class V8_EXPORT StartupData {
  public:
+  /**
+   * Whether the data created can be rehashed and and the hash seed can be
+   * recomputed when deserialized.
+   * Only valid for StartupData returned by SnapshotCreator::CreateBlob().
+   */
+  bool CanBeRehashed() const;
+
   const char* data;
   int raw_size;
 };

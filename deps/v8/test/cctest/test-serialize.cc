@@ -3774,6 +3774,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
     }
     blob =
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+    CHECK(!blob.CanBeRehashed());
   }
 
   i::FLAG_hash_seed = 1337;
@@ -3842,6 +3843,7 @@ UNINITIALIZED_TEST(WeakArraySerializationInSnapshot) {
     }
     blob =
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+    CHECK(blob.CanBeRehashed());
   }
 
   v8::Isolate::CreateParams create_params;
