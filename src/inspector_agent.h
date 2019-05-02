@@ -6,7 +6,7 @@
 #error("This header can only be used when inspector is enabled")
 #endif
 
-#include "node_options-inl.h"
+#include "node_options.h"
 #include "v8.h"
 
 #include <cstddef>
