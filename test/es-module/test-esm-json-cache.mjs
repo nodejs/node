@@ -1,5 +1,4 @@
 // Flags: --experimental-modules --experimental-json-modules
-/* eslint-disable node-core/required-modules */
 import '../common/index.mjs';
 
 import { strictEqual, deepStrictEqual } from 'assert';

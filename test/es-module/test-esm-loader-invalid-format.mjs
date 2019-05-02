@@ -1,5 +1,4 @@
 // Flags: --experimental-modules --loader ./test/fixtures/es-module-loaders/loader-invalid-format.mjs
-/* eslint-disable node-core/required-modules */
 import { expectsError, mustCall } from '../common/index.mjs';
 import assert from 'assert';
 
