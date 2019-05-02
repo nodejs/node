@@ -87,11 +87,12 @@ class Snapshot : public AllStatic {
   static bool SnapshotIsValid(const v8::StartupData* snapshot_blob);
 #endif  // DEBUG
 
+  static bool ExtractRehashability(const v8::StartupData* data);
+
  private:
   static uint32_t ExtractNumContexts(const v8::StartupData* data);
   static uint32_t ExtractContextOffset(const v8::StartupData* data,
                                        uint32_t index);
-  static bool ExtractRehashability(const v8::StartupData* data);
   static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
   static Vector<const byte> ExtractReadOnlyData(const v8::StartupData* data);
   static Vector<const byte> ExtractContextData(const v8::StartupData* data,
