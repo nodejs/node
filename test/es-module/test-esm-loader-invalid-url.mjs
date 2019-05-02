@@ -1,6 +1,4 @@
 // Flags: --experimental-modules --loader ./test/fixtures/es-module-loaders/loader-invalid-url.mjs
-/* eslint-disable node-core/required-modules */
-
 import { expectsError, mustCall } from '../common/index.mjs';
 import assert from 'assert';
 

@@ -1,5 +1,4 @@
 // Flags: --experimental-modules
-/* eslint-disable node-core/required-modules */
 import cjs from '../fixtures/baz.js';
 import '../common/index.mjs';
 import { message } from '../fixtures/es-modules/message.mjs';
