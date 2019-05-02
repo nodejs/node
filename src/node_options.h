@@ -111,6 +111,8 @@ class EnvironmentOptions : public Options {
   bool prof_process = false;
 #if HAVE_INSPECTOR
   std::string cpu_prof_dir;
+  static const uint64_t kDefaultCpuProfInterval = 1000;
+  uint64_t cpu_prof_interval = kDefaultCpuProfInterval;
   std::string cpu_prof_name;
   bool cpu_prof = false;
 #endif  // HAVE_INSPECTOR

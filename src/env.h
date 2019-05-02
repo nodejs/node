@@ -1143,6 +1143,9 @@ class Environment : public MemoryRetainer {
   inline void set_cpu_prof_name(const std::string& name);
   inline const std::string& cpu_prof_name() const;
 
+  inline void set_cpu_prof_interval(uint64_t interval);
+  inline uint64_t cpu_prof_interval() const;
+
   inline void set_cpu_prof_dir(const std::string& dir);
   inline const std::string& cpu_prof_dir() const;
 #endif  // HAVE_INSPECTOR
@@ -1183,6 +1186,7 @@ class Environment : public MemoryRetainer {
   std::string coverage_directory_;
   std::string cpu_prof_dir_;
   std::string cpu_prof_name_;
+  uint64_t cpu_prof_interval_;
 #endif  // HAVE_INSPECTOR
 
   std::shared_ptr<EnvironmentOptions> options_;
