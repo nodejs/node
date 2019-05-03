@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
@@ -15,11 +15,11 @@ const KEEP_ALIVE = 100;
 const createdIds = [];
 const destroyedIds = [];
 async_hooks.createHook({
-  init: common.mustCallAtLeast((asyncId, type) => {
+  init: (asyncId, type) => {
     if (type === 'HTTPINCOMINGMESSAGE' || type === 'HTTPCLIENTREQUEST') {
       createdIds.push(asyncId);
     }
-  }),
+  },
   destroy: (asyncId) => {
     if (createdIds.includes(asyncId)) {
       destroyedIds.push(asyncId);
