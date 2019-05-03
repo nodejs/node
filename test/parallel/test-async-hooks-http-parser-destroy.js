@@ -1,6 +1,5 @@
 'use strict';
 require('../common');
-const Countdown = require('../common/countdown');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const http = require('http');
@@ -24,6 +23,9 @@ async_hooks.createHook({
     if (createdIds.includes(asyncId)) {
       destroyedIds.push(asyncId);
     }
+    if (destroyedIds.length === 2 * N) {
+      server.close();
+    }
   }
 }).enable();
 
@@ -36,10 +38,6 @@ const keepAliveAgent = new http.Agent({
   keepAliveMsecs: KEEP_ALIVE,
 });
 
-const countdown = new Countdown(N, () => {
-  server.close();
-});
-
 server.listen(0, function() {
   for (let i = 0; i < N; ++i) {
     (function makeRequest() {
@@ -47,7 +45,6 @@ server.listen(0, function() {
         port: server.address().port,
         agent: keepAliveAgent
       }, function(res) {
-        countdown.dec();
         res.resume();
       });
     })();
@@ -56,9 +53,15 @@ server.listen(0, function() {
 
 function checkOnExit() {
   assert.deepStrictEqual(destroyedIds.sort(), createdIds.sort());
-  // There should be at least one ID for each request.
-  assert.ok(createdIds.length >= N, `${createdIds.length} < ${N}`);
+  // There should be two IDs for each request.
+  assert.strictEqual(createdIds.length, N * 2);
 }
+
+process.on('SIGTERM', () => {
+  console.error('Test timed out. Runing checks to see how far we got.');
+  checkOnExit();
+  process.exit(1);
+});
 
 // Ordinary exit.
 process.on('exit', checkOnExit);
