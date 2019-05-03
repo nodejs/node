@@ -46,7 +46,7 @@ server.listen(0, common.mustCall(() => {
     }, common.mustCall((res) => {
       res.on('data', () => {});
       res.on('end', common.mustCall(() => {
-        assert.strictEqual(socket[kTimeout]._idleTimeout, -1);
+        assert.strictEqual(socket[kTimeout], null);
         assert.strictEqual(socket.parser, null);
         assert.strictEqual(socket._httpMessage, null);
       }));
