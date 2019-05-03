@@ -1013,9 +1013,13 @@ Limits maximum incoming headers count. If set to 0, no limit will be applied.
 ### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.9.12
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27558
+    description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* `msecs` {number} **Default:** `120000` (2 minutes)
+* `msecs` {number} **Default:** 0 (no timeout)
 * `callback` {Function}
 * Returns: {http.Server}
 
@@ -1026,16 +1030,20 @@ occurs.
 If there is a `'timeout'` event listener on the Server object, then it
 will be called with the timed-out socket as an argument.
 
-By default, the Server's timeout value is 2 minutes, and sockets are
-destroyed automatically if they time out. However, if a callback is assigned
-to the Server's `'timeout'` event, timeouts must be handled explicitly.
+By default, the Server does not timeout sockets. However, if a callback
+is assigned to the Server's `'timeout'` event, timeouts must be handled
+explicitly.
 
 ### server.timeout
 <!-- YAML
 added: v0.9.12
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27558
+    description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* {number} Timeout in milliseconds. **Default:** `120000` (2 minutes).
+* {number} Timeout in milliseconds. **Default:** 0 (no timeout)
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.

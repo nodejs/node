@@ -43,9 +43,6 @@ process.on('exit', function() {
       { type: 'HTTPINCOMINGMESSAGE',
         id: 'httpincomingmessage:1',
         triggerAsyncId: 'tcp:2' },
-      { type: 'Timeout',
-        id: 'timeout:2',
-        triggerAsyncId: 'tcp:2' },
       { type: 'SHUTDOWNWRAP',
         id: 'shutdown:1',
         triggerAsyncId: 'tcp:2' } ]
