@@ -279,6 +279,8 @@ For information about the governance of the Node.js project, see
 **Bartosz Sosnowski** &lt;bartosz@janeasystems.com&gt;
 * [calvinmetcalf](https://github.com/calvinmetcalf) -
 **Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
+* [cclauss](https://github.com/cclauss) -
+**Christian Clauss** &lt;cclauss@me.com&gt; (he/him)
 * [ChALkeR](https://github.com/ChALkeR) -
 **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; (he/him)
 * [chrisdickinson](https://github.com/chrisdickinson) -
