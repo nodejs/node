@@ -2440,7 +2440,7 @@ similar functions is not intended for public use. Use `ChildProcess.channel`
 instead.
 
 <a id="DEP0130"></a>
-### DEP0130: Module.createRequireFromPath()
+### DEP00XX: Module.createRequireFromPath()
 <!-- YAML
 changes:
   - version: REPLACEME
