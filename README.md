@@ -243,8 +243,6 @@ For information about the governance of the Node.js project, see
 **Anna Henningsen** &lt;anna@addaleax.net&gt; (she/her)
 * [ak239](https://github.com/ak239) -
 **Aleksei Koziatinskii** &lt;ak239spb@gmail.com&gt;
-* [andrasq](https://github.com/andrasq) -
-**Andras** &lt;andras@kinvey.com&gt;
 * [AndreasMadsen](https://github.com/AndreasMadsen) -
 **Andreas Madsen** &lt;amwebdk@gmail.com&gt; (he/him)
 * [AnnaMag](https://github.com/AnnaMag) -
@@ -488,6 +486,8 @@ For information about the governance of the Node.js project, see
 
 ### Collaborator Emeriti
 
+* [andrasq](https://github.com/andrasq) -
+**Andras** &lt;andras@kinvey.com&gt;
 * [imran-iq](https://github.com/imran-iq) -
 **Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [isaacs](https://github.com/isaacs) -
