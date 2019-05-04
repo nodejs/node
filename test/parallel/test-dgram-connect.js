@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const { addresses } = require('../common/internet');
 const assert = require('assert');
 const dgram = require('dgram');
 
@@ -36,17 +35,8 @@ client.connect(PORT, common.mustCall(() => {
     code: 'ERR_SOCKET_DGRAM_NOT_CONNECTED'
   });
 
-  client.connect(PORT, addresses.INVALID_HOST, common.mustCall((err) => {
-    assert.ok(err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN');
-
-    client.once('error', common.mustCall((err) => {
-      assert.ok(err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN');
-      client.once('connect', common.mustCall(() => client.close()));
-      client.connect(PORT);
-    }));
-
-    client.connect(PORT, addresses.INVALID_HOST);
-  }));
+  client.once('connect', common.mustCall(() => client.close()));
+  client.connect(PORT);
 }));
 
 assert.throws(() => {
