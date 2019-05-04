@@ -55,6 +55,7 @@ function test() {
       key: keys.agent6.key
     },
   }, common.mustCall((err, pair, cleanup) => {
+    assert.ifError(err);
     return cleanup();
   }));
 }
