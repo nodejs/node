@@ -58,8 +58,9 @@ function checkOnExit() {
 }
 
 process.on('SIGTERM', () => {
-  console.error('Test timed out. Runing checks to see how far we got.');
-  checkOnExit();
+  // Catching SIGTERM and calling `process.exit(1)`  so that the `exit` event
+  // is triggered and the assertions are checked. This can be useful for
+  // troubleshooting this test if it times out.
   process.exit(1);
 });
 
