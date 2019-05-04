@@ -27,6 +27,10 @@ const server = tls.createServer({
       p._read();
   });
 
+  raw.on('end', function() {
+    p.push(null);
+  });
+
   const p = new stream.Duplex({
     read: function read() {
       pending = false;
