@@ -55,7 +55,13 @@ function test() {
       key: keys.agent6.key
     },
   }, common.mustCall((err, pair, cleanup) => {
-    assert.ifError(err);
+    if (err) {
+      console.error(err);
+      console.error(err.opensslErrorStack);
+      console.error(err.reason);
+      assert(err);
+    }
+
     return cleanup();
   }));
 }
