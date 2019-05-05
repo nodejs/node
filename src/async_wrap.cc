@@ -410,12 +410,25 @@ void AsyncWrap::PopAsyncIds(const FunctionCallbackInfo<Value>& args) {
 
 
 void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+
   AsyncWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+
+  Local<Object> resource = args[0].As<Object>();
   double execution_async_id =
-      args[0]->IsNumber() ? args[0].As<Number>()->Value() : kInvalidAsyncId;
-  wrap->AsyncReset(execution_async_id);
+      args[1]->IsNumber() ? args[1].As<Number>()->Value() : kInvalidAsyncId;
+  wrap->AsyncReset(resource, execution_async_id);
 }
+
+
+void AsyncWrap::GetProviderType(const FunctionCallbackInfo<Value>& args) {
+  AsyncWrap* wrap;
+  args.GetReturnValue().Set(AsyncWrap::PROVIDER_NONE);
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  args.GetReturnValue().Set(wrap->provider_type());
+}
+
 
 void AsyncWrap::EmitDestroy() {
   AsyncWrap::EmitDestroy(env(), async_id_);
@@ -437,6 +450,7 @@ Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(Environment* env) {
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"));
     env->SetProtoMethod(tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
     env->SetProtoMethod(tmpl, "asyncReset", AsyncWrap::AsyncReset);
+    env->SetProtoMethod(tmpl, "getProviderType", AsyncWrap::GetProviderType);
     env->set_async_wrap_ctor_template(tmpl);
   }
   return tmpl;
