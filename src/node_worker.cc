@@ -16,6 +16,7 @@
 #include <vector>
 
 using node::options_parser::kDisallowedInEnvironment;
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
@@ -27,6 +28,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
+using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
 using v8::SealHandleScope;
@@ -414,30 +416,30 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsNullOrUndefined()) {
     Utf8Value value(
         args.GetIsolate(),
-        args[0]->ToString(env->context()).FromMaybe(v8::Local<v8::String>()));
+        args[0]->ToString(env->context()).FromMaybe(Local<String>()));
     url.append(value.out(), value.length());
   }
 
   if (args[1]->IsArray()) {
-    v8::Local<v8::Array> array = args[1].As<v8::Array>();
+    Local<Array> array = args[1].As<Array>();
     // The first argument is reserved for program name, but we don't need it
     // in workers.
     has_explicit_exec_argv = true;
     std::vector<std::string> exec_argv = {""};
     uint32_t length = array->Length();
     for (uint32_t i = 0; i < length; i++) {
-      v8::Local<v8::Value> arg;
+      Local<Value> arg;
       if (!array->Get(env->context(), i).ToLocal(&arg)) {
         return;
       }
-      v8::MaybeLocal<v8::String> arg_v8_string =
+      MaybeLocal<String> arg_v8_string =
           arg->ToString(env->context());
       if (arg_v8_string.IsEmpty()) {
         return;
       }
       Utf8Value arg_utf8_value(
           args.GetIsolate(),
-          arg_v8_string.FromMaybe(v8::Local<v8::String>()));
+          arg_v8_string.FromMaybe(Local<String>()));
       std::string arg_string(arg_utf8_value.out(), arg_utf8_value.length());
       exec_argv.push_back(arg_string);
     }
@@ -459,7 +461,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     // The first argument is program name.
     invalid_args.erase(invalid_args.begin());
     if (errors.size() > 0 || invalid_args.size() > 0) {
-      v8::Local<v8::Value> error;
+      Local<Value> error;
       if (!ToV8Value(env->context(),
                      errors.size() > 0 ? errors : invalid_args)
                          .ToLocal(&error)) {
