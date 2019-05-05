@@ -293,7 +293,7 @@ assert.strictEqual(util.format('abc%', 1), 'abc% 1');
 
 // Additional arguments after format specifiers
 assert.strictEqual(util.format('%i', 1, 'number'), '1 number');
-assert.strictEqual(util.format('%i', 1, () => {}), '1 [Function (anonymous)]');
+assert.strictEqual(util.format('%i', 1, () => {}), '1 [Function]');
 
 {
   const o = {};
@@ -344,8 +344,8 @@ assert.strictEqual(util.format('1', '1'), '1 1');
 assert.strictEqual(util.format(1, '1'), '1 1');
 assert.strictEqual(util.format('1', 1), '1 1');
 assert.strictEqual(util.format(1, -0), '1 -0');
-assert.strictEqual(util.format('1', () => {}), '1 [Function (anonymous)]');
-assert.strictEqual(util.format(1, () => {}), '1 [Function (anonymous)]');
+assert.strictEqual(util.format('1', () => {}), '1 [Function]');
+assert.strictEqual(util.format(1, () => {}), '1 [Function]');
 assert.strictEqual(util.format('1', "'"), "1 '");
 assert.strictEqual(util.format(1, "'"), "1 '");
 assert.strictEqual(util.format('1', 'number'), '1 number');

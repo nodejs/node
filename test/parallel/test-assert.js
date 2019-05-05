@@ -289,7 +289,7 @@ testAssertionMessage(undefined, 'undefined');
 testAssertionMessage(-Infinity, '-Infinity');
 testAssertionMessage([1, 2, 3], '[\n+   1,\n+   2,\n+   3\n+ ]');
 testAssertionMessage(function f() {}, '[Function: f]');
-testAssertionMessage(function() {}, '[Function (anonymous)]');
+testAssertionMessage(function() {}, '[Function]');
 testAssertionMessage(circular, '{\n+   x: [Circular],\n+   y: 1\n+ }');
 testAssertionMessage({ a: undefined, b: null },
                      '{\n+   a: undefined,\n+   b: null\n+ }');
@@ -597,7 +597,7 @@ assert.throws(
     '\n' +
     '+ {}\n' +
     '- {\n' +
-    '-   [Symbol(nodejs.util.inspect.custom)]: [Function (anonymous)],\n' +
+    '-   [Symbol(nodejs.util.inspect.custom)]: [Function],\n' +
     "-   loop: 'forever'\n" +
     '- }'
   });
