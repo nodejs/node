@@ -1364,7 +1364,7 @@ The `NODE_REPL_MODE` environment variable is used to set the underlying
 removed. Please use `sloppy` instead.
 
 <a id="DEP0066"></a>
-### DEP0066: outgoingMessage.\_headers, outgoingMessage.\_headerNames
+### DEP0066: outgoingMessage.prototype.\_headers, outgoingMessage.prototype.\_headerNames
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -1377,14 +1377,14 @@ changes:
 
 Type: Runtime
 
-The `http` module `outgoingMessage._headers` and `outgoingMessage._headerNames`
+The `http` module `outgoingMessage.prototype._headers` and `outgoingMessage.prototype._headerNames`
 properties are deprecated. Use one of the public methods
 (e.g. `outgoingMessage.getHeader()`, `outgoingMessage.getHeaders()`,
 `outgoingMessage.getHeaderNames()`, `outgoingMessage.hasHeader()`,
 `outgoingMessage.removeHeader()`, `outgoingMessage.setHeader()`) for working
 with outgoing headers.
 
-The `outgoingMessage._headers` and `outgoingMessage._headerNames` properties
+The `outgoingMessage.prototype._headers` and `outgoingMessage.prototype._headerNames` properties
 were never documented as officially supported properties.
 
 <a id="DEP0067"></a>
