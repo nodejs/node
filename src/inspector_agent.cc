@@ -237,7 +237,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     worker_agent_.reset();  // Dispose before the dispatchers
   }
 
-  std::string dispatchProtocolMessage(const StringView& message) {
+  void dispatchProtocolMessage(const StringView& message) {
     std::string raw_message = protocol::StringUtil::StringViewToUtf8(message);
     std::unique_ptr<protocol::DictionaryValue> value =
         protocol::DictionaryValue::cast(protocol::StringUtil::parseMessage(
@@ -252,7 +252,6 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
       node_dispatcher_->dispatch(call_id, method, std::move(value),
                                  raw_message);
     }
-    return method;
   }
 
   void schedulePauseOnNextStatement(const std::string& reason) {
@@ -494,9 +493,12 @@ class NodeInspectorClient : public V8InspectorClient {
     waiting_for_resume_ = false;
   }
 
+  void runIfWaitingForDebugger(int context_group_id) override {
+    waiting_for_frontend_ = false;
+  }
+
   int connectFrontend(std::unique_ptr<InspectorSessionDelegate> delegate,
                       bool prevent_shutdown) {
-    events_dispatched_ = true;
     int session_id = next_session_id_++;
     channels_[session_id] = std::make_unique<ChannelImpl>(env_,
                                                           client_,
@@ -508,16 +510,11 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   void disconnectFrontend(int session_id) {
-    events_dispatched_ = true;
     channels_.erase(session_id);
   }
 
   void dispatchMessageFromFrontend(int session_id, const StringView& message) {
-    events_dispatched_ = true;
-    std::string method =
-        channels_[session_id]->dispatchProtocolMessage(message);
-    if (waiting_for_frontend_)
-      waiting_for_frontend_ = method != "Runtime.runIfWaitingForDebugger";
+    channels_[session_id]->dispatchProtocolMessage(message);
   }
 
   Local<Context> ensureDefaultContextInGroup(int contextGroupId) override {
@@ -678,7 +675,6 @@ class NodeInspectorClient : public V8InspectorClient {
   std::unordered_map<int, std::unique_ptr<ChannelImpl>> channels_;
   std::unordered_map<void*, InspectorTimerHandle> timers_;
   int next_session_id_ = 1;
-  bool events_dispatched_ = false;
   bool waiting_for_resume_ = false;
   bool waiting_for_frontend_ = false;
   bool waiting_for_io_shutdown_ = false;
