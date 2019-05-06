@@ -152,7 +152,7 @@ MaybeLocal<Function> NativeModuleEnv::LookupAndCompile(
 }
 
 // TODO(joyeecheung): It is somewhat confusing that Class::Initialize
-// is used to initilaize to the binding, but it is the current convention.
+// is used to initialize to the binding, but it is the current convention.
 // Rename this across the code base to something that makes more sense.
 void NativeModuleEnv::Initialize(Local<Object> target,
                                  Local<Value> unused,

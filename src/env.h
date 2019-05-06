@@ -885,7 +885,7 @@ class Environment : public MemoryRetainer {
 
   inline IsolateData* isolate_data() const;
 
-  // Utilites that allocate memory using the Isolate's ArrayBuffer::Allocator.
+  // Utilities that allocate memory using the Isolate's ArrayBuffer::Allocator.
   // In particular, using AllocateManaged() will provide a RAII-style object
   // with easy conversion to `Buffer` and `ArrayBuffer` objects.
   inline AllocatedBuffer AllocateManaged(size_t size, bool checked = true);
