@@ -914,7 +914,7 @@ const builtin = require('module').builtinModules;
 
 ### module.createRequire(filename)
 <!-- YAML
-added: REPLACEME
+added: v12.2.0
 -->
 
 * `filename` {string|URL} Filename to be used to construct the require
@@ -933,7 +933,7 @@ requireUtil('./some-tool');
 ### module.createRequireFromPath(filename)
 <!-- YAML
 added: v10.12.0
-deprecated: REPLACEME
+deprecated: v12.2.0
 -->
 
 * `filename` {string} Filename to be used to construct the relative require

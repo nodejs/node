@@ -2440,10 +2440,10 @@ similar functions is not intended for public use. Use `ChildProcess.channel`
 instead.
 
 <a id="DEP0130"></a>
-### DEP00XX: Module.createRequireFromPath()
+### DEP0130: Module.createRequireFromPath()
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.2.0
     pr-url: https://github.com/nodejs/node/pull/27405
     description: Documentation-only.
 -->
