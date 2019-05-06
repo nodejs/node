@@ -334,15 +334,10 @@ static void EnablePromiseHook(const FunctionCallbackInfo<Value>& args) {
 static void DisablePromiseHook(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
 
-  // Delay the call to `RemovePromiseHook` because we might currently be
-  // between the `before` and `after` calls of a Promise.
-  isolate->EnqueueMicrotask([](void* data) {
-    // The per-Isolate API provides no way of knowing whether there are multiple
-    // users of the PromiseHook. That hopefully goes away when V8 introduces
-    // a per-context API.
-    Isolate* isolate = static_cast<Isolate*>(data);
-    isolate->SetPromiseHook(nullptr);
-  }, static_cast<void*>(isolate));
+  // The per-Isolate API provides no way of knowing whether there are multiple
+  // users of the PromiseHook. That hopefully goes away when V8 introduces
+  // a per-context API.
+  isolate->SetPromiseHook(nullptr);
 }
 
 
