@@ -295,8 +295,8 @@ If you want to run the linter without running tests, use
 `make lint`/`vcbuild lint`. It will run both JavaScript linting and
 C++ linting.
 
-If you are updating tests and just want to run tests in a single test file
-(e.g. `test/parallel/test-stream2-transform.js`) to check it:
+If you are updating tests and want to run tests in a single test file
+(e.g. `test/parallel/test-stream2-transform.js`):
 
 ```text
 $ python tools/test.py parallel/test-stream2-transform.js
