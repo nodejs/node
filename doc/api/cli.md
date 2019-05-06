@@ -109,7 +109,7 @@ be placed.
 
 ### `--cpu-prof-interval`
 <!-- YAML
-added: REPLACEME
+added: v12.2.0
 -->
 
 > Stability: 1 - Experimental
@@ -598,7 +598,7 @@ with old TLS clients or servers.
 
 ### `--tls-min-v1.2`
 <!-- YAML
-added: REPLACEME
+added: v12.2.0
 -->
 
 Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.2'. This is the default for
@@ -653,7 +653,7 @@ of the event loop.
 
 ### `--trace-tls`
 <!-- YAML
-added: REPLACEME
+added: v12.2.0
 -->
 
 Prints TLS packet trace information to `stderr`. This can be used to debug TLS

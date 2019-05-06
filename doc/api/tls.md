@@ -586,7 +586,7 @@ connection is open.
 <!-- YAML
 added: v0.11.4
 changes:
-  - version: REPLACEME
+  - version: v12.2.0
     pr-url: https://github.com/nodejs/node/pull/27497
     description: The `enableTrace` option is now supported.
   - version: v5.0.0
@@ -731,7 +731,7 @@ to renegotiate will trigger an `'error'` event on the `TLSSocket`.
 
 ### tlsSocket.enableTrace()
 <!-- YAML
-added: REPLACEME
+added: v12.2.0
 -->
 
 When enabled, TLS packet trace information is written to `stderr`. This can be
@@ -1129,7 +1129,7 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: REPLACEME
+  - version: v12.2.0
     pr-url: https://github.com/nodejs/node/pull/27497
     description: The `enableTrace` option is now supported.
   - version: v11.8.0
