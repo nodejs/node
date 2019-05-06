@@ -1364,7 +1364,7 @@ The `NODE_REPL_MODE` environment variable is used to set the underlying
 removed. Please use `sloppy` instead.
 
 <a id="DEP0066"></a>
-### DEP0066: outgoingMessage.\_headers, outgoingMessage.\_headerNames
+### DEP0066: OutgoingMessage.prototype.\_headers, OutgoingMessage.prototype.\_headerNames
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -1377,15 +1377,18 @@ changes:
 
 Type: Runtime
 
-The `http` module `outgoingMessage._headers` and `outgoingMessage._headerNames`
-properties are deprecated. Use one of the public methods
-(e.g. `outgoingMessage.getHeader()`, `outgoingMessage.getHeaders()`,
-`outgoingMessage.getHeaderNames()`, `outgoingMessage.hasHeader()`,
-`outgoingMessage.removeHeader()`, `outgoingMessage.setHeader()`) for working
-with outgoing headers.
+The `http` module `OutgoingMessage.prototype._headers` and
+`OutgoingMessage.prototype._headerNames` properties are deprecated. Use one of
+the public methods (e.g. `OutgoingMessage.prototype.getHeader()`,
+`OutgoingMessage.prototype.getHeaders()`,
+`OutgoingMessage.prototype.getHeaderNames()`,
+`OutgoingMessage.prototype.hasHeader()`,
+`OutgoingMessage.prototype.removeHeader()`,
+`OutgoingMessage.prototype.setHeader()`) for working with outgoing headers.
 
-The `outgoingMessage._headers` and `outgoingMessage._headerNames` properties
-were never documented as officially supported properties.
+The `OutgoingMessage.prototype._headers` and
+`OutgoingMessage.prototype._headerNames` properties were never documented as
+officially supported properties.
 
 <a id="DEP0067"></a>
 ### DEP0067: OutgoingMessage.prototype.\_renderHeaders
