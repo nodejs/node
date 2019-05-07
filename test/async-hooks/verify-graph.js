@@ -108,7 +108,8 @@ module.exports = function verifyGraph(hooks, graph) {
 
   for (const type in expTypes) {
     assert.strictEqual(typeSeen[type], expTypes[type],
-                       `Expecting type '${type}' in graph`);
+                       `Type '${type}': expecting: ${expTypes[type]} ` +
+                       `found ${typeSeen[type]}`);
   }
 };
 
