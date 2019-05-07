@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const nodeModules = path.join(__dirname, 'node_modules');
@@ -53,4 +53,34 @@ assert.throws(() => {
     require.resolve('bar', { paths }),
     path.join(nodeModules, 'bar.js')
   );
+}
+
+// Verify that relative request paths work properly.
+{
+  const searchIn = './' + path.relative(process.cwd(), nestedIndex);
+
+  // Search in relative paths.
+  assert.strictEqual(
+    require.resolve('./three.js', { paths: [searchIn] }),
+    path.join(nestedIndex, 'three.js')
+  );
+
+  // Search in absolute paths.
+  assert.strictEqual(
+    require.resolve('./three.js', { paths: [nestedIndex] }),
+    path.join(nestedIndex, 'three.js')
+  );
+
+  // Repeat the same tests with Windows slashes in the request path.
+  if (common.isWindows) {
+    assert.strictEqual(
+      require.resolve('.\\three.js', { paths: [searchIn] }),
+      path.join(nestedIndex, 'three.js')
+    );
+
+    assert.strictEqual(
+      require.resolve('.\\three.js', { paths: [nestedIndex] }),
+      path.join(nestedIndex, 'three.js')
+    );
+  }
 }
