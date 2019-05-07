@@ -1377,15 +1377,18 @@ changes:
 
 Type: Runtime
 
-The `http` module `OutgoingMessage.prototype._headers` and `OutgoingMessage.prototype._headerNames`
-properties are deprecated. Use one of the public methods
-(e.g. `OutgoingMessage.prototype.getHeader()`, `OutgoingMessage.prototype.getHeaders()`,
-`OutgoingMessage.prototype.getHeaderNames()`, `OutgoingMessage.prototype.hasHeader()`,
-`OutgoingMessage.prototype.removeHeader()`, `OutgoingMessage.prototype.setHeader()`) for working
-with outgoing headers.
+The `http` module `OutgoingMessage.prototype._headers` and
+`OutgoingMessage.prototype._headerNames` properties are deprecated. Use one of
+the public methods (e.g. `OutgoingMessage.prototype.getHeader()`,
+`OutgoingMessage.prototype.getHeaders()`,
+`OutgoingMessage.prototype.getHeaderNames()`,
+`OutgoingMessage.prototype.hasHeader()`,
+`OutgoingMessage.prototype.removeHeader()`,
+`OutgoingMessage.prototype.setHeader()`) for working with outgoing headers.
 
-The `OutgoingMessage.prototype._headers` and `OutgoingMessage.prototype._headerNames` properties
-were never documented as officially supported properties.
+The `OutgoingMessage.prototype._headers` and
+`OutgoingMessage.prototype._headerNames` properties were never documented as
+officially supported properties.
 
 <a id="DEP0067"></a>
 ### DEP0067: OutgoingMessage.prototype.\_renderHeaders
