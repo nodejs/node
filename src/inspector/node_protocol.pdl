@@ -92,3 +92,16 @@ experimental domain NodeWorker
       # Identifier of a session which sends a message.
       SessionID sessionId
       string message
+
+# Support for inspecting node process state.
+experimental domain NodeRuntime
+  # Enable the `NodeRuntime.waitingForDisconnect`.
+  command notifyWhenWaitingForDisconnect
+    parameters
+      boolean enabled
+
+  # This event is fired instead of `Runtime.executionContextDestroyed` when
+  # enabled.
+  # It is fired when the Node process finished all code execution and is
+  # waiting for all frontends to disconnect.
+  event waitingForDisconnect

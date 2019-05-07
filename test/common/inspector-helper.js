@@ -191,6 +191,10 @@ class InspectorSession {
     }
   }
 
+  unprocessedNotifications() {
+    return this._unprocessedNotifications;
+  }
+
   _sendMessage(message) {
     const msg = JSON.parse(JSON.stringify(message)); // Clone!
     msg.id = this._nextId++;

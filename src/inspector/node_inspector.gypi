@@ -9,6 +9,8 @@
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/NodeWorker.h',
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/NodeTracing.cpp',
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/NodeTracing.h',
+      '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/NodeRuntime.cpp',
+      '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/NodeRuntime.h',
     ],
     'node_protocol_files': [
       '<(protocol_tool_path)/lib/Allocator_h.template',
@@ -55,6 +57,8 @@
     '../../src/inspector/main_thread_interface.h',
     '../../src/inspector/node_string.cc',
     '../../src/inspector/node_string.h',
+    '../../src/inspector/runtime_agent.cc',
+    '../../src/inspector/runtime_agent.h',
     '../../src/inspector/tracing_agent.cc',
     '../../src/inspector/tracing_agent.h',
     '../../src/inspector/worker_agent.cc',
