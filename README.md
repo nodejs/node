@@ -403,8 +403,6 @@ For information about the governance of the Node.js project, see
 **Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; (he/him)
 * [oyyd](https://github.com/oyyd) -
 **Ouyang Yadong** &lt;oyydoibh@gmail.com&gt; (he/him)
-* [pmq20](https://github.com/pmq20) -
-**Minqi Pan** &lt;pmq2001@gmail.com&gt;
 * [princejwesley](https://github.com/princejwesley) -
 **Prince John Wesley** &lt;princejohnwesley@gmail.com&gt;
 * [psmarshall](https://github.com/psmarshall) -
@@ -514,6 +512,8 @@ For information about the governance of the Node.js project, see
 **Phillip Johnsen** &lt;johphi@gmail.com&gt;
 * [piscisaureus](https://github.com/piscisaureus) -
 **Bert Belder** &lt;bertbelder@gmail.com&gt;
+* [pmq20](https://github.com/pmq20) -
+**Minqi Pan** &lt;pmq2001@gmail.com&gt;
 * [rlidwka](https://github.com/rlidwka) -
 **Alex Kocharin** &lt;alex@kocharin.ru&gt;
 * [rmg](https://github.com/rmg) -
