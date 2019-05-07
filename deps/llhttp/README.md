@@ -24,7 +24,7 @@ This project is a port of [http_parser][0] to TypeScript. [llparse][1] is used
 to generate the output C and/or bitcode artifacts, which could be compiled and
 linked with the embedder's program (like [Node.js][7]).
 
-## Peformance
+## Performance
 
 So far llhttp outperforms http_parser:
 
