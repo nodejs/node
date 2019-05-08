@@ -43,6 +43,7 @@ class InspectorSocketServer {
                         uv_loop_t* loop,
                         const std::string& host,
                         int port,
+                        const std::string& inspector_store,
                         FILE* out = stderr);
   ~InspectorSocketServer();
 
@@ -79,6 +80,7 @@ class InspectorSocketServer {
  private:
   void SendListResponse(InspectorSocket* socket, const std::string& host,
                         SocketSession* session);
+  std::string GetListResponse(const std::string& host);
   std::string GetFrontendURL(bool is_compat,
                              const std::string &formatted_address);
   bool TargetExists(const std::string& id);
@@ -88,6 +90,7 @@ class InspectorSocketServer {
   std::unique_ptr<SocketServerDelegate> delegate_;
   const std::string host_;
   int port_;
+  std::string inspector_store_;
   std::vector<ServerSocketPtr> server_sockets_;
   std::map<int, std::pair<std::string, std::unique_ptr<SocketSession>>>
       connected_sessions_;

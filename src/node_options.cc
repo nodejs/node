@@ -260,6 +260,13 @@ DebugOptionsParser::DebugOptionsParser() {
   Implies("--inspect-brk-node", "--inspect");
   AddAlias("--inspect-brk-node=", { "--inspect-port", "--inspect-brk-node" });
 
+  AddOption("--inspect-store",
+            "experimental force inspector to put information available on /json/list "
+            "to file inside given folder",
+            &DebugOptions::inspect_store,
+            kAllowedInEnvironment);
+  Implies("--inspect-store", "--inspect");
+
   AddOption("--debug-brk", "", &DebugOptions::break_first_line);
   Implies("--debug-brk", "--debug");
   AddAlias("--debug-brk=", { "--inspect-port", "--debug-brk" });

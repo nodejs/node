@@ -358,7 +358,7 @@ ServerHolder::ServerHolder(bool has_targets, uv_loop_t* loop,
   std::unique_ptr<TestSocketServerDelegate> delegate(
       new TestSocketServerDelegate(this, targets));
   server_ = std::make_unique<InspectorSocketServer>(
-      std::move(delegate), loop, host, port, out);
+      std::move(delegate), loop, host, port, std::string(), out);
 }
 
 static void TestHttpRequest(int port, const std::string& path,

@@ -40,6 +40,25 @@ std::string ScriptPath(uv_loop_t* loop, const std::string& script_name) {
   return script_path;
 }
 
+std::string StorePath(uv_loop_t* loop,
+                      const std::string& inspector_store,
+                      const std::string& id) {
+  std::string store_path;
+
+  if (!inspector_store.empty()) {
+    store_path = ScriptPath(loop, inspector_store);
+    if (!store_path.empty()) {
+      char sep = '/';
+#ifdef _WIN32
+      sep = '\\';
+#endif
+      store_path = store_path + sep + id;
+    }
+  }
+
+  return store_path;
+}
+
 // UUID RFC: https://www.ietf.org/rfc/rfc4122.txt
 // Used ver 4 - with numbers
 std::string GenerateID() {
@@ -243,9 +262,10 @@ class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
 std::unique_ptr<InspectorIo> InspectorIo::Start(
     std::shared_ptr<MainThreadHandle> main_thread,
     const std::string& path,
-    std::shared_ptr<HostPort> host_port) {
+    std::shared_ptr<HostPort> host_port,
+    const std::string& inspector_store) {
   auto io = std::unique_ptr<InspectorIo>(
-      new InspectorIo(main_thread, path, host_port));
+      new InspectorIo(main_thread, path, host_port, inspector_store));
   if (io->request_queue_->Expired()) {  // Thread is not running
     return nullptr;
   }
@@ -254,11 +274,13 @@ std::unique_ptr<InspectorIo> InspectorIo::Start(
 
 InspectorIo::InspectorIo(std::shared_ptr<MainThreadHandle> main_thread,
                          const std::string& path,
-                         std::shared_ptr<HostPort> host_port)
+                         std::shared_ptr<HostPort> host_port,
+                         const std::string& inspector_store)
     : main_thread_(main_thread),
       host_port_(host_port),
       thread_(),
       script_name_(path),
+      inspector_store_(inspector_store),
       id_(GenerateID()) {
   Mutex::ScopedLock scoped_lock(thread_start_lock_);
   CHECK_EQ(uv_thread_create(&thread_, InspectorIo::ThreadMain, this), 0);
@@ -294,7 +316,8 @@ void InspectorIo::ThreadMain() {
   InspectorSocketServer server(std::move(delegate),
                                &loop,
                                host_port_->host(),
-                               host_port_->port());
+                               host_port_->port(),
+                               StorePath(&loop, inspector_store_, id_));
   request_queue_ = queue->handle();
   // Its lifetime is now that of the server delegate
   queue.reset();

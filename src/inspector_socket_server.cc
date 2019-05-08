@@ -1,6 +1,7 @@
 #include "inspector_socket_server.h"
 
 #include "node.h"
+#include "node_internals.h"
 #include "uv.h"
 #include "zlib.h"
 
@@ -238,11 +239,29 @@ void PrintDebuggerReadyMessage(
   fflush(out);
 }
 
+void WriteJsonListToFile(const std::string& filename,
+                         std::string json_list_content) {
+  uv_buf_t data;
+  data.base = &json_list_content[0];
+  data.len = json_list_content.length();
+  WriteFileSync(filename.c_str(), data);
+}
+
+void RemoveStoreFileIfNeeded(uv_loop_t* loop, std::string* filename) {
+  if (!filename->empty()) {
+    uv_fs_t req;
+    req.ptr = nullptr;
+    uv_fs_unlink(loop, &req, filename->c_str(), nullptr);
+    uv_fs_req_cleanup(&req);
+    filename->clear();
+  }
+}
+
 InspectorSocketServer::InspectorSocketServer(
     std::unique_ptr<SocketServerDelegate> delegate, uv_loop_t* loop,
-    const std::string& host, int port, FILE* out)
+    const std::string& host, int port, const std::string& inspector_store, FILE* out)
     : loop_(loop), delegate_(std::move(delegate)), host_(host), port_(port),
-      next_session_id_(0), out_(out) {
+      inspector_store_(inspector_store), next_session_id_(0), out_(out) {
   delegate_->AssignServer(this);
   state_ = ServerState::kNew;
 }
@@ -313,6 +332,15 @@ bool InspectorSocketServer::HandleGetRequest(int session_id,
 void InspectorSocketServer::SendListResponse(InspectorSocket* socket,
                                              const std::string& host,
                                              SocketSession* session) {
+  std::string detected_host = host;
+  if (detected_host.empty()) {
+    detected_host = FormatHostPort(socket->GetHost(),
+                                   session->server_port());
+  }
+  SendHttpResponse(socket, GetListResponse(detected_host));
+}
+
+std::string InspectorSocketServer::GetListResponse(const std::string& detected_host) {
   std::vector<std::map<std::string, std::string>> response;
   for (const std::string& id : delegate_->GetTargetIds()) {
     response.push_back(std::map<std::string, std::string>());
@@ -328,11 +356,6 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket,
     target_map["url"] = delegate_->GetTargetUrl(id);
     Escape(&target_map["url"]);
 
-    std::string detected_host = host;
-    if (detected_host.empty()) {
-      detected_host = FormatHostPort(socket->GetHost(),
-                                     session->server_port());
-    }
     std::string formatted_address = FormatAddress(detected_host, id, false);
     target_map["devtoolsFrontendUrl"] = GetFrontendURL(false,
                                                        formatted_address);
@@ -341,7 +364,7 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket,
                                                              formatted_address);
     target_map["webSocketDebuggerUrl"] = FormatAddress(detected_host, id, true);
   }
-  SendHttpResponse(socket, MapsToString(response));
+  return MapsToString(response);
 }
 
 std::string InspectorSocketServer::GetFrontendURL(bool is_compat,
@@ -396,6 +419,10 @@ bool InspectorSocketServer::Start() {
   }
   delegate_.swap(delegate_holder);
   state_ = ServerState::kRunning;
+  if (!inspector_store_.empty()) {
+    WriteJsonListToFile(inspector_store_, GetListResponse(
+        FormatHostPort(host_, port_)));
+  }
   PrintDebuggerReadyMessage(host_, server_sockets_,
                             delegate_->GetTargetIds(), out_);
   return true;
@@ -409,11 +436,13 @@ void InspectorSocketServer::Stop() {
   server_sockets_.clear();
   if (done())
     delegate_.reset();
+  RemoveStoreFileIfNeeded(loop_, &inspector_store_);
 }
 
 void InspectorSocketServer::TerminateConnections() {
   for (const auto& key_value : connected_sessions_)
     key_value.second.second->Close();
+  RemoveStoreFileIfNeeded(loop_, &inspector_store_);
 }
 
 bool InspectorSocketServer::TargetExists(const std::string& id) {

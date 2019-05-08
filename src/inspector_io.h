@@ -48,7 +48,8 @@ class InspectorIo {
   static std::unique_ptr<InspectorIo> Start(
       std::shared_ptr<MainThreadHandle> main_thread,
       const std::string& path,
-      std::shared_ptr<HostPort> host_port);
+      std::shared_ptr<HostPort> host_port,
+      const std::string& inspector_store);
 
   // Will block till the transport thread shuts down
   ~InspectorIo();
@@ -61,7 +62,8 @@ class InspectorIo {
  private:
   InspectorIo(std::shared_ptr<MainThreadHandle> handle,
               const std::string& path,
-              std::shared_ptr<HostPort> host_port);
+              std::shared_ptr<HostPort> host_port,
+              const std::string& inspector_store);
 
   // Wrapper for agent->ThreadMain()
   static void ThreadMain(void* agent);
@@ -85,6 +87,7 @@ class InspectorIo {
   Mutex thread_start_lock_;
   ConditionVariable thread_start_condition_;
   std::string script_name_;
+  std::string inspector_store_;
   // May be accessed from any thread
   const std::string id_;
 };
