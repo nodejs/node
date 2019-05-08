@@ -32,16 +32,33 @@ void RunStdFunction(void* data) {
 template <typename TMixin>
 class WithFinalizationGroupMixin : public TMixin {
  public:
-  WithFinalizationGroupMixin() {
+  WithFinalizationGroupMixin() = default;
+  ~WithFinalizationGroupMixin() override = default;
+
+  static void SetUpTestCase() {
+    CHECK_NULL(save_flags_);
+    save_flags_ = new SaveFlags();
     FLAG_harmony_weak_refs = true;
     FLAG_expose_gc = true;
+    FLAG_allow_natives_syntax = true;
+    TMixin::SetUpTestCase();
+  }
+
+  static void TearDownTestCase() {
+    TMixin::TearDownTestCase();
+    CHECK_NOT_NULL(save_flags_);
+    delete save_flags_;
+    save_flags_ = nullptr;
   }
 
  private:
-  SaveFlags save_flags_;
+  static SaveFlags* save_flags_;
 
   DISALLOW_COPY_AND_ASSIGN(WithFinalizationGroupMixin);
 };
+
+template <typename TMixin>
+SaveFlags* WithFinalizationGroupMixin<TMixin>::save_flags_ = nullptr;
 
 using TestWithNativeContextAndFinalizationGroup =  //
     WithInternalIsolateMixin<                      //
@@ -496,6 +513,48 @@ TEST_F(MicrotaskQueueTest, DetachGlobal_HandlerContext) {
   EXPECT_FALSE(
       JSReceiver::HasProperty(results, NameFromChars("stale_handler_reject"))
           .FromJust());
+}
+
+TEST_F(MicrotaskQueueTest, DetachGlobal_InactiveHandler) {
+  Local<v8::Context> sub_context = v8::Context::New(v8_isolate());
+  Utils::OpenHandle(*sub_context)
+      ->native_context()
+      ->set_microtask_queue(microtask_queue());
+
+  Handle<JSArray> result;
+  Handle<JSFunction> stale_handler;
+  Handle<JSPromise> stale_promise;
+  {
+    v8::Context::Scope scope(sub_context);
+    result = RunJS<JSArray>("var result = [false, false]; result");
+    stale_handler = RunJS<JSFunction>("() => { result[0] = true; }");
+    stale_promise = RunJS<JSPromise>(
+        "var stale_promise = new Promise(()=>{});"
+        "stale_promise");
+    RunJS("stale_promise.then(() => { result [1] = true; });");
+  }
+  sub_context->DetachGlobal();
+  sub_context.Clear();
+
+  // The context of |stale_handler| and |stale_promise| is detached at this
+  // point.
+  // Ensure that resolution handling for |stale_handler| is cancelled without
+  // crash. Also, the resolution of |stale_promise| is also cancelled.
+
+  SetGlobalProperty("stale_handler", Utils::ToLocal(stale_handler));
+  RunJS("%EnqueueMicrotask(stale_handler)");
+
+  v8_isolate()->EnqueueMicrotask(Utils::ToLocal(stale_handler));
+
+  JSPromise::Fulfill(
+      stale_promise,
+      handle(ReadOnlyRoots(isolate()).undefined_value(), isolate()));
+
+  microtask_queue()->RunMicrotasks(isolate());
+  EXPECT_TRUE(
+      Object::GetElement(isolate(), result, 0).ToHandleChecked()->IsFalse());
+  EXPECT_TRUE(
+      Object::GetElement(isolate(), result, 1).ToHandleChecked()->IsFalse());
 }
 
 }  // namespace internal

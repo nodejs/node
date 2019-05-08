@@ -59,11 +59,11 @@ class CompilerDispatcherTest : public TestWithNativeContext {
 
   static void SetUpTestCase() {
     CompilerDispatcherTestFlags::SetFlagsForTest();
-    TestWithNativeContext ::SetUpTestCase();
+    TestWithNativeContext::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
-    TestWithNativeContext ::TearDownTestCase();
+    TestWithNativeContext::TearDownTestCase();
     CompilerDispatcherTestFlags::RestoreFlags();
   }
 

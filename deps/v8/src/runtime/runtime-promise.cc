@@ -79,7 +79,9 @@ RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
 
   Handle<CallableTask> microtask = isolate->factory()->NewCallableTask(
       function, handle(function->native_context(), isolate));
-  function->native_context()->microtask_queue()->EnqueueMicrotask(*microtask);
+  MicrotaskQueue* microtask_queue =
+      function->native_context()->microtask_queue();
+  if (microtask_queue) microtask_queue->EnqueueMicrotask(*microtask);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

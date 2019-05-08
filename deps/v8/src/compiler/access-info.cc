@@ -327,6 +327,14 @@ bool AccessInfoFactory::ComputeDataFieldAccessInfo(
   PropertyDetails const details = descriptors->GetDetails(number);
   int index = descriptors->GetFieldIndex(number);
   Representation details_representation = details.representation();
+  if (details_representation.IsNone()) {
+    // The ICs collect feedback in PREMONOMORPHIC state already,
+    // but at this point the {receiver_map} might still contain
+    // fields for which the representation has not yet been
+    // determined by the runtime. So we need to catch this case
+    // here and fall back to use the regular IC logic instead.
+    return false;
+  }
   FieldIndex field_index =
       FieldIndex::ForPropertyIndex(*map, index, details_representation);
   Type field_type = Type::NonInternal();
