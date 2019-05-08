@@ -103,20 +103,17 @@ typedef enum UCurrNameStyle {
      * currency, such as "US Dollar" for USD.
      * @stable ICU 2.6
      */
-    UCURR_LONG_NAME
+    UCURR_LONG_NAME,
 
-#ifndef U_HIDE_DRAFT_API
-    ,
     /**
      * Selector for getName() indicating the narrow currency symbol.
      * The narrow currency symbol is similar to the regular currency
      * symbol, but it always takes the shortest form: for example,
      * "$" instead of "US$" for USD in en-CA.
      *
-     * @draft ICU 61
+     * @stable ICU 61
      */
     UCURR_NARROW_SYMBOL_NAME
-#endif  // U_HIDE_DRAFT_API
 } UCurrNameStyle;
 
 #if !UCONFIG_NO_SERVICE
@@ -208,6 +205,13 @@ ucurr_getPluralName(const UChar* currency,
  * Returns the number of the number of fraction digits that should
  * be displayed for the given currency.
  * This is equivalent to ucurr_getDefaultFractionDigitsForUsage(currency,UCURR_USAGE_STANDARD,ec);
+ *
+ * Important: The number of fraction digits for a given currency is NOT
+ * guaranteed to be constant across versions of ICU or CLDR. For example,
+ * do NOT use this value as a mechanism for deciding the magnitude used
+ * to store currency values in a database. You should use this value for
+ * display purposes only.
+ *
  * @param currency null-terminated 3-letter ISO 4217 code
  * @param ec input-output error code
  * @return a non-negative number of fraction digits to be
@@ -221,6 +225,13 @@ ucurr_getDefaultFractionDigits(const UChar* currency,
 /**
  * Returns the number of the number of fraction digits that should
  * be displayed for the given currency with usage.
+ *
+ * Important: The number of fraction digits for a given currency is NOT
+ * guaranteed to be constant across versions of ICU or CLDR. For example,
+ * do NOT use this value as a mechanism for deciding the magnitude used
+ * to store currency values in a database. You should use this value for
+ * display purposes only.
+ *
  * @param currency null-terminated 3-letter ISO 4217 code
  * @param usage enum usage for the currency
  * @param ec input-output error code

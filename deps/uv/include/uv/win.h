@@ -301,6 +301,11 @@ typedef struct uv__dirent_s {
   char d_name[1];
 } uv__dirent_t;
 
+#define UV_DIR_PRIVATE_FIELDS \
+  HANDLE dir_handle;          \
+  WIN32_FIND_DATAW find_data; \
+  BOOL need_find_call;
+
 #define HAVE_DIRENT_TYPES
 #define UV__DT_DIR     UV_DIRENT_DIR
 #define UV__DT_FILE    UV_DIRENT_FILE

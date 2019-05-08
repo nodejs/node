@@ -13,7 +13,8 @@ assert.throws(
     operator: 'fail',
     actual: undefined,
     expected: undefined,
-    generatedMessage: true
+    generatedMessage: true,
+    stack: /Failed/
   }
 );
 

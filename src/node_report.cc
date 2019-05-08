@@ -209,11 +209,14 @@ static void WriteNodeReport(Isolate* isolate,
            tm_struct.tm_min,
            tm_struct.tm_sec);
   writer.json_keyvalue("dumpEventTime", timebuf);
-  struct timeval ts;
-  gettimeofday(&ts, nullptr);
-  writer.json_keyvalue("dumpEventTimeStamp",
-                       std::to_string(ts.tv_sec * 1000 + ts.tv_usec / 1000));
 #endif
+
+  uv_timeval64_t ts;
+  if (uv_gettimeofday(&ts) == 0) {
+    writer.json_keyvalue("dumpEventTimeStamp",
+                         std::to_string(ts.tv_sec * 1000 + ts.tv_usec / 1000));
+  }
+
   // Report native process ID
   writer.json_keyvalue("processId", pid);
 
@@ -228,7 +231,7 @@ static void WriteNodeReport(Isolate* isolate,
   // Report out the command line.
   if (!node::per_process::cli_options->cmdline.empty()) {
     writer.json_arraystart("commandLine");
-    for (std::string arg : node::per_process::cli_options->cmdline) {
+    for (const std::string& arg : node::per_process::cli_options->cmdline) {
       writer.json_element(arg);
     }
     writer.json_arrayend();
@@ -340,7 +343,7 @@ static void PrintJavaScriptStack(JSONWriter* writer,
     String::Utf8Value sv(isolate, stackstr);
     ss = std::string(*sv, sv.length());
   }
-  int line = ss.find("\n");
+  int line = ss.find('\n');
   if (line == -1) {
     writer->json_keyvalue("message", ss);
     writer->json_objectend();
@@ -349,7 +352,7 @@ static void PrintJavaScriptStack(JSONWriter* writer,
     writer->json_keyvalue("message", l);
     writer->json_arraystart("stack");
     ss = ss.substr(line + 1);
-    line = ss.find("\n");
+    line = ss.find('\n');
     while (line != -1) {
       l = ss.substr(0, line);
       l.erase(l.begin(), std::find_if(l.begin(), l.end(), [](int ch) {
@@ -357,7 +360,7 @@ static void PrintJavaScriptStack(JSONWriter* writer,
               }));
       writer->json_element(l);
       ss = ss.substr(line + 1);
-      line = ss.find("\n");
+      line = ss.find('\n');
     }
   }
   writer->json_arrayend();

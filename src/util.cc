@@ -50,9 +50,6 @@ static std::atomic_int seq = {0};  // Sequence number for diagnostic filenames.
 
 namespace node {
 
-// Microseconds in a second, as a float.
-#define MICROS_PER_SEC 1e6
-
 using v8::ArrayBufferView;
 using v8::Isolate;
 using v8::Local;
@@ -166,20 +163,10 @@ void ThrowErrStringTooLong(Isolate* isolate) {
 }
 
 double GetCurrentTimeInMicroseconds() {
-#ifdef _WIN32
-// The difference between the Unix Epoch and the Windows Epoch in 100-ns ticks.
-#define TICKS_TO_UNIX_EPOCH 116444736000000000LL
-  FILETIME ft;
-  GetSystemTimeAsFileTime(&ft);
-  uint64_t filetime_int =
-      static_cast<uint64_t>(ft.dwHighDateTime) << 32 | ft.dwLowDateTime;
-  // FILETIME is measured in terms of 100 ns. Convert that to 1 us (1000 ns).
-  return (filetime_int - TICKS_TO_UNIX_EPOCH) / 10.;
-#else
-  struct timeval tp;
-  gettimeofday(&tp, nullptr);
-  return MICROS_PER_SEC * tp.tv_sec + tp.tv_usec;
-#endif
+  constexpr double kMicrosecondsPerSecond = 1e6;
+  uv_timeval64_t tv;
+  CHECK_EQ(0, uv_gettimeofday(&tv));
+  return kMicrosecondsPerSecond * tv.tv_sec + tv.tv_usec;
 }
 
 int WriteFileSync(const char* path, uv_buf_t buf) {

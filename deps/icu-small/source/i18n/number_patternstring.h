@@ -98,7 +98,7 @@ struct U_I18N_API ParsedPatternInfo : public AffixPatternProvider, public UMemor
         int32_t offset = 0;
 
         explicit ParserState(const UnicodeString& _pattern)
-                : pattern(_pattern) {};
+                : pattern(_pattern) {}
 
         ParserState& operator=(ParserState&& src) U_NOEXCEPT {
             // Leave pattern reference alone; it will continue to point to the same place in memory,
@@ -222,6 +222,28 @@ class U_I18N_API PatternParser {
 
 class U_I18N_API PatternStringUtils {
   public:
+    /**
+     * Determine whether a given roundingIncrement should be ignored for formatting
+     * based on the current maxFrac value (maximum fraction digits). For example a
+     * roundingIncrement of 0.01 should be ignored if maxFrac is 1, but not if maxFrac
+     * is 2 or more. Note that roundingIncrements are rounded up in significance, so
+     * a roundingIncrement of 0.006 is treated like 0.01 for this determination, i.e.
+     * it should not be ignored if maxFrac is 2 or more (but a roundingIncrement of
+     * 0.005 is treated like 0.001 for significance).
+     *
+     * This test is needed for both NumberPropertyMapper::oldToNew and
+     * PatternStringUtils::propertiesToPatternString. In Java it cannot be
+     * exported by NumberPropertyMapper (package provate) so it is in
+     * PatternStringUtils, do the same in C.
+     *
+     * @param roundIncr
+     *            The roundingIncrement to be checked. Must be non-zero.
+     * @param maxFrac
+     *            The current maximum fraction digits value.
+     * @return true if roundIncr should be ignored for formatting.
+     */
+     static bool ignoreRoundingIncrement(double roundIncr, int32_t maxFrac);
+
     /**
      * Creates a pattern string from a property bag.
      *

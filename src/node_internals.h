@@ -28,7 +28,6 @@
 #include "node.h"
 #include "node_binding.h"
 #include "node_mutex.h"
-#include "node_persistent.h"
 #include "tracing/trace_event.h"
 #include "util-inl.h"
 #include "uv.h"
@@ -297,7 +296,9 @@ bool SafeGetenv(const char* key, std::string* text, Environment* env = nullptr);
 }  // namespace credentials
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
-
+v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
+                        uv_loop_t* event_loop,
+                        MultiIsolatePlatform* platform);
 v8::MaybeLocal<v8::Value> RunBootstrapping(Environment* env);
 v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
                                          const char* main_script_id);
@@ -309,9 +310,21 @@ v8::MaybeLocal<v8::Value> ExecuteBootstrapper(
     std::vector<v8::Local<v8::Value>>* arguments);
 void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+struct InitializationResult {
+  int exit_code = 0;
+  std::vector<std::string> args;
+  std::vector<std::string> exec_args;
+  bool early_return = false;
+};
+InitializationResult InitializeOncePerProcess(int argc, char** argv);
+void TearDownOncePerProcess();
+enum class IsolateSettingCategories { kErrorHandlers, kMisc };
+void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat);
+void SetIsolateCreateParamsForNode(v8::Isolate::CreateParams* params);
+
 #if HAVE_INSPECTOR
 namespace profiler {
-void StartCoverageCollection(Environment* env);
+void StartProfilers(Environment* env);
 void EndStartedProfilers(Environment* env);
 }
 #endif  // HAVE_INSPECTOR

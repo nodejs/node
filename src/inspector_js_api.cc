@@ -15,6 +15,7 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -116,7 +117,7 @@ class JSBindingsConnection : public AsyncWrap {
 
  private:
   std::unique_ptr<InspectorSession> session_;
-  Persistent<Function> callback_;
+  Global<Function> callback_;
 };
 
 static bool InspectorEnabled(Environment* env) {

@@ -70,11 +70,7 @@ function _validateContent(data) {
   assert(typeof header.filename === 'string' || header.filename === null);
   assert.notStrictEqual(new Date(header.dumpEventTime).toString(),
                         'Invalid Date');
-  if (isWindows)
-    assert.strictEqual(header.dumpEventTimeStamp, undefined);
-  else
-    assert(String(+header.dumpEventTimeStamp), header.dumpEventTimeStamp);
-
+  assert(String(+header.dumpEventTimeStamp), header.dumpEventTimeStamp);
   assert(Number.isSafeInteger(header.processId));
   assert.strictEqual(typeof header.cwd, 'string');
   assert(Array.isArray(header.commandLine));

@@ -169,7 +169,7 @@ OPENSSL_rdtsc_mfspr268:
 .align	4
 .OPENSSL_rdtsc_mfspr268:
 	mfspr	3,268
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	.OPENSSL_rdtsc_mfspr268,.-.OPENSSL_rdtsc_mfspr268
@@ -377,7 +377,7 @@ OPENSSL_instrument_bus_mfspr268:
 	bdnz	.Loop3
 
 	mr	3,4
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -436,7 +436,7 @@ OPENSSL_instrument_bus2_mfspr268:
 .Ldone4:
 	srwi	4,4,2
 	sub	3,0,4
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0

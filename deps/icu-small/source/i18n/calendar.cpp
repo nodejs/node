@@ -327,68 +327,73 @@ static ECalType getCalendarTypeForLocale(const char *locid) {
 }
 
 static Calendar *createStandardCalendar(ECalType calType, const Locale &loc, UErrorCode& status) {
-    Calendar *cal = NULL;
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
+    LocalPointer<Calendar> cal;
 
     switch (calType) {
         case CALTYPE_GREGORIAN:
-            cal = new GregorianCalendar(loc, status);
+            cal.adoptInsteadAndCheckErrorCode(new GregorianCalendar(loc, status), status);
             break;
         case CALTYPE_JAPANESE:
-            cal = new JapaneseCalendar(loc, status);
+            cal.adoptInsteadAndCheckErrorCode(new JapaneseCalendar(loc, status), status);
             break;
         case CALTYPE_BUDDHIST:
-            cal = new BuddhistCalendar(loc, status);
+            cal.adoptInsteadAndCheckErrorCode(new BuddhistCalendar(loc, status), status);
             break;
         case CALTYPE_ROC:
-            cal = new TaiwanCalendar(loc, status);
+            cal.adoptInsteadAndCheckErrorCode(new TaiwanCalendar(loc, status), status);
             break;
         case CALTYPE_PERSIAN:
-            cal = new PersianCalendar(loc, status);
+            cal.adoptInsteadAndCheckErrorCode(new PersianCalendar(loc, status), status);
             break;
         case CALTYPE_ISLAMIC_TBLA:
-            cal = new IslamicCalendar(loc, status, IslamicCalendar::TBLA);
+            cal.adoptInsteadAndCheckErrorCode(new IslamicCalendar(loc, status, IslamicCalendar::TBLA), status);
             break;
         case CALTYPE_ISLAMIC_CIVIL:
-            cal = new IslamicCalendar(loc, status, IslamicCalendar::CIVIL);
+            cal.adoptInsteadAndCheckErrorCode(new IslamicCalendar(loc, status, IslamicCalendar::CIVIL), status);
             break;
         case CALTYPE_ISLAMIC_RGSA:
             // default any region specific not handled individually to islamic
         case CALTYPE_ISLAMIC:
-            cal = new IslamicCalendar(loc, status, IslamicCalendar::ASTRONOMICAL);
+            cal.adoptInsteadAndCheckErrorCode(new IslamicCalendar(loc, status, IslamicCalendar::ASTRONOMICAL), status);
             break;
         case CALTYPE_ISLAMIC_UMALQURA:
-            cal = new IslamicCalendar(loc, status, IslamicCalendar::UMALQURA);
+            cal.adoptInsteadAndCheckErrorCode(new IslamicCalendar(loc, status, IslamicCalendar::UMALQURA), status);
             break;
         case CALTYPE_HEBREW:
-            cal = new HebrewCalendar(loc, status);
+            cal.adoptInsteadAndCheckErrorCode(new HebrewCalendar(loc, status), status);
             break;
         case CALTYPE_CHINESE:
-            cal = new ChineseCalendar(loc, status);
+            cal.adoptInsteadAndCheckErrorCode(new ChineseCalendar(loc, status), status);
             break;
         case CALTYPE_INDIAN:
-            cal = new IndianCalendar(loc, status);
+            cal.adoptInsteadAndCheckErrorCode(new IndianCalendar(loc, status), status);
             break;
         case CALTYPE_COPTIC:
-            cal = new CopticCalendar(loc, status);
+            cal.adoptInsteadAndCheckErrorCode(new CopticCalendar(loc, status), status);
             break;
         case CALTYPE_ETHIOPIC:
-            cal = new EthiopicCalendar(loc, status, EthiopicCalendar::AMETE_MIHRET_ERA);
+            cal.adoptInsteadAndCheckErrorCode(new EthiopicCalendar(loc, status, EthiopicCalendar::AMETE_MIHRET_ERA), status);
             break;
         case CALTYPE_ETHIOPIC_AMETE_ALEM:
-            cal = new EthiopicCalendar(loc, status, EthiopicCalendar::AMETE_ALEM_ERA);
+            cal.adoptInsteadAndCheckErrorCode(new EthiopicCalendar(loc, status, EthiopicCalendar::AMETE_ALEM_ERA), status);
             break;
         case CALTYPE_ISO8601:
-            cal = new GregorianCalendar(loc, status);
-            cal->setFirstDayOfWeek(UCAL_MONDAY);
-            cal->setMinimalDaysInFirstWeek(4);
+            cal.adoptInsteadAndCheckErrorCode(new GregorianCalendar(loc, status), status);
+            if (cal.isValid()) {
+                cal->setFirstDayOfWeek(UCAL_MONDAY);
+                cal->setMinimalDaysInFirstWeek(4);
+            }
             break;
         case CALTYPE_DANGI:
-            cal = new DangiCalendar(loc, status);
+            cal.adoptInsteadAndCheckErrorCode(new DangiCalendar(loc, status), status);
             break;
         default:
             status = U_UNSUPPORTED_ERROR;
     }
-    return cal;
+    return cal.orphan();
 }
 
 
@@ -536,6 +541,10 @@ public:
         fprintf(stderr, "CalSvc:handleDefault for currentLoc %s, canloc %s\n", (const char*)loc.getName(),  (const char*)loc2.getName());
 #endif
         Calendar *nc =  new GregorianCalendar(loc, status);
+        if (nc == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return nc;
+        }
 
 #ifdef U_DEBUG_CALSVC
         UErrorCode status2 = U_ZERO_ERROR;
@@ -1093,7 +1102,11 @@ Calendar::getKeywordValuesForLocale(const char* key,
         uenum_close(uenum);
         return NULL;
     }
-    return new UStringEnumeration(uenum);
+    UStringEnumeration* ustringenum = new UStringEnumeration(uenum);
+    if (ustringenum == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+    }
+    return ustringenum;
 }
 
 // -------------------------------------
@@ -3783,18 +3796,16 @@ Calendar::setWeekData(const Locale& desiredLocale, const char *type, UErrorCode&
     // 2). If the locale has a script designation then we ignore it,
     //     then remove it ( i.e. "en_Latn_US" becomes "en_US" )
 
-    char minLocaleID[ULOC_FULLNAME_CAPACITY] = { 0 };
     UErrorCode myStatus = U_ZERO_ERROR;
 
-    uloc_minimizeSubtags(desiredLocale.getName(),minLocaleID,ULOC_FULLNAME_CAPACITY,&myStatus);
-    Locale min = Locale::createFromName(minLocaleID);
+    Locale min(desiredLocale);
+    min.minimizeSubtags(myStatus);
     Locale useLocale;
     if ( uprv_strlen(desiredLocale.getCountry()) == 0 ||
          (uprv_strlen(desiredLocale.getScript()) > 0 && uprv_strlen(min.getScript()) == 0) ) {
-        char maxLocaleID[ULOC_FULLNAME_CAPACITY] = { 0 };
         myStatus = U_ZERO_ERROR;
-        uloc_addLikelySubtags(desiredLocale.getName(),maxLocaleID,ULOC_FULLNAME_CAPACITY,&myStatus);
-        Locale max = Locale::createFromName(maxLocaleID);
+        Locale max(desiredLocale);
+        max.addLikelySubtags(myStatus);
         useLocale = Locale(max.getLanguage(),max.getCountry());
     } else {
         useLocale = desiredLocale;

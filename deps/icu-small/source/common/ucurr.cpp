@@ -85,29 +85,13 @@ static const char CURRENCY_MAP[] = "CurrencyMap";
 // Tag for default meta-data, in CURRENCY_META
 static const char DEFAULT_META[] = "DEFAULT";
 
-// Variant for legacy pre-euro mapping in CurrencyMap
-static const char VAR_PRE_EURO[] = "PREEURO";
-
-// Variant for legacy euro mapping in CurrencyMap
-static const char VAR_EURO[] = "EURO";
-
 // Variant delimiter
 static const char VAR_DELIM = '_';
-static const char VAR_DELIM_STR[] = "_";
-
-// Variant for legacy euro mapping in CurrencyMap
-//static const char VAR_DELIM_EURO[] = "_EURO";
-
-#define VARIANT_IS_EMPTY    0
-#define VARIANT_IS_EURO     0x1
-#define VARIANT_IS_PREEURO  0x2
 
 // Tag for localized display names (symbols) of currencies
 static const char CURRENCIES[] = "Currencies";
 static const char CURRENCIES_NARROW[] = "Currencies%narrow";
 static const char CURRENCYPLURALS[] = "CurrencyPlurals";
-
-static const UChar EUR_STR[] = {0x0045,0x0055,0x0052,0};
 
 // ISO codes mapping table
 static const UHashtable* gIsoCodes = NULL;
@@ -360,30 +344,10 @@ _findMetaData(const UChar* currency, UErrorCode& ec) {
 
 // -------------------------------------
 
-/**
- * @see VARIANT_IS_EURO
- * @see VARIANT_IS_PREEURO
- */
-static uint32_t
+static void
 idForLocale(const char* locale, char* countryAndVariant, int capacity, UErrorCode* ec)
 {
-    uint32_t variantType = 0;
-    // !!! this is internal only, assumes buffer is not null and capacity is sufficient
-    // Extract the country name and variant name.  We only
-    // recognize two variant names, EURO and PREEURO.
-    char variant[ULOC_FULLNAME_CAPACITY];
     ulocimp_getRegionForSupplementalData(locale, FALSE, countryAndVariant, capacity, ec);
-    uloc_getVariant(locale, variant, sizeof(variant), ec);
-    if (variant[0] != 0) {
-        variantType = (uint32_t)(0 == uprv_strcmp(variant, VAR_EURO))
-                   | ((uint32_t)(0 == uprv_strcmp(variant, VAR_PRE_EURO)) << 1);
-        if (variantType)
-        {
-            uprv_strcat(countryAndVariant, VAR_DELIM_STR);
-            uprv_strcat(countryAndVariant, variant);
-        }
-    }
-    return variantType;
 }
 
 // ------------------------------------------
@@ -401,7 +365,10 @@ U_CDECL_END
 #if !UCONFIG_NO_SERVICE
 struct CReg;
 
-static UMutex gCRegLock = U_MUTEX_INITIALIZER;
+static UMutex *gCRegLock() {
+    static UMutex m = U_MUTEX_INITIALIZER;
+    return &m;
+}
 static CReg* gCRegHead = 0;
 
 struct CReg : public icu::UMemory {
@@ -427,14 +394,14 @@ struct CReg : public icu::UMemory {
         if (status && U_SUCCESS(*status) && _iso && _id) {
             CReg* n = new CReg(_iso, _id);
             if (n) {
-                umtx_lock(&gCRegLock);
+                umtx_lock(gCRegLock());
                 if (!gCRegHead) {
                     /* register for the first time */
                     ucln_common_registerCleanup(UCLN_COMMON_CURRENCY, currency_cleanup);
                 }
                 n->next = gCRegHead;
                 gCRegHead = n;
-                umtx_unlock(&gCRegLock);
+                umtx_unlock(gCRegLock());
                 return n;
             }
             *status = U_MEMORY_ALLOCATION_ERROR;
@@ -444,7 +411,7 @@ struct CReg : public icu::UMemory {
 
     static UBool unreg(UCurrRegistryKey key) {
         UBool found = FALSE;
-        umtx_lock(&gCRegLock);
+        umtx_lock(gCRegLock());
 
         CReg** p = &gCRegHead;
         while (*p) {
@@ -457,13 +424,13 @@ struct CReg : public icu::UMemory {
             p = &((*p)->next);
         }
 
-        umtx_unlock(&gCRegLock);
+        umtx_unlock(gCRegLock());
         return found;
     }
 
     static const UChar* get(const char* id) {
         const UChar* result = NULL;
-        umtx_lock(&gCRegLock);
+        umtx_lock(gCRegLock());
         CReg* p = gCRegHead;
 
         /* register cleanup of the mutex */
@@ -475,7 +442,7 @@ struct CReg : public icu::UMemory {
             }
             p = p->next;
         }
-        umtx_unlock(&gCRegLock);
+        umtx_unlock(gCRegLock());
         return result;
     }
 
@@ -568,7 +535,7 @@ ucurr_forLocale(const char* locale,
 
     // get country or country_variant in `id'
     char id[ULOC_FULLNAME_CAPACITY];
-    uint32_t variantType = idForLocale(locale, id, UPRV_LENGTHOF(id), ec);
+    idForLocale(locale, id, UPRV_LENGTHOF(id), ec);
     if (U_FAILURE(*ec)) {
         return 0;
     }
@@ -602,20 +569,6 @@ ucurr_forLocale(const char* locale,
         UResourceBundle *countryArray = ures_getByKey(rb, id, cm, &localStatus);
         UResourceBundle *currencyReq = ures_getByIndex(countryArray, 0, NULL, &localStatus);
         s = ures_getStringByKey(currencyReq, "id", &resLen, &localStatus);
-
-        // Get the second item when PREEURO is requested, and this is a known Euro country.
-        // If the requested variant is PREEURO, and this isn't a Euro country,
-        // assume that the country changed over to the Euro in the future.
-        // This is probably an old version of ICU that hasn't been updated yet.
-        // The latest currency is probably correct.
-        if (U_SUCCESS(localStatus)) {
-            if ((variantType & VARIANT_IS_PREEURO) && u_strcmp(s, EUR_STR) == 0) {
-                currencyReq = ures_getByIndex(countryArray, 1, currencyReq, &localStatus);
-                s = ures_getStringByKey(currencyReq, "id", &resLen, &localStatus);
-            } else if ((variantType & VARIANT_IS_EURO)) {
-                s = EUR_STR;
-            }
-        }
         ures_close(currencyReq);
         ures_close(countryArray);
     }
@@ -740,7 +693,13 @@ ucurr_getName(const UChar* currency,
         key.append("/", ec2);
         key.append(buf, ec2);
         s = ures_getStringByKeyWithFallback(rb.getAlias(), key.data(), len, &ec2);
-    } else {
+        if (ec2 == U_MISSING_RESOURCE_ERROR) {
+            *ec = U_USING_FALLBACK_WARNING;
+            ec2 = U_ZERO_ERROR;
+            choice = UCURR_SYMBOL_NAME;
+        }
+    }
+    if (s == NULL) {
         ures_getByKey(rb.getAlias(), CURRENCIES, rb.getAlias(), &ec2);
         ures_getByKeyWithFallback(rb.getAlias(), buf, rb.getAlias(), &ec2);
         s = ures_getStringByIndex(rb.getAlias(), choice, len, &ec2);
@@ -1397,7 +1356,10 @@ static CurrencyNameCacheEntry* currCache[CURRENCY_NAME_CACHE_NUM] = {NULL};
 // It is a simple round-robin replacement strategy.
 static int8_t currentCacheEntryIndex = 0;
 
-static UMutex gCurrencyCacheMutex = U_MUTEX_INITIALIZER;
+static UMutex *gCurrencyCacheMutex() {
+    static UMutex m = U_MUTEX_INITIALIZER;
+    return &m;
+}
 
 // Cache deletion
 static void
@@ -1446,7 +1408,7 @@ getCacheEntry(const char* locale, UErrorCode& ec) {
     CurrencyNameStruct* currencySymbols = NULL;
     CurrencyNameCacheEntry* cacheEntry = NULL;
 
-    umtx_lock(&gCurrencyCacheMutex);
+    umtx_lock(gCurrencyCacheMutex());
     // in order to handle racing correctly,
     // not putting 'search' in a separate function.
     int8_t found = -1;
@@ -1461,13 +1423,13 @@ getCacheEntry(const char* locale, UErrorCode& ec) {
         cacheEntry = currCache[found];
         ++(cacheEntry->refCount);
     }
-    umtx_unlock(&gCurrencyCacheMutex);
+    umtx_unlock(gCurrencyCacheMutex());
     if (found == -1) {
         collectCurrencyNames(locale, &currencyNames, &total_currency_name_count, &currencySymbols, &total_currency_symbol_count, ec);
         if (U_FAILURE(ec)) {
             return NULL;
         }
-        umtx_lock(&gCurrencyCacheMutex);
+        umtx_lock(gCurrencyCacheMutex());
         // check again.
         for (int8_t i = 0; i < CURRENCY_NAME_CACHE_NUM; ++i) {
             if (currCache[i]!= NULL &&
@@ -1506,19 +1468,19 @@ getCacheEntry(const char* locale, UErrorCode& ec) {
             cacheEntry = currCache[found];
             ++(cacheEntry->refCount);
         }
-        umtx_unlock(&gCurrencyCacheMutex);
+        umtx_unlock(gCurrencyCacheMutex());
     }
 
     return cacheEntry;
 }
 
 static void releaseCacheEntry(CurrencyNameCacheEntry* cacheEntry) {
-    umtx_lock(&gCurrencyCacheMutex);
+    umtx_lock(gCurrencyCacheMutex());
     --(cacheEntry->refCount);
     if (cacheEntry->refCount == 0) {  // remove
         deleteCacheEntry(cacheEntry);
     }
-    umtx_unlock(&gCurrencyCacheMutex);
+    umtx_unlock(gCurrencyCacheMutex());
 }
 
 U_CAPI void
@@ -2305,7 +2267,7 @@ ucurr_countCurrencies(const char* locale,
         uloc_getKeywordValue(locale, "currency", id, ULOC_FULLNAME_CAPACITY, &localStatus);
 
         // get country or country_variant in `id'
-        /*uint32_t variantType =*/ idForLocale(locale, id, sizeof(id), ec);
+        idForLocale(locale, id, sizeof(id), ec);
 
         if (U_FAILURE(*ec))
         {
@@ -2421,7 +2383,7 @@ ucurr_forLocaleAndDate(const char* locale,
             resLen = uloc_getKeywordValue(locale, "currency", id, ULOC_FULLNAME_CAPACITY, &localStatus);
 
             // get country or country_variant in `id'
-            /*uint32_t variantType =*/ idForLocale(locale, id, sizeof(id), ec);
+            idForLocale(locale, id, sizeof(id), ec);
             if (U_FAILURE(*ec))
             {
                 return 0;

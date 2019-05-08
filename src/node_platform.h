@@ -24,7 +24,7 @@ template <class T>
 class TaskQueue {
  public:
   TaskQueue();
-  ~TaskQueue() {}
+  ~TaskQueue() = default;
 
   void Push(std::unique_ptr<T> task);
   std::unique_ptr<T> Pop();
@@ -63,6 +63,13 @@ class PerIsolatePlatformData :
   void PostDelayedTask(std::unique_ptr<v8::Task> task,
                        double delay_in_seconds) override;
   bool IdleTasksEnabled() override { return false; }
+
+  // Non-nestable tasks are treated like regular tasks.
+  bool NonNestableTasksEnabled() const override { return true; }
+  bool NonNestableDelayedTasksEnabled() const override { return true; }
+  void PostNonNestableTask(std::unique_ptr<v8::Task> task) override;
+  void PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
+                                  double delay_in_seconds) override;
 
   void AddShutdownCallback(void (*callback)(void*), void* data);
   void Shutdown();
@@ -127,7 +134,7 @@ class NodePlatform : public MultiIsolatePlatform {
  public:
   NodePlatform(int thread_pool_size,
                node::tracing::TracingController* tracing_controller);
-  ~NodePlatform() override {}
+  ~NodePlatform() override = default;
 
   void DrainTasks(v8::Isolate* isolate) override;
   void CancelPendingDelayedTasks(v8::Isolate* isolate) override;

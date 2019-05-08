@@ -33,6 +33,7 @@
 #include "node.h"
 #include "node_binding.h"
 #include "node_http2_state.h"
+#include "node_main_instance.h"
 #include "node_options.h"
 #include "req_wrap.h"
 #include "util.h"
@@ -71,6 +72,7 @@ class AgentWriterHandle;
 #if HAVE_INSPECTOR
 namespace profiler {
 class V8CoverageConnection;
+class V8CpuProfilerConnection;
 }  // namespace profiler
 #endif  // HAVE_INSPECTOR
 
@@ -338,11 +340,10 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(x_forwarded_string, "x-forwarded-for")                                     \
   V(zero_return_string, "ZERO_RETURN")
 
-#define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                            \
+#define ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                             \
   V(as_callback_data_template, v8::FunctionTemplate)                           \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
-  V(context, v8::Context)                                                      \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
@@ -417,10 +418,12 @@ class IsolateData : public MemoryRetainer {
   IsolateData(v8::Isolate* isolate,
               uv_loop_t* event_loop,
               MultiIsolatePlatform* platform = nullptr,
-              ArrayBufferAllocator* node_allocator = nullptr);
-  SET_MEMORY_INFO_NAME(IsolateData);
-  SET_SELF_SIZE(IsolateData);
+              ArrayBufferAllocator* node_allocator = nullptr,
+              const std::vector<size_t>* indexes = nullptr);
+  SET_MEMORY_INFO_NAME(IsolateData)
+  SET_SELF_SIZE(IsolateData)
   void MemoryInfo(MemoryTracker* tracker) const override;
+  std::vector<size_t> Serialize(v8::SnapshotCreator* creator);
 
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
@@ -450,6 +453,9 @@ class IsolateData : public MemoryRetainer {
   IsolateData& operator=(const IsolateData&) = delete;
 
  private:
+  void DeserializeProperties(const std::vector<size_t>* indexes);
+  void CreateProperties();
+
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
@@ -533,7 +539,7 @@ struct AllocatedBuffer {
 
 class AsyncRequest : public MemoryRetainer {
  public:
-  AsyncRequest() {}
+  AsyncRequest() = default;
   ~AsyncRequest();
   void Install(Environment* env, void* data, uv_async_cb target);
   void Uninstall();
@@ -578,8 +584,8 @@ extern std::shared_ptr<KVStore> system_environment;
 
 class AsyncHooks : public MemoryRetainer {
  public:
-  SET_MEMORY_INFO_NAME(AsyncHooks);
-  SET_SELF_SIZE(AsyncHooks);
+  SET_MEMORY_INFO_NAME(AsyncHooks)
+  SET_SELF_SIZE(AsyncHooks)
   void MemoryInfo(MemoryTracker* tracker) const override;
 
   // Reason for both UidFields and Fields are that one is stored as a double*
@@ -604,9 +610,9 @@ class AsyncHooks : public MemoryRetainer {
     kUidFieldsCount,
   };
 
-  inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
-  inline AliasedBuffer<double, v8::Float64Array>& async_id_fields();
-  inline AliasedBuffer<double, v8::Float64Array>& async_ids_stack();
+  inline AliasedUint32Array& fields();
+  inline AliasedFloat64Array& async_id_fields();
+  inline AliasedFloat64Array& async_ids_stack();
 
   inline v8::Local<v8::String> provider_string(int idx);
 
@@ -645,12 +651,12 @@ class AsyncHooks : public MemoryRetainer {
   // Keep a list of all Persistent strings used for Provider types.
   std::array<v8::Eternal<v8::String>, AsyncWrap::PROVIDERS_LENGTH> providers_;
   // Stores the ids of the current execution context stack.
-  AliasedBuffer<double, v8::Float64Array> async_ids_stack_;
+  AliasedFloat64Array async_ids_stack_;
   // Attached to a Uint32Array that tracks the number of active hooks for
   // each type.
-  AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
+  AliasedUint32Array fields_;
   // Attached to a Float64Array that tracks the state of async resources.
-  AliasedBuffer<double, v8::Float64Array> async_id_fields_;
+  AliasedFloat64Array async_id_fields_;
 
   void grow_async_ids_stack();
 };
@@ -669,7 +675,7 @@ class AsyncCallbackScope {
 
 class ImmediateInfo : public MemoryRetainer {
  public:
-  inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
+  inline AliasedUint32Array& fields();
   inline uint32_t count() const;
   inline uint32_t ref_count() const;
   inline bool has_outstanding() const;
@@ -681,8 +687,8 @@ class ImmediateInfo : public MemoryRetainer {
   ImmediateInfo(const ImmediateInfo&) = delete;
   ImmediateInfo& operator=(const ImmediateInfo&) = delete;
 
-  SET_MEMORY_INFO_NAME(ImmediateInfo);
-  SET_SELF_SIZE(ImmediateInfo);
+  SET_MEMORY_INFO_NAME(ImmediateInfo)
+  SET_SELF_SIZE(ImmediateInfo)
   void MemoryInfo(MemoryTracker* tracker) const override;
 
  private:
@@ -691,17 +697,17 @@ class ImmediateInfo : public MemoryRetainer {
 
   enum Fields { kCount, kRefCount, kHasOutstanding, kFieldsCount };
 
-  AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
+  AliasedUint32Array fields_;
 };
 
 class TickInfo : public MemoryRetainer {
  public:
-  inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
+  inline AliasedUint8Array& fields();
   inline bool has_tick_scheduled() const;
   inline bool has_rejection_to_warn() const;
 
-  SET_MEMORY_INFO_NAME(TickInfo);
-  SET_SELF_SIZE(TickInfo);
+  SET_MEMORY_INFO_NAME(TickInfo)
+  SET_SELF_SIZE(TickInfo)
   void MemoryInfo(MemoryTracker* tracker) const override;
 
   TickInfo(const TickInfo&) = delete;
@@ -713,7 +719,7 @@ class TickInfo : public MemoryRetainer {
 
   enum Fields { kHasTickScheduled = 0, kHasRejectionToWarn, kFieldsCount };
 
-  AliasedBuffer<uint8_t, v8::Uint8Array> fields_;
+  AliasedUint8Array fields_;
 };
 
 class TrackingTraceStateObserver :
@@ -780,7 +786,7 @@ class Environment : public MemoryRetainer {
   Environment(const Environment&) = delete;
   Environment& operator=(const Environment&) = delete;
 
-  SET_MEMORY_INFO_NAME(Environment);
+  SET_MEMORY_INFO_NAME(Environment)
 
   inline size_t SelfSize() const override;
   bool IsRootNode() const override { return true; }
@@ -901,10 +907,9 @@ class Environment : public MemoryRetainer {
   // This is a pseudo-boolean that keeps track of whether an uncaught exception
   // should abort the process or not if --abort-on-uncaught-exception was
   // passed to Node. If the flag was not passed, it is ignored.
-  inline AliasedBuffer<uint32_t, v8::Uint32Array>&
-  should_abort_on_uncaught_toggle();
+  inline AliasedUint32Array& should_abort_on_uncaught_toggle();
 
-  inline AliasedBuffer<int32_t, v8::Int32Array>& stream_base_state();
+  inline AliasedInt32Array& stream_base_state();
 
   // The necessary API for async_hooks.
   inline double new_async_id();
@@ -923,7 +928,7 @@ class Environment : public MemoryRetainer {
   std::unordered_map<uint32_t, contextify::ContextifyScript*>
       id_to_script_map;
   std::unordered_set<CompileFnEntry*> compile_fn_entries;
-  std::unordered_map<uint32_t, Persistent<v8::Function>> id_to_function_map;
+  std::unordered_map<uint32_t, v8::Global<v8::Function>> id_to_function_map;
 
   inline uint32_t get_next_module_id();
   inline uint32_t get_next_script_id();
@@ -950,9 +955,8 @@ class Environment : public MemoryRetainer {
   inline void set_debug_enabled(DebugCategory category, bool enabled);
   void set_debug_categories(const std::string& cats, bool enabled);
 
-  inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
-  inline AliasedBuffer<uint64_t, v8::BigUint64Array>*
-      fs_stats_field_bigint_array();
+  inline AliasedFloat64Array* fs_stats_field_array();
+  inline AliasedBigUint64Array* fs_stats_field_bigint_array();
 
   inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
       file_handle_read_wrap_freelist();
@@ -1056,8 +1060,10 @@ class Environment : public MemoryRetainer {
   inline v8::Local<TypeName> PropertyName() const;                            \
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-  ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
+  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
 #undef V
+
+  inline v8::Local<v8::Context> context() const;
 
 #if HAVE_INSPECTOR
   inline inspector::Agent* inspector_agent() const {
@@ -1129,6 +1135,19 @@ class Environment : public MemoryRetainer {
 
   inline void set_coverage_directory(const char* directory);
   inline const std::string& coverage_directory() const;
+
+  void set_cpu_profiler_connection(
+      std::unique_ptr<profiler::V8CpuProfilerConnection> connection);
+  profiler::V8CpuProfilerConnection* cpu_profiler_connection();
+
+  inline void set_cpu_prof_name(const std::string& name);
+  inline const std::string& cpu_prof_name() const;
+
+  inline void set_cpu_prof_interval(uint64_t interval);
+  inline uint64_t cpu_prof_interval() const;
+
+  inline void set_cpu_prof_dir(const std::string& dir);
+  inline const std::string& cpu_prof_dir() const;
 #endif  // HAVE_INSPECTOR
 
  private:
@@ -1163,7 +1182,11 @@ class Environment : public MemoryRetainer {
 
 #if HAVE_INSPECTOR
   std::unique_ptr<profiler::V8CoverageConnection> coverage_connection_;
+  std::unique_ptr<profiler::V8CpuProfilerConnection> cpu_profiler_connection_;
   std::string coverage_directory_;
+  std::string cpu_prof_dir_;
+  std::string cpu_prof_name_;
+  uint64_t cpu_prof_interval_;
 #endif  // HAVE_INSPECTOR
 
   std::shared_ptr<EnvironmentOptions> options_;
@@ -1182,12 +1205,12 @@ class Environment : public MemoryRetainer {
   uint32_t script_id_counter_ = 0;
   uint32_t function_id_counter_ = 0;
 
-  AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
+  AliasedUint32Array should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;
 
   std::unique_ptr<TrackingTraceStateObserver> trace_state_observer_;
 
-  AliasedBuffer<int32_t, v8::Int32Array> stream_base_state_;
+  AliasedInt32Array stream_base_state_;
 
   std::unique_ptr<performance::performance_state> performance_state_;
   std::unordered_map<std::string, uint64_t> performance_marks_;
@@ -1230,8 +1253,8 @@ class Environment : public MemoryRetainer {
 
   bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {0};
 
-  AliasedBuffer<double, v8::Float64Array> fs_stats_field_array_;
-  AliasedBuffer<uint64_t, v8::BigUint64Array> fs_stats_field_bigint_array_;
+  AliasedFloat64Array fs_stats_field_array_;
+  AliasedBigUint64Array fs_stats_field_bigint_array_;
 
   std::vector<std::unique_ptr<fs::FileHandleReadWrap>>
       file_handle_read_wrap_freelist_;
@@ -1272,10 +1295,12 @@ class Environment : public MemoryRetainer {
   template <typename T>
   void ForEachBaseObject(T&& iterator);
 
-#define V(PropertyName, TypeName) Persistent<TypeName> PropertyName ## _;
+#define V(PropertyName, TypeName) v8::Global<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-  ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
+  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
 #undef V
+
+  v8::Global<v8::Context> context_;
 };
 
 }  // namespace node

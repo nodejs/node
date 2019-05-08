@@ -132,6 +132,13 @@ variable. Since the module lookups using `node_modules` folders are all
 relative, and based on the real path of the files making the calls to
 `require()`, the packages themselves can be anywhere.
 
+## Addenda: The .mjs extension
+
+It is not possible to `require()` files that have the `.mjs` extension.
+Attempting to do so will throw [an error][]. The `.mjs` extension is
+reserved for [ECMAScript Modules][] which cannot be loaded via `require()`.
+See [ECMAScript Modules][] for more details.
+
 ## All Together...
 
 <!-- type=misc -->
@@ -905,18 +912,39 @@ by the [module wrapper][]. To access it, require the `Module` module:
 const builtin = require('module').builtinModules;
 ```
 
+### module.createRequire(filename)
+<!-- YAML
+added: v12.2.0
+-->
+
+* `filename` {string|URL} Filename to be used to construct the require
+  function. Must be a file URL object, file URL string, or absolute path
+  string.
+* Returns: {require} Require function
+
+```js
+const { createRequire } = require('module');
+const requireUtil = createRequire(require.resolve('../src/utils/'));
+
+// Require `../src/utils/some-tool`
+requireUtil('./some-tool');
+```
+
 ### module.createRequireFromPath(filename)
 <!-- YAML
 added: v10.12.0
+deprecated: v12.2.0
 -->
 
 * `filename` {string} Filename to be used to construct the relative require
   function.
 * Returns: {require} Require function
 
+> Stability: 0 - Deprecated: Please use [`createRequire()`][] instead.
+
 ```js
 const { createRequireFromPath } = require('module');
-const requireUtil = createRequireFromPath('../src/utils');
+const requireUtil = createRequireFromPath('../src/utils/');
 
 // Require `../src/utils/some-tool`
 requireUtil('./some-tool');
@@ -926,8 +954,11 @@ requireUtil('./some-tool');
 [`Error`]: errors.html#errors_class_error
 [`__dirname`]: #modules_dirname
 [`__filename`]: #modules_filename
+[`createRequire()`]: #modules_module_createrequire_filename
 [`module` object]: #modules_the_module_object
 [`path.dirname()`]: path.html#path_path_dirname_path
+[ECMAScript Modules]: esm.html
+[an error]: errors.html#errors_err_require_esm
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together
 [module wrapper]: #modules_the_module_wrapper

@@ -51,6 +51,7 @@ const hasCrypto = Boolean(process.versions.openssl);
 // If the binary was built without-ssl then the crypto flags are
 // invalid (bad option). The test itself should handle this case.
 if (process.argv.length === 2 &&
+    !process.env.NODE_SKIP_FLAG_CHECK &&
     isMainThread &&
     hasCrypto &&
     module.parent &&
@@ -82,7 +83,8 @@ if (process.argv.length === 2 &&
           (process.features.inspector || !flag.startsWith('--inspect'))) {
         console.log(
           'NOTE: The test started as a child_process using these flags:',
-          util.inspect(flags)
+          util.inspect(flags),
+          'Use NODE_SKIP_FLAG_CHECK to run the test with the original flags.'
         );
         const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
         const options = { encoding: 'utf8', stdio: 'inherit' };
@@ -277,33 +279,35 @@ if (global.gc) {
   knownGlobals.push(global.gc);
 }
 
-if (process.env.NODE_TEST_KNOWN_GLOBALS) {
-  const knownFromEnv = process.env.NODE_TEST_KNOWN_GLOBALS.split(',');
-  allowGlobals(...knownFromEnv);
-}
-
 function allowGlobals(...whitelist) {
   knownGlobals = knownGlobals.concat(whitelist);
 }
 
-function leakedGlobals() {
-  const leaked = [];
+if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
+  if (process.env.NODE_TEST_KNOWN_GLOBALS) {
+    const knownFromEnv = process.env.NODE_TEST_KNOWN_GLOBALS.split(',');
+    allowGlobals(...knownFromEnv);
+  }
 
-  for (const val in global) {
-    if (!knownGlobals.includes(global[val])) {
-      leaked.push(val);
+  function leakedGlobals() {
+    const leaked = [];
+
+    for (const val in global) {
+      if (!knownGlobals.includes(global[val])) {
+        leaked.push(val);
+      }
     }
+
+    return leaked;
   }
 
-  return leaked;
+  process.on('exit', function() {
+    const leaked = leakedGlobals();
+    if (leaked.length > 0) {
+      assert.fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
+    }
+  });
 }
-
-process.on('exit', function() {
-  const leaked = leakedGlobals();
-  if (leaked.length > 0) {
-    assert.fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
-  }
-});
 
 const mustCallChecks = [];
 
@@ -622,6 +626,19 @@ function expectsError(fn, settings, exact) {
   return mustCall(innerFn, exact);
 }
 
+const suffix = 'This is caused by either a bug in Node.js ' +
+  'or incorrect usage of Node.js internals.\n' +
+  'Please open an issue with this stack trace at ' +
+  'https://github.com/nodejs/node/issues\n';
+
+function expectsInternalAssertion(fn, message) {
+  assert.throws(fn, {
+    message: `${message}\n${suffix}`,
+    name: 'Error',
+    code: 'ERR_INTERNAL_ASSERTION'
+  });
+}
+
 function skipIfInspectorDisabled() {
   if (!process.features.inspector) {
     skip('V8 inspector is disabled');
@@ -725,6 +742,7 @@ module.exports = {
   enoughTestCpu,
   enoughTestMem,
   expectsError,
+  expectsInternalAssertion,
   expectWarning,
   getArrayBufferViews,
   getBufferSources,

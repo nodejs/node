@@ -1,3 +1,38 @@
+2019.04.16, Version 1.28.0 (Stable), 7bf8fabfa934660ee0fe889f78e151198a1165fc
+
+Changes since version 1.27.0:
+
+* unix,win: add uv_gettimeofday() (cjihrig)
+
+* unix,win: add uv_fs_{open,read,close}dir() (cjihrig)
+
+* unix: fix uv_interface_addresses() (Andreas Rohner)
+
+* fs: remove macOS-specific copyfile(3) (Rich Trott)
+
+* fs: add test for copyfile() respecting permissions (Rich Trott)
+
+* build: partially revert 5234b1c43a (Ben Noordhuis)
+
+* zos: fix setsockopt error when using AF_UNIX (Milad Farazmand)
+
+* unix: suppress EINTR/EINPROGRESS in uv_fs_close() (Ben Noordhuis)
+
+* build: use cmake APPLE variable to detect platform (zlargon)
+
+* distcheck: remove duplicate test/ entry (Jameson Nash)
+
+* unix: remove unused cmpxchgl() function (Ben Noordhuis)
+
+* unix: support sockaddr_un in uv_udp_send() (Yury Selivanov)
+
+* unix: guard use of PTHREAD_STACK_MIN (Kamil Rytarowski)
+
+* unix,win: introduce uv_timeval64_t (cjihrig)
+
+* doc: document uv_timeval_t and uv_timeval64_t (cjihrig)
+
+
 2019.03.17, Version 1.27.0 (Stable), a4fc9a66cc35256dbc4dcd67c910174f05b6daa6
 
 Changes since version 1.26.0:

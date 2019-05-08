@@ -3,14 +3,17 @@
 const common = require('../common');
 const assert = require('assert');
 
-const outsideBounds = common.expectsError({
-  code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-  type: RangeError,
-  message: 'Attempt to write outside buffer bounds'
-}, 2);
-
-assert.throws(() => Buffer.alloc(9).write('foo', -1), outsideBounds);
-assert.throws(() => Buffer.alloc(9).write('foo', 10), outsideBounds);
+[-1, 10].forEach((offset) => {
+  assert.throws(
+    () => Buffer.alloc(9).write('foo', offset),
+    {
+      code: 'ERR_OUT_OF_RANGE',
+      name: 'RangeError',
+      message: 'The value of "offset" is out of range. ' +
+               `It must be >= 0 && <= 9. Received ${offset}`
+    }
+  );
+});
 
 const resultMap = new Map([
   ['utf8', Buffer.from([102, 111, 111, 0, 0, 0, 0, 0, 0])],

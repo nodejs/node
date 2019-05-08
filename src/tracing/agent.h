@@ -22,7 +22,7 @@ class Agent;
 
 class AsyncTraceWriter {
  public:
-  virtual ~AsyncTraceWriter() {}
+  virtual ~AsyncTraceWriter() = default;
   virtual void AppendTraceEvent(TraceObject* trace_event) = 0;
   virtual void Flush(bool blocking) = 0;
   virtual void InitializeOnThread(uv_loop_t* loop) {}
@@ -48,7 +48,7 @@ class TracingController : public v8::platform::tracing::TracingController {
 
 class AgentWriterHandle {
  public:
-  inline AgentWriterHandle() {}
+  inline AgentWriterHandle() = default;
   inline ~AgentWriterHandle() { reset(); }
 
   inline AgentWriterHandle(AgentWriterHandle&& other);

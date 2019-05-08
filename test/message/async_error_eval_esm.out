@@ -1,0 +1,7 @@
+Error: test
+    at one (eval:1:2:9)
+    at two (eval:1:15:9)
+    at processTicksAndRejections (internal/process/task_queues.js:*:*)
+    at async three (eval:1:18:3)
+    at async four (eval:1:22:3)
+    at async main (eval:1:28:5)

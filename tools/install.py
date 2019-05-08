@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+
 import ast
 import errno
 import os
-import re
 import shutil
 import sys
-from getmoduleversion import get_version
 
 # set at init time
 node_prefix = '/usr/local' # PREFIX variable from Makefile
-install_path = None # base target directory (DESTDIR + PREFIX from Makefile)
+install_path = '' # base target directory (DESTDIR + PREFIX from Makefile)
 target_defaults = None
 variables = None
 
@@ -101,7 +100,7 @@ def npm_files(action):
   elif action == install:
     try_symlink('../lib/node_modules/npm/bin/npm-cli.js', link_path)
   else:
-    assert(0) # unhandled action type
+    assert 0  # unhandled action type
 
   # create/remove symlink
   link_path = abspath(install_path, 'bin/npx')
@@ -110,15 +109,15 @@ def npm_files(action):
   elif action == install:
     try_symlink('../lib/node_modules/npm/bin/npx-cli.js', link_path)
   else:
-    assert(0) # unhandled action type
+    assert 0 # unhandled action type
 
 def subdir_files(path, dest, action):
   ret = {}
   for dirpath, dirnames, filenames in os.walk(path):
-    files = [dirpath + '/' + f for f in filenames if f.endswith('.h')]
-    ret[dest + dirpath.replace(path, '')] = files
-  for subdir, files in ret.items():
-    action(files, subdir + '/')
+    files_in_path = [dirpath + '/' + f for f in filenames if f.endswith('.h')]
+    ret[dest + dirpath.replace(path, '')] = files_in_path
+  for subdir, files_in_path in ret.items():
+    action(files_in_path, subdir + '/')
 
 def files(action):
   is_windows = sys.platform == 'win32'
@@ -162,13 +161,13 @@ def files(action):
   headers(action)
 
 def headers(action):
-  def ignore_inspector_headers(files, dest):
+  def ignore_inspector_headers(files_arg, dest):
     inspector_headers = [
       'deps/v8/include/v8-inspector.h',
       'deps/v8/include/v8-inspector-protocol.h'
     ]
-    files = [name for name in files if name not in inspector_headers]
-    action(files, dest)
+    files_arg = [name for name in files_arg if name not in inspector_headers]
+    action(files_arg, dest)
 
   action([
     'common.gypi',

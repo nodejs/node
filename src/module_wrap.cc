@@ -25,6 +25,7 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::HandleScope;
 using v8::Integer;
 using v8::IntegrityLevel;
@@ -611,7 +612,7 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
       env->exports_string()).ToLocal(&exports_v) &&
       (exports_v->IsObject() || exports_v->IsString() ||
       exports_v->IsBoolean())) {
-    Persistent<Value> exports;
+    Global<Value> exports;
     exports.Reset(env->isolate(), exports_v);
 
     auto entry = env->package_json_cache.emplace(path,

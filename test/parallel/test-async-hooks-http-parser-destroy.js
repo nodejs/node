@@ -1,6 +1,5 @@
 'use strict';
-const common = require('../common');
-const Countdown = require('../common/countdown');
+require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const http = require('http');
@@ -15,35 +14,28 @@ const KEEP_ALIVE = 100;
 const createdIds = [];
 const destroyedIds = [];
 async_hooks.createHook({
-  init: common.mustCallAtLeast((asyncId, type) => {
-    if (type === 'HTTPPARSER') {
+  init: (asyncId, type) => {
+    if (type === 'HTTPINCOMINGMESSAGE' || type === 'HTTPCLIENTREQUEST') {
       createdIds.push(asyncId);
     }
-  }, N),
+  },
   destroy: (asyncId) => {
-    destroyedIds.push(asyncId);
+    if (createdIds.includes(asyncId)) {
+      destroyedIds.push(asyncId);
+    }
+    if (destroyedIds.length === 2 * N) {
+      server.close();
+    }
   }
 }).enable();
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   res.end('Hello');
 });
 
 const keepAliveAgent = new http.Agent({
   keepAlive: true,
   keepAliveMsecs: KEEP_ALIVE,
-});
-
-const countdown = new Countdown(N, () => {
-  server.close(() => {
-    // Give the server sockets time to close (which will also free their
-    // associated parser objects) after the server has been closed.
-    setTimeout(() => {
-      createdIds.forEach((createdAsyncId) => {
-        assert.ok(destroyedIds.indexOf(createdAsyncId) >= 0);
-      });
-    }, KEEP_ALIVE * 2);
-  });
 });
 
 server.listen(0, function() {
@@ -53,9 +45,24 @@ server.listen(0, function() {
         port: server.address().port,
         agent: keepAliveAgent
       }, function(res) {
-        countdown.dec();
         res.resume();
       });
     })();
   }
 });
+
+function checkOnExit() {
+  assert.deepStrictEqual(destroyedIds.sort(), createdIds.sort());
+  // There should be two IDs for each request.
+  assert.strictEqual(createdIds.length, N * 2);
+}
+
+process.on('SIGTERM', () => {
+  // Catching SIGTERM and calling `process.exit(1)`  so that the `exit` event
+  // is triggered and the assertions are checked. This can be useful for
+  // troubleshooting this test if it times out.
+  process.exit(1);
+});
+
+// Ordinary exit.
+process.on('exit', checkOnExit);

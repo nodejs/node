@@ -586,6 +586,9 @@ connection is open.
 <!-- YAML
 added: v0.11.4
 changes:
+  - version: v12.2.0
+    pr-url: https://github.com/nodejs/node/pull/27497
+    description: The `enableTrace` option is now supported.
   - version: v5.0.0
     pr-url: https://github.com/nodejs/node/pull/2564
     description: ALPN options are supported now.
@@ -596,6 +599,7 @@ changes:
   instance of [`net.Socket`][] (for generic `Duplex` stream support
   on the client side, [`tls.connect()`][] must be used).
 * `options` {Object}
+  * `enableTrace`: See [`tls.createServer()`][]
   * `isServer`: The SSL/TLS protocol is asymmetrical, TLSSockets must know if
     they are to behave as a server or a client. If `true` the TLS socket will be
     instantiated as a server. **Default:** `false`.
@@ -725,6 +729,19 @@ added: v8.4.0
 Disables TLS renegotiation for this `TLSSocket` instance. Once called, attempts
 to renegotiate will trigger an `'error'` event on the `TLSSocket`.
 
+### tlsSocket.enableTrace()
+<!-- YAML
+added: v12.2.0
+-->
+
+When enabled, TLS packet trace information is written to `stderr`. This can be
+used to debug TLS connection problems.
+
+Note: The format of the output is identical to the output of `openssl s_client
+-trace` or `openssl s_server -trace`. While it is produced by OpenSSL's
+`SSL_trace()` function, the format is undocumented, can change without notice,
+and should not be relied on.
+
 ### tlsSocket.encrypted
 <!-- YAML
 added: v0.11.4
@@ -753,7 +770,7 @@ socket has been destroyed, `null` will be returned.
 <!-- YAML
 added: v0.11.4
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26625
     description: Return the minimum cipher version, instead of a fixed string
       (`'TLSv1/SSLv3'`).
@@ -1112,6 +1129,9 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
+  - version: v12.2.0
+    pr-url: https://github.com/nodejs/node/pull/27497
+    description: The `enableTrace` option is now supported.
   - version: v11.8.0
     pr-url: https://github.com/nodejs/node/pull/25517
     description: The `timeout` option is supported now.
@@ -1131,6 +1151,7 @@ changes:
 -->
 
 * `options` {Object}
+  * `enableTrace`: See [`tls.createServer()`][]
   * `host` {string} Host the client should connect to. **Default:**
     `'localhost'`.
   * `port` {number} Port the client should connect to.
@@ -1264,7 +1285,7 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26209
     description: TLSv1.3 support added.
   - version: v11.5.0
@@ -1438,6 +1459,10 @@ changes:
     `['hello', 'world']`. (Protocols should be ordered by their priority.)
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
     client certificate.
+  * `enableTrace` {boolean} If `true`, [`tls.TLSSocket.enableTrace()`][] will be
+    called on new connections. Tracing can be enabled after the secure
+    connection is established, but this option must be used to trace the secure
+    connection setup. **Default:** `false`.
   * `handshakeTimeout` {number} Abort the connection if the SSL/TLS handshake
     does not finish in the specified number of milliseconds.
     A `'tlsClientError'` is emitted on the `tls.Server` object whenever
@@ -1630,6 +1655,7 @@ changes:
 * `rejectUnauthorized` {boolean} If not `false` a server automatically reject
   clients with invalid certificates. Only applies when `isServer` is `true`.
 * `options`
+  * `enableTrace`: See [`tls.createServer()`][]
   * `secureContext`: A TLS context object from [`tls.createSecureContext()`][]
   * `isServer`: If `true` the TLS socket will be instantiated in server-mode.
     **Default:** `false`.
@@ -1693,6 +1719,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`tls.DEFAULT_MAX_VERSION`]: #tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: #tls_tls_default_min_version
 [`tls.Server`]: #tls_class_tls_server
+[`tls.TLSSocket.enableTrace()`]: #tls_tlssocket_enabletrace
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.TLSSocket.getSession()`]: #tls_tlssocket_getsession
 [`tls.TLSSocket.getTLSTicket()`]: #tls_tlssocket_gettlsticket

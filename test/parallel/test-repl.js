@@ -308,7 +308,7 @@ const errorTests = [
   // Functions should not evaluate twice (#2773)
   {
     send: 'var I = [1,2,3,function() {}]; I.pop()',
-    expect: '[Function]'
+    expect: '[Function (anonymous)]'
   },
   // Multiline object
   {
@@ -328,6 +328,21 @@ const errorTests = [
     send: '1 }',
     expect: '{ a: 1 }'
   },
+  // Multiline class with private member.
+  {
+    send: 'class Foo { #private = true ',
+    expect: '... '
+  },
+  // Class field with bigint.
+  {
+    send: 'num = 123456789n',
+    expect: '... '
+  },
+  // Static class features.
+  {
+    send: 'static foo = "bar" }',
+    expect: 'undefined'
+  },
   // Multiline anonymous function with comment
   {
     send: '(function() {',
@@ -338,12 +353,12 @@ const errorTests = [
     expect: '... '
   },
   {
-    send: 'return 1;',
+    send: 'return 1n;',
     expect: '... '
   },
   {
     send: '})()',
-    expect: '1'
+    expect: '1n'
   },
   // Multiline function call
   {

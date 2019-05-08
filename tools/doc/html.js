@@ -120,6 +120,8 @@ function preprocessText() {
 
 // Syscalls which appear in the docs, but which only exist in BSD / macOS.
 const BSD_ONLY_SYSCALLS = new Set(['lchmod']);
+const LINUX_DIE_ONLY_SYSCALLS = new Set(['uname']);
+const HAXX_ONLY_SYSCALLS = new Set(['curl']);
 const MAN_PAGE = /(^|\s)([a-z.]+)\((\d)([a-z]?)\)/gm;
 
 // Handle references to man pages, eg "open(2)" or "lchmod(2)".
@@ -136,6 +138,14 @@ function linkManPages(text) {
         return `${beginning}<a href="https://www.freebsd.org/cgi/man.cgi` +
           `?query=${name}&sektion=${number}">${displayAs}</a>`;
       }
+      if (LINUX_DIE_ONLY_SYSCALLS.has(name)) {
+        return `${beginning}<a href="https://linux.die.net/man/` +
+                `${number}/${name}">${displayAs}</a>`;
+      }
+      if (HAXX_ONLY_SYSCALLS.has(name)) {
+        return `${beginning}<a href="https://${name}.haxx.se/docs/manpage.html">${displayAs}</a>`;
+      }
+
       return `${beginning}<a href="http://man7.org/linux/man-pages/man${number}` +
         `/${name}.${number}${optionalCharacter}.html">${displayAs}</a>`;
     });

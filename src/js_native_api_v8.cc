@@ -1,4 +1,4 @@
-#include <limits.h>  // INT_MAX
+#include <climits>  // INT_MAX
 #include <cmath>
 #include <algorithm>
 #define NAPI_EXPERIMENTAL
@@ -870,7 +870,14 @@ napi_status napi_get_property_names(napi_env env,
   v8::Local<v8::Object> obj;
   CHECK_TO_OBJECT(env, context, obj, object);
 
-  auto maybe_propertynames = obj->GetPropertyNames(context);
+  v8::MaybeLocal<v8::Array> maybe_propertynames = obj->GetPropertyNames(
+    context,
+    v8::KeyCollectionMode::kIncludePrototypes,
+    static_cast<v8::PropertyFilter>(
+        v8::PropertyFilter::ONLY_ENUMERABLE |
+        v8::PropertyFilter::SKIP_SYMBOLS),
+    v8::IndexFilter::kIncludeIndices,
+    v8::KeyConversionMode::kConvertToString);
 
   CHECK_MAYBE_EMPTY(env, maybe_propertynames, napi_generic_failure);
 

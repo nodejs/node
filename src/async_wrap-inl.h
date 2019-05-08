@@ -34,6 +34,11 @@ inline AsyncWrap::ProviderType AsyncWrap::provider_type() const {
   return provider_type_;
 }
 
+inline AsyncWrap::ProviderType AsyncWrap::set_provider_type(
+    AsyncWrap::ProviderType provider) {
+  provider_type_ = provider;
+  return provider_type_;
+}
 
 inline double AsyncWrap::get_async_id() const {
   return async_id_;

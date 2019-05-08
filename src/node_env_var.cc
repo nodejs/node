@@ -50,7 +50,7 @@ class MapKVStore final : public KVStore {
 
   std::shared_ptr<KVStore> Clone(Isolate* isolate) const override;
 
-  MapKVStore() {}
+  MapKVStore() = default;
   MapKVStore(const MapKVStore& other) : map_(other.map_) {}
 
  private:

@@ -1,4 +1,5 @@
 #include "node.h"
+#include "env-inl.h"
 
 namespace node {
 
@@ -15,21 +16,22 @@ AsyncResource::AsyncResource(Isolate* isolate,
                              Local<Object> resource,
                              const char* name,
                              async_id trigger_async_id)
-    : isolate_(isolate),
+    : env_(Environment::GetCurrent(isolate)),
       resource_(isolate, resource) {
+  CHECK_NOT_NULL(env_);
   async_context_ = EmitAsyncInit(isolate, resource, name,
                                  trigger_async_id);
 }
 
 AsyncResource::~AsyncResource() {
-  EmitAsyncDestroy(isolate_, async_context_);
+  EmitAsyncDestroy(env_, async_context_);
   resource_.Reset();
 }
 
 MaybeLocal<Value> AsyncResource::MakeCallback(Local<Function> callback,
                                               int argc,
                                               Local<Value>* argv) {
-  return node::MakeCallback(isolate_, get_resource(),
+  return node::MakeCallback(env_->isolate(), get_resource(),
                             callback, argc, argv,
                             async_context_);
 }
@@ -37,7 +39,7 @@ MaybeLocal<Value> AsyncResource::MakeCallback(Local<Function> callback,
 MaybeLocal<Value> AsyncResource::MakeCallback(const char* method,
                                               int argc,
                                               Local<Value>* argv) {
-  return node::MakeCallback(isolate_, get_resource(),
+  return node::MakeCallback(env_->isolate(), get_resource(),
                             method, argc, argv,
                             async_context_);
 }
@@ -45,13 +47,13 @@ MaybeLocal<Value> AsyncResource::MakeCallback(const char* method,
 MaybeLocal<Value> AsyncResource::MakeCallback(Local<String> symbol,
                                               int argc,
                                               Local<Value>* argv) {
-  return node::MakeCallback(isolate_, get_resource(),
+  return node::MakeCallback(env_->isolate(), get_resource(),
                             symbol, argc, argv,
                             async_context_);
 }
 
 Local<Object> AsyncResource::get_resource() {
-  return resource_.Get(isolate_);
+  return resource_.Get(env_->isolate());
 }
 
 async_id AsyncResource::get_async_id() const {
@@ -62,9 +64,11 @@ async_id AsyncResource::get_trigger_async_id() const {
   return async_context_.trigger_async_id;
 }
 
+// TODO(addaleax): We shouldn’t need to use env_->isolate() if we’re just going
+// to end up using the Isolate* to figure out the Environment* again.
 AsyncResource::CallbackScope::CallbackScope(AsyncResource* res)
-    : node::CallbackScope(res->isolate_,
-                          res->resource_.Get(res->isolate_),
+    : node::CallbackScope(res->env_->isolate(),
+                          res->resource_.Get(res->env_->isolate()),
                           res->async_context_) {}
 
 }  // namespace node

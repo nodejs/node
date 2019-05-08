@@ -187,11 +187,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/23708
     description: The `%d`, `%f` and `%i` specifiers now support Symbols
                  properly.
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/23162
     description: The `format` argument is now only taken as such if it actually
                  contains format specifiers.
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/23162
     description: If the `format` argument is not a format string, the output
                  string's formatting is no longer dependent on the type of the
@@ -390,14 +390,14 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27109
     description: The `compact` options default is changed to `3` and the
                  `breakLength` options default is changed to `80`.
   - version: v11.11.0
     pr-url: https://github.com/nodejs/node/pull/26269
     description: The `compact` option accepts numbers for a new output mode.
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/24971
     description: Internal properties no longer appear in the context argument
                  of a custom inspection function.
@@ -638,22 +638,25 @@ via the `util.inspect.styles` and `util.inspect.colors` properties.
 
 The default styles and associated colors are:
 
- * `number` - `yellow`
- * `boolean` - `yellow`
- * `string` - `green`
- * `date` - `magenta`
- * `regexp` - `red`
- * `null` - `bold`
- * `undefined` - `grey`
- * `special` - `cyan` (only applied to functions at this time)
- * `name` - (no styling)
+* `bigint` - `yellow`
+* `boolean` - `yellow`
+* `date` - `magenta`
+* `module` - `underline`
+* `name` - (no styling)
+* `null` - `bold`
+* `number` - `yellow`
+* `regexp` - `red`
+* `special` - `cyan` (e.g., `Proxies`)
+* `string` - `green`
+* `symbol` - `green`
+* `undefined` - `grey`
 
 The predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
 `green`, `magenta`, `red` and `yellow`. There are also `bold`, `italic`,
 `underline` and `inverse` codes.
 
 Color styling uses ANSI control codes that may not be supported on all
-terminals.
+terminals. To verify color support use [`tty.hasColors()`][].
 
 ### Custom inspection functions on Objects
 
@@ -2190,6 +2193,7 @@ util.log('Timestamped message.');
 [`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
 [`console.error()`]: console.html#console_console_error_data_args
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
+[`tty.hasColors()`]: tty.html#tty_writestream_hascolors_count_env
 [`util.format()`]: #util_util_format_format_args
 [`util.inspect()`]: #util_util_inspect_object_options
 [`util.promisify()`]: #util_util_promisify_original

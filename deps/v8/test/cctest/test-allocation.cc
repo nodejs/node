@@ -105,6 +105,34 @@ TEST(AccountingAllocatorOOM) {
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
 
+TEST(AccountingAllocatorCurrentAndMax) {
+  AllocationPlatform platform;
+  v8::internal::AccountingAllocator allocator;
+  static constexpr size_t kAllocationSizes[] = {51, 231, 27};
+  std::vector<v8::internal::Segment*> segments;
+  CHECK_EQ(0, allocator.GetCurrentMemoryUsage());
+  CHECK_EQ(0, allocator.GetMaxMemoryUsage());
+  size_t expected_current = 0;
+  size_t expected_max = 0;
+  for (size_t size : kAllocationSizes) {
+    segments.push_back(allocator.AllocateSegment(size));
+    CHECK_NOT_NULL(segments.back());
+    CHECK_EQ(size, segments.back()->total_size());
+    expected_current += size;
+    if (expected_current > expected_max) expected_max = expected_current;
+    CHECK_EQ(expected_current, allocator.GetCurrentMemoryUsage());
+    CHECK_EQ(expected_max, allocator.GetMaxMemoryUsage());
+  }
+  for (auto* segment : segments) {
+    expected_current -= segment->total_size();
+    allocator.ReturnSegment(segment);
+    CHECK_EQ(expected_current, allocator.GetCurrentMemoryUsage());
+  }
+  CHECK_EQ(expected_max, allocator.GetMaxMemoryUsage());
+  CHECK_EQ(0, allocator.GetCurrentMemoryUsage());
+  CHECK(!platform.oom_callback_called);
+}
+
 TEST(MallocedOperatorNewOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);

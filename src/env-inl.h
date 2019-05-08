@@ -38,6 +38,14 @@
 
 #include <utility>
 
+#ifdef _WIN32
+/* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
+#define CWD_BUFSIZE (MAX_PATH * 4)
+#else
+#include <climits>  // PATH_MAX on Solaris.
+#define CWD_BUFSIZE (PATH_MAX)
+#endif
+
 namespace node {
 
 inline v8::Isolate* IsolateData::isolate() const {
@@ -101,16 +109,15 @@ inline AsyncHooks::AsyncHooks()
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
 }
-
-inline AliasedBuffer<uint32_t, v8::Uint32Array>& AsyncHooks::fields() {
+inline AliasedUint32Array& AsyncHooks::fields() {
   return fields_;
 }
 
-inline AliasedBuffer<double, v8::Float64Array>& AsyncHooks::async_id_fields() {
+inline AliasedFloat64Array& AsyncHooks::async_id_fields() {
   return async_id_fields_;
 }
 
-inline AliasedBuffer<double, v8::Float64Array>& AsyncHooks::async_ids_stack() {
+inline AliasedFloat64Array& AsyncHooks::async_ids_stack() {
   return async_ids_stack_;
 }
 
@@ -235,8 +242,7 @@ inline void Environment::PopAsyncCallbackScope() {
 inline ImmediateInfo::ImmediateInfo(v8::Isolate* isolate)
     : fields_(isolate, kFieldsCount) {}
 
-inline AliasedBuffer<uint32_t, v8::Uint32Array>&
-    ImmediateInfo::fields() {
+inline AliasedUint32Array& ImmediateInfo::fields() {
   return fields_;
 }
 
@@ -271,7 +277,7 @@ inline void ImmediateInfo::ref_count_dec(uint32_t decrement) {
 inline TickInfo::TickInfo(v8::Isolate* isolate)
     : fields_(isolate, kFieldsCount) {}
 
-inline AliasedBuffer<uint8_t, v8::Uint8Array>& TickInfo::fields() {
+inline AliasedUint8Array& TickInfo::fields() {
   return fields_;
 }
 
@@ -302,15 +308,18 @@ inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
 }
 
 inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
-  if (UNLIKELY(context.IsEmpty() ||
-      context->GetNumberOfEmbedderDataFields() <
-          ContextEmbedderIndex::kContextTag ||
-      context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kContextTag) !=
-          Environment::kNodeContextTagPtr)) {
+  if (UNLIKELY(context.IsEmpty())) {
     return nullptr;
   }
-
+  if (UNLIKELY(context->GetNumberOfEmbedderDataFields() <=
+               ContextEmbedderIndex::kContextTag)) {
+    return nullptr;
+  }
+  if (UNLIKELY(context->GetAlignedPointerFromEmbedderData(
+                   ContextEmbedderIndex::kContextTag) !=
+               Environment::kNodeContextTagPtr)) {
+    return nullptr;
+  }
   return static_cast<Environment*>(
       context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kEnvironment));
@@ -475,13 +484,11 @@ inline void Environment::set_abort_on_uncaught_exception(bool value) {
   options_->abort_on_uncaught_exception = value;
 }
 
-inline AliasedBuffer<uint32_t, v8::Uint32Array>&
-Environment::should_abort_on_uncaught_toggle() {
+inline AliasedUint32Array& Environment::should_abort_on_uncaught_toggle() {
   return should_abort_on_uncaught_toggle_;
 }
 
-inline AliasedBuffer<int32_t, v8::Int32Array>&
-Environment::stream_base_state() {
+inline AliasedInt32Array& Environment::stream_base_state() {
   return stream_base_state_;
 }
 
@@ -611,13 +618,11 @@ void Environment::set_debug_enabled(DebugCategory category, bool enabled) {
   debug_enabled_[static_cast<int>(category)] = enabled;
 }
 
-inline AliasedBuffer<double, v8::Float64Array>*
-Environment::fs_stats_field_array() {
+inline AliasedFloat64Array* Environment::fs_stats_field_array() {
   return &fs_stats_field_array_;
 }
 
-inline AliasedBuffer<uint64_t, v8::BigUint64Array>*
-Environment::fs_stats_field_bigint_array() {
+inline AliasedBigUint64Array* Environment::fs_stats_field_bigint_array() {
   return &fs_stats_field_bigint_array_;
 }
 
@@ -656,6 +661,42 @@ inline profiler::V8CoverageConnection* Environment::coverage_connection() {
 inline const std::string& Environment::coverage_directory() const {
   return coverage_directory_;
 }
+
+inline void Environment::set_cpu_profiler_connection(
+    std::unique_ptr<profiler::V8CpuProfilerConnection> connection) {
+  CHECK_NULL(cpu_profiler_connection_);
+  std::swap(cpu_profiler_connection_, connection);
+}
+
+inline profiler::V8CpuProfilerConnection*
+Environment::cpu_profiler_connection() {
+  return cpu_profiler_connection_.get();
+}
+
+inline void Environment::set_cpu_prof_interval(uint64_t interval) {
+  cpu_prof_interval_ = interval;
+}
+
+inline uint64_t Environment::cpu_prof_interval() const {
+  return cpu_prof_interval_;
+}
+
+inline void Environment::set_cpu_prof_name(const std::string& name) {
+  cpu_prof_name_ = name;
+}
+
+inline const std::string& Environment::cpu_prof_name() const {
+  return cpu_prof_name_;
+}
+
+inline void Environment::set_cpu_prof_dir(const std::string& dir) {
+  cpu_prof_dir_ = dir;
+}
+
+inline const std::string& Environment::cpu_prof_dir() const {
+  return cpu_prof_dir_;
+}
+
 #endif  // HAVE_INSPECTOR
 
 inline std::shared_ptr<HostPort> Environment::inspector_host_port() {
@@ -1073,10 +1114,13 @@ void AsyncRequest::set_stopped(bool flag) {
   inline void Environment::set_ ## PropertyName(v8::Local<TypeName> value) {  \
     PropertyName ## _.Reset(isolate(), value);                                \
   }
-  ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
+  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
+  inline v8::Local<v8::Context> Environment::context() const {
+    return PersistentToLocal::Strong(context_);
+  }
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

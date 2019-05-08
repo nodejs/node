@@ -13,7 +13,8 @@ assert.deepStrictEqual(keys, new Set([
   'tls_alpn',
   'tls_sni',
   'tls_ocsp',
-  'tls'
+  'tls',
+  'cached_builtins',
 ]));
 
 for (const key of keys) {

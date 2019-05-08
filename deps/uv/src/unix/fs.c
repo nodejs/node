@@ -60,7 +60,6 @@
 #endif
 
 #if defined(__APPLE__)
-# include <copyfile.h>
 # include <sys/sysctl.h>
 #elif defined(__linux__) && !defined(FICLONE)
 # include <sys/ioctl.h>
@@ -141,6 +140,18 @@ extern char *mkdtemp(char *template); /* See issue #740 on AIX < 7 */
     }                                                                         \
   }                                                                           \
   while (0)
+
+
+static int uv__fs_close(int fd) {
+  int rc;
+
+  rc = close(fd);
+  if (rc == -1)
+    if (errno == EINTR || errno == EINPROGRESS)
+      rc = 0;  /* The close is in progress, not an error. */
+
+  return rc;
+}
 
 
 static ssize_t uv__fs_fsync(uv_fs_t* req) {
@@ -351,7 +362,7 @@ static int uv__fs_scandir_sort(UV_CONST_DIRENT** a, UV_CONST_DIRENT** b) {
 
 
 static ssize_t uv__fs_scandir(uv_fs_t* req) {
-  uv__dirent_t **dents;
+  uv__dirent_t** dents;
   int n;
 
   dents = NULL;
@@ -373,6 +384,87 @@ static ssize_t uv__fs_scandir(uv_fs_t* req) {
   req->ptr = dents;
 
   return n;
+}
+
+static int uv__fs_opendir(uv_fs_t* req) {
+  uv_dir_t* dir;
+
+  dir = uv__malloc(sizeof(*dir));
+  if (dir == NULL)
+    goto error;
+
+  dir->dir = opendir(req->path);
+  if (dir->dir == NULL)
+    goto error;
+
+  req->ptr = dir;
+  return 0;
+
+error:
+  uv__free(dir);
+  req->ptr = NULL;
+  return -1;
+}
+
+static int uv__fs_readdir(uv_fs_t* req) {
+  uv_dir_t* dir;
+  uv_dirent_t* dirent;
+  struct dirent* res;
+  unsigned int dirent_idx;
+  unsigned int i;
+
+  dir = req->ptr;
+  dirent_idx = 0;
+
+  while (dirent_idx < dir->nentries) {
+    /* readdir() returns NULL on end of directory, as well as on error. errno
+       is used to differentiate between the two conditions. */
+    errno = 0;
+    res = readdir(dir->dir);
+
+    if (res == NULL) {
+      if (errno != 0)
+        goto error;
+      break;
+    }
+
+    if (strcmp(res->d_name, ".") == 0 || strcmp(res->d_name, "..") == 0)
+      continue;
+
+    dirent = &dir->dirents[dirent_idx];
+    dirent->name = uv__strdup(res->d_name);
+
+    if (dirent->name == NULL)
+      goto error;
+
+    dirent->type = uv__fs_get_dirent_type(res);
+    ++dirent_idx;
+  }
+
+  return dirent_idx;
+
+error:
+  for (i = 0; i < dirent_idx; ++i) {
+    uv__free((char*) dir->dirents[i].name);
+    dir->dirents[i].name = NULL;
+  }
+
+  return -1;
+}
+
+static int uv__fs_closedir(uv_fs_t* req) {
+  uv_dir_t* dir;
+
+  dir = req->ptr;
+
+  if (dir->dir != NULL) {
+    closedir(dir->dir);
+    dir->dir = NULL;
+  }
+
+  uv__free(req->ptr);
+  req->ptr = NULL;
+  return 0;
 }
 
 #if defined(_POSIX_PATH_MAX)
@@ -808,45 +900,6 @@ done:
 }
 
 static ssize_t uv__fs_copyfile(uv_fs_t* req) {
-#if defined(__APPLE__) && !TARGET_OS_IPHONE
-  /* On macOS, use the native copyfile(3). */
-  static int can_clone;
-  copyfile_flags_t flags;
-  char buf[64];
-  size_t len;
-  int major;
-
-  flags = COPYFILE_ALL;
-
-  if (req->flags & UV_FS_COPYFILE_EXCL)
-    flags |= COPYFILE_EXCL;
-
-  /* Check OS version. Cloning is only supported on macOS >= 10.12. */
-  if (req->flags & UV_FS_COPYFILE_FICLONE_FORCE) {
-    if (can_clone == 0) {
-      len = sizeof(buf);
-      if (sysctlbyname("kern.osrelease", buf, &len, NULL, 0))
-        return UV__ERR(errno);
-
-      if (1 != sscanf(buf, "%d", &major))
-        abort();
-
-      can_clone = -1 + 2 * (major >= 16);  /* macOS >= 10.12 */
-    }
-
-    if (can_clone < 0)
-      return UV_ENOSYS;
-  }
-
-  /* copyfile() simply ignores COPYFILE_CLONE if it's not supported. */
-  if (req->flags & UV_FS_COPYFILE_FICLONE)
-    flags |= 1 << 24;  /* COPYFILE_CLONE */
-
-  if (req->flags & UV_FS_COPYFILE_FICLONE_FORCE)
-    flags |= 1 << 25;  /* COPYFILE_CLONE_FORCE */
-
-  return copyfile(req->path, req->new_path, NULL, flags);
-#else
   uv_fs_t fs_req;
   uv_file srcfd;
   uv_file dstfd;
@@ -973,7 +1026,6 @@ out:
 
   errno = UV__ERR(result);
   return -1;
-#endif
 }
 
 static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
@@ -1249,7 +1301,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(ACCESS, access(req->path, req->flags));
     X(CHMOD, chmod(req->path, req->mode));
     X(CHOWN, chown(req->path, req->uid, req->gid));
-    X(CLOSE, close(req->file));
+    X(CLOSE, uv__fs_close(req->file));
     X(COPYFILE, uv__fs_copyfile(req));
     X(FCHMOD, fchmod(req->file, req->mode));
     X(FCHOWN, fchown(req->file, req->uid, req->gid));
@@ -1266,6 +1318,9 @@ static void uv__fs_work(struct uv__work* w) {
     X(OPEN, uv__fs_open(req));
     X(READ, uv__fs_read(req));
     X(SCANDIR, uv__fs_scandir(req));
+    X(OPENDIR, uv__fs_opendir(req));
+    X(READDIR, uv__fs_readdir(req));
+    X(CLOSEDIR, uv__fs_closedir(req));
     X(READLINK, uv__fs_readlink(req));
     X(REALPATH, uv__fs_realpath(req));
     X(RENAME, rename(req->path, req->new_path));
@@ -1536,6 +1591,40 @@ int uv_fs_scandir(uv_loop_t* loop,
   POST;
 }
 
+int uv_fs_opendir(uv_loop_t* loop,
+                  uv_fs_t* req,
+                  const char* path,
+                  uv_fs_cb cb) {
+  INIT(OPENDIR);
+  PATH;
+  POST;
+}
+
+int uv_fs_readdir(uv_loop_t* loop,
+                  uv_fs_t* req,
+                  uv_dir_t* dir,
+                  uv_fs_cb cb) {
+  INIT(READDIR);
+
+  if (dir == NULL || dir->dir == NULL || dir->dirents == NULL)
+    return UV_EINVAL;
+
+  req->ptr = dir;
+  POST;
+}
+
+int uv_fs_closedir(uv_loop_t* loop,
+                   uv_fs_t* req,
+                   uv_dir_t* dir,
+                   uv_fs_cb cb) {
+  INIT(CLOSEDIR);
+
+  if (dir == NULL)
+    return UV_EINVAL;
+
+  req->ptr = dir;
+  POST;
+}
 
 int uv_fs_readlink(uv_loop_t* loop,
                    uv_fs_t* req,
@@ -1676,6 +1765,9 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
   req->path = NULL;
   req->new_path = NULL;
 
+  if (req->fs_type == UV_FS_READDIR && req->ptr != NULL)
+    uv__fs_readdir_cleanup(req);
+
   if (req->fs_type == UV_FS_SCANDIR && req->ptr != NULL)
     uv__fs_scandir_cleanup(req);
 
@@ -1683,7 +1775,7 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
     uv__free(req->bufs);
   req->bufs = NULL;
 
-  if (req->ptr != &req->statbuf)
+  if (req->fs_type != UV_FS_OPENDIR && req->ptr != &req->statbuf)
     uv__free(req->ptr);
   req->ptr = NULL;
 }

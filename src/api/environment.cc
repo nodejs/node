@@ -5,7 +5,6 @@
 #include "node_internals.h"
 #include "node_native_module_env.h"
 #include "node_platform.h"
-#include "node_process.h"
 #include "node_v8_platform-inl.h"
 #include "uv.h"
 
@@ -44,32 +43,6 @@ static bool ShouldAbortOnUncaughtException(Isolate* isolate) {
          (env->is_main_thread() || !env->is_stopping()) &&
          env->should_abort_on_uncaught_toggle()[0] &&
          !env->inside_should_not_abort_on_uncaught_scope();
-}
-
-static void OnMessage(Local<Message> message, Local<Value> error) {
-  Isolate* isolate = message->GetIsolate();
-  switch (message->ErrorLevel()) {
-    case Isolate::MessageErrorLevel::kMessageWarning: {
-      Environment* env = Environment::GetCurrent(isolate);
-      if (!env) {
-        break;
-      }
-      Utf8Value filename(isolate, message->GetScriptOrigin().ResourceName());
-      // (filename):(line) (message)
-      std::stringstream warning;
-      warning << *filename;
-      warning << ":";
-      warning << message->GetLineNumber(env->context()).FromMaybe(-1);
-      warning << " ";
-      v8::String::Utf8Value msg(isolate, message->Get());
-      warning << *msg;
-      USE(ProcessEmitWarningGeneric(env, warning.str().c_str(), "V8"));
-      break;
-    }
-    case Isolate::MessageErrorLevel::kMessageError:
-      FatalException(isolate, error, message);
-      break;
-  }
 }
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
@@ -139,7 +112,11 @@ void DebuggingArrayBufferAllocator::UnregisterPointerInternal(void* data,
   if (data == nullptr) return;
   auto it = allocations_.find(data);
   CHECK_NE(it, allocations_.end());
-  CHECK_EQ(it->second, size);
+  if (size > 0) {
+    // We allow allocations with size 1 for 0-length buffers to avoid having
+    // to deal with nullptr values.
+    CHECK_EQ(it->second, size);
+  }
   allocations_.erase(it);
 }
 
@@ -165,11 +142,7 @@ void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
   delete allocator;
 }
 
-void SetIsolateCreateParams(Isolate::CreateParams* params,
-                            ArrayBufferAllocator* allocator) {
-  if (allocator != nullptr)
-    params->array_buffer_allocator = allocator;
-
+void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
   const uint64_t total_memory = uv_get_total_memory();
   if (total_memory > 0) {
     // V8 defaults to 700MB or 1.4GB on 32 and 64 bit platforms respectively.
@@ -183,40 +156,64 @@ void SetIsolateCreateParams(Isolate::CreateParams* params,
 #endif
 }
 
+void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat) {
+  switch (cat) {
+    case IsolateSettingCategories::kErrorHandlers:
+      isolate->AddMessageListenerWithErrorLevel(
+          errors::PerIsolateMessageListener,
+          Isolate::MessageErrorLevel::kMessageError |
+              Isolate::MessageErrorLevel::kMessageWarning);
+      isolate->SetAbortOnUncaughtExceptionCallback(
+          ShouldAbortOnUncaughtException);
+      isolate->SetFatalErrorHandler(OnFatalError);
+      break;
+    case IsolateSettingCategories::kMisc:
+      isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
+      isolate->SetAllowWasmCodeGenerationCallback(
+          AllowWasmCodeGenerationCallback);
+      isolate->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
+      v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+}
+
 void SetIsolateUpForNode(v8::Isolate* isolate) {
-  isolate->AddMessageListenerWithErrorLevel(
-      OnMessage,
-      Isolate::MessageErrorLevel::kMessageError |
-          Isolate::MessageErrorLevel::kMessageWarning);
-  isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
-  isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
-  isolate->SetFatalErrorHandler(OnFatalError);
-  isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
-  isolate->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
-  v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+  SetIsolateUpForNode(isolate, IsolateSettingCategories::kErrorHandlers);
+  SetIsolateUpForNode(isolate, IsolateSettingCategories::kMisc);
 }
 
 Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
   return NewIsolate(allocator, event_loop, GetMainThreadMultiIsolatePlatform());
 }
 
-Isolate* NewIsolate(ArrayBufferAllocator* allocator,
+// TODO(joyeecheung): we may want to expose this, but then we need to be
+// careful about what we override in the params.
+Isolate* NewIsolate(Isolate::CreateParams* params,
                     uv_loop_t* event_loop,
                     MultiIsolatePlatform* platform) {
-  Isolate::CreateParams params;
-  SetIsolateCreateParams(&params, allocator);
-
   Isolate* isolate = Isolate::Allocate();
   if (isolate == nullptr) return nullptr;
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate, event_loop);
-  Isolate::Initialize(isolate, params);
 
+  SetIsolateCreateParamsForNode(params);
+  Isolate::Initialize(isolate, *params);
   SetIsolateUpForNode(isolate);
 
   return isolate;
+}
+
+Isolate* NewIsolate(ArrayBufferAllocator* allocator,
+                    uv_loop_t* event_loop,
+                    MultiIsolatePlatform* platform) {
+  Isolate::CreateParams params;
+  if (allocator != nullptr) params.array_buffer_allocator = allocator;
+  return NewIsolate(&params, event_loop, platform);
 }
 
 IsolateData* CreateIsolateData(Isolate* isolate,

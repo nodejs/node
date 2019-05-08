@@ -29,6 +29,45 @@ const modSize = 1024;
                                      'instance when called without `new`');
 }
 
+// Test handling of exceptional conditions
+{
+  const library = {
+    configurable: true,
+    set() {
+      throw new Error('bye, bye, library');
+    }
+  };
+  Object.defineProperty(Object.prototype, 'library', library);
+
+  assert.throws(() => {
+    crypto.createSign('sha1').sign(
+      `-----BEGIN RSA PRIVATE KEY-----
+      AAAAAAAAAAAA
+      -----END RSA PRIVATE KEY-----`);
+  }, { message: 'bye, bye, library' });
+
+  delete Object.prototype.library;
+
+  const errorStack = {
+    configurable: true,
+    set() {
+      throw new Error('bye, bye, error stack');
+    }
+  };
+  Object.defineProperty(Object.prototype, 'opensslErrorStack', errorStack);
+
+  assert.throws(() => {
+    crypto.createSign('SHA1')
+      .update('Test123')
+      .sign({
+        key: keyPem,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+      });
+  }, { message: 'bye, bye, error stack' });
+
+  delete Object.prototype.opensslErrorStack;
+}
+
 common.expectsError(
   () => crypto.createVerify('SHA256').verify({
     key: certPem,
@@ -300,7 +339,14 @@ common.expectsError(
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, /^Error:.*illegal or unsupported padding mode$/);
+  }, {
+    code: 'ERR_OSSL_RSA_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
+    message: /illegal or unsupported padding mode/,
+    opensslErrorStack: [
+      'error:06089093:digital envelope routines:EVP_PKEY_CTX_ctrl:' +
+      'command not supported',
+    ],
+  });
 }
 
 // Test throws exception when key options is null

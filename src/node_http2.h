@@ -1208,7 +1208,7 @@ class ExternalHeader :
 class Headers {
  public:
   Headers(Isolate* isolate, Local<Context> context, Local<Array> headers);
-  ~Headers() {}
+  ~Headers() = default;
 
   nghttp2_nv* operator*() {
     return reinterpret_cast<nghttp2_nv*>(*buf_);
@@ -1229,7 +1229,7 @@ class Origins {
           Local<Context> context,
           Local<v8::String> origin_string,
           size_t origin_count);
-  ~Origins() {}
+  ~Origins() = default;
 
   nghttp2_origin_entry* operator*() {
     return reinterpret_cast<nghttp2_origin_entry*>(*buf_);

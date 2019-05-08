@@ -1,4 +1,4 @@
-// Flags: --experimental-report --diagnostic-report-on-fatalerror --diagnostic-report-on-signal --diagnostic-report-uncaught-exception
+// Flags: --experimental-report --report-on-fatalerror --report-on-signal --report-uncaught-exception
 'use strict';
 const common = require('../common');
 common.skipIfReportDisabled();

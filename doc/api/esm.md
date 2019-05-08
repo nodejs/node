@@ -30,45 +30,37 @@ specifier resolution, and default behavior.
 The `--experimental-modules` flag can be used to enable support for
 ECMAScript modules (ES modules).
 
-## Running Node.js with an ECMAScript Module
+Once enabled, Node.js will treat the following as ES modules when passed to
+`node` as the initial input, or when referenced by `import` statements within
+ES module code:
 
-There are a few ways to start Node.js with an ES module as its input.
+- Files ending in `.mjs`.
 
-### Initial entry point with an <code>.mjs</code> extension
+- Files ending in `.js`, or extensionless files, when the nearest parent
+  `package.json` file contains a top-level field `"type"` with a value of
+  `"module"`.
 
-A file ending with `.mjs` passed to Node.js as an initial entry point will be
-loaded as an ES module.
+- Strings passed in as an argument to `--eval` or `--print`, or piped to
+  `node` via `STDIN`, with the flag `--input-type=module`.
 
-```sh
-node --experimental-modules my-app.mjs
-```
+Node.js will treat as CommonJS all other forms of input, such as `.js` files
+where the nearest parent `package.json` file contains no top-level `"type"`
+field, or string input without the flag `--input-type`. This behavior is to
+preserve backward compatibility. However, now that Node.js supports both
+CommonJS and ES modules, it is best to be explicit whenever possible. Node.js
+will treat the following as CommonJS when passed to `node` as the initial input,
+or when referenced by `import` statements within ES module code:
 
-### <code>--entry-type=module</code> flag
+- Files ending in `.cjs`.
 
-Files ending with `.js` or `.mjs`, or lacking any extension,
-will be loaded as ES modules when the `--entry-type=module` flag is set.
+- Files ending in `.js`, or extensionless files, when the nearest parent
+  `package.json` file contains a top-level field `"type"` with a value of
+  `"commonjs"`.
 
-```sh
-node --experimental-modules --entry-type=module my-app.js
-```
+- Strings passed in as an argument to `--eval` or `--print`, or piped to
+  `node` via `STDIN`, with the flag `--input-type=commonjs`.
 
-For completeness there is also `--entry-type=commonjs`, for explicitly running
-a `.js` file as CommonJS. This is the default behavior if `--entry-type` is
-unspecified.
-
-The `--entry-type=module` flag can also be used to configure Node.js to treat
-as an ES module input sent in via `--eval` or `--print` (or `-e` or `-p`) or
-piped to Node.js via `STDIN`.
-
-```sh
-node --experimental-modules --entry-type=module --eval \
-  "import { sep } from 'path'; console.log(sep);"
-
-echo "import { sep } from 'path'; console.log(sep);" | \
-  node --experimental-modules --entry-type=module
-```
-
-### <code>package.json</code> <code>"type"</code> field
+## <code>package.json</code> <code>"type"</code> field
 
 Files ending with `.js` or `.mjs`, or lacking any extension,
 will be loaded as ES modules when the nearest parent `package.json` file
@@ -96,6 +88,14 @@ If the nearest parent `package.json` lacks a `"type"` field, or contains
 If the volume root is reached and no `package.json` is found,
 Node.js defers to the default, a `package.json` with no `"type"`
 field.
+
+`import` statements of `.js` and extensionless files are treated as ES modules
+if the nearest parent `package.json` contains `"type": "module"`.
+
+```js
+// my-app.js, part of the same example as above
+import './startup.js'; // Loaded as ES module because of package.json
+```
 
 ## Package Scope and File Extensions
 
@@ -155,6 +155,24 @@ package scope:
   interpret a particular file as an ES module by naming it with an `.mjs`
   extension (since both `.js` and `.cjs` files are treated as CommonJS within a
   `"commonjs"` package scope).
+
+## <code>--input-type</code> flag
+
+Strings passed in as an argument to `--eval` or `--print` (or `-e` or `-p`), or
+piped to `node` via `STDIN`, will be treated as ES modules when the
+`--input-type=module` flag is set.
+
+```sh
+node --experimental-modules --input-type=module --eval \
+  "import { sep } from 'path'; console.log(sep);"
+
+echo "import { sep } from 'path'; console.log(sep);" | \
+  node --experimental-modules --input-type=module
+```
+
+For completeness there is also `--input-type=commonjs`, for explicitly running
+string input as CommonJS. This is the default behavior if `--input-type` is
+unspecified.
 
 ## Package Entry Points
 

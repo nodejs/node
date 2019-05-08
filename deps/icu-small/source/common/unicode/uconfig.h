@@ -369,6 +369,18 @@
 #   define UCONFIG_MSGPAT_DEFAULT_APOSTROPHE_MODE UMSGPAT_APOS_DOUBLE_OPTIONAL
 #endif
 
+/**
+ * \def UCONFIG_USE_WINDOWS_LCID_MAPPING_API
+ * On platforms where U_PLATFORM_HAS_WIN32_API is true, this switch determines
+ * if the Windows platform APIs are used for LCID<->Locale Name conversions.
+ * Otherwise, only the built-in ICU tables are used.
+ *
+ * @internal ICU 64
+ */
+#ifndef UCONFIG_USE_WINDOWS_LCID_MAPPING_API
+#   define UCONFIG_USE_WINDOWS_LCID_MAPPING_API 1
+#endif
+
 /* i18n library switches ---------------------------------------------------- */
 
 /**

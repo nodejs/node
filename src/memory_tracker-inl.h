@@ -184,9 +184,9 @@ void MemoryTracker::TrackField(const char* edge_name,
   TrackField(edge_name, value.Get(isolate_));
 }
 
-template <typename T, typename Traits>
+template <typename T>
 void MemoryTracker::TrackField(const char* edge_name,
-                               const v8::Persistent<T, Traits>& value,
+                               const v8::PersistentBase<T>& value,
                                const char* node_name) {
   TrackField(edge_name, value.Get(isolate_));
 }
@@ -226,7 +226,7 @@ void MemoryTracker::TrackField(const char* name,
 
 template <class NativeT, class V8T>
 void MemoryTracker::TrackField(const char* name,
-                               const AliasedBuffer<NativeT, V8T>& value,
+                               const AliasedBufferBase<NativeT, V8T>& value,
                                const char* node_name) {
   TrackField(name, value.GetJSArray(), "AliasedBuffer");
 }

@@ -4,7 +4,6 @@
 namespace node {
 namespace native_module {
 
-using v8::ArrayBuffer;
 using v8::Context;
 using v8::DEFAULT;
 using v8::Function;
@@ -18,11 +17,9 @@ using v8::Name;
 using v8::None;
 using v8::Object;
 using v8::PropertyCallbackInfo;
-using v8::ScriptCompiler;
 using v8::Set;
 using v8::SideEffectType;
 using v8::String;
-using v8::Uint8Array;
 using v8::Value;
 
 // TODO(joyeecheung): make these more general and put them into util.h
@@ -154,26 +151,6 @@ MaybeLocal<Function> NativeModuleEnv::LookupAndCompile(
   return maybe;
 }
 
-// This is supposed to be run only by the main thread in
-// tools/generate_code_cache.js
-void NativeModuleEnv::GetCodeCache(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  CHECK(env->is_main_thread());
-
-  CHECK(args[0]->IsString());
-  node::Utf8Value id_v(isolate, args[0].As<String>());
-  const char* id = *id_v;
-
-  ScriptCompiler::CachedData* cached_data =
-      NativeModuleLoader::GetInstance()->GetCodeCache(id);
-  if (cached_data != nullptr) {
-    Local<ArrayBuffer> buf = ArrayBuffer::New(isolate, cached_data->length);
-    memcpy(buf->GetContents().Data(), cached_data->data, cached_data->length);
-    args.GetReturnValue().Set(Uint8Array::New(buf, 0, cached_data->length));
-  }
-}
-
 // TODO(joyeecheung): It is somewhat confusing that Class::Initialize
 // is used to initilaize to the binding, but it is the current convention.
 // Rename this across the code base to something that makes more sense.
@@ -216,7 +193,6 @@ void NativeModuleEnv::Initialize(Local<Object> target,
       .Check();
 
   env->SetMethod(target, "getCacheUsage", NativeModuleEnv::GetCacheUsage);
-  env->SetMethod(target, "getCodeCache", NativeModuleEnv::GetCodeCache);
   env->SetMethod(target, "compileFunction", NativeModuleEnv::CompileFunction);
   // internalBinding('native_module') should be frozen
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();

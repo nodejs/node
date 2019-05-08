@@ -431,12 +431,13 @@ public:
     static BreakIterator* U_EXPORT2
     createSentenceInstance(const Locale& where, UErrorCode& status);
 
+#ifndef U_HIDE_DEPRECATED_API
     /**
      * Create BreakIterator for title-casing breaks using the specified locale
      * Returns an instance of a BreakIterator implementing title breaks.
      * The iterator returned locates title boundaries as described for
      * Unicode 3.2 only. For Unicode 4.0 and above title boundary iteration,
-     * please use Word Boundary iterator.{@link #createWordInstance }
+     * please use a word boundary iterator. See {@link #createWordInstance }.
      *
      * @param where the locale.
      * @param status The error code.
@@ -451,10 +452,11 @@ public:
      * used; neither the requested locale nor any of its fall back locales
      * could be found.
      * The caller owns the returned object and is responsible for deleting it.
-     * @stable ICU 2.1
+     * @deprecated ICU 64 Use createWordInstance instead.
      */
     static BreakIterator* U_EXPORT2
     createTitleInstance(const Locale& where, UErrorCode& status);
+#endif /* U_HIDE_DEPRECATED_API */
 
     /**
      * Get the set of Locales for which TextBoundaries are installed.

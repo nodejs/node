@@ -46,9 +46,19 @@ def retrievefile(url, targetfile):
         print(' ** Error occurred while downloading\n <%s>' % url)
         raise
 
-def md5sum(targetfile):
-    """md5sum a file. Return the hex digest."""
-    digest = hashlib.md5()
+def findHash(dict):
+    """Find an available hash type."""
+    # choose from one of these
+    availAlgos = hashlib.algorithms_guaranteed
+    for hashAlgo in availAlgos:
+      if hashAlgo in dict:
+        return (dict[hashAlgo], hashAlgo, availAlgos)
+    # error
+    return (None, None, availAlgos)
+
+def checkHash(targetfile, hashAlgo):
+    """Check a file using hashAlgo. Return the hex digest."""
+    digest = hashlib.new(hashAlgo)
     with open(targetfile, 'rb') as f:
       chunk = f.read(1024)
       while chunk !=  "":
@@ -107,7 +117,7 @@ def parse(opt):
     if not anOpt or anOpt == "":
       # ignore stray commas, etc.
       continue
-    elif anOpt is 'all':
+    elif anOpt == 'all':
       # all on
       theRet = dict((key, True) for (key) in download_types)
     else:

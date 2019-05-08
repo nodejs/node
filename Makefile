@@ -16,6 +16,7 @@ GTEST_FILTER ?= "*"
 GNUMAKEFLAGS += --no-print-directory
 GCOV ?= gcov
 PWD = $(CURDIR)
+BUILD_WITH ?= make
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
@@ -95,6 +96,7 @@ help: ## Print help for targets with comments.
 # Without the check there is a race condition between the link being deleted
 # and recreated which can break the addons build when running test-ci
 # See comments on the build-addons target for some more info
+ifeq ($(BUILD_WITH), make)
 $(NODE_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Release V=$(V)
 	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
@@ -102,26 +104,41 @@ $(NODE_EXE): config.gypi out/Makefile
 $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
+else
+ifeq ($(BUILD_WITH), ninja)
+ifeq ($(V),1)
+  NINJA_ARGS := $(NINJA_ARGS) -v
+endif
+ifdef JOBS
+  NINJA_ARGS := $(NINJA_ARGS) -j$(JOBS)
+else
+  NINJA_ARGS := $(NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
+endif
+$(NODE_EXE): config.gypi out/Release/build.ninja
+	ninja -C out/Release $(NINJA_ARGS)
+	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
 
-CODE_CACHE_DIR ?= out/$(BUILDTYPE)/obj/gen
-CODE_CACHE_FILE ?= $(CODE_CACHE_DIR)/node_code_cache.cc
+$(NODE_G_EXE): config.gypi out/Debug/build.ninja
+	ninja -C out/Debug $(NINJA_ARGS)
+	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
+else
+$(NODE_EXE) $(NODE_G_EXE):
+	echo This Makefile currently only supports building with 'make' or 'ninja'
+endif
+endif
+
 
 ifeq ($(BUILDTYPE),Debug)
 CONFIG_FLAGS += --debug
 endif
+
 .PHONY: with-code-cache
 with-code-cache:
-	@echo $(CONFIG_FLAGS)
-	$(PYTHON) ./configure $(CONFIG_FLAGS)
-	$(MAKE)
-	mkdir -p $(CODE_CACHE_DIR)
-	out/$(BUILDTYPE)/$(NODE_EXE) --expose-internals tools/generate_code_cache.js $(CODE_CACHE_FILE)
-	$(PYTHON) ./configure --code-cache-path $(CODE_CACHE_FILE) $(CONFIG_FLAGS)
-	$(MAKE)
+	echo "'with-code-cache' target is a noop"
 
 .PHONY: test-code-cache
 test-code-cache: with-code-cache
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) code-cache
+	echo "'test-code-cache' target is a noop"
 
 out/Makefile: config.gypi common.gypi node.gyp \
   deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp \
@@ -500,7 +517,7 @@ test-ci-js: | clear-stalled
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info
 test-ci: | clear-stalled build-addons build-js-native-api-tests build-node-api-tests doc-only
-	out/Release/cctest --gtest_output=tap:cctest.tap
+	out/Release/cctest --gtest_output=xml:out/junit/cctest.xml
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
@@ -1232,6 +1249,10 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/node-api/*/*.h \
 	tools/icu/*.cc \
 	tools/icu/*.h \
+	tools/code_cache/*.cc \
+	tools/code_cache/*.h \
+	tools/snapshot/*.cc \
+	tools/snapshot/*.h \
 	))
 
 # Code blocks don't have newline at the end,

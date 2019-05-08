@@ -9,6 +9,8 @@ prefix parallel
 test-net-connect-options-port: PASS,FLAKY
 # https://github.com/nodejs/node/issues/26401
 test-worker-prof: PASS,FLAKY
+# https://github.com/nodejs/node/issues/27553
+test-tls-enable-trace-cli: PASS,FLAKY
 
 [$system==win32]
 test-http2-pipe: PASS,FLAKY
@@ -25,13 +27,13 @@ test-http2-client-upload-reject: PASS,FLAKY
 [$system==macos]
 
 [$arch==arm || $arch==arm64]
-# https://github.com/nodejs/node/issues/25028
-test-cli-node-options: PASS,FLAKY
 # https://github.com/nodejs/node/issues/26610
 test-async-hooks-http-parser-destroy: PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 
 [$system==freebsd]
+# https://github.com/nodejs/node/issues/23089
+test-gc-http-client-onerror: PASS,FLAKY
 
 [$system==aix]

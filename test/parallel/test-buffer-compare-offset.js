@@ -10,7 +10,7 @@ assert.strictEqual(a.compare(b), -1);
 
 // Equivalent to a.compare(b).
 assert.strictEqual(a.compare(b, 0), -1);
-assert.strictEqual(a.compare(b, '0'), -1);
+assert.throws(() => a.compare(b, '0'), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.strictEqual(a.compare(b, undefined), -1);
 
 // Equivalent to a.compare(b).
@@ -18,7 +18,10 @@ assert.strictEqual(a.compare(b, 0, undefined, 0), -1);
 
 // Zero-length target, return 1
 assert.strictEqual(a.compare(b, 0, 0, 0), 1);
-assert.strictEqual(a.compare(b, '0', '0', '0'), 1);
+assert.throws(
+  () => a.compare(b, 0, '0', '0'),
+  { code: 'ERR_INVALID_ARG_TYPE' }
+);
 
 // Equivalent to Buffer.compare(a, b.slice(6, 10))
 assert.strictEqual(a.compare(b, 6, 10), 1);
@@ -45,24 +48,41 @@ assert.strictEqual(a.compare(b, 0, 7, 4), -1);
 // Equivalent to Buffer.compare(a.slice(4, 6), b.slice(0, 7));
 assert.strictEqual(a.compare(b, 0, 7, 4, 6), -1);
 
-// zero length target
-assert.strictEqual(a.compare(b, 0, null), 1);
+// Null is ambiguous.
+assert.throws(
+  () => a.compare(b, 0, null),
+  { code: 'ERR_INVALID_ARG_TYPE' }
+);
 
-// Coerces to targetEnd == 5
-assert.strictEqual(a.compare(b, 0, { valueOf: () => 5 }), -1);
+// Values do not get coerced.
+assert.throws(
+  () => a.compare(b, 0, { valueOf: () => 5 }),
+  { code: 'ERR_INVALID_ARG_TYPE' }
+);
 
-// zero length target
-assert.strictEqual(a.compare(b, Infinity, -Infinity), 1);
+// Infinity should not be coerced.
+assert.throws(
+  () => a.compare(b, Infinity, -Infinity),
+  { code: 'ERR_OUT_OF_RANGE' }
+);
 
 // Zero length target because default for targetEnd <= targetSource
-assert.strictEqual(a.compare(b, '0xff'), 1);
+assert.strictEqual(a.compare(b, 0xff), 1);
 
-const oor = common.expectsError({ code: 'ERR_OUT_OF_RANGE' }, 7);
+assert.throws(
+  () => a.compare(b, '0xff'),
+  { code: 'ERR_INVALID_ARG_TYPE' }
+);
+assert.throws(
+  () => a.compare(b, 0, '0xff'),
+  { code: 'ERR_INVALID_ARG_TYPE' }
+);
+
+const oor = { code: 'ERR_OUT_OF_RANGE' };
 
 assert.throws(() => a.compare(b, 0, 100, 0), oor);
 assert.throws(() => a.compare(b, 0, 1, 0, 100), oor);
 assert.throws(() => a.compare(b, -1), oor);
-assert.throws(() => a.compare(b, 0, '0xff'), oor);
 assert.throws(() => a.compare(b, 0, Infinity), oor);
 assert.throws(() => a.compare(b, 0, 1, -1), oor);
 assert.throws(() => a.compare(b, -Infinity, Infinity), oor);

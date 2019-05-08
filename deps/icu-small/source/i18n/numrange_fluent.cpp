@@ -162,6 +162,16 @@ Derived NumberRangeFormatterSettings<Derived>::identityFallback(UNumberRangeIden
     return move;
 }
 
+template<typename Derived>
+LocalPointer<Derived> NumberRangeFormatterSettings<Derived>::clone() const & {
+    return LocalPointer<Derived>(new Derived(*this));
+}
+
+template<typename Derived>
+LocalPointer<Derived> NumberRangeFormatterSettings<Derived>::clone() && {
+    return LocalPointer<Derived>(new Derived(std::move(*this)));
+}
+
 // Declare all classes that implement NumberRangeFormatterSettings
 // See https://stackoverflow.com/a/495056/1407170
 template
@@ -318,6 +328,10 @@ void LocalizedNumberRangeFormatter::formatImpl(
         return;
     }
     impl->format(results, equalBeforeRounding, status);
+    if (U_FAILURE(status)) {
+        return;
+    }
+    results.getStringRef().writeTerminator(status);
 }
 
 const impl::NumberRangeFormatterImpl*
@@ -361,56 +375,14 @@ LocalizedNumberRangeFormatter::getFormatter(UErrorCode& status) const {
 }
 
 
-FormattedNumberRange::FormattedNumberRange(FormattedNumberRange&& src) U_NOEXCEPT
-        : fResults(src.fResults), fErrorCode(src.fErrorCode) {
-    // Disown src.fResults to prevent double-deletion
-    src.fResults = nullptr;
-    src.fErrorCode = U_INVALID_STATE_ERROR;
-}
+UPRV_FORMATTED_VALUE_SUBCLASS_AUTO_IMPL(FormattedNumberRange)
 
-FormattedNumberRange& FormattedNumberRange::operator=(FormattedNumberRange&& src) U_NOEXCEPT {
-    delete fResults;
-    fResults = src.fResults;
-    fErrorCode = src.fErrorCode;
-    // Disown src.fResults to prevent double-deletion
-    src.fResults = nullptr;
-    src.fErrorCode = U_INVALID_STATE_ERROR;
-    return *this;
-}
-
-UnicodeString FormattedNumberRange::toString(UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return ICU_Utility::makeBogusString();
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return ICU_Utility::makeBogusString();
-    }
-    return fResults->string.toUnicodeString();
-}
-
-Appendable& FormattedNumberRange::appendTo(Appendable& appendable, UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return appendable;
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return appendable;
-    }
-    appendable.appendString(fResults->string.chars(), fResults->string.length());
-    return appendable;
-}
+#define UPRV_NOARG
 
 UBool FormattedNumberRange::nextFieldPosition(FieldPosition& fieldPosition, UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return FALSE;
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return FALSE;
-    }
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(FALSE)
     // NOTE: MSVC sometimes complains when implicitly converting between bool and UBool
-    return fResults->string.nextFieldPosition(fieldPosition, status) ? TRUE : FALSE;
+    return fData->getStringRef().nextFieldPosition(fieldPosition, status) ? TRUE : FALSE;
 }
 
 void FormattedNumberRange::getAllFieldPositions(FieldPositionIterator& iterator, UErrorCode& status) const {
@@ -420,52 +392,27 @@ void FormattedNumberRange::getAllFieldPositions(FieldPositionIterator& iterator,
 
 void FormattedNumberRange::getAllFieldPositionsImpl(
         FieldPositionIteratorHandler& fpih, UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return;
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return;
-    }
-    fResults->string.getAllFieldPositions(fpih, status);
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(UPRV_NOARG)
+    fData->getStringRef().getAllFieldPositions(fpih, status);
 }
 
 UnicodeString FormattedNumberRange::getFirstDecimal(UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return ICU_Utility::makeBogusString();
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return ICU_Utility::makeBogusString();
-    }
-    return fResults->quantity1.toScientificString();
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(ICU_Utility::makeBogusString())
+    return fData->quantity1.toScientificString();
 }
 
 UnicodeString FormattedNumberRange::getSecondDecimal(UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return ICU_Utility::makeBogusString();
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return ICU_Utility::makeBogusString();
-    }
-    return fResults->quantity2.toScientificString();
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(ICU_Utility::makeBogusString())
+    return fData->quantity2.toScientificString();
 }
 
 UNumberRangeIdentityResult FormattedNumberRange::getIdentityResult(UErrorCode& status) const {
-    if (U_FAILURE(status)) {
-        return UNUM_IDENTITY_RESULT_NOT_EQUAL;
-    }
-    if (fResults == nullptr) {
-        status = fErrorCode;
-        return UNUM_IDENTITY_RESULT_NOT_EQUAL;
-    }
-    return fResults->identityResult;
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(UNUM_IDENTITY_RESULT_NOT_EQUAL)
+    return fData->identityResult;
 }
 
-FormattedNumberRange::~FormattedNumberRange() {
-    delete fResults;
-}
+
+UFormattedNumberRangeData::~UFormattedNumberRangeData() = default;
 
 
 

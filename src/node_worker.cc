@@ -2,6 +2,7 @@
 #include "debug_utils.h"
 #include "node_errors.h"
 #include "node_buffer.h"
+#include "node_options-inl.h"
 #include "node_perf.h"
 #include "util.h"
 #include "async_wrap-inl.h"
@@ -117,7 +118,7 @@ class WorkerThreadData {
  public:
   explicit WorkerThreadData(Worker* w)
     : w_(w),
-      array_buffer_allocator_(CreateArrayBufferAllocator()) {
+      array_buffer_allocator_(ArrayBufferAllocator::Create()) {
     CHECK_EQ(uv_loop_init(&loop_), 0);
 
     Isolate* isolate = NewIsolate(array_buffer_allocator_.get(), &loop_);
@@ -174,8 +175,7 @@ class WorkerThreadData {
  private:
   Worker* const w_;
   uv_loop_t loop_;
-  DeleteFnPtr<ArrayBufferAllocator, FreeArrayBufferAllocator>
-    array_buffer_allocator_;
+  std::unique_ptr<ArrayBufferAllocator> array_buffer_allocator_;
   DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data_;
 
   friend class Worker;
@@ -459,13 +459,17 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     // The first argument is program name.
     invalid_args.erase(invalid_args.begin());
     if (errors.size() > 0 || invalid_args.size() > 0) {
-      v8::Local<v8::Value> error =
-          ToV8Value(env->context(),
-                    errors.size() > 0 ? errors : invalid_args)
-              .ToLocalChecked();
+      v8::Local<v8::Value> error;
+      if (!ToV8Value(env->context(),
+                     errors.size() > 0 ? errors : invalid_args)
+                         .ToLocal(&error)) {
+        return;
+      }
       Local<String> key =
           FIXED_ONE_BYTE_STRING(env->isolate(), "invalidExecArgv");
-      USE(args.This()->Set(env->context(), key, error).FromJust());
+      // Ignore the return value of Set() because exceptions bubble up to JS
+      // when we return anyway.
+      USE(args.This()->Set(env->context(), key, error));
       return;
     }
   }

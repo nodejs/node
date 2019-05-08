@@ -63,6 +63,7 @@ class PropertiesAffixPatternProvider : public AffixPatternProvider, public UMemo
     UnicodeString posSuffix;
     UnicodeString negPrefix;
     UnicodeString negSuffix;
+    bool isCurrencyPattern;
 
     const UnicodeString& getStringInternal(int32_t flags) const;
 
@@ -135,7 +136,7 @@ struct DecimalFormatFields : public UMemory {
     * The pre-computed formatter object. Setters cause this to be re-computed atomically. The {@link
     * #format} method uses the formatter directly without needing to synchronize.
     */
-    LocalPointer<const LocalizedNumberFormatter> formatter;
+    LocalPointer<LocalizedNumberFormatter> formatter;
 
     /** The lazy-computed parser for .parse() */
     std::atomic<::icu::numparse::impl::NumberParserImpl*> atomicParser = {};

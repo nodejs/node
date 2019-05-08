@@ -85,7 +85,7 @@ if (process.argv[2] === 'child') {
   const report_msg = 'Report files were written: unexpectedly';
   child.stdout.on('data', (chunk) => { stdout += chunk; });
   child.on('exit', common.mustCall((code, signal) => {
-    assert.deepStrictEqual(code, 0, 'Process exited unexpectedly with code' +
+    assert.deepStrictEqual(code, 0, 'Process exited unexpectedly with code: ' +
                            `${code}`);
     assert.deepStrictEqual(signal, null, 'Process should have exited cleanly,' +
                             ` but did not: ${signal}`);
@@ -96,6 +96,22 @@ if (process.argv[2] === 'child') {
 
     const reports = helper.findReports(child.pid, tmpdir.path);
     assert.deepStrictEqual(reports, [], report_msg, reports);
+
+    // Test libuv handle key order
+    {
+      const get_libuv = /"libuv":\s\[([\s\S]*?)\]/gm;
+      const get_handle_inner = /{([\s\S]*?),*?}/gm;
+      const libuv_handles_str = get_libuv.exec(stdout)[1];
+      const libuv_handles_array = libuv_handles_str.match(get_handle_inner);
+      for (const i of libuv_handles_array) {
+        // Exclude nested structure
+        if (i.includes('type')) {
+          const handle_keys = i.match(/(".*"):/gm);
+          assert(handle_keys[0], 'type');
+          assert(handle_keys[1], 'is_active');
+        }
+      }
+    }
 
     const report = JSON.parse(stdout);
     const prefix = common.isWindows ? '\\\\?\\' : '';

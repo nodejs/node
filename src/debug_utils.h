@@ -100,7 +100,7 @@ class NativeSymbolDebuggingContext {
   };
 
   NativeSymbolDebuggingContext() = default;
-  virtual ~NativeSymbolDebuggingContext() {}
+  virtual ~NativeSymbolDebuggingContext() = default;
 
   virtual SymbolInfo LookupSymbol(void* address) { return {}; }
   virtual bool IsMapped(void* address) { return false; }

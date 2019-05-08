@@ -185,6 +185,17 @@ TEST_IMPL(fs_copyfile) {
   if (r == 0)
     handle_result(&req);
 
+#ifndef _WIN32
+  /* Copying respects permissions/mode. */
+  unlink(dst);
+  touch_file(dst, 0);
+  chmod(dst, S_IRUSR|S_IRGRP|S_IROTH); /* Sets file mode to 444 (read-only). */
+  r = uv_fs_copyfile(NULL, &req, fixture, dst, 0, NULL);
+  ASSERT(req.result == UV_EACCES);
+  ASSERT(r == UV_EACCES);
+  uv_fs_req_cleanup(&req);
+#endif
+
   unlink(dst); /* Cleanup */
   return 0;
 }

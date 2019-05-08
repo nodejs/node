@@ -60,13 +60,13 @@
  *  This value will change in the subsequent releases of ICU
  *  @stable ICU 2.4
  */
-#define U_ICU_VERSION_MAJOR_NUM 63
+#define U_ICU_VERSION_MAJOR_NUM 64
 
 /** The current ICU minor version as an integer.
  *  This value will change in the subsequent releases of ICU
  *  @stable ICU 2.6
  */
-#define U_ICU_VERSION_MINOR_NUM 1
+#define U_ICU_VERSION_MINOR_NUM 2
 
 /** The current ICU patchlevel version as an integer.
  *  This value will change in the subsequent releases of ICU
@@ -86,7 +86,7 @@
  *  This value will change in the subsequent releases of ICU
  *  @stable ICU 2.6
  */
-#define U_ICU_VERSION_SUFFIX _63
+#define U_ICU_VERSION_SUFFIX _64
 
 /**
  * \def U_DEF2_ICU_ENTRY_POINT_RENAME
@@ -103,16 +103,34 @@
  *  \def U_ICU_ENTRY_POINT_RENAME
  *  @stable ICU 4.2
  */
+/**
+ * Disable the version suffix. Use the custom suffix if exists.
+ * \def U_DISABLE_VERSION_SUFFIX
+ * @internal
+ */
+#ifndef U_DISABLE_VERSION_SUFFIX
+#define U_DISABLE_VERSION_SUFFIX 0
+#endif
 
 #ifndef U_ICU_ENTRY_POINT_RENAME
 #ifdef U_HAVE_LIB_SUFFIX
-#define U_DEF_ICU_ENTRY_POINT_RENAME(x,y,z) x ## y ##  z
-#define U_DEF2_ICU_ENTRY_POINT_RENAME(x,y,z) U_DEF_ICU_ENTRY_POINT_RENAME(x,y,z)
-#define U_ICU_ENTRY_POINT_RENAME(x)    U_DEF2_ICU_ENTRY_POINT_RENAME(x,U_ICU_VERSION_SUFFIX,U_LIB_SUFFIX_C_NAME)
+#   if !U_DISABLE_VERSION_SUFFIX
+#       define U_DEF_ICU_ENTRY_POINT_RENAME(x,y,z) x ## y ##  z
+#       define U_DEF2_ICU_ENTRY_POINT_RENAME(x,y,z) U_DEF_ICU_ENTRY_POINT_RENAME(x,y,z)
+#       define U_ICU_ENTRY_POINT_RENAME(x)    U_DEF2_ICU_ENTRY_POINT_RENAME(x,U_ICU_VERSION_SUFFIX,U_LIB_SUFFIX_C_NAME)
+#   else
+#       define U_DEF_ICU_ENTRY_POINT_RENAME(x,y) x ## y
+#       define U_DEF2_ICU_ENTRY_POINT_RENAME(x,y) U_DEF_ICU_ENTRY_POINT_RENAME(x,y)
+#       define U_ICU_ENTRY_POINT_RENAME(x)    U_DEF2_ICU_ENTRY_POINT_RENAME(x,U_LIB_SUFFIX_C_NAME)
+#   endif
 #else
-#define U_DEF_ICU_ENTRY_POINT_RENAME(x,y) x ## y
-#define U_DEF2_ICU_ENTRY_POINT_RENAME(x,y) U_DEF_ICU_ENTRY_POINT_RENAME(x,y)
-#define U_ICU_ENTRY_POINT_RENAME(x)    U_DEF2_ICU_ENTRY_POINT_RENAME(x,U_ICU_VERSION_SUFFIX)
+#   if !U_DISABLE_VERSION_SUFFIX
+#       define U_DEF_ICU_ENTRY_POINT_RENAME(x,y) x ## y
+#       define U_DEF2_ICU_ENTRY_POINT_RENAME(x,y) U_DEF_ICU_ENTRY_POINT_RENAME(x,y)
+#       define U_ICU_ENTRY_POINT_RENAME(x)    U_DEF2_ICU_ENTRY_POINT_RENAME(x,U_ICU_VERSION_SUFFIX)
+#   else
+#       define U_ICU_ENTRY_POINT_RENAME(x)    x
+#   endif
 #endif
 #endif
 
@@ -121,7 +139,7 @@
  *  This value will change in the subsequent releases of ICU
  *  @stable ICU 2.4
  */
-#define U_ICU_VERSION "63.1"
+#define U_ICU_VERSION "64.2"
 
 /**
  * The current ICU library major version number as a string, for library name suffixes.
@@ -134,13 +152,13 @@
  *
  * @stable ICU 2.6
  */
-#define U_ICU_VERSION_SHORT "63"
+#define U_ICU_VERSION_SHORT "64"
 
 #ifndef U_HIDE_INTERNAL_API
 /** Data version in ICU4C.
  * @internal ICU 4.4 Internal Use Only
  **/
-#define U_ICU_DATA_VERSION "63.1"
+#define U_ICU_DATA_VERSION "64.2"
 #endif  /* U_HIDE_INTERNAL_API */
 
 /*===========================================================================

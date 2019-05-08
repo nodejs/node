@@ -71,9 +71,9 @@ class performance_state {
       milestones[i] = -1.;
   }
 
-  AliasedBuffer<uint8_t, v8::Uint8Array> root;
-  AliasedBuffer<double, v8::Float64Array> milestones;
-  AliasedBuffer<uint32_t, v8::Uint32Array> observers;
+  AliasedUint8Array root;
+  AliasedFloat64Array milestones;
+  AliasedUint32Array observers;
 
   uint64_t performance_last_gc_start_mark = 0;
 

@@ -13,38 +13,38 @@ file a new issue.
 * [Supported platforms](#supported-platforms)
   * [Input](#input)
   * [Strategy](#strategy)
-  * [Supported platforms](#supported-platforms-1)
+  * [Platform list](#platform-list)
   * [Supported toolchains](#supported-toolchains)
-    * [Unix](#unix)
-    * [AIX](#aix)
-    * [Windows](#windows)
+  * [Official binary platforms and toolchains](#official-binary-platforms-and-toolchains)
     * [OpenSSL asm support](#openssl-asm-support)
+  * [Previous versions of this document](#previous-versions-of-this-document)
 * [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
   * [Unix/macOS](#unixmacos)
     * [Prerequisites](#prerequisites)
-    * [Building Node.js](#building-nodejs-1)
+    * [Building Node.js](#building-nodejs)
     * [Running Tests](#running-tests)
     * [Running Coverage](#running-coverage)
     * [Building the documentation](#building-the-documentation)
     * [Building a debug build](#building-a-debug-build)
-  * [Windows](#windows-1)
+  * [Windows](#windows)
   * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
   * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
     * [Default: `small-icu` (English only) support](#default-small-icu-english-only-support)
     * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
       * [Unix/macOS](#unixmacos-1)
-      * [Windows](#windows-2)
+      * [Windows](#windows-1)
     * [Building without Intl support](#building-without-intl-support)
       * [Unix/macOS](#unixmacos-2)
-      * [Windows](#windows-3)
+      * [Windows](#windows-2)
     * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacos-only)
     * [Build with a specific ICU](#build-with-a-specific-icu)
       * [Unix/macOS](#unixmacos-3)
-      * [Windows](#windows-4)
+      * [Windows](#windows-3)
 * [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
 * [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
   * [Unix/macOS](#unixmacos-4)
-  * [Windows](#windows-5)
+  * [Windows](#windows-4)
+* [Note for downstream distributors of Node.js](#note-for-downstream-distributors-of-nodejs)
 
 ## Supported platforms
 
@@ -59,46 +59,80 @@ Node.js relies on V8 and libuv. We adopt a subset of their supported platforms.
 
 There are three support tiers:
 
-* **Tier 1**: Full test coverage and maintenance by the Node.js core team and
-  the broader community.
-* **Tier 2**: Full test coverage. Limited maintenance, often provided by the
-  vendor of the platform.
-* **Experimental**: May not compile or test suite may not pass.
-  These are often approaching Tier 2 support but are not quite ready.
-  There is at least one individual providing maintenance.
+* **Tier 1**: These platforms represent the majority of Node.js users. The
+  Node.js Build Working Group maintains infrastructure for full test coverage.
+  Maintenance is supported by the Node.js core team. All commits to the
+  Node.js repository are tested on multiple variants of these platforms. Test
+  failures on tier 1 platforms will block releases.
+* **Tier 2**: These platforms represent smaller segments of the Node.js user
+  base. The Node.js Build Working Group maintains infrastructure for full test
+  coverage. Maintenance is supported by smaller groups or individuals within
+  the Node.js core team, or the vendor of the platform itself. All commits to
+  the Node.js repository are tested on multiple variants of these platforms
+  where practical. Test failures on tier 2 platforms will block releases.
+  Delays in release of binaries for these platforms are acceptable
+  where necessary due to infrastructure concerns.
+* **Experimental**: May not compile or test suite may not pass. The core team
+  does not create releases for these platforms. Test failures on experimental
+  platforms do not block releases. Contributions to improve support for these
+  platforms are welcome.
 
-### Supported platforms
+Platforms may move between tiers between major release lines. The table below
+will be updated to reflect those changes.
 
-For production applications, run Node.js on supported platforms only.
+### Platform list
+
+Compiling and running Node.js is supported for a limited set of operating
+systems, architectures and libc versions. The table below lists the
+combinations that the core team has committed to supporting and the nature of
+that support as per the support tiers above. A list of
+[supported compile toolchains](#supported-toolchains) is also supplied for
+tier 1 platforms.
+
+**For production applications, run Node.js on supported platforms only.**
 
 Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
-| System       | Support type | Version                         | Architectures    | Notes                         |
-| ------------ | ------------ | ------------------------------- | ---------------- | ----------------------------- |
-| GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12 | x64, arm         |                               |
-| GNU/Linux    | Tier 1       | kernel >= 3.10, glibc >= 2.17   | arm64            |                               |
-| macOS/OS X   | Tier 1       | >= 10.11                        | x64              |                               |
-| Windows      | Tier 1       | >= Windows 7/2008 R2/2012 R2    | x86, x64         | [1](#fn1),[2](#fn2),[3](#fn3) |
-| SmartOS      | Tier 2       | >= 16                           | x64              |                               |
-| FreeBSD      | Tier 2       | >= 11                           | x64              |                               |
-| GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19 | ppc64le >=power8 |                               |
-| AIX          | Tier 2       | >= 7.1 TL04                     | ppc64be >=power7 |                               |
-| GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17   | s390x            |                               |
-| GNU/Linux    | Experimental | kernel >= 2.6.32, glibc >= 2.12 | x86              | limited CI                    |
-| Linux (musl) | Experimental | musl >= 1.0                     | x64              |                               |
+| Operating System | Architectures    | Versions                        | Support Type | Notes                             |
+| ---------------- | ---------------- | ------------------------------- | ------------ | --------------------------------- |
+| GNU/Linux        | x64              | kernel >= 3.10, glibc >= 2.17   | Tier 1       | e.g. Ubuntu 16.04 <sup>[1](#fn1)</sup>, Debian 9, EL 7 <sup>[2](#fn2)</sup> |
+| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19  | Experimental | e.g. Alpine 3.8                   |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17   | Experimental | Downgraded as of Node.js 10       |
+| GNU/Linux        | arm64            | kernel >= 4.5, glibc >= 2.17    | Tier 1       | e.g. Ubuntu 16.04, Debian 9, EL 7 <sup>[3](#fn3)</sup> |
+| GNU/Linux        | armv7            | kernel >= 4.14, glibc >= 2.24   | Tier 1       | e.g. Ubuntu 18.04, Debian 9       |
+| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Experimental | Downgraded as of Node.js 12       |
+| GNU/Linux        | ppc64le >=power8 | kernel >= 3.13.0, glibc >= 2.19 | Tier 2       | e.g. Ubuntu 16.04, EL 7           |
+| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2       | e.g. EL 7                         |
+| Windows          | x64, x86 (WoW64) | >= Windows 7/2008 R2/2012 R2    | Tier 1       | <sup>[4](#fn4),[5](#fn5)</sup>    |
+| Windows          | x86 (native)     | >= Windows 7/2008 R2/2012 R2    | Tier 1 (running) / Experimental (compiling) <sup>[6](#fn6)</sup> | |
+| Windows          | arm64            | >= Windows 10                   | Experimental |                                   |
+| macOS            | x64              | >= 10.11                        | Tier 1       |                                   |
+| SmartOS          | x64              | >= 18                           | Tier 2       |                                   |
+| AIX              | ppc64be >=power7 | >= 7.1 TL05                     | Tier 2       |                                   |
+| FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12       |
 
-<em id="fn1">1</em>: Tier 1 support for building on Windows is only on 64-bit
-  hosts. Support is experimental for 32-bit hosts.
+<em id="fn1">1</em>: GCC 6 is not provided on the base platform, users will
+  need the
+  [Toolchain test builds PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
+  or similar to source a newer compiler.
 
-<em id="fn2">2</em>: On Windows, running Node.js in Windows terminal emulators
+<em id="fn2">2</em>: GCC 6 is not provided on the base platform, users will
+  need the
+  [devtoolset-6](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-6/)
+  or later to source a newer compiler.
+
+<em id="fn3">3</em>: Older kernel versions may work for ARM64, however the
+  Node.js test infrastructure only tests >= 4.5.
+
+<em id="fn4">4</em>: On Windows, running Node.js in Windows terminal emulators
   like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
   for the tty channels to work correctly (e.g. `winpty node.exe script.js`).
   In "Git bash" if you call the node shell alias (`node` without the `.exe`
   extension), `winpty` is used automatically.
 
-<em id="fn3">3</em>: The Windows Subsystem for Linux (WSL) is not directly
+<em id="fn5">5</em>: The Windows Subsystem for Linux (WSL) is not directly
   supported, but the GNU/Linux build process and binaries should work. The
   community will only address issues that reproduce on native GNU/Linux
   systems. Issues that only reproduce on WSL should be reported in the
@@ -106,21 +140,43 @@ platforms. This is true regardless of entries in the table below.
   Windows binary (`node.exe`) in WSL is not recommended. It will not work
   without workarounds such as stdio redirection.
 
+<em id="fn6">6</em>: Running Node.js on x86 Windows should work and binaries
+are provided. However, tests in our infrastructure only run on WoW64.
+Furthermore, compiling on x86 Windows is currently considered Experimental and
+may not be possible.
+
 ### Supported toolchains
 
 Depending on the host platform, the selection of toolchains may vary.
 
-#### Unix
+| Operating System | Compiler Versions                                              |
+| ---------------- | -------------------------------------------------------------- |
+| Linux            | GCC >= 6.3                                                     |
+| Windows          | Visual Studio >= 2017 with the Windows 10 SDK on a 64-bit host |
+| macOS            | Xcode >= 8 (Apple LLVM >= 8)                                   |
 
-* GCC 4.9.4 or newer
-* Clang 3.4.2 or newer
+### Official binary platforms and toolchains
 
-#### AIX
-* GCC 6.3 or newer
+Binaries at <https://nodejs.org/download/release/> are produced on:
 
-#### Windows
+| Binary package        | Platform and Toolchain                                                   |
+| --------------------- | ------------------------------------------------------------------------ |
+| aix-ppc64             | AIX 7.1 TL05 on PPC64BE with GCC 6                                       |
+| darwin-x64 (and .pkg) | macOS 10.11, Xcode Command Line Tools 8 with -mmacosx-version-min=10.10  |
+| linux-arm64           | CentOS 7 with devtoolset-6 / GCC 6                                       |
+| linux-armv7l          | Cross-compiled on Ubuntu 16.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)   |
+| linux-ppc64le         | Ubuntu 14.04 with GCC 6                                                  |
+| linux-s390x           | RHEL 7 with devtoolset-6 / GCC 6 <sup>[7](#fn7)</sup>                    |
+| linux-x64             | CentOS 7 with devtoolset-6 / GCC 6 <sup>[7](#fn7)</sup>                  |
+| sunos-x64             | SmartOS 18 with GCC 7                                                    |
+| win-x64 and win-x86   | Windows 2012 R2 (x64) with Visual Studio 2017                            |
 
-* Visual Studio 2017 with the Windows 10 SDK on a 64-bit host.
+<em id="fn7">7</em>: The Enterprise Linux devtoolset-6 allows us to compile
+binaries with GCC 6 but linked to the glibc and libstdc++ versions of the host
+platforms (CentOS 7 / RHEL 7). Therefore, binaries produced on these systems
+are compatible with glibc >= 2.17 and libstdc++ >= 6.0.20 (`GLIBCXX_3.4.20`).
+These are available on distributions natively supporting GCC 4.9, such as
+Ubuntu 14.04 and Debian 8.
 
 #### OpenSSL asm support
 
@@ -147,6 +203,16 @@ Please refer to
  If compiling without one of the above, use `configure` with the
 `--openssl-no-asm` flag. Otherwise, `configure` will fail.
 
+### Previous versions of this document
+
+Supported platforms and toolchains change with each major version of Node.js.
+This document is only valid for the current major version of Node.js.
+Consult previous versions of this document for older versions of Node.js:
+
+* [Node.js 10](https://github.com/nodejs/node/blob/v10.x/BUILDING.md)
+* [Node.js 8](https://github.com/nodejs/node/blob/v8.x/BUILDING.md)
+* [Node.js 6](https://github.com/nodejs/node/blob/v6.x/BUILDING.md)
+
 ## Building Node.js on supported platforms
 
 The [bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md)
@@ -156,8 +222,8 @@ explains how to install all prerequisites.
 
 #### Prerequisites
 
-* `gcc` and `g++` 4.9.4 or newer, or
-* `clang` and `clang++` 3.4.2 or newer (macOS: latest Xcode Command Line Tools)
+* `gcc` and `g++` >= 6.3 or newer, or
+* macOS: Xcode Command Line Tools >= 8
 * Python 2.7
     * Python 2.7 end of life is in 2019 so a transition to Python 3 is underway.
     * Python 3.5, 3.6, and 3.7 are experimental.
@@ -188,8 +254,8 @@ The `-j4` option will cause `make` to run 4 simultaneous compilation jobs which
 may reduce build time. For more information, see the
 [GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
 
-Note that the above requires that `python` resolve to Python 2.7 and not a newer
-version.  See [Prerequisites](#prerequisites).
+Note that the above requires that `python` resolves to a supported version of
+Python. See [Prerequisites](#prerequisites).
 
 After building, setting up [firewall rules](tools/macos-firewall.sh) can avoid
 popups asking to accept incoming network connections when running tests.
@@ -229,10 +295,11 @@ If you want to run the linter without running tests, use
 `make lint`/`vcbuild lint`. It will run both JavaScript linting and
 C++ linting.
 
-If you are updating tests and just want to run a single test to check it:
+If you are updating tests and want to run tests in a single test file
+(e.g. `test/parallel/test-stream2-transform.js`):
 
 ```text
-$ python tools/test.py -J --mode=release parallel/test-stream2-transform
+$ python tools/test.py parallel/test-stream2-transform.js
 ```
 
 You can execute the entire suite of tests for a given subsystem
@@ -457,7 +524,7 @@ $ make
 ```
 
 
-### `Intl` (ECMA-402) support:
+### `Intl` (ECMA-402) support
 
 [Intl](https://github.com/nodejs/node/blob/master/doc/api/intl.md) support is
 enabled by default, with English data only.
@@ -469,19 +536,19 @@ the full `Intl` (ECMA-402) APIs.  It does not need to download
 any dependencies to function. You can add full
 data at runtime.
 
-#### Build with full ICU support (all locales supported by ICU):
+#### Build with full ICU support (all locales supported by ICU)
 
 With the `--download=all`, this may download ICU if you don't have an
 ICU in `deps/icu`. (The embedded `small-icu` included in the default
 Node.js source does not include all locales.)
 
-##### Unix/macOS:
+##### Unix/macOS
 
 ```console
 $ ./configure --with-intl=full-icu --download=all
 ```
 
-##### Windows:
+##### Windows
 
 ```console
 > .\vcbuild full-icu download-all
@@ -492,19 +559,19 @@ $ ./configure --with-intl=full-icu --download=all
 The `Intl` object will not be available, nor some other APIs such as
 `String.normalize`.
 
-##### Unix/macOS:
+##### Unix/macOS
 
 ```console
 $ ./configure --without-intl
 ```
 
-##### Windows:
+##### Windows
 
 ```console
 > .\vcbuild without-intl
 ```
 
-#### Use existing installed ICU (Unix/macOS only):
+#### Use existing installed ICU (Unix/macOS only)
 
 ```console
 $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
@@ -513,7 +580,7 @@ $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
 If you are cross-compiling, your `pkg-config` must be able to supply a path
 that works for both your host and target environments.
 
-#### Build with a specific ICU:
+#### Build with a specific ICU
 
 You can find other ICU releases at
 [the ICU homepage](http://icu-project.org/download).
@@ -553,7 +620,7 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ## Building Node.js with FIPS-compliant OpenSSL
 
-This version of Node.js does not support FIPS.
+The current version of Node.js does not support FIPS.
 
 ## Building Node.js with external core modules
 
@@ -581,11 +648,14 @@ To make `./myModule.js` available via `require('myModule')` and
 
 ## Note for downstream distributors of Node.js
 
-The Node.js ecosystem is reliant on ABI compatibility within a major
-release. To maintain ABI compatibility it is required that production
-builds of Node.js will be built against the same version of dependencies as the
-project vendors. If Node.js is to be built against a different version of a
-dependency please create a custom `NODE_MODULE_VERSION` to ensure ecosystem
-compatibility. Please consult with the TSC by opening an issue at
-https://github.com/nodejs/tsc/issues if you decide to create a custom
-`NODE_MODULE_VERSION` so we can avoid duplication in the ecosystem.
+The Node.js ecosystem is reliant on ABI compatibility within a major release.
+To maintain ABI compatibility it is required that distributed builds of Node.js
+be built against the same version of dependencies, or similar versions that do
+not break their ABI compatibility, as those released by Node.js for any given
+`NODE_MODULE_VERSION` (located in `src/node_version.h`).
+
+When Node.js is built (with an intention to distribute) with an ABI
+incompatible with the official Node.js builds (e.g. using a ABI incompatible
+version of a dependency), please reserve and use a custom `NODE_MODULE_VERSION`
+by opening a pull request against the registry available at
+<https://github.com/nodejs/node/blob/master/doc/abi_version_registry.json>.

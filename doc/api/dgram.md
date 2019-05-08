@@ -51,7 +51,7 @@ Once triggered, no new `'message'` events will be emitted on this socket.
 
 ### Event: 'connect'
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 The `'connect'` event is emitted after a socket is associated to a remote
@@ -247,7 +247,7 @@ provided, it is added as a listener for the [`'close'`][] event.
 
 ### socket.connect(port[, address][, callback])
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 * `port` {integer}
@@ -266,7 +266,7 @@ the `callback` is called or, failing this, an `'error'` event is emitted.
 
 ### socket.disconnect()
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 A synchronous function that disassociates a connected `dgram.Socket` from
@@ -321,7 +321,7 @@ chained.
 
 ### socket.remoteAddress()
 <!-- YAML
-added: REPLACEME
+added: v12.0.0
 -->
 
 * Returns: {Object}
@@ -348,7 +348,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/4374
     description: The `msg` parameter can be an array now. Also, the `offset`
                  and `length` parameters are optional now.
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26871
     description: Added support for sending data on connected sockets.
 -->

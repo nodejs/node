@@ -10,6 +10,8 @@ class Environment;
 
 namespace native_module {
 
+extern const bool has_code_cache;
+
 class NativeModuleEnv {
  public:
   static void Initialize(v8::Local<v8::Object> target,
@@ -52,7 +54,6 @@ class NativeModuleEnv {
       const v8::PropertyCallbackInfo<v8::Value>& info);
   // Compile a specific native module as a function
   static void CompileFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetCodeCache(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 }  // namespace native_module

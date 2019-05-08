@@ -14,6 +14,7 @@
 #include "number_microprops.h"
 #include <algorithm>
 #include "cstring.h"
+#include "util.h"
 
 using namespace icu;
 using namespace icu::number;
@@ -91,6 +92,17 @@ void getMeasureData(const Locale &locale, const MeasureUnit &unit, const UNumber
     PluralTableSink sink(outArray);
     LocalUResourceBundlePointer unitsBundle(ures_open(U_ICUDATA_UNIT, locale.getName(), &status));
     if (U_FAILURE(status)) { return; }
+
+    // Map duration-year-person, duration-week-person, etc. to duration-year, duration-week, ...
+    // TODO(ICU-20400): Get duration-*-person data properly with aliases.
+    StringPiece subtypeForResource;
+    int32_t subtypeLen = static_cast<int32_t>(uprv_strlen(unit.getSubtype()));
+    if (subtypeLen > 7 && uprv_strcmp(unit.getSubtype() + subtypeLen - 7, "-person") == 0) {
+        subtypeForResource = {unit.getSubtype(), subtypeLen - 7};
+    } else {
+        subtypeForResource = unit.getSubtype();
+    }
+
     CharString key;
     key.append("units", status);
     if (width == UNUM_UNIT_WIDTH_NARROW) {
@@ -101,7 +113,24 @@ void getMeasureData(const Locale &locale, const MeasureUnit &unit, const UNumber
     key.append("/", status);
     key.append(unit.getType(), status);
     key.append("/", status);
-    key.append(unit.getSubtype(), status);
+    key.append(subtypeForResource, status);
+
+    UErrorCode localStatus = U_ZERO_ERROR;
+    ures_getAllItemsWithFallback(unitsBundle.getAlias(), key.data(), sink, localStatus);
+    if (width == UNUM_UNIT_WIDTH_SHORT) {
+        if (U_FAILURE(localStatus)) {
+            status = localStatus;
+        }
+        return;
+    }
+
+    // TODO(ICU-13353): The fallback to short does not work in ICU4C.
+    // Manually fall back to short (this is done automatically in Java).
+    key.clear();
+    key.append("unitsShort/", status);
+    key.append(unit.getType(), status);
+    key.append("/", status);
+    key.append(subtypeForResource, status);
     ures_getAllItemsWithFallback(unitsBundle.getAlias(), key.data(), sink, status);
 }
 
@@ -181,8 +210,7 @@ LongNameHandler::forMeasureUnit(const Locale &loc, const MeasureUnit &unitRef, c
     UnicodeString simpleFormats[ARRAY_LENGTH];
     getMeasureData(loc, unit, width, simpleFormats, status);
     if (U_FAILURE(status)) { return result; }
-    // TODO: What field to use for units?
-    result->simpleFormatsToModifiers(simpleFormats, UNUM_FIELD_COUNT, status);
+    result->simpleFormatsToModifiers(simpleFormats, UNUM_MEASURE_UNIT_FIELD, status);
     return result;
 }
 
@@ -220,9 +248,21 @@ LongNameHandler::forCompoundUnit(const Locale &loc, const MeasureUnit &unit, con
         compiled.format(UnicodeString(u"{0}"), secondaryString, perUnitFormat, status);
         if (U_FAILURE(status)) { return result; }
     }
-    // TODO: What field to use for units?
-    result->multiSimpleFormatsToModifiers(primaryData, perUnitFormat, UNUM_FIELD_COUNT, status);
+    result->multiSimpleFormatsToModifiers(primaryData, perUnitFormat, UNUM_MEASURE_UNIT_FIELD, status);
     return result;
+}
+
+UnicodeString LongNameHandler::getUnitDisplayName(
+        const Locale& loc,
+        const MeasureUnit& unit,
+        UNumberUnitWidth width,
+        UErrorCode& status) {
+    if (U_FAILURE(status)) {
+        return ICU_Utility::makeBogusString();
+    }
+    UnicodeString simpleFormats[ARRAY_LENGTH];
+    getMeasureData(loc, unit, width, simpleFormats, status);
+    return simpleFormats[DNAM_INDEX];
 }
 
 LongNameHandler* LongNameHandler::forCurrencyLongNames(const Locale &loc, const CurrencyUnit &currency,
@@ -273,10 +313,8 @@ void LongNameHandler::multiSimpleFormatsToModifiers(const UnicodeString *leadFor
 void LongNameHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micros,
                                       UErrorCode &status) const {
     parent->processQuantity(quantity, micros, status);
-    // TODO: Avoid the copy here?
-    DecimalQuantity copy(quantity);
-    micros.rounder.apply(copy, status);
-    micros.modOuter = &fModifiers[utils::getStandardPlural(rules, copy)];
+    StandardPlural::Form pluralForm = utils::getPluralSafe(micros.rounder, rules, quantity, status);
+    micros.modOuter = &fModifiers[pluralForm];
 }
 
 const Modifier* LongNameHandler::getModifier(int8_t /*signum*/, StandardPlural::Form plural) const {

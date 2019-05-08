@@ -40,14 +40,14 @@ u_getDefaultConverter(UErrorCode *status)
     UConverter *converter = NULL;
 
     if (gDefaultConverter != NULL) {
-        umtx_lock(NULL);
+        icu::umtx_lock(NULL);
 
         /* need to check to make sure it wasn't taken out from under us */
         if (gDefaultConverter != NULL) {
             converter = gDefaultConverter;
             gDefaultConverter = NULL;
         }
-        umtx_unlock(NULL);
+        icu::umtx_unlock(NULL);
     }
 
     /* if the cache was empty, create a converter */
@@ -70,12 +70,12 @@ u_releaseDefaultConverter(UConverter *converter)
             ucnv_reset(converter);
         }
         ucnv_enableCleanup();
-        umtx_lock(NULL);
+        icu::umtx_lock(NULL);
         if(gDefaultConverter == NULL) {
             gDefaultConverter = converter;
             converter = NULL;
         }
-        umtx_unlock(NULL);
+        icu::umtx_unlock(NULL);
     }
 
     if(converter != NULL) {
@@ -89,14 +89,14 @@ u_flushDefaultConverter()
     UConverter *converter = NULL;
 
     if (gDefaultConverter != NULL) {
-        umtx_lock(NULL);
+        icu::umtx_lock(NULL);
 
         /* need to check to make sure it wasn't taken out from under us */
         if (gDefaultConverter != NULL) {
             converter = gDefaultConverter;
             gDefaultConverter = NULL;
         }
-        umtx_unlock(NULL);
+        icu::umtx_unlock(NULL);
     }
 
     /* if the cache was populated, flush it */

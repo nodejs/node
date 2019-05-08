@@ -2,6 +2,7 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "node_process.h"
 #include "v8.h"
 
 #include <atomic>
@@ -36,6 +37,20 @@ static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsFunction());
 
   isolate->EnqueueMicrotask(args[0].As<Function>());
+}
+
+// Should be in sync with runNextTicks in internal/process/task_queues.js
+bool RunNextTicksNative(Environment* env) {
+  TickInfo* tick_info = env->tick_info();
+  if (!tick_info->has_tick_scheduled() && !tick_info->has_rejection_to_warn())
+    env->isolate()->RunMicrotasks();
+  if (!tick_info->has_tick_scheduled() && !tick_info->has_rejection_to_warn())
+    return true;
+
+  Local<Function> callback = env->tick_callback_function();
+  CHECK(!callback.IsEmpty());
+  return !callback->Call(env->context(), env->process_object(), 0, nullptr)
+              .IsEmpty();
 }
 
 static void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
@@ -110,12 +125,14 @@ static void SetPromiseRejectCallback(
 static void TriggerFatalException(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(isolate);
-  if (env != nullptr && env->abort_on_uncaught_exception()) {
-    Abort();
-  }
   Local<Value> exception = args[0];
   Local<Message> message = Exception::CreateMessage(isolate, exception);
-  FatalException(isolate, exception, message);
+  if (env != nullptr && env->abort_on_uncaught_exception()) {
+    ReportException(env, exception, message);
+    Abort();
+  }
+  bool from_promise = args[1]->IsTrue();
+  FatalException(isolate, exception, message, from_promise);
 }
 
 static void Initialize(Local<Object> target,

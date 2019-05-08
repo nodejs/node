@@ -62,12 +62,12 @@ UnicodeString& LocalizedNumberFormatterAsFormat::format(const Formattable& obj, 
     // always return first occurrence:
     pos.setBeginIndex(0);
     pos.setEndIndex(0);
-    bool found = data.string.nextFieldPosition(pos, status);
+    bool found = data.getStringRef().nextFieldPosition(pos, status);
     if (found && appendTo.length() != 0) {
         pos.setBeginIndex(pos.getBeginIndex() + appendTo.length());
         pos.setEndIndex(pos.getEndIndex() + appendTo.length());
     }
-    appendTo.append(data.string.toTempUnicodeString());
+    appendTo.append(data.getStringRef().toTempUnicodeString());
     return appendTo;
 }
 
@@ -84,10 +84,10 @@ UnicodeString& LocalizedNumberFormatterAsFormat::format(const Formattable& obj, 
     if (U_FAILURE(status)) {
         return appendTo;
     }
-    appendTo.append(data.string.toTempUnicodeString());
+    appendTo.append(data.getStringRef().toTempUnicodeString());
     if (posIter != nullptr) {
         FieldPositionIteratorHandler fpih(posIter, status);
-        data.string.getAllFieldPositions(fpih, status);
+        data.getStringRef().getAllFieldPositions(fpih, status);
     }
     return appendTo;
 }

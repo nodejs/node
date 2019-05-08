@@ -482,6 +482,27 @@ typedef enum UDateFormatStyle {
 #define UDAT_HOUR_TZ                    "jz"
 #endif  /* U_HIDE_DEPRECATED_API */
 
+#ifndef U_HIDE_INTERNAL_API
+/**
+ * Constant for Unicode string name of new (in 2019) Japanese calendar era,
+ * root/English abbreviated version (ASCII-range characters).
+ * @internal
+ */
+#define JP_ERA_2019_ROOT                "Reiwa"
+/**
+ * Constant for Unicode string name of new (in 2019) Japanese calendar era,
+ * Japanese abbreviated version (Han, or fullwidth Latin for testing).
+ * @internal
+ */
+#define JP_ERA_2019_JA                  "\\u4EE4\\u548C"
+/**
+ * Constant for Unicode string name of new (in 2019) Japanese calendar era,
+ * root and Japanese narrow version (ASCII-range characters).
+ * @internal
+ */
+#define JP_ERA_2019_NARROW              "R"
+#endif  // U_HIDE_INTERNAL_API
+
 /**
  * FieldPosition and UFieldPosition selectors for format fields
  * defined by DateFormat and UDateFormat.

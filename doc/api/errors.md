@@ -854,18 +854,6 @@ provided.
 Encoding provided to `TextDecoder()` API was not one of the
 [WHATWG Supported Encodings][].
 
-<a id="ERR_ENTRY_TYPE_MISMATCH"></a>
-#### ERR_ENTRY_TYPE_MISMATCH
-
-> Stability: 1 - Experimental
-
-The `--entry-type=commonjs` flag was used to attempt to execute an `.mjs` file
-or a `.js` file where the nearest parent `package.json` contains
-`"type": "module"`; or
-the `--entry-type=module` flag was used to attempt to execute a `.cjs` file or
-a `.js` file where the nearest parent `package.json` either lacks a `"type"`
-field or contains `"type": "commonjs"`.
-
 <a id="ERR_FALSY_VALUE_REJECTION"></a>
 ### ERR_FALSY_VALUE_REJECTION
 
@@ -1160,11 +1148,25 @@ is set for the `Http2Stream`.
 `http2.connect()` was passed a URL that uses any protocol other than `http:` or
 `https:`.
 
+<a id="ERR_INTERNAL_ASSERTION"></a>
+### ERR_INTERNAL_ASSERTION
+
+There was a bug in Node.js or incorrect usage of Node.js internals.
+To fix the error, open an issue at https://github.com/nodejs/node/issues.
+
 <a id="ERR_INCOMPATIBLE_OPTION_PAIR"></a>
 ### ERR_INCOMPATIBLE_OPTION_PAIR
 
 An option pair is incompatible with each other and can not be used at the same
 time.
+
+<a id="ERR_INPUT_TYPE_NOT_ALLOWED"></a>
+### ERR_INPUT_TYPE_NOT_ALLOWED
+
+> Stability: 1 - Experimental
+
+The `--input-type` flag was used to attempt to execute a file. This flag can
+only be used with input via `--eval`, `--print` or `STDIN`.
 
 <a id="ERR_INSPECTOR_ALREADY_CONNECTED"></a>
 ### ERR_INSPECTOR_ALREADY_CONNECTED
@@ -1303,7 +1305,7 @@ invalid.
 <a id="ERR_INVALID_PROTOCOL"></a>
 ### ERR_INVALID_PROTOCOL
 
-An invalid `options.protocol` was passed.
+An invalid `options.protocol` was passed to `http.request()`.
 
 <a id="ERR_INVALID_REPL_EVAL_CONFIG"></a>
 ### ERR_INVALID_REPL_EVAL_CONFIG
@@ -1563,12 +1565,6 @@ OpenSSL crypto support.
 
 An attempt was made to use features that require [ICU][], but Node.js was not
 compiled with ICU support.
-
-<a id="ERR_NO_LONGER_SUPPORTED"></a>
-### ERR_NO_LONGER_SUPPORTED
-
-A Node.js API was called in an unsupported manner, such as
-`Buffer.write(string, encoding, offset[, length])`.
 
 <a id="ERR_OUT_OF_RANGE"></a>
 ### ERR_OUT_OF_RANGE
@@ -1999,7 +1995,7 @@ an `Error` with this code will be emitted.
 ### MODULE_NOT_FOUND
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/25690
     description: Added `requireStack` property.
 -->
@@ -2095,6 +2091,12 @@ removed: v10.0.0
 -->
 
 Used by the `N-API` when `Constructor.prototype` is not an object.
+
+<a id="ERR_NO_LONGER_SUPPORTED"></a>
+### ERR_NO_LONGER_SUPPORTED
+
+A Node.js API was called in an unsupported manner, such as
+`Buffer.write(string, encoding, offset[, length])`.
 
 <a id="ERR_OUTOFMEMORY"></a>
 ### ERR_OUTOFMEMORY
@@ -2222,6 +2224,18 @@ closed.
 
 These errors have never been released, but had been present on master between
 releases.
+
+<a id="ERR_ENTRY_TYPE_MISMATCH"></a>
+#### ERR_ENTRY_TYPE_MISMATCH
+
+> Stability: 1 - Experimental
+
+The `--entry-type=commonjs` flag was used to attempt to execute an `.mjs` file
+or a `.js` file where the nearest parent `package.json` contains
+`"type": "module"`; or
+the `--entry-type=module` flag was used to attempt to execute a `.cjs` file or
+a `.js` file where the nearest parent `package.json` either lacks a `"type"`
+field or contains `"type": "commonjs"`.
 
 <a id="ERR_FS_WATCHER_ALREADY_STARTED"></a>
 #### ERR_FS_WATCHER_ALREADY_STARTED

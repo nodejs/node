@@ -14,7 +14,7 @@ class ReqWrapBase {
  public:
   explicit inline ReqWrapBase(Environment* env);
 
-  virtual ~ReqWrapBase() {}
+  virtual ~ReqWrapBase() = default;
 
   virtual void Cancel() = 0;
   virtual AsyncWrap* GetAsyncWrap() = 0;

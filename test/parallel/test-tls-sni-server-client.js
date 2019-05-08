@@ -54,73 +54,77 @@ const SNIContexts = {
   }
 };
 
-const clientsOptions = [{
-  port: undefined,
-  ca: [loadPEM('ca1-cert')],
-  servername: 'a.example.com',
-  rejectUnauthorized: false
-}, {
-  port: undefined,
-  ca: [loadPEM('ca2-cert')],
-  servername: 'b.test.com',
-  rejectUnauthorized: false
-}, {
-  port: undefined,
-  ca: [loadPEM('ca2-cert')],
-  servername: 'a.b.test.com',
-  rejectUnauthorized: false
-}, {
-  port: undefined,
-  ca: [loadPEM('ca1-cert')],
-  servername: 'c.wrong.com',
-  rejectUnauthorized: false
-}, {
-  port: undefined,
-  ca: [loadPEM('ca1-cert')],
-  servername: 'chain.example.com',
-  rejectUnauthorized: false
-}];
+test(
+  {
+    ca: [loadPEM('ca1-cert')],
+    servername: 'a.example.com'
+  },
+  true,
+  'a.example.com'
+);
 
-const serverResults = [];
-const clientResults = [];
+test(
+  {
+    ca: [loadPEM('ca2-cert')],
+    servername: 'b.test.com',
+  },
+  true,
+  'b.test.com'
+);
 
-const server = tls.createServer(serverOptions, function(c) {
-  serverResults.push(c.servername);
-  c.end();
-});
+test(
+  {
+    ca: [loadPEM('ca2-cert')],
+    servername: 'a.b.test.com',
+  },
+  false,
+  'a.b.test.com'
+);
 
-server.addContext('a.example.com', SNIContexts['a.example.com']);
-server.addContext('*.test.com', SNIContexts['asterisk.test.com']);
-server.addContext('chain.example.com', SNIContexts['chain.example.com']);
+test(
+  {
+    ca: [loadPEM('ca1-cert')],
+    servername: 'c.wrong.com',
+  },
+  false,
+  'c.wrong.com'
+);
 
-server.listen(0, startTest);
+test(
+  {
+    ca: [loadPEM('ca1-cert')],
+    servername: 'chain.example.com',
+  },
+  true,
+  'chain.example.com'
+);
 
-function startTest() {
-  let i = 0;
-  function start() {
-    // No options left
-    if (i === clientsOptions.length)
-      return server.close();
+function test(options, clientResult, serverResult) {
+  const server = tls.createServer(serverOptions, (c) => {
+    assert.strictEqual(c.servername, serverResult);
+    assert.strictEqual(c.authorized, false);
+  });
 
-    const options = clientsOptions[i++];
-    options.port = server.address().port;
-    const client = tls.connect(options, function() {
-      clientResults.push(
-        client.authorizationError &&
-        (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID'));
+  server.addContext('a.example.com', SNIContexts['a.example.com']);
+  server.addContext('*.test.com', SNIContexts['asterisk.test.com']);
+  server.addContext('chain.example.com', SNIContexts['chain.example.com']);
 
-      // Continue
-      start();
+  server.on('tlsClientError', common.mustNotCall());
+
+  server.listen(0, () => {
+    const client = tls.connect({
+      ...options,
+      port: server.address().port,
+      rejectUnauthorized: false
+    }, () => {
+      const result = client.authorizationError &&
+        (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID');
+      assert.strictEqual(result, clientResult);
+      client.end();
     });
-  }
 
-  start();
+    client.on('close', common.mustCall(() => {
+      server.close();
+    }));
+  });
 }
-
-process.on('exit', function() {
-  assert.deepStrictEqual(serverResults, [
-    'a.example.com', 'b.test.com', 'a.b.test.com', 'c.wrong.com',
-    'chain.example.com'
-  ]);
-  assert.deepStrictEqual(clientResults, [true, true, false, false, true]);
-});

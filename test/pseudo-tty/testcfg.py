@@ -32,34 +32,25 @@ import os
 from os.path import join, exists, basename, isdir
 import re
 import utils
-
-try:
-  reduce           # Python 2
-except NameError:  # Python 3
-  from functools import reduce
-
-try:
-  xrange          # Python 2
-except NameError:
-  xrange = range  # Python 3
+from functools import reduce
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
 class TTYTestCase(test.TestCase):
 
-  def __init__(self, path, file, expected, input, arch, mode, context, config):
+  def __init__(self, path, file, expected, input_arg, arch, mode, context, config):
     super(TTYTestCase, self).__init__(context, path, arch, mode)
     self.file = file
     self.expected = expected
-    self.input = input
+    self.input = input_arg
     self.config = config
     self.arch = arch
     self.mode = mode
 
-  def IgnoreLine(self, str):
+  def IgnoreLine(self, str_arg):
     """Ignore empty lines and valgrind output."""
-    if not str.strip(): return True
-    else: return str.startswith('==') or str.startswith('**')
+    if not str_arg.strip(): return True
+    else: return str_arg.startswith('==') or str_arg.startswith('**')
 
   def IsFailureOutput(self, output):
     f = open(self.expected)
@@ -75,19 +66,19 @@ class TTYTestCase(test.TestCase):
       patterns.append(pattern)
     # Compare actual output with the expected
     raw_lines = (output.stdout + output.stderr).split('\n')
-    outlines = [ s.strip() for s in raw_lines if not self.IgnoreLine(s) ]
+    outlines = [ s.rstrip() for s in raw_lines if not self.IgnoreLine(s) ]
     if len(outlines) != len(patterns):
       print("length differs.")
       print("expect=%d" % len(patterns))
       print("actual=%d" % len(outlines))
       print("patterns:")
-      for i in xrange(len(patterns)):
+      for i in range(len(patterns)):
         print("pattern = %s" % patterns[i])
       print("outlines:")
-      for i in xrange(len(outlines)):
+      for i in range(len(outlines)):
         print("outline = %s" % outlines[i])
       return True
-    for i in xrange(len(patterns)):
+    for i in range(len(patterns)):
       if not re.match(patterns[i], outlines[i]):
         print("match failed")
         print("line=%d" % i)
@@ -117,16 +108,16 @@ class TTYTestCase(test.TestCase):
           + open(self.expected).read())
 
   def RunCommand(self, command, env):
-    input = None
+    input_arg = None
     if self.input is not None and exists(self.input):
-      input = open(self.input).read()
+      input_arg = open(self.input).read()
     full_command = self.context.processor(command)
     output = test.Execute(full_command,
                      self.context,
                      self.context.GetTimeout(self.mode),
                      env,
                      faketty=True,
-                     input=input)
+                     input=input_arg)
     return test.TestOutput(self,
                       full_command,
                       output,
@@ -148,15 +139,15 @@ class TTYTestConfiguration(test.TestConfiguration):
       print ("Skipping pseudo-tty tests, as pseudo terminals are not available"
              " on Windows.")
       return result
-    for test in all_tests:
-      if self.Contains(path, test):
-        file_prefix = join(self.root, reduce(join, test[1:], ""))
+    for tst in all_tests:
+      if self.Contains(path, tst):
+        file_prefix = join(self.root, reduce(join, tst[1:], ""))
         file_path = file_prefix + ".js"
         input_path = file_prefix + ".in"
         output_path = file_prefix + ".out"
         if not exists(output_path):
           raise Exception("Could not find %s" % output_path)
-        result.append(TTYTestCase(test, file_path, output_path,
+        result.append(TTYTestCase(tst, file_path, output_path,
                                   input_path, arch, mode, self.context, self))
     return result
 

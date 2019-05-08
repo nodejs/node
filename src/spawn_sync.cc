@@ -49,11 +49,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-
-SyncProcessOutputBuffer::SyncProcessOutputBuffer() {
-}
-
-
 void SyncProcessOutputBuffer::OnAlloc(size_t suggested_size,
                                       uv_buf_t* buf) const {
   if (used() == kBufferSize)

@@ -163,7 +163,7 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/25008
     description: The type tags are now properly compared and there are a couple
                  minor comparison adjustments to make the check less surprising.
@@ -454,6 +454,7 @@ function. See [`assert.throws()`][] for more details.
 Besides the async nature to await the completion behaves identically to
 [`assert.doesNotThrow()`][].
 
+<!-- eslint-disable no-restricted-syntax -->
 ```js
 (async () => {
   await assert.doesNotReject(
@@ -465,6 +466,7 @@ Besides the async nature to await the completion behaves identically to
 })();
 ```
 
+<!-- eslint-disable no-restricted-syntax -->
 ```js
 assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
   .then(() => {

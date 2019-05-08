@@ -273,7 +273,6 @@ public:
      */
     const UnicodeString& getAppendItemName(UDateTimePatternField field) const;
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * The general interface to get a display name for a particular date/time field,
      * in one of several possible display widths.
@@ -281,10 +280,9 @@ public:
      * @param field  The desired UDateTimePatternField, such as UDATPG_ERA_FIELD.
      * @param width  The desired UDateTimePGDisplayWidth, such as UDATPG_ABBREVIATED.
      * @return.      The display name for field
-     * @draft ICU 61
+     * @stable ICU 61
      */
     UnicodeString getFieldDisplayName(UDateTimePatternField field, UDateTimePGDisplayWidth width) const;
-#endif  // U_HIDE_DRAFT_API
 
     /**
      * The DateTimeFormat is a message format pattern used to compose date and
@@ -564,6 +562,7 @@ private:
     void setDecimalSymbols(const Locale& locale, UErrorCode& status);
     UDateTimePatternField getAppendFormatNumber(const char* field) const;
 #ifndef U_HIDE_DRAFT_API
+    // The following three have to be U_HIDE_DRAFT_API (though private) because UDateTimePGDisplayWidth is
     UDateTimePatternField getFieldAndWidthIndices(const char* key, UDateTimePGDisplayWidth* widthP) const;
     void setFieldDisplayName(UDateTimePatternField field, UDateTimePGDisplayWidth width, const UnicodeString& value);
     UnicodeString& getMutableFieldDisplayName(UDateTimePatternField field, UDateTimePGDisplayWidth width);

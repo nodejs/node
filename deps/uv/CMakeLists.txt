@@ -53,6 +53,7 @@ set(uv_test_sources
     test/test-fs-event.c
     test/test-fs-poll.c
     test/test-fs.c
+    test/test-fs-readdir.c
     test/test-get-currentexe.c
     test/test-get-loadavg.c
     test/test-get-memory.c
@@ -62,6 +63,7 @@ set(uv_test_sources
     test/test-getnameinfo.c
     test/test-getsockname.c
     test/test-getters-setters.c
+    test/test-gettimeofday.c
     test/test-handle-fileno.c
     test/test-homedir.c
     test/test-hrtime.c
@@ -262,7 +264,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Android")
        src/unix/sysinfo-memory.c)
 endif()
 
-if(CMAKE_SYSTEM_NAME MATCHES "Android|Darwin|Linux|OS/390")
+if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "Android|Linux|OS/390")
   list(APPEND uv_sources src/unix/proctitle.c)
 endif()
 
@@ -275,11 +277,11 @@ if(CMAKE_SYSTEM_NAME MATCHES "DragonFly|FreeBSD|NetBSD|OpenBSD")
   list(APPEND uv_libraries kvm)
 endif()
 
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin|DragonFly|FreeBSD|NetBSD|OpenBSD")
+if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "DragonFly|FreeBSD|NetBSD|OpenBSD")
   list(APPEND uv_sources src/unix/bsd-ifaddrs.c src/unix/kqueue.c)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+if(APPLE)
   list(APPEND uv_defines _DARWIN_UNLIMITED_SELECT=1 _DARWIN_USE_64_BIT_INODE=1)
   list(APPEND uv_sources
        src/unix/darwin-proctitle.c
@@ -333,7 +335,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   list(APPEND uv_sources src/unix/no-proctitle.c src/unix/sunos.c)
 endif()
 
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin|DragonFly|FreeBSD|Linux|NetBSD|OpenBSD")
+if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "DragonFly|FreeBSD|Linux|NetBSD|OpenBSD")
   list(APPEND uv_test_libraries util)
 endif()
 

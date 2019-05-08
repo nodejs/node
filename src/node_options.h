@@ -47,7 +47,7 @@ class HostPort {
 class Options {
  public:
   virtual void CheckOptions(std::vector<std::string>* errors) {}
-  virtual ~Options() {}
+  virtual ~Options() = default;
 };
 
 // These options are currently essentially per-Environment, but it can be nice
@@ -109,11 +109,20 @@ class EnvironmentOptions : public Options {
   bool preserve_symlinks = false;
   bool preserve_symlinks_main = false;
   bool prof_process = false;
+#if HAVE_INSPECTOR
+  std::string cpu_prof_dir;
+  static const uint64_t kDefaultCpuProfInterval = 1000;
+  uint64_t cpu_prof_interval = kDefaultCpuProfInterval;
+  std::string cpu_prof_name;
+  bool cpu_prof = false;
+#endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   bool throw_deprecation = false;
   bool trace_deprecation = false;
   bool trace_sync_io = false;
+  bool trace_tls = false;
   bool trace_warnings = false;
+  std::string unhandled_rejections;
   std::string userland_loader;
 
   bool syntax_check_only = false;
@@ -127,6 +136,7 @@ class EnvironmentOptions : public Options {
 
   bool tls_min_v1_0 = false;
   bool tls_min_v1_1 = false;
+  bool tls_min_v1_2 = false;
   bool tls_min_v1_3 = false;
   bool tls_max_v1_2 = false;
   bool tls_max_v1_3 = false;
@@ -234,7 +244,7 @@ enum OptionType {
 template <typename Options>
 class OptionsParser {
  public:
-  virtual ~OptionsParser() {}
+  virtual ~OptionsParser() = default;
 
   typedef Options TargetType;
 
@@ -332,7 +342,7 @@ class OptionsParser {
   // Represents a field within `Options`.
   class BaseOptionField {
    public:
-    virtual ~BaseOptionField() {}
+    virtual ~BaseOptionField() = default;
     virtual void* LookupImpl(Options* options) const = 0;
 
     template <typename T>

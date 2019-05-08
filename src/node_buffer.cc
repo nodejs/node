@@ -62,6 +62,7 @@ using v8::ArrayBufferView;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
+using v8::Global;
 using v8::Integer;
 using v8::Isolate;
 using v8::Just;
@@ -99,7 +100,7 @@ class CallbackInfo {
                       FreeCallback callback,
                       char* data,
                       void* hint);
-  Persistent<ArrayBuffer> persistent_;
+  Global<ArrayBuffer> persistent_;
   FreeCallback const callback_;
   char* const data_;
   void* const hint_;
@@ -420,7 +421,7 @@ MaybeLocal<Object> New(Environment* env,
   }
 
   if (uses_malloc) {
-    if (env->isolate_data()->uses_node_allocator()) {
+    if (!env->isolate_data()->uses_node_allocator()) {
       // We don't know for sure that the allocator is malloc()-based, so we need
       // to fall back to the FreeCallback variant.
       auto free_callback = [](char* data, void* hint) { free(data); };

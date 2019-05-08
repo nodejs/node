@@ -35,6 +35,7 @@ using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -177,7 +178,7 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
 class PromiseWrap : public AsyncWrap {
  public:
   PromiseWrap(Environment* env, Local<Object> object, bool silent)
-      : AsyncWrap(env, object, PROVIDER_PROMISE, -1, silent) {
+      : AsyncWrap(env, object, PROVIDER_PROMISE, kInvalidAsyncId, silent) {
     MakeWeak();
   }
 
@@ -346,8 +347,8 @@ class DestroyParam {
  public:
   double asyncId;
   Environment* env;
-  Persistent<Object> target;
-  Persistent<Object> propBag;
+  Global<Object> target;
+  Global<Object> propBag;
 };
 
 void AsyncWrap::WeakCallback(const WeakCallbackInfo<DestroyParam>& info) {
@@ -387,7 +388,7 @@ static void RegisterDestroyHook(const FunctionCallbackInfo<Value>& args) {
 
 void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
-  args.GetReturnValue().Set(-1);
+  args.GetReturnValue().Set(kInvalidAsyncId);
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   args.GetReturnValue().Set(wrap->get_async_id());
 }
@@ -414,10 +415,15 @@ void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   double execution_async_id =
-      args[0]->IsNumber() ? args[0].As<Number>()->Value() : -1;
+      args[0]->IsNumber() ? args[0].As<Number>()->Value() : kInvalidAsyncId;
   wrap->AsyncReset(execution_async_id);
 }
 
+void AsyncWrap::EmitDestroy() {
+  AsyncWrap::EmitDestroy(env(), async_id_);
+  // Ensure no double destroy is emitted via AsyncReset().
+  async_id_ = kInvalidAsyncId;
+}
 
 void AsyncWrap::QueueDestroyAsyncId(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsNumber());
@@ -480,7 +486,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   // kDefaultTriggerAsyncId: Write the id of the resource responsible for a
   //   handle's creation just before calling the new handle's constructor.
   //   After the new handle is constructed kDefaultTriggerAsyncId is set back
-  //   to -1.
+  //   to kInvalidAsyncId.
   FORCE_SET_TARGET_FIELD(target,
                          "async_id_fields",
                          env->async_hooks()->async_id_fields().GetJSArray());
@@ -568,10 +574,16 @@ AsyncWrap::AsyncWrap(Environment* env,
   AsyncReset(execution_async_id, silent);
 }
 
+AsyncWrap::AsyncWrap(Environment* env, v8::Local<v8::Object> object)
+    : BaseObject(env, object),
+      provider_type_(PROVIDER_NONE) {
+  CHECK_GE(object->InternalFieldCount(), 1);
+}
+
 
 AsyncWrap::~AsyncWrap() {
   EmitTraceEventDestroy();
-  EmitDestroy(env(), get_async_id());
+  EmitDestroy();
 }
 
 void AsyncWrap::EmitTraceEventDestroy() {
@@ -602,21 +614,27 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
   env->destroy_async_id_list()->push_back(async_id);
 }
 
+void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
+  AsyncReset(object(), execution_async_id, silent);
+}
 
 // Generalized call for both the constructor and for handles that are pooled
 // and reused over their lifetime. This way a new uid can be assigned when
 // the resource is pulled out of the pool and put back into use.
-void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
-  if (async_id_ != -1) {
+void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
+                           bool silent) {
+  CHECK_NE(provider_type(), PROVIDER_NONE);
+
+  if (async_id_ != kInvalidAsyncId) {
     // This instance was in use before, we have already emitted an init with
     // its previous async_id and need to emit a matching destroy for that
     // before generating a new async_id.
-    EmitDestroy(env(), async_id_);
+    EmitDestroy();
   }
 
   // Now we can assign a new async_id_ to this instance.
-  async_id_ =
-    execution_async_id == -1 ? env()->new_async_id() : execution_async_id;
+  async_id_ = execution_async_id == kInvalidAsyncId ? env()->new_async_id()
+                                                     : execution_async_id;
   trigger_async_id_ = env()->get_default_trigger_async_id();
 
   switch (provider_type()) {
@@ -643,7 +661,7 @@ void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
 
   if (silent) return;
 
-  EmitAsyncInit(env(), object(),
+  EmitAsyncInit(env(), resource,
                 env()->async_hooks()->provider_string(provider_type()),
                 async_id_, trigger_async_id_);
 }

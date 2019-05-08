@@ -2,7 +2,8 @@
 
 Select a Node.js version below to view the changelog history:
 
-* [Node.js 11](doc/changelogs/CHANGELOG_V11.md) - **Current**
+* [Node.js 12](doc/changelogs/CHANGELOG_V12.md) - **Current**
+* [Node.js 11](doc/changelogs/CHANGELOG_V11.md) - Current
 * [Node.js 10](doc/changelogs/CHANGELOG_V10.md) — **Long Term Support**
 * [Node.js 9](doc/changelogs/CHANGELOG_V9.md) — End-of-Life
 * [Node.js 8](doc/changelogs/CHANGELOG_V8.md) — Long Term Support
@@ -21,6 +22,7 @@ release.
 <!--lint disable maximum-line-length-->
 <table>
 <tr>
+  <th title="Current"><a href="doc/changelogs/CHANGELOG_V12.md">12</a><sup>Current</sup></th>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V11.md">11</a><sup>Current</sup></th>
   <th title="LTS Until 2021-04"><a href="doc/changelogs/CHANGELOG_V10.md">10</a><sup>LTS</sup></th>
   <th title="LTS Until 2019-12"><a href="doc/changelogs/CHANGELOG_V8.md">8</a><sup>LTS</sup></th>
@@ -28,7 +30,13 @@ release.
 </tr>
 <tr>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V11.md#11.14.0">11.14.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V12.md#12.2.0">12.2.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V12.md#12.1.0">12.1.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V12.md#12.0.0">12.0.0</a><br/>
+    </td>
+    <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V11.md#11.15.0">11.15.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V11.md#11.14.0">11.14.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V11.md#11.13.0">11.13.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V11.md#11.12.0">11.12.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V11.md#11.11.0">11.11.0</a><br/>
@@ -71,7 +79,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V10.md#10.0.0">10.0.0</a><br/>
     </td>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V8.md#8.15.1">8.15.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V8.md#8.16.0">8.16.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V8.md#8.15.1">8.15.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.15.0">8.15.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.14.1">8.14.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.14.0">8.14.0</a><br/>

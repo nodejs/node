@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#8.16.0">8.16.0</a><br/>
 <a href="#8.15.1">8.15.1</a><br/>
 <a href="#8.15.0">8.15.0</a><br/>
 <a href="#8.14.1">8.14.1</a><br/>
@@ -50,6 +51,7 @@
 </table>
 
 * Other Versions
+  * [12.x](CHANGELOG_V12.md)
   * [11.x](CHANGELOG_V11.md)
   * [10.x](CHANGELOG_V10.md)
   * [9.x](CHANGELOG_V9.md)
@@ -65,6 +67,51 @@
 *Note*: Node.js v8 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2019 and maintained until December 2019.
+
+<a id="8.16.0"></a>
+## 2019-04-16, Version 8.16.0 'Carbon' (LTS), @MylesBorins
+
+### Notable Changes
+
+* **n-api**:
+  - add API for asynchronous functions (Gabriel Schulhof) [#17887](https://github.com/nodejs/node/pull/17887)
+  - mark thread-safe function as stable (Gabriel Schulhof) [#25556](https://github.com/nodejs/node/pull/25556)
+
+### Commits
+
+* [[`705935d620`](https://github.com/nodejs/node/commit/705935d620)] - **assert**: fix backport regression (Ruben Bridgewater) [#27202](https://github.com/nodejs/node/pull/27202)
+* [[`c07ba9681f`](https://github.com/nodejs/node/commit/c07ba9681f)] - **build**: skip cctest on Windows shared lib build (Yihong Wang) [#21228](https://github.com/nodejs/node/pull/21228)
+* [[`63522886ea`](https://github.com/nodejs/node/commit/63522886ea)] - **build**: add loader path to rpath for cctest (Sam Ruby) [#23168](https://github.com/nodejs/node/pull/23168)
+* [[`e9369073d9`](https://github.com/nodejs/node/commit/e9369073d9)] - **build**: set `-blibpath:` for AIX (Richard Lau) [#25447](https://github.com/nodejs/node/pull/25447)
+* [[`97cc0fc51d`](https://github.com/nodejs/node/commit/97cc0fc51d)] - **deps**: V8: cherry-pick 3cc6919 (Farazmand) [#25874](https://github.com/nodejs/node/pull/25874)
+* [[`a1aff28fba`](https://github.com/nodejs/node/commit/a1aff28fba)] - **deps**: cherry-pick 525b396 from V8 upstream (Peter Marshall) [#25041](https://github.com/nodejs/node/pull/25041)
+* [[`6b7cccc88a`](https://github.com/nodejs/node/commit/6b7cccc88a)] - **doc**: fix optional parameters in n-api.md (Lars-Magnus Skog) [#22998](https://github.com/nodejs/node/pull/22998)
+* [[`b17819db3d`](https://github.com/nodejs/node/commit/b17819db3d)] - **doc**: update the http.request.setTimeout docs to be accurate (James Bunton) [#25123](https://github.com/nodejs/node/pull/25123)
+* [[`ac9b8f7645`](https://github.com/nodejs/node/commit/ac9b8f7645)] - **http**: fix error check in `Execute()` (Brian White) [#24738](https://github.com/nodejs/node/pull/24738)
+* [[`1d862610f8`](https://github.com/nodejs/node/commit/1d862610f8)] - **http**: attach reused parser to correct domain (Julien Gilli) [#25459](https://github.com/nodejs/node/pull/25459)
+* [[`d3de1ed653`](https://github.com/nodejs/node/commit/d3de1ed653)] - **n-api**: improve performance creating strings (Anthony Tuininga) [#26439](https://github.com/nodejs/node/pull/26439)
+* [[`2b2ad96ef2`](https://github.com/nodejs/node/commit/2b2ad96ef2)] - **n-api**: finalize during second-pass callback (Gabriel Schulhof) [#25992](https://github.com/nodejs/node/pull/25992)
+* [[`d6ffabc37f`](https://github.com/nodejs/node/commit/d6ffabc37f)] - **(SEMVER-MINOR)** **n-api**: mark thread-safe function as stable (Gabriel Schulhof) [#25556](https://github.com/nodejs/node/pull/25556)
+* [[`44609d1274`](https://github.com/nodejs/node/commit/44609d1274)] - **n-api**: restrict exports by version (Kyle Farnung) [#19962](https://github.com/nodejs/node/pull/19962)
+* [[`fe4328252a`](https://github.com/nodejs/node/commit/fe4328252a)] - **n-api**: add missing handle scopes (Daniel Bevenius) [#24011](https://github.com/nodejs/node/pull/24011)
+* [[`902b07959f`](https://github.com/nodejs/node/commit/902b07959f)] - **n-api**: clean up thread-safe function (Gabriel Schulhof) [#22259](https://github.com/nodejs/node/pull/22259)
+* [[`09b88aabb3`](https://github.com/nodejs/node/commit/09b88aabb3)] - **n-api**: remove idle\_running from TsFn (Lars-Magnus Skog) [#22520](https://github.com/nodejs/node/pull/22520)
+* [[`367505940a`](https://github.com/nodejs/node/commit/367505940a)] - **n-api**: guard against cond null dereference (Gabriel Schulhof) [#21871](https://github.com/nodejs/node/pull/21871)
+* [[`c5a11dc58e`](https://github.com/nodejs/node/commit/c5a11dc58e)] - **n-api**: fix compiler warning (cjihrig) [#21597](https://github.com/nodejs/node/pull/21597)
+* [[`759a0180b5`](https://github.com/nodejs/node/commit/759a0180b5)] - **(SEMVER-MINOR)** **n-api**: add API for asynchronous functions (Gabriel Schulhof) [#17887](https://github.com/nodejs/node/pull/17887)
+* [[`ea5628e77a`](https://github.com/nodejs/node/commit/ea5628e77a)] - **process**: allow reading from stdout/stderr sockets (Anna Henningsen) [#23053](https://github.com/nodejs/node/pull/23053)
+* [[`67b6e0d19c`](https://github.com/nodejs/node/commit/67b6e0d19c)] - **src**: fix may be uninitialized warning in n-api (Michael Dawson) [#21898](https://github.com/nodejs/node/pull/21898)
+* [[`eaf474cc5d`](https://github.com/nodejs/node/commit/eaf474cc5d)] - **test**: shared lib build doesn't handle SIGPIPE (Yihong Wang) [#19211](https://github.com/nodejs/node/pull/19211)
+* [[`3128cb7da6`](https://github.com/nodejs/node/commit/3128cb7da6)] - **test**: avoid running fsync on directory on AIX (John Barboza) [#21298](https://github.com/nodejs/node/pull/21298)
+* [[`b4c5435a46`](https://github.com/nodejs/node/commit/b4c5435a46)] - **test**: add process.stdin.end() TTY regression test (Matteo Collina) [#23051](https://github.com/nodejs/node/pull/23051)
+* [[`c56f3edb10`](https://github.com/nodejs/node/commit/c56f3edb10)] - **test**: add stdin writable regression test (Anna Henningsen) [#23053](https://github.com/nodejs/node/pull/23053)
+* [[`f6ff8c51bc`](https://github.com/nodejs/node/commit/f6ff8c51bc)] - **test**: fix module loading error for AIX 7.1 (Richard Lau) [#25418](https://github.com/nodejs/node/pull/25418)
+* [[`d4b6643ac3`](https://github.com/nodejs/node/commit/d4b6643ac3)] - **test**: mark test-cli-node-options flaky on arm (Rich Trott) [#25032](https://github.com/nodejs/node/pull/25032)
+* [[`60db455961`](https://github.com/nodejs/node/commit/60db455961)] - **test**: mark test\_threadsafe\_function/test as flaky (Gireesh Punathil) [#24714](https://github.com/nodejs/node/pull/24714)
+* [[`fbafe8d311`](https://github.com/nodejs/node/commit/fbafe8d311)] - **test**: fix test-repl-envvars (Anna Henningsen) [#25226](https://github.com/nodejs/node/pull/25226)
+* [[`7573b55a15`](https://github.com/nodejs/node/commit/7573b55a15)] - **tls**: fix legacy SecurePair clienthello race window (Ben Noordhuis) [#26452](https://github.com/nodejs/node/pull/26452)
+* [[`91620b8bd6`](https://github.com/nodejs/node/commit/91620b8bd6)] - **tls**: fix legacy SecurePair session resumption (Ben Noordhuis) [#26452](https://github.com/nodejs/node/pull/26452)
+* [[`1a9582b7a6`](https://github.com/nodejs/node/commit/1a9582b7a6)] - **tools**: allow input for TTY tests (Anna Henningsen) [#23053](https://github.com/nodejs/node/pull/23053)
 
 <a id="8.15.1"></a>
 ## 2019-02-28, Version 8.15.1 'Carbon' (LTS), @rvagg

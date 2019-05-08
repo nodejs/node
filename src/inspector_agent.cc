@@ -9,6 +9,7 @@
 #include "node/inspector/protocol/Protocol.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "node_options-inl.h"
 #include "node_process.h"
 #include "node_url.h"
 #include "v8-inspector.h"
@@ -34,6 +35,7 @@ using node::FatalError;
 
 using v8::Context;
 using v8::Function;
+using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -354,7 +356,7 @@ class InspectorTimer {
     // Unique_ptr goes out of scope here and pointer is deleted.
   }
 
-  ~InspectorTimer() {}
+  ~InspectorTimer() = default;
 
   Environment* env_;
   uv_timer_t timer_;
@@ -834,7 +836,7 @@ void Agent::DisableAsyncHook() {
 }
 
 void Agent::ToggleAsyncHook(Isolate* isolate,
-                            const node::Persistent<Function>& fn) {
+                            const Global<Function>& fn) {
   CHECK(parent_env_->has_run_bootstrapping_code());
   HandleScope handle_scope(isolate);
   CHECK(!fn.IsEmpty());

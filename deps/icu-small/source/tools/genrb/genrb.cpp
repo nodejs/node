@@ -18,6 +18,11 @@
 *******************************************************************************
 */
 
+#include <fstream>
+#include <iostream>
+#include <list>
+#include <string>
+
 #include <assert.h>
 #include "genrb.h"
 #include "unicode/localpointer.h"
@@ -25,13 +30,15 @@
 #include "unicode/utf16.h"
 #include "charstr.h"
 #include "cmemory.h"
+#include "filterrb.h"
 #include "reslist.h"
 #include "ucmndata.h"  /* TODO: for reading the pool bundle */
 
 U_NAMESPACE_USE
 
 /* Protos */
-void  processFile(const char *filename, const char* cp, const char *inputDir, const char *outputDir,
+void  processFile(const char *filename, const char* cp,
+                  const char *inputDir, const char *outputDir, const char *filterDir,
                   const char *packageName,
                   SRBRoot *newPoolBundle, UBool omitBinaryCollation, UErrorCode &status);
 static char *make_res_filename(const char *filename, const char *outputDir,
@@ -76,7 +83,8 @@ enum
     FORMAT_VERSION,
     WRITE_POOL_BUNDLE,
     USE_POOL_BUNDLE,
-    INCLUDE_UNIHAN_COLL
+    INCLUDE_UNIHAN_COLL,
+    FILTERDIR
 };
 
 UOption options[]={
@@ -99,9 +107,10 @@ UOption options[]={
                       UOPTION_DEF("language",  'l', UOPT_REQUIRES_ARG), /* 16 */
                       UOPTION_DEF("omitCollationRules", 'R', UOPT_NO_ARG),/* 17 */
                       UOPTION_DEF("formatVersion", '\x01', UOPT_REQUIRES_ARG),/* 18 */
-                      UOPTION_DEF("writePoolBundle", '\x01', UOPT_NO_ARG),/* 19 */
+                      UOPTION_DEF("writePoolBundle", '\x01', UOPT_OPTIONAL_ARG),/* 19 */
                       UOPTION_DEF("usePoolBundle", '\x01', UOPT_OPTIONAL_ARG),/* 20 */
                       UOPTION_DEF("includeUnihanColl", '\x01', UOPT_NO_ARG),/* 21 */ /* temporary, don't display in usage info */
+                      UOPTION_DEF("filterDir", '\x01', UOPT_OPTIONAL_ARG), /* 22 */
                   };
 
 static     UBool       write_java = FALSE;
@@ -121,6 +130,7 @@ main(int argc,
     const char *arg       = NULL;
     const char *outputDir = NULL; /* NULL = no output directory, use current */
     const char *inputDir  = NULL;
+    const char *filterDir = NULL;
     const char *encoding  = "";
     int         i;
     UBool illegalArg = FALSE;
@@ -224,10 +234,13 @@ main(int argc,
                 "\t      --formatVersion      write a .res file compatible with the requested formatVersion (single digit);\n"
                 "\t                           for example, --formatVersion 1\n");
         fprintf(stderr,
-                "\t      --writePoolBundle    write a pool.res file with all of the keys of all input bundles\n"
-                "\t      --usePoolBundle [path-to-pool.res]  point to keys from the pool.res keys pool bundle if they are available there;\n"
+                "\t      --writePoolBundle [directory]  write a pool.res file with all of the keys of all input bundles\n"
+                "\t      --usePoolBundle [directory]  point to keys from the pool.res keys pool bundle if they are available there;\n"
                 "\t                           makes .res files smaller but dependent on the pool bundle\n"
                 "\t                           (--writePoolBundle and --usePoolBundle cannot be combined)\n");
+        fprintf(stderr,
+                "\t      --filterDir          Input directory where filter files are available.\n"
+                "\t                           For more on filter files, see Python buildtool.\n");
 
         return illegalArg ? U_ILLEGAL_ARGUMENT_ERROR : U_ZERO_ERROR;
     }
@@ -252,6 +265,10 @@ main(int argc,
 
     if(options[DESTDIR].doesOccur) {
         outputDir = options[DESTDIR].value;
+    }
+
+    if (options[FILTERDIR].doesOccur) {
+        filterDir = options[FILTERDIR].value;
     }
 
     if(options[ENCODING].doesOccur) {
@@ -524,7 +541,7 @@ main(int argc,
         if (isVerbose()) {
             printf("Processing file \"%s\"\n", theCurrentFileName.data());
         }
-        processFile(arg, encoding, inputDir, outputDir, NULL,
+        processFile(arg, encoding, inputDir, outputDir, filterDir, NULL,
                     newPoolBundle.getAlias(),
                     options[NO_BINARY_COLLATION].doesOccur, status);
     }
@@ -532,8 +549,14 @@ main(int argc,
     poolBundle.close();
 
     if(U_SUCCESS(status) && options[WRITE_POOL_BUNDLE].doesOccur) {
+        const char* writePoolDir;
+        if (options[WRITE_POOL_BUNDLE].value!=NULL) {
+            writePoolDir = options[WRITE_POOL_BUNDLE].value;
+        } else {
+            writePoolDir = outputDir;
+        }
         char outputFileName[256];
-        newPoolBundle->write(outputDir, NULL, outputFileName, sizeof(outputFileName), status);
+        newPoolBundle->write(writePoolDir, NULL, outputFileName, sizeof(outputFileName), status);
         if(U_FAILURE(status)) {
             fprintf(stderr, "unable to write the pool bundle: %s\n", u_errorName(status));
         }
@@ -552,19 +575,17 @@ main(int argc,
 /* Process a file */
 void
 processFile(const char *filename, const char *cp,
-            const char *inputDir, const char *outputDir, const char *packageName,
+            const char *inputDir, const char *outputDir, const char *filterDir,
+            const char *packageName,
             SRBRoot *newPoolBundle,
             UBool omitBinaryCollation, UErrorCode &status) {
     LocalPointer<SRBRoot> data;
-    UCHARBUF       *ucbuf        = NULL;
-    char           *rbname       = NULL;
-    char           *openFileName = NULL;
-    char           *inputDirBuf  = NULL;
+    LocalUCHARBUFPointer ucbuf;
+    CharString openFileName;
+    CharString inputDirBuf;
 
-    char           outputFileName[256];
-
+    char outputFileName[256];
     int32_t dirlen  = 0;
-    int32_t filelen = 0;
 
     if (U_FAILURE(status)) {
         return;
@@ -572,14 +593,10 @@ processFile(const char *filename, const char *cp,
     if(filename==NULL){
         status=U_ILLEGAL_ARGUMENT_ERROR;
         return;
-    }else{
-        filelen = (int32_t)uprv_strlen(filename);
     }
 
     if(inputDir == NULL) {
         const char *filenameBegin = uprv_strrchr(filename, U_FILE_SEP_CHAR);
-        openFileName = (char *) uprv_malloc(dirlen + filelen + 2);
-        openFileName[0] = '\0';
         if (filenameBegin != NULL) {
             /*
              * When a filename ../../../data/root.txt is specified,
@@ -588,31 +605,15 @@ processFile(const char *filename, const char *cp,
              * another file, like UCARules.txt or thaidict.brk.
              */
             int32_t filenameSize = (int32_t)(filenameBegin - filename + 1);
-            inputDirBuf = uprv_strncpy((char *)uprv_malloc(filenameSize), filename, filenameSize);
+            inputDirBuf.append(filename, filenameSize, status);
 
-            /* test for NULL */
-            if(inputDirBuf == NULL) {
-                status = U_MEMORY_ALLOCATION_ERROR;
-                goto finish;
-            }
-
-            inputDirBuf[filenameSize - 1] = 0;
-            inputDir = inputDirBuf;
-            dirlen  = (int32_t)uprv_strlen(inputDir);
+            inputDir = inputDirBuf.data();
+            dirlen  = inputDirBuf.length();
         }
     }else{
         dirlen  = (int32_t)uprv_strlen(inputDir);
 
         if(inputDir[dirlen-1] != U_FILE_SEP_CHAR) {
-            openFileName = (char *) uprv_malloc(dirlen + filelen + 2);
-
-            /* test for NULL */
-            if(openFileName == NULL) {
-                status = U_MEMORY_ALLOCATION_ERROR;
-                goto finish;
-            }
-
-            openFileName[0] = '\0';
             /*
              * append the input dir to openFileName if the first char in
              * filename is not file seperation char and the last char input directory is  not '.'.
@@ -625,49 +626,80 @@ processFile(const char *filename, const char *cp,
              * genrb -s. icu/data  --- start from CWD and look in icu/data dir
              */
             if( (filename[0] != U_FILE_SEP_CHAR) && (inputDir[dirlen-1] !='.')){
-                uprv_strcpy(openFileName, inputDir);
-                openFileName[dirlen]     = U_FILE_SEP_CHAR;
+                openFileName.append(inputDir, status);
             }
-            openFileName[dirlen + 1] = '\0';
         } else {
-            openFileName = (char *) uprv_malloc(dirlen + filelen + 1);
-
-            /* test for NULL */
-            if(openFileName == NULL) {
-                status = U_MEMORY_ALLOCATION_ERROR;
-                goto finish;
-            }
-
-            uprv_strcpy(openFileName, inputDir);
-
+            openFileName.append(inputDir, status);
         }
     }
+    openFileName.appendPathPart(filename, status);
 
-    uprv_strcat(openFileName, filename);
+    // Test for CharString failure
+    if (U_FAILURE(status)) {
+        return;
+    }
 
-    ucbuf = ucbuf_open(openFileName, &cp,getShowWarning(),TRUE, &status);
+    ucbuf.adoptInstead(ucbuf_open(openFileName.data(), &cp,getShowWarning(),TRUE, &status));
     if(status == U_FILE_ACCESS_ERROR) {
 
-        fprintf(stderr, "couldn't open file %s\n", openFileName == NULL ? filename : openFileName);
-        goto finish;
+        fprintf(stderr, "couldn't open file %s\n", openFileName.data());
+        return;
     }
-    if (ucbuf == NULL || U_FAILURE(status)) {
+    if (ucbuf.isNull() || U_FAILURE(status)) {
         fprintf(stderr, "An error occurred processing file %s. Error: %s\n",
-                openFileName == NULL ? filename : openFileName, u_errorName(status));
-        goto finish;
+                openFileName.data(), u_errorName(status));
+        return;
     }
     /* auto detected popular encodings? */
     if (cp!=NULL && isVerbose()) {
         printf("autodetected encoding %s\n", cp);
     }
     /* Parse the data into an SRBRoot */
-    data.adoptInstead(parse(ucbuf, inputDir, outputDir, filename,
+    data.adoptInstead(parse(ucbuf.getAlias(), inputDir, outputDir, filename,
             !omitBinaryCollation, options[NO_COLLATION_RULES].doesOccur, &status));
 
     if (data.isNull() || U_FAILURE(status)) {
         fprintf(stderr, "couldn't parse the file %s. Error:%s\n", filename, u_errorName(status));
-        goto finish;
+        return;
     }
+
+    // Run filtering before writing pool bundle
+    if (filterDir != nullptr) {
+        CharString filterFileName(filterDir, status);
+        filterFileName.appendPathPart(filename, status);
+        if (U_FAILURE(status)) {
+            return;
+        }
+
+        // Open the file and read it into filter
+        SimpleRuleBasedPathFilter filter;
+        std::ifstream f(filterFileName.data());
+        if (f.fail()) {
+            std::cerr << "genrb error: unable to open " << filterFileName.data() << std::endl;
+            status = U_FILE_ACCESS_ERROR;
+            return;
+        }
+        std::string currentLine;
+        while (std::getline(f, currentLine)) {
+            // Ignore # comments and empty lines
+            if (currentLine.empty() || currentLine[0] == '#') {
+                continue;
+            }
+            filter.addRule(currentLine, status);
+            if (U_FAILURE(status)) {
+                return;
+            }
+        }
+
+        if (isVerbose()) {
+            filter.print(std::cout);
+        }
+
+        // Apply the filter to the data
+        ResKeyPath path;
+        data->fRoot->applyFilter(filter, path, data.getAlias());
+    }
+
     if(options[WRITE_POOL_BUNDLE].doesOccur) {
         data->fWritePoolBundle = newPoolBundle;
         data->compactKeys(status);
@@ -677,7 +709,7 @@ processFile(const char *filename, const char *cp,
         if(U_FAILURE(status)) {
             fprintf(stderr, "bundle_compactKeys(%s) or bundle_getKeyBytes() failed: %s\n",
                     filename, u_errorName(status));
-            goto finish;
+            return;
         }
         /* count the number of just-added key strings */
         for(const char *newKeysLimit = newKeys + newKeysLength; newKeys < newKeysLimit; ++newKeys) {
@@ -692,11 +724,11 @@ processFile(const char *filename, const char *cp,
     }
 
     /* Determine the target rb filename */
-    rbname = make_res_filename(filename, outputDir, packageName, status);
+    uprv_free(make_res_filename(filename, outputDir, packageName, status));
     if(U_FAILURE(status)) {
         fprintf(stderr, "couldn't make the res fileName for  bundle %s. Error:%s\n",
                 filename, u_errorName(status));
-        goto finish;
+        return;
     }
     if(write_java== TRUE){
         bundle_write_java(data.getAlias(), outputDir, outputEnc,
@@ -712,24 +744,6 @@ processFile(const char *filename, const char *cp,
     }
     if (U_FAILURE(status)) {
         fprintf(stderr, "couldn't write bundle %s. Error:%s\n", outputFileName, u_errorName(status));
-    }
-
-finish:
-
-    if (inputDirBuf != NULL) {
-        uprv_free(inputDirBuf);
-    }
-
-    if (openFileName != NULL) {
-        uprv_free(openFileName);
-    }
-
-    if(ucbuf) {
-        ucbuf_close(ucbuf);
-    }
-
-    if (rbname) {
-        uprv_free(rbname);
     }
 }
 

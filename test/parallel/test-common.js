@@ -35,6 +35,17 @@ const { execFile } = require('child_process');
   }));
 }
 
+// Test for disabling leaked global detection
+{
+  const p = fixtures.path('leakedGlobal.js');
+  execFile(process.execPath, [p], {
+    env: { ...process.env, NODE_TEST_KNOWN_GLOBALS: 0 }
+  }, common.mustCall((err, stdout, stderr) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(stderr.trim(), '');
+  }));
+}
+
 // common.mustCall() tests
 assert.throws(function() {
   common.mustCall(function() {}, 'foo');

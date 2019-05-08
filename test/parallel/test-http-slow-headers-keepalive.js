@@ -8,7 +8,7 @@ const { finished } = require('stream');
 const headers =
   'GET / HTTP/1.1\r\n' +
   'Host: localhost\r\n' +
-  'Connection: keep-alive' +
+  'Connection: keep-alive\r\n' +
   'Agent: node\r\n';
 
 let sendCharEvery = 1000;

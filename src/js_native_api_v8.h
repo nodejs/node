@@ -12,7 +12,7 @@ struct napi_env__ {
         context_persistent(isolate, context) {
     CHECK_EQ(isolate, context->GetIsolate());
   }
-  virtual ~napi_env__() {}
+  virtual ~napi_env__() = default;
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   v8impl::Persistent<v8::Context> context_persistent;
 
@@ -167,8 +167,7 @@ class Finalizer {
       _finalize_hint(finalize_hint) {
   }
 
-  ~Finalizer() {
-  }
+  ~Finalizer() = default;
 
  public:
   static Finalizer* New(napi_env env,

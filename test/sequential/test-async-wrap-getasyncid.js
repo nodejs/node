@@ -48,6 +48,8 @@ const { getSystemErrorName } = require('util');
     if (!common.isMainThread)
       delete providers.INSPECTORJSBINDING;
     delete providers.KEYPAIRGENREQUEST;
+    delete providers.HTTPCLIENTREQUEST;
+    delete providers.HTTPINCOMINGMESSAGE;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
@@ -150,7 +152,10 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
 {
   const { HTTPParser } = require('_http_common');
-  testInitialized(new HTTPParser(HTTPParser.REQUEST), 'HTTPParser');
+  const parser = new HTTPParser();
+  testUninitialized(parser, 'HTTPParser');
+  parser.initialize(HTTPParser.REQUEST, {});
+  testInitialized(parser, 'HTTPParser');
 }
 
 

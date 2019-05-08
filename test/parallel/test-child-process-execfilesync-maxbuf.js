@@ -34,13 +34,13 @@ const args = [
   assert.deepStrictEqual(ret, msgOutBuf);
 }
 
-// maxBuffer size is 200 * 1024 at default.
+// maxBuffer size is 1024 * 1024 at default.
 {
   assert.throws(
     () => {
       execFileSync(
         process.execPath,
-        ['-e', "console.log('a'.repeat(200 * 1024))"],
+        ['-e', "console.log('a'.repeat(1024 * 1024))"],
         { encoding: 'utf-8' }
       );
     }, (e) => {

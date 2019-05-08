@@ -97,7 +97,7 @@
       'action': [
         'python',
         'tools/inspector_protocol/code_generator.py',
-        '--jinja_dir', '<@(protocol_tool_path)/..',
+        '--jinja_dir', '<@(protocol_tool_path)',
         '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/',
         '--config', 'src/inspector/node_protocol_config.json',
       ],

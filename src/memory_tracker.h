@@ -90,9 +90,9 @@ class CleanupHookCallback;
  *     NonPointerRetainerClass non_pointer_retainer;
  *     InternalClass internal_member_;
  *     std::vector<uv_async_t> vector_;
- *     node::Persistent<Object> target_;
+ *     v8::Global<Object> target_;
  *
- *     node::Persistent<Object> wrapped_;
+ *     v8::Global<Object> wrapped_;
  * }
  *
  * This creates the following graph:
@@ -109,7 +109,7 @@ class CleanupHookCallback;
  */
 class MemoryRetainer {
  public:
-  virtual ~MemoryRetainer() {}
+  virtual ~MemoryRetainer() = default;
 
   // Subclasses should implement these methods to provide information
   // for the V8 heap snapshot generator.
@@ -185,9 +185,9 @@ class MemoryTracker {
   void TrackField(const char* edge_name,
                   const v8::Eternal<T>& value,
                   const char* node_name);
-  template <typename T, typename Traits>
+  template <typename T>
   inline void TrackField(const char* edge_name,
-                         const v8::Persistent<T, Traits>& value,
+                         const v8::PersistentBase<T>& value,
                          const char* node_name = nullptr);
   template <typename T>
   inline void TrackField(const char* edge_name,
@@ -215,7 +215,7 @@ class MemoryTracker {
                          const char* node_name = nullptr);
   template <class NativeT, class V8T>
   inline void TrackField(const char* edge_name,
-                         const AliasedBuffer<NativeT, V8T>& value,
+                         const AliasedBufferBase<NativeT, V8T>& value,
                          const char* node_name = nullptr);
 
   // Put a memory container into the graph, create an edge from

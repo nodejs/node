@@ -3,7 +3,7 @@
 
 #define LLHTTP_VERSION_MAJOR 1
 #define LLHTTP_VERSION_MINOR 1
-#define LLHTTP_VERSION_PATCH 1
+#define LLHTTP_VERSION_PATCH 3
 
 #ifndef INCLUDE_LLHTTP_ITSELF_H_
 #define INCLUDE_LLHTTP_ITSELF_H_
@@ -277,7 +277,7 @@ void llhttp_settings_init(llhttp_settings_t* settings);
  *
  * NOTE: if this function ever returns a non-pause type error, it will continue
  * to return the same error upon each successive call up until `llhttp_init()`
- * call.
+ * is called.
  */
 llhttp_errno_t llhttp_execute(llhttp_t* parser, const char* data, size_t len);
 

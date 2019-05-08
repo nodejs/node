@@ -14,12 +14,12 @@ const onMessage = common.mustCall(common.mustCall((err, bytes) => {
 const buf1 = Buffer.alloc(256, 'x');
 const buf2 = Buffer.alloc(256, 'y');
 
-client.on('listening', function() {
+client.on('listening', common.mustCall(function() {
   const toSend = [buf1, buf2];
   client.connect(client.address().port, common.mustCall(() => {
     client.send(toSend, onMessage);
   }));
-});
+}));
 
 client.on('message', common.mustCall(function onMessage(buf, info) {
   const expected = Buffer.concat([buf1, buf2]);

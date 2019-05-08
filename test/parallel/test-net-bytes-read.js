@@ -6,10 +6,12 @@ const net = require('net');
 
 const big = Buffer.alloc(1024 * 1024);
 
-const server = net.createServer((socket) => {
+const handler = common.mustCall((socket) => {
   socket.end(big);
   server.close();
-}).listen(0, () => {
+});
+
+const onListen = common.mustCall(() => {
   let prev = 0;
 
   function checkRaise(value) {
@@ -17,22 +19,29 @@ const server = net.createServer((socket) => {
     prev = value;
   }
 
-  const socket = net.connect(server.address().port, () => {
-    socket.on('data', (chunk) => {
-      checkRaise(socket.bytesRead);
-    });
+  const onData = common.mustCallAtLeast((chunk) => {
+    checkRaise(socket.bytesRead);
+  });
 
-    socket.on('end', common.mustCall(() => {
-      assert.strictEqual(socket.bytesRead, prev);
-      assert.strictEqual(big.length, prev);
-    }));
+  const onEnd = common.mustCall(() => {
+    assert.strictEqual(socket.bytesRead, prev);
+    assert.strictEqual(big.length, prev);
+  });
 
-    socket.on('close', common.mustCall(() => {
-      assert(!socket._handle);
-      assert.strictEqual(socket.bytesRead, prev);
-      assert.strictEqual(big.length, prev);
-    }));
+  const onClose = common.mustCall(() => {
+    assert(!socket._handle);
+    assert.strictEqual(socket.bytesRead, prev);
+    assert.strictEqual(big.length, prev);
+  });
 
+  const onConnect = common.mustCall(() => {
+    socket.on('data', onData);
+    socket.on('end', onEnd);
+    socket.on('close', onClose);
     socket.end();
   });
+
+  const socket = net.connect(server.address().port, onConnect);
 });
+
+const server = net.createServer(handler).listen(0, onListen);

@@ -46,7 +46,8 @@ namespace node {
   V(HTTP2STREAM)                                                              \
   V(HTTP2PING)                                                                \
   V(HTTP2SETTINGS)                                                            \
-  V(HTTPPARSER)                                                               \
+  V(HTTPINCOMINGMESSAGE)                                                      \
+  V(HTTPCLIENTREQUEST)                                                        \
   V(JSSTREAM)                                                                 \
   V(MESSAGEPORT)                                                              \
   V(PIPECONNECTWRAP)                                                          \
@@ -108,11 +109,17 @@ class AsyncWrap : public BaseObject {
   AsyncWrap(Environment* env,
             v8::Local<v8::Object> object,
             ProviderType provider,
-            double execution_async_id = -1);
+            double execution_async_id = kInvalidAsyncId);
+
+  // This constructor creates a reuseable instance where user is responsible
+  // to call set_provider_type() and AsyncReset() before use.
+  AsyncWrap(Environment* env, v8::Local<v8::Object> object);
 
   ~AsyncWrap() override;
 
   AsyncWrap() = delete;
+
+  static constexpr double kInvalidAsyncId = -1;
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
@@ -140,6 +147,8 @@ class AsyncWrap : public BaseObject {
   static void EmitAfter(Environment* env, double async_id);
   static void EmitPromiseResolve(Environment* env, double async_id);
 
+  void EmitDestroy();
+
   void EmitTraceEventBefore();
   static void EmitTraceEventAfter(ProviderType type, double async_id);
   void EmitTraceEventDestroy();
@@ -147,12 +156,18 @@ class AsyncWrap : public BaseObject {
   static void DestroyAsyncIdsCallback(Environment* env, void* data);
 
   inline ProviderType provider_type() const;
+  inline ProviderType set_provider_type(ProviderType provider);
 
   inline double get_async_id() const;
 
   inline double get_trigger_async_id() const;
 
-  void AsyncReset(double execution_async_id = -1, bool silent = false);
+  void AsyncReset(v8::Local<v8::Object> resource,
+                  double execution_async_id = kInvalidAsyncId,
+                  bool silent = false);
+
+  void AsyncReset(double execution_async_id = kInvalidAsyncId,
+                  bool silent = false);
 
   // Only call these within a valid HandleScope.
   v8::MaybeLocal<v8::Value> MakeCallback(const v8::Local<v8::Function> cb,
@@ -202,9 +217,9 @@ class AsyncWrap : public BaseObject {
             ProviderType provider,
             double execution_async_id,
             bool silent);
-  const ProviderType provider_type_;
+  ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.
-  double async_id_ = -1;
+  double async_id_ = kInvalidAsyncId;
   double trigger_async_id_;
 };
 

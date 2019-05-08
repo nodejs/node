@@ -80,9 +80,17 @@ assert.throws(
 assert.throws(
   () => a.notStrictEqual('a '.repeat(30), 'a '.repeat(30)),
   {
-    message: 'Expected "actual" to be strictly unequal to: ' +
+    message: 'Expected "actual" to be strictly unequal to:\n\n' +
              `'${'a '.repeat(30)}'`,
     name: 'AssertionError'
+  }
+);
+
+assert.throws(
+  () => a.notEqual(1, 1),
+  {
+    message: '1 != 1',
+    operator: '!='
   }
 );
 
@@ -281,15 +289,15 @@ testShortAssertionMessage('a', '"a"');
 testShortAssertionMessage('foo', '\'foo\'');
 testShortAssertionMessage(0, '0');
 testShortAssertionMessage(Symbol(), 'Symbol()');
+testShortAssertionMessage(undefined, 'undefined');
+testShortAssertionMessage(-Infinity, '-Infinity');
 testAssertionMessage([], '[]');
 testAssertionMessage(/a/, '/a/');
 testAssertionMessage(/abc/gim, '/abc/gim');
 testAssertionMessage({}, '{}');
-testAssertionMessage(undefined, 'undefined');
-testAssertionMessage(-Infinity, '-Infinity');
 testAssertionMessage([1, 2, 3], '[\n+   1,\n+   2,\n+   3\n+ ]');
 testAssertionMessage(function f() {}, '[Function: f]');
-testAssertionMessage(function() {}, '[Function]');
+testAssertionMessage(function() {}, '[Function (anonymous)]');
 testAssertionMessage(circular, '{\n+   x: [Circular],\n+   y: 1\n+ }');
 testAssertionMessage({ a: undefined, b: null },
                      '{\n+   a: undefined,\n+   b: null\n+ }');
@@ -297,23 +305,21 @@ testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
                      '{\n+   a: NaN,\n+   b: Infinity,\n+   c: -Infinity\n+ }');
 
 // https://github.com/nodejs/node-v0.x-archive/issues/5292
-try {
-  assert.strictEqual(1, 2);
-} catch (e) {
-  assert.strictEqual(
-    e.message,
-    `${strictEqualMessageStart}\n1 !== 2\n`
-  );
-  assert.ok(e.generatedMessage, 'Message not marked as generated');
-}
+assert.throws(
+  () => assert.strictEqual(1, 2),
+  {
+    message: `${strictEqualMessageStart}\n1 !== 2\n`,
+    generatedMessage: true
+  }
+);
 
-try {
-  assert.strictEqual(1, 2, 'oh no');
-} catch (e) {
-  assert.strictEqual(e.message, 'oh no');
-  // Message should not be marked as generated.
-  assert.strictEqual(e.generatedMessage, false);
-}
+assert.throws(
+  () => assert.strictEqual(1, 2, 'oh no'),
+  {
+    message: 'oh no',
+    generatedMessage: false
+  }
+);
 
 {
   let threw = false;
@@ -581,12 +587,12 @@ assert.throws(
     `${actExp} ... Lines skipped\n` +
     '\n' +
     '  [\n' +
-    '+   1,\n'.repeat(10) +
+    '+   1,\n'.repeat(25) +
     '...\n' +
-    '-   2,\n'.repeat(10) +
+    '-   2,\n'.repeat(25) +
     '...';
   assert.throws(
-    () => assert.deepEqual(Array(12).fill(1), Array(12).fill(2)),
+    () => assert.deepEqual(Array(28).fill(1), Array(28).fill(2)),
     { message });
 
   const obj1 = {};
@@ -599,7 +605,7 @@ assert.throws(
     '\n' +
     '+ {}\n' +
     '- {\n' +
-    '-   [Symbol(nodejs.util.inspect.custom)]: [Function],\n' +
+    '-   [Symbol(nodejs.util.inspect.custom)]: [Function (anonymous)],\n' +
     "-   loop: 'forever'\n" +
     '- }'
   });
@@ -614,8 +620,8 @@ assert.throws(
   );
 
   message = 'Expected "actual" not to be strictly deep-equal to:' +
-            `\n\n[${'\n  1,'.repeat(25)}\n...\n`;
-  const data = Array(31).fill(1);
+            `\n\n[${'\n  1,'.repeat(45)}\n...\n`;
+  const data = Array(51).fill(1);
   assert.throws(
     () => assert.notDeepEqual(data, data),
     { message });
@@ -633,13 +639,13 @@ common.expectsError(
   }
 );
 common.expectsError(
-  () => assert(typeof 123 === 'string'),
+  () => assert(typeof 123n === 'string'),
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     generatedMessage: true,
     message: 'The expression evaluated to a falsy value:\n\n  ' +
-             "assert(typeof 123 === 'string')\n"
+             "assert(typeof 123n === 'string')\n"
   }
 );
 

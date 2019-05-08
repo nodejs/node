@@ -1141,6 +1141,20 @@ void ContextifyContext::CompileFunction(
   args.GetReturnValue().Set(fn);
 }
 
+static void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
+  int ret = SigintWatchdogHelper::GetInstance()->Start();
+  args.GetReturnValue().Set(ret == 0);
+}
+
+static void StopSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
+  bool had_pending_signals = SigintWatchdogHelper::GetInstance()->Stop();
+  args.GetReturnValue().Set(had_pending_signals);
+}
+
+static void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
+  bool ret = SigintWatchdogHelper::GetInstance()->HasPendingSignal();
+  args.GetReturnValue().Set(ret);
+}
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -1149,6 +1163,12 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   ContextifyContext::Init(env, target);
   ContextifyScript::Init(env, target);
+
+  env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
+  env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
+  // Used in tests.
+  env->SetMethodNoSideEffect(
+      target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
 }
 
 }  // namespace contextify
