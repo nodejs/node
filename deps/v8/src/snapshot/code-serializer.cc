@@ -187,6 +187,18 @@ void CodeSerializer::SerializeObject(HeapObject obj) {
     return;
   }
 
+  // NOTE(mmarchini): If we try to serialize an InterpreterData our process
+  // will crash since it stores a code object. Instead, we serialize the
+  // bytecode array stored within the InterpreterData, which is the important
+  // information. On deserialization we'll create our code objects again, if
+  // --interpreted-frames-native-stack is on. See v8:9122 for more context
+#ifndef V8_TARGET_ARCH_ARM
+  if (V8_UNLIKELY(FLAG_interpreted_frames_native_stack) &&
+      obj->IsInterpreterData()) {
+    obj = InterpreterData::cast(obj)->bytecode_array();
+  }
+#endif  // V8_TARGET_ARCH_ARM
+
   if (obj->IsBytecodeArray()) {
     // Clear the stack frame cache if present
     BytecodeArray::cast(obj)->ClearFrameCacheFromSourcePositionTable();
@@ -209,6 +221,48 @@ void CodeSerializer::SerializeGeneric(HeapObject heap_object) {
   ObjectSerializer serializer(this, heap_object, &sink_);
   serializer.Serialize();
 }
+
+#ifndef V8_TARGET_ARCH_ARM
+// NOTE(mmarchini): when FLAG_interpreted_frames_native_stack is on, we want to
+// create duplicates of InterpreterEntryTrampoline for the deserialized
+// functions, otherwise we'll call the builtin IET for those functions (which
+// is not what a user of this flag wants).
+void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
+                                              Handle<SharedFunctionInfo> sfi,
+                                              bool log_code_creation) {
+  Script script = Script::cast(sfi->script());
+  Handle<Script> script_handle(script, isolate);
+  String name = ReadOnlyRoots(isolate).empty_string();
+  if (script->name()->IsString()) name = String::cast(script->name());
+  Handle<String> name_handle(name, isolate);
+
+  SharedFunctionInfo::ScriptIterator iter(isolate, script);
+  for (SharedFunctionInfo info = iter.Next(); !info.is_null();
+       info = iter.Next()) {
+    if (!info->HasBytecodeArray()) continue;
+    Handle<Code> code = isolate->factory()->CopyCode(Handle<Code>::cast(
+        isolate->factory()->interpreter_entry_trampoline_for_profiling()));
+
+    Handle<InterpreterData> interpreter_data =
+        Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
+            INTERPRETER_DATA_TYPE, TENURED));
+
+    interpreter_data->set_bytecode_array(info->GetBytecodeArray());
+    interpreter_data->set_interpreter_trampoline(*code);
+
+    info->set_interpreter_data(*interpreter_data);
+
+    if (!log_code_creation) continue;
+    Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
+    int line_num = script->GetLineNumber(info->StartPosition()) + 1;
+    int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
+    PROFILE(isolate,
+            CodeCreateEvent(CodeEventListener::INTERPRETED_FUNCTION_TAG,
+                            *abstract_code, info, *name_handle, line_num,
+                            column_num));
+  }
+}
+#endif  // V8_TARGET_ARCH_ARM
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, ScriptData* cached_data, Handle<String> source,
@@ -253,6 +307,13 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
       isolate->logger()->is_listening_to_code_events() ||
       isolate->is_profiling() ||
       isolate->code_event_dispatcher()->IsListeningToCodeEvents();
+
+#ifndef V8_TARGET_ARCH_ARM
+  if (V8_UNLIKELY(FLAG_interpreted_frames_native_stack))
+    CreateInterpreterDataForDeserializedCode(isolate, result,
+                                             log_code_creation);
+#endif  // V8_TARGET_ARCH_ARM
+
   if (log_code_creation || FLAG_log_function_events) {
     String name = ReadOnlyRoots(isolate).empty_string();
     Script script = Script::cast(result->script());

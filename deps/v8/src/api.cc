@@ -8538,7 +8538,8 @@ void Isolate::EnqueueMicrotask(Local<Function> v8_function) {
   if (!i::JSReceiver::GetContextForMicrotask(function).ToHandle(
           &handler_context))
     handler_context = isolate->native_context();
-  handler_context->microtask_queue()->EnqueueMicrotask(this, v8_function);
+  MicrotaskQueue* microtask_queue = handler_context->microtask_queue();
+  if (microtask_queue) microtask_queue->EnqueueMicrotask(this, v8_function);
 }
 
 void Isolate::EnqueueMicrotask(MicrotaskCallback callback, void* data) {
