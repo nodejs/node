@@ -10,8 +10,9 @@ const storedUnicode = Object.create(null);
 const useDomains = process.env.NODE_USE_DOMAINS;
 
 // Set up one global domain.
+let domain;
 if (useDomains) {
-  var domain = require('domain');
+  domain = require('domain');
   const gdom = domain.create();
   gdom.on('error', (er) => {
     console.error('Error on global domain', er);
