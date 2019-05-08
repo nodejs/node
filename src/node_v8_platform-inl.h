@@ -54,7 +54,7 @@ class NodeTraceStateObserver
     trace_process->SetString("name",
                              per_process::metadata.release.name.c_str());
     trace_process->SetBoolean("security",
-                             per_process::metadata.release.security);
+                              per_process::metadata.release.security);
 #if NODE_VERSION_IS_LTS
     trace_process->SetString("lts", per_process::metadata.release.lts.c_str());
 #endif
