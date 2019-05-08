@@ -112,6 +112,11 @@ MaybeLocal<Object> CreateProcessObject(
   Local<Object> release = Object::New(env->isolate());
   READONLY_PROPERTY(process, "release", release);
   READONLY_STRING_PROPERTY(release, "name", per_process::metadata.release.name);
+  if (per_process::metadata.release.security) {
+    READONLY_TRUE_PROPERTY(release, "security");
+  } else {
+    READONLY_FALSE_PROPERTY(release, "security");
+  }
 #if NODE_VERSION_IS_LTS
   READONLY_STRING_PROPERTY(release, "lts", per_process::metadata.release.lts);
 #endif  // NODE_VERSION_IS_LTS

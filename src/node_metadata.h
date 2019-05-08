@@ -80,6 +80,7 @@ class Metadata {
     Release();
 
     std::string name;
+    bool security;
 #if NODE_VERSION_IS_LTS
     std::string lts;
 #endif  // NODE_VERSION_IS_LTS

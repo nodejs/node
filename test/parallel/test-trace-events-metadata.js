@@ -61,6 +61,7 @@ proc.once('exit', common.mustCall(() => {
         trace.args.process.arch === process.arch &&
         trace.args.process.platform === process.platform &&
         trace.args.process.release.name === process.release.name &&
+        trace.args.process.release.security === process.release.security &&
         (!process.release.lts ||
           trace.args.process.release.lts === process.release.lts)));
 

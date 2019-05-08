@@ -217,6 +217,13 @@ be produced with a version string that does not have a trailing pre-release tag:
 #define NODE_VERSION_IS_RELEASE 1
 ```
 
+If this is a security release, set the `NODE_VERSION_IS_SECURITY_RELEASE` macro
+value to `1`.
+
+```c
+#define NODE_VERSION_IS_SECURITY_RELEASE 1
+```
+
 **Also consider whether to bump `NODE_MODULE_VERSION`**:
 
 This macro is used to signal an ABI version for native addons. It currently has
@@ -488,6 +495,7 @@ On release proposal branch, edit `src/node_version.h` again and:
 
 - Increment `NODE_PATCH_VERSION` by one
 - Change `NODE_VERSION_IS_RELEASE` back to `0`
+- Change `NODE_VERSION_IS_SECURITY_RELEASE` back to `0`
 
 Commit this change with the following commit message format:
 
@@ -514,8 +522,9 @@ $ git push upstream v1.x-staging
 
 Cherry-pick the release commit to `master`. After cherry-picking, edit
 `src/node_version.h` to ensure the version macros contain whatever values were
-previously on `master`. `NODE_VERSION_IS_RELEASE` should be `0`. **Do not**
-cherry-pick the "Working on vx.y.z" commit to `master`.
+previously on `master`. `NODE_VERSION_IS_RELEASE` and
+`NODE_VERSION_IS_SECURITY_RELEASE` should be `0`. **Do not** cherry-pick the
+"Working on vx.y.z" commit to `master`.
 
 Run `make lint` before pushing to `master`, to make sure the Changelog
 formatting passes the lint rules on `master`.

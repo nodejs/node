@@ -596,6 +596,8 @@ static void PrintComponentVersions(JSONWriter* writer) {
 static void PrintRelease(JSONWriter* writer) {
   writer->json_objectstart("release");
   writer->json_keyvalue("name", node::per_process::metadata.release.name);
+  writer->json_keyvalue("security",
+                        node::per_process::metadata.release.security);
 #if NODE_VERSION_IS_LTS
   writer->json_keyvalue("lts", node::per_process::metadata.release.lts);
 #endif

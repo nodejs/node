@@ -7,6 +7,8 @@ const versionParts = process.versions.node.split('.');
 
 assert.strictEqual(process.release.name, 'node');
 
+assert.strictEqual(typeof process.release.security, 'boolean');
+
 // It's expected that future LTS release lines will have additional
 // branches in here
 if (versionParts[0] === '4' && versionParts[1] >= 2) {
