@@ -59,8 +59,8 @@ module.exports = {
     'array-callback-return': 'error',
     'arrow-parens': ['error', 'always'],
     'arrow-spacing': ['error', { before: true, after: true }],
-    'block-spacing': 'error',
     'block-scoped-var': 'error',
+    'block-spacing': 'error',
     'brace-style': ['error', '1tbs', { allowSingleLine: true }],
     'capitalized-comments': ['error', 'always', {
       line: {
