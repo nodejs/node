@@ -60,6 +60,7 @@ module.exports = {
     'arrow-parens': ['error', 'always'],
     'arrow-spacing': ['error', { before: true, after: true }],
     'block-spacing': 'error',
+    'block-scoped-var': 'error',
     'brace-style': ['error', '1tbs', { allowSingleLine: true }],
     'capitalized-comments': ['error', 'always', {
       line: {
