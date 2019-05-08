@@ -197,6 +197,8 @@ For information about the governance of the Node.js project, see
 **Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;rod@vagg.org&gt;
+* [sam-github](https://github.com/sam-github) -
+**Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [targos](https://github.com/targos) -
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
