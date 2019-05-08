@@ -3,6 +3,11 @@ env:
   es6: true
 
 rules:
+  camelcase:
+    - error
+    - properties: 'never'
+      ignoreDestructuring: true
+      allow: ['child_process']
   comma-dangle:
     - error
     - arrays: 'always-multiline'
