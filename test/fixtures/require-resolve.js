@@ -84,3 +84,11 @@ assert.throws(() => {
     );
   }
 }
+
+// Test paths option validation
+common.expectsError(() => {
+  require.resolve('.\\three.js', { paths: 'foo' })
+}, {
+  code: 'ERR_INVALID_OPT_VALUE',
+  type: TypeError,
+});
