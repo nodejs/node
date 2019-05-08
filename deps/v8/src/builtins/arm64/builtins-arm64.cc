@@ -1278,15 +1278,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Mov(
       kInterpreterDispatchTableRegister,
       ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
-#if defined(V8_OS_WIN)
   __ Ldrb(x23, MemOperand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister));
   __ Mov(x1, Operand(x23, LSL, kSystemPointerSizeLog2));
-#else
-  __ Ldrb(x18, MemOperand(kInterpreterBytecodeArrayRegister,
-                          kInterpreterBytecodeOffsetRegister));
-  __ Mov(x1, Operand(x18, LSL, kSystemPointerSizeLog2));
-#endif
   __ Ldr(kJavaScriptCallCodeStartRegister,
          MemOperand(kInterpreterDispatchTableRegister, x1));
   __ Call(kJavaScriptCallCodeStartRegister);
@@ -1531,15 +1525,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
-#if defined(V8_OS_WIN)
   __ Ldrb(x23, MemOperand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister));
   __ Mov(x1, Operand(x23, LSL, kSystemPointerSizeLog2));
-#else
-  __ Ldrb(x18, MemOperand(kInterpreterBytecodeArrayRegister,
-                          kInterpreterBytecodeOffsetRegister));
-  __ Mov(x1, Operand(x18, LSL, kSystemPointerSizeLog2));
-#endif
   __ Ldr(kJavaScriptCallCodeStartRegister,
          MemOperand(kInterpreterDispatchTableRegister, x1));
   __ Jump(kJavaScriptCallCodeStartRegister);

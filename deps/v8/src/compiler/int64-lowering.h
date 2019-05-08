@@ -61,6 +61,7 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   void PreparePhiReplacement(Node* phi);
   void GetIndexNodes(Node* index, Node*& index_low, Node*& index_high);
   void ReplaceNodeWithProjections(Node* node);
+  void LowerMemoryBaseAndIndex(Node* node);
 
   struct NodeState {
     Node* node;
