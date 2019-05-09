@@ -31,7 +31,6 @@
 
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
-#include "env-inl.h"
 #include "string_bytes.h"
 #include "util-inl.h"
 #include "v8.h"

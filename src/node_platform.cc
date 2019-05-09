@@ -1,7 +1,6 @@
 #include "node_platform.h"
 #include "node_internals.h"
 
-#include "env-inl.h"
 #include "debug_utils.h"
 #include "util.h"
 #include <algorithm>

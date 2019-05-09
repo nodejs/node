@@ -1,6 +1,5 @@
 // This file contains implementation of error APIs exposed in node.h
 
-#include "env-inl.h"
 #include "node.h"
 #include "node_errors.h"
 #include "util-inl.h"

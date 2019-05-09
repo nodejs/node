@@ -22,7 +22,6 @@
 #include "stream_wrap.h"
 #include "stream_base-inl.h"
 
-#include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "pipe_wrap.h"

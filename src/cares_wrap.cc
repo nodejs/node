@@ -22,7 +22,6 @@
 #define CARES_STATICLIB
 #include "ares.h"
 #include "async_wrap-inl.h"
-#include "env-inl.h"
 #include "node.h"
 #include "req_wrap-inl.h"
 #include "util-inl.h"

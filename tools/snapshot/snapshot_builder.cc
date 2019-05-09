@@ -1,7 +1,6 @@
 #include "snapshot_builder.h"
 #include <iostream>
 #include <sstream>
-#include "env-inl.h"
 #include "node_internals.h"
 #include "node_main_instance.h"
 #include "node_v8_platform-inl.h"

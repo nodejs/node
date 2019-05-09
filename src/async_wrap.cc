@@ -21,7 +21,6 @@
 
 #include "async_wrap.h"  // NOLINT(build/include_inline)
 #include "async_wrap-inl.h"
-#include "env-inl.h"
 #include "node_errors.h"
 #include "tracing/traced_value.h"
 #include "util-inl.h"

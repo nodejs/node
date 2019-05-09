@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "async_wrap-inl.h"
-#include "env-inl.h"
 #include "util-inl.h"
 #include "node.h"
 #include "handle_wrap.h"

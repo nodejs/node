@@ -4,7 +4,6 @@
 #include "inspector/main_thread_interface.h"
 #include "inspector/node_string.h"
 #include "base_object-inl.h"
-#include "env-inl.h"
 #include "debug_utils.h"
 #include "node.h"
 #include "node_crypto.h"

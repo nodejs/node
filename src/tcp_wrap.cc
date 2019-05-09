@@ -22,7 +22,6 @@
 #include "tcp_wrap.h"
 
 #include "connection_wrap.h"
-#include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_internals.h"

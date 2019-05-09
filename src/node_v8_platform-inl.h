@@ -5,7 +5,6 @@
 
 #include <memory>
 
-#include "env-inl.h"
 #include "node.h"
 #include "node_metadata.h"
 #include "node_options.h"
