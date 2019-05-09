@@ -3,7 +3,7 @@
 <!--introduced_in=v0.10.0-->
 <!-- type=misc -->
 
-The goal of this documentation is to comprehensively explain the Node.js
+The goal of this documentation is to explain the Node.js
 API, both from a reference as well as a conceptual point of view. Each
 section describes a built-in module or high-level concept.
 
@@ -30,7 +30,7 @@ stability. The Node.js API is still somewhat changing, and as it
 matures, certain parts are more reliable than others. Some are so
 proven, and so relied upon, that they are unlikely to ever change at
 all. Others are brand new and experimental, or known to be hazardous
-and in the process of being redesigned.
+and being redesigned.
 
 The stability indices are as follows:
 
@@ -50,13 +50,13 @@ The stability indices are as follows:
 > Stability: 2 - Stable. Compatibility with the npm ecosystem is a high
 > priority.
 
-Caution must be used when making use of `Experimental` features, particularly
-within modules that may be used as dependencies (or dependencies of
+Use caution when making use of `Experimental` features, particularly
+within modules that are dependencies (or dependencies of
 dependencies) within a Node.js application. End users may not be aware that
-experimental features are being used, and therefore may experience unexpected
+experimental features are being used, and may experience unexpected
 failures or behavior changes when API modifications occur. To help avoid such
 surprises, `Experimental` features may require a command-line flag to
-explicitly enable them, or may cause a process warning to be emitted.
+enable them, or may emit a process warning.
 By default, such warnings are printed to [`stderr`][] and may be handled by
 attaching a listener to the [`'warning'`][] event.
 
@@ -76,7 +76,7 @@ wish to do programmatic things with the documentation.
 
 System calls like open(2) and read(2) define the interface between user programs
 and the underlying operating system. Node.js functions
-which simply wrap a syscall,
+which wrap a syscall,
 like [`fs.open()`][], will document that. The docs link to the corresponding man
 pages (short for manual pages) which describe how the syscalls work.
 
