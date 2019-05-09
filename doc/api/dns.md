@@ -168,7 +168,7 @@ With the `all` option set to `true`, the arguments for `callback` change to
 properties `address` and `family`.
 
 On error, `err` is an [`Error`][] object, where `err.code` is the error code.
-Keep in mind that `err.code` will be set to `'ENOENT'` not only when
+Keep in mind that `err.code` will be set to `'ENOTFOUND'` not only when
 the hostname does not exist but also when the lookup fails in other ways
 such as no available file descriptors.
 
@@ -692,7 +692,7 @@ being an array of objects with the properties `address` and `family`.
 
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is the error code.
-Keep in mind that `err.code` will be set to `'ENOENT'` not only when
+Keep in mind that `err.code` will be set to `'ENOTFOUND'` not only when
 the hostname does not exist but also when the lookup fails in other ways
 such as no available file descriptors.
 
