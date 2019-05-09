@@ -138,7 +138,29 @@ assert.strictEqual(util.format('%s', 42n), '42n');
 assert.strictEqual(util.format('%s', Symbol('foo')), 'Symbol(foo)');
 assert.strictEqual(util.format('%s', true), 'true');
 assert.strictEqual(util.format('%s', { a: [1, 2, 3] }), '{ a: [Array] }');
+assert.strictEqual(util.format('%s', { toString() { return 'Foo'; } }), 'Foo');
+assert.strictEqual(util.format('%s', { toString: 5 }), '{ toString: 5 }');
 assert.strictEqual(util.format('%s', () => 5), '() => 5');
+
+// String format specifier including `toString` properties on the prototype.
+{
+  class Foo { toString() { return 'Bar'; } }
+  assert.strictEqual(util.format('%s', new Foo()), 'Bar');
+  assert.strictEqual(
+    util.format('%s', Object.setPrototypeOf(new Foo(), null)),
+    '[Foo: null prototype] {}'
+  );
+  global.Foo = Foo;
+  assert.strictEqual(util.format('%s', new Foo()), 'Bar');
+  delete global.Foo;
+  class Bar { abc = true; }
+  assert.strictEqual(util.format('%s', new Bar()), 'Bar { abc: true }');
+  class Foobar extends Array { aaa = true; }
+  assert.strictEqual(
+    util.format('%s', new Foobar(5)),
+    'Foobar [ <5 empty items>, aaa: true ]'
+  );
+}
 
 // JSON format specifier
 assert.strictEqual(util.format('%j'), '%j');
