@@ -24,7 +24,7 @@ if (process.config.variables.node_shared)
 
 const perfArgs = [
   'record',
-  '-F500',
+  '-F999',
   '-g',
   '--',
   process.execPath,
