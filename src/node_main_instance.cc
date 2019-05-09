@@ -2,6 +2,7 @@
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_v8_platform-inl.h"
+#include "util-inl.h"
 
 namespace node {
 

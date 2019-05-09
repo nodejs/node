@@ -5,7 +5,7 @@
 #include "node_http2.h"
 #include "node_http2_state.h"
 #include "node_perf.h"
-#include "util.h"
+#include "util-inl.h"
 
 #include <algorithm>
 

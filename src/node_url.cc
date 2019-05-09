@@ -2,7 +2,7 @@
 #include "base_object-inl.h"
 #include "node_errors.h"
 #include "node_i18n.h"
-#include "util.h"
+#include "util-inl.h"
 
 #include <cmath>
 #include <cstdio>

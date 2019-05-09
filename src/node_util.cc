@@ -1,5 +1,5 @@
 #include "node_errors.h"
-#include "util.h"
+#include "util-inl.h"
 #include "base_object-inl.h"
 
 namespace node {

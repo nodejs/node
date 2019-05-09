@@ -1,6 +1,7 @@
 #include "inspector_socket_server.h"
 
 #include "node.h"
+#include "util-inl.h"
 #include "uv.h"
 #include "zlib.h"
 

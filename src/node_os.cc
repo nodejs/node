@@ -21,7 +21,6 @@
 
 #include "env-inl.h"
 #include "string_bytes.h"
-#include "util.h"
 
 #ifdef __MINGW32__
 # include <io.h>

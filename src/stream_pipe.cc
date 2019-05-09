@@ -1,6 +1,7 @@
 #include "stream_pipe.h"
 #include "stream_base-inl.h"
 #include "node_buffer.h"
+#include "util-inl.h"
 
 using v8::Context;
 using v8::Function;

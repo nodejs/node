@@ -19,7 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "util.h"
+#include "util.h"  // NOLINT(build/include_inline)
+#include "util-inl.h"
 
 #include "node_buffer.h"
 #include "node_errors.h"

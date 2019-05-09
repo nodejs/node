@@ -1,4 +1,5 @@
 #include "node_internals.h"
+#include "util-inl.h"
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
 #include <grp.h>  // getgrnam()
