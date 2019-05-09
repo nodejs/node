@@ -26,7 +26,6 @@
 
 #include "node.h"
 #include "handle_wrap.h"
-#include "env.h"
 #include "uv.h"
 #include "v8.h"
 

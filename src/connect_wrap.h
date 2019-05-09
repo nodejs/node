@@ -3,7 +3,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "env.h"
 #include "req_wrap-inl.h"
 #include "async_wrap.h"
 #include "v8.h"

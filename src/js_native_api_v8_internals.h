@@ -14,7 +14,6 @@
 // included below, defines `NAPI_VERSION`.
 
 #include "node_version.h"
-#include "env.h"
 #include "node_internals.h"
 
 #define NAPI_ARRAYSIZE(array) \

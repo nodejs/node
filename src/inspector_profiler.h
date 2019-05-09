@@ -7,7 +7,6 @@
 #error("This header can only be used when inspector is enabled")
 #endif
 
-#include "env.h"
 #include "inspector_agent.h"
 
 namespace node {
