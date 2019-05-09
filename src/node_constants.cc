@@ -21,6 +21,7 @@
 
 #include "node_constants.h"
 #include "node_internals.h"
+#include "util-inl.h"
 
 #include "zlib.h"
 

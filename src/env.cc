@@ -13,6 +13,7 @@
 #include "node_worker.h"
 #include "tracing/agent.h"
 #include "tracing/traced_value.h"
+#include "util-inl.h"
 #include "v8-profiler.h"
 
 #include <algorithm>

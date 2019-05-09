@@ -4,8 +4,8 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "util-inl.h"
-#include "env-inl.h"
+#include "util.h"
+#include "env.h"
 #include "v8.h"
 
 // Use ostringstream to print exact-width integer types

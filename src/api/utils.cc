@@ -1,5 +1,6 @@
 #include "node.h"
 #include "node_internals.h"
+#include "util-inl.h"
 
 #include <csignal>
 

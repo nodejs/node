@@ -8,6 +8,7 @@
 #endif
 #include "node_process.h"
 #include "node_v8_platform-inl.h"
+#include "util-inl.h"
 
 namespace node {
 

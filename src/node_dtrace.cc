@@ -42,6 +42,7 @@
 #define NODE_GC_DONE(arg0, arg1, arg2)
 #endif
 
+#include "env-inl.h"
 #include "node_errors.h"
 
 #include <cstring>

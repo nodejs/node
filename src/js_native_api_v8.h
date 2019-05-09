@@ -150,7 +150,7 @@ inline napi_value JsValueFromV8LocalValue(v8::Local<v8::Value> local) {
 
 inline v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
   v8::Local<v8::Value> local;
-  memcpy(&local, &v, sizeof(v));
+  memcpy(static_cast<void*>(&local), &v, sizeof(v));
   return local;
 }
 

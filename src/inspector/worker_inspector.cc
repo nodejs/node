@@ -1,5 +1,6 @@
 #include "worker_inspector.h"
 #include "main_thread_interface.h"
+#include "util-inl.h"
 
 #include <memory>
 

@@ -24,6 +24,7 @@
 #include "debug_utils.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "util-inl.h"
 
 namespace node {
 

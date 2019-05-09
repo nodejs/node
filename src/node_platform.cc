@@ -3,7 +3,6 @@
 
 #include "env-inl.h"
 #include "debug_utils.h"
-#include "util.h"
 #include <algorithm>
 #include <cmath>
 #include <memory>

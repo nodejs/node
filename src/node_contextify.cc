@@ -27,6 +27,7 @@
 #include "node_context_data.h"
 #include "node_errors.h"
 #include "module_wrap.h"
+#include "util-inl.h"
 
 namespace node {
 namespace contextify {

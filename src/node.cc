@@ -24,6 +24,7 @@
 // ========== local headers ==========
 
 #include "debug_utils.h"
+#include "env-inl.h"
 #include "node_binding.h"
 #include "node_internals.h"
 #include "node_main_instance.h"

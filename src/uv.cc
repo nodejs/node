@@ -23,7 +23,6 @@
 #include "env-inl.h"
 #include "node.h"
 #include "node_process.h"
-#include "util.h"
 
 namespace node {
 
