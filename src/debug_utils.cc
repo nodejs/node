@@ -1,4 +1,5 @@
 #include "debug_utils.h"
+#include "util-inl.h"
 
 #ifdef __POSIX__
 #if defined(__linux__)

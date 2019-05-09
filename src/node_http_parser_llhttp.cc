@@ -2,6 +2,7 @@
 
 #include "node_http_parser_impl.h"
 #include "node_metadata.h"
+#include "util-inl.h"
 
 namespace node {
 

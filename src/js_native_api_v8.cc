@@ -4,6 +4,7 @@
 #define NAPI_EXPERIMENTAL
 #include "js_native_api_v8.h"
 #include "js_native_api.h"
+#include "util-inl.h"
 
 #define CHECK_MAYBE_NOTHING(env, maybe, status) \
   RETURN_STATUS_IF_FALSE((env), !((maybe).IsNothing()), (status))

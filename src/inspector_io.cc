@@ -11,7 +11,7 @@
 #include "node_internals.h"
 #include "node_mutex.h"
 #include "v8-inspector.h"
-#include "util.h"
+#include "util-inl.h"
 #include "zlib.h"
 
 #include <deque>

@@ -26,7 +26,7 @@
 
 #include "base_object.h"
 #include "env-inl.h"
-#include "util-inl.h"
+#include "util.h"
 #include "v8.h"
 
 namespace node {

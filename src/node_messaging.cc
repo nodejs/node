@@ -6,7 +6,7 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_process.h"
-#include "util.h"
+#include "util-inl.h"
 
 using node::contextify::ContextifyContext;
 using v8::Array;

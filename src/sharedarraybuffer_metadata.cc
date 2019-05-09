@@ -2,6 +2,7 @@
 
 #include "base_object-inl.h"
 #include "node_errors.h"
+#include "util-inl.h"
 
 #include <utility>
 

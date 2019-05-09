@@ -1,5 +1,6 @@
 #include "env-inl.h"
 #include "node_binding.h"
+#include "util.h"
 
 namespace node {
 

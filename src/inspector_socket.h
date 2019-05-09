@@ -3,7 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util-inl.h"
+#include "util.h"
 #include "uv.h"
 
 #include <string>

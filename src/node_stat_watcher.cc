@@ -23,7 +23,7 @@
 #include "async_wrap-inl.h"
 #include "env.h"
 #include "node_file.h"
-#include "util.h"
+#include "util-inl.h"
 
 #include <cstring>
 #include <cstdlib>

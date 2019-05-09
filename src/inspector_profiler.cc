@@ -5,7 +5,7 @@
 #include "node_file.h"
 #include "node_internals.h"
 #include "v8-inspector.h"
-#include "util.h"
+#include "util-inl.h"
 
 namespace node {
 namespace profiler {

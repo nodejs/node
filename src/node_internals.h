@@ -29,7 +29,7 @@
 #include "node_binding.h"
 #include "node_mutex.h"
 #include "tracing/trace_event.h"
-#include "util-inl.h"
+#include "util.h"
 #include "uv.h"
 #include "v8.h"
 

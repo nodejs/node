@@ -12,6 +12,7 @@
 #include "node_options-inl.h"
 #include "node_process.h"
 #include "node_url.h"
+#include "util-inl.h"
 #include "v8-inspector.h"
 #include "v8-platform.h"
 

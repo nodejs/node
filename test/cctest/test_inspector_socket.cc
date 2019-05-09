@@ -1,4 +1,5 @@
 #include "inspector_socket.h"
+#include "util-inl.h"
 #include "gtest/gtest.h"
 
 #include <queue>
