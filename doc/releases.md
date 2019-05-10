@@ -345,6 +345,21 @@ Notable changes:
 * Copy the notable changes list here, reformatted for plain-text
 ```
 
+For security releases, begin the commit message with the phrase
+`This is a security release.` to allow the
+[distribution indexer](https://github.com/nodejs/nodejs-dist-indexer) to
+identify it as such:
+
+```txt
+YYYY-MM-DD, Version x.y.z (Release Type)
+
+This is a security release.
+
+Notable changes:
+
+* Copy the notable changes list here, reformatted for plain-text
+```
+
 ### 6. Propose Release on GitHub
 
 Push the release branch to `nodejs/node`, not to your own fork. This allows
