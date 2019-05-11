@@ -836,6 +836,16 @@ void TLSWrap::EnableSessionCallbacks(
                             wrap);
 }
 
+void TLSWrap::EnableKeylogCallback(
+    const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  CHECK_NOT_NULL(wrap->sc_);
+#if OPENSSL_VERSION_NUMBER >= 0x1010100fL
+  SSL_CTX_set_keylog_callback(wrap->sc_->ctx_.get(),
+      SSLWrap<TLSWrap>::KeylogCallback);
+#endif
+}
 
 void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
@@ -1001,6 +1011,7 @@ void TLSWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "setVerifyMode", SetVerifyMode);
   env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
+  env->SetProtoMethod(t, "enableKeylogCallback", EnableKeylogCallback);
   env->SetProtoMethod(t, "destroySSL", DestroySSL);
   env->SetProtoMethod(t, "enableCertCb", EnableCertCb);
 
