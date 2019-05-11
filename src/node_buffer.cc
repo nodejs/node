@@ -843,7 +843,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
     if (IsBigEndian()) {
       StringBytes::InlineDecoder decoder;
-      if (decoder.Decode(env, needle, args[3], UCS2).IsNothing()) return;
+      if (decoder.Decode(env, needle, enc).IsNothing()) return;
       const uint16_t* decoded_string =
           reinterpret_cast<const uint16_t*>(decoder.out());
 

@@ -37,14 +37,7 @@ class StringBytes {
    public:
     inline v8::Maybe<bool> Decode(Environment* env,
                                   v8::Local<v8::String> string,
-                                  v8::Local<v8::Value> encoding,
-                                  enum encoding _default) {
-      enum encoding enc = ParseEncoding(env->isolate(), encoding, _default);
-      if (!StringBytes::IsValidString(string, enc)) {
-        env->ThrowTypeError("Bad input string");
-        return v8::Nothing<bool>();
-      }
-
+                                  enum encoding enc) {
       size_t storage;
       if (!StringBytes::StorageSize(env->isolate(), string, enc).To(&storage))
         return v8::Nothing<bool>();
@@ -59,12 +52,6 @@ class StringBytes {
 
     inline size_t size() const { return length(); }
   };
-
-  // Does the string match the encoding? Quick but non-exhaustive.
-  // Example: a HEX string must have a length that's a multiple of two.
-  // FIXME(bnoordhuis) IsMaybeValidString()? Naming things is hard...
-  static bool IsValidString(v8::Local<v8::String> string,
-                            enum encoding enc);
 
   // Fast, but can be 2 bytes oversized for Base64, and
   // as much as triple UTF-8 strings <= 65536 chars in length
