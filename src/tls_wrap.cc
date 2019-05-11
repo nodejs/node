@@ -912,6 +912,15 @@ void TLSWrap::EnableSessionCallbacks(
                             wrap);
 }
 
+void TLSWrap::EnableKeylogCallback(
+    const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  CHECK_NOT_NULL(wrap->sc_);
+  SSL_CTX_set_keylog_callback(wrap->sc_->ctx_.get(),
+      SSLWrap<TLSWrap>::KeylogCallback);
+}
+
 // Check required capabilities were not excluded from the OpenSSL build:
 // - OPENSSL_NO_SSL_TRACE excludes SSL_trace()
 // - OPENSSL_NO_STDIO excludes BIO_new_fp()
@@ -1105,6 +1114,7 @@ void TLSWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "setVerifyMode", SetVerifyMode);
   env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
+  env->SetProtoMethod(t, "enableKeylogCallback", EnableKeylogCallback);
   env->SetProtoMethod(t, "enableTrace", EnableTrace);
   env->SetProtoMethod(t, "destroySSL", DestroySSL);
   env->SetProtoMethod(t, "enableCertCb", EnableCertCb);

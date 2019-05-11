@@ -252,6 +252,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(onexit_string, "onexit")                                                   \
   V(onhandshakedone_string, "onhandshakedone")                                 \
   V(onhandshakestart_string, "onhandshakestart")                               \
+  V(onkeylog_string, "onkeylog")                                               \
   V(onmessage_string, "onmessage")                                             \
   V(onnewsession_string, "onnewsession")                                       \
   V(onocspresponse_string, "onocspresponse")                                   \
