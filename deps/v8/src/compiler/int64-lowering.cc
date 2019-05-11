@@ -119,6 +119,7 @@ int GetReturnCountAfterLowering(Signature<MachineRepresentation>* signature) {
 
 void Int64Lowering::LowerWord64AtomicBinop(Node* node, const Operator* op) {
   DCHECK_EQ(5, node->InputCount());
+  LowerMemoryBaseAndIndex(node);
   Node* value = node->InputAt(2);
   node->ReplaceInput(2, GetReplacementLow(value));
   node->InsertInput(zone(), 3, GetReplacementHigh(value));
@@ -143,9 +144,6 @@ int Int64Lowering::GetParameterCountAfterLowering(
 
 void Int64Lowering::GetIndexNodes(Node* index, Node*& index_low,
                                   Node*& index_high) {
-  if (HasReplacementLow(index)) {
-    index = GetReplacementLow(index);
-  }
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   index_low = index;
   index_high = graph()->NewNode(machine()->Int32Add(), index,
@@ -179,6 +177,7 @@ void Int64Lowering::LowerNode(Node* node) {
       }
 
       if (rep == MachineRepresentation::kWord64) {
+        LowerMemoryBaseAndIndex(node);
         Node* base = node->InputAt(0);
         Node* index = node->InputAt(1);
         Node* index_low;
@@ -228,6 +227,7 @@ void Int64Lowering::LowerNode(Node* node) {
         // a new store node to store the high word. The effect and control edges
         // are copied from the original store to the new store node, the effect
         // edge of the original store is redirected to the new store.
+        LowerMemoryBaseAndIndex(node);
         Node* base = node->InputAt(0);
         Node* index = node->InputAt(1);
         Node* index_low;
@@ -900,6 +900,7 @@ void Int64Lowering::LowerNode(Node* node) {
       DCHECK_EQ(5, node->InputCount());
       MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
       if (rep == MachineRepresentation::kWord64) {
+        LowerMemoryBaseAndIndex(node);
         Node* value = node->InputAt(2);
         node->ReplaceInput(2, GetReplacementLow(value));
         node->InsertInput(zone(), 3, GetReplacementHigh(value));
@@ -930,6 +931,7 @@ void Int64Lowering::LowerNode(Node* node) {
     case IrOpcode::kWord64AtomicCompareExchange: {
       MachineType type = AtomicOpType(node->op());
       if (type == MachineType::Uint64()) {
+        LowerMemoryBaseAndIndex(node);
         Node* old_value = node->InputAt(2);
         Node* new_value = node->InputAt(3);
         node->ReplaceInput(2, GetReplacementLow(old_value));
@@ -1049,6 +1051,19 @@ void Int64Lowering::ReplaceNodeWithProjections(Node* node) {
   Node* high_node =
       graph()->NewNode(common()->Projection(1), node, graph()->start());
   ReplaceNode(node, low_node, high_node);
+}
+
+void Int64Lowering::LowerMemoryBaseAndIndex(Node* node) {
+  DCHECK(node != nullptr);
+  // Low word only replacements for memory operands for 32-bit address space.
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  if (HasReplacementLow(base)) {
+    node->ReplaceInput(0, GetReplacementLow(base));
+  }
+  if (HasReplacementLow(index)) {
+    node->ReplaceInput(1, GetReplacementLow(index));
+  }
 }
 
 }  // namespace compiler

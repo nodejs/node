@@ -91,3 +91,13 @@ test('TLS_AES_128_CCM_8_SHA256', U,
 
 test('TLS_AES_128_CCM_8_SHA256', 'TLS_AES_128_CCM_8_SHA256',
      'TLS_AES_128_CCM_8_SHA256');
+
+// Invalid cipher values
+test(9, 'AES256-SHA', U, 'ERR_INVALID_ARG_TYPE', U);
+test('AES256-SHA', 9, U, U, 'ERR_INVALID_ARG_TYPE');
+test(':', 'AES256-SHA', U, 'ERR_INVALID_OPT_VALUE', U);
+test('AES256-SHA', ':', U, U, 'ERR_INVALID_OPT_VALUE');
+
+// Using '' is synonymous for "use default ciphers"
+test('TLS_AES_256_GCM_SHA384', '', 'TLS_AES_256_GCM_SHA384');
+test('', 'TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');

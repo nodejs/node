@@ -1578,7 +1578,7 @@ static Handle<SharedFunctionInfo> CompileScriptAndProduceCache(
   return sfi;
 }
 
-void TestCodeSerializerOnePlusOneImpl() {
+void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1622,12 +1622,22 @@ void TestCodeSerializerOnePlusOneImpl() {
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
   CHECK_EQ(2, Handle<Smi>::cast(copy_result)->value());
 
-  CHECK_EQ(builtins_count, CountBuiltins());
+  if (verify_builtins_count) CHECK_EQ(builtins_count, CountBuiltins());
 
   delete cache;
 }
 
 TEST(CodeSerializerOnePlusOne) { TestCodeSerializerOnePlusOneImpl(); }
+
+// See bug v8:9122
+#ifndef V8_TARGET_ARCH_ARM
+TEST(CodeSerializerOnePlusOneWithInterpretedFramesNativeStack) {
+  FLAG_interpreted_frames_native_stack = true;
+  // We pass false because this test will create IET copies (which are
+  // builtins).
+  TestCodeSerializerOnePlusOneImpl(false);
+}
+#endif
 
 TEST(CodeSerializerOnePlusOneWithDebugger) {
   v8::HandleScope scope(CcTest::isolate());

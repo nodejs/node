@@ -53,8 +53,8 @@ class JSPromise : public JSObject {
   void set_status(Promise::PromiseState status);
 
   // ES section #sec-fulfillpromise
-  static Handle<Object> Fulfill(Handle<JSPromise> promise,
-                                Handle<Object> value);
+  V8_EXPORT_PRIVATE static Handle<Object> Fulfill(Handle<JSPromise> promise,
+                                                  Handle<Object> value);
   // ES section #sec-rejectpromise
   static Handle<Object> Reject(Handle<JSPromise> promise, Handle<Object> reason,
                                bool debug_event = true);

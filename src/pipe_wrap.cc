@@ -41,6 +41,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
@@ -216,8 +217,9 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   int err = uv_pipe_open(&wrap->handle_, fd);
   wrap->set_fd(fd);
 
+  Isolate* isolate = env->isolate();
   if (err != 0)
-    env->isolate()->ThrowException(UVException(err, "uv_pipe_open"));
+    isolate->ThrowException(UVException(isolate, err, "uv_pipe_open"));
 }
 
 

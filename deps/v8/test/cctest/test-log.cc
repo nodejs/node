@@ -31,6 +31,7 @@
 #include <vector>
 #include "src/api-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/compilation-cache.h"
 #include "src/log-utils.h"
 #include "src/log.h"
 #include "src/objects-inl.h"
@@ -658,6 +659,68 @@ TEST(LogInterpretedFramesNativeStack) {
         {"InterpretedFunction", "testLogInterpretedFramesNativeStack"}));
   }
   isolate->Dispose();
+}
+
+TEST(LogInterpretedFramesNativeStackWithSerialization) {
+  SETUP_FLAGS();
+  i::FLAG_interpreted_frames_native_stack = true;
+  i::FLAG_always_opt = false;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  v8::ScriptCompiler::CachedData* cache = nullptr;
+
+  bool has_cache = cache != nullptr;
+  // NOTE(mmarchini): Runs the test two times. The first time it will compile
+  // our script and will create a code cache for it. The second time we'll
+  // deserialize the cache and check if our function was logged correctly.
+  // We disallow compilation on the second run to ensure we're loading from
+  // cache.
+  do {
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+    {
+      ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+
+      has_cache = cache != nullptr;
+      v8::ScriptCompiler::CompileOptions options =
+          has_cache ? v8::ScriptCompiler::kConsumeCodeCache
+                    : v8::ScriptCompiler::kEagerCompile;
+
+      v8::HandleScope scope(isolate);
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Local<v8::String> source = v8_str(
+          "function eyecatcher() { return a * a; } return eyecatcher();");
+      v8::Local<v8::String> arg_str = v8_str("a");
+      v8::ScriptOrigin origin(v8_str("filename"));
+
+      i::DisallowCompilation* no_compile_expected =
+          has_cache ? new i::DisallowCompilation(
+                          reinterpret_cast<i::Isolate*>(isolate))
+                    : nullptr;
+
+      v8::ScriptCompiler::Source script_source(source, origin, cache);
+      v8::Local<v8::Function> fun =
+          v8::ScriptCompiler::CompileFunctionInContext(
+              context, &script_source, 1, &arg_str, 0, nullptr, options)
+              .ToLocalChecked();
+      if (has_cache) {
+        logger.StopLogging();
+        CHECK(logger.ContainsLine({"InterpretedFunction", "eyecatcher"}));
+      }
+      v8::Local<v8::Value> arg = v8_num(3);
+      v8::Local<v8::Value> result =
+          fun->Call(context, v8::Undefined(isolate), 1, &arg).ToLocalChecked();
+      CHECK_EQ(9, result->Int32Value(context).FromJust());
+      cache = v8::ScriptCompiler::CreateCodeCacheForFunction(fun);
+
+      if (no_compile_expected != nullptr) delete no_compile_expected;
+    }
+
+    isolate->Dispose();
+  } while (!has_cache);
+  delete cache;
 }
 #endif  // V8_TARGET_ARCH_ARM
 

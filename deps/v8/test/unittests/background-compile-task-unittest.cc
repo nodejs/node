@@ -36,11 +36,11 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    TestWithNativeContext ::SetUpTestCase();
+    TestWithNativeContext::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
-    TestWithNativeContext ::TearDownTestCase();
+    TestWithNativeContext::TearDownTestCase();
     CHECK_NOT_NULL(save_flags_);
     delete save_flags_;
     save_flags_ = nullptr;
