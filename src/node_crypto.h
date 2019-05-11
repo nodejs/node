@@ -256,6 +256,7 @@ class SSLWrap {
                                          int* copy);
 #endif
   static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
+  static void KeylogCallback(const SSL* s, const char* line);
   static void OnClientHello(void* arg,
                             const ClientHelloParser::ClientHello& hello);
 
