@@ -124,31 +124,6 @@ NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
                                              const char* path = nullptr,
                                              const char* dest = nullptr);
 
-NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
-                inline v8::Local<v8::Value> ErrnoException(
-      int errorno,
-      const char* syscall = nullptr,
-      const char* message = nullptr,
-      const char* path = nullptr) {
-  return ErrnoException(v8::Isolate::GetCurrent(),
-                        errorno,
-                        syscall,
-                        message,
-                        path);
-})
-
-NODE_DEPRECATED("Use UVException(isolate, ...)",
-                inline v8::Local<v8::Value> UVException(int errorno,
-                                        const char* syscall = nullptr,
-                                        const char* message = nullptr,
-                                        const char* path = nullptr) {
-  return UVException(v8::Isolate::GetCurrent(),
-                     errorno,
-                     syscall,
-                     message,
-                     path);
-})
-
 /*
  * These methods need to be called in a HandleScope.
  *
