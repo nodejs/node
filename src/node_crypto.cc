@@ -132,6 +132,8 @@ template SSL_SESSION* SSLWrap<TLSWrap>::GetSessionCallback(
     int* copy);
 template int SSLWrap<TLSWrap>::NewSessionCallback(SSL* s,
                                                   SSL_SESSION* sess);
+template void SSLWrap<TLSWrap>::KeylogCallback(const SSL* s,
+                                               const char* line);
 template void SSLWrap<TLSWrap>::OnClientHello(
     void* arg,
     const ClientHelloParser::ClientHello& hello);
@@ -1479,6 +1481,21 @@ int SSLWrap<Base>::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
   w->MakeCallback(env->onnewsession_string(), arraysize(argv), argv);
 
   return 0;
+}
+
+
+template <class Base>
+void SSLWrap<Base>::KeylogCallback(const SSL* s, const char* line) {
+  Base* w = static_cast<Base*>(SSL_get_app_data(s));
+  Environment* env = w->ssl_env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  const size_t size = strlen(line);
+  Local<Value> line_bf = Buffer::Copy(env, line, 1 + size).ToLocalChecked();
+  char* data = Buffer::Data(line_bf);
+  data[size] = '\n';
+  w->MakeCallback(env->onkeylog_string(), 1, &line_bf);
 }
 
 
