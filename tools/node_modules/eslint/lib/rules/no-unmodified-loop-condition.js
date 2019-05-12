@@ -9,8 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const Traverser = require("../util/traverser"),
-    astUtils = require("../util/ast-utils");
+const Traverser = require("../shared/traverser"),
+    astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers

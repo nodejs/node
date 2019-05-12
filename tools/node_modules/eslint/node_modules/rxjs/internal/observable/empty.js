@@ -9,5 +9,4 @@ exports.empty = empty;
 function emptyScheduled(scheduler) {
     return new Observable_1.Observable(function (subscriber) { return scheduler.schedule(function () { return subscriber.complete(); }); });
 }
-exports.emptyScheduled = emptyScheduled;
 //# sourceMappingURL=empty.js.map

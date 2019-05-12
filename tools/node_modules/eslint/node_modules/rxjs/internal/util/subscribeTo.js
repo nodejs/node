@@ -1,6 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var Observable_1 = require("../Observable");
 var subscribeToArray_1 = require("./subscribeToArray");
 var subscribeToPromise_1 = require("./subscribeToPromise");
 var subscribeToIterable_1 = require("./subscribeToIterable");
@@ -11,19 +10,7 @@ var isObject_1 = require("./isObject");
 var iterator_1 = require("../symbol/iterator");
 var observable_1 = require("../symbol/observable");
 exports.subscribeTo = function (result) {
-    if (result instanceof Observable_1.Observable) {
-        return function (subscriber) {
-            if (result._isScalar) {
-                subscriber.next(result.value);
-                subscriber.complete();
-                return undefined;
-            }
-            else {
-                return result.subscribe(subscriber);
-            }
-        };
-    }
-    else if (!!result && typeof result[observable_1.observable] === 'function') {
+    if (!!result && typeof result[observable_1.observable] === 'function') {
         return subscribeToObservable_1.subscribeToObservable(result);
     }
     else if (isArrayLike_1.isArrayLike(result)) {

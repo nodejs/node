@@ -5,7 +5,8 @@
 
 "use strict";
 
-const astUtils = require("../util/ast-utils");
+const { escapeRegExp } = require("lodash");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -58,7 +59,7 @@ module.exports = {
          * @returns {RegExp} The term converted to a RegExp
          */
         function convertToRegExp(term) {
-            const escaped = term.replace(/[-/\\$^*+?.()|[\]{}]/gu, "\\$&");
+            const escaped = escapeRegExp(term);
             const wordBoundary = "\\b";
             const eitherOrWordBoundary = `|${wordBoundary}`;
             let prefix;
@@ -95,7 +96,7 @@ module.exports = {
                  * ^\s*TERM\b.  This checks the word boundary
                  * at the beginning of the comment.
                  */
-                return new RegExp(prefix + escaped + suffix, "i"); // eslint-disable-line require-unicode-regexp
+                return new RegExp(prefix + escaped + suffix, "iu");
             }
 
             /*
@@ -103,7 +104,7 @@ module.exports = {
              * \bTERM\b|\bTERM\b, this checks the entire comment
              * for the term.
              */
-            return new RegExp(prefix + escaped + suffix + eitherOrWordBoundary + term + wordBoundary, "i"); // eslint-disable-line require-unicode-regexp
+            return new RegExp(prefix + escaped + suffix + eitherOrWordBoundary + term + wordBoundary, "iu");
         }
 
         const warningRegExps = warningTerms.map(convertToRegExp);

@@ -68,5 +68,9 @@ export default (rows, userConfig = {}) => {
     };
   }
 
+  if (config.singleLine === undefined) {
+    config.singleLine = false;
+  }
+
   return config;
 };

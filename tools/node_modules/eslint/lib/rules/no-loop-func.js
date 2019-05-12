@@ -157,13 +157,17 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `function` declarations and expressions inside loop statements",
+            description: "disallow function declarations that contain unsafe references inside loop statements",
             category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-loop-func"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unsafeRefs: "Function declared in a loop contains unsafe references to variable(s) {{ varNames }}."
+        }
     },
 
     create(context) {
@@ -185,11 +189,14 @@ module.exports = {
             }
 
             const references = context.getScope().through;
+            const unsafeRefs = references.filter(r => !isSafe(loopNode, r)).map(r => r.identifier.name);
 
-            if (references.length > 0 &&
-                !references.every(isSafe.bind(null, loopNode))
-            ) {
-                context.report({ node, message: "Don't make functions within a loop." });
+            if (unsafeRefs.length > 0) {
+                context.report({
+                    node,
+                    messageId: "unsafeRefs",
+                    data: { varNames: `'${unsafeRefs.join("', '")}'` }
+                });
             }
         }
 

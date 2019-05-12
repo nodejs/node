@@ -2,8 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var isScheduler_1 = require("../util/isScheduler");
 var fromArray_1 = require("./fromArray");
-var empty_1 = require("./empty");
-var scalar_1 = require("./scalar");
+var scheduleArray_1 = require("../scheduled/scheduleArray");
 function of() {
     var args = [];
     for (var _i = 0; _i < arguments.length; _i++) {
@@ -12,17 +11,10 @@ function of() {
     var scheduler = args[args.length - 1];
     if (isScheduler_1.isScheduler(scheduler)) {
         args.pop();
+        return scheduleArray_1.scheduleArray(args, scheduler);
     }
     else {
-        scheduler = undefined;
-    }
-    switch (args.length) {
-        case 0:
-            return empty_1.empty(scheduler);
-        case 1:
-            return scheduler ? fromArray_1.fromArray(args, scheduler) : scalar_1.scalar(args[0]);
-        default:
-            return fromArray_1.fromArray(args, scheduler);
+        return fromArray_1.fromArray(args);
     }
 }
 exports.of = of;

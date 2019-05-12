@@ -20,13 +20,17 @@ var PairwiseSubscriber = /*@__PURE__*/ (function (_super) {
         return _this;
     }
     PairwiseSubscriber.prototype._next = function (value) {
+        var pair;
         if (this.hasPrev) {
-            this.destination.next([this.prev, value]);
+            pair = [this.prev, value];
         }
         else {
             this.hasPrev = true;
         }
         this.prev = value;
+        if (pair) {
+            this.destination.next(pair);
+        }
     };
     return PairwiseSubscriber;
 }(Subscriber));

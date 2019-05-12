@@ -10,12 +10,14 @@ const STATE = Symbol("espree's internal state");
 const ESPRIMA_FINISH_NODE = Symbol("espree's esprimaFinishNode");
 const tokTypes = Object.assign({}, acorn.tokTypes, jsx.tokTypes);
 
+
 /**
  * Normalize ECMAScript version from the initial config
  * @param {number} ecmaVersion ECMAScript version from the initial config
+ * @throws {Error} throws an error if the ecmaVersion is invalid.
  * @returns {number} normalized ECMAScript version
  */
-function normalizeEcmaVersion(ecmaVersion) {
+function normalizeEcmaVersion(ecmaVersion = DEFAULT_ECMA_VERSION) {
     if (typeof ecmaVersion === "number") {
         let version = ecmaVersion;
 
@@ -35,12 +37,42 @@ function normalizeEcmaVersion(ecmaVersion) {
             case 10:
                 return version;
 
-            default:
-                throw new Error("Invalid ecmaVersion.");
+            // no default
         }
-    } else {
-        return DEFAULT_ECMA_VERSION;
     }
+
+    throw new Error("Invalid ecmaVersion.");
+}
+
+/**
+ * Normalize sourceType from the initial config
+ * @param {string} sourceType to normalize
+ * @throws {Error} throw an error if sourceType is invalid
+ * @returns {string} normalized sourceType
+ */
+function normalizeSourceType(sourceType = "script") {
+    if (sourceType === "script" || sourceType === "module") {
+        return sourceType;
+    }
+    throw new Error("Invalid sourceType.");
+}
+
+/**
+ * Normalize parserOptions
+ * @param {Object} options the parser options to normalize
+ * @throws {Error} throw an error if found invalid option.
+ * @returns {Object} normalized options
+ */
+function normalizeOptions(options) {
+    const ecmaVersion = normalizeEcmaVersion(options.ecmaVersion);
+    const sourceType = normalizeSourceType(options.sourceType);
+    const ranges = options.range === true;
+    const locations = options.loc === true;
+
+    if (sourceType === "module" && ecmaVersion < 6) {
+        throw new Error("sourceType 'module' is not supported when ecmaVersion < 2015. Consider adding `{ ecmaVersion: 2015 }` to the parser options.");
+    }
+    return Object.assign({}, options, { ecmaVersion, sourceType, ranges, locations });
 }
 
 /**
@@ -77,17 +109,16 @@ function convertAcornCommentToEsprimaComment(block, text, start, end, startLoc, 
 }
 
 module.exports = () => Parser => class Espree extends Parser {
-    constructor(options, code) {
-        if (typeof options !== "object" || options === null) {
-            options = {};
+    constructor(opts, code) {
+        if (typeof opts !== "object" || opts === null) {
+            opts = {};
         }
         if (typeof code !== "string" && !(code instanceof String)) {
             code = String(code);
         }
 
+        const options = normalizeOptions(opts);
         const ecmaFeatures = options.ecmaFeatures || {};
-        const ecmaVersion = normalizeEcmaVersion(options.ecmaVersion);
-        const isModule = options.sourceType === "module";
         const tokenTranslator =
             options.tokens === true
                 ? new TokenTranslator(tokTypes, code)
@@ -95,10 +126,12 @@ module.exports = () => Parser => class Espree extends Parser {
 
         // Initialize acorn parser.
         super({
-            ecmaVersion: isModule ? Math.max(6, ecmaVersion) : ecmaVersion,
-            sourceType: isModule ? "module" : "script",
-            ranges: options.range === true,
-            locations: options.loc === true,
+
+            // TODO: use {...options} when spread is supported(Node.js >= 8.3.0).
+            ecmaVersion: options.ecmaVersion,
+            sourceType: options.sourceType,
+            ranges: options.ranges,
+            locations: options.locations,
 
             // Truthy value is true for backward compatibility.
             allowReturnOutsideFunction: Boolean(ecmaFeatures.globalReturn),

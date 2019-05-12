@@ -4,6 +4,8 @@
 
 var el
 
+var semicolon = 59 //  ';'
+
 module.exports = decodeEntity
 
 function decodeEntity(characters) {
@@ -14,12 +16,12 @@ function decodeEntity(characters) {
   el.innerHTML = entity
   char = el.textContent
 
-  // Some entities do not require the closing semicolon (&not - for instance),
+  // Some entities do not require the closing semicolon (`&not` - for instance),
   // which leads to situations where parsing the assumed entity of &notit; will
   // result in the string `¬it;`.  When we encounter a trailing semicolon after
-  // parsing and the entity to decode was not a semicolon (&semi;), we can
+  // parsing and the entity to decode was not a semicolon (`&semi;`), we can
   // assume that the matching was incomplete
-  if (char.slice(-1) === ';' && characters !== 'semi') {
+  if (char.charCodeAt(char.length - 1) === semicolon && characters !== 'semi') {
     return false
   }
 

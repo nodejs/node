@@ -4,7 +4,7 @@
  */
 "use strict";
 
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -31,8 +31,7 @@ module.exports = {
                         type: "object",
                         properties: {
                             position: {
-                                enum: ["above", "beside"],
-                                default: "above"
+                                enum: ["above", "beside"]
                             },
                             ignorePattern: {
                                 type: "string"
@@ -78,7 +77,7 @@ module.exports = {
 
         const defaultIgnoreRegExp = astUtils.COMMENTS_IGNORE_PATTERN;
         const fallThroughRegExp = /^\s*falls?\s?through/u;
-        const customIgnoreRegExp = new RegExp(ignorePattern); // eslint-disable-line require-unicode-regexp
+        const customIgnoreRegExp = new RegExp(ignorePattern, "u");
         const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------

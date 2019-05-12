@@ -95,7 +95,7 @@ module.exports = {
         let fallthroughCommentPattern = null;
 
         if (options.commentPattern) {
-            fallthroughCommentPattern = new RegExp(options.commentPattern); // eslint-disable-line require-unicode-regexp
+            fallthroughCommentPattern = new RegExp(options.commentPattern, "u");
         } else {
             fallthroughCommentPattern = DEFAULT_FALLTHROUGH_COMMENT;
         }

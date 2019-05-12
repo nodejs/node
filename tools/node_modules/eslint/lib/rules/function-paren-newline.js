@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -31,7 +31,7 @@ module.exports = {
             {
                 oneOf: [
                     {
-                        enum: ["always", "never", "consistent", "multiline"]
+                        enum: ["always", "never", "consistent", "multiline", "multiline-arguments"]
                     },
                     {
                         type: "object",
@@ -50,6 +50,7 @@ module.exports = {
         messages: {
             expectedBefore: "Expected newline before ')'.",
             expectedAfter: "Expected newline after '('.",
+            expectedBetween: "Expected newline between arguments/params.",
             unexpectedBefore: "Unexpected newline before '('.",
             unexpectedAfter: "Unexpected newline after ')'."
         }
@@ -59,6 +60,7 @@ module.exports = {
         const sourceCode = context.getSourceCode();
         const rawOption = context.options[0] || "multiline";
         const multilineOption = rawOption === "multiline";
+        const multilineArgumentsOption = rawOption === "multiline-arguments";
         const consistentOption = rawOption === "consistent";
         let minItems;
 
@@ -83,7 +85,10 @@ module.exports = {
          * @returns {boolean} `true` if there should be newlines inside the function parens
          */
         function shouldHaveNewlines(elements, hasLeftNewline) {
-            if (multilineOption) {
+            if (multilineArgumentsOption && elements.length === 1) {
+                return hasLeftNewline;
+            }
+            if (multilineOption || multilineArgumentsOption) {
                 return elements.some((element, index) => index !== elements.length - 1 && element.loc.end.line !== elements[index + 1].loc.start.line);
             }
             if (consistentOption) {
@@ -93,7 +98,7 @@ module.exports = {
         }
 
         /**
-         * Validates a list of arguments or parameters
+         * Validates parens
          * @param {Object} parens An object with keys `leftParen` for the left paren token, and `rightParen` for the right paren token
          * @param {ASTNode[]} elements The arguments or parameters in the list
          * @returns {void}
@@ -145,6 +150,33 @@ module.exports = {
                     messageId: "expectedBefore",
                     fix: fixer => fixer.insertTextBefore(rightParen, "\n")
                 });
+            }
+        }
+
+        /**
+         * Validates a list of arguments or parameters
+         * @param {Object} parens An object with keys `leftParen` for the left paren token, and `rightParen` for the right paren token
+         * @param {ASTNode[]} elements The arguments or parameters in the list
+         * @returns {void}
+         */
+        function validateArguments(parens, elements) {
+            const leftParen = parens.leftParen;
+            const tokenAfterLeftParen = sourceCode.getTokenAfter(leftParen);
+            const hasLeftNewline = !astUtils.isTokenOnSameLine(leftParen, tokenAfterLeftParen);
+            const needsNewlines = shouldHaveNewlines(elements, hasLeftNewline);
+
+            for (let i = 0; i <= elements.length - 2; i++) {
+                const currentElement = elements[i];
+                const nextElement = elements[i + 1];
+                const hasNewLine = currentElement.loc.end.line !== nextElement.loc.start.line;
+
+                if (!hasNewLine && needsNewlines) {
+                    context.report({
+                        node: currentElement,
+                        messageId: "expectedBetween",
+                        fix: fixer => fixer.insertTextBefore(nextElement, "\n")
+                    });
+                }
             }
         }
 
@@ -215,6 +247,10 @@ module.exports = {
 
             if (parens) {
                 validateParens(parens, astUtils.isFunction(node) ? node.params : node.arguments);
+
+                if (multilineArgumentsOption) {
+                    validateArguments(parens, astUtils.isFunction(node) ? node.params : node.arguments);
+                }
             }
         }
 

@@ -9,4 +9,5 @@ const callsites = () => {
 };
 
 module.exports = callsites;
+// TODO: Remove this for the next major release
 module.exports.default = callsites;

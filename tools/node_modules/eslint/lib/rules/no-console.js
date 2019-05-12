@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "disallow the use of `console`",
             category: "Possible Errors",
-            recommended: true,
+            recommended: false,
             url: "https://eslint.org/docs/rules/no-console"
         },
 

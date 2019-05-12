@@ -32,8 +32,7 @@ module.exports = {
                         type: "object",
                         properties: {
                             separateRequires: {
-                                type: "boolean",
-                                default: false
+                                type: "boolean"
                             },
                             var: {
                                 enum: ["always", "never", "consecutive"]
@@ -77,7 +76,7 @@ module.exports = {
             options.let = { uninitialized: mode, initialized: mode };
             options.const = { uninitialized: mode, initialized: mode };
         } else if (typeof mode === "object") { // options configuration is an object
-            options.separateRequires = mode.separateRequires;
+            options.separateRequires = !!mode.separateRequires;
             options.var = { uninitialized: mode.var, initialized: mode.var };
             options.let = { uninitialized: mode.let, initialized: mode.let };
             options.const = { uninitialized: mode.const, initialized: mode.const };

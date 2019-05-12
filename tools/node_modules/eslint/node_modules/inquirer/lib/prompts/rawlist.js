@@ -92,7 +92,8 @@ class RawListPrompt extends Base {
       message += chalk.cyan(this.answer);
     } else {
       var choicesStr = renderChoices(this.opt.choices, this.selected);
-      message += this.paginator.paginate(choicesStr, this.selected, this.opt.pageSize);
+      message +=
+        '\n' + this.paginator.paginate(choicesStr, this.selected, this.opt.pageSize);
       message += '\n  Answer: ';
     }
 

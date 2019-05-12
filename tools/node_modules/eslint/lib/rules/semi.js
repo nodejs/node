@@ -8,8 +8,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const FixTracker = require("../util/fix-tracker");
-const astUtils = require("../util/ast-utils");
+const FixTracker = require("./utils/fix-tracker");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
