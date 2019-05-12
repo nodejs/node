@@ -5,8 +5,8 @@ var _ = require('lodash');
  * Choice object
  * Normalize input as choice object
  * @constructor
- * @param {String|Object} val  Choice value. If an object is passed, it should contains
- *                             at least one of `value` or `name` property
+ * @param {Number|String|Object} val  Choice value. If an object is passed, it should contains
+ *                                    at least one of `value` or `name` property
  */
 
 module.exports = class Choice {
@@ -16,10 +16,10 @@ module.exports = class Choice {
       return val;
     }
 
-    if (_.isString(val)) {
-      this.name = val;
+    if (_.isString(val) || _.isNumber(val)) {
+      this.name = String(val);
       this.value = val;
-      this.short = val;
+      this.short = String(val);
     } else {
       _.extend(this, val, {
         name: val.name || val.value,

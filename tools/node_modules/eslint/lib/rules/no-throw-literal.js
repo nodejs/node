@@ -5,7 +5,7 @@
 
 "use strict";
 
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -22,7 +22,12 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-throw-literal"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            object: "Expected an error object to be thrown.",
+            undef: "Do not throw undefined."
+        }
     },
 
     create(context) {
@@ -31,10 +36,10 @@ module.exports = {
 
             ThrowStatement(node) {
                 if (!astUtils.couldBeError(node.argument)) {
-                    context.report({ node, message: "Expected an object to be thrown." });
+                    context.report({ node, messageId: "object" });
                 } else if (node.argument.type === "Identifier") {
                     if (node.argument.name === "undefined") {
-                        context.report({ node, message: "Do not throw undefined." });
+                        context.report({ node, messageId: "undef" });
                     }
                 }
 

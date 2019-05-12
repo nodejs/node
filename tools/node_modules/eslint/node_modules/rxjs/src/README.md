@@ -27,7 +27,7 @@ Reactive Extensions Library for JavaScript. This is a rewrite of [Reactive-Exten
 - [Contribution Guidelines](CONTRIBUTING.md)
 - [Maintainer Guidelines](doc/maintainer-guidelines.md)
 - [Creating Operators](doc/operator-creation.md)
-- [API Documentation (WIP)](https://rxjs-dev.firebaseapp.com/)
+- [API Documentation (WIP)](https://rxjs.dev/)
 
 ## Versions In This Repository
 

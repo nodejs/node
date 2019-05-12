@@ -482,7 +482,7 @@ module.exports = {
                 }
 
                 if (options.matchDescription) {
-                    const regex = new RegExp(options.matchDescription); // eslint-disable-line require-unicode-regexp
+                    const regex = new RegExp(options.matchDescription, "u");
 
                     if (!regex.test(jsdoc.description)) {
                         context.report({ node: jsdocNode, messageId: "unsatisfiedDesc" });

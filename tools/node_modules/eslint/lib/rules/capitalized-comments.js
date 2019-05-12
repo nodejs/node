@@ -8,8 +8,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const LETTER_PATTERN = require("../util/patterns/letters");
-const astUtils = require("../util/ast-utils");
+const LETTER_PATTERN = require("./utils/patterns/letters");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -91,7 +91,7 @@ function createRegExpForIgnorePatterns(normalizedOptions) {
         const ignorePatternStr = normalizedOptions[key].ignorePattern;
 
         if (ignorePatternStr) {
-            const regExp = RegExp(`^\\s*(?:${ignorePatternStr})`); // eslint-disable-line require-unicode-regexp
+            const regExp = RegExp(`^\\s*(?:${ignorePatternStr})`, "u");
 
             normalizedOptions[key].ignorePatternRegExp = regExp;
         }

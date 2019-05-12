@@ -12,7 +12,7 @@
 
 const lodash = require("lodash");
 
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -55,7 +55,7 @@ module.exports = {
         ],
 
         messages: {
-            complex: "{{name}} has a complexity of {{complexity}}."
+            complex: "{{name}} has a complexity of {{complexity}}. Maximum allowed is {{max}}."
         }
     },
 
@@ -102,7 +102,7 @@ module.exports = {
                 context.report({
                     node,
                     messageId: "complex",
-                    data: { name, complexity }
+                    data: { name, complexity, max: THRESHOLD }
                 });
             }
         }

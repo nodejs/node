@@ -9,8 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../util/ast-utils"),
-    keywords = require("../util/keywords");
+const astUtils = require("./utils/ast-utils"),
+    keywords = require("./utils/keywords");
 
 //------------------------------------------------------------------------------
 // Constants

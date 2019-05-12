@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var canReportError_1 = require("./util/canReportError");
 var toSubscriber_1 = require("./util/toSubscriber");
-var observable_1 = require("../internal/symbol/observable");
+var observable_1 = require("./symbol/observable");
 var pipe_1 = require("./util/pipe");
 var config_1 = require("./config");
 var Observable = (function () {

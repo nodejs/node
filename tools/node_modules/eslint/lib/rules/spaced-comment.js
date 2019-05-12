@@ -5,7 +5,7 @@
 "use strict";
 
 const lodash = require("lodash");
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -126,7 +126,7 @@ function createAlwaysStylePattern(markers, exceptions) {
     pattern += "?"; // or nothing.
     pattern += createExceptionsPattern(exceptions);
 
-    return new RegExp(pattern); // eslint-disable-line require-unicode-regexp
+    return new RegExp(pattern, "u");
 }
 
 /**
@@ -142,7 +142,7 @@ function createAlwaysStylePattern(markers, exceptions) {
 function createNeverStylePattern(markers) {
     const pattern = `^(${markers.map(escape).join("|")})?[ \t]+`;
 
-    return new RegExp(pattern); // eslint-disable-line require-unicode-regexp
+    return new RegExp(pattern, "u");
 }
 
 //------------------------------------------------------------------------------
@@ -250,9 +250,9 @@ module.exports = {
             // Create RegExp object for valid patterns.
             rule[type] = {
                 beginRegex: requireSpace ? createAlwaysStylePattern(markers, exceptions) : createNeverStylePattern(markers),
-                endRegex: balanced && requireSpace ? new RegExp(`${createExceptionsPattern(exceptions)}$`) : new RegExp(endNeverPattern), // eslint-disable-line require-unicode-regexp
+                endRegex: balanced && requireSpace ? new RegExp(`${createExceptionsPattern(exceptions)}$`, "u") : new RegExp(endNeverPattern, "u"),
                 hasExceptions: exceptions.length > 0,
-                markers: new RegExp(`^(${markers.map(escape).join("|")})`) // eslint-disable-line require-unicode-regexp
+                markers: new RegExp(`^(${markers.map(escape).join("|")})`, "u")
             };
 
             return rule;

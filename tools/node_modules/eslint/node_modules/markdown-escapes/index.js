@@ -45,7 +45,7 @@ escapes.default = defaults
 escapes.gfm = gfm
 escapes.commonmark = commonmark
 
-/* Get markdown escapes. */
+// Get markdown escapes.
 function escapes(options) {
   var settings = options || {}
 

@@ -4,7 +4,7 @@
  */
 "use strict";
 
-const { isCommentToken, isNotOpeningParenToken } = require("../util/ast-utils");
+const { isCommentToken, isNotOpeningParenToken } = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition

@@ -5,7 +5,7 @@
 
 const { CALL, CONSTRUCT, ReferenceTracker, getStringIfConstant } = require("eslint-utils");
 const { RegExpParser, visitRegExpAST } = require("regexpp");
-const { isCombiningCharacter, isEmojiModifier, isRegionalIndicatorSymbol, isSurrogatePair } = require("../util/unicode");
+const { isCombiningCharacter, isEmojiModifier, isRegionalIndicatorSymbol, isSurrogatePair } = require("./utils/unicode");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -106,7 +106,7 @@ module.exports = {
         docs: {
             description: "disallow characters which are made with multiple code points in character class syntax",
             category: "Possible Errors",
-            recommended: false,
+            recommended: true,
             url: "https://eslint.org/docs/rules/no-misleading-character-class"
         },
 

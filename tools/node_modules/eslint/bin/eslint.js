@@ -65,7 +65,7 @@ if (useStdIn) {
 
     process.exitCode = cli.execute(process.argv, fs.readFileSync(STDIN_FILE_DESCRIPTOR, "utf8"));
 } else if (init) {
-    const configInit = require("../lib/config/config-initializer");
+    const configInit = require("../lib/init/config-initializer");
 
     configInit.initializeConfig().then(() => {
         process.exitCode = 0;

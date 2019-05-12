@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "disallow unnecessary `catch` clauses",
             category: "Best Practices",
-            recommended: false,
+            recommended: true,
             url: "https://eslint.org/docs/rules/no-useless-catch"
         },
 

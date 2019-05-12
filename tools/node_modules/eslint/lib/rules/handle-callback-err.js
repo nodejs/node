@@ -52,7 +52,7 @@ module.exports = {
          */
         function matchesConfiguredErrorName(name) {
             if (isPattern(errorArgument)) {
-                const regexp = new RegExp(errorArgument); // eslint-disable-line require-unicode-regexp
+                const regexp = new RegExp(errorArgument, "u");
 
                 return regexp.test(name);
             }

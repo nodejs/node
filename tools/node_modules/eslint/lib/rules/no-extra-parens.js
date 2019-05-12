@@ -8,7 +8,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const astUtils = require("../util/ast-utils.js");
+const astUtils = require("./utils/ast-utils.js");
 
 module.exports = {
     meta: {

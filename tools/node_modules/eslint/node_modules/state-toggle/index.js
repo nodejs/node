@@ -2,9 +2,9 @@
 
 module.exports = factory
 
-/* Construct a state `toggler`: a function which inverses
- * `property` in context based on its current value.
- * The by `toggler` returned function restores that value. */
+// Construct a state `toggler`: a function which inverses `property` in context
+// based on its current value.
+// The by `toggler` returned function restores that value.
 function factory(key, state, ctx) {
   return enter
 

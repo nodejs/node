@@ -5,8 +5,8 @@ var inherits = require('inherits')
 
 module.exports = unherit
 
-/* Create a custom constructor which can be modified
- * without affecting the original class. */
+// Create a custom constructor which can be modified without affecting the
+// original class.
 function unherit(Super) {
   var result
   var key
@@ -15,7 +15,7 @@ function unherit(Super) {
   inherits(Of, Super)
   inherits(From, Of)
 
-  /* Clone values. */
+  // Clone values.
   result = Of.prototype
 
   for (key in result) {
@@ -28,13 +28,13 @@ function unherit(Super) {
 
   return Of
 
-  /* Constructor accepting a single argument,
-   * which itself is an `arguments` object. */
+  // Constructor accepting a single argument, which itself is an `arguments`
+  // object.
   function From(parameters) {
     return Super.apply(this, parameters)
   }
 
-  /* Constructor accepting variadic arguments. */
+  // Constructor accepting variadic arguments.
   function Of() {
     if (!(this instanceof Of)) {
       return new From(arguments)

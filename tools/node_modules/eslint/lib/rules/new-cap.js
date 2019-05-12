@@ -136,10 +136,10 @@ module.exports = {
         const skipProperties = config.properties === false;
 
         const newIsCapExceptions = checkArray(config, "newIsCapExceptions", []).reduce(invert, {});
-        const newIsCapExceptionPattern = config.newIsCapExceptionPattern ? new RegExp(config.newIsCapExceptionPattern) : null; // eslint-disable-line require-unicode-regexp
+        const newIsCapExceptionPattern = config.newIsCapExceptionPattern ? new RegExp(config.newIsCapExceptionPattern, "u") : null;
 
         const capIsNewExceptions = calculateCapIsNewExceptions(config);
-        const capIsNewExceptionPattern = config.capIsNewExceptionPattern ? new RegExp(config.capIsNewExceptionPattern) : null; // eslint-disable-line require-unicode-regexp
+        const capIsNewExceptionPattern = config.capIsNewExceptionPattern ? new RegExp(config.capIsNewExceptionPattern, "u") : null;
 
         const listeners = {};
 

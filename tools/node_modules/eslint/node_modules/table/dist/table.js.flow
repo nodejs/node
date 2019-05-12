@@ -63,6 +63,7 @@ import truncateTableData from './truncateTableData';
  * @property {table~columns[]} columns Column specific configuration.
  * @property {table~columns} columnDefault Default values for all columns. Column specific settings overwrite the default values.
  * @property {table~drawHorizontalLine} drawHorizontalLine
+ * @property {table~singleLine} singleLine Horizontal lines inside the table are not drawn.
  */
 
 /**
@@ -91,5 +92,5 @@ export default (data, userConfig = {}) => {
 
   const cellWidthIndex = calculateCellWidthIndex(rows[0]);
 
-  return drawTable(rows, config.border, cellWidthIndex, rowHeightIndex, config.drawHorizontalLine);
+  return drawTable(rows, config.border, cellWidthIndex, rowHeightIndex, config.drawHorizontalLine, config.singleLine);
 };

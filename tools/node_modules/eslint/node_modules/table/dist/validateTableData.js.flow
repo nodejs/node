@@ -36,7 +36,7 @@ export default (rows) => {
 
     for (const cell of cells) {
       // eslint-disable-next-line no-control-regex
-      if (/[\u0001-\u0009\u000B-\u001A]/.test(cell)) {
+      if (/[\u0001-\u0006\u0008-\u0009\u000B-\u001A]/.test(cell)) {
         throw new Error('Table data must not contain control characters.');
       }
     }

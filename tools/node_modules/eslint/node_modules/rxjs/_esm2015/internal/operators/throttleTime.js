@@ -37,6 +37,10 @@ class ThrottleTimeSubscriber extends Subscriber {
             if (this.leading) {
                 this.destination.next(value);
             }
+            else if (this.trailing) {
+                this._trailingValue = value;
+                this._hasTrailingValue = true;
+            }
         }
     }
     _complete() {

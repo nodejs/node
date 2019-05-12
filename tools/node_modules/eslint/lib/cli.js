@@ -17,10 +17,10 @@
 
 const fs = require("fs"),
     path = require("path"),
-    options = require("./options"),
-    CLIEngine = require("./cli-engine"),
     mkdirp = require("mkdirp"),
-    log = require("./util/logging");
+    { CLIEngine } = require("./cli-engine"),
+    options = require("./options"),
+    log = require("./shared/logging");
 
 const debug = require("debug")("eslint:cli");
 
@@ -66,7 +66,8 @@ function translateOptions(cliOptions) {
         fix: (cliOptions.fix || cliOptions.fixDryRun) && (cliOptions.quiet ? quietFixPredicate : true),
         fixTypes: cliOptions.fixType,
         allowInlineConfig: cliOptions.inlineConfig,
-        reportUnusedDisableDirectives: cliOptions.reportUnusedDisableDirectives
+        reportUnusedDisableDirectives: cliOptions.reportUnusedDisableDirectives,
+        resolvePluginsRelativeTo: cliOptions.resolvePluginsRelativeTo
     };
 }
 
@@ -81,23 +82,26 @@ function translateOptions(cliOptions) {
  */
 function printResults(engine, results, format, outputFile) {
     let formatter;
-    let rules;
+    let rulesMeta;
 
     try {
         formatter = engine.getFormatter(format);
-        rules = engine.getRules();
     } catch (e) {
         log.error(e.message);
         return false;
     }
 
-    const rulesMeta = {};
-
-    rules.forEach((rule, ruleId) => {
-        rulesMeta[ruleId] = rule.meta;
+    const output = formatter(results, {
+        get rulesMeta() {
+            if (!rulesMeta) {
+                rulesMeta = {};
+                for (const [ruleId, rule] of engine.getRules()) {
+                    rulesMeta[ruleId] = rule.meta;
+                }
+            }
+            return rulesMeta;
+        }
     });
-
-    const output = formatter(results, { rulesMeta });
 
     if (output) {
         if (outputFile) {

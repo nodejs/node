@@ -8,7 +8,7 @@ trough.wrap = wrap
 
 var slice = [].slice
 
-/* Create new middleware. */
+// Create new middleware.
 function trough() {
   var fns = []
   var middleware = {}
@@ -18,8 +18,7 @@ function trough() {
 
   return middleware
 
-  /* Run `fns`.  Last argument must be
-   * a completion handler. */
+  // Run `fns`.  Last argument must be a completion handler.
   function run() {
     var index = -1
     var input = slice.call(arguments, 0, -1)
@@ -31,7 +30,7 @@ function trough() {
 
     next.apply(null, [null].concat(input))
 
-    /* Run the next `fn`, if any. */
+    // Run the next `fn`, if any.
     function next(err) {
       var fn = fns[++index]
       var params = slice.call(arguments, 0)
@@ -44,7 +43,7 @@ function trough() {
         return
       }
 
-      /* Copy non-nully input into values. */
+      // Copy non-nully input into values.
       while (++pos < length) {
         if (values[pos] === null || values[pos] === undefined) {
           values[pos] = input[pos]
@@ -53,7 +52,7 @@ function trough() {
 
       input = values
 
-      /* Next or done. */
+      // Next or done.
       if (fn) {
         wrap(fn, next).apply(null, input)
       } else {
@@ -62,7 +61,7 @@ function trough() {
     }
   }
 
-  /* Add `fn` to the list. */
+  // Add `fn` to the list.
   function use(fn) {
     if (typeof fn !== 'function') {
       throw new Error('Expected `fn` to be a function, not ' + fn)
