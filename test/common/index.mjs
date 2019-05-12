@@ -1,5 +1,5 @@
 // Flags: --experimental-modules
-/* eslint-disable node-core/required-modules */
+/* eslint-disable node-core/require-common-first, node-core/required-modules */
 
 import { createRequireFromPath } from 'module';
 import { fileURLToPath as toPath } from 'url';

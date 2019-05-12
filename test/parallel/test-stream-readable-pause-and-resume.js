@@ -1,7 +1,7 @@
 'use strict';
 
-const { Readable } = require('stream');
 const common = require('../common');
+const { Readable } = require('stream');
 
 let ticks = 18;
 let expectedData = 19;

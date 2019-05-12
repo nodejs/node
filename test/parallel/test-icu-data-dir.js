@@ -1,7 +1,7 @@
 // Flags: --expose-internals
 'use strict';
-const { internalBinding } = require('internal/test/binding');
 const common = require('../common');
+const { internalBinding } = require('internal/test/binding');
 const os = require('os');
 
 const { hasSmallICU } = internalBinding('config');

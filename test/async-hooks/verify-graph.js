@@ -1,8 +1,8 @@
 'use strict';
 
+require('../common');
 const assert = require('assert');
 const util = require('util');
-require('../common');
 
 function findInGraph(graph, type, n) {
   let found = 0;
