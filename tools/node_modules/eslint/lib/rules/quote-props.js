@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const espree = require("espree"),
-    keywords = require("../util/keywords");
+    keywords = require("./utils/keywords");
 
 //------------------------------------------------------------------------------
 // Rule Definition

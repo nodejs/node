@@ -90,7 +90,7 @@ module.exports = {
          */
         function isAllowed(name) {
             return allow.findIndex(
-                entry => name === entry || name.match(new RegExp(entry)) // eslint-disable-line require-unicode-regexp
+                entry => name === entry || name.match(new RegExp(entry, "u"))
             ) !== -1;
         }
 

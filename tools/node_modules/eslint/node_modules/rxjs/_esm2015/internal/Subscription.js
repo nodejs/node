@@ -5,42 +5,41 @@ import { UnsubscriptionError } from './util/UnsubscriptionError';
 export class Subscription {
     constructor(unsubscribe) {
         this.closed = false;
-        this._parent = null;
-        this._parents = null;
+        this._parentOrParents = null;
         this._subscriptions = null;
         if (unsubscribe) {
             this._unsubscribe = unsubscribe;
         }
     }
     unsubscribe() {
-        let hasErrors = false;
         let errors;
         if (this.closed) {
             return;
         }
-        let { _parent, _parents, _unsubscribe, _subscriptions } = this;
+        let { _parentOrParents, _unsubscribe, _subscriptions } = this;
         this.closed = true;
-        this._parent = null;
-        this._parents = null;
+        this._parentOrParents = null;
         this._subscriptions = null;
-        let index = -1;
-        let len = _parents ? _parents.length : 0;
-        while (_parent) {
-            _parent.remove(this);
-            _parent = ++index < len && _parents[index] || null;
+        if (_parentOrParents instanceof Subscription) {
+            _parentOrParents.remove(this);
+        }
+        else if (_parentOrParents !== null) {
+            for (let index = 0; index < _parentOrParents.length; ++index) {
+                const parent = _parentOrParents[index];
+                parent.remove(this);
+            }
         }
         if (isFunction(_unsubscribe)) {
             try {
                 _unsubscribe.call(this);
             }
             catch (e) {
-                hasErrors = true;
                 errors = e instanceof UnsubscriptionError ? flattenUnsubscriptionErrors(e.errors) : [e];
             }
         }
         if (isArray(_subscriptions)) {
-            index = -1;
-            len = _subscriptions.length;
+            let index = -1;
+            let len = _subscriptions.length;
             while (++index < len) {
                 const sub = _subscriptions[index];
                 if (isObject(sub)) {
@@ -48,7 +47,6 @@ export class Subscription {
                         sub.unsubscribe();
                     }
                     catch (e) {
-                        hasErrors = true;
                         errors = errors || [];
                         if (e instanceof UnsubscriptionError) {
                             errors = errors.concat(flattenUnsubscriptionErrors(e.errors));
@@ -60,12 +58,15 @@ export class Subscription {
                 }
             }
         }
-        if (hasErrors) {
+        if (errors) {
             throw new UnsubscriptionError(errors);
         }
     }
     add(teardown) {
         let subscription = teardown;
+        if (!teardown) {
+            return Subscription.EMPTY;
+        }
         switch (typeof teardown) {
             case 'function':
                 subscription = new Subscription(teardown);
@@ -84,20 +85,31 @@ export class Subscription {
                 }
                 break;
             default: {
-                if (!teardown) {
-                    return Subscription.EMPTY;
-                }
                 throw new Error('unrecognized teardown ' + teardown + ' added to Subscription.');
             }
         }
-        if (subscription._addParent(this)) {
-            const subscriptions = this._subscriptions;
-            if (subscriptions) {
-                subscriptions.push(subscription);
+        let { _parentOrParents } = subscription;
+        if (_parentOrParents === null) {
+            subscription._parentOrParents = this;
+        }
+        else if (_parentOrParents instanceof Subscription) {
+            if (_parentOrParents === this) {
+                return subscription;
             }
-            else {
-                this._subscriptions = [subscription];
-            }
+            subscription._parentOrParents = [_parentOrParents, this];
+        }
+        else if (_parentOrParents.indexOf(this) === -1) {
+            _parentOrParents.push(this);
+        }
+        else {
+            return subscription;
+        }
+        const subscriptions = this._subscriptions;
+        if (subscriptions === null) {
+            this._subscriptions = [subscription];
+        }
+        else {
+            subscriptions.push(subscription);
         }
         return subscription;
     }
@@ -109,25 +121,6 @@ export class Subscription {
                 subscriptions.splice(subscriptionIndex, 1);
             }
         }
-    }
-    _addParent(parent) {
-        let { _parent, _parents } = this;
-        if (_parent === parent) {
-            return false;
-        }
-        else if (!_parent) {
-            this._parent = parent;
-            return true;
-        }
-        else if (!_parents) {
-            this._parents = [parent];
-            return true;
-        }
-        else if (_parents.indexOf(parent) === -1) {
-            _parents.push(parent);
-            return true;
-        }
-        return false;
     }
 }
 Subscription.EMPTY = (function (empty) {

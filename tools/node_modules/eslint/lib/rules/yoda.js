@@ -8,7 +8,7 @@
 // Requirements
 //--------------------------------------------------------------------------
 
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 //--------------------------------------------------------------------------
 // Helpers

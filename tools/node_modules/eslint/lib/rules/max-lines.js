@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const lodash = require("lodash");
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -53,7 +53,7 @@ module.exports = {
             }
         ],
         messages: {
-            exceed: "File must be at most {{max}} lines long. It's {{actual}} lines long."
+            exceed: "File has too many lines ({{actual}}). Maximum allowed is {{max}}."
         }
     },
 

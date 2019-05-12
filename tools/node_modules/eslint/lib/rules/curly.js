@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -101,6 +101,20 @@ module.exports = {
                 last = sourceCode.getLastToken(node);
 
             return first.loc.start.line === last.loc.end.line;
+        }
+
+        /**
+         * Determines if the given node is a lexical declaration (let, const, function, or class)
+         * @param {ASTNode} node The node to check
+         * @returns {boolean} True if the node is a lexical declaration
+         * @private
+         */
+        function isLexicalDeclaration(node) {
+            if (node.type === "VariableDeclaration") {
+                return node.kind === "const" || node.kind === "let";
+            }
+
+            return node.type === "FunctionDeclaration" || node.type === "ClassDeclaration";
         }
 
         /**
@@ -238,8 +252,13 @@ module.exports = {
             } else if (multiOrNest) {
                 if (hasBlock && body.body.length === 1 && isOneLiner(body.body[0])) {
                     const leadingComments = sourceCode.getCommentsBefore(body.body[0]);
+                    const isLexDef = isLexicalDeclaration(body.body[0]);
 
-                    expected = leadingComments.length > 0;
+                    if (isLexDef) {
+                        expected = true;
+                    } else {
+                        expected = leadingComments.length > 0;
+                    }
                 } else if (!isOneLiner(body)) {
                     expected = true;
                 }

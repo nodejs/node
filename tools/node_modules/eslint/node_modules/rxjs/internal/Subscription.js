@@ -7,42 +7,41 @@ var UnsubscriptionError_1 = require("./util/UnsubscriptionError");
 var Subscription = (function () {
     function Subscription(unsubscribe) {
         this.closed = false;
-        this._parent = null;
-        this._parents = null;
+        this._parentOrParents = null;
         this._subscriptions = null;
         if (unsubscribe) {
             this._unsubscribe = unsubscribe;
         }
     }
     Subscription.prototype.unsubscribe = function () {
-        var hasErrors = false;
         var errors;
         if (this.closed) {
             return;
         }
-        var _a = this, _parent = _a._parent, _parents = _a._parents, _unsubscribe = _a._unsubscribe, _subscriptions = _a._subscriptions;
+        var _a = this, _parentOrParents = _a._parentOrParents, _unsubscribe = _a._unsubscribe, _subscriptions = _a._subscriptions;
         this.closed = true;
-        this._parent = null;
-        this._parents = null;
+        this._parentOrParents = null;
         this._subscriptions = null;
-        var index = -1;
-        var len = _parents ? _parents.length : 0;
-        while (_parent) {
-            _parent.remove(this);
-            _parent = ++index < len && _parents[index] || null;
+        if (_parentOrParents instanceof Subscription) {
+            _parentOrParents.remove(this);
+        }
+        else if (_parentOrParents !== null) {
+            for (var index = 0; index < _parentOrParents.length; ++index) {
+                var parent_1 = _parentOrParents[index];
+                parent_1.remove(this);
+            }
         }
         if (isFunction_1.isFunction(_unsubscribe)) {
             try {
                 _unsubscribe.call(this);
             }
             catch (e) {
-                hasErrors = true;
                 errors = e instanceof UnsubscriptionError_1.UnsubscriptionError ? flattenUnsubscriptionErrors(e.errors) : [e];
             }
         }
         if (isArray_1.isArray(_subscriptions)) {
-            index = -1;
-            len = _subscriptions.length;
+            var index = -1;
+            var len = _subscriptions.length;
             while (++index < len) {
                 var sub = _subscriptions[index];
                 if (isObject_1.isObject(sub)) {
@@ -50,7 +49,6 @@ var Subscription = (function () {
                         sub.unsubscribe();
                     }
                     catch (e) {
-                        hasErrors = true;
                         errors = errors || [];
                         if (e instanceof UnsubscriptionError_1.UnsubscriptionError) {
                             errors = errors.concat(flattenUnsubscriptionErrors(e.errors));
@@ -62,12 +60,15 @@ var Subscription = (function () {
                 }
             }
         }
-        if (hasErrors) {
+        if (errors) {
             throw new UnsubscriptionError_1.UnsubscriptionError(errors);
         }
     };
     Subscription.prototype.add = function (teardown) {
         var subscription = teardown;
+        if (!teardown) {
+            return Subscription.EMPTY;
+        }
         switch (typeof teardown) {
             case 'function':
                 subscription = new Subscription(teardown);
@@ -86,20 +87,31 @@ var Subscription = (function () {
                 }
                 break;
             default: {
-                if (!teardown) {
-                    return Subscription.EMPTY;
-                }
                 throw new Error('unrecognized teardown ' + teardown + ' added to Subscription.');
             }
         }
-        if (subscription._addParent(this)) {
-            var subscriptions = this._subscriptions;
-            if (subscriptions) {
-                subscriptions.push(subscription);
+        var _parentOrParents = subscription._parentOrParents;
+        if (_parentOrParents === null) {
+            subscription._parentOrParents = this;
+        }
+        else if (_parentOrParents instanceof Subscription) {
+            if (_parentOrParents === this) {
+                return subscription;
             }
-            else {
-                this._subscriptions = [subscription];
-            }
+            subscription._parentOrParents = [_parentOrParents, this];
+        }
+        else if (_parentOrParents.indexOf(this) === -1) {
+            _parentOrParents.push(this);
+        }
+        else {
+            return subscription;
+        }
+        var subscriptions = this._subscriptions;
+        if (subscriptions === null) {
+            this._subscriptions = [subscription];
+        }
+        else {
+            subscriptions.push(subscription);
         }
         return subscription;
     };
@@ -111,25 +123,6 @@ var Subscription = (function () {
                 subscriptions.splice(subscriptionIndex, 1);
             }
         }
-    };
-    Subscription.prototype._addParent = function (parent) {
-        var _a = this, _parent = _a._parent, _parents = _a._parents;
-        if (_parent === parent) {
-            return false;
-        }
-        else if (!_parent) {
-            this._parent = parent;
-            return true;
-        }
-        else if (!_parents) {
-            this._parents = [parent];
-            return true;
-        }
-        else if (_parents.indexOf(parent) === -1) {
-            _parents.push(parent);
-            return true;
-        }
-        return false;
     };
     Subscription.EMPTY = (function (empty) {
         empty.closed = true;

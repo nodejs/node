@@ -39,7 +39,7 @@ module.exports = {
     create(context) {
         const options = context.options[0] || {};
         const commentPattern = options.commentPattern
-            ? new RegExp(options.commentPattern) // eslint-disable-line require-unicode-regexp
+            ? new RegExp(options.commentPattern, "u")
             : DEFAULT_COMMENT_PATTERN;
 
         const sourceCode = context.getSourceCode();

@@ -4,7 +4,7 @@
  */
 "use strict";
 
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -82,7 +82,7 @@ module.exports = {
                     token: token.value
                 },
                 fix(fixer) {
-                    const nextToken = context.getSourceCode().getTokenAfter(token);
+                    const nextToken = context.getSourceCode().getTokenAfter(token, { includeComments: true });
 
                     return fixer.removeRange([token.range[1], nextToken.range[0]]);
                 }
@@ -104,7 +104,7 @@ module.exports = {
                     token: token.value
                 },
                 fix(fixer) {
-                    const previousToken = context.getSourceCode().getTokenBefore(token);
+                    const previousToken = context.getSourceCode().getTokenBefore(token, { includeComments: true });
 
                     return fixer.removeRange([previousToken.range[1], token.range[0]]);
                 }
@@ -225,8 +225,8 @@ module.exports = {
 
             const first = sourceCode.getFirstToken(node),
                 last = getClosingBraceOfObject(node),
-                second = sourceCode.getTokenAfter(first),
-                penultimate = sourceCode.getTokenBefore(last);
+                second = sourceCode.getTokenAfter(first, { includeComments: true }),
+                penultimate = sourceCode.getTokenBefore(last, { includeComments: true });
 
             validateBraceSpacing(node, first, second, penultimate, last);
         }
@@ -253,8 +253,8 @@ module.exports = {
 
             const first = sourceCode.getTokenBefore(firstSpecifier),
                 last = sourceCode.getTokenAfter(lastSpecifier, astUtils.isNotCommaToken),
-                second = sourceCode.getTokenAfter(first),
-                penultimate = sourceCode.getTokenBefore(last);
+                second = sourceCode.getTokenAfter(first, { includeComments: true }),
+                penultimate = sourceCode.getTokenBefore(last, { includeComments: true });
 
             validateBraceSpacing(node, first, second, penultimate, last);
         }
@@ -273,8 +273,8 @@ module.exports = {
                 lastSpecifier = node.specifiers[node.specifiers.length - 1],
                 first = sourceCode.getTokenBefore(firstSpecifier),
                 last = sourceCode.getTokenAfter(lastSpecifier, astUtils.isNotCommaToken),
-                second = sourceCode.getTokenAfter(first),
-                penultimate = sourceCode.getTokenBefore(last);
+                second = sourceCode.getTokenAfter(first, { includeComments: true }),
+                penultimate = sourceCode.getTokenBefore(last, { includeComments: true });
 
             validateBraceSpacing(node, first, second, penultimate, last);
         }

@@ -1,13 +1,6 @@
 import { Observable } from '../Observable';
-import { isPromise } from '../util/isPromise';
-import { isArrayLike } from '../util/isArrayLike';
-import { isInteropObservable } from '../util/isInteropObservable';
-import { isIterable } from '../util/isIterable';
-import { fromArray } from './fromArray';
-import { fromPromise } from './fromPromise';
-import { fromIterable } from './fromIterable';
-import { fromObservable } from './fromObservable';
 import { subscribeTo } from '../util/subscribeTo';
+import { scheduled } from '../scheduled/scheduled';
 export function from(input, scheduler) {
     if (!scheduler) {
         if (input instanceof Observable) {
@@ -15,20 +8,8 @@ export function from(input, scheduler) {
         }
         return new Observable(subscribeTo(input));
     }
-    if (input != null) {
-        if (isInteropObservable(input)) {
-            return fromObservable(input, scheduler);
-        }
-        else if (isPromise(input)) {
-            return fromPromise(input, scheduler);
-        }
-        else if (isArrayLike(input)) {
-            return fromArray(input, scheduler);
-        }
-        else if (isIterable(input) || typeof input === 'string') {
-            return fromIterable(input, scheduler);
-        }
+    else {
+        return scheduled(input, scheduler);
     }
-    throw new TypeError((input !== null && typeof input || input) + ' is not observable');
 }
 //# sourceMappingURL=from.js.map

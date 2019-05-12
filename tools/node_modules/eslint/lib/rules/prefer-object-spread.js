@@ -12,7 +12,7 @@ const {
     isOpeningParenToken,
     isClosingParenToken,
     isParenthesised
-} = require("../util/ast-utils");
+} = require("./utils/ast-utils");
 
 const ANY_SPACE = /\s/u;
 

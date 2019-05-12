@@ -5,15 +5,19 @@
 
 "use strict";
 
-const Linter = require("./linter");
+const { CLIEngine } = require("./cli-engine");
+const { Linter } = require("./linter");
+const { RuleTester } = require("./rule-tester");
+const { SourceCode } = require("./source-code");
 
 module.exports = {
     Linter,
-    CLIEngine: require("./cli-engine"),
-    RuleTester: require("./testers/rule-tester"),
-    SourceCode: require("./util/source-code")
+    CLIEngine,
+    RuleTester,
+    SourceCode
 };
 
+// DOTO: remove deprecated API.
 let deprecatedLinterInstance = null;
 
 Object.defineProperty(module.exports, "linter", {

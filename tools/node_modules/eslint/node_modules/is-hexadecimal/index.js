@@ -2,8 +2,8 @@
 
 module.exports = hexadecimal
 
-/* Check if the given character code, or the character
- * code at the first character, is hexadecimal. */
+// Check if the given character code, or the character code at the first
+// character, is hexadecimal.
 function hexadecimal(character) {
   var code = typeof character === 'string' ? character.charCodeAt(0) : character
 

@@ -4,7 +4,7 @@
  */
 "use strict";
 
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 const NODE_DESCRIPTIONS = {
     DoWhileStatement: "a 'do...while' statement",
@@ -86,7 +86,7 @@ module.exports = {
                 nextToken = sourceCode.getTokenAfter(node, 1);
 
             return astUtils.isParenthesised(sourceCode, node) &&
-                astUtils.isOpeningParenToken(previousToken) && previousToken.range[1] <= node.range[0] &&
+                previousToken && astUtils.isOpeningParenToken(previousToken) && previousToken.range[1] <= node.range[0] &&
                 astUtils.isClosingParenToken(nextToken) && nextToken.range[0] >= node.range[1];
         }
 

@@ -80,14 +80,12 @@ export class Subscriber extends Subscription {
         this.unsubscribe();
     }
     _unsubscribeAndRecycle() {
-        const { _parent, _parents } = this;
-        this._parent = null;
-        this._parents = null;
+        const { _parentOrParents } = this;
+        this._parentOrParents = null;
         this.unsubscribe();
         this.closed = false;
         this.isStopped = false;
-        this._parent = _parent;
-        this._parents = _parents;
+        this._parentOrParents = _parentOrParents;
         return this;
     }
 }

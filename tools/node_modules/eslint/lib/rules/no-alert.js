@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const getPropertyName = require("../util/ast-utils").getStaticPropertyName;
+const getPropertyName = require("./utils/ast-utils").getStaticPropertyName;
 
 //------------------------------------------------------------------------------
 // Helpers

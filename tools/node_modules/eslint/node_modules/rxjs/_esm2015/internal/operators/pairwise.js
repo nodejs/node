@@ -13,13 +13,17 @@ class PairwiseSubscriber extends Subscriber {
         this.hasPrev = false;
     }
     _next(value) {
+        let pair;
         if (this.hasPrev) {
-            this.destination.next([this.prev, value]);
+            pair = [this.prev, value];
         }
         else {
             this.hasPrev = true;
         }
         this.prev = value;
+        if (pair) {
+            this.destination.next(pair);
+        }
     }
 }
 //# sourceMappingURL=pairwise.js.map

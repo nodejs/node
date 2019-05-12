@@ -8,7 +8,9 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
+
+const lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Constants
@@ -19,20 +21,16 @@ const OPTIONS_SCHEMA = {
     properties: {
         max: {
             type: "integer",
-            minimum: 0,
-            default: 50
+            minimum: 0
         },
         skipComments: {
-            type: "boolean",
-            default: false
+            type: "boolean"
         },
         skipBlankLines: {
-            type: "boolean",
-            default: false
+            type: "boolean"
         },
         IIFEs: {
-            type: "boolean",
-            default: false
+            type: "boolean"
         }
     },
     additionalProperties: false
@@ -101,10 +99,10 @@ module.exports = {
         let IIFEs = false;
 
         if (typeof option === "object") {
-            maxLines = option.max;
-            skipComments = option.skipComments;
-            skipBlankLines = option.skipBlankLines;
-            IIFEs = option.IIFEs;
+            maxLines = typeof option.max === "number" ? option.max : 50;
+            skipComments = !!option.skipComments;
+            skipBlankLines = !!option.skipBlankLines;
+            IIFEs = !!option.IIFEs;
         } else if (typeof option === "number") {
             maxLines = option;
         }
@@ -196,7 +194,7 @@ module.exports = {
             }
 
             if (lineCount > maxLines) {
-                const name = astUtils.getFunctionNameWithKind(funcNode);
+                const name = lodash.upperFirst(astUtils.getFunctionNameWithKind(funcNode));
 
                 context.report({
                     node,

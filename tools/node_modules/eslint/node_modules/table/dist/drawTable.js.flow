@@ -11,9 +11,10 @@ import drawRow from './drawRow';
  * @param {Array} columnSizeIndex
  * @param {Array} rowSpanIndex
  * @param {Function} drawHorizontalLine
+ * @param {boolean} singleLine
  * @returns {string}
  */
-export default (rows, border, columnSizeIndex, rowSpanIndex, drawHorizontalLine) => {
+export default (rows, border, columnSizeIndex, rowSpanIndex, drawHorizontalLine, singleLine) => {
   let output;
   let realRowIndex;
   let rowHeight;
@@ -39,7 +40,7 @@ export default (rows, border, columnSizeIndex, rowSpanIndex, drawHorizontalLine)
 
     rowHeight--;
 
-    if (rowHeight === 0 && index0 !== rowCount - 1 && drawHorizontalLine(realRowIndex, rowCount)) {
+    if (!singleLine && rowHeight === 0 && index0 !== rowCount - 1 && drawHorizontalLine(realRowIndex, rowCount)) {
       output += drawBorderJoin(columnSizeIndex, border);
     }
   });

@@ -65,6 +65,11 @@ module.exports = optionator({
             description: "Specify parser options"
         },
         {
+            option: "resolve-plugins-relative-to",
+            type: "path::String",
+            description: "A folder where plugins should be resolved from, CWD by default"
+        },
+        {
             heading: "Specifying rules and plugins"
         },
         {

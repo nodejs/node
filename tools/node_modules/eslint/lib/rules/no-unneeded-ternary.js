@@ -5,7 +5,7 @@
 
 "use strict";
 
-const astUtils = require("../util/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 // Operators that always result in a boolean value
 const BOOLEAN_OPERATORS = new Set(["==", "===", "!=", "!==", ">", ">=", "<", "<=", "in", "instanceof"]);
@@ -17,6 +17,7 @@ const OPERATOR_INVERSES = {
 
     // Operators like < and >= are not true inverses, since both will return false with NaN.
 };
+const OR_PRECEDENCE = astUtils.getPrecedence({ type: "LogicalExpression", operator: "||" });
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -141,15 +142,16 @@ module.exports = {
                         loc: node.consequent.loc.start,
                         message: "Unnecessary use of conditional expression for default assignment.",
                         fix: fixer => {
-                            let nodeAlternate = astUtils.getParenthesisedText(sourceCode, node.alternate);
+                            const shouldParenthesizeAlternate = (
+                                astUtils.getPrecedence(node.alternate) < OR_PRECEDENCE &&
+                                !astUtils.isParenthesised(sourceCode, node.alternate)
+                            );
+                            const alternateText = shouldParenthesizeAlternate
+                                ? `(${sourceCode.getText(node.alternate)})`
+                                : astUtils.getParenthesisedText(sourceCode, node.alternate);
+                            const testText = astUtils.getParenthesisedText(sourceCode, node.test);
 
-                            if (node.alternate.type === "ConditionalExpression" || node.alternate.type === "YieldExpression") {
-                                const isAlternateParenthesised = astUtils.isParenthesised(sourceCode, node.alternate);
-
-                                nodeAlternate = isAlternateParenthesised ? nodeAlternate : `(${nodeAlternate})`;
-                            }
-
-                            return fixer.replaceText(node, `${astUtils.getParenthesisedText(sourceCode, node.test)} || ${nodeAlternate}`);
+                            return fixer.replaceText(node, `${testText} || ${alternateText}`);
                         }
                     });
                 }

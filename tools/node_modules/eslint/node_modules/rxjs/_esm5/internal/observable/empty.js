@@ -4,7 +4,7 @@ export var EMPTY = /*@__PURE__*/ new Observable(function (subscriber) { return s
 export function empty(scheduler) {
     return scheduler ? emptyScheduled(scheduler) : EMPTY;
 }
-export function emptyScheduled(scheduler) {
+function emptyScheduled(scheduler) {
     return new Observable(function (subscriber) { return scheduler.schedule(function () { return subscriber.complete(); }); });
 }
 //# sourceMappingURL=empty.js.map

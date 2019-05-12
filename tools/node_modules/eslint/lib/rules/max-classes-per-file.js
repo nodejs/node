@@ -32,7 +32,7 @@ module.exports = {
         ],
 
         messages: {
-            maximumExceeded: "Number of classes per file must not exceed {{ max }}."
+            maximumExceeded: "File has too many classes ({{ classCount }}). Maximum allowed is {{ max }}."
         }
     },
     create(context) {
@@ -51,6 +51,7 @@ module.exports = {
                         node,
                         messageId: "maximumExceeded",
                         data: {
+                            classCount,
                             max: maxClasses
                         }
                     });

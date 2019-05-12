@@ -1,5 +1,4 @@
-/** PURE_IMPORTS_START _Observable,_subscribeToArray,_subscribeToPromise,_subscribeToIterable,_subscribeToObservable,_isArrayLike,_isPromise,_isObject,_symbol_iterator,_symbol_observable PURE_IMPORTS_END */
-import { Observable } from '../Observable';
+/** PURE_IMPORTS_START _subscribeToArray,_subscribeToPromise,_subscribeToIterable,_subscribeToObservable,_isArrayLike,_isPromise,_isObject,_symbol_iterator,_symbol_observable PURE_IMPORTS_END */
 import { subscribeToArray } from './subscribeToArray';
 import { subscribeToPromise } from './subscribeToPromise';
 import { subscribeToIterable } from './subscribeToIterable';
@@ -10,19 +9,7 @@ import { isObject } from './isObject';
 import { iterator as Symbol_iterator } from '../symbol/iterator';
 import { observable as Symbol_observable } from '../symbol/observable';
 export var subscribeTo = function (result) {
-    if (result instanceof Observable) {
-        return function (subscriber) {
-            if (result._isScalar) {
-                subscriber.next(result.value);
-                subscriber.complete();
-                return undefined;
-            }
-            else {
-                return result.subscribe(subscriber);
-            }
-        };
-    }
-    else if (!!result && typeof result[Symbol_observable] === 'function') {
+    if (!!result && typeof result[Symbol_observable] === 'function') {
         return subscribeToObservable(result);
     }
     else if (isArrayLike(result)) {

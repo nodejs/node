@@ -30,6 +30,8 @@ var PATTERN_TAG_HANDLE            = /^(?:!|!!|![a-z\-]+!)$/i;
 var PATTERN_TAG_URI               = /^(?:!|[^,\[\]\{\}])(?:%[0-9a-f]{2}|[0-9a-z\-#;\/\?:@&=\+\$,_\.!~\*'\(\)\[\]])*$/i;
 
 
+function _class(obj) { return Object.prototype.toString.call(obj); }
+
 function is_EOL(c) {
   return (c === 0x0A/* LF */) || (c === 0x0D/* CR */);
 }
@@ -287,15 +289,28 @@ function storeMappingPair(state, _result, overridableKeys, keyTag, keyNode, valu
 
   // The output is a plain object here, so keys can only be strings.
   // We need to convert keyNode to a string, but doing so can hang the process
-  // (deeply nested arrays that explode exponentially using aliases) or execute
-  // code via toString.
+  // (deeply nested arrays that explode exponentially using aliases).
   if (Array.isArray(keyNode)) {
+    keyNode = Array.prototype.slice.call(keyNode);
+
     for (index = 0, quantity = keyNode.length; index < quantity; index += 1) {
       if (Array.isArray(keyNode[index])) {
         throwError(state, 'nested arrays are not supported inside keys');
       }
+
+      if (typeof keyNode === 'object' && _class(keyNode[index]) === '[object Object]') {
+        keyNode[index] = '[object Object]';
+      }
     }
   }
+
+  // Avoid code execution in load() via toString property
+  // (still use its own toString for arrays, timestamps,
+  // and whatever user schema extensions happen to have @@toStringTag)
+  if (typeof keyNode === 'object' && _class(keyNode) === '[object Object]') {
+    keyNode = '[object Object]';
+  }
+
 
   keyNode = String(keyNode);
 

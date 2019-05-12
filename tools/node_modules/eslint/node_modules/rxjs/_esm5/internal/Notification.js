@@ -13,26 +13,26 @@ var Notification = /*@__PURE__*/ (function () {
         this.kind = kind;
         this.value = value;
         this.error = error;
-        this.hasValue = kind === "N";
+        this.hasValue = kind === 'N';
     }
     Notification.prototype.observe = function (observer) {
         switch (this.kind) {
-            case "N":
+            case 'N':
                 return observer.next && observer.next(this.value);
-            case "E":
+            case 'E':
                 return observer.error && observer.error(this.error);
-            case "C":
+            case 'C':
                 return observer.complete && observer.complete();
         }
     };
     Notification.prototype.do = function (next, error, complete) {
         var kind = this.kind;
         switch (kind) {
-            case "N":
+            case 'N':
                 return next && next(this.value);
-            case "E":
+            case 'E':
                 return error && error(this.error);
-            case "C":
+            case 'C':
                 return complete && complete();
         }
     };
@@ -47,29 +47,29 @@ var Notification = /*@__PURE__*/ (function () {
     Notification.prototype.toObservable = function () {
         var kind = this.kind;
         switch (kind) {
-            case "N":
+            case 'N':
                 return of(this.value);
-            case "E":
+            case 'E':
                 return throwError(this.error);
-            case "C":
+            case 'C':
                 return empty();
         }
         throw new Error('unexpected notification kind value');
     };
     Notification.createNext = function (value) {
         if (typeof value !== 'undefined') {
-            return new Notification("N", value);
+            return new Notification('N', value);
         }
         return Notification.undefinedValueNotification;
     };
     Notification.createError = function (err) {
-        return new Notification("E", undefined, err);
+        return new Notification('E', undefined, err);
     };
     Notification.createComplete = function () {
         return Notification.completeNotification;
     };
-    Notification.completeNotification = new Notification("C");
-    Notification.undefinedValueNotification = new Notification("N", undefined);
+    Notification.completeNotification = new Notification('C');
+    Notification.undefinedValueNotification = new Notification('N', undefined);
     return Notification;
 }());
 export { Notification };

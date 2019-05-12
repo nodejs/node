@@ -2,8 +2,8 @@
 
 module.exports = alphabetical
 
-/* Check if the given character code, or the character
- * code at the first character, is alphabetical. */
+// Check if the given character code, or the character code at the first
+// character, is alphabetical.
 function alphabetical(character) {
   var code = typeof character === 'string' ? character.charCodeAt(0) : character
 

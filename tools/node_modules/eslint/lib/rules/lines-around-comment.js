@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const lodash = require("lodash"),
-    astUtils = require("../util/ast-utils");
+    astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -130,7 +130,7 @@ module.exports = {
         const options = Object.assign({}, context.options[0]);
         const ignorePattern = options.ignorePattern;
         const defaultIgnoreRegExp = astUtils.COMMENTS_IGNORE_PATTERN;
-        const customIgnoreRegExp = new RegExp(ignorePattern); // eslint-disable-line require-unicode-regexp
+        const customIgnoreRegExp = new RegExp(ignorePattern, "u");
         const applyDefaultIgnorePatterns = options.applyDefaultIgnorePatterns !== false;
 
         options.beforeBlockComment = typeof options.beforeBlockComment !== "undefined" ? options.beforeBlockComment : true;

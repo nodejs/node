@@ -473,7 +473,7 @@
     };
 
     function hostReportError(err) {
-        setTimeout(function () { throw err; });
+        setTimeout(function () { throw err; }, 0);
     }
 
     var empty = {
@@ -510,42 +510,41 @@
     var Subscription = (function () {
         function Subscription(unsubscribe) {
             this.closed = false;
-            this._parent = null;
-            this._parents = null;
+            this._parentOrParents = null;
             this._subscriptions = null;
             if (unsubscribe) {
                 this._unsubscribe = unsubscribe;
             }
         }
         Subscription.prototype.unsubscribe = function () {
-            var hasErrors = false;
             var errors;
             if (this.closed) {
                 return;
             }
-            var _a = this, _parent = _a._parent, _parents = _a._parents, _unsubscribe = _a._unsubscribe, _subscriptions = _a._subscriptions;
+            var _a = this, _parentOrParents = _a._parentOrParents, _unsubscribe = _a._unsubscribe, _subscriptions = _a._subscriptions;
             this.closed = true;
-            this._parent = null;
-            this._parents = null;
+            this._parentOrParents = null;
             this._subscriptions = null;
-            var index = -1;
-            var len = _parents ? _parents.length : 0;
-            while (_parent) {
-                _parent.remove(this);
-                _parent = ++index < len && _parents[index] || null;
+            if (_parentOrParents instanceof Subscription) {
+                _parentOrParents.remove(this);
+            }
+            else if (_parentOrParents !== null) {
+                for (var index = 0; index < _parentOrParents.length; ++index) {
+                    var parent_1 = _parentOrParents[index];
+                    parent_1.remove(this);
+                }
             }
             if (isFunction(_unsubscribe)) {
                 try {
                     _unsubscribe.call(this);
                 }
                 catch (e) {
-                    hasErrors = true;
                     errors = e instanceof UnsubscriptionError ? flattenUnsubscriptionErrors(e.errors) : [e];
                 }
             }
             if (isArray(_subscriptions)) {
-                index = -1;
-                len = _subscriptions.length;
+                var index = -1;
+                var len = _subscriptions.length;
                 while (++index < len) {
                     var sub = _subscriptions[index];
                     if (isObject(sub)) {
@@ -553,7 +552,6 @@
                             sub.unsubscribe();
                         }
                         catch (e) {
-                            hasErrors = true;
                             errors = errors || [];
                             if (e instanceof UnsubscriptionError) {
                                 errors = errors.concat(flattenUnsubscriptionErrors(e.errors));
@@ -565,12 +563,15 @@
                     }
                 }
             }
-            if (hasErrors) {
+            if (errors) {
                 throw new UnsubscriptionError(errors);
             }
         };
         Subscription.prototype.add = function (teardown) {
             var subscription = teardown;
+            if (!teardown) {
+                return Subscription.EMPTY;
+            }
             switch (typeof teardown) {
                 case 'function':
                     subscription = new Subscription(teardown);
@@ -589,20 +590,31 @@
                     }
                     break;
                 default: {
-                    if (!teardown) {
-                        return Subscription.EMPTY;
-                    }
                     throw new Error('unrecognized teardown ' + teardown + ' added to Subscription.');
                 }
             }
-            if (subscription._addParent(this)) {
-                var subscriptions = this._subscriptions;
-                if (subscriptions) {
-                    subscriptions.push(subscription);
+            var _parentOrParents = subscription._parentOrParents;
+            if (_parentOrParents === null) {
+                subscription._parentOrParents = this;
+            }
+            else if (_parentOrParents instanceof Subscription) {
+                if (_parentOrParents === this) {
+                    return subscription;
                 }
-                else {
-                    this._subscriptions = [subscription];
-                }
+                subscription._parentOrParents = [_parentOrParents, this];
+            }
+            else if (_parentOrParents.indexOf(this) === -1) {
+                _parentOrParents.push(this);
+            }
+            else {
+                return subscription;
+            }
+            var subscriptions = this._subscriptions;
+            if (subscriptions === null) {
+                this._subscriptions = [subscription];
+            }
+            else {
+                subscriptions.push(subscription);
             }
             return subscription;
         };
@@ -614,25 +626,6 @@
                     subscriptions.splice(subscriptionIndex, 1);
                 }
             }
-        };
-        Subscription.prototype._addParent = function (parent) {
-            var _a = this, _parent = _a._parent, _parents = _a._parents;
-            if (_parent === parent) {
-                return false;
-            }
-            else if (!_parent) {
-                this._parent = parent;
-                return true;
-            }
-            else if (!_parents) {
-                this._parents = [parent];
-                return true;
-            }
-            else if (_parents.indexOf(parent) === -1) {
-                _parents.push(parent);
-                return true;
-            }
-            return false;
         };
         Subscription.EMPTY = (function (empty) {
             empty.closed = true;
@@ -726,14 +719,12 @@
             this.unsubscribe();
         };
         Subscriber.prototype._unsubscribeAndRecycle = function () {
-            var _a = this, _parent = _a._parent, _parents = _a._parents;
-            this._parent = null;
-            this._parents = null;
+            var _parentOrParents = this._parentOrParents;
+            this._parentOrParents = null;
             this.unsubscribe();
             this.closed = false;
             this.isStopped = false;
-            this._parent = _parent;
-            this._parents = _parents;
+            this._parentOrParents = _parentOrParents;
             return this;
         };
         return Subscriber;
@@ -1306,9 +1297,6 @@
                     this._connection = null;
                     connection = Subscription.EMPTY;
                 }
-                else {
-                    this._connection = connection;
-                }
             }
             return connection;
         };
@@ -1827,42 +1815,34 @@
         for (var i = 0, len = array.length; i < len && !subscriber.closed; i++) {
             subscriber.next(array[i]);
         }
-        if (!subscriber.closed) {
-            subscriber.complete();
-        }
+        subscriber.complete();
     }; };
+
+    function scheduleArray(input, scheduler) {
+        return new Observable(function (subscriber) {
+            var sub = new Subscription();
+            var i = 0;
+            sub.add(scheduler.schedule(function () {
+                if (i === input.length) {
+                    subscriber.complete();
+                    return;
+                }
+                subscriber.next(input[i++]);
+                if (!subscriber.closed) {
+                    sub.add(this.schedule());
+                }
+            }));
+            return sub;
+        });
+    }
 
     function fromArray(input, scheduler) {
         if (!scheduler) {
             return new Observable(subscribeToArray(input));
         }
         else {
-            return new Observable(function (subscriber) {
-                var sub = new Subscription();
-                var i = 0;
-                sub.add(scheduler.schedule(function () {
-                    if (i === input.length) {
-                        subscriber.complete();
-                        return;
-                    }
-                    subscriber.next(input[i++]);
-                    if (!subscriber.closed) {
-                        sub.add(this.schedule());
-                    }
-                }));
-                return sub;
-            });
+            return scheduleArray(input, scheduler);
         }
-    }
-
-    function scalar(value) {
-        var result = new Observable(function (subscriber) {
-            subscriber.next(value);
-            subscriber.complete();
-        });
-        result._isScalar = true;
-        result.value = value;
-        return result;
     }
 
     function of() {
@@ -1873,17 +1853,10 @@
         var scheduler = args[args.length - 1];
         if (isScheduler(scheduler)) {
             args.pop();
+            return scheduleArray(args, scheduler);
         }
         else {
-            scheduler = undefined;
-        }
-        switch (args.length) {
-            case 0:
-                return empty$1(scheduler);
-            case 1:
-                return scheduler ? fromArray(args, scheduler) : scalar(args[0]);
-            default:
-                return fromArray(args, scheduler);
+            return fromArray(args);
         }
     }
 
@@ -1900,37 +1873,36 @@
         subscriber.error(error);
     }
 
-    var NotificationKind;
     (function (NotificationKind) {
         NotificationKind["NEXT"] = "N";
         NotificationKind["ERROR"] = "E";
         NotificationKind["COMPLETE"] = "C";
-    })(NotificationKind || (NotificationKind = {}));
+    })(exports.NotificationKind || (exports.NotificationKind = {}));
     var Notification = (function () {
         function Notification(kind, value, error) {
             this.kind = kind;
             this.value = value;
             this.error = error;
-            this.hasValue = kind === "N";
+            this.hasValue = kind === 'N';
         }
         Notification.prototype.observe = function (observer) {
             switch (this.kind) {
-                case "N":
+                case 'N':
                     return observer.next && observer.next(this.value);
-                case "E":
+                case 'E':
                     return observer.error && observer.error(this.error);
-                case "C":
+                case 'C':
                     return observer.complete && observer.complete();
             }
         };
         Notification.prototype.do = function (next, error, complete) {
             var kind = this.kind;
             switch (kind) {
-                case "N":
+                case 'N':
                     return next && next(this.value);
-                case "E":
+                case 'E':
                     return error && error(this.error);
-                case "C":
+                case 'C':
                     return complete && complete();
             }
         };
@@ -1945,29 +1917,29 @@
         Notification.prototype.toObservable = function () {
             var kind = this.kind;
             switch (kind) {
-                case "N":
+                case 'N':
                     return of(this.value);
-                case "E":
+                case 'E':
                     return throwError(this.error);
-                case "C":
+                case 'C':
                     return empty$1();
             }
             throw new Error('unexpected notification kind value');
         };
         Notification.createNext = function (value) {
             if (typeof value !== 'undefined') {
-                return new Notification("N", value);
+                return new Notification('N', value);
             }
             return Notification.undefinedValueNotification;
         };
         Notification.createError = function (err) {
-            return new Notification("E", undefined, err);
+            return new Notification('E', undefined, err);
         };
         Notification.createComplete = function () {
             return Notification.completeNotification;
         };
-        Notification.completeNotification = new Notification("C");
-        Notification.undefinedValueNotification = new Notification("N", undefined);
+        Notification.completeNotification = new Notification('C');
+        Notification.undefinedValueNotification = new Notification('N', undefined);
         return Notification;
     }());
 
@@ -2784,19 +2756,7 @@
     }
 
     var subscribeTo = function (result) {
-        if (result instanceof Observable) {
-            return function (subscriber) {
-                if (result._isScalar) {
-                    subscriber.next(result.value);
-                    subscriber.complete();
-                    return undefined;
-                }
-                else {
-                    return result.subscribe(subscriber);
-                }
-            };
-        }
-        else if (!!result && typeof result[observable] === 'function') {
+        if (!!result && typeof result[observable] === 'function') {
             return subscribeToObservable(result);
         }
         else if (isArrayLike(result)) {
@@ -2819,7 +2779,10 @@
     function subscribeToResult(outerSubscriber, result, outerValue, outerIndex, destination) {
         if (destination === void 0) { destination = new InnerSubscriber(outerSubscriber, outerValue, outerIndex); }
         if (destination.closed) {
-            return;
+            return undefined;
+        }
+        if (result instanceof Observable) {
+            return result.subscribe(destination);
         }
         return subscribeTo(result)(destination);
     }
@@ -2916,6 +2879,78 @@
         return CombineLatestSubscriber;
     }(OuterSubscriber));
 
+    function scheduleObservable(input, scheduler) {
+        return new Observable(function (subscriber) {
+            var sub = new Subscription();
+            sub.add(scheduler.schedule(function () {
+                var observable$$1 = input[observable]();
+                sub.add(observable$$1.subscribe({
+                    next: function (value) { sub.add(scheduler.schedule(function () { return subscriber.next(value); })); },
+                    error: function (err) { sub.add(scheduler.schedule(function () { return subscriber.error(err); })); },
+                    complete: function () { sub.add(scheduler.schedule(function () { return subscriber.complete(); })); },
+                }));
+            }));
+            return sub;
+        });
+    }
+
+    function schedulePromise(input, scheduler) {
+        return new Observable(function (subscriber) {
+            var sub = new Subscription();
+            sub.add(scheduler.schedule(function () { return input.then(function (value) {
+                sub.add(scheduler.schedule(function () {
+                    subscriber.next(value);
+                    sub.add(scheduler.schedule(function () { return subscriber.complete(); }));
+                }));
+            }, function (err) {
+                sub.add(scheduler.schedule(function () { return subscriber.error(err); }));
+            }); }));
+            return sub;
+        });
+    }
+
+    function scheduleIterable(input, scheduler) {
+        if (!input) {
+            throw new Error('Iterable cannot be null');
+        }
+        return new Observable(function (subscriber) {
+            var sub = new Subscription();
+            var iterator$$1;
+            sub.add(function () {
+                if (iterator$$1 && typeof iterator$$1.return === 'function') {
+                    iterator$$1.return();
+                }
+            });
+            sub.add(scheduler.schedule(function () {
+                iterator$$1 = input[iterator]();
+                sub.add(scheduler.schedule(function () {
+                    if (subscriber.closed) {
+                        return;
+                    }
+                    var value;
+                    var done;
+                    try {
+                        var result = iterator$$1.next();
+                        value = result.value;
+                        done = result.done;
+                    }
+                    catch (err) {
+                        subscriber.error(err);
+                        return;
+                    }
+                    if (done) {
+                        subscriber.complete();
+                    }
+                    else {
+                        subscriber.next(value);
+                        this.schedule();
+                    }
+                }));
+            }));
+            return sub;
+        });
+    }
+
     function isInteropObservable(input) {
         return input && typeof input[observable] === 'function';
     }
@@ -2924,91 +2959,22 @@
         return input && typeof input[iterator] === 'function';
     }
 
-    function fromPromise(input, scheduler) {
-        if (!scheduler) {
-            return new Observable(subscribeToPromise(input));
+    function scheduled(input, scheduler) {
+        if (input != null) {
+            if (isInteropObservable(input)) {
+                return scheduleObservable(input, scheduler);
+            }
+            else if (isPromise(input)) {
+                return schedulePromise(input, scheduler);
+            }
+            else if (isArrayLike(input)) {
+                return scheduleArray(input, scheduler);
+            }
+            else if (isIterable(input) || typeof input === 'string') {
+                return scheduleIterable(input, scheduler);
+            }
         }
-        else {
-            return new Observable(function (subscriber) {
-                var sub = new Subscription();
-                sub.add(scheduler.schedule(function () { return input.then(function (value) {
-                    sub.add(scheduler.schedule(function () {
-                        subscriber.next(value);
-                        sub.add(scheduler.schedule(function () { return subscriber.complete(); }));
-                    }));
-                }, function (err) {
-                    sub.add(scheduler.schedule(function () { return subscriber.error(err); }));
-                }); }));
-                return sub;
-            });
-        }
-    }
-
-    function fromIterable(input, scheduler) {
-        if (!input) {
-            throw new Error('Iterable cannot be null');
-        }
-        if (!scheduler) {
-            return new Observable(subscribeToIterable(input));
-        }
-        else {
-            return new Observable(function (subscriber) {
-                var sub = new Subscription();
-                var iterator$$1;
-                sub.add(function () {
-                    if (iterator$$1 && typeof iterator$$1.return === 'function') {
-                        iterator$$1.return();
-                    }
-                });
-                sub.add(scheduler.schedule(function () {
-                    iterator$$1 = input[iterator]();
-                    sub.add(scheduler.schedule(function () {
-                        if (subscriber.closed) {
-                            return;
-                        }
-                        var value;
-                        var done;
-                        try {
-                            var result = iterator$$1.next();
-                            value = result.value;
-                            done = result.done;
-                        }
-                        catch (err) {
-                            subscriber.error(err);
-                            return;
-                        }
-                        if (done) {
-                            subscriber.complete();
-                        }
-                        else {
-                            subscriber.next(value);
-                            this.schedule();
-                        }
-                    }));
-                }));
-                return sub;
-            });
-        }
-    }
-
-    function fromObservable(input, scheduler) {
-        if (!scheduler) {
-            return new Observable(subscribeToObservable(input));
-        }
-        else {
-            return new Observable(function (subscriber) {
-                var sub = new Subscription();
-                sub.add(scheduler.schedule(function () {
-                    var observable$$1 = input[observable]();
-                    sub.add(observable$$1.subscribe({
-                        next: function (value) { sub.add(scheduler.schedule(function () { return subscriber.next(value); })); },
-                        error: function (err) { sub.add(scheduler.schedule(function () { return subscriber.error(err); })); },
-                        complete: function () { sub.add(scheduler.schedule(function () { return subscriber.complete(); })); },
-                    }));
-                }));
-                return sub;
-            });
-        }
+        throw new TypeError((input !== null && typeof input || input) + ' is not observable');
     }
 
     function from(input, scheduler) {
@@ -3018,21 +2984,9 @@
             }
             return new Observable(subscribeTo(input));
         }
-        if (input != null) {
-            if (isInteropObservable(input)) {
-                return fromObservable(input, scheduler);
-            }
-            else if (isPromise(input)) {
-                return fromPromise(input, scheduler);
-            }
-            else if (isArrayLike(input)) {
-                return fromArray(input, scheduler);
-            }
-            else if (isIterable(input) || typeof input === 'string') {
-                return fromIterable(input, scheduler);
-            }
+        else {
+            return scheduled(input, scheduler);
         }
-        throw new TypeError((input !== null && typeof input || input) + ' is not observable');
     }
 
     function mergeMap(project, resultSelector, concurrent) {
@@ -3157,66 +3111,63 @@
         for (var _i = 0; _i < arguments.length; _i++) {
             sources[_i] = arguments[_i];
         }
-        var resultSelector;
+        if (sources.length === 1) {
+            var first_1 = sources[0];
+            if (isArray(first_1)) {
+                return forkJoinInternal(first_1, null);
+            }
+            if (isObject(first_1) && Object.getPrototypeOf(first_1) === Object.prototype) {
+                var keys = Object.keys(first_1);
+                return forkJoinInternal(keys.map(function (key) { return first_1[key]; }), keys);
+            }
+        }
         if (typeof sources[sources.length - 1] === 'function') {
-            resultSelector = sources.pop();
+            var resultSelector_1 = sources.pop();
+            sources = (sources.length === 1 && isArray(sources[0])) ? sources[0] : sources;
+            return forkJoinInternal(sources, null).pipe(map(function (args) { return resultSelector_1.apply(void 0, args); }));
         }
-        if (sources.length === 1 && isArray(sources[0])) {
-            sources = sources[0];
-        }
-        if (sources.length === 0) {
-            return EMPTY;
-        }
-        if (resultSelector) {
-            return forkJoin(sources).pipe(map(function (args) { return resultSelector.apply(void 0, args); }));
-        }
+        return forkJoinInternal(sources, null);
+    }
+    function forkJoinInternal(sources, keys) {
         return new Observable(function (subscriber) {
-            return new ForkJoinSubscriber(subscriber, sources);
+            var len = sources.length;
+            if (len === 0) {
+                subscriber.complete();
+                return;
+            }
+            var values = new Array(len);
+            var completed = 0;
+            var emitted = 0;
+            var _loop_1 = function (i) {
+                var source = from(sources[i]);
+                var hasValue = false;
+                subscriber.add(source.subscribe({
+                    next: function (value) {
+                        if (!hasValue) {
+                            hasValue = true;
+                            emitted++;
+                        }
+                        values[i] = value;
+                    },
+                    error: function (err) { return subscriber.error(err); },
+                    complete: function () {
+                        completed++;
+                        if (completed === len || !hasValue) {
+                            if (emitted === len) {
+                                subscriber.next(keys ?
+                                    keys.reduce(function (result, key, i) { return (result[key] = values[i], result); }, {}) :
+                                    values);
+                            }
+                            subscriber.complete();
+                        }
+                    }
+                }));
+            };
+            for (var i = 0; i < len; i++) {
+                _loop_1(i);
+            }
         });
     }
-    var ForkJoinSubscriber = (function (_super) {
-        __extends(ForkJoinSubscriber, _super);
-        function ForkJoinSubscriber(destination, sources) {
-            var _this = _super.call(this, destination) || this;
-            _this.sources = sources;
-            _this.completed = 0;
-            _this.haveValues = 0;
-            var len = sources.length;
-            _this.values = new Array(len);
-            for (var i = 0; i < len; i++) {
-                var source = sources[i];
-                var innerSubscription = subscribeToResult(_this, source, null, i);
-                if (innerSubscription) {
-                    _this.add(innerSubscription);
-                }
-            }
-            return _this;
-        }
-        ForkJoinSubscriber.prototype.notifyNext = function (outerValue, innerValue, outerIndex, innerIndex, innerSub) {
-            this.values[outerIndex] = innerValue;
-            if (!innerSub._hasValue) {
-                innerSub._hasValue = true;
-                this.haveValues++;
-            }
-        };
-        ForkJoinSubscriber.prototype.notifyComplete = function (innerSub) {
-            var _a = this, destination = _a.destination, haveValues = _a.haveValues, values = _a.values;
-            var len = values.length;
-            if (!innerSub._hasValue) {
-                destination.complete();
-                return;
-            }
-            this.completed++;
-            if (this.completed !== len) {
-                return;
-            }
-            if (haveValues === len) {
-                destination.next(values);
-            }
-            destination.complete();
-        };
-        return ForkJoinSubscriber;
-    }(OuterSubscriber));
 
     function fromEvent(target, eventName, options, resultSelector) {
         if (isFunction(options)) {
@@ -3537,6 +3488,62 @@
                 subscriber.complete();
             }
         }
+    }
+
+    function not(pred, thisArg) {
+        function notPred() {
+            return !(notPred.pred.apply(notPred.thisArg, arguments));
+        }
+        notPred.pred = pred;
+        notPred.thisArg = thisArg;
+        return notPred;
+    }
+
+    function filter(predicate, thisArg) {
+        return function filterOperatorFunction(source) {
+            return source.lift(new FilterOperator(predicate, thisArg));
+        };
+    }
+    var FilterOperator = (function () {
+        function FilterOperator(predicate, thisArg) {
+            this.predicate = predicate;
+            this.thisArg = thisArg;
+        }
+        FilterOperator.prototype.call = function (subscriber, source) {
+            return source.subscribe(new FilterSubscriber(subscriber, this.predicate, this.thisArg));
+        };
+        return FilterOperator;
+    }());
+    var FilterSubscriber = (function (_super) {
+        __extends(FilterSubscriber, _super);
+        function FilterSubscriber(destination, predicate, thisArg) {
+            var _this = _super.call(this, destination) || this;
+            _this.predicate = predicate;
+            _this.thisArg = thisArg;
+            _this.count = 0;
+            return _this;
+        }
+        FilterSubscriber.prototype._next = function (value) {
+            var result;
+            try {
+                result = this.predicate.call(this.thisArg, value, this.count++);
+            }
+            catch (err) {
+                this.destination.error(err);
+                return;
+            }
+            if (result) {
+                this.destination.next(value);
+            }
+        };
+        return FilterSubscriber;
+    }(Subscriber));
+
+    function partition(source, predicate, thisArg) {
+        return [
+            filter(predicate, thisArg)(new Observable(subscribeTo(source))),
+            filter(not(predicate, thisArg))(new Observable(subscribeTo(source)))
+        ];
     }
 
     function race() {
@@ -5085,128 +5092,50 @@
         return distinctUntilChanged(function (x, y) { return compare ? compare(x[key], y[key]) : x[key] === y[key]; });
     }
 
-    function filter(predicate, thisArg) {
-        return function filterOperatorFunction(source) {
-            return source.lift(new FilterOperator(predicate, thisArg));
+    function throwIfEmpty(errorFactory) {
+        if (errorFactory === void 0) { errorFactory = defaultErrorFactory; }
+        return function (source) {
+            return source.lift(new ThrowIfEmptyOperator(errorFactory));
         };
     }
-    var FilterOperator = (function () {
-        function FilterOperator(predicate, thisArg) {
-            this.predicate = predicate;
-            this.thisArg = thisArg;
+    var ThrowIfEmptyOperator = (function () {
+        function ThrowIfEmptyOperator(errorFactory) {
+            this.errorFactory = errorFactory;
         }
-        FilterOperator.prototype.call = function (subscriber, source) {
-            return source.subscribe(new FilterSubscriber(subscriber, this.predicate, this.thisArg));
+        ThrowIfEmptyOperator.prototype.call = function (subscriber, source) {
+            return source.subscribe(new ThrowIfEmptySubscriber(subscriber, this.errorFactory));
         };
-        return FilterOperator;
+        return ThrowIfEmptyOperator;
     }());
-    var FilterSubscriber = (function (_super) {
-        __extends(FilterSubscriber, _super);
-        function FilterSubscriber(destination, predicate, thisArg) {
+    var ThrowIfEmptySubscriber = (function (_super) {
+        __extends(ThrowIfEmptySubscriber, _super);
+        function ThrowIfEmptySubscriber(destination, errorFactory) {
             var _this = _super.call(this, destination) || this;
-            _this.predicate = predicate;
-            _this.thisArg = thisArg;
-            _this.count = 0;
+            _this.errorFactory = errorFactory;
+            _this.hasValue = false;
             return _this;
         }
-        FilterSubscriber.prototype._next = function (value) {
-            var result;
-            try {
-                result = this.predicate.call(this.thisArg, value, this.count++);
-            }
-            catch (err) {
-                this.destination.error(err);
-                return;
-            }
-            if (result) {
-                this.destination.next(value);
-            }
-        };
-        return FilterSubscriber;
-    }(Subscriber));
-
-    function tap(nextOrObserver, error, complete) {
-        return function tapOperatorFunction(source) {
-            return source.lift(new DoOperator(nextOrObserver, error, complete));
-        };
-    }
-    var DoOperator = (function () {
-        function DoOperator(nextOrObserver, error, complete) {
-            this.nextOrObserver = nextOrObserver;
-            this.error = error;
-            this.complete = complete;
-        }
-        DoOperator.prototype.call = function (subscriber, source) {
-            return source.subscribe(new TapSubscriber(subscriber, this.nextOrObserver, this.error, this.complete));
-        };
-        return DoOperator;
-    }());
-    var TapSubscriber = (function (_super) {
-        __extends(TapSubscriber, _super);
-        function TapSubscriber(destination, observerOrNext, error, complete) {
-            var _this = _super.call(this, destination) || this;
-            _this._tapNext = noop;
-            _this._tapError = noop;
-            _this._tapComplete = noop;
-            _this._tapError = error || noop;
-            _this._tapComplete = complete || noop;
-            if (isFunction(observerOrNext)) {
-                _this._context = _this;
-                _this._tapNext = observerOrNext;
-            }
-            else if (observerOrNext) {
-                _this._context = observerOrNext;
-                _this._tapNext = observerOrNext.next || noop;
-                _this._tapError = observerOrNext.error || noop;
-                _this._tapComplete = observerOrNext.complete || noop;
-            }
-            return _this;
-        }
-        TapSubscriber.prototype._next = function (value) {
-            try {
-                this._tapNext.call(this._context, value);
-            }
-            catch (err) {
-                this.destination.error(err);
-                return;
-            }
+        ThrowIfEmptySubscriber.prototype._next = function (value) {
+            this.hasValue = true;
             this.destination.next(value);
         };
-        TapSubscriber.prototype._error = function (err) {
-            try {
-                this._tapError.call(this._context, err);
-            }
-            catch (err) {
-                this.destination.error(err);
-                return;
-            }
-            this.destination.error(err);
-        };
-        TapSubscriber.prototype._complete = function () {
-            try {
-                this._tapComplete.call(this._context);
-            }
-            catch (err) {
-                this.destination.error(err);
-                return;
-            }
-            return this.destination.complete();
-        };
-        return TapSubscriber;
-    }(Subscriber));
-
-    var throwIfEmpty = function (errorFactory) {
-        if (errorFactory === void 0) { errorFactory = defaultErrorFactory; }
-        return tap({
-            hasValue: false,
-            next: function () { this.hasValue = true; },
-            complete: function () {
-                if (!this.hasValue) {
-                    throw errorFactory();
+        ThrowIfEmptySubscriber.prototype._complete = function () {
+            if (!this.hasValue) {
+                var err = void 0;
+                try {
+                    err = this.errorFactory();
                 }
+                catch (e) {
+                    err = e;
+                }
+                this.destination.error(err);
             }
-        });
-    };
+            else {
+                return this.destination.complete();
+            }
+        };
+        return ThrowIfEmptySubscriber;
+    }(Subscriber));
     function defaultErrorFactory() {
         return new EmptyError();
     }
@@ -5270,25 +5199,7 @@
         for (var _i = 0; _i < arguments.length; _i++) {
             array[_i] = arguments[_i];
         }
-        return function (source) {
-            var scheduler = array[array.length - 1];
-            if (isScheduler(scheduler)) {
-                array.pop();
-            }
-            else {
-                scheduler = null;
-            }
-            var len = array.length;
-            if (len === 1 && !scheduler) {
-                return concat(source, scalar(array[0]));
-            }
-            else if (len > 0) {
-                return concat(source, fromArray(array, scheduler));
-            }
-            else {
-                return concat(source, empty$1(scheduler));
-            }
-        };
+        return function (source) { return concat(source, of.apply(void 0, array)); };
     }
 
     function every(predicate, thisArg) {
@@ -6119,27 +6030,22 @@
             return _this;
         }
         PairwiseSubscriber.prototype._next = function (value) {
+            var pair;
             if (this.hasPrev) {
-                this.destination.next([this.prev, value]);
+                pair = [this.prev, value];
             }
             else {
                 this.hasPrev = true;
             }
             this.prev = value;
+            if (pair) {
+                this.destination.next(pair);
+            }
         };
         return PairwiseSubscriber;
     }(Subscriber));
 
-    function not(pred, thisArg) {
-        function notPred() {
-            return !(notPred.pred.apply(notPred.thisArg, arguments));
-        }
-        notPred.pred = pred;
-        notPred.thisArg = thisArg;
-        return notPred;
-    }
-
-    function partition(predicate, thisArg) {
+    function partition$1(predicate, thisArg) {
         return function (source) { return [
             filter(predicate, thisArg)(source),
             filter(not(predicate, thisArg))(source)
@@ -6913,25 +6819,14 @@
         for (var _i = 0; _i < arguments.length; _i++) {
             array[_i] = arguments[_i];
         }
-        return function (source) {
-            var scheduler = array[array.length - 1];
-            if (isScheduler(scheduler)) {
-                array.pop();
-            }
-            else {
-                scheduler = null;
-            }
-            var len = array.length;
-            if (len === 1 && !scheduler) {
-                return concat(scalar(array[0]), source);
-            }
-            else if (len > 0) {
-                return concat(fromArray(array, scheduler), source);
-            }
-            else {
-                return concat(empty$1(scheduler), source);
-            }
-        };
+        var scheduler = array[array.length - 1];
+        if (isScheduler(scheduler)) {
+            array.pop();
+            return function (source) { return concat(array, source, scheduler); };
+        }
+        else {
+            return function (source) { return concat(array, source); };
+        }
     }
 
     var SubscribeOnObservable = (function (_super) {
@@ -7151,6 +7046,76 @@
         return TakeWhileSubscriber;
     }(Subscriber));
 
+    function tap(nextOrObserver, error, complete) {
+        return function tapOperatorFunction(source) {
+            return source.lift(new DoOperator(nextOrObserver, error, complete));
+        };
+    }
+    var DoOperator = (function () {
+        function DoOperator(nextOrObserver, error, complete) {
+            this.nextOrObserver = nextOrObserver;
+            this.error = error;
+            this.complete = complete;
+        }
+        DoOperator.prototype.call = function (subscriber, source) {
+            return source.subscribe(new TapSubscriber(subscriber, this.nextOrObserver, this.error, this.complete));
+        };
+        return DoOperator;
+    }());
+    var TapSubscriber = (function (_super) {
+        __extends(TapSubscriber, _super);
+        function TapSubscriber(destination, observerOrNext, error, complete) {
+            var _this = _super.call(this, destination) || this;
+            _this._tapNext = noop;
+            _this._tapError = noop;
+            _this._tapComplete = noop;
+            _this._tapError = error || noop;
+            _this._tapComplete = complete || noop;
+            if (isFunction(observerOrNext)) {
+                _this._context = _this;
+                _this._tapNext = observerOrNext;
+            }
+            else if (observerOrNext) {
+                _this._context = observerOrNext;
+                _this._tapNext = observerOrNext.next || noop;
+                _this._tapError = observerOrNext.error || noop;
+                _this._tapComplete = observerOrNext.complete || noop;
+            }
+            return _this;
+        }
+        TapSubscriber.prototype._next = function (value) {
+            try {
+                this._tapNext.call(this._context, value);
+            }
+            catch (err) {
+                this.destination.error(err);
+                return;
+            }
+            this.destination.next(value);
+        };
+        TapSubscriber.prototype._error = function (err) {
+            try {
+                this._tapError.call(this._context, err);
+            }
+            catch (err) {
+                this.destination.error(err);
+                return;
+            }
+            this.destination.error(err);
+        };
+        TapSubscriber.prototype._complete = function () {
+            try {
+                this._tapComplete.call(this._context);
+            }
+            catch (err) {
+                this.destination.error(err);
+                return;
+            }
+            return this.destination.complete();
+        };
+        return TapSubscriber;
+    }(Subscriber));
+
     var defaultThrottleConfig = {
         leading: true,
         trailing: false
@@ -7276,6 +7241,10 @@
                 this.add(this.throttled = this.scheduler.schedule(dispatchNext$3, this.duration, { subscriber: this }));
                 if (this.leading) {
                     this.destination.next(value);
+                }
+                else if (this.trailing) {
+                    this._trailingValue = value;
+                    this._hasTrailingValue = true;
                 }
             }
         };
@@ -8048,7 +8017,7 @@
         observeOn: observeOn,
         onErrorResumeNext: onErrorResumeNext$1,
         pairwise: pairwise,
-        partition: partition,
+        partition: partition$1,
         pluck: pluck,
         publish: publish,
         publishBehavior: publishBehavior,
@@ -9150,15 +9119,63 @@
         WebSocketSubject: WebSocketSubject
     });
 
+    function fromFetch(input, init) {
+        return new Observable(function (subscriber) {
+            var controller = new AbortController();
+            var signal = controller.signal;
+            var outerSignalHandler;
+            var abortable = true;
+            var unsubscribed = false;
+            if (init) {
+                if (init.signal) {
+                    outerSignalHandler = function () {
+                        if (!signal.aborted) {
+                            controller.abort();
+                        }
+                    };
+                    init.signal.addEventListener('abort', outerSignalHandler);
+                }
+                init.signal = signal;
+            }
+            else {
+                init = { signal: signal };
+            }
+            fetch(input, init).then(function (response) {
+                abortable = false;
+                subscriber.next(response);
+                subscriber.complete();
+            }).catch(function (err) {
+                abortable = false;
+                if (!unsubscribed) {
+                    subscriber.error(err);
+                }
+            });
+            return function () {
+                unsubscribed = true;
+                if (abortable) {
+                    controller.abort();
+                }
+            };
+        });
+    }
+
+
+
+    var _fetch = /*#__PURE__*/Object.freeze({
+        fromFetch: fromFetch
+    });
+
     var operators = _operators;
     var testing = _testing;
     var ajax$1 = _ajax;
     var webSocket$1 = _webSocket;
+    var fetch$1 = _fetch;
 
     exports.operators = operators;
     exports.testing = testing;
     exports.ajax = ajax$1;
     exports.webSocket = webSocket$1;
+    exports.fetch = fetch$1;
     exports.Observable = Observable;
     exports.ConnectableObservable = ConnectableObservable;
     exports.GroupedObservable = GroupedObservable;
@@ -9204,12 +9221,14 @@
     exports.of = of;
     exports.onErrorResumeNext = onErrorResumeNext;
     exports.pairs = pairs;
+    exports.partition = partition;
     exports.race = race;
     exports.range = range;
     exports.throwError = throwError;
     exports.timer = timer;
     exports.using = using;
     exports.zip = zip;
+    exports.scheduled = scheduled;
     exports.EMPTY = EMPTY;
     exports.NEVER = NEVER;
     exports.config = config;

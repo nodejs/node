@@ -8,8 +8,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../util/ast-utils"),
-    FixTracker = require("../util/fix-tracker");
+const astUtils = require("./utils/ast-utils"),
+    FixTracker = require("./utils/fix-tracker");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -255,7 +255,14 @@ module.exports = {
                 if (node.argument) {
                     markReturnStatementsOnCurrentSegmentsAsUsed();
                 }
-                if (node.argument || astUtils.isInLoop(node) || isInFinally(node)) {
+                if (
+                    node.argument ||
+                    astUtils.isInLoop(node) ||
+                    isInFinally(node) ||
+
+                    // Ignore `return` statements in unreachable places (https://github.com/eslint/eslint/issues/11647).
+                    !scopeInfo.codePath.currentSegments.some(s => s.reachable)
+                ) {
                     return;
                 }
 

@@ -23,18 +23,20 @@ function visitParents(tree, test, visitor, reverse) {
 
   // Visit a single node.
   function one(node, index, parents) {
-    var result
+    var result = []
+    var subresult
 
     if (!test || is(test, node, index, parents[parents.length - 1] || null)) {
-      result = visitor(node, parents)
+      result = toResult(visitor(node, parents))
 
-      if (result === EXIT) {
+      if (result[0] === EXIT) {
         return result
       }
     }
 
-    if (node.children && result !== SKIP) {
-      return all(node.children, parents.concat(node)) === EXIT ? EXIT : result
+    if (node.children && result[0] !== SKIP) {
+      subresult = toResult(all(node.children, parents.concat(node)))
+      return subresult[0] === EXIT ? subresult : result
     }
 
     return result
@@ -45,18 +47,28 @@ function visitParents(tree, test, visitor, reverse) {
     var min = -1
     var step = reverse ? -1 : 1
     var index = (reverse ? children.length : min) + step
-    var child
     var result
 
     while (index > min && index < children.length) {
-      child = children[index]
-      result = child && one(child, index, parents)
+      result = one(children[index], index, parents)
 
-      if (result === EXIT) {
+      if (result[0] === EXIT) {
         return result
       }
 
-      index = typeof result === 'number' ? result : index + step
+      index = typeof result[1] === 'number' ? result[1] : index + step
     }
   }
+}
+
+function toResult(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE, value]
+  }
+
+  return [value]
 }
