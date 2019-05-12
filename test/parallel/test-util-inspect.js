@@ -1156,6 +1156,10 @@ if (typeof Symbol !== 'undefined') {
     util.inspect({ a: { b: new ArraySubclass([1, [2], 3]) } }, { depth: 1 }),
     '{ a: { b: [ArraySubclass] } }'
   );
+  assert.strictEqual(
+    util.inspect(Object.setPrototypeOf(x, null)),
+    '[ObjectSubclass: null prototype] { foo: 42 }'
+  );
 }
 
 // Empty and circular before depth.
