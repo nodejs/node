@@ -23,6 +23,7 @@
 
 const common = require('./common.js');
 const fs = require('fs');
+const getVersions = require('./versions.js');
 const unified = require('unified');
 const find = require('unist-util-find');
 const visit = require('unist-util-visit');
@@ -62,7 +63,7 @@ const gtocHTML = unified()
 const templatePath = path.join(docPath, 'template.html');
 const template = fs.readFileSync(templatePath, 'utf8');
 
-function toHTML({ input, content, filename, nodeVersion }, cb) {
+async function toHTML({ input, content, filename, nodeVersion }, cb) {
   filename = path.basename(filename, '.md');
 
   const id = filename.replace(/\W+/g, '-');
@@ -80,7 +81,7 @@ function toHTML({ input, content, filename, nodeVersion }, cb) {
   const docCreated = input.match(
     /<!--\s*introduced_in\s*=\s*v([0-9]+)\.([0-9]+)\.[0-9]+\s*-->/);
   if (docCreated) {
-    HTML = HTML.replace('__ALTDOCS__', altDocs(filename, docCreated));
+    HTML = HTML.replace('__ALTDOCS__', await altDocs(filename, docCreated));
   } else {
     console.error(`Failed to add alternative version links to ${filename}`);
     HTML = HTML.replace('__ALTDOCS__', '');
@@ -390,22 +391,10 @@ function getId(text, idCounters) {
   return text;
 }
 
-function altDocs(filename, docCreated) {
+async function altDocs(filename, docCreated) {
   const [, docCreatedMajor, docCreatedMinor] = docCreated.map(Number);
   const host = 'https://nodejs.org';
-  const versions = [
-    { num: '12.x' },
-    { num: '11.x' },
-    { num: '10.x', lts: true },
-    { num: '9.x' },
-    { num: '8.x', lts: true },
-    { num: '7.x' },
-    { num: '6.x' },
-    { num: '5.x' },
-    { num: '4.x' },
-    { num: '0.12.x' },
-    { num: '0.10.x' },
-  ];
+  const versions = await getVersions.versions();
 
   const getHref = (versionNum) =>
     `${host}/docs/latest-v${versionNum}/api/${filename}.html`;
