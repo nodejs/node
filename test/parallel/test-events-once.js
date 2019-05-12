@@ -90,4 +90,4 @@ Promise.all([
   catchesErrors(),
   stopListeningAfterCatchingError(),
   onceError()
-]);
+]).then(common.mustCall());
