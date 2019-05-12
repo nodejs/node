@@ -22,6 +22,7 @@ rules:
   node-core/number-isnan: error
   ## common module is mandatory in tests
   node-core/required-modules: [error, common]
+  node-core/require-common-first: error
   node-core/no-duplicate-requires: off
 
 # Global scoped methods and vars

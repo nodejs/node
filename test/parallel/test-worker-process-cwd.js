@@ -1,6 +1,6 @@
 'use strict';
-const assert = require('assert');
 const common = require('../common');
+const assert = require('assert');
 const { Worker, isMainThread, parentPort } = require('worker_threads');
 
 // Do not use isMainThread directly, otherwise the test would time out in case

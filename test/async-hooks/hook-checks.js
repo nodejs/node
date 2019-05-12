@@ -1,6 +1,6 @@
 'use strict';
-const assert = require('assert');
 require('../common');
+const assert = require('assert');
 
 /**
  * Checks the expected invocations against the invocations that actually

@@ -1,3 +1,4 @@
+/* eslint-disable node-core/require-common-first */
 'use strict';
 // Flags: --expose_internals
 

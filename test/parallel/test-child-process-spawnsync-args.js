@@ -6,11 +6,11 @@
 // caused the third argument (`options`) to be ignored.
 // See https://github.com/nodejs/node/issues/24912.
 
-const assert = require('assert');
-const { spawnSync } = require('child_process');
-
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
+
+const assert = require('assert');
+const { spawnSync } = require('child_process');
 
 const command = common.isWindows ? 'cd' : 'pwd';
 const options = { cwd: tmpdir.path };

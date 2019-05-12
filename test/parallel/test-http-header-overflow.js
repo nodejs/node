@@ -1,8 +1,8 @@
 'use strict';
+const { expectsError, mustCall } = require('../common');
 const assert = require('assert');
 const { createServer, maxHeaderSize } = require('http');
 const { createConnection } = require('net');
-const { expectsError, mustCall } = require('../common');
 
 const CRLF = '\r\n';
 const DUMMY_HEADER_NAME = 'Cookie: ';
