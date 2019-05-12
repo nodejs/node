@@ -1,7 +1,7 @@
 'use strict';
 
-const assert = require('assert');
 require('../common');
+const assert = require('assert');
 
 // Assert legit flags are allowed, and bogus flags are disallowed
 {

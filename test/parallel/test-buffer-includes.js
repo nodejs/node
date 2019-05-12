@@ -1,6 +1,6 @@
 'use strict';
-const assert = require('assert');
 const common = require('../common');
+const assert = require('assert');
 
 const b = Buffer.from('abcdef');
 const buf_a = Buffer.from('a');

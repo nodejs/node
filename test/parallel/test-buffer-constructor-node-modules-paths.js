@@ -1,8 +1,8 @@
 'use strict';
 
+const common = require('../common');
 const child_process = require('child_process');
 const assert = require('assert');
-const common = require('../common');
 
 if (process.env.NODE_PENDING_DEPRECATION)
   common.skip('test does not work when NODE_PENDING_DEPRECATION is set');

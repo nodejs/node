@@ -1,7 +1,6 @@
 'use strict';
-const fs = require('fs');
-
 const common = require('../../common');
+const fs = require('fs');
 const assert = require('assert');
 
 // Addon is referenced through the eval expression in testFile

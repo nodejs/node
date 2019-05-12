@@ -1,6 +1,6 @@
 'use strict';
-const assert = require('assert');
 const common = require('../common');
+const assert = require('assert');
 const { isMainThread, parentPort, Worker } = require('worker_threads');
 
 // This test makes sure that we manipulate the references of
