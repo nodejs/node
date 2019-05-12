@@ -9,14 +9,14 @@ const p = child_process.spawnSync(
 assert.ifError(p.error);
 
 const output = p.stdout.toString().trim().replace(/\r/g, '');
-console.log(output)
+console.log(output);
 
 const prefix = `_node_complete() {
   local cur_word options
   cur_word="\${COMP_WORDS[COMP_CWORD]}"
   if [[ "\${cur_word}" == -* ]] ; then
     COMPREPLY=( $(compgen -W '`.replace(/\r/g, '');
-const suffix =   `' -- "\${cur_word}") )
+const suffix = `' -- "\${cur_word}") )
     return 0
   else
     COMPREPLY=( $(compgen -f "\${cur_word}") )
