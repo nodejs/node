@@ -211,11 +211,41 @@ Support is currently only provided for the root context and no guarantees are
 currently provided that `global.Array` is indeed the default intrinsic
 reference.
 
-**Code breakage is highly likely with this flag**, especially since limited
-support for subclassing builtins is provided currently due to ECMA-262 bug
-https://github.com/tc39/ecma262/pull/1320.
+**Code breakage is highly likely with this flag**, since redefining any
+builtin properties on a subclass will throw in strict mode due to the ECMA-262
+issue https://github.com/tc39/ecma262/pull/1307. This flag may still change
+or be removed in the future.
 
-Both of the above may change in future updates, which will be breaking changes.
+To avoid these cases, any builtin function overrides should be defined upfront:
+
+<!-- eslint-disable no-redeclare -->
+```js
+const o = {};
+// THROWS: Cannot assign read only property 'toString' of object
+o.toString = () => 'string';
+
+// OK
+const o = { toString: () => 'string' };
+
+class X {
+  constructor() {
+    this.toString = () => 'string';
+  }
+}
+// THROWS: Cannot assign read only property 'toString' of object
+new X();
+
+class X {
+  toString = undefined;
+  constructor() {
+    this.toString = () => 'string';
+  }
+}
+// OK
+new X();
+```
+
+
 
 ### `--heapsnapshot-signal=signal`
 <!-- YAML
