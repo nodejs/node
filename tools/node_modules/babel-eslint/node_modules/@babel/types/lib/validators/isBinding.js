@@ -9,7 +9,11 @@ var _getBindingIdentifiers = _interopRequireDefault(require("../retrievers/getBi
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function isBinding(node, parent) {
+function isBinding(node, parent, grandparent) {
+  if (grandparent && node.type === "Identifier" && parent.type === "ObjectProperty" && grandparent.type === "ObjectExpression") {
+    return false;
+  }
+
   const keys = _getBindingIdentifiers.default.keys[parent.type];
 
   if (keys) {

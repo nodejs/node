@@ -32,7 +32,7 @@ function gatherSequenceExpressions(nodes, scope, declars) {
       for (const declar of node.declarations) {
         const bindings = (0, _getBindingIdentifiers.default)(declar);
 
-        for (const key in bindings) {
+        for (const key of Object.keys(bindings)) {
           declars.push({
             kind: node.kind,
             id: (0, _cloneNode.default)(bindings[key])

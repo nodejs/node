@@ -37,7 +37,7 @@ function explode(visitor) {
   if (visitor._exploded) return visitor;
   visitor._exploded = true;
 
-  for (const nodeType in visitor) {
+  for (const nodeType of Object.keys(visitor)) {
     if (shouldIgnoreKey(nodeType)) continue;
     const parts = nodeType.split("|");
     if (parts.length === 1) continue;
@@ -60,7 +60,7 @@ function explode(visitor) {
     if (!wrapper) continue;
     const fns = visitor[nodeType];
 
-    for (const type in fns) {
+    for (const type of Object.keys(fns)) {
       fns[type] = wrapCheck(wrapper, fns[type]);
     }
 
@@ -79,7 +79,7 @@ function explode(visitor) {
     }
   }
 
-  for (const nodeType in visitor) {
+  for (const nodeType of Object.keys(visitor)) {
     if (shouldIgnoreKey(nodeType)) continue;
     const fns = visitor[nodeType];
     let aliases = t().FLIPPED_ALIAS_KEYS[nodeType];
@@ -104,7 +104,7 @@ function explode(visitor) {
     }
   }
 
-  for (const nodeType in visitor) {
+  for (const nodeType of Object.keys(visitor)) {
     if (shouldIgnoreKey(nodeType)) continue;
     ensureCallbackArrays(visitor[nodeType]);
   }
@@ -119,7 +119,7 @@ function verify(visitor) {
     throw new Error("You passed `traverse()` a function when it expected a visitor object, " + "are you sure you didn't mean `{ enter: Function }`?");
   }
 
-  for (const nodeType in visitor) {
+  for (const nodeType of Object.keys(visitor)) {
     if (nodeType === "enter" || nodeType === "exit") {
       validateVisitorMethods(nodeType, visitor[nodeType]);
     }
@@ -133,7 +133,7 @@ function verify(visitor) {
     const visitors = visitor[nodeType];
 
     if (typeof visitors === "object") {
-      for (const visitorKey in visitors) {
+      for (const visitorKey of Object.keys(visitors)) {
         if (visitorKey === "enter" || visitorKey === "exit") {
           validateVisitorMethods(`${nodeType}.${visitorKey}`, visitors[visitorKey]);
         } else {
@@ -164,7 +164,7 @@ function merge(visitors, states = [], wrapper) {
     const state = states[i];
     explode(visitor);
 
-    for (const type in visitor) {
+    for (const type of Object.keys(visitor)) {
       let visitorType = visitor[type];
 
       if (state || wrapper) {
@@ -182,7 +182,7 @@ function merge(visitors, states = [], wrapper) {
 function wrapWithStateOrWrapper(oldVisitor, state, wrapper) {
   const newVisitor = {};
 
-  for (const key in oldVisitor) {
+  for (const key of Object.keys(oldVisitor)) {
     let fns = oldVisitor[key];
     if (!Array.isArray(fns)) continue;
     fns = fns.map(function (fn) {
@@ -207,7 +207,7 @@ function wrapWithStateOrWrapper(oldVisitor, state, wrapper) {
 }
 
 function ensureEntranceObjects(obj) {
-  for (const key in obj) {
+  for (const key of Object.keys(obj)) {
     if (shouldIgnoreKey(key)) continue;
     const fns = obj[key];
 
@@ -248,7 +248,7 @@ function shouldIgnoreKey(key) {
 }
 
 function mergePair(dest, src) {
-  for (const key in src) {
+  for (const key of Object.keys(src)) {
     dest[key] = [].concat(dest[key] || [], src[key]);
   }
 }

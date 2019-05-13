@@ -12,6 +12,7 @@ exports.BinaryExpression = BinaryExpression;
 exports.LogicalExpression = LogicalExpression;
 exports.ConditionalExpression = ConditionalExpression;
 exports.SequenceExpression = SequenceExpression;
+exports.ParenthesizedExpression = ParenthesizedExpression;
 exports.AssignmentExpression = AssignmentExpression;
 exports.UpdateExpression = UpdateExpression;
 exports.StringLiteral = StringLiteral;
@@ -126,6 +127,10 @@ function ConditionalExpression() {
 
 function SequenceExpression() {
   return this.get("expressions").pop().getTypeAnnotation();
+}
+
+function ParenthesizedExpression() {
+  return this.get("expression").getTypeAnnotation();
 }
 
 function AssignmentExpression() {

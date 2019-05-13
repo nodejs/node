@@ -18,7 +18,7 @@ function removeProperties(node, opts = {}) {
     if (node[key] != null) node[key] = undefined;
   }
 
-  for (const key in node) {
+  for (const key of Object.keys(node)) {
     if (key[0] === "_" && node[key] != null) node[key] = undefined;
   }
 

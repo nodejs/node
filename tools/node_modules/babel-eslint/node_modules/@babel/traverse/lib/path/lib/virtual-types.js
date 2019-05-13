@@ -20,10 +20,12 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
 const ReferencedIdentifier = {
   types: ["Identifier", "JSXIdentifier"],
 
-  checkPath({
-    node,
-    parent
-  }, opts) {
+  checkPath(path, opts) {
+    const {
+      node,
+      parent
+    } = path;
+
     if (!t().isIdentifier(node, opts) && !t().isJSXMemberExpression(parent, opts)) {
       if (t().isJSXIdentifier(node, opts)) {
         if (t().react.isCompatTag(node.name)) return false;
@@ -32,7 +34,7 @@ const ReferencedIdentifier = {
       }
     }
 
-    return t().isReferenced(node, parent);
+    return t().isReferenced(node, parent, path.parentPath.parent);
   }
 
 };
@@ -52,11 +54,13 @@ exports.ReferencedMemberExpression = ReferencedMemberExpression;
 const BindingIdentifier = {
   types: ["Identifier"],
 
-  checkPath({
-    node,
-    parent
-  }) {
-    return t().isIdentifier(node) && t().isBinding(node, parent);
+  checkPath(path) {
+    const {
+      node,
+      parent
+    } = path;
+    const grandparent = path.parentPath.parent;
+    return t().isIdentifier(node) && t().isBinding(node, parent, grandparent);
   }
 
 };

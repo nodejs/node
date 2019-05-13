@@ -54,7 +54,7 @@ class PathHoister {
   }
 
   isCompatibleScope(scope) {
-    for (const key in this.bindings) {
+    for (const key of Object.keys(this.bindings)) {
       const binding = this.bindings[key];
 
       if (!scope.bindingIdentifierEquals(key, binding.identifier)) {
@@ -92,7 +92,7 @@ class PathHoister {
     }
 
     if (targetScope.path.isProgram() || targetScope.path.isFunction()) {
-      for (const name in this.bindings) {
+      for (const name of Object.keys(this.bindings)) {
         if (!targetScope.hasOwnBinding(name)) continue;
         const binding = this.bindings[name];
 
@@ -154,7 +154,7 @@ class PathHoister {
   }
 
   hasOwnParamBindings(scope) {
-    for (const name in this.bindings) {
+    for (const name of Object.keys(this.bindings)) {
       if (!scope.hasOwnBinding(name)) continue;
       const binding = this.bindings[name];
       if (binding.kind === "param" && binding.constant) return true;

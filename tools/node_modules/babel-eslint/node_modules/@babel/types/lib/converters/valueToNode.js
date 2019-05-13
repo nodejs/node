@@ -85,7 +85,7 @@ function valueToNode(value) {
   if ((0, _isPlainObject().default)(value)) {
     const props = [];
 
-    for (const key in value) {
+    for (const key of Object.keys(value)) {
       let nodeKey;
 
       if ((0, _isValidIdentifier.default)(key)) {
