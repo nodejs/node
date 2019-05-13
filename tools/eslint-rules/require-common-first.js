@@ -33,11 +33,11 @@ module.exports = function(context) {
   }
 
   /**
-   * Function to check if the path is a required module and return its name.
+   * Function to check if the path is a module and return its name.
    * @param {String} str The path to check
-   * @returns {String} required module name
+   * @returns {String} module name
    */
-  function getRequiredModuleName(str) {
+  function getModuleName(str) {
     if (str === '../common/index.mjs') {
       return 'common';
     }
@@ -46,15 +46,15 @@ module.exports = function(context) {
   }
 
   /**
-   * Function to check if a node has an argument that is a required module and
+   * Function to check if a node has an argument that is a module and
    * return its name.
    * @param {ASTNode} node The node to check
-   * @returns {undefined|String} required module name or undefined
+   * @returns {undefined|String} module name or undefined
    */
-  function getRequiredModuleNameFromCall(node) {
+  function getModuleNameFromCall(node) {
     // Node has arguments and first argument is string
     if (node.arguments.length && isString(node.arguments[0])) {
-      return getRequiredModuleName(node.arguments[0].value.trim());
+      return getModuleName(node.arguments[0].value.trim());
     }
 
     return undefined;
@@ -77,18 +77,18 @@ module.exports = function(context) {
 
   if (isESM) {
     rules.ImportDeclaration = (node) => {
-      const requiredModuleName = getRequiredModuleName(node.source.value);
-      if (requiredModuleName) {
-        foundModules.push(requiredModuleName);
+      const moduleName = getModuleName(node.source.value);
+      if (moduleName) {
+        foundModules.push(moduleName);
       }
     };
   } else {
     rules.CallExpression = (node) => {
       if (isRequireCall(node)) {
-        const requiredModuleName = getRequiredModuleNameFromCall(node);
+        const moduleName = getModuleNameFromCall(node);
 
-        if (requiredModuleName) {
-          foundModules.push(requiredModuleName);
+        if (moduleName) {
+          foundModules.push(moduleName);
         }
       }
     };
