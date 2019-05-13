@@ -2,7 +2,7 @@
 require('../common');
 const assert = require('assert');
 
-// Check for existence
+// check for existence
 assert(process.config.variables.hasOwnProperty('node_module_version'));
 
 // Ensure that `node_module_version` is an Integer > 0

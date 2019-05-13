@@ -15,7 +15,7 @@ const syntaxArgs = [
 
 const notFoundRE = /^Error: Cannot find module/m;
 
-// Test file not found
+// test file not found
 [
   'syntax/file_not_found.js',
   'syntax/file_not_found'

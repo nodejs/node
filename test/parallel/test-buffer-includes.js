@@ -100,7 +100,7 @@ assert.strictEqual(
   true
 );
 
-// Test ascii encoding
+// test ascii encoding
 assert.strictEqual(
   Buffer.from(b.toString('ascii'), 'ascii')
     .includes('d', 0, 'ascii'),

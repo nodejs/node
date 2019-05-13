@@ -25,7 +25,7 @@ const vm = require('vm');
 
 console.error('before');
 
-// Undefined reference
+// undefined reference
 vm.runInNewContext('foo.bar = 5;');
 
 console.error('after');

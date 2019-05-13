@@ -128,13 +128,13 @@ function Test3() {
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
-    // Nothing is selected
+    // nothing is selected
     checkResults(results[0], { server: { ALPN: false },
                                client: { ALPN: false } });
-    // Nothing is selected
+    // nothing is selected
     checkResults(results[1], { server: { ALPN: false },
                                client: { ALPN: false } });
-    // Nothing is selected
+    // nothing is selected
     checkResults(results[2],
                  { server: { ALPN: false },
                    client: { ALPN: false } });
@@ -150,13 +150,13 @@ function Test4() {
   const clientsOptions = [{}, {}, {}];
 
   runTest(clientsOptions, serverOptions, function(results) {
-    // Nothing is selected
+    // nothing is selected
     checkResults(results[0], { server: { ALPN: false },
                                client: { ALPN: false } });
-    // Nothing is selected
+    // nothing is selected
     checkResults(results[1], { server: { ALPN: false },
                                client: { ALPN: false } });
-    // Nothing is selected
+    // nothing is selected
     checkResults(results[2],
                  { server: { ALPN: false },
                    client: { ALPN: false } });

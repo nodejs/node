@@ -35,7 +35,7 @@ if (process.argv[2] === 'child') {
   // parent process
   const spawn = require('child_process').spawn;
 
-  // Spawn self as child
+  // spawn self as child
   const child = spawn(process.argv[0], [process.argv[1], 'child']);
 
   let stdout = '';
