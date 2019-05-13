@@ -4,6 +4,8 @@
  */
 'use strict';
 
+const { isRequireCall } = require('./rules-utils.js');
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -30,15 +32,6 @@ module.exports = function(context) {
    */
   function isString(node) {
     return node && node.type === 'Literal' && typeof node.value === 'string';
-  }
-
-  /**
-   * Function to check if a node is a require call.
-   * @param {ASTNode} node The node to check.
-   * @returns {boolean} If the node is a require call.
-   */
-  function isRequireCall(node) {
-    return node.callee.type === 'Identifier' && node.callee.name === 'require';
   }
 
   /**
