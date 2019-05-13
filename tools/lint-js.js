@@ -35,7 +35,8 @@ if (cluster.isMaster) {
   let curPath = 'Starting ...';
   let showProgress = true;
   const globOptions = {
-    nodir: true
+    nodir: true,
+    ignore: '**/node_modules/**/*'
   };
   const workerConfig = {};
   let startTime;
