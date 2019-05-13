@@ -1485,6 +1485,10 @@ publicly trusted list of CAs as given in
 <!-- YAML
 added: v0.3.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27665
+    description: The `options` parameter now supports `net.createServer()`
+                 options.
   - version: v9.3.0
     pr-url: https://github.com/nodejs/node/pull/14903
     description: The `options` parameter can now include `clientCertEngine`.
@@ -1535,6 +1539,7 @@ changes:
     data. See [Session Resumption][] for more information.
   * ...: Any [`tls.createSecureContext()`][] option can be provided. For
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
+  * ...: Any [`net.createServer()`][] option can be provided.
 * `secureConnectionListener` {Function}
 * Returns: {tls.Server}
 
@@ -1755,6 +1760,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`NODE_OPTIONS`]: cli.html#cli_node_options_options
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
+[`net.createServer()`]: net.html#net_net_createserver_options_connectionlistener
 [`net.Server.address()`]: net.html#net_server_address
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
