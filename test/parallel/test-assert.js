@@ -1203,3 +1203,21 @@ assert.throws(
   () => a.deepStrictEqual(),
   { code: 'ERR_MISSING_ARGS' }
 );
+
+// Verify that `stackStartFunction` works as alternative to `stackStartFn`.
+{
+  (function hidden() {
+    const err = new assert.AssertionError({
+      actual: 'foo',
+      operator: 'strictEqual',
+      stackStartFunction: hidden
+    });
+    const err2 = new assert.AssertionError({
+      actual: 'foo',
+      operator: 'strictEqual',
+      stackStartFn: hidden
+    });
+    assert(!err.stack.includes('hidden'));
+    assert(!err2.stack.includes('hidden'));
+  })();
+}
