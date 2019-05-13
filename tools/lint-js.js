@@ -3,7 +3,7 @@
 const rulesDirs = ['tools/eslint-rules'];
 const extensions = ['.js', '.md'];
 // This is the maximum number of files to be linted per worker at any given time
-const maxWorkload = 40;
+const maxWorkload = 60;
 
 const cluster = require('cluster');
 const path = require('path');
