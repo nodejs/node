@@ -60,7 +60,7 @@ const tests = [
     command: 'foo = bar;',
     expected: 'Thrown:\nReferenceError: bar is not defined\n'
   },
-  // test anonymous IIFE
+  // Test anonymous IIFE
   {
     command: '(function() { throw new Error(\'Whoops!\'); })()',
     expected: 'Thrown:\nError: Whoops!--->\nrepl:1:21\n'

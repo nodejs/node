@@ -111,7 +111,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending a full line
+  // Sending a full line
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(

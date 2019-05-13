@@ -770,7 +770,7 @@ const arr = Array(101).fill(0);
 
 console.log(arr); // Logs the truncated array
 util.inspect.defaultOptions.maxArrayLength = null;
-console.log(arr); // logs the full array
+console.log(arr); // Logs the full array
 ```
 
 ## util.isDeepStrictEqual(val1, val2)

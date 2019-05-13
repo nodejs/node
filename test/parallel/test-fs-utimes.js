@@ -95,7 +95,7 @@ function runTests(iter) {
     fs.utimes('foobarbaz', atime, mtime, common.mustCall((err) => {
       expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
 
-      // don't close this fd
+      // Don't close this fd
       if (common.isWindows) {
         fd = fs.openSync(tmpdir.path, 'r+');
       } else {

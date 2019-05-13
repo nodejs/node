@@ -45,7 +45,7 @@ function parent() {
   });
 }
 
-// using console.error
+// Using console.error
 function child0() {
   console.error('child 0');
   console.error('foo');

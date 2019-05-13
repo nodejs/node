@@ -14,7 +14,7 @@ hooks.enable();
 if (!process.stdin.isTTY)
   return common.skip('no valid readable TTY available');
 
-// test specific setup
+// Test specific setup
 const checkInitOpts = { init: 1 };
 const checkEndedOpts = { init: 1, before: 1, after: 1, destroy: 1 };
 

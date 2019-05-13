@@ -80,7 +80,7 @@ domain name will be converted. Calling `punycode.toASCII()` on a string that
 already only contains ASCII characters will have no effect.
 
 ```js
-// encode domain names
+// Encode domain names
 punycode.toASCII('mañana.com');  // 'xn--maana-pta.com'
 punycode.toASCII('☃-⌘.com');   // 'xn----dqo34k.com'
 punycode.toASCII('example.com'); // 'example.com'
@@ -98,7 +98,7 @@ containing [Punycode][] encoded characters into Unicode. Only the [Punycode][]
 encoded parts of the domain name are be converted.
 
 ```js
-// decode domain names
+// Decode domain names
 punycode.toUnicode('xn--maana-pta.com'); // 'mañana.com'
 punycode.toUnicode('xn----dqo34k.com');  // '☃-⌘.com'
 punycode.toUnicode('example.com');       // 'example.com'

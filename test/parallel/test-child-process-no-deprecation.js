@@ -8,7 +8,7 @@ if (process.argv[2] === 'child') {
   // parent process
   const spawn = require('child_process').spawn;
 
-  // spawn self as child
+  // Spawn self as child
   const child = spawn(process.execPath, [process.argv[1], 'child']);
 
   child.stderr.on('data', common.mustNotCall());

@@ -27,6 +27,6 @@ if (!common.hasCrypto)
 
 const tls = require('tls');
 
-// neither should hang
+// Neither should hang
 tls.createSecurePair(null, false, false, false);
 tls.createSecurePair(null, true, false, false);

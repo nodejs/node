@@ -127,7 +127,7 @@ module.exports = http.createServer((req, res) => {
         });
       }
   }
-  // send body in chunks
+  // Send body in chunks
   if (n_chunks > 1) {
     const step = Math.floor(len / n_chunks) || 1;
     for (i = 0, n = (n_chunks - 1); i < n; ++i)

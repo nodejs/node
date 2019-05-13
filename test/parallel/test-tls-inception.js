@@ -54,7 +54,7 @@ const a = tls.createServer(options, function(socket) {
   });
 });
 
-// the "target" server
+// The "target" server
 const b = tls.createServer(options, function(socket) {
   socket.end(body);
 });
