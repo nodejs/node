@@ -26,9 +26,9 @@ server.listen(0, common.mustCall(function() {
     response.on('finish', common.mustCall(function() {
       server.close();
       process.nextTick(common.mustCall(() => {
-        common.expectsError(() => { response.writeHead(300); }, {
-          code: 'ERR_HTTP2_INVALID_STREAM'
-        });
+        // The stream is invalid at this point,
+        // and this line verifies this does not throw.
+        response.writeHead(300);
       }));
     }));
     response.end();
