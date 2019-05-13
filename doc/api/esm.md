@@ -426,7 +426,7 @@ cache, to avoid duplication. The same object will be returned in
 CommonJS if the JSON module has already been imported from the
 same path.
 
-Assuming an `index.js` with
+Assuming an `index.mjs` with
 
 <!-- eslint-skip -->
 ```js
@@ -437,8 +437,8 @@ The `--experimental-json-modules` flag is needed for the module
 to work.
 
 ```bash
-node --experimental-modules index.js # fails
-node --experimental-modules --experimental-json-modules index.js # works
+node --experimental-modules index.mjs # fails
+node --experimental-modules --experimental-json-modules index.mjs # works
 ```
 
 ## Experimental Loader hooks
