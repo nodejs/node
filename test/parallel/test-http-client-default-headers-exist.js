@@ -31,7 +31,8 @@ const expectedHeaders = {
   'HEAD': ['host', 'connection'],
   'OPTIONS': ['host', 'connection'],
   'POST': ['host', 'connection', 'content-length'],
-  'PUT': ['host', 'connection', 'content-length']
+  'PUT': ['host', 'connection', 'content-length'],
+  'TRACE': ['host', 'connection']
 };
 
 const expectedMethods = Object.keys(expectedHeaders);
