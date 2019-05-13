@@ -437,8 +437,8 @@ The `--experimental-json-modules` flag is needed for the module
 to work.
 
 ```bash
-node --experimental-modules --entry-type=module index.js # fails
-node --experimental-modules --entry-type=module --experimental-json-modules index.js # works
+node --experimental-modules index.js # fails
+node --experimental-modules --experimental-json-modules index.js # works
 ```
 
 ## Experimental Loader hooks
@@ -592,9 +592,6 @@ In the following algorithms, all subroutine errors are propagated as errors
 of these top-level routines.
 
 _isMain_ is **true** when resolving the Node.js application entry point.
-
-When using the `--entry-type` flag, it overrides the ESM_FORMAT result while
-providing errors in the case of explicit conflicts.
 
 <details>
 <summary>Resolver algorithm specification</summary>
