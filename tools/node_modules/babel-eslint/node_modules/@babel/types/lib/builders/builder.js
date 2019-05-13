@@ -42,7 +42,7 @@ function builder(type, ...args) {
     i++;
   });
 
-  for (const key in node) {
+  for (const key of Object.keys(node)) {
     (0, _validate.default)(node, key, node[key]);
   }
 

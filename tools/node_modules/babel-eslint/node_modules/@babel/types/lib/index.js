@@ -47,6 +47,7 @@ var _exportNames = {
   isLet: true,
   isNode: true,
   isNodesEquivalent: true,
+  isPlaceholderType: true,
   isReferenced: true,
   isScope: true,
   isSpecifierDefault: true,
@@ -310,6 +311,12 @@ Object.defineProperty(exports, "isNodesEquivalent", {
     return _isNodesEquivalent.default;
   }
 });
+Object.defineProperty(exports, "isPlaceholderType", {
+  enumerable: true,
+  get: function () {
+    return _isPlaceholderType.default;
+  }
+});
 Object.defineProperty(exports, "isReferenced", {
   enumerable: true,
   get: function () {
@@ -526,6 +533,8 @@ var _isLet = _interopRequireDefault(require("./validators/isLet"));
 var _isNode = _interopRequireDefault(require("./validators/isNode"));
 
 var _isNodesEquivalent = _interopRequireDefault(require("./validators/isNodesEquivalent"));
+
+var _isPlaceholderType = _interopRequireDefault(require("./validators/isPlaceholderType"));
 
 var _isReferenced = _interopRequireDefault(require("./validators/isReferenced"));
 

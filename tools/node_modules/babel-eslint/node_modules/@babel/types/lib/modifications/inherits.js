@@ -20,7 +20,7 @@ function inherits(child, parent) {
     }
   }
 
-  for (const key in parent) {
+  for (const key of Object.keys(parent)) {
     if (key[0] === "_" && key !== "__clone") child[key] = parent[key];
   }
 

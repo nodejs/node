@@ -54,7 +54,8 @@ function buildLiteralData(formatter, tpl, opts) {
       parser: opts.parser,
       placeholderWhitelist: new Set(result.names.concat(opts.placeholderWhitelist ? Array.from(opts.placeholderWhitelist) : [])),
       placeholderPattern: opts.placeholderPattern,
-      preserveComments: opts.preserveComments
+      preserveComments: opts.preserveComments,
+      syntacticPlaceholders: opts.syntacticPlaceholders
     });
   } while (metadata.placeholders.some(placeholder => placeholder.isDuplicate && nameSet.has(placeholder.name)));
 

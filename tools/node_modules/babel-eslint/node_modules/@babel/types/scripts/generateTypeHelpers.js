@@ -1,39 +1,29 @@
 "use strict";
-const fs = require("fs");
 const path = require("path");
 const chalk = require("chalk");
 const generateBuilders = require("./generators/generateBuilders");
 const generateValidators = require("./generators/generateValidators");
 const generateAsserts = require("./generators/generateAsserts");
 const generateConstants = require("./generators/generateConstants");
-const format = require("./utils/formatCode");
+const format = require("../../../scripts/utils/formatCode");
+const writeFile = require("../../../scripts/utils/writeFileAndMkDir");
 
 const baseDir = path.join(__dirname, "../src");
 
-function writeFile(content, location) {
-  const file = path.join(baseDir, location);
-
-  try {
-    fs.mkdirSync(path.dirname(file));
-  } catch (error) {
-    if (error.code !== "EEXIST") {
-      throw error;
-    }
-  }
-
-  fs.writeFileSync(file, format(content, file));
-}
-
 console.log("Generating @babel/types dynamic functions");
 
-writeFile(generateBuilders(), "builders/generated/index.js");
+const buildersFile = path.join(baseDir, "builders/generated/index.js");
+writeFile(buildersFile, format(generateBuilders(), buildersFile));
 console.log(`  ${chalk.green("✔")} Generated builders`);
 
-writeFile(generateValidators(), "validators/generated/index.js");
+const validatorsFile = path.join(baseDir, "validators/generated/index.js");
+writeFile(validatorsFile, format(generateValidators(), validatorsFile));
 console.log(`  ${chalk.green("✔")} Generated validators`);
 
-writeFile(generateAsserts(), "asserts/generated/index.js");
+const assertsFile = path.join(baseDir, "asserts/generated/index.js");
+writeFile(assertsFile, format(generateAsserts(), assertsFile));
 console.log(`  ${chalk.green("✔")} Generated asserts`);
 
-writeFile(generateConstants(), "constants/generated/index.js");
+const constantsFile = path.join(baseDir, "constants/generated/index.js");
+writeFile(constantsFile, format(generateConstants(), constantsFile));
 console.log(`  ${chalk.green("✔")} Generated constants`);

@@ -39,6 +39,24 @@ Object.defineProperty(exports, "DEPRECATED_KEYS", {
     return _utils.DEPRECATED_KEYS;
   }
 });
+Object.defineProperty(exports, "PLACEHOLDERS", {
+  enumerable: true,
+  get: function () {
+    return _placeholders.PLACEHOLDERS;
+  }
+});
+Object.defineProperty(exports, "PLACEHOLDERS_ALIAS", {
+  enumerable: true,
+  get: function () {
+    return _placeholders.PLACEHOLDERS_ALIAS;
+  }
+});
+Object.defineProperty(exports, "PLACEHOLDERS_FLIPPED_ALIAS", {
+  enumerable: true,
+  get: function () {
+    return _placeholders.PLACEHOLDERS_FLIPPED_ALIAS;
+  }
+});
 exports.TYPES = void 0;
 
 function _toFastProperties() {
@@ -67,6 +85,8 @@ require("./typescript");
 
 var _utils = require("./utils");
 
+var _placeholders = require("./placeholders");
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 (0, _toFastProperties().default)(_utils.VISITOR_KEYS);
@@ -75,5 +95,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 (0, _toFastProperties().default)(_utils.NODE_FIELDS);
 (0, _toFastProperties().default)(_utils.BUILDER_KEYS);
 (0, _toFastProperties().default)(_utils.DEPRECATED_KEYS);
+(0, _toFastProperties().default)(_placeholders.PLACEHOLDERS_ALIAS);
+(0, _toFastProperties().default)(_placeholders.PLACEHOLDERS_FLIPPED_ALIAS);
 const TYPES = Object.keys(_utils.VISITOR_KEYS).concat(Object.keys(_utils.FLIPPED_ALIAS_KEYS)).concat(Object.keys(_utils.DEPRECATED_KEYS));
 exports.TYPES = TYPES;

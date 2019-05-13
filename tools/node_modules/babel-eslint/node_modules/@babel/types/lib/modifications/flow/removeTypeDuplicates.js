@@ -62,11 +62,11 @@ function removeTypeDuplicates(nodes) {
     types.push(node);
   }
 
-  for (const type in bases) {
+  for (const type of Object.keys(bases)) {
     types.push(bases[type]);
   }
 
-  for (const name in generics) {
+  for (const name of Object.keys(generics)) {
     types.push(generics[name]);
   }
 
