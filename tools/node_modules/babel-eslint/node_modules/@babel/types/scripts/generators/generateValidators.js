@@ -1,14 +1,37 @@
 "use strict";
 const definitions = require("../../lib/definitions");
 
+const has = Function.call.bind(Object.prototype.hasOwnProperty);
+
+function joinComparisons(leftArr, right) {
+  return (
+    leftArr.map(JSON.stringify).join(` === ${right} || `) + ` === ${right}`
+  );
+}
+
 function addIsHelper(type, aliasKeys, deprecated) {
   const targetType = JSON.stringify(type);
   let aliasSource = "";
   if (aliasKeys) {
-    aliasSource =
-      " || " +
-      aliasKeys.map(JSON.stringify).join(" === nodeType || ") +
-      " === nodeType";
+    aliasSource = " || " + joinComparisons(aliasKeys, "nodeType");
+  }
+
+  let placeholderSource = "";
+  const placeholderTypes = [];
+  if (
+    definitions.PLACEHOLDERS.includes(type) &&
+    has(definitions.FLIPPED_ALIAS_KEYS, type)
+  ) {
+    placeholderTypes.push(type);
+  }
+  if (has(definitions.PLACEHOLDERS_FLIPPED_ALIAS, type)) {
+    placeholderTypes.push(...definitions.PLACEHOLDERS_FLIPPED_ALIAS[type]);
+  }
+  if (placeholderTypes.length > 0) {
+    placeholderSource =
+      ' || nodeType === "Placeholder" && (' +
+      joinComparisons(placeholderTypes, "node.expectedNode") +
+      ")";
   }
 
   return `export function is${type}(node: ?Object, opts?: Object): boolean {
@@ -16,7 +39,7 @@ function addIsHelper(type, aliasKeys, deprecated) {
     if (!node) return false;
 
     const nodeType = node.type;
-    if (nodeType === ${targetType}${aliasSource}) {
+    if (nodeType === ${targetType}${aliasSource}${placeholderSource}) {
       if (typeof opts === "undefined") {
         return true;
       } else {

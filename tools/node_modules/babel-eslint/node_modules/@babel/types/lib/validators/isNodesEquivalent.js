@@ -24,6 +24,12 @@ function isNodesEquivalent(a, b) {
       return false;
     }
 
+    if (a[field] == null && b[field] == null) {
+      continue;
+    } else if (a[field] == null || b[field] == null) {
+      return false;
+    }
+
     if (Array.isArray(a[field])) {
       if (!Array.isArray(b[field])) {
         return false;
@@ -43,7 +49,7 @@ function isNodesEquivalent(a, b) {
     }
 
     if (typeof a[field] === "object" && (!visitorKeys || !visitorKeys.includes(field))) {
-      for (const key in a[field]) {
+      for (const key of Object.keys(a[field])) {
         if (a[field][key] !== b[field][key]) {
           return false;
         }

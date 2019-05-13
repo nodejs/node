@@ -47,7 +47,7 @@ function splitExportDeclaration(exportDeclaration) {
     exportDeclaration.replaceWith(updatedDeclaration);
 
     if (needBindingRegistration) {
-      scope.registerBinding(isClassDeclaration ? "let" : "var", exportDeclaration);
+      scope.registerDeclaration(exportDeclaration);
     }
 
     return exportDeclaration;

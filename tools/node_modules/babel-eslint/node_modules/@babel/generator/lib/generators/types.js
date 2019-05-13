@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.Identifier = Identifier;
+exports.ArgumentPlaceholder = ArgumentPlaceholder;
 exports.SpreadElement = exports.RestElement = RestElement;
 exports.ObjectPattern = exports.ObjectExpression = ObjectExpression;
 exports.ObjectMethod = ObjectMethod;
@@ -47,6 +48,10 @@ function Identifier(node) {
   this.exactSource(node.loc, () => {
     this.word(node.name);
   });
+}
+
+function ArgumentPlaceholder() {
+  this.token("?");
 }
 
 function RestElement(node) {

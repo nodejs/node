@@ -192,7 +192,7 @@ function defineType(type, opts = {}) {
     fields[key] = fields[key] || {};
   }
 
-  for (const key in fields) {
+  for (const key of Object.keys(fields)) {
     const field = fields[key];
 
     if (builder.indexOf(key) === -1) {

@@ -13,13 +13,15 @@ function merge(a, b) {
   const {
     placeholderWhitelist = a.placeholderWhitelist,
     placeholderPattern = a.placeholderPattern,
-    preserveComments = a.preserveComments
+    preserveComments = a.preserveComments,
+    syntacticPlaceholders = a.syntacticPlaceholders
   } = b;
   return {
     parser: Object.assign({}, a.parser, b.parser),
     placeholderWhitelist,
     placeholderPattern,
-    preserveComments
+    preserveComments,
+    syntacticPlaceholders
   };
 }
 
@@ -32,9 +34,10 @@ function validate(opts) {
         {
     placeholderWhitelist,
     placeholderPattern,
-    preserveComments
+    preserveComments,
+    syntacticPlaceholders
   } = _ref,
-        parser = _objectWithoutPropertiesLoose(_ref, ["placeholderWhitelist", "placeholderPattern", "preserveComments"]);
+        parser = _objectWithoutPropertiesLoose(_ref, ["placeholderWhitelist", "placeholderPattern", "preserveComments", "syntacticPlaceholders"]);
 
   if (placeholderWhitelist != null && !(placeholderWhitelist instanceof Set)) {
     throw new Error("'.placeholderWhitelist' must be a Set, null, or undefined");
@@ -48,11 +51,20 @@ function validate(opts) {
     throw new Error("'.preserveComments' must be a boolean, null, or undefined");
   }
 
+  if (syntacticPlaceholders != null && typeof syntacticPlaceholders !== "boolean") {
+    throw new Error("'.syntacticPlaceholders' must be a boolean, null, or undefined");
+  }
+
+  if (syntacticPlaceholders === true && (placeholderWhitelist != null || placeholderPattern != null)) {
+    throw new Error("'.placeholderWhitelist' and '.placeholderPattern' aren't compatible" + " with '.syntacticPlaceholders: true'");
+  }
+
   return {
     parser,
     placeholderWhitelist: placeholderWhitelist || undefined,
     placeholderPattern: placeholderPattern == null ? undefined : placeholderPattern,
-    preserveComments: preserveComments == null ? false : preserveComments
+    preserveComments: preserveComments == null ? false : preserveComments,
+    syntacticPlaceholders: syntacticPlaceholders == null ? undefined : syntacticPlaceholders
   };
 }
 

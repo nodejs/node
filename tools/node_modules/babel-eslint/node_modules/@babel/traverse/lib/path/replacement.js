@@ -57,7 +57,7 @@ const hoistVariablesVisitor = {
     if (path.node.kind !== "var") return;
     const bindings = path.getBindingIdentifiers();
 
-    for (const key in bindings) {
+    for (const key of Object.keys(bindings)) {
       path.scope.push({
         id: bindings[key]
       });

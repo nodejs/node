@@ -21,6 +21,7 @@
 		"Float32Array": false,
 		"Float64Array": false,
 		"Function": false,
+		"globalThis": false,
 		"hasOwnProperty": false,
 		"Infinity": false,
 		"Int16Array": false,
