@@ -3,7 +3,7 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 // Test that read-only process.env access is considered to have no
-// side-effects by the insepctor.
+// side-effects by the inspector.
 
 const assert = require('assert');
 const inspector = require('inspector');
