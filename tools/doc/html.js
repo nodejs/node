@@ -400,7 +400,7 @@ function altDocs(filename, docCreated) {
     { num: '9.x' },
     { num: '8.x', lts: true },
     { num: '7.x' },
-    { num: '6.x', lts: true },
+    { num: '6.x' },
     { num: '5.x' },
     { num: '4.x' },
     { num: '0.12.x' },
