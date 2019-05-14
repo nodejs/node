@@ -102,6 +102,7 @@ class EnvironmentOptions : public Options {
   bool frozen_intrinsics = false;
   std::string heap_snapshot_signal;
   std::string http_parser = "llhttp";
+  uint64_t http_server_default_timeout = 120000;
   bool no_deprecation = false;
   bool no_force_async_hooks_checks = false;
   bool no_warnings = false;

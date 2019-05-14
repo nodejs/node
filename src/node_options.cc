@@ -308,6 +308,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "(default: llhttp).",
             &EnvironmentOptions::http_parser,
             kAllowedInEnvironment);
+  AddOption("--http-server-default-timeout",
+            "Default http server socket timeout in ms "
+            "(default: 120000)",
+            &EnvironmentOptions::http_server_default_timeout,
+            kAllowedInEnvironment);
   AddOption("--input-type",
             "set module type for string input",
             &EnvironmentOptions::module_type,

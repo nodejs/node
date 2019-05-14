@@ -1030,6 +1030,9 @@ By default, the Server's timeout value is 2 minutes, and sockets are
 destroyed automatically if they time out. However, if a callback is assigned
 to the Server's `'timeout'` event, timeouts must be handled explicitly.
 
+To change the default timeout use the [`--http-server-default-timeout`][]
+flag.
+
 ### server.timeout
 <!-- YAML
 added: v0.9.12
@@ -1044,6 +1047,9 @@ A value of `0` will disable the timeout behavior on incoming connections.
 
 The socket timeout logic is set up on connection, so changing this
 value only affects new connections to the server, not any existing connections.
+
+To change the default timeout use the [`--http-server-default-timeout`][]
+flag.
 
 ### server.keepAliveTimeout
 <!-- YAML
@@ -2150,6 +2156,7 @@ will be emitted in the following order:
 Note that setting the `timeout` option or using the `setTimeout()` function will
 not abort the request or do anything besides add a `'timeout'` event.
 
+[`--http-server-default-timeout`]: cli.html#cli_http_server_default_timeout_milliseconds
 [`--max-http-header-size`]: cli.html#cli_max_http_header_size_size
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'request'`]: #http_event_request
