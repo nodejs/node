@@ -463,8 +463,6 @@ For information about the governance of the Node.js project, see
 **Daijiro Wachi** &lt;daijiro.wachi@gmail.com&gt; (he/him)
 * [watson](https://github.com/watson) -
 **Thomas Watson** &lt;w@tson.dk&gt;
-* [whitlockjc](https://github.com/whitlockjc) -
-**Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
 * [XadillaX](https://github.com/XadillaX) -
 **Khaidi Chu** &lt;i@2333.moe&gt; (he/him)
 * [yhwang](https://github.com/yhwang) -
@@ -530,6 +528,8 @@ For information about the governance of the Node.js project, see
 **Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 * [vsemozhetbyt](https://github.com/vsemozhetbyt) -
 **Vse Mozhet Byt** &lt;vsemozhetbyt@gmail.com&gt; (he/him)
+* [whitlockjc](https://github.com/whitlockjc) -
+**Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the Node.js project.
