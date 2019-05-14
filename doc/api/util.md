@@ -520,6 +520,24 @@ util.inspect(new Bar()); // 'Bar {}'
 util.inspect(baz);       // '[foo] {}'
 ```
 
+Circular references are marked as `'[Circular]'`:
+
+```js
+const { inspect } = require('util');
+
+const obj = {};
+obj.a = [obj];
+obj.b = {};
+obj.b.inner = obj.b;
+obj.b.obj = obj;
+
+console.log(inspect(obj));
+// {
+//   a: [ [Circular] ],
+//   b: { inner: [Circular], obj: [Circular] }
+// }
+```
+
 The following example inspects all properties of the `util` object:
 
 ```js
@@ -542,8 +560,6 @@ const o = {
   b: new Map([['za', 1], ['zb', 'test']])
 };
 console.log(util.inspect(o, { compact: true, depth: 5, breakLength: 80 }));
-
-// This will print
 
 // { a:
 //   [ 1,

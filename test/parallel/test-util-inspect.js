@@ -1049,12 +1049,29 @@ if (typeof Symbol !== 'undefined') {
 {
   const map = new Map();
   map.set(map, 'map');
-  assert.strictEqual(util.inspect(map), "Map { [Circular] => 'map' }");
+  assert.strictEqual(inspect(map), "Map { [Circular] => 'map' }");
   map.set(map, map);
-  assert.strictEqual(util.inspect(map), 'Map { [Circular] => [Circular] }');
+  assert.strictEqual(
+    inspect(map),
+    'Map { [Circular] => [Circular] }'
+  );
   map.delete(map);
   map.set('map', map);
-  assert.strictEqual(util.inspect(map), "Map { 'map' => [Circular] }");
+  assert.strictEqual(inspect(map), "Map { 'map' => [Circular] }");
+}
+
+// Test multiple circular references.
+{
+  const obj = {};
+  obj.a = [obj];
+  obj.b = {};
+  obj.b.inner = obj.b;
+  obj.b.obj = obj;
+
+  assert.strictEqual(
+    inspect(obj),
+    '{ a: [ [Circular] ], b: { inner: [Circular], obj: [Circular] } }'
+  );
 }
 
 // Test Promise.
@@ -1252,6 +1269,8 @@ if (typeof Symbol !== 'undefined') {
   arr[0][0][0] = { a: 2 };
   assert.strictEqual(util.inspect(arr), '[ [ [ [Object] ] ] ]');
   arr[0][0][0] = arr;
+  assert.strictEqual(util.inspect(arr), '[ [ [ [Circular] ] ] ]');
+  arr[0][0][0] = arr[0][0];
   assert.strictEqual(util.inspect(arr), '[ [ [ [Circular] ] ] ]');
 }
 
