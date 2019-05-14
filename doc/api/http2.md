@@ -1723,6 +1723,9 @@ The `'timeout'` event is emitted when there is no activity on the Server for
 a given number of milliseconds set using `http2server.setTimeout()`.
 **Default:** 2 minutes.
 
+To change the default timeout use the [`--http-server-default-timeout`][]
+flag.
+
 #### server.close([callback])
 <!-- YAML
 added: v8.4.0
@@ -1752,6 +1755,9 @@ The given callback is registered as a listener on the `'timeout'` event.
 
 In case of no callback function were assigned, a new `ERR_INVALID_CALLBACK`
 error will be thrown.
+
+To change the default timeout use the [`--http-server-default-timeout`][]
+flag.
 
 ### Class: Http2SecureServer
 <!-- YAML
@@ -3411,6 +3417,7 @@ following additional properties:
 * `type` {string} Either `'server'` or `'client'` to identify the type of
   `Http2Session`.
 
+[`--http-server-default-timeout`]: cli.html#cli_http_server_default_timeout_milliseconds
 [ALPN Protocol ID]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
 [ALPN negotiation]: #http2_alpn_negotiation
 [Compatibility API]: #http2_compatibility_api

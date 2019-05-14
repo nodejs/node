@@ -102,6 +102,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_worker,
             kAllowedInEnvironment);
   AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
+  AddOption("--http-server-default-timeout",
+            "Default http server socket timeout in ms "
+            "(default: 120000)",
+            &EnvironmentOptions::http_server_default_timeout,
+            kAllowedInEnvironment);
   AddOption("--loader",
             "(with --experimental-modules) use the specified file as a "
             "custom loader",

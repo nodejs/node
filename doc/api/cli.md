@@ -119,6 +119,17 @@ added: v6.0.0
 Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 (Same requirements as `--enable-fips`.)
 
+### `--http-server-default-timeout=milliseconds`
+<!-- YAML
+added: REPLACEME
+-->
+
+Overrides the default value of `http`, `https` and `http2` server socket
+timeout. Setting the value to 0 disables server socket timeout. Unless
+provided, http server sockets timeout after 120s (2 minutes). Programmatic
+setting of the timeout takes precedence over the value set through this
+flag.
+
 ### `--icu-data-dir=file`
 <!-- YAML
 added: v0.11.15
@@ -590,6 +601,7 @@ Node.js options that are allowed are:
 - `--experimental-vm-modules`
 - `--experimental-worker`
 - `--force-fips`
+- `--http-server-default-timeout`
 - `--icu-data-dir`
 - `--inspect`
 - `--inspect-brk`

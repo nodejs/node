@@ -72,6 +72,7 @@ class EnvironmentOptions : public Options {
   bool experimental_vm_modules = false;
   bool experimental_worker = false;
   bool expose_internals = false;
+  uint64_t http_server_default_timeout = 120000;
   bool no_deprecation = false;
   bool no_force_async_hooks_checks = false;
   bool no_warnings = false;
