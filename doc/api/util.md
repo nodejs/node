@@ -391,6 +391,9 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27685
+    description: Circular references now include a marker to the reference.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27109
     description: The `compact` options default is changed to `3` and the
@@ -513,6 +516,24 @@ util.inspect(new Bar()); // 'Bar {}'
 util.inspect(baz);       // '[foo] {}'
 ```
 
+Circular references point to their anchor by using a reference index:
+
+```js
+const { inspect } = require('util');
+
+const obj = {};
+obj.a = [obj];
+obj.b = {};
+obj.b.inner = obj.b;
+obj.b.obj = obj;
+
+console.log(inspect(obj));
+// <ref *1> {
+//   a: [ [Circular *1] ],
+//   b: <ref *2> { inner: [Circular *2], obj: [Circular *1] }
+// }
+```
+
 The following example inspects all properties of the `util` object:
 
 ```js
@@ -535,8 +556,6 @@ const o = {
   b: new Map([['za', 1], ['zb', 'test']])
 };
 console.log(util.inspect(o, { compact: true, depth: 5, breakLength: 80 }));
-
-// This will print
 
 // { a:
 //   [ 1,
