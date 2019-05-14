@@ -1,0 +1,71 @@
+.TH "NPM\-DEDUPE" "1" "April 2019" "" ""
+.SH "NAME"
+\fBnpm-dedupe\fR \- Reduce duplication
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm dedupe
+npm ddp
+
+aliases: find\-dupes, ddp
+.fi
+.RE
+.SH DESCRIPTION
+.P
+Searches the local package tree and attempts to simplify the overall
+structure by moving dependencies further up the tree, where they can
+be more effectively shared by multiple dependent packages\.
+.P
+For example, consider this dependency graph:
+.P
+.RS 2
+.nf
+a
++\-\- b <\-\- depends on c@1\.0\.x
+|   `\-\- c@1\.0\.3
+`\-\- d <\-\- depends on c@~1\.0\.9
+    `\-\- c@1\.0\.10
+.fi
+.RE
+.P
+In this case, npm help \fBnpm\-dedupe\fP will transform the tree to:
+.P
+.RS 2
+.nf
+a
++\-\- b
++\-\- d
+`\-\- c@1\.0\.10
+.fi
+.RE
+.P
+Because of the hierarchical nature of node's module lookup, b and d
+will both get their dependency met by the single c package at the root
+level of the tree\.
+.P
+The deduplication algorithm walks the tree, moving each dependency as far
+up in the tree as possible, even if duplicates are not found\. This will
+result in both a flat and deduplicated tree\.
+.P
+If a suitable version exists at the target location in the tree
+already, then it will be left untouched, but the other duplicates will
+be deleted\.
+.P
+Arguments are ignored\. Dedupe always acts on the entire tree\.
+.P
+Modules
+.P
+Note that this operation transforms the dependency tree, but will never
+result in new modules being installed\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help ls
+.IP \(bu 2
+npm help update
+.IP \(bu 2
+npm help install
+
+.RE
+

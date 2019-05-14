@@ -1,0 +1,24 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+group("v8_test262") {
+  testonly = true
+
+  data_deps = [
+    "../..:d8",
+    "../../tools:v8_testrunner",
+  ]
+
+  data = [
+    "data/",
+    "detachArrayBuffer.js",
+    "harness/",
+    "harness-adapt.js",
+    "harness-adapt-donotevaluate.js",
+    "harness-agent.js",
+    "test262.status",
+    "testcfg.py",
+    "local-tests/",
+  ]
+}

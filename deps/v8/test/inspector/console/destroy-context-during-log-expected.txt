@@ -1,0 +1,9 @@
+Tests that destroying context from inside of console.log does not crash
+{
+    type : string
+    value : First inspector activity after attaching inspector
+}
+{
+    type : string
+    value : End of test
+}

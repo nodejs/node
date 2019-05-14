@@ -1,0 +1,73 @@
+{
+  "_from": "dotenv@^5.0.1",
+  "_id": "dotenv@5.0.1",
+  "_inBundle": false,
+  "_integrity": "sha512-4As8uPrjfwb7VXC+WnLCbXK7y+Ueb2B3zgNCePYfhxS1PYeaO1YTeplffTEcbfLhvFNGLAz90VvJs9yomG7bow==",
+  "_location": "/dotenv",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "dotenv@^5.0.1",
+    "name": "dotenv",
+    "escapedName": "dotenv",
+    "rawSpec": "^5.0.1",
+    "saveSpec": null,
+    "fetchSpec": "^5.0.1"
+  },
+  "_requiredBy": [
+    "/libnpx"
+  ],
+  "_resolved": "https://registry.npmjs.org/dotenv/-/dotenv-5.0.1.tgz",
+  "_shasum": "a5317459bd3d79ab88cff6e44057a6a3fbb1fcef",
+  "_spec": "dotenv@^5.0.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/libnpx",
+  "author": {
+    "name": "scottmotte"
+  },
+  "bugs": {
+    "url": "https://github.com/motdotla/dotenv/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Loads environment variables from .env file",
+  "devDependencies": {
+    "babel": "5.8.23",
+    "coveralls": "^2.11.9",
+    "lab": "^14.3.2",
+    "should": "11.1.1",
+    "sinon": "1.17.6",
+    "standard": "8.4.0",
+    "standard-markdown": "2.2.0"
+  },
+  "engines": {
+    "node": ">=4.6.0"
+  },
+  "homepage": "https://github.com/motdotla/dotenv#readme",
+  "keywords": [
+    "dotenv",
+    "env",
+    ".env",
+    "environment",
+    "variables",
+    "config",
+    "settings"
+  ],
+  "license": "BSD-2-Clause",
+  "main": "lib/main.js",
+  "name": "dotenv",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/motdotla/dotenv.git"
+  },
+  "scripts": {
+    "ci:coverage": "lab test/* -r lcov | coveralls",
+    "lint": "standard",
+    "lint-md": "standard-markdown",
+    "postlint": "npm run lint-md",
+    "pretest": "npm run lint",
+    "test": "lab"
+  },
+  "version": "5.0.1"
+}

@@ -1,0 +1,17 @@
+Checks that inspector collects old faied to parse anonymous scripts.
+Generate 1000 scriptFailedToParse events
+error:0
+success:1000
+Generate three scriptFailedToParse event for non anonymous script
+error:0
+success:1003
+Generate one more scriptFailedToParse event for anonymous script
+error:100
+success:904
+Check that latest script is still available
+{
+    id : <messageId>
+    result : {
+        scriptSource : }
+    }
+}

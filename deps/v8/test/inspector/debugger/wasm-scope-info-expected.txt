@@ -1,0 +1,252 @@
+Test retrieving scope information when pausing in wasm functions
+Installing code and global variable.
+Calling instantiate function.
+Waiting for wasm script to be parsed.
+Got wasm script!
+Setting breakpoint on line 2 (first instruction)
+{
+    columnNumber : 2
+    lineNumber : 2
+    scriptId : <scriptId>
+}
+Paused:
+(local i32 i64 f64)
+  #i32.const 11
+  set_local 0
+
+Scope:
+at func (2:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 4 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  i32.const 11
+  #set_local 0
+  i32.const 47
+
+Scope:
+at func (3:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 4 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
+   stack: "0": 11 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  set_local 0
+  #i32.const 47
+  set_local 1
+
+Scope:
+at func (4:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  i32.const 47
+  #set_local 1
+  i64.const 9223372036854775807
+
+Scope:
+at func (5:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
+   stack: "0": 47 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  set_local 1
+  #i64.const 9223372036854775807
+  set_local 2
+
+Scope:
+at func (6:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  i64.const 9223372036854775807
+  #set_local 2
+  i64.const -9223372036854775808
+
+Scope:
+at func (7:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
+   stack: "0": 9223372036854775807 (string)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  set_local 2
+  #i64.const -9223372036854775808
+  set_local 2
+
+Scope:
+at func (8:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 9223372036854775807 (string), "unicode☼f64": 0 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  i64.const -9223372036854775808
+  #set_local 2
+  i32.const 1
+
+Scope:
+at func (9:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 9223372036854775807 (string), "unicode☼f64": 0 (number)
+   stack: "0": -9223372036854775808 (string)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  set_local 2
+  #i32.const 1
+  f64.convert_u/i32
+
+Scope:
+at func (10:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  i32.const 1
+  #f64.convert_u/i32
+  i32.const 7
+
+Scope:
+at func (11:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
+   stack: "0": 1 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  f64.convert_u/i32
+  #i32.const 7
+  f64.convert_u/i32
+
+Scope:
+at func (12:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
+   stack: "0": 1 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  i32.const 7
+  #f64.convert_u/i32
+  f64.div
+
+Scope:
+at func (13:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
+   stack: "0": 1 (number), "1": 7 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  f64.convert_u/i32
+  #f64.div
+  set_local 3
+
+Scope:
+at func (14:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
+   stack: "0": 1 (number), "1": 7 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  f64.div
+  #set_local 3
+end
+
+Scope:
+at func (15:2):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
+   stack: "0": 0.14285714285714285 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  set_local 3
+#end
+
+
+Scope:
+at func (16:0):
+ - scope (global):
+   -- skipped globals
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+exports.main returned. Test finished.

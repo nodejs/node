@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html>
+  <!--
+  Copyright 2017 the V8 project authors. All rights reserved.  Use of this source
+  code is governed by a BSD-style license that can be found in the LICENSE file.
+  -->
+<head>
+<meta charset="utf-8">
+<style>
+html, body {
+  font-family: sans-serif;
+  padding: 0px;
+  margin: 0px;
+}
+h1, h2, h3, section {
+  padding-left: 15px;
+}
+
+#content {
+  opacity: 0.0;
+  height: 0px;
+  transition: all 0.5s ease-in-out;
+}
+
+.success #content {
+  height: auto;
+  opacity: 1.0;
+}
+
+#fileReader {
+  width: 100%;
+  height: 100px;
+  line-height: 100px;
+  text-align: center;
+  border: solid 1px #000000;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.5s ease-in-out;
+}
+
+.failure #fileReader {
+  background-color: #FFAAAA;
+}
+
+.success #fileReader {
+    height: 20px;
+    line-height: 20px;
+}
+
+#fileReader:hover {
+  background-color: #e0edfe;
+}
+
+.loading #fileReader {
+  cursor: wait;
+}
+
+#fileReader > input {
+  display: none;
+}
+
+
+#loader {
+  display: none;
+}
+
+.loading #loader {
+  display: block;
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+#spinner {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  top: 40%;
+  left: 50%;
+  margin-left: -50px;
+  border: 30px solid #000;
+  border-top: 30px solid #36E;
+  border-radius: 50%;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.colorbox {
+  width: 10px;
+  height: 10px;
+  border: 1px black solid;
+}
+
+#stats table {
+  display: inline-block;
+  padding-right: 50px;
+}
+#stats table td {
+  cursor: pointer;
+}
+#stats .transitionTable {
+  max-height: 200px;
+  overflow-y: scroll;
+}
+#timeline {
+  position: relative;
+  height: 300px;
+  overflow-y: hidden;
+  overflow-x: scroll;
+  user-select: none;
+}
+#timelineLabel {
+  transform: rotate(90deg);
+  transform-origin: left bottom 0;
+  position: absolute;
+  left: 0;
+  width: 250px;
+  text-align: center;
+  font-size: 10px;
+  opacity: 0.5;
+}
+#timelineChunks {
+  height: 250px;
+  position: absolute;
+  margin-right: 100px;
+}
+#timelineCanvas {
+  height: 250px;
+  position: relative;
+  overflow: visible;
+  pointer-events: none;
+}
+.chunk {
+  width: 6px;
+  border: 0px white solid;
+  border-width: 0 2px 0 2px;
+  position: absolute;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  bottom: 0px;
+}
+.timestamp {
+  height: 250px;
+  width: 100px;
+  border-left: 1px black dashed;
+  padding-left: 4px;
+  position: absolute;
+  pointer-events: none;
+  font-size: 10px;
+  opacity: 0.5;
+}
+#timelineOverview {
+  width: 100%;
+  height: 50px;
+  position: relative;
+  margin-top: -50px;
+  margin-bottom: 10px;
+  background-size: 100% 100%;
+  border: 1px black solid;
+  border-width: 1px 0 1px 0;
+  overflow: hidden;
+}
+#timelineOverviewIndicator {
+  height: 100%;
+  position: absolute;
+  box-shadow: 0px 2px 20px -5px black inset;
+  top: 0px;
+  cursor: ew-resize;
+}
+#timelineOverviewIndicator .leftMask,
+#timelineOverviewIndicator .rightMask {
+  background-color: rgba(200, 200, 200, 0.5);
+  width: 10000px;
+  height: 100%;
+  position: absolute;
+  top: 0px;
+}
+#timelineOverviewIndicator .leftMask {
+  right: 100%;
+}
+#timelineOverviewIndicator .rightMask {
+  left: 100%;
+}
+#mapDetails {
+  font-family: monospace;
+  white-space: pre;
+}
+#transitionView {
+  overflow-x: scroll;
+  white-space: nowrap;
+  min-height: 50px;
+  max-height: 200px;
+  padding: 50px 0 0 0;
+  margin-top: -25px;
+  width: 100%;
+}
+.map {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  border-radius: 50%;
+  background-color: black;
+  border: 4px solid white;
+  font-size: 10px;
+  text-align: center;
+  line-height: 18px;
+  color: white;
+  vertical-align: top;
+  margin-top: -13px;
+  /* raise z-index */
+  position: relative;
+  z-index: 2;
+  cursor: pointer;
+}
+.map.selected {
+  border-color: black;
+}
+.transitions {
+  display: inline-block;
+  margin-left: -15px;
+}
+.transition {
+  min-height: 55px;
+  margin: 0 0 -2px 2px;
+}
+/* gray out deprecated transitions */
+.deprecated > .transitionEdge,
+.deprecated > .map {
+  opacity: 0.5;
+}
+.deprecated > .transition {
+  border-color: rgba(0, 0, 0, 0.5);
+}
+/* Show a border for all but the first transition */
+.transition:nth-of-type(2),
+.transition:nth-last-of-type(n+2) {
+  border-left: 2px solid;
+  margin-left: 0px;
+}
+/* special case for 2 transitions */
+.transition:nth-last-of-type(1) {
+  border-left: none;
+}
+/* topmost transitions are not related */
+#transitionView > .transition {
+  border-left: none;
+}
+/* topmost transition edge needs initial offset to be aligned */
+#transitionView > .transition  > .transitionEdge {
+  margin-left: 13px;
+}
+.transitionEdge {
+  height: 2px;
+  width: 80px;
+  display: inline-block;
+  margin: 0 0 2px 0;
+  background-color: black;
+  vertical-align: top;
+  padding-left: 15px;
+}
+.transitionLabel {
+  color: black;
+  transform: rotate(-15deg);
+  transform-origin: top left;
+  margin-top: -10px;
+  font-size: 10px;
+  white-space: normal;
+  word-break: break-all;
+  background-color: rgba(255,255,255,0.5);
+}
+.black{
+  background-color: black;
+}
+.red {
+  background-color: red;
+}
+.green {
+  background-color: green;
+}
+.yellow {
+  background-color: yellow;
+  color: black;
+}
+.blue {
+  background-color: blue;
+}
+.orange {
+  background-color: orange;
+}
+.violet {
+  background-color: violet;
+  color: black;
+}
+.showSubtransitions {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 10px solid black;
+  cursor: zoom-in;
+  margin: 4px 0 0 4px;
+}
+.showSubtransitions.opened {
+  border-top: none;
+  border-bottom: 10px solid black;
+  cursor: zoom-out;
+}
+#tooltip {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: red;
+  pointer-events: none;
+  z-index: 100;
+  display: none;
+}
+</style>
+<script src="./splaytree.js"></script>
+<script src="./codemap.js"></script>
+<script src="./csvparser.js"></script>
+<script src="./consarray.js"></script>
+<script src="./profile.js"></script>
+<script src="./profile_view.js"></script>
+<script src="./logreader.js"></script>
+<script src="./SourceMap.js"></script>
+<script src="./arguments.js"></script>
+<script src="./map-processor.js"></script>
+<script>
+"use strict"
+// =========================================================================
+const kChunkHeight = 250;
+const kChunkWidth = 10;
+
+class State {
+  constructor() {
+    this._nofChunks = 400;
+    this._map = undefined;
+    this._timeline = undefined;
+    this._chunks = undefined;
+    this._view = new View(this);
+    this._navigation = new Navigation(this, this.view);
+  }
+  get timeline() { return this._timeline }
+  set timeline(value) {
+    this._timeline = value;
+    this.updateChunks();
+    this.view.updateTimeline();
+    this.view.updateStats();
+  }
+  get chunks() { return this._chunks }
+  get nofChunks() { return this._nofChunks }
+  set nofChunks(count) {
+    this._nofChunks = count;
+    this.updateChunks();
+    this.view.updateTimeline();
+  }
+  get view() { return this._view }
+  get navigation() { return this._navigation }
+  get map() { return this._map }
+  set map(value) {
+    this._map = value;
+    this._navigation.updateUrl();
+    this.view.updateMapDetails();
+    this.view.redraw();
+  }
+  updateChunks() {
+    this._chunks = this._timeline.chunks(this._nofChunks);
+  }
+  get entries() {
+    if (!this.map) return {};
+    return {
+      map: this.map.id,
+      time: this.map.time
+    }
+  }
+}
+
+// =========================================================================
+// DOM Helper
+function $(id) {
+  return document.getElementById(id)
+}
+
+function removeAllChildren(node) {
+  while (node.lastChild) {
+    node.removeChild(node.lastChild);
+  }
+}
+
+function selectOption(select, match) {
+  let options = select.options;
+  for (let i = 0; i < options.length; i++) {
+    if (match(i, options[i])) {
+      select.selectedIndex = i;
+      return;
+    }
+  }
+}
+
+function div(classes) {
+  let node = document.createElement('div');
+  if (classes !== void 0) {
+    if (typeof classes === "string") {
+      node.classList.add(classes);
+    } else {
+      classes.forEach(cls => node.classList.add(cls));
+    }
+  }
+  return node;
+}
+
+function table(className) {
+  let node = document.createElement("table")
+  if (className) node.classList.add(className)
+  return node;
+}
+
+function td(textOrNode) {
+  let node = document.createElement("td");
+  if (typeof textOrNode === "object") {
+    node.appendChild(textOrNode);
+  } else {
+    node.innerText = textOrNode;
+  }
+  return node;
+}
+
+function tr() {
+  let node = document.createElement("tr");
+  return node;
+}
+
+function define(prototype, name, fn) {
+  Object.defineProperty(prototype, name, {value:fn, enumerable:false});
+}
+
+define(Array.prototype, "max", function(fn) {
+  if (this.length == 0) return undefined;
+  if (fn == undefined) fn = (each) => each;
+  let max = fn(this[0]);
+  for (let i = 1; i < this.length; i++) {
+    max = Math.max(max, fn(this[i]));
+  }
+  return max;
+})
+define(Array.prototype, "histogram", function(mapFn) {
+  let histogram = [];
+  for (let i = 0; i < this.length; i++) {
+    let value = this[i];
+    let index = Math.round(mapFn(value))
+    let bucket = histogram[index];
+    if (bucket !== undefined) {
+      bucket.push(value);
+    } else {
+      histogram[index] = [value];
+    }
+  }
+  for (let i = 0; i < histogram.length; i++) {
+    histogram[i] = histogram[i] || [];
+  }
+  return histogram;
+});
+
+define(Array.prototype, "first", function() { return this[0] });
+define(Array.prototype, "last", function() { return this[this.length - 1] });
+
+// =========================================================================
+// EventHandlers
+function handleBodyLoad() {
+  let upload = $('fileReader');
+  upload.onclick = (e) => $("file").click();
+  upload.ondragover = (e) => e.preventDefault();
+  upload.ondrop = (e) => handleLoadFile(e);
+  $('file').onchange = (e) => handleLoadFile(e);
+  upload.onkeydown = (e) =>  {
+    if (event.key == "Enter") $("file").click();
+  };
+  upload.focus();
+
+  document.state = new State();
+  $("transitionView").addEventListener("mousemove", e => {
+    let tooltip = $("tooltip");
+    tooltip.style.left = e.pageX + "px";
+    tooltip.style.top = e.pageY + "px";
+    let map = e.target.map;
+    if (map) {
+      $("tooltipContents").innerText = map.description;
+    }
+  });
+
+  function handleLoadFile(event) {
+    // Used for drop and file change.
+    event.preventDefault();
+    let host = event.dataTransfer ? event.dataTransfer : event.target;
+    let file = host.files[0];
+    let reader = new FileReader();
+    document.body.className = 'loading';
+    reader.onload = function(evt) {
+      try {
+        handleLoadText(this.result);
+       document.body.className = 'success';
+      } catch(e) {
+       document.body.className = 'failure';
+       console.error(e);
+      }
+    }
+    // Defer the reading to allow spinner CSS animation.
+    setTimeout(() => reader.readAsText(file), 0);
+  }
+}
+
+
+function handleLoadText(text) {
+  let mapProcessor = new MapProcessor();
+  document.state.timeline = mapProcessor.processString(text);
+}
+
+function handleKeyDown(event) {
+  let nav = document.state.navigation;
+  switch(event.key) {
+    case "ArrowUp":
+      event.preventDefault();
+      if (event.shiftKey) {
+        nav.selectPrevEdge();
+      } else {
+        nav.moveInChunk(-1);
+      }
+      return false;
+    case "ArrowDown":
+      event.preventDefault();
+      if (event.shiftKey) {
+        nav.selectNextEdge();
+      } else {
+        nav.moveInChunk(1);
+      }
+      return false;
+    case "ArrowLeft":
+      nav.moveInChunks(false);
+      break;
+    case "ArrowRight":
+      nav.moveInChunks(true);
+      break;
+    case "+":
+      nav.increaseTimelineResolution();
+      break;
+    case "-":
+      nav.decreaseTimelineResolution();
+      break;
+  }
+};
+document.onkeydown = handleKeyDown;
+
+function handleTimelineIndicatorMove(event) {
+  if (event.buttons == 0) return;
+  let timelineTotalWidth = $("timelineCanvas").offsetWidth;
+  let factor = $("timelineOverview").offsetWidth / timelineTotalWidth;
+  $("timeline").scrollLeft += event.movementX / factor;
+}
+
+// =========================================================================
+
+Object.defineProperty(Edge.prototype, 'getColor', { value:function() {
+  return transitionTypeToColor(this.type);
+}});
+
+class Navigation {
+  constructor(state, view) {
+    this.state = state;
+    this.view = view;
+  }
+  get map() { return this.state.map }
+  set map(value) { this.state.map = value }
+  get chunks() { return this.state.chunks }
+
+  increaseTimelineResolution() {
+    this.state.nofChunks *= 1.5;
+  }
+
+  decreaseTimelineResolution() {
+    this.state.nofChunks /= 1.5;
+  }
+
+  selectNextEdge() {
+    if (!this.map) return;
+    if (this.map.children.length != 1) return;
+    this.map = this.map.children[0].to;
+  }
+
+  selectPrevEdge() {
+    if (!this.map) return;
+    if (!this.map.parent()) return;
+    this.map = this.map.parent();
+  }
+
+  selectDefaultMap() {
+      this.map = this.chunks[0].at(0);
+  }
+  moveInChunks(next) {
+    if (!this.map) return this.selectDefaultMap();
+    let chunkIndex = this.map.chunkIndex(this.chunks);
+    let chunk = this.chunks[chunkIndex];
+    let index = chunk.indexOf(this.map);
+    if (next) {
+      chunk = chunk.next(this.chunks);
+    } else {
+      chunk = chunk.prev(this.chunks);
+    }
+    if (!chunk) return;
+    index = Math.min(index, chunk.size()-1);
+    this.map = chunk.at(index);
+  }
+
+  moveInChunk(delta) {
+    if (!this.map) return this.selectDefaultMap();
+    let chunkIndex = this.map.chunkIndex(this.chunks)
+    let chunk = this.chunks[chunkIndex];
+    let index = chunk.indexOf(this.map) + delta;
+    let map;
+    if (index < 0) {
+      map = chunk.prev(this.chunks).last();
+    } else if (index >= chunk.size()) {
+      map = chunk.next(this.chunks).first()
+    } else {
+      map = chunk.at(index);
+    }
+    this.map = map;
+  }
+
+  updateUrl() {
+    let entries = this.state.entries;
+    let params = new URLSearchParams(entries);
+    window.history.pushState(entries, "", "?" + params.toString());
+  }
+}
+
+class View {
+  constructor(state) {
+    this.state = state;
+    setInterval(this.updateOverviewWindow, 50);
+    this.backgroundCanvas = document.createElement("canvas");
+    this.transitionView = new TransitionView(state, $("transitionView"));
+    this.statsView = new StatsView(state, $("stats"));
+    this.isLocked = false;
+  }
+  get chunks() { return this.state.chunks }
+  get timeline() { return this.state.timeline }
+  get map() { return this.state.map }
+
+  updateStats() {
+    this.statsView.update();
+  }
+
+  updateMapDetails() {
+    let details = "";
+    if (this.map) {
+      details += "ID: " + this.map.id;
+      details += "\nSource location: " + this.map.filePosition;
+      details += "\n" + this.map.description;
+    }
+    $("mapDetails").innerText = details;
+    this.transitionView.showMap(this.map);
+  }
+
+  updateTimeline() {
+    let chunksNode = $("timelineChunks");
+    removeAllChildren(chunksNode);
+    let chunks = this.chunks;
+    let max = chunks.max(each => each.size());
+    let start = this.timeline.startTime;
+    let end = this.timeline.endTime;
+    let duration = end - start;
+    const timeToPixel = chunks.length * kChunkWidth / duration;
+    let addTimestamp = (time, name) => {
+      let timeNode = div("timestamp");
+      timeNode.innerText = name;
+      timeNode.style.left = ((time-start) * timeToPixel) + "px";
+      chunksNode.appendChild(timeNode);
+    };
+    for (let i = 0; i < chunks.length; i++) {
+      let chunk = chunks[i];
+      let height = (chunk.size() / max * kChunkHeight);
+      chunk.height = height;
+      if (chunk.isEmpty()) continue;
+      let node = div();
+      node.className = "chunk";
+      node.style.left = (i * kChunkWidth) + "px";
+      node.style.height = height + "px";
+      node.chunk = chunk;
+      node.addEventListener("mousemove", e => this.handleChunkMouseMove(e));
+      node.addEventListener("click", e => this.handleChunkClick(e));
+      node.addEventListener("dblclick", e => this.handleChunkDoubleClick(e));
+      this.setTimelineChunkBackground(chunk, node);
+      chunksNode.appendChild(node);
+      chunk.markers.forEach(marker => addTimestamp(marker.time, marker.name));
+    }
+    // Put a time marker roughly every 20 chunks.
+    let expected  = duration / chunks.length * 20;
+    let interval = (10 ** Math.floor(Math.log10(expected)));
+    let correction = Math.log10(expected / interval);
+    correction = (correction < 0.33) ? 1 : (correction < 0.75) ? 2.5 : 5;
+    interval *= correction;
+
+    let time = start;
+    while (time < end) {
+      addTimestamp(time, ((time-start) / 1000) + " ms");
+      time += interval;
+    }
+    this.drawOverview();
+    this.redraw();
+  }
+
+  handleChunkMouseMove(event) {
+    if (this.isLocked) return false;
+    let chunk = event.target.chunk;
+    if (!chunk) return;
+    // topmost map (at chunk.height) == map #0.
+    let relativeIndex =
+        Math.round(event.layerY / event.target.offsetHeight * chunk.size());
+    let map = chunk.at(relativeIndex);
+    this.state.map = map;
+  }
+
+  handleChunkClick(event) {
+    this.isLocked = !this.isLocked;
+  }
+
+  handleChunkDoubleClick(event) {
+    this.isLocked = true;
+    let chunk = event.target.chunk;
+    if (!chunk) return;
+    this.transitionView.showMaps(chunk.getUniqueTransitions());
+  }
+
+  setTimelineChunkBackground(chunk, node) {
+    // Render the types of transitions as bar charts
+    const kHeight = chunk.height;
+    const kWidth = 1;
+    this.backgroundCanvas.width = kWidth;
+    this.backgroundCanvas.height = kHeight;
+    let ctx = this.backgroundCanvas.getContext("2d");
+    ctx.clearRect(0, 0, kWidth, kHeight);
+    let y = 0;
+    let total = chunk.size();
+    let type, count;
+    if (true) {
+       chunk.getTransitionBreakdown().forEach(([type, count]) => {
+          ctx.fillStyle = transitionTypeToColor(type);
+          let height = count / total * kHeight;
+          ctx.fillRect(0, y, kWidth, y + height);
+          y += height;
+      });
+    } else {
+      chunk.items.forEach(map => {
+        ctx.fillStyle = transitionTypeToColor(map.getType());
+        let y = chunk.yOffset(map);
+        ctx.fillRect(0, y, kWidth, y + 1);
+      });
+    }
+
+    let imageData = this.backgroundCanvas.toDataURL("image/png");
+    node.style.backgroundImage = "url(" + imageData + ")";
+  }
+
+  updateOverviewWindow() {
+    let indicator = $("timelineOverviewIndicator");
+    let totalIndicatorWidth = $("timelineOverview").offsetWidth;
+    let div = $("timeline");
+    let timelineTotalWidth = $("timelineCanvas").offsetWidth;
+    let factor = $("timelineOverview").offsetWidth / timelineTotalWidth;
+    let width = div.offsetWidth * factor;
+    let left = div.scrollLeft * factor;
+    indicator.style.width = width + "px";
+    indicator.style.left = left + "px";
+  }
+
+  drawOverview() {
+    const height = 50;
+    const kFactor = 2;
+    let canvas =  this.backgroundCanvas;
+    canvas.height = height;
+    canvas.width = window.innerWidth;
+    let ctx = canvas.getContext("2d");
+
+    let chunks = this.state.timeline.chunkSizes(canvas.width * kFactor);
+    let max = chunks.max();
+
+    ctx.clearRect(0, 0, canvas.width, height);
+    ctx.strokeStyle = "black";
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    ctx.moveTo(0,height);
+    for (let i = 0; i < chunks.length; i++) {
+      ctx.lineTo(i/kFactor, height - chunks[i]/max * height);
+    }
+    ctx.lineTo(chunks.length, height);
+    ctx.stroke();
+    ctx.closePath();
+    ctx.fill();
+    let imageData = canvas.toDataURL("image/png");
+    $("timelineOverview").style.backgroundImage = "url(" + imageData + ")";
+  }
+
+  redraw() {
+    let canvas= $("timelineCanvas");
+    canvas.width = (this.chunks.length+1) * kChunkWidth;
+    canvas.height = kChunkHeight;
+    let ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, kChunkHeight);
+    if (!this.state.map) return;
+    this.drawEdges(ctx);
+  }
+
+  setMapStyle(map, ctx) {
+    ctx.fillStyle = map.edge && map.edge.from  ? "black" : "green";
+  }
+
+  setEdgeStyle(edge, ctx) {
+    let color = edge.getColor();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+  }
+
+  markMap(ctx, map) {
+    let [x, y] = map.position(this.state.chunks);
+    ctx.beginPath();
+    this.setMapStyle(map, ctx);
+    ctx.arc(x, y, 3, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.fillStyle = "white";
+    ctx.arc(x, y, 2, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+
+  markSelectedMap(ctx, map) {
+    let [x, y] = map.position(this.state.chunks);
+    ctx.beginPath();
+    this.setMapStyle(map, ctx);
+    ctx.arc(x, y, 6, 0, 2 * Math.PI);
+    ctx.stroke();
+  }
+
+  drawEdges(ctx) {
+    // Draw the trace of maps in reverse order to make sure the outgoing
+    // transitions of previous maps aren't drawn over.
+    const kMaxOutgoingEdges = 100;
+    let nofEdges = 0;
+    let stack = [];
+    let current = this.state.map;
+    while (current && nofEdges < kMaxOutgoingEdges) {
+      nofEdges += current.children.length;
+      stack.push(current);
+      current = current.parent();
+    }
+    ctx.save();
+    this.drawOutgoingEdges(ctx, this.state.map, 3);
+    ctx.restore();
+
+    let labelOffset = 15;
+    let xPrev = 0;
+    while (current = stack.pop()) {
+      if (current.edge) {
+        this.setEdgeStyle(current.edge, ctx);
+        let [xTo, yTo] = this.drawEdge(ctx, current.edge, true, labelOffset);
+        if (xTo == xPrev) {
+          labelOffset += 8;
+        } else {
+          labelOffset = 15
+        }
+        xPrev = xTo;
+      }
+      this.markMap(ctx, current);
+      current = current.parent();
+      ctx.save();
+      // this.drawOutgoingEdges(ctx, current, 1);
+      ctx.restore();
+    }
+    // Mark selected map
+    this.markSelectedMap(ctx, this.state.map);
+  }
+
+  drawEdge(ctx, edge, showLabel=true, labelOffset=20) {
+    if (!edge.from || !edge.to) return [-1, -1];
+    let [xFrom, yFrom] = edge.from.position(this.chunks);
+    let [xTo, yTo] = edge.to.position(this.chunks);
+    let sameChunk = xTo == xFrom;
+    if (sameChunk) labelOffset += 8;
+
+    ctx.beginPath();
+    ctx.moveTo(xFrom, yFrom);
+    let offsetX = 20;
+    let offsetY = 20;
+    let midX = xFrom + (xTo- xFrom) / 2;
+    let midY = (yFrom + yTo) / 2 - 100;
+    if (!sameChunk) {
+      ctx.quadraticCurveTo(midX, midY, xTo, yTo);
+    } else {
+      ctx.lineTo(xTo, yTo);
+    }
+    if (!showLabel) {
+      ctx.stroke();
+    } else {
+      let centerX, centerY;
+      if (!sameChunk) {
+      centerX = (xFrom/2 + midX + xTo/2)/2;
+      centerY = (yFrom/2 + midY + yTo/2)/2;
+      } else {
+        centerX = xTo;
+        centerY = yTo;
+      }
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(centerX + offsetX, centerY - labelOffset);
+      ctx.stroke();
+      ctx.textAlign = "left";
+      ctx.fillText(edge.toString(), centerX + offsetX + 2, centerY - labelOffset)
+    }
+    return [xTo, yTo];
+  }
+
+  drawOutgoingEdges(ctx, map, max=10, depth=0) {
+    if (!map) return;
+    if (depth >= max) return;
+    ctx.globalAlpha = 0.5 - depth * (0.3/max);
+    ctx.strokeStyle = "#666";
+
+    const limit = Math.min(map.children.length, 100)
+    for (let i = 0; i < limit; i++) {
+      let edge = map.children[i];
+      this.drawEdge(ctx, edge, true);
+      this.drawOutgoingEdges(ctx, edge.to, max, depth+1);
+    }
+  }
+}
+
+
+class TransitionView {
+  constructor(state, node) {
+    this.state = state;
+    this.container = node;
+    this.currentNode = node;
+    this.currentMap = undefined;
+  }
+
+  selectMap(map) {
+    this.currentMap = map;
+    this.state.map = map;
+  }
+
+  showMap(map) {
+    if (this.currentMap === map) return;
+    this.currentMap = map;
+    this._showMaps([map]);
+  }
+
+  showMaps(list, name) {
+    this.state.view.isLocked = true;
+    this._showMaps(list);
+  }
+
+ _showMaps(list, name) {
+    // Hide the container to avoid any layouts.
+    this.container.style.display = "none";
+    removeAllChildren(this.container);
+    list.forEach(map => this.addMapAndParentTransitions(map));
+    this.container.style.display = ""
+  }
+
+  addMapAndParentTransitions(map) {
+    if (map === void 0) return;
+    this.currentNode = this.container;
+    let parents = map.getParents();
+    if (parents.length > 0) {
+      this.addTransitionTo(parents.pop());
+      parents.reverse().forEach(each => this.addTransitionTo(each));
+    }
+    let mapNode = this.addSubtransitions(map);
+    // Mark and show the selected map.
+    mapNode.classList.add("selected");
+    if (this.selectedMap == map) {
+      setTimeout(() => mapNode.scrollIntoView({
+        behavior: "smooth", block: "nearest", inline: "nearest"
+      }), 1);
+    }
+  }
+
+  addMapNode(map) {
+    let node = div("map");
+    if (map.edge) node.classList.add(map.edge.getColor());
+    node.map = map;
+    node.addEventListener("click", () => this.selectMap(map));
+    if (map.children.length > 1) {
+      node.innerText = map.children.length;
+      let showSubtree = div("showSubtransitions");
+      showSubtree.addEventListener("click", (e) => this.toggleSubtree(e, node));
+      node.appendChild(showSubtree);
+    } else if (map.children.length == 0) {
+      node.innerHTML = "&#x25CF;"
+    }
+    this.currentNode.appendChild(node);
+    return node;
+  }
+
+  addSubtransitions(map) {
+    let mapNode = this.addTransitionTo(map);
+    // Draw outgoing linear transition line.
+    let current = map;
+    while (current.children.length == 1) {
+      current = current.children[0].to;
+      this.addTransitionTo(current);
+    }
+    return mapNode;
+  }
+
+ addTransitionEdge(map) {
+    let classes = ["transitionEdge", map.edge.getColor()];
+    let edge = div(classes);
+    let labelNode = div("transitionLabel");
+    labelNode.innerText = map.edge.toString();
+    edge.appendChild(labelNode);
+    return edge;
+  }
+
+  addTransitionTo(map) {
+    // transition[ transitions[ transition[...], transition[...], ...]];
+
+    let transition = div("transition");
+    if (map.isDeprecated()) transition.classList.add("deprecated");
+    if (map.edge) {
+      transition.appendChild(this.addTransitionEdge(map));
+    }
+    let mapNode = this.addMapNode(map);
+    transition.appendChild(mapNode);
+
+    let subtree = div("transitions");
+    transition.appendChild(subtree);
+
+    this.currentNode.appendChild(transition);
+    this.currentNode = subtree;
+
+    return mapNode;
+
+  }
+
+  toggleSubtree(event, node) {
+    let map = node.map;
+    event.target.classList.toggle("opened");
+    let transitionsNode = node.parentElement.querySelector(".transitions");
+    let subtransitionNodes  =  transitionsNode.children;
+    if (subtransitionNodes.length <= 1) {
+      // Add subtransitions excepth the one that's already shown.
+      let visibleTransitionMap = subtransitionNodes.length == 1 ?
+            transitionsNode.querySelector(".map").map : void 0;
+      map.children.forEach(edge => {
+        if (edge.to != visibleTransitionMap) {
+          this.currentNode = transitionsNode;
+          this.addSubtransitions(edge.to);
+        }
+      });
+    } else {
+      // remove all but the first (currently selected) subtransition
+      for (let i = subtransitionNodes.length-1; i > 0; i--) {
+        transitionsNode.removeChild(subtransitionNodes[i]);
+      }
+    }
+  }
+}
+
+class StatsView {
+  constructor(state, node) {
+    this.state = state;
+    this.node = node;
+  }
+  get timeline() { return this.state.timeline }
+  get transitionView() { return this.state.view.transitionView; }
+  update() {
+    removeAllChildren(this.node);
+    this.updateGeneralStats();
+    this.updateNamedTransitionsStats();
+  }
+  updateGeneralStats() {
+    let pairs = [
+      ["Maps", null, e => true],
+      ["Transitions", 'black', e => e.edge && e.edge.isTransition()],
+      ["Fast to Slow", 'violet', e => e.edge && e.edge.isFastToSlow()],
+      ["Slow to Fast", 'orange', e => e.edge && e.edge.isSlowToFast()],
+      ["Initial Map", 'yellow', e => e.edge && e.edge.isInitial()],
+      ["Replace Descriptors", 'red', e => e.edge && e.edge.isReplaceDescriptors()],
+      ["Copy as Prototype", 'red', e => e.edge && e.edge.isCopyAsPrototype()],
+      ["Optimize as Prototype", null, e => e.edge && e.edge.isOptimizeAsPrototype()],
+      ["Deprecated", null, e => e.isDeprecated()],
+      ["Bootstrapped", 'green', e => e.isBootstrapped()],
+    ];
+
+    let text = "";
+    let tableNode = table();
+    let name, filter;
+    let total = this.timeline.size();
+    pairs.forEach(([name, color, filter]) => {
+      let row = tr();
+      if (color !== null) {
+        row.appendChild(td(div(['colorbox', color])));
+      } else {
+       row.appendChild(td(""));
+      }
+      row.maps = this.timeline.filterUniqueTransitions(filter);
+      row.onclick =
+          (e) => this.transitionView.showMaps(e.target.parentNode.maps);
+      row.appendChild(td(name));
+      let count = this.timeline.count(filter);
+      row.appendChild(td(count));
+      let percent = Math.round(count / total * 1000) / 10;
+      row.appendChild(td(percent + "%"));
+      tableNode.appendChild(row);
+    });
+    this.node.appendChild(tableNode);
+  };
+  updateNamedTransitionsStats() {
+    let tableNode = table("transitionTable");
+    let nameMapPairs = Array.from(this.timeline.transitions.entries());
+    nameMapPairs
+      .sort((a,b) => b[1].length - a[1].length)
+      .forEach(([name, maps]) => {
+        let row = tr();
+        row.maps = maps;
+        row.addEventListener("click",
+            e => this.transitionView.showMaps(
+                e.target.parentNode.maps.map(map => map.to)));
+        row.appendChild(td(name));
+        row.appendChild(td(maps.length));
+        tableNode.appendChild(row);
+    });
+    this.node.appendChild(tableNode);
+  }
+}
+
+// =========================================================================
+
+function transitionTypeToColor(type) {
+  switch(type) {
+    case "new": return "green";
+    case "Normalize": return "violet";
+    case "SlowToFast": return "orange";
+    case "InitialMap": return "yellow";
+    case "Transition": return "black";
+    case "ReplaceDescriptors": return "red";
+  }
+  return "black";
+}
+
+// ShadowDom elements =========================================================
+
+</script>
+</head>
+<body onload="handleBodyLoad(event)" onkeypress="handleKeyDown(event)">
+  <h1>V8 Map Explorer</h1>
+  <section>
+    <div id="fileReader" tabindex=1 >
+      <span id="label">
+        Drag and drop a v8.log file into this area, or click to choose from disk.
+      </span>
+      <input id="file" type="file" name="files">
+    </div>
+    <div id="loader">
+      <div id="spinner"></div>
+    </div>
+  </section>
+
+  <div id="content">
+    <h2>Stats</h2>
+    <section id="stats"></section>
+
+    <h2>Timeline</h2>
+    <div id="timeline">
+      <div id="timelineLabel">Frequency</div>
+      <div id="timelineChunks"></div>
+      <canvas id="timelineCanvas"></canvas>
+    </div>
+    <div id="timelineOverview"
+        onmousemove="handleTimelineIndicatorMove(event)" >
+      <div id="timelineOverviewIndicator">
+        <div class="leftMask"></div>
+        <div class="rightMask"></div>
+      </div>
+    </div>
+
+    <h2>Transitions</h2>
+    <section id="transitionView"></section>
+    <br/>
+
+    <h2>Selected Map</h2>
+    <section id="mapDetails"></section>
+  </div>
+
+  <h2>Instructions</h2>
+  <section>
+    <p>Visualize Map trees that have been gathere using <code>--trace-maps</code>.</p>
+  </section>
+
+  <div id="tooltip">
+    <div id="tooltipContents"></div>
+  </div>
+</body>
+</html>

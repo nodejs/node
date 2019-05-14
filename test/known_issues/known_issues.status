@@ -1,0 +1,24 @@
+prefix known_issues
+
+# If a known issue does not apply to a platform, list the test name in the
+# appropriate section below, without ".js", followed by ": SKIP". Example:
+# sample-test                        : SKIP
+
+[true] # This section applies to all platforms
+
+[$system==win32]
+
+[$system==linux]
+test-vm-timeout-escape-promise: PASS,FLAKY
+
+[$system==macos]
+
+[$system==solaris]
+
+[$system==freebsd]
+
+[$system==aix]
+
+[$arch==arm]
+# https://github.com/nodejs/node/issues/24120
+test-vm-timeout-escape-nexttick: PASS,FLAKY

@@ -1,0 +1,25 @@
+prefix sequential
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                       : PASS,FLAKY
+
+[true] # This section applies to all platforms
+# https://github.com/nodejs/node/issues/22336
+test-gc-http-client: PASS,FLAKY
+
+[$system==win32]
+# https://github.com/nodejs/node/issues/22327
+test-http2-large-file: PASS, FLAKY
+
+[$system==linux]
+
+[$system==macos]
+
+[$system==solaris] # Also applies to SmartOS
+
+[$system==freebsd]
+
+[$system==aix]
+
+[$arch==arm]

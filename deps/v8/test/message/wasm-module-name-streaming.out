@@ -1,0 +1,4 @@
+RuntimeError: unreachable
+    at test-module (wasm-function[0]:1)
+    at test/message/wasm-module-name-async.js:{NUMBER}:27
+    at test/mjsunit/mjsunit.js:*

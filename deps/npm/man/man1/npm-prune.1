@@ -1,0 +1,46 @@
+.TH "NPM\-PRUNE" "1" "April 2019" "" ""
+.SH "NAME"
+\fBnpm-prune\fR \- Remove extraneous packages
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm prune [[<@scope>/]<pkg>\.\.\.] [\-\-production] [\-\-dry\-run] [\-\-json]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command removes "extraneous" packages\.  If a package name is
+provided, then only packages matching one of the supplied names are
+removed\.
+.P
+Extraneous packages are packages that are not listed on the parent
+package's dependencies list\.
+.P
+If the \fB\-\-production\fP flag is specified or the \fBNODE_ENV\fP environment
+variable is set to \fBproduction\fP, this command will remove the packages
+specified in your \fBdevDependencies\fP\|\. Setting \fB\-\-no\-production\fP will
+negate \fBNODE_ENV\fP being set to \fBproduction\fP\|\.
+.P
+If the \fB\-\-dry\-run\fP flag is used then no changes will actually be made\.
+.P
+If the \fB\-\-json\fP flag is used then the changes \fBnpm prune\fP made (or would
+have made with \fB\-\-dry\-run\fP) are printed as a JSON object\.
+.P
+In normal operation with package\-locks enabled, extraneous modules are
+pruned automatically when modules are installed and you'll only need
+this command with the \fB\-\-production\fP flag\.
+.P
+If you've disabled package\-locks then extraneous modules will not be removed
+and it's up to you to run \fBnpm prune\fP from time\-to\-time to remove them\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help uninstall
+.IP \(bu 2
+npm help 5 folders
+.IP \(bu 2
+npm help ls
+
+.RE
+

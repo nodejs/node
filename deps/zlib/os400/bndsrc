@@ -1,0 +1,119 @@
+STRPGMEXP PGMLVL(*CURRENT) SIGNATURE('ZLIB')
+
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+/*   Version 1.1.3 entry points.                                    */
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+
+  EXPORT SYMBOL("adler32")
+  EXPORT SYMBOL("compress")
+  EXPORT SYMBOL("compress2")
+  EXPORT SYMBOL("crc32")
+  EXPORT SYMBOL("get_crc_table")
+  EXPORT SYMBOL("deflate")
+  EXPORT SYMBOL("deflateEnd")
+  EXPORT SYMBOL("deflateSetDictionary")
+  EXPORT SYMBOL("deflateCopy")
+  EXPORT SYMBOL("deflateReset")
+  EXPORT SYMBOL("deflateParams")
+  EXPORT SYMBOL("deflatePrime")
+  EXPORT SYMBOL("deflateInit_")
+  EXPORT SYMBOL("deflateInit2_")
+  EXPORT SYMBOL("gzopen")
+  EXPORT SYMBOL("gzdopen")
+  EXPORT SYMBOL("gzsetparams")
+  EXPORT SYMBOL("gzread")
+  EXPORT SYMBOL("gzwrite")
+  EXPORT SYMBOL("gzprintf")
+  EXPORT SYMBOL("gzputs")
+  EXPORT SYMBOL("gzgets")
+  EXPORT SYMBOL("gzputc")
+  EXPORT SYMBOL("gzgetc")
+  EXPORT SYMBOL("gzflush")
+  EXPORT SYMBOL("gzseek")
+  EXPORT SYMBOL("gzrewind")
+  EXPORT SYMBOL("gztell")
+  EXPORT SYMBOL("gzeof")
+  EXPORT SYMBOL("gzclose")
+  EXPORT SYMBOL("gzerror")
+  EXPORT SYMBOL("inflate")
+  EXPORT SYMBOL("inflateEnd")
+  EXPORT SYMBOL("inflateSetDictionary")
+  EXPORT SYMBOL("inflateSync")
+  EXPORT SYMBOL("inflateReset")
+  EXPORT SYMBOL("inflateInit_")
+  EXPORT SYMBOL("inflateInit2_")
+  EXPORT SYMBOL("inflateSyncPoint")
+  EXPORT SYMBOL("uncompress")
+  EXPORT SYMBOL("zlibVersion")
+  EXPORT SYMBOL("zError")
+  EXPORT SYMBOL("z_errmsg")
+
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+/*   Version 1.2.1 additional entry points.                         */
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+
+  EXPORT SYMBOL("compressBound")
+  EXPORT SYMBOL("deflateBound")
+  EXPORT SYMBOL("deflatePending")
+  EXPORT SYMBOL("gzungetc")
+  EXPORT SYMBOL("gzclearerr")
+  EXPORT SYMBOL("inflateBack")
+  EXPORT SYMBOL("inflateBackEnd")
+  EXPORT SYMBOL("inflateBackInit_")
+  EXPORT SYMBOL("inflateCopy")
+  EXPORT SYMBOL("zlibCompileFlags")
+
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+/*   Version 1.2.4 additional entry points.                         */
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+
+  EXPORT SYMBOL("adler32_combine")
+  EXPORT SYMBOL("adler32_combine64")
+  EXPORT SYMBOL("crc32_combine")
+  EXPORT SYMBOL("crc32_combine64")
+  EXPORT SYMBOL("deflateSetHeader")
+  EXPORT SYMBOL("deflateTune")
+  EXPORT SYMBOL("gzbuffer")
+  EXPORT SYMBOL("gzclose_r")
+  EXPORT SYMBOL("gzclose_w")
+  EXPORT SYMBOL("gzdirect")
+  EXPORT SYMBOL("gzoffset")
+  EXPORT SYMBOL("gzoffset64")
+  EXPORT SYMBOL("gzopen64")
+  EXPORT SYMBOL("gzseek64")
+  EXPORT SYMBOL("gztell64")
+  EXPORT SYMBOL("inflateGetHeader")
+  EXPORT SYMBOL("inflateMark")
+  EXPORT SYMBOL("inflatePrime")
+  EXPORT SYMBOL("inflateReset2")
+  EXPORT SYMBOL("inflateUndermine")
+
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+/*   Version 1.2.6 additional entry points.                         */
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+
+  EXPORT SYMBOL("deflateResetKeep")
+  EXPORT SYMBOL("gzgetc_")
+  EXPORT SYMBOL("inflateResetKeep")
+
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+/*   Version 1.2.8 additional entry points.                         */
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+
+  EXPORT SYMBOL("gzvprintf")
+  EXPORT SYMBOL("inflateGetDictionary")
+
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+/*   Version 1.2.9 additional entry points.                         */
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+
+  EXPORT SYMBOL("adler32_z")
+  EXPORT SYMBOL("crc32_z")
+  EXPORT SYMBOL("deflateGetDictionary")
+  EXPORT SYMBOL("gzfread")
+  EXPORT SYMBOL("gzfwrite")
+  EXPORT SYMBOL("inflateCodesUsed")
+  EXPORT SYMBOL("inflateValidate")
+  EXPORT SYMBOL("uncompress2")
+
+ENDPGMEXP

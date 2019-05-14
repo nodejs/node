@@ -1,0 +1,5 @@
+wasm-function[0]:5: RuntimeError: divide by zero
+RuntimeError: divide by zero
+    at main (wasm-function[0]:5)
+    at *%(basename)s:{NUMBER}:16
+

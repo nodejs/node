@@ -1,0 +1,4 @@
+*test*message*throw_custom_error.js:*
+throw ({ name: 'MyCustomError', message: 'This is a custom message' });
+^
+MyCustomError: This is a custom message

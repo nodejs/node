@@ -1,0 +1,21 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+
+##############################################################################
+['lite_mode or variant == jitless', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'multi_return/*': [SKIP],
+  'wasm_async/*': [SKIP],
+  'wasm_code/*': [SKIP],
+  'wasm_compile/*': [SKIP],
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
+
+]

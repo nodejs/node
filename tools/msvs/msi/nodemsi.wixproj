@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
+    <ProductVersion>3.5</ProductVersion>
+    <ProjectGuid>{1d808ff0-b5a9-4be9-859d-b334b6f48be2}</ProjectGuid>
+    <SchemaVersion>2.0</SchemaVersion>
+    <OutputName>node-v$(FullVersion)-$(Platform)</OutputName>
+    <OutputType>Package</OutputType>
+    <EnableProjectHarvesting>True</EnableProjectHarvesting>
+    <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
+    <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
+    <NodeVersion Condition=" '$(NodeVersion)' == '' ">0.0.0.0</NodeVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <OutputPath>..\..\..\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <OutputPath>..\..\..\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
+    <OutputPath>..\..\..\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <Cultures>en-US</Cultures>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+    <OutputPath>..\..\..\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup>
+    <EnableProjectHarvesting>True</EnableProjectHarvesting>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="product.wxs" />
+    <Compile Include="..\..\..\npm.wxs">
+      <Link>npm.wxs</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <WixExtension Include="WixUIExtension">
+      <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
+      <Name>WixUIExtension</Name>
+    </WixExtension>
+    <WixExtension Include="WiXUtilExtension">
+      <HintPath>$(WixExtDir)\WiXUtilExtension.dll</HintPath>
+      <Name>WiXUtilExtension</Name>
+    </WixExtension>
+  </ItemGroup>
+  <ItemGroup>
+    <!--
+    <EmbeddedResource Include="i18n\de-de.wxl" />
+    <EmbeddedResource Include="i18n\it-it.wxl" />
+    <EmbeddedResource Include="i18n\zh-cn.wxl" />
+    -->
+    <EmbeddedResource Include="i18n\en-us.wxl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="custom_actions.vcxproj">
+      <Name>custom_actions</Name>
+      <Project>{b70585f8-dab7-40fa-9904-13cf53a73a06}</Project>
+      <Private>True</Private>
+      <DoNotHarvest>True</DoNotHarvest>
+      <RefProjectOutputGroups>Binaries;Content;Satellites</RefProjectOutputGroups>
+      <RefTargetDir>INSTALLFOLDER</RefTargetDir>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(WixTargetsPath)" />
+  <Target Name="BeforeBuild">
+    <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm" PreprocessorVariable="var.NpmSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NpmSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\npm.wxs" RunAsSeparateProcess="true">
+    </HeatDirectory>
+  </Target>
+  <PropertyGroup>
+    <PostBuildEvent>move "!(TargetPath)" "$(TargetDir)\$(TargetFileName)"
+    move "!(TargetPdbPath)" "$(TargetDir)\$(TargetPdbName)"</PostBuildEvent>
+    <!--
+    <PostBuildEvent>
+      "$(WixToolPath)\torch.exe" -t language "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)de-de\$(TargetFileName)" -out "$(TargetDir)transforms\de-de.mst"
+      "$(WixToolPath)\torch.exe" -t language "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)it-it\$(TargetFileName)" -out "$(TargetDir)transforms\it-it.mst"
+      "$(WixToolPath)\torch.exe" -t language "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)zh-cn\$(TargetFileName)" -out "$(TargetDir)transforms\zh-cn.mst"
+      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiSubStg.vbs" "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)transforms\de-de.mst" 1031
+      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiSubStg.vbs" "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)transforms\it-it.mst" 1040
+      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiSubStg.vbs" "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)transforms\zh-cn.mst" 2052
+      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiLangId.vbs" "$(TargetDir)en-US\$(TargetFileName)" Package 1031,1033,1040,2052
+    </PostBuildEvent>
+    -->
+  </PropertyGroup>
+</Project>

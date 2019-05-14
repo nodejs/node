@@ -1,0 +1,41 @@
+Checks nested scheduled break in framework code.
+break reason: framework-break
+break aux data: {
+  "data": "data for framework-break"
+}
+doFrameworkBreak (framework.js:20:12)
+doFrameworkWork (framework.js:15:12)
+frameworkCall (framework.js:9:12)
+testFunction (user.js:27:12)
+(anonymous) (expr.js:0:0)
+
+break reason: ambiguous
+break aux data: {
+  "reasons": [
+    {
+      "reason": "top-scheduled-break"
+    },
+    {
+      "reason": "top-framework-scheduled-break",
+      "auxData": {
+        "data": "data for top-framework-scheduled-break"
+      }
+    }
+  ]
+}
+callback (user.js:32:2)
+doFrameworkWork (framework.js:16:2)
+frameworkCall (framework.js:9:12)
+testFunction (user.js:27:12)
+(anonymous) (expr.js:0:0)
+
+break reason: user-break
+break aux data: {
+  "data": "data for user-break"
+}
+callback (user.js:32:12)
+doFrameworkWork (framework.js:16:2)
+frameworkCall (framework.js:9:12)
+testFunction (user.js:27:12)
+(anonymous) (expr.js:0:0)
+

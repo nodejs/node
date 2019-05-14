@@ -1,0 +1,10 @@
+  SECTIONS {
+    .lpstub            : {
+       *libc.a:*(.text .text.*)
+       *(.lpstub)
+     }
+  }
+  PROVIDE (__nodetext = .);
+  PROVIDE (_nodetext = .);
+  PROVIDE (nodetext = .);
+  INSERT BEFORE .text;

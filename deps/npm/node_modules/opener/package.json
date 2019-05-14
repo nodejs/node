@@ -1,0 +1,60 @@
+{
+  "_from": "opener@1.5.1",
+  "_id": "opener@1.5.1",
+  "_inBundle": false,
+  "_integrity": "sha512-goYSy5c2UXE4Ra1xixabeVh1guIX/ZV/YokJksb6q2lubWu6UbvPQ20p542/sFIll1nl8JnCyK9oBaOcCWXwvA==",
+  "_location": "/opener",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "opener@1.5.1",
+    "name": "opener",
+    "escapedName": "opener",
+    "rawSpec": "1.5.1",
+    "saveSpec": null,
+    "fetchSpec": "1.5.1"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/",
+    "/tap"
+  ],
+  "_resolved": "https://registry.npmjs.org/opener/-/opener-1.5.1.tgz",
+  "_shasum": "6d2f0e77f1a0af0032aca716c2c1fbb8e7e8abed",
+  "_spec": "opener@1.5.1",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Domenic Denicola",
+    "email": "d@domenic.me",
+    "url": "https://domenic.me/"
+  },
+  "bin": {
+    "opener": "bin/opener-bin.js"
+  },
+  "bugs": {
+    "url": "https://github.com/domenic/opener/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Opens stuff, like webpages and files and executables, cross-platform",
+  "devDependencies": {
+    "eslint": "^5.3.0"
+  },
+  "files": [
+    "lib/",
+    "bin/"
+  ],
+  "homepage": "https://github.com/domenic/opener#readme",
+  "license": "(WTFPL OR MIT)",
+  "main": "lib/opener.js",
+  "name": "opener",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/domenic/opener.git"
+  },
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "version": "1.5.1"
+}

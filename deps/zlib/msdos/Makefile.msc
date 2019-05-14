@@ -1,0 +1,112 @@
+# Makefile for zlib
+# Microsoft C 5.1 or later
+# Last updated: 19-Mar-2003
+
+# To use, do "make makefile.msc"
+# To compile in small model, set below: MODEL=S
+
+# If you wish to reduce the memory requirements (default 256K for big
+# objects plus a few K), you can add to the LOC macro below:
+#   -DMAX_MEM_LEVEL=7 -DMAX_WBITS=14
+# See zconf.h for details about the memory requirements.
+
+# ------------- Microsoft C 5.1 and later -------------
+
+#    Optional nonstandard preprocessor flags (e.g. -DMAX_MEM_LEVEL=7)
+#    should be added to the environment via "set LOCAL_ZLIB=-DFOO" or added
+#    to the declaration of LOC here:
+LOC = $(LOCAL_ZLIB)
+
+# Type for CPU required: 0: 8086, 1: 80186, 2: 80286, 3: 80386, etc.
+CPU_TYP = 0
+
+# Memory model: one of S, M, C, L (small, medium, compact, large)
+MODEL=L
+
+CC=cl
+CFLAGS=-nologo -A$(MODEL) -G$(CPU_TYP) -W3 -Oait -Gs $(LOC)
+#-Ox generates bad code with MSC 5.1
+LIB_CFLAGS=-Zl $(CFLAGS)
+
+LD=link
+LDFLAGS=/noi/e/st:0x1500/noe/farcall/packcode
+# "/farcall/packcode" are only useful for `large code' memory models
+# but should be a "no-op" for small code models.
+
+
+# variables
+ZLIB_LIB = zlib_$(MODEL).lib
+
+OBJ1 = adler32.obj compress.obj crc32.obj deflate.obj gzclose.obj gzlib.obj gzread.obj
+OBJ2 = gzwrite.obj infback.obj inffast.obj inflate.obj inftrees.obj trees.obj uncompr.obj zutil.obj
+
+
+# targets
+all:  $(ZLIB_LIB) example.exe minigzip.exe
+
+.c.obj:
+	$(CC) -c $(LIB_CFLAGS) $*.c
+
+adler32.obj: adler32.c zlib.h zconf.h
+
+compress.obj: compress.c zlib.h zconf.h
+
+crc32.obj: crc32.c zlib.h zconf.h crc32.h
+
+deflate.obj: deflate.c deflate.h zutil.h zlib.h zconf.h
+
+gzclose.obj: gzclose.c zlib.h zconf.h gzguts.h
+
+gzlib.obj: gzlib.c zlib.h zconf.h gzguts.h
+
+gzread.obj: gzread.c zlib.h zconf.h gzguts.h
+
+gzwrite.obj: gzwrite.c zlib.h zconf.h gzguts.h
+
+infback.obj: infback.c zutil.h zlib.h zconf.h inftrees.h inflate.h \
+ inffast.h inffixed.h
+
+inffast.obj: inffast.c zutil.h zlib.h zconf.h inftrees.h inflate.h \
+ inffast.h
+
+inflate.obj: inflate.c zutil.h zlib.h zconf.h inftrees.h inflate.h \
+ inffast.h inffixed.h
+
+inftrees.obj: inftrees.c zutil.h zlib.h zconf.h inftrees.h
+
+trees.obj: trees.c zutil.h zlib.h zconf.h deflate.h trees.h
+
+uncompr.obj: uncompr.c zlib.h zconf.h
+
+zutil.obj: zutil.c zutil.h zlib.h zconf.h
+
+example.obj: test/example.c zlib.h zconf.h
+	$(CC) -c $(CFLAGS) $*.c
+
+minigzip.obj: test/minigzip.c zlib.h zconf.h
+	$(CC) -c $(CFLAGS) $*.c
+
+
+# the command line is cut to fit in the MS-DOS 128 byte limit:
+$(ZLIB_LIB): $(OBJ1) $(OBJ2)
+	if exist $(ZLIB_LIB) del $(ZLIB_LIB)
+	lib $(ZLIB_LIB) $(OBJ1);
+	lib $(ZLIB_LIB) $(OBJ2);
+
+example.exe: example.obj $(ZLIB_LIB)
+	$(LD) $(LDFLAGS) example.obj,,,$(ZLIB_LIB);
+
+minigzip.exe: minigzip.obj $(ZLIB_LIB)
+	$(LD) $(LDFLAGS) minigzip.obj,,,$(ZLIB_LIB);
+
+test: example.exe minigzip.exe
+	example
+	echo hello world | minigzip | minigzip -d
+
+clean:
+	-del *.obj
+	-del *.lib
+	-del *.exe
+	-del *.map
+	-del zlib_*.bak
+	-del foo.gz

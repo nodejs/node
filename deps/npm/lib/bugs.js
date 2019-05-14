@@ -1,0 +1,31 @@
+module.exports = bugs
+
+var log = require('npmlog')
+var openUrl = require('./utils/open-url')
+var fetchPackageMetadata = require('./fetch-package-metadata.js')
+var usage = require('./utils/usage')
+
+bugs.usage = usage(
+  'bugs',
+  'npm bugs [<pkgname>]'
+)
+
+bugs.completion = function (opts, cb) {
+  // FIXME: there used to be registry completion here, but it stopped making
+  // sense somewhere around 50,000 packages on the registry
+  cb()
+}
+
+function bugs (args, cb) {
+  var n = args.length ? args[0] : '.'
+  fetchPackageMetadata(n, '.', {fullMetadata: true}, function (er, d) {
+    if (er) return cb(er)
+
+    var url = d.bugs && ((typeof d.bugs === 'string') ? d.bugs : d.bugs.url)
+    if (!url) {
+      url = 'https://www.npmjs.org/package/' + d.name
+    }
+    log.silly('bugs', 'url', url)
+    openUrl(url, 'bug list available at the following URL', cb)
+  })
+}

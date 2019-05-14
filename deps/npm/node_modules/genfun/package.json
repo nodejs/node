@@ -1,0 +1,79 @@
+{
+  "_from": "genfun@^5.0.0",
+  "_id": "genfun@5.0.0",
+  "_inBundle": false,
+  "_integrity": "sha512-KGDOARWVga7+rnB3z9Sd2Letx515owfk0hSxHGuqjANb1M+x2bGZGqHLiozPsYMdM2OubeMni/Hpwmjq6qIUhA==",
+  "_location": "/genfun",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "genfun@^5.0.0",
+    "name": "genfun",
+    "escapedName": "genfun",
+    "rawSpec": "^5.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^5.0.0"
+  },
+  "_requiredBy": [
+    "/protoduck"
+  ],
+  "_resolved": "https://registry.npmjs.org/genfun/-/genfun-5.0.0.tgz",
+  "_shasum": "9dd9710a06900a5c4a5bf57aca5da4e52fe76537",
+  "_spec": "genfun@^5.0.0",
+  "_where": "/Users/zkat/Documents/code/work/npm/node_modules/protoduck",
+  "author": {
+    "name": "Kat Marchán",
+    "email": "kzm@sykosomatic.org"
+  },
+  "bugs": {
+    "url": "https://github.com/zkat/genfun/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Fast, prototype-friendly multimethods.",
+  "devDependencies": {
+    "mocha": "^3.2.0",
+    "nyc": "^10.2.0",
+    "standard": "^10.0.2",
+    "standard-version": "^4.0.0",
+    "weallbehave": "^1.0.3",
+    "weallcontribute": "^1.0.8"
+  },
+  "files": [
+    "lib/*.js"
+  ],
+  "homepage": "http://github.com/zkat/genfun",
+  "keywords": [
+    "clos",
+    "functional",
+    "oop",
+    "util",
+    "object oriented",
+    "prototypes",
+    "multimethod",
+    "generic functions",
+    "multiple dispatch",
+    "polymorphism",
+    "polymorphic",
+    "protocols"
+  ],
+  "license": "MIT",
+  "main": "lib/genfun.js",
+  "name": "genfun",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/zkat/genfun.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard lib",
+    "release": "standard-version -s",
+    "test": "nyc -- mocha --reporter spec",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "version": "5.0.0"
+}

@@ -1,0 +1,26 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_size = 2
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[vcbuild.bat]
+end_of_line = crlf
+
+[Makefile]
+indent_size = 8
+indent_style = tab
+
+[{deps}/**]
+charset = ignore
+end_of_line = ignore
+indent_size = ignore
+indent_style = ignore
+trim_trailing_whitespace = ignore
+
+[{test/fixtures,deps,tools/node_modules,tools/gyp,tools/icu,tools/msvs}/**]
+insert_final_newline = false

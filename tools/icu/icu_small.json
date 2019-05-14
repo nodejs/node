@@ -1,0 +1,47 @@
+{
+  "copyright": "Copyright (c) 2014 IBM Corporation and Others. All Rights Reserved.",
+  "comment": "icutrim.py config: Trim down ICU to just a certain locale set, needed for node.js use.",
+  "variables": {
+    "none": {
+      "only": []
+    },
+    "locales": {
+      "only": [
+        "root",
+        "en"
+      ]
+    },
+    "leavealone": {
+    }
+  },
+  "trees": {
+    "ROOT": "locales",
+    "brkitr": "none",
+    "coll": "locales",
+    "curr": "locales",
+    "lang": "none",
+    "rbnf": "none",
+    "region": "none",
+    "zone": "locales",
+    "converters": "none",
+    "stringprep": "locales",
+    "translit": "locales",
+    "brkfiles": "none",
+    "brkdict": "none",
+    "confusables": "none",
+    "unit": "none"
+  },
+  "remove": [
+    "cnvalias.icu",
+    "postalCodeData.res",
+    "genderList.res",
+    "brkitr/root.res",
+    "unames.icu"
+  ],
+  "keep": [
+    "pool.res",
+    "supplementalData.res",
+    "zoneinfo64.res",
+    "likelySubtags.res"
+  ]
+}

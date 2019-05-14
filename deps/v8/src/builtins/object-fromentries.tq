@@ -1,0 +1,69 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace object {
+
+  transitioning macro ObjectFromEntriesFastCase(implicit context: Context)(
+      iterable: Object): JSObject labels IfSlow {
+    typeswitch (iterable) {
+      case (array: FastJSArrayWithNoCustomIteration): {
+        const elements: FixedArray =
+            Cast<FixedArray>(array.elements) otherwise IfSlow;
+        const length: Smi = array.length;
+        const result: JSObject = NewJSObject();
+
+        for (let k: Smi = 0; k < length; ++k) {
+          const value: Object = array::LoadElementOrUndefined(elements, k);
+          const pair: KeyValuePair =
+              collections::LoadKeyValuePairNoSideEffects(value)
+              otherwise IfSlow;
+          // Bail out if ToPropertyKey will attempt to load and call
+          // Symbol.toPrimitive, toString, and valueOf, which could
+          // invalidate assumptions about the iterable.
+          if (Is<JSReceiver>(pair.key)) goto IfSlow;
+          FastCreateDataProperty(result, pair.key, pair.value);
+        }
+        return result;
+      }
+      case (Object): {
+        goto IfSlow;
+      }
+    }
+  }
+
+  transitioning javascript builtin
+  ObjectFromEntries(implicit context: Context)(receiver: Object, ...arguments):
+      Object {
+    const iterable: Object = arguments[0];
+    try {
+      if (IsNullOrUndefined(iterable)) goto Throw;
+      return ObjectFromEntriesFastCase(iterable) otherwise IfSlow;
+    }
+    label IfSlow {
+      const result: JSObject = NewJSObject();
+      const fastIteratorResultMap: Map =
+          Cast<Map>(LoadNativeContext(context)[ITERATOR_RESULT_MAP_INDEX])
+          otherwise unreachable;
+      let i: iterator::IteratorRecord = iterator::GetIterator(iterable);
+      try {
+        assert(!IsNullOrUndefined(i.object));
+        while (true) {
+          const step: Object = iterator::IteratorStep(i, fastIteratorResultMap)
+              otherwise return result;
+          const iteratorValue: Object =
+              iterator::IteratorValue(step, fastIteratorResultMap);
+          const pair: KeyValuePair =
+              collections::LoadKeyValuePair(iteratorValue);
+          FastCreateDataProperty(result, pair.key, pair.value);
+        }
+        return result;
+      } catch (e) deferred {
+        iterator::IteratorCloseOnException(i, e);
+      }
+    }
+    label Throw deferred {
+      ThrowTypeError(kNotIterable);
+    }
+  }
+}  // namespace object

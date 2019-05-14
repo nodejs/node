@@ -1,0 +1,8 @@
+Tests that DevTools doesn't crash on Runtime.evaluate with contextId equals 0.
+{
+    error : {
+        code : -32000
+        message : Cannot find context with specified id
+    }
+    id : <messageId>
+}

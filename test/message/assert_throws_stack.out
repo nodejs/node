@@ -1,0 +1,18 @@
+assert.js:*
+      throw err;
+      ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ Comparison {}
+- Comparison {
+-   bar: true
+- }
+    at Object.<anonymous> (*assert_throws_stack.js:*:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *

@@ -1,0 +1,77 @@
+{
+  "_args": [
+    [
+      "read-package-json@2.0.13",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "read-package-json@2.0.13",
+  "_id": "read-package-json@2.0.13",
+  "_inBundle": false,
+  "_integrity": "sha512-/1dZ7TRZvGrYqE0UAfN6qQb5GYBsNcqS1C0tNK601CFOJmtHI7NIGXwetEPU/OtoFHZL3hDxm4rolFFVE9Bnmg==",
+  "_location": "/read-package-json",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "read-package-json@2.0.13",
+    "name": "read-package-json",
+    "escapedName": "read-package-json",
+    "rawSpec": "2.0.13",
+    "saveSpec": null,
+    "fetchSpec": "2.0.13"
+  },
+  "_requiredBy": [
+    "/",
+    "/init-package-json",
+    "/libcipm",
+    "/read-installed",
+    "/read-package-tree"
+  ],
+  "_resolved": "https://registry.npmjs.org/read-package-json/-/read-package-json-2.0.13.tgz",
+  "_spec": "2.0.13",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/read-package-json/issues"
+  },
+  "dependencies": {
+    "glob": "^7.1.1",
+    "graceful-fs": "^4.1.2",
+    "json-parse-better-errors": "^1.0.1",
+    "normalize-package-data": "^2.0.0",
+    "slash": "^1.0.0"
+  },
+  "description": "The thing npm uses to read package.json files with semantics and defaults and validation",
+  "devDependencies": {
+    "standard": "^11.0.0",
+    "standard-version": "^4.3.0",
+    "tap": "^11.1.2"
+  },
+  "files": [
+    "read-json.js"
+  ],
+  "homepage": "https://github.com/npm/read-package-json#readme",
+  "license": "ISC",
+  "main": "read-json.js",
+  "name": "read-package-json",
+  "optionalDependencies": {
+    "graceful-fs": "^4.1.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/read-package-json.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap --nyc-arg=--all --coverage test/*.js"
+  },
+  "version": "2.0.13"
+}

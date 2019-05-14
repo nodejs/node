@@ -1,0 +1,65 @@
+{
+  "_args": [
+    [
+      "readdir-scoped-modules@1.0.2",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "readdir-scoped-modules@1.0.2",
+  "_id": "readdir-scoped-modules@1.0.2",
+  "_inBundle": false,
+  "_integrity": "sha1-n6+jfShr5dksuuve4DDcm19AZ0c=",
+  "_location": "/readdir-scoped-modules",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "readdir-scoped-modules@1.0.2",
+    "name": "readdir-scoped-modules",
+    "escapedName": "readdir-scoped-modules",
+    "rawSpec": "1.0.2",
+    "saveSpec": null,
+    "fetchSpec": "1.0.2"
+  },
+  "_requiredBy": [
+    "/",
+    "/read-installed",
+    "/read-package-tree"
+  ],
+  "_resolved": "https://registry.npmjs.org/readdir-scoped-modules/-/readdir-scoped-modules-1.0.2.tgz",
+  "_spec": "1.0.2",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/readdir-scoped-modules/issues"
+  },
+  "dependencies": {
+    "debuglog": "^1.0.1",
+    "dezalgo": "^1.0.0",
+    "graceful-fs": "^4.1.2",
+    "once": "^1.3.0"
+  },
+  "description": "Like `fs.readdir` but handling `@org/module` dirs as if they were a single entry.",
+  "devDependencies": {
+    "tap": "^1.2.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "homepage": "https://github.com/npm/readdir-scoped-modules",
+  "license": "ISC",
+  "main": "readdir.js",
+  "name": "readdir-scoped-modules",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/readdir-scoped-modules.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "1.0.2"
+}

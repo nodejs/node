@@ -1,0 +1,85 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace string {
+  macro TryFastStringCompareSequence(
+      string: String, searchStr: String, start: Number,
+      searchLength: Smi): Boolean labels Slow {
+    const directString = Cast<DirectString>(string) otherwise Slow;
+    const directSearchStr = Cast<DirectString>(searchStr) otherwise Slow;
+    const stringIndexSmi: Smi = Cast<Smi>(start) otherwise Slow;
+
+    let searchIndex: intptr = 0;
+    let stringIndex = Convert<intptr>(stringIndexSmi);
+    const searchLengthInteger = Convert<intptr>(searchLength);
+
+    while (searchIndex < searchLengthInteger) {
+      if (StringCharCodeAt(directSearchStr, searchIndex) !=
+          StringCharCodeAt(directString, stringIndex)) {
+        return False;
+      }
+
+      searchIndex++;
+      stringIndex++;
+    }
+    return True;
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.endswith
+  transitioning javascript builtin StringPrototypeEndsWith(
+      context: Context, receiver: Object, ...arguments): Boolean {
+    const searchString: Object = arguments[0];
+    const endPosition: Object = arguments[1];
+
+    // 1. Let O be ? RequireObjectCoercible(this value).
+    const object: Object = RequireObjectCoercible(receiver);
+
+    // 2. Let S be ? ToString(O).
+    const string: String = ToString_Inline(context, object);
+
+    // 3. Let isRegExp be ? IsRegExp(searchString).
+    // 4. If isRegExp is true, throw a TypeError exception.
+    if (IsRegExp(searchString)) {
+      ThrowTypeError(kFirstArgumentNotRegExp, 'String.prototype.endsWith');
+    }
+
+    // 5. Let searchStr be ? ToString(searchString).
+    const searchStr: String = ToString_Inline(context, searchString);
+
+    // 6. Let len be the length of S.
+    const len: Number = string.length_smi;
+
+    // 7. If endPosition is undefined, let pos be len,
+    // else let pos be ? ToInteger(endPosition).
+    const pos: Number = (endPosition == Undefined) ?
+        len :
+        ToInteger_Inline(context, endPosition);
+
+    // 8. Let end be min(max(pos, 0), len).
+    const end: Number = NumberMin(NumberMax(pos, 0), len);
+
+    // 9. Let searchLength be the length of searchStr.
+    const searchLength: Smi = searchStr.length_smi;
+
+    // 10. Let start be end - searchLength.
+    let start = end - searchLength;
+
+    // 11. If start is less than 0, return false.
+    if (start < 0) return False;
+
+    // 12. If the sequence of code units of S starting at start of length
+    // searchLength is the same as the full code unit sequence of searchStr,
+    // return true.
+    // 13. Otherwise, return false.
+    try {
+      // Fast Path: If both strings are direct and relevant indices are Smis.
+      return TryFastStringCompareSequence(
+          string, searchStr, start, searchLength) otherwise Slow;
+    }
+    label Slow {
+      // Slow Path: If either of the string is indirect, bail into runtime.
+      return StringCompareSequence(context, string, searchStr, start);
+    }
+  }
+}

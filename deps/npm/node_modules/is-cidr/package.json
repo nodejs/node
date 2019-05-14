@@ -1,0 +1,80 @@
+{
+  "_from": "is-cidr@3.0.0",
+  "_id": "is-cidr@3.0.0",
+  "_inBundle": false,
+  "_integrity": "sha512-8Xnnbjsb0x462VoYiGlhEi+drY8SFwrHiSYuzc/CEwco55vkehTaxAyIjEdpi3EMvLPPJAJi9FlzP+h+03gp0Q==",
+  "_location": "/is-cidr",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "is-cidr@3.0.0",
+    "name": "is-cidr",
+    "escapedName": "is-cidr",
+    "rawSpec": "3.0.0",
+    "saveSpec": null,
+    "fetchSpec": "3.0.0"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/is-cidr/-/is-cidr-3.0.0.tgz",
+  "_shasum": "1acf35c9e881063cd5f696d48959b30fed3eed56",
+  "_spec": "is-cidr@3.0.0",
+  "_where": "/Users/aeschright/code/cli",
+  "author": {
+    "name": "silverwind",
+    "email": "me@silverwind.io"
+  },
+  "bugs": {
+    "url": "https://github.com/silverwind/is-cidr/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Felipe Apostol",
+      "email": "flipjs.io@gmail.com",
+      "url": "http://flipjs.io/"
+    }
+  ],
+  "dependencies": {
+    "cidr-regex": "^2.0.10"
+  },
+  "deprecated": false,
+  "description": "Check if a string is an IP address in CIDR notation",
+  "devDependencies": {
+    "eslint": "^5.7.0",
+    "eslint-config-silverwind": "^2.0.9",
+    "updates": "^4.5.2",
+    "ver": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=6"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/silverwind/is-cidr#readme",
+  "keywords": [
+    "cidr",
+    "regex",
+    "notation",
+    "cidr notation",
+    "prefix",
+    "prefixes",
+    "ip",
+    "ip address",
+    "network"
+  ],
+  "license": "BSD-2-Clause",
+  "name": "is-cidr",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silverwind/is-cidr.git"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "version": "3.0.0"
+}

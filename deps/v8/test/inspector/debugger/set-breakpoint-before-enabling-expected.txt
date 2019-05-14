@@ -1,0 +1,7 @@
+Tests that setting breakpoint before enabling debugger produces an error
+setBreakpointByUrl error: undefined
+setBreakpoint error: {
+  "code": -32602,
+  "message": "Invalid parameters",
+  "data": "location: object expected"
+}

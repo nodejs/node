@@ -1,0 +1,37 @@
+# Copyright 2014 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+['system == macos and asan', {
+  # BUG(820416).
+  'BitsDeathTest*': [SKIP],
+  'LiveRangeUnitTest*': [SKIP],
+  'LoggingDeathTest*': [SKIP],
+  'LoggingTest.CompareClassTypes': [SKIP],
+  'LoggingTest.CompareWithDifferentSignedness': [SKIP],
+  'LoggingTest.CompareWithReferenceType': [SKIP],
+  'RandomNumberGenerator.NextSampleInvalidParam': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
+}],  # 'system == macos and asan'
+
+['(arch == arm or arch == mips) and not simulator_run', {
+  # Uses too much memory.
+  'Parameterized/WasmCodeManagerTest.GrowingVsFixedModule/Fixed': [SKIP]
+}],  # '(arch == arm or arch == mips) and not simulator_run'
+
+##############################################################################
+['lite_mode or variant == jitless', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'ValueSerializerTestWithSharedArrayBufferClone.RoundTripWebAssemblyMemory': [SKIP],
+  'ValueSerializerTestWithWasm.*': [SKIP],
+  'Parameterized/WasmCodeManagerTest.*': [SKIP],
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
+
+]

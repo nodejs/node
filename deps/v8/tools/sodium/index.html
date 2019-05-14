@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Sodium</title>
+    <meta charset="utf-8">
+    <link href="styles.css" rel="stylesheet" type="text/css">
+  </head>
+  <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  <script src="./sodium.js"></script>
+  <script type="text/javascript"></script>
+  <body>
+    <table style='top:5px; width:100%;'>
+      <tr><td id='table-header'>
+          <input type='file' id='log-file-id' />
+          <select id="kind-selector-id" onchange="Sodium.kindChangedHandler(this);"></select><br>
+          <select id="function-selector-id" onchange="Sodium.functionChangedHandler();"></select>
+      </td></tr>
+      <tr>
+      <table style='height:90%;'>
+      <tr>
+        <td id='asm-container'>
+          <div id='asm-text'></div>
+        </td>
+        <td id='source-container'>
+          <div id='source-text'><pre id='source-text-pre'/></div>
+        </td>
+      </tr>
+      </table>
+      </tr>
+    </table>
+    <script>
+      Sodium.buildFunctionKindSelector(document.getElementById('kind-selector-id'));
+      document.getElementById('log-file-id').addEventListener('change', Sodium.readLog, false);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,194 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This test checks the behavior of the Math object as described in 15.8 of the language specification.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS Math.abs(NaN) is NaN
+PASS Math.abs(0) is 0
+PASS Math.abs(-0) is 0
+PASS Math.abs(1) is 1
+PASS Math.abs(-1) is 1
+PASS Math.abs(Number.MIN_VALUE) is Number.MIN_VALUE
+PASS Math.abs(-Number.MIN_VALUE) is Number.MIN_VALUE
+PASS Math.abs(Number.MAX_VALUE) is Number.MAX_VALUE
+PASS Math.abs(-Number.MAX_VALUE) is Number.MAX_VALUE
+PASS Math.abs(Infinity) is Infinity
+PASS Math.abs(-Infinity) is Infinity
+PASS Math.acos(NaN) is NaN
+PASS Math.acos(-0) is Math.acos(0)
+PASS Math.acos(1) is 0
+PASS Math.acos(1.1) is NaN
+PASS Math.acos(-1.1) is NaN
+PASS Math.acos(Infinity) is NaN
+PASS Math.acos(-Infinity) is NaN
+PASS Math.asin(NaN) is NaN
+PASS Math.asin(0) is 0
+PASS Math.asin(-0) is -0
+PASS Math.asin(1) is -Math.asin(-1)
+PASS Math.asin(1.1) is NaN
+PASS Math.asin(-1.1) is NaN
+PASS Math.asin(Infinity) is NaN
+PASS Math.asin(-Infinity) is NaN
+PASS Math.atan(NaN) is NaN
+PASS Math.atan(0) is 0
+PASS Math.atan(-0) is -0
+PASS Math.atan(Infinity) is -Math.atan(-Infinity)
+PASS Math.atan2(NaN, NaN) is NaN
+PASS Math.atan2(NaN, 0) is NaN
+PASS Math.atan2(NaN, -0) is NaN
+PASS Math.atan2(NaN, 1) is NaN
+PASS Math.atan2(NaN, Infinity) is NaN
+PASS Math.atan2(NaN, -Infinity) is NaN
+PASS Math.atan2(0, NaN) is NaN
+PASS Math.atan2(-0, NaN) is NaN
+PASS Math.atan2(1, NaN) is NaN
+PASS Math.atan2(Infinity, NaN) is NaN
+PASS Math.atan2(-Infinity, NaN) is NaN
+PASS testStr is "onetwo"
+PASS Math.ceil(NaN) is NaN
+PASS Math.ceil(0) is 0
+PASS Math.ceil(-0) is -0
+PASS Math.ceil(-0.5) is -0
+PASS Math.ceil(1) is 1
+PASS Math.ceil(-1) is -1
+PASS Math.ceil(1.1) is 2
+PASS Math.ceil(-1.1) is -1
+PASS Math.ceil(Number.MIN_VALUE) is 1
+PASS Math.ceil(-Number.MIN_VALUE) is -0
+PASS Math.ceil(Number.MAX_VALUE) is Number.MAX_VALUE
+PASS Math.ceil(-Number.MAX_VALUE) is -Number.MAX_VALUE
+PASS Math.ceil(Infinity) is Infinity
+PASS Math.ceil(-Infinity) is -Infinity
+PASS Math.cos(NaN) is NaN
+PASS Math.cos(0) is 1
+PASS Math.cos(-0) is 1
+PASS Math.cos(Infinity) is NaN
+PASS Math.cos(-Infinity) is NaN
+PASS Math.exp(NaN) is NaN
+PASS Math.exp(0) is 1
+PASS Math.exp(-0) is 1
+PASS Math.exp(Infinity) is Infinity
+PASS Math.exp(-Infinity) is 0
+PASS Math.floor(NaN) is NaN
+PASS Math.floor(0) is 0
+PASS Math.floor(-0) is -0
+PASS Math.floor(0.5) is 0
+PASS Math.floor(1) is 1
+PASS Math.floor(-1) is -1
+PASS Math.floor(1.1) is 1
+PASS Math.floor(-1.1) is -2
+PASS Math.floor(Number.MIN_VALUE) is 0
+PASS Math.floor(-Number.MIN_VALUE) is -1
+PASS Math.floor(Number.MAX_VALUE) is Number.MAX_VALUE
+PASS Math.floor(-Number.MAX_VALUE) is -Number.MAX_VALUE
+PASS Math.floor(Infinity) is Infinity
+PASS Math.floor(-Infinity) is -Infinity
+PASS Math.log(NaN) is NaN
+PASS Math.log(0) is -Infinity
+PASS Math.log(-0) is -Infinity
+PASS Math.log(1) is 0
+PASS Math.log(-1) is NaN
+PASS Math.log(-1.1) is NaN
+PASS Math.log(Infinity) is Infinity
+PASS Math.log(-Infinity) is NaN
+PASS Math.max() is -Infinity
+PASS Math.max(NaN) is NaN
+PASS Math.max(NaN,1) is NaN
+PASS Math.max(0) is 0
+PASS Math.max(-0) is -0
+PASS Math.max(-0, 0) is 0
+PASS Math.min() is Infinity
+PASS Math.min(NaN) is NaN
+PASS Math.min(NaN,1) is NaN
+PASS Math.min(0) is 0
+PASS Math.min(-0) is -0
+PASS Math.min(-0, 0) is -0
+PASS Math.pow(NaN, NaN) is NaN
+PASS Math.pow(NaN, 0) is 1
+PASS Math.pow(NaN, -0) is 1
+PASS Math.pow(NaN, 1) is NaN
+PASS Math.pow(NaN, Infinity) is NaN
+PASS Math.pow(NaN, -Infinity) is NaN
+PASS Math.pow(0, NaN) is NaN
+PASS Math.pow(-0, NaN) is NaN
+PASS Math.pow(1, NaN) is NaN
+PASS Math.pow(Infinity, NaN) is NaN
+PASS Math.pow(-Infinity, NaN) is NaN
+PASS Math.round(NaN) is NaN
+PASS Math.round(0) is 0
+PASS Math.round(-0) is -0
+PASS Math.round(0.4) is 0
+PASS Math.round(-0.4) is -0
+PASS Math.round(0.5) is 1
+PASS Math.round(-0.5) is -0
+PASS Math.round(0.6) is 1
+PASS Math.round(-0.6) is -1
+PASS Math.round(1) is 1
+PASS Math.round(-1) is -1
+PASS Math.round(1.1) is 1
+PASS Math.round(-1.1) is -1
+PASS Math.round(1.5) is 2
+PASS Math.round(-1.5) is -1
+PASS Math.round(1.6) is 2
+PASS Math.round(-1.6) is -2
+PASS Math.round(8640000000000000) is 8640000000000000
+PASS Math.round(8640000000000000.5) is 8640000000000000
+PASS Math.round(8640000000000001) is 8640000000000001
+PASS Math.round(8640000000000002) is 8640000000000002
+PASS Math.round(9007199254740990) is 9007199254740990
+PASS Math.round(9007199254740991) is 9007199254740991
+PASS Math.round(1.7976931348623157e+308) is 1.7976931348623157e+308
+PASS Math.round(-8640000000000000) is -8640000000000000
+PASS Math.round(-8640000000000001) is -8640000000000001
+PASS Math.round(-8640000000000002) is -8640000000000002
+PASS Math.round(-9007199254740990) is -9007199254740990
+PASS Math.round(-9007199254740991) is -9007199254740991
+PASS Math.round(-1.7976931348623157e+308) is -1.7976931348623157e+308
+PASS Math.round(Infinity) is Infinity
+PASS Math.round(-Infinity) is -Infinity
+PASS Math.sin(NaN) is NaN
+PASS Math.sin(0) is 0
+PASS Math.sin(-0) is -0
+PASS Math.sin(Infinity) is NaN
+PASS Math.sin(-Infinity) is NaN
+PASS Math.sqrt(NaN) is NaN
+PASS Math.sqrt(0) is 0
+PASS Math.sqrt(-0) is -0
+PASS Math.sqrt(1) is 1
+PASS Math.sqrt(-1) is NaN
+PASS Math.sqrt(Infinity) is Infinity
+PASS Math.sqrt(-Infinity) is NaN
+PASS Math.tan(NaN) is NaN
+PASS Math.tan(0) is 0
+PASS Math.tan(-0) is -0
+PASS Math.tan(Infinity) is NaN
+PASS Math.tan(-Infinity) is NaN
+PASS delete Math; is true
+PASS 'Math' in global() is false
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

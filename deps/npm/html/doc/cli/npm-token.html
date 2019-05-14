@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+  <title>npm-token</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-token.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../cli/npm-token.html">npm-token</a></h1> <p>Manage your authentication tokens</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm token list [--json|--parseable]
+npm token create [--read-only] [--cidr=1.1.1.1/24,2.2.2.2/16]
+npm token revoke &lt;id|token&gt;</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This lets you list, create and revoke authentication tokens.</p>
+<ul>
+<li><p><code>npm token list</code>:
+Shows a table of all active authentication tokens. You can request this as
+JSON with <code>--json</code> or tab-separated values with <code>--parseable</code>.
+```</p>
+</li>
+<li><p>--------+---------+------------+----------+----------------+
+| id     | token   | created    | read-only | CIDR whitelist |</p>
+</li>
+<li><p>--------+---------+------------+----------+----------------+
+| 7f3134 | 1fa9ba… | 2017-10-02 | yes      |                |</p>
+</li>
+<li><p>--------+---------+------------+----------+----------------+
+| c03241 | af7aef… | 2017-10-02 | no       | 192.168.0.1/24 |</p>
+</li>
+<li><p>--------+---------+------------+----------+----------------+
+| e0cf92 | 3a436a… | 2017-10-02 | no       |                |</p>
+</li>
+<li><p>--------+---------+------------+----------+----------------+
+| 63eb9d | 74ef35… | 2017-09-28 | no       |                |</p>
+</li>
+<li><p>--------+---------+------------+----------+----------------+
+| 2daaa8 | cbad5f… | 2017-09-26 | no       |                |</p>
+</li>
+<li><p>--------+---------+------------+----------+----------------+
+| 68c2fe | 127e51… | 2017-09-23 | no       |                |</p>
+</li>
+<li><p>--------+---------+------------+----------+----------------+
+| 6334e1 | 1dadd1… | 2017-09-23 | no       |                |</p>
+</li>
+<li><p>--------+---------+------------+----------+----------------+</p>
+<pre><code></code></pre></li>
+<li><p><code>npm token create [--read-only] [--cidr=&lt;cidr-ranges&gt;]</code>:
+Create a new authentication token. It can be <code>--read-only</code> or accept a list of
+<a href="https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing">CIDR</a> ranges to
+limit use of this token to. This will prompt you for your password, and, if you have
+two-factor authentication enabled, an otp.</p>
+</li>
+</ul>
+<pre><code>+----------------+--------------------------------------+
+| token          | a73c9572-f1b9-8983-983d-ba3ac3cc913d |
++----------------+--------------------------------------+
+| cidr_whitelist |                                      |
++----------------+--------------------------------------+
+| readonly       | false                                |
++----------------+--------------------------------------+
+| created        | 2017-10-02T07:52:24.838Z             |
++----------------+--------------------------------------+</code></pre><ul>
+<li><code>npm token revoke &lt;token|id&gt;</code>:
+This removes an authentication token, making it immediately unusable. This can accept
+both complete tokens (as you get back from <code>npm token create</code> and will
+find in your <code>.npmrc</code>) and ids as seen in the <code>npm token list</code> output.
+This will NOT accept the truncated token found in <code>npm token list</code> output.</li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-token &mdash; npm@6.9.0</p>

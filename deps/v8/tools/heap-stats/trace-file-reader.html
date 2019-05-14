@@ -1,0 +1,86 @@
+<!-- Copyright 2018 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+<template id="trace-file-reader-template">
+<style>
+#fileReader {
+  width: 100%;
+  height: 100px;
+  line-height: 100px;
+  text-align: center;
+  border: solid 1px #000000;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.5s ease-in-out;
+}
+
+#fileReader.done {
+    height: 20px;
+    line-height: 20px;
+}
+
+#fileReader:hover {
+  background-color: #e0edfe ;
+}
+
+.loading #fileReader {
+  cursor: wait;
+}
+
+#fileReader > input {
+  display: none;
+}
+
+
+#loader {
+  display: none;
+}
+
+.loading #loader {
+  display: block;
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+#spinner {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  top: 40%;
+  left: 50%;
+  margin-left: -50px;
+  border: 30px solid #000;
+  border-top: 30px solid #36E;
+  border-radius: 50%;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+ 0% {
+    transform: rotate(0deg);
+ }
+ 100% {
+    transform: rotate(360deg);
+ }
+}
+</style>
+
+<section id="fileReaderSection">
+  <div id="fileReader" tabindex=1 >
+    <span id="label">
+      Drag and drop a trace file into this area, or click to choose from disk.
+     </span>
+    <input id="file" type="file" name="file" />
+  </div>
+  <div id="loader">
+    <div id="spinner"></div>
+  </div>
+</section>
+</template>
+<script type="text/javascript" src="model.js"></script>
+
+<script src="trace-file-reader.js"></script>

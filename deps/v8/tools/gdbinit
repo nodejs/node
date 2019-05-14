@@ -1,0 +1,165 @@
+# Copyright 2014 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Print tagged object.
+define job
+call (void) _v8_internal_Print_Object((void*)($arg0))
+end
+document job
+Print a v8 JavaScript object
+Usage: job tagged_ptr
+end
+
+# Print content of v8::internal::Handle.
+define jh
+call (void) _v8_internal_Print_Object(*((v8::internal::Object**)($arg0).location_))
+end
+document jh
+Print content of a v8::internal::Handle
+Usage: jh internal_handle
+end
+
+# Print content of v8::Local handle.
+define jlh
+call (void) _v8_internal_Print_Object(*((v8::internal::Object**)($arg0).val_))
+end
+document jlh
+Print content of a v8::Local handle
+Usage: jlh local_handle
+end
+
+# Print Code objects containing given PC.
+define jco
+call (void) _v8_internal_Print_Code((void*)($arg0))
+end
+document jco
+Print a v8 Code object from an internal code address
+Usage: jco pc
+end
+
+# Print LayoutDescriptor.
+define jld
+call (void) _v8_internal_Print_LayoutDescriptor((void*)($arg0))
+end
+document jld
+Print a v8 LayoutDescriptor object
+Usage: jld tagged_ptr
+end
+
+# Print TransitionTree.
+define jtt
+call (void) _v8_internal_Print_TransitionTree((void*)($arg0))
+end
+document jtt
+Print the complete transition tree of the given v8 Map.
+Usage: jtt tagged_ptr
+end
+
+# Print JavaScript stack trace.
+define jst
+call (void) _v8_internal_Print_StackTrace()
+end
+document jst
+Print the current JavaScript stack trace
+Usage: jst
+end
+
+# Skip the JavaScript stack.
+define jss
+set $js_entry_sp=v8::internal::Isolate::Current()->thread_local_top()->js_entry_sp_
+set $rbp=*(void**)$js_entry_sp
+set $rsp=$js_entry_sp + 2*sizeof(void*)
+set $pc=*(void**)($js_entry_sp+sizeof(void*))
+end
+document jss
+Skip the jitted stack on x64 to where we entered JS last.
+Usage: jss
+end
+
+# Print stack trace with assertion scopes.
+define bta
+python
+import re
+frame_re = re.compile("^#(\d+)\s*(?:0x[a-f\d]+ in )?(.+) \(.+ at (.+)")
+assert_re = re.compile("^\s*(\S+) = .+<v8::internal::Per\w+AssertScope<v8::internal::(\S*), (false|true)>")
+btl = gdb.execute("backtrace full", to_string = True).splitlines()
+for l in btl:
+  match = frame_re.match(l)
+  if match:
+    print("[%-2s] %-60s %-40s" % (match.group(1), match.group(2), match.group(3)))
+  match = assert_re.match(l)
+  if match:
+    if match.group(3) == "false":
+      prefix = "Disallow"
+      color = "\033[91m"
+    else:
+      prefix = "Allow"
+      color = "\033[92m"
+    print("%s -> %s %s (%s)\033[0m" % (color, prefix, match.group(2), match.group(1)))
+end
+end
+document bta
+Print stack trace with assertion scopes
+Usage: bta
+end
+
+# Search for a pointer inside all valid pages.
+define space_find
+  set $space = $arg0
+  set $current_page = $space->anchor()->next_page()
+  while ($current_page != $space->anchor())
+    printf "#   Searching in %p - %p\n", $current_page->area_start(), $current_page->area_end()-1
+    find $current_page->area_start(), $current_page->area_end()-1, $arg1
+    set $current_page = $current_page->next_page()
+  end
+end
+
+define heap_find
+  set $heap = v8::internal::Isolate::Current()->heap()
+  printf "# Searching for %p in old_space  ===============================\n", $arg0
+  space_find $heap->old_space() ($arg0)
+  printf "# Searching for %p in map_space  ===============================\n", $arg0
+  space_find $heap->map_space() $arg0
+  printf "# Searching for %p in code_space ===============================\n", $arg0
+  space_find $heap->code_space() $arg0
+end
+document heap_find
+Find the location of a given address in V8 pages.
+Usage: heap_find address
+end
+
+set disassembly-flavor intel
+set disable-randomization off
+
+# Install a handler whenever the debugger stops due to a signal. It walks up the
+# stack looking for V8_Dcheck and moves the frame to the one above it so it's
+# immediately at the line of code that triggered the DCHECK.
+python
+def dcheck_stop_handler(event):
+  frame = gdb.selected_frame()
+  select_frame = None
+  message = None
+  count = 0
+  # limit stack scanning since they're usually shallow and otherwise stack
+  # overflows can be very slow.
+  while frame is not None and count < 5:
+    count += 1
+    if frame.name() == 'V8_Dcheck':
+      frame_message = gdb.lookup_symbol('message', frame.block())[0]
+      if frame_message:
+        message = frame_message.value(frame).string()
+      select_frame = frame.older()
+      break
+    if frame.name() is not None and frame.name().startswith('V8_Fatal'):
+      select_frame = frame.older()
+    frame = frame.older()
+
+  if select_frame is not None:
+    select_frame.select()
+    gdb.execute('frame')
+    if message:
+      print('DCHECK error: {}'.format(message))
+
+gdb.events.stop.connect(dcheck_stop_handler)
+end

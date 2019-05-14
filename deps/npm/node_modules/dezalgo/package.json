@@ -1,0 +1,76 @@
+{
+  "_args": [
+    [
+      "dezalgo@1.0.3",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "dezalgo@1.0.3",
+  "_id": "dezalgo@1.0.3",
+  "_inBundle": false,
+  "_integrity": "sha1-f3Qt4Gb8dIvI24IFad3c5Jvw1FY=",
+  "_location": "/dezalgo",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "dezalgo@1.0.3",
+    "name": "dezalgo",
+    "escapedName": "dezalgo",
+    "rawSpec": "1.0.3",
+    "saveSpec": null,
+    "fetchSpec": "1.0.3"
+  },
+  "_requiredBy": [
+    "/",
+    "/read-package-tree",
+    "/readdir-scoped-modules"
+  ],
+  "_resolved": "https://registry.npmjs.org/dezalgo/-/dezalgo-1.0.3.tgz",
+  "_spec": "1.0.3",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/dezalgo/issues"
+  },
+  "dependencies": {
+    "asap": "^2.0.0",
+    "wrappy": "1"
+  },
+  "description": "Contain async insanity so that the dark pony lord doesn't eat souls",
+  "devDependencies": {
+    "tap": "^1.2.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "homepage": "https://github.com/npm/dezalgo",
+  "keywords": [
+    "async",
+    "zalgo",
+    "the dark pony",
+    "he comes",
+    "asynchrony of all holy and good",
+    "T̯̪ͅo̯͖̹ ̻̮̖̲͢i̥̖n̢͈͇̝͍v͏͉ok̭̬̝ͅe̞͍̩̫͍̩͝ ̩̮̖̟͇͉́t͔͔͎̗h͏̗̟e̘͉̰̦̠̞͓ ͕h͉̟͎̪̠̱͠ḭ̮̩v̺͉͇̩e̵͖-̺̪m͍i̜n̪̲̲̲̮d̷ ̢r̠̼̯̹̦̦͘ͅe͓̳͓̙p̺̗̫͙͘ͅr͔̰͜e̴͓̞s͉̩̩͟ͅe͏̣n͚͇̗̭̺͍tì͙̣n͏̖̥̗͎̰̪g̞͓̭̱̯̫̕ ̣̱͜ͅc̦̰̰̠̮͎͙̀hao̺̜̻͍͙ͅs͉͓̘.͎̼̺̼͕̹͘",
+    "̠̞̱̰I͖͇̝̻n̦̰͍̰̟v̤̺̫̳̭̼̗͘ò̹̟̩̩͚k̢̥̠͍͉̦̬i̖͓͔̮̱̻͘n̶̳͙̫͎g̖̯̣̲̪͉ ̞͎̗͕͚ͅt̲͕̘̺̯̗̦h̘̦̲̜̻e̳͎͉̬͙ ̴̞̪̲̥f̜̯͓͓̭̭͢e̱̘͔̮e̜̤l̺̱͖̯͓͙͈͢i̵̦̬͉͔̫͚͕n͉g̨͖̙̙̹̹̟̤ ͉̪o̞̠͍̪̰͙ͅf̬̲̺ ͔͕̲͕͕̲̕c̙͉h̝͔̩̙̕ͅa̲͖̻̗̹o̥̼̫s̝̖̜̝͚̫̟.̺͚  ̸̱̲W̶̥̣͖̦i͏̤̬̱̳̣ͅt͉h̗̪̪ ̷̱͚̹̪ǫ͕̗̣̳̦͎u̼̦͔̥̮̕ţ͖͎̻͔͉ ̴͎̩òr̹̰̖͉͈͝d̷̲̦̖͓e̲͓̠r",
+    "̧͚̜͓̰̭̭Ṯ̫̹̜̮̟̮͝h͚̘̩̘̖̰́e ̥̘͓͉͔͙̼N̟̜̣̘͔̪e̞̞̤͢z̰̖̘͇p̠͟e̺̱̣͍͙̝ṛ̘̬͔̙͇̠d͝ḭ̯̱̥̗̩a̛ͅn͏̦ ̷̥hi̥v̖̳̹͉̮̱͝e̹̪̘̖̰̟-̴͙͓͚̜̻mi̗̺̻͙̺ͅn̪̯͈d ͏̘͓̫̳ͅơ̹͔̳̖̣͓f͈̹̘ ͕ͅc̗̤̠̜̮̥̥h̡͍̩̭̫͚̱a̤͉̤͔͜os͕̤̼͍̲̀ͅ.̡̱ ̦Za̯̱̗̭͍̣͚l̗͉̰̤g͏̣̭̬̗̲͖ͅo̶̭̩̳̟͈.̪̦̰̳",
+    "H̴̱̦̗̬̣͓̺e̮ ͉̠̰̞͎̖͟ẁh̛̺̯ͅo̖̫͡ ̢Ẁa̡̗i̸t͖̣͉̀ş͔̯̩ ̤̦̮͇̞̦̲B͎̭͇̦̼e̢hin͏͙̟̪d̴̰͓̻̣̮͕ͅ T͖̮̕h͖e̘̺̰̙͘ ̥Ẁ̦͔̻͚a̞͖̪͉l̪̠̻̰̣̠l̲͎͞",
+    "Z̘͍̼͎̣͔͝Ą̲̜̱̱̹̤͇L̶̝̰̭͔G͍̖͍O̫͜ͅ!̼̤ͅ",
+    "H̝̪̜͓̀̌̂̒E̢̙̠̣ ̴̳͇̥̟̠͍̐C̹̓̑̐̆͝Ó̶̭͓̚M̬̼Ĕ̖̤͔͔̟̹̽̿̊ͥ̍ͫS̻̰̦̻̖̘̱̒ͪ͌̅͟"
+  ],
+  "license": "ISC",
+  "main": "dezalgo.js",
+  "name": "dezalgo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/dezalgo.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "1.0.3"
+}

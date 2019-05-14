@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"/>
+<title>Shift_jis decoding errors</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<link rel="author" title="Richard Ishida" href="mailto:ishida@w3.org">
+<link rel="help" href="https://encoding.spec.whatwg.org/#shift_jis">
+<meta name="assert" content="The browser decodes characters that are not recognised from the shift_jis index as replacement characters.">
+<style>
+ iframe { display:none }
+ form { display:none }
+</style>
+</head>
+
+<body onload="showNodes();">
+
+<iframe src="sjis_errors.html" name="scriptWindow" id="scrwin"></iframe>
+
+<div id="log"></div>
+
+<script>
+var tests = [];
+
+function iframeRef(frameRef) {
+	return frameRef.contentWindow
+		? frameRef.contentWindow.document
+		: frameRef.contentDocument;
+}
+
+function showNodes() {
+	var iframe = iframeRef(document.getElementById("scrwin"));
+	nodes = iframe.querySelectorAll("span");
+
+	t = -1;
+	t++;
+	tests[t] = async_test("lead not 0x00 and no more bytes: FA");
+	t++;
+	tests[t] = async_test("lead not 0x00 and no more bytes: FA 6E FA");
+	t++;
+	tests[t] = async_test("lead not 0x00 and no more bytes: FA FA FA");
+
+	t++;
+	tests[t] = async_test("lead byte outside 0x81-0x9F,0xA1-0xDF,0xE0,0xFC: FF");
+	t++;
+	tests[t] = async_test("lead byte outside 0x81-0x9F,0xA1-0xDF,0xE0,0xFC: A0");
+	t++;
+	tests[t] = async_test("lead byte outside 0x81-0x9F,0xA1-0xDF,0xE0,0xFC: E1");
+	t++;
+	tests[t] = async_test(
+		"lead byte outside 0x81-0x9F,0xA1-0xDF,0xE0,0xFC: FA FA FF"
+	);
+
+	t++;
+	tests[t] = async_test("trail byte outside 0x41-0xFE: FA FD");
+	t++;
+	tests[t] = async_test("trail byte outside 0x41-0xFE: FA FE");
+
+	t++;
+	tests[t] = async_test("pointer is null: 81 B5");
+
+	t = -1;
+	t++;
+	tests[t].step(function() {
+		assert_equals(nodes[t].textContent, "�");
+	});
+	tests[t].done();
+	t++;
+	tests[t].step(function() {
+		assert_equals(nodes[t].textContent, "佖�");
+	});
+	tests[t].done();
+	t++;
+	tests[t].step(function() {
+		assert_equals(nodes[t].textContent, "洄�");
+	});
+	tests[t].done();
+	t++;
+	tests[t].step(function() {
+		assert_equals(nodes[t].textContent, "�");
+	});
+	tests[t].done();
+	t++;
+	tests[t].step(function() {
+		assert_equals(nodes[t].textContent, "�");
+	});
+	tests[t].done();
+	t++;
+	tests[t].step(function() {
+		assert_equals(nodes[t].textContent, "�");
+	});
+	tests[t].done();
+	t++;
+	tests[t].step(function() {
+		assert_equals(nodes[t].textContent, "洄�");
+	});
+	tests[t].done();
+	t++;
+	tests[t].step(function() {
+		assert_equals(nodes[t].textContent, "�");
+	});
+	tests[t].done();
+	t++;
+	tests[t].step(function() {
+		assert_equals(nodes[t].textContent, "�");
+	});
+	tests[t].done();
+	t++;
+	tests[t].step(function() {
+		assert_equals(nodes[t].textContent, "�");
+	});
+	tests[t].done();
+}
+</script>
+</body>
+</html>

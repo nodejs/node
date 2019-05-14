@@ -1,0 +1,36 @@
+# Copyright 2017 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+v8_executable("mkgrokdump") {
+  testonly = true
+
+  # mkgrokdump is used to create tools/v8heapconst.py.
+
+  sources = [
+    "mkgrokdump.cc",
+  ]
+
+  configs = [ "../..:internal_config_base" ]
+
+  defines = []
+
+  deps = [
+    "../..:v8",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "//build/win:default_exe_manifest",
+  ]
+
+  data_deps = [
+    "../../tools:v8_testrunner",
+  ]
+
+  data = [
+    "mkgrokdump.status",
+    "testcfg.py",
+    "../../tools/v8heapconst.py",
+  ]
+}

@@ -1,0 +1,75 @@
+.TH "NPM\-UNINSTALL" "1" "April 2019" "" ""
+.SH "NAME"
+\fBnpm-uninstall\fR \- Remove a package
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm uninstall [<@scope>/]<pkg>[@<version>]\.\.\. [\-S|\-\-save|\-D|\-\-save\-dev|\-O|\-\-save\-optional|\-\-no\-save]
+
+aliases: remove, rm, r, un, unlink
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This uninstalls a package, completely removing everything npm installed
+on its behalf\.
+.P
+Example:
+.P
+.RS 2
+.nf
+npm uninstall sax
+.fi
+.RE
+.P
+In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
+it uninstalls the current package context as a global package\.
+.P
+\fBnpm uninstall\fP takes 3 exclusive, optional flags which save or update
+the package version in your main package\.json:
+.RS 0
+.IP \(bu 2
+\fB\-S, \-\-save\fP: Package will be removed from your \fBdependencies\fP\|\.
+.IP \(bu 2
+\fB\-D, \-\-save\-dev\fP: Package will be removed from your \fBdevDependencies\fP\|\.
+.IP \(bu 2
+\fB\-O, \-\-save\-optional\fP: Package will be removed from your \fBoptionalDependencies\fP\|\.
+.IP \(bu 2
+\fB\-\-no\-save\fP: Package will not be removed from your \fBpackage\.json\fP file\.
+
+.RE
+.P
+Further, if you have an \fBnpm\-shrinkwrap\.json\fP then it will be updated as
+well\.
+.P
+Scope is optional and follows the usual rules for npm help 7 \fBnpm\-scope\fP\|\.
+.P
+Examples:
+.P
+.RS 2
+.nf
+npm uninstall sax \-\-save
+npm uninstall @myorg/privatepackage \-\-save
+npm uninstall node\-tap \-\-save\-dev
+npm uninstall dtrace\-provider \-\-save\-optional
+npm uninstall lodash \-\-no\-save
+.fi
+.RE
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help prune
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help 5 folders
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 npmrc
+
+.RE
+

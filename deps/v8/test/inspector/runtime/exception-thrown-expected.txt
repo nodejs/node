@@ -1,0 +1,113 @@
+Check that exceptionThrown is supported by test runner.
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 2
+            exception : {
+                className : Error
+                description : Error     at <anonymous>:2:9
+                objectId : <objectId>
+                preview : {
+                    description : Error     at <anonymous>:2:9
+                    overflow : false
+                    properties : [
+                        [0] : {
+                            name : stack
+                            type : string
+                            value : Error     at <anonymous>:2:9
+                        }
+                    ]
+                    subtype : error
+                    type : object
+                }
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 1
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 8
+                        functionName : 
+                        lineNumber : 1
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught Error
+        }
+        timestamp : <timestamp>
+    }
+}
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 1
+            exception : {
+                className : SyntaxError
+                description : SyntaxError: Unexpected token }
+                objectId : <objectId>
+                preview : {
+                    description : SyntaxError: Unexpected token }
+                    overflow : false
+                    properties : [
+                        [0] : {
+                            name : stack
+                            type : string
+                            value : SyntaxError: Unexpected token }
+                        }
+                        [1] : {
+                            name : message
+                            type : string
+                            value : Unexpected token }
+                        }
+                    ]
+                    subtype : error
+                    type : object
+                }
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught SyntaxError: Unexpected token }
+        }
+        timestamp : <timestamp>
+    }
+}
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 2
+            exception : {
+                description : 239
+                type : number
+                value : 239
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 1
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 2
+                        functionName : 
+                        lineNumber : 1
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught 239
+        }
+        timestamp : <timestamp>
+    }
+}

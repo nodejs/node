@@ -1,0 +1,9 @@
+liftoff     func:     0+0x3     load from 00000004 val: i32:0 / 00000000
+liftoff     func:     1+0x3     load from 00000001 val:  i8:0 / 00
+liftoff     func:     3+0x5      store to 00000004 val: i32:305419896 / 12345678
+liftoff     func:     0+0x3     load from 00000002 val: i32:1450704896 / 56780000
+liftoff     func:     1+0x3     load from 00000006 val:  i8:52 / 34
+liftoff     func:     2+0x3     load from 00000002 val: f32:68169720922112.000000 / 56780000
+liftoff     func:     4+0x5      store to 00000004 val:  i8:171 / ab
+liftoff     func:     0+0x3     load from 00000002 val: i32:1454047232 / 56ab0000
+liftoff     func:     2+0x3     load from 00000002 val: f32:94008244174848.000000 / 56ab0000

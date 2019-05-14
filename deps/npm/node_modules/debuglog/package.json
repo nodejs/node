@@ -1,0 +1,56 @@
+{
+  "_args": [
+    [
+      "debuglog@1.0.1",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "debuglog@1.0.1",
+  "_id": "debuglog@1.0.1",
+  "_inBundle": false,
+  "_integrity": "sha1-qiT/uaw9+aI1GDfPstJ5NgzXhJI=",
+  "_location": "/debuglog",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "debuglog@1.0.1",
+    "name": "debuglog",
+    "escapedName": "debuglog",
+    "rawSpec": "1.0.1",
+    "saveSpec": null,
+    "fetchSpec": "1.0.1"
+  },
+  "_requiredBy": [
+    "/",
+    "/read-installed",
+    "/read-package-tree",
+    "/readdir-scoped-modules"
+  ],
+  "_resolved": "https://registry.npmjs.org/debuglog/-/debuglog-1.0.1.tgz",
+  "_spec": "1.0.1",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Sam Roberts",
+    "email": "sam@strongloop.com"
+  },
+  "browser": {
+    "util": false
+  },
+  "bugs": {
+    "url": "https://github.com/sam-github/node-debuglog/issues"
+  },
+  "description": "backport of util.debuglog from node v0.11",
+  "engines": {
+    "node": "*"
+  },
+  "homepage": "https://github.com/sam-github/node-debuglog#readme",
+  "license": "MIT",
+  "main": "debuglog.js",
+  "name": "debuglog",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sam-github/node-debuglog.git"
+  },
+  "version": "1.0.1"
+}

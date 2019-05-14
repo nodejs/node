@@ -1,0 +1,45 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace growable_fixed_array {
+  // TODO(pwong): Support FixedTypedArrays.
+  struct GrowableFixedArray {
+    Push(obj: Object) {
+      this.EnsureCapacity();
+      this.array.objects[this.length++] = obj;
+    }
+    ResizeFixedArray(newCapacity: intptr): FixedArray {
+      assert(this.length >= 0);
+      assert(newCapacity >= 0);
+      assert(newCapacity >= this.length);
+      const first: intptr = 0;
+      return ExtractFixedArray(
+          this.array, first, this.length, newCapacity, kFixedArrays);
+    }
+    EnsureCapacity() {
+      assert(this.length <= this.capacity);
+      if (this.capacity == this.length) {
+        // Growth rate is analog to JSObject::NewElementsCapacity:
+        // new_capacity = (current_capacity + (current_capacity >> 1)) + 16.
+        this.capacity = this.capacity + (this.capacity >> 1) + 16;
+        this.array = this.ResizeFixedArray(this.capacity);
+      }
+    }
+    ToJSArray(implicit context: Context)(): JSArray {
+      const nativeContext: NativeContext = LoadNativeContext(context);
+      const map: Map = LoadJSArrayElementsMap(PACKED_ELEMENTS, nativeContext);
+      const fixedArray: FixedArray = this.ResizeFixedArray(this.length);
+      const lengthSmi = Convert<Smi>(this.length);
+      return AllocateJSArray(map, fixedArray, lengthSmi);
+    }
+
+    array: FixedArray;
+    capacity: intptr;
+    length: intptr;
+  }
+
+  macro NewGrowableFixedArray(): GrowableFixedArray {
+    return GrowableFixedArray{kEmptyFixedArray, 0, 0};
+  }
+}

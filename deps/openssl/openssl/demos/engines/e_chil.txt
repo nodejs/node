@@ -1,0 +1,12 @@
+HWCRHK_F_BIND_HELPER                             110
+HWCRHK_F_HWCRHK_CTRL                             100
+HWCRHK_F_HWCRHK_FINISH                           101
+HWCRHK_F_HWCRHK_GET_PASS                         102
+HWCRHK_F_HWCRHK_INIT                             103
+HWCRHK_F_HWCRHK_INSERT_CARD                      104
+HWCRHK_F_HWCRHK_LOAD_PRIVKEY                     105
+HWCRHK_F_HWCRHK_LOAD_PUBKEY                      106
+HWCRHK_F_HWCRHK_MOD_EXP                          107
+HWCRHK_F_HWCRHK_MUTEX_INIT                       111
+HWCRHK_F_HWCRHK_RAND_BYTES                       108
+HWCRHK_F_HWCRHK_RSA_MOD_EXP                      109

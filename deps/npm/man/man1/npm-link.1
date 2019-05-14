@@ -1,0 +1,105 @@
+.TH "NPM\-LINK" "1" "April 2019" "" ""
+.SH "NAME"
+\fBnpm-link\fR \- Symlink a package folder
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm link (in package dir)
+npm link [<@scope>/]<pkg>[@<version>]
+
+alias: npm ln
+.fi
+.RE
+.SH DESCRIPTION
+.P
+Package linking is a two\-step process\.
+.P
+First, \fBnpm link\fP in a package folder will create a symlink in the global folder
+\fB{prefix}/lib/node_modules/<package>\fP that links to the package where the \fBnpm
+link\fP command was executed\. (see npm help 7 \fBnpm\-config\fP for the value of \fBprefix\fP)\. It
+will also link any bins in the package to \fB{prefix}/bin/{name}\fP\|\.
+.P
+Next, in some other location, \fBnpm link package\-name\fP will create a
+symbolic link from globally\-installed \fBpackage\-name\fP to \fBnode_modules/\fP
+of the current folder\.
+.P
+Note that \fBpackage\-name\fP is taken from \fBpackage\.json\fP,
+not from directory name\.
+.P
+The package name can be optionally prefixed with a scope\. See npm help 7 \fBnpm\-scope\fP\|\.
+The scope must be preceded by an @\-symbol and followed by a slash\.
+.P
+When creating tarballs for \fBnpm publish\fP, the linked packages are
+"snapshotted" to their current state by resolving the symbolic links\.
+.P
+This is handy for installing your own stuff, so that you can work on it and
+test it iteratively without having to continually rebuild\.
+.P
+For example:
+.P
+.RS 2
+.nf
+cd ~/projects/node\-redis    # go into the package directory
+npm link                    # creates global link
+cd ~/projects/node\-bloggy   # go into some other package directory\.
+npm link redis              # link\-install the package
+.fi
+.RE
+.P
+Now, any changes to ~/projects/node\-redis will be reflected in
+~/projects/node\-bloggy/node_modules/node\-redis/\. Note that the link should
+be to the package name, not the directory name for that package\.
+.P
+You may also shortcut the two steps in one\.  For example, to do the
+above use\-case in a shorter way:
+.P
+.RS 2
+.nf
+cd ~/projects/node\-bloggy  # go into the dir of your main project
+npm link \.\./node\-redis     # link the dir of your dependency
+.fi
+.RE
+.P
+The second line is the equivalent of doing:
+.P
+.RS 2
+.nf
+(cd \.\./node\-redis; npm link)
+npm link redis
+.fi
+.RE
+.P
+That is, it first creates a global link, and then links the global
+installation target into your project's \fBnode_modules\fP folder\.
+.P
+Note that in this case, you are referring to the directory name, \fBnode\-redis\fP,
+rather than the package name \fBredis\fP\|\.
+.P
+If your linked package is scoped (see npm help 7 \fBnpm\-scope\fP) your link command must
+include that scope, e\.g\.
+.P
+.RS 2
+.nf
+npm link @myorg/privatepackage
+.fi
+.RE
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 7 developers
+.IP \(bu 2
+npm help 5 package\.json
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help 5 folders
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 npmrc
+
+.RE
+

@@ -1,0 +1,4 @@
+*%(basename)s:5: SyntaxError: await is only valid in async function
+function f() { await Promise.resolve(); }
+               ^^^^^
+SyntaxError: await is only valid in async function

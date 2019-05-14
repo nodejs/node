@@ -1,0 +1,91 @@
+.TH "NPM\-INIT" "1" "April 2019" "" ""
+.SH "NAME"
+\fBnpm-init\fR \- create a package\.json file
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm init [\-\-force|\-f|\-\-yes|\-y|\-\-scope]
+npm init <@scope> (same as `npx <@scope>/create`)
+npm init [<@scope>/]<name> (same as `npx [<@scope>/]create\-<name>`)
+.fi
+.RE
+.SH EXAMPLES
+.P
+Create a new React\-based project using \fBcreate\-react\-app\fP \fIhttps://npm\.im/create\-react\-app\fR:
+.P
+.RS 2
+.nf
+$ npm init react\-app \./my\-react\-app
+.fi
+.RE
+.P
+Create a new \fBesm\fP\-compatible package using \fBcreate\-esm\fP \fIhttps://npm\.im/create\-esm\fR:
+.P
+.RS 2
+.nf
+$ mkdir my\-esm\-lib && cd my\-esm\-lib
+$ npm init esm \-\-yes
+.fi
+.RE
+.P
+Generate a plain old package\.json using legacy init:
+.P
+.RS 2
+.nf
+$ mkdir my\-npm\-pkg && cd my\-npm\-pkg
+$ git init
+$ npm init
+.fi
+.RE
+.P
+Generate it without having it ask any questions:
+.P
+.RS 2
+.nf
+$ npm init \-y
+.fi
+.RE
+.SH DESCRIPTION
+.P
+\fBnpm init <initializer>\fP can be used to set up a new or existing npm package\.
+.P
+\fBinitializer\fP in this case is an npm package named \fBcreate\-<initializer>\fP, which
+will be installed by npm help \fBnpx\fP \fIhttps://npm\.im/npx\fR, and then have its main bin
+executed \-\- presumably creating or updating \fBpackage\.json\fP and running any other
+initialization\-related operations\.
+.P
+The init command is transformed to a corresponding \fBnpx\fP operation as follows:
+.RS 0
+.IP \(bu 2
+\fBnpm init foo\fP \-> \fBnpx create\-foo\fP
+.IP \(bu 2
+\fBnpm init @usr/foo\fP \-> \fBnpx @usr/create\-foo\fP
+.IP \(bu 2
+\fBnpm init @usr\fP \-> \fBnpx @usr/create\fP
+
+.RE
+.P
+Any additional options will be passed directly to the command, so \fBnpm init foo
+\-\-hello\fP will map to \fBnpx create\-foo \-\-hello\fP\|\.
+.P
+If the initializer is omitted (by just calling \fBnpm init\fP), init will fall back
+to legacy init behavior\. It will ask you a bunch of questions, and then write a
+package\.json for you\. It will attempt to make reasonable guesses based on
+existing fields, dependencies, and options selected\. It is strictly additive, so
+it will keep any fields and values that were already set\. You can also use
+\fB\-y\fP/\fB\-\-yes\fP to skip the questionnaire altogether\. If you pass \fB\-\-scope\fP, it
+will create a scoped package\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+https://github\.com/isaacs/init\-package\-json
+.IP \(bu 2
+npm help 5 package\.json
+.IP \(bu 2
+npm help version
+.IP \(bu 2
+npm help 7 scope
+
+.RE
+

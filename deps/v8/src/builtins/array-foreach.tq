@@ -1,0 +1,134 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array_foreach {
+  transitioning javascript builtin
+  ArrayForEachLoopEagerDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
+      length: Object): Object {
+    // All continuation points in the optimized forEach implemntation are
+    // after the ToObject(O) call that ensures we are dealing with a
+    // JSReceiver.
+    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+    const numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberLength = Cast<Number>(length) otherwise unreachable;
+
+    return ArrayForEachLoopContinuation(
+        jsreceiver, callbackfn, thisArg, Undefined, jsreceiver, numberK,
+        numberLength, Undefined);
+  }
+
+  transitioning javascript builtin
+  ArrayForEachLoopLazyDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
+      length: Object, result: Object): Object {
+    // All continuation points in the optimized forEach implemntation are
+    // after the ToObject(O) call that ensures we are dealing with a
+    // JSReceiver.
+    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+    const numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberLength = Cast<Number>(length) otherwise unreachable;
+
+    return ArrayForEachLoopContinuation(
+        jsreceiver, callbackfn, thisArg, Undefined, jsreceiver, numberK,
+        numberLength, Undefined);
+  }
+
+  transitioning builtin ArrayForEachLoopContinuation(implicit context: Context)(
+      receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      array: Object, o: JSReceiver, initialK: Number, len: Number,
+      to: Object): Object {
+    // variables {array} and {to} are ignored.
+
+    // 5. Let k be 0.
+    // 6. Repeat, while k < len
+    for (let k: Number = initialK; k < len; k = k + 1) {
+      // 6a. Let Pk be ! ToString(k).
+      // k is guaranteed to be a positive integer, hence ToString is
+      // side-effect free and HasProperty/GetProperty do the conversion inline.
+
+      // 6b. Let kPresent be ? HasProperty(O, Pk).
+      const kPresent: Boolean = HasProperty_Inline(o, k);
+
+      // 6c. If kPresent is true, then
+      if (kPresent == True) {
+        // 6c. i. Let kValue be ? Get(O, Pk).
+        const kValue: Object = GetProperty(o, k);
+
+        // 6c. ii. Perform ? Call(callbackfn, T, <kValue, k, O>).
+        Call(context, callbackfn, thisArg, kValue, k, o);
+      }
+
+      // 6d. Increase k by 1. (done by the loop).
+    }
+    return Undefined;
+  }
+
+  transitioning macro FastArrayForEach(implicit context: Context)(
+      o: JSReceiver, len: Number, callbackfn: Callable, thisArg: Object): Object
+      labels Bailout(Smi) {
+    let k: Smi = 0;
+    const smiLen = Cast<Smi>(len) otherwise goto Bailout(k);
+    let fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k);
+    let fastOW = NewFastJSArrayWitness(fastO);
+
+    // Build a fast loop over the smi array.
+    for (; k < smiLen; k++) {
+      fastOW.Recheck() otherwise goto Bailout(k);
+
+      // Ensure that we haven't walked beyond a possibly updated length.
+      if (k >= fastOW.Get().length) goto Bailout(k);
+      const value: Object = fastOW.LoadElementNoHole(k)
+          otherwise continue;
+      Call(context, callbackfn, thisArg, value, k, fastOW.Get());
+    }
+    return Undefined;
+  }
+
+  // https://tc39.github.io/ecma262/#sec-array.prototype.foreach
+  transitioning javascript builtin
+  ArrayForEach(context: Context, receiver: Object, ...arguments): Object {
+    try {
+      if (IsNullOrUndefined(receiver)) {
+        goto NullOrUndefinedError;
+      }
+
+      // 1. Let O be ? ToObject(this value).
+      const o: JSReceiver = ToObject_Inline(context, receiver);
+
+      // 2. Let len be ? ToLength(? Get(O, "length")).
+      const len: Number = GetLengthProperty(o);
+
+      // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
+      if (arguments.length == 0) {
+        goto TypeError;
+      }
+      const callbackfn = Cast<Callable>(arguments[0]) otherwise TypeError;
+
+      // 4. If thisArg is present, let T be thisArg; else let T be undefined.
+      const thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
+
+      // Special cases.
+      let k: Number = 0;
+      try {
+        return FastArrayForEach(o, len, callbackfn, thisArg)
+            otherwise Bailout;
+      }
+      label Bailout(kValue: Smi) deferred {
+        k = kValue;
+      }
+
+      return ArrayForEachLoopContinuation(
+          o, callbackfn, thisArg, Undefined, o, k, len, Undefined);
+    }
+    label TypeError deferred {
+      ThrowTypeError(kCalledNonCallable, arguments[0]);
+    }
+    label NullOrUndefinedError deferred {
+      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.forEach');
+    }
+  }
+}

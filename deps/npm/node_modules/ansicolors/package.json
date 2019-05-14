@@ -1,0 +1,58 @@
+{
+  "_args": [
+    [
+      "ansicolors@0.3.2",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "ansicolors@0.3.2",
+  "_id": "ansicolors@0.3.2",
+  "_inBundle": false,
+  "_integrity": "sha1-ZlWX3oap/+Oqm/vmyuXG6kJrSXk=",
+  "_location": "/ansicolors",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "ansicolors@0.3.2",
+    "name": "ansicolors",
+    "escapedName": "ansicolors",
+    "rawSpec": "0.3.2",
+    "saveSpec": null,
+    "fetchSpec": "0.3.2"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/ansicolors/-/ansicolors-0.3.2.tgz",
+  "_spec": "0.3.2",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Thorsten Lorenz",
+    "email": "thlorenz@gmx.de",
+    "url": "thlorenz.com"
+  },
+  "bugs": {
+    "url": "https://github.com/thlorenz/ansicolors/issues"
+  },
+  "description": "Functions that surround a string with ansicolor codes so it prints in color.",
+  "gitHead": "858847ca28e8b360d9b70eee0592700fa2ab087d",
+  "homepage": "https://github.com/thlorenz/ansicolors#readme",
+  "keywords": [
+    "ansi",
+    "colors",
+    "highlight",
+    "string"
+  ],
+  "license": "MIT",
+  "main": "ansicolors.js",
+  "name": "ansicolors",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/thlorenz/ansicolors.git"
+  },
+  "scripts": {
+    "test": "node test/*.js"
+  },
+  "version": "0.3.2"
+}

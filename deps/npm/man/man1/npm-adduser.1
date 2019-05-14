@@ -1,0 +1,103 @@
+.TH "NPM\-ADDUSER" "1" "April 2019" "" ""
+.SH "NAME"
+\fBnpm-adduser\fR \- Add a registry user account
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm adduser [\-\-registry=url] [\-\-scope=@orgname] [\-\-always\-auth] [\-\-auth\-type=legacy]
+
+aliases: login, add\-user
+.fi
+.RE
+.SH DESCRIPTION
+.P
+Create or verify a user named \fB<username>\fP in the specified registry, and
+save the credentials to the \fB\|\.npmrc\fP file\. If no registry is specified,
+the default registry will be used (see npm help 7 \fBnpm\-config\fP)\.
+.P
+The username, password, and email are read in from prompts\.
+.P
+To reset your password, go to https://www\.npmjs\.com/forgot
+.P
+To change your email address, go to https://www\.npmjs\.com/email\-edit
+.P
+You may use this command multiple times with the same user account to
+authorize on a new machine\.  When authenticating on a new machine,
+the username, password and email address must all match with
+your existing record\.
+.P
+\fBnpm login\fP is an alias to \fBadduser\fP and behaves exactly the same way\.
+.SH CONFIGURATION
+.SS registry
+.P
+Default: https://
+.P
+The base URL of the npm package registry\. If \fBscope\fP is also specified,
+this registry will only be used for packages with that scope\. \fBscope\fP defaults
+to the scope of the project directory you're currently in, if any\. See npm help 7 \fBnpm\-scope\fP\|\.
+.SS scope
+.P
+Default: none
+.P
+If specified, the user and login credentials given will be associated
+with the specified scope\. See npm help 7 \fBnpm\-scope\fP\|\. You can use both at the same time,
+e\.g\.
+.P
+.RS 2
+.nf
+npm adduser \-\-registry=http://myregistry\.example\.com \-\-scope=@myco
+.fi
+.RE
+.P
+This will set a registry for the given scope and login or create a user for
+that registry at the same time\.
+.SS always\-auth
+.P
+Default: false
+.P
+If specified, save configuration indicating that all requests to the given
+registry should include authorization information\. Useful for private
+registries\. Can be used with \fB\-\-registry\fP and / or \fB\-\-scope\fP, e\.g\.
+.P
+.RS 2
+.nf
+npm adduser \-\-registry=http://private\-registry\.example\.com \-\-always\-auth
+.fi
+.RE
+.P
+This will ensure that all requests to that registry (including for tarballs)
+include an authorization header\. This setting may be necessary for use with
+private registries where metadata and package tarballs are stored on hosts with
+different hostnames\. See \fBalways\-auth\fP in npm help 7 \fBnpm\-config\fP for more details on
+always\-auth\. Registry\-specific configuration of \fBalways\-auth\fP takes precedence
+over any global configuration\.
+.SS auth\-type
+.RS 0
+.IP \(bu 2
+Default: \fB\|'legacy'\fP
+.IP \(bu 2
+Type: \fB\|'legacy'\fP, \fB\|'sso'\fP, \fB\|'saml'\fP, \fB\|'oauth'\fP
+
+.RE
+.P
+What authentication strategy to use with \fBadduser\fP/\fBlogin\fP\|\. Some npm registries
+(for example, npmE) might support alternative auth strategies besides classic
+username/password entry in legacy npm\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 7 registry
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 npmrc
+.IP \(bu 2
+npm help owner
+.IP \(bu 2
+npm help whoami
+
+.RE
+

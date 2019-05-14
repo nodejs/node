@@ -1,0 +1,54 @@
+{
+  "_args": [
+    [
+      "cmd-shim@2.0.2",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "cmd-shim@2.0.2",
+  "_id": "cmd-shim@2.0.2",
+  "_inBundle": false,
+  "_integrity": "sha1-b8vamUg6j9FdfTChlspp1oii79s=",
+  "_location": "/cmd-shim",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "cmd-shim@2.0.2",
+    "name": "cmd-shim",
+    "escapedName": "cmd-shim",
+    "rawSpec": "2.0.2",
+    "saveSpec": null,
+    "fetchSpec": "2.0.2"
+  },
+  "_requiredBy": [
+    "/",
+    "/bin-links"
+  ],
+  "_resolved": "https://registry.npmjs.org/cmd-shim/-/cmd-shim-2.0.2.tgz",
+  "_spec": "2.0.2",
+  "_where": "/Users/rebecca/code/npm",
+  "bugs": {
+    "url": "https://github.com/ForbesLindesay/cmd-shim/issues"
+  },
+  "dependencies": {
+    "graceful-fs": "^4.1.2",
+    "mkdirp": "~0.5.0"
+  },
+  "description": "Used in npm for command line application support",
+  "devDependencies": {
+    "rimraf": "~2.2.8",
+    "tap": "~0.4.11"
+  },
+  "homepage": "https://github.com/ForbesLindesay/cmd-shim#readme",
+  "license": "BSD-2-Clause",
+  "name": "cmd-shim",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ForbesLindesay/cmd-shim.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "2.0.2"
+}

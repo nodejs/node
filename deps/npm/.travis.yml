@@ -1,0 +1,38 @@
+sudo: false
+# need to declare the language as well as the matrix below
+language: node_js
+# having top-level `env:` adds a phantom build
+# https://github.com/travis-ci/travis-ci/issues/4681
+#env: DEPLOY_VERSION=testing
+matrix:
+  include:
+    # LTS is our most important target
+    - node_js: "10"
+      # DEPLOY_VERSION is used to set the couchapp setup mode for test/tap/registry.js
+      # only gather coverage info for LTS
+      env: DEPLOY_VERSION=testing COVERALLS_REPO_TOKEN="$COVERALLS_OPTIONAL_TOKEN"
+      script:
+        - "node . run tap-cover -- \"test/tap/*.js\""
+        - "unset COVERALLS_REPO_TOKEN ; node . run tap -- \"test/broken-under-*/*.js\""
+    # previous LTS is next most important
+    - node_js: "6"
+      env: DEPLOY_VERSION=testing
+    - node_js: "8"
+      env: DEPLOY_VERSION=testing
+    - node_js: "9"
+      env: DEPLOY_VERSION=testing
+    - node_js: "11"
+      env: DEPLOY_VERSION=testing
+      script:
+      - "npx standard"
+      - "node . run licenses"
+      - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""
+notifications:
+    slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8
+cache:
+  directories:
+  - node_modules/.cache
+install:
+  - "node . install"
+script:
+  - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""

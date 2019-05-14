@@ -1,0 +1,60 @@
+{
+  "_args": [
+    [
+      "umask@1.1.0",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "umask@1.1.0",
+  "_id": "umask@1.1.0",
+  "_inBundle": false,
+  "_integrity": "sha1-8pzr8B31F5ErtY/5xOUP3o4zMg0=",
+  "_location": "/umask",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "umask@1.1.0",
+    "name": "umask",
+    "escapedName": "umask",
+    "rawSpec": "1.1.0",
+    "saveSpec": null,
+    "fetchSpec": "1.1.0"
+  },
+  "_requiredBy": [
+    "/",
+    "/npm-lifecycle"
+  ],
+  "_resolved": "https://registry.npmjs.org/umask/-/umask-1.1.0.tgz",
+  "_spec": "1.1.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Sam Mikes",
+    "email": "smikes@cubane.com"
+  },
+  "bugs": {
+    "url": "https://github.com/smikes/umask/issues"
+  },
+  "description": "convert umask from string <-> number",
+  "devDependencies": {
+    "code": "^1.2.1",
+    "jslint": "^0.7.2",
+    "lab": "^5.2.0"
+  },
+  "homepage": "https://github.com/smikes/umask",
+  "keywords": [
+    "umask"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "umask",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smikes/umask.git"
+  },
+  "scripts": {
+    "lint": "jslint --terse --latest *.js test/*.js",
+    "test": "lab -ct 100"
+  },
+  "version": "1.1.0"
+}

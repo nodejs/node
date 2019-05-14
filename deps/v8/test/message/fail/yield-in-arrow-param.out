@@ -1,0 +1,4 @@
+*%(basename)s:5: SyntaxError: Yield expression not allowed in formal parameter
+function* g() { (a = yield) => {} }
+                     ^^^^^
+SyntaxError: Yield expression not allowed in formal parameter

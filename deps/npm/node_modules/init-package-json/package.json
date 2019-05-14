@@ -1,0 +1,85 @@
+{
+  "_args": [
+    [
+      "init-package-json@1.10.3",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "init-package-json@1.10.3",
+  "_id": "init-package-json@1.10.3",
+  "_inBundle": false,
+  "_integrity": "sha512-zKSiXKhQveNteyhcj1CoOP8tqp1QuxPIPBl8Bid99DGLFqA1p87M6lNgfjJHSBoWJJlidGOv5rWjyYKEB3g2Jw==",
+  "_location": "/init-package-json",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "init-package-json@1.10.3",
+    "name": "init-package-json",
+    "escapedName": "init-package-json",
+    "rawSpec": "1.10.3",
+    "saveSpec": null,
+    "fetchSpec": "1.10.3"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/init-package-json/-/init-package-json-1.10.3.tgz",
+  "_spec": "1.10.3",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/init-package-json/issues"
+  },
+  "dependencies": {
+    "glob": "^7.1.1",
+    "npm-package-arg": "^4.0.0 || ^5.0.0 || ^6.0.0",
+    "promzard": "^0.3.0",
+    "read": "~1.0.1",
+    "read-package-json": "1 || 2",
+    "semver": "2.x || 3.x || 4 || 5",
+    "validate-npm-package-license": "^3.0.1",
+    "validate-npm-package-name": "^3.0.0"
+  },
+  "description": "A node module to get your node module started",
+  "devDependencies": {
+    "mkdirp": "^0.5.1",
+    "npm": "^5.7.1",
+    "rimraf": "^2.1.4",
+    "standard-version": "^4.3.0",
+    "tap": "^11.1.2"
+  },
+  "files": [
+    "default-input.js",
+    "init-package-json.js"
+  ],
+  "homepage": "https://github.com/npm/init-package-json#readme",
+  "keywords": [
+    "init",
+    "package.json",
+    "package",
+    "helper",
+    "wizard",
+    "wizerd",
+    "prompt",
+    "start"
+  ],
+  "license": "ISC",
+  "main": "init-package-json.js",
+  "name": "init-package-json",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/init-package-json.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "release": "standard-version -s",
+    "test": "tap --nyc-arg=--all --coverage test"
+  },
+  "version": "1.10.3"
+}

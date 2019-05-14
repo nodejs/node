@@ -1,0 +1,88 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-array-gen.h'
+
+namespace array {
+  // Naming convention from elements.cc. We have a similar intent but implement
+  // fastpaths using generics instead of using a class hierarchy for elements
+  // kinds specific implementations.
+  type GenericElementsAccessor;
+  type FastPackedSmiElements;
+  type FastPackedObjectElements;
+  type FastPackedDoubleElements;
+  type FastSmiOrObjectElements;
+  type FastDoubleElements;
+  type DictionaryElements;
+
+  macro EnsureWriteableFastElements(implicit context: Context)(array: JSArray) {
+    assert(IsFastElementsKind(array.map.elements_kind));
+
+    const elements: FixedArrayBase = array.elements;
+    if (elements.map != kCOWMap) return;
+
+    // There are no COW *_DOUBLE_ELEMENTS arrays, so we are allowed to always
+    // extract FixedArrays and don't have to worry about FixedDoubleArrays.
+    assert(IsFastSmiOrTaggedElementsKind(array.map.elements_kind));
+
+    const length: Smi = Cast<Smi>(array.length) otherwise unreachable;
+    array.elements =
+        ExtractFixedArray(elements, 0, length, length, kFixedArrays);
+    assert(array.elements.map != kCOWMap);
+  }
+
+  macro IsJSArray(implicit context: Context)(o: Object): bool {
+    try {
+      const array: JSArray = Cast<JSArray>(o) otherwise NotArray;
+      return true;
+    }
+    label NotArray {
+      return false;
+    }
+  }
+
+  macro LoadElementOrUndefined(a: FixedArray, i: Smi): Object {
+    const e: Object = a.objects[i];
+    return e == Hole ? Undefined : e;
+  }
+
+  macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): NumberOrUndefined {
+    try {
+      const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise IfHole;
+      return AllocateHeapNumberWithValue(f);
+    }
+    label IfHole {
+      return Undefined;
+    }
+  }
+
+  macro StoreArrayHole(elements: FixedDoubleArray, k: Smi): void {
+    StoreFixedDoubleArrayHoleSmi(elements, k);
+  }
+
+  macro StoreArrayHole(elements: FixedArray, k: Smi): void {
+    elements.objects[k] = Hole;
+  }
+
+  macro CopyArrayElement(
+      elements: FixedArray, newElements: FixedArray, from: Smi, to: Smi): void {
+    const e: Object = elements.objects[from];
+    newElements.objects[to] = e;
+  }
+
+  macro CopyArrayElement(
+      elements: FixedDoubleArray, newElements: FixedDoubleArray, from: Smi,
+      to: Smi): void {
+    try {
+      const floatValue: float64 = LoadDoubleWithHoleCheck(elements, from)
+          otherwise FoundHole;
+      newElements.floats[to] = floatValue;
+    }
+    label FoundHole {
+      StoreArrayHole(newElements, to);
+    }
+  }
+
+  extern macro SetPropertyLength(implicit context: Context)(Object, Number);
+}

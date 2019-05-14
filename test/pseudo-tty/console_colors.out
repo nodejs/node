@@ -1,0 +1,38 @@
+{ foo: *[32m'bar'*[39m }
+string q
+{ foo: *[32m'bar'*[39m } with object format param
+
+Error: test
+    at abc (../fixtures/node_modules/bar.js:4:4)
+foobar
+    at * (*console_colors.js:*:*)
+*[90m    at * (internal*:*:*)*[39m
+*[90m    at *[39m
+*[90m    at *[39m
+*[90m    at *[39m
+*[90m    at *[39m
+*[90m    at *[39m
+
+Error: Should not ever get here.
+    at * (*node_modules*[4m*node_modules*[24m*bar.js:*:*)
+*[90m    at *[39m
+*[90m    at *[39m
+*[90m    at *[39m
+*[90m    at *[39m
+*[90m    at *[39m
+*[90m    at *[39m
+    at * (*console_colors.js:*:*)
+*[90m    at *[39m
+*[90m    at *[39m
+
+Error
+    at evalmachine.<anonymous>:*:*
+*[90m    at Script.runInThisContext (vm.js:*:*)*[39m
+*[90m    at Object.runInThisContext (vm.js:*:*)*[39m
+    at * (*console_colors.js:*:*)
+*[90m    at *[39m
+*[90m    at *[39m
+*[90m    at *[39m
+*[90m    at *[39m
+*[90m    at *[39m
+*[90m    at *[39m

@@ -1,0 +1,545 @@
+.TH "NPM\-INSTALL" "1" "April 2019" "" ""
+.SH "NAME"
+\fBnpm-install\fR \- Install a package
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm install (with no args, in package dir)
+npm install [<@scope>/]<name>
+npm install [<@scope>/]<name>@<tag>
+npm install [<@scope>/]<name>@<version>
+npm install [<@scope>/]<name>@<version range>
+npm install <git\-host>:<git\-user>/<repo\-name>
+npm install <git repo url>
+npm install <tarball file>
+npm install <tarball url>
+npm install <folder>
+
+aliases: npm i, npm add
+common options: [\-P|\-\-save\-prod|\-D|\-\-save\-dev|\-O|\-\-save\-optional] [\-E|\-\-save\-exact] [\-B|\-\-save\-bundle] [\-\-no\-save] [\-\-dry\-run]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command installs a package, and any packages that it depends on\. If the
+package has a package\-lock or shrinkwrap file, the installation of dependencies
+will be driven by that, with an \fBnpm\-shrinkwrap\.json\fP taking precedence if both
+files exist\. See npm help 5 package\-lock\.json and npm help shrinkwrap\.
+.P
+A \fBpackage\fP is:
+.RS 0
+.IP \(bu 2
+a) a folder containing a program described by a npm help 5 \fBpackage\.json\fP file
+.IP \(bu 2
+b) a gzipped tarball containing (a)
+.IP \(bu 2
+c) a url that resolves to (b)
+.IP \(bu 2
+d) a \fB<name>@<version>\fP that is published on the registry (see npm help 7 \fBnpm\-registry\fP) with (c)
+.IP \(bu 2
+e) a \fB<name>@<tag>\fP (see npm help \fBnpm\-dist\-tag\fP) that points to (d)
+.IP \(bu 2
+f) a \fB<name>\fP that has a "latest" tag satisfying (e)
+.IP \(bu 2
+g) a \fB<git remote url>\fP that resolves to (a)
+
+.RE
+.P
+Even if you never publish your package, you can still get a lot of
+benefits of using npm if you just want to write a node program (a), and
+perhaps if you also want to be able to easily install it elsewhere
+after packing it up into a tarball (b)\.
+.RS 0
+.IP \(bu 2
+\fBnpm install\fP (in package directory, no arguments):
+  Install the dependencies in the local node_modules folder\.
+  In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
+  it installs the current package context (ie, the current working
+  directory) as a global package\.
+  By default, \fBnpm install\fP will install all modules listed as dependencies
+  in npm help 5 \fBpackage\.json\fP\|\.
+  With the \fB\-\-production\fP flag (or when the \fBNODE_ENV\fP environment variable
+  is set to \fBproduction\fP), npm will not install modules listed in
+  \fBdevDependencies\fP\|\.
+.QP
+NOTE: The \fB\-\-production\fP flag has no particular meaning when adding a
+  dependency to a project\.
+
+.
+.IP \(bu 2
+\fBnpm install <folder>\fP:
+  Install the package in the directory as a symlink in the current project\.
+  Its dependencies will be installed before it's linked\. If \fB<folder>\fP sits
+  inside the root of your project, its dependencies may be hoisted to the
+  toplevel \fBnode_modules\fP as they would for other types of dependencies\.
+.IP \(bu 2
+\fBnpm install <tarball file>\fP:
+  Install a package that is sitting on the filesystem\.  Note: if you just want
+  to link a dev directory into your npm root, you can do this more easily by
+  using \fBnpm link\fP\|\.
+  Tarball requirements:
+.RS 0
+.IP \(bu 2
+The filename \fImust\fR use \fB\|\.tar\fP, \fB\|\.tar\.gz\fP, or \fB\|\.tgz\fP as
+the extension\.
+.IP \(bu 2
+The package contents should reside in a subfolder inside the tarball (usually it is called \fBpackage/\fP)\. npm strips one directory layer when installing the package (an equivalent of \fBtar x \-\-strip\-components=1\fP is run)\.
+.IP \(bu 2
+The package must contain a \fBpackage\.json\fP file with \fBname\fP and \fBversion\fP properties\.
+Example:
+.P
+.RS 2
+.nf
+npm install \./package\.tgz
+.fi
+.RE
+
+.RE
+.IP \(bu 2
+\fBnpm install <tarball url>\fP:
+  Fetch the tarball url, and then install it\.  In order to distinguish between
+  this and other options, the argument must start with "http://" or "https://"
+  Example:
+.P
+.RS 2
+.nf
+    npm install https://github\.com/indexzero/forever/tarball/v0\.5\.6
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install [<@scope>/]<name>\fP:
+  Do a \fB<name>@<tag>\fP install, where \fB<tag>\fP is the "tag" config\. (See
+  npm help 7 \fBnpm\-config\fP\|\. The config's default value is \fBlatest\fP\|\.)
+  In most cases, this will install the version of the modules tagged as
+  \fBlatest\fP on the npm registry\.
+  Example:
+.P
+.RS 2
+.nf
+    npm install sax
+.fi
+.RE
+  \fBnpm install\fP saves any specified packages into \fBdependencies\fP by default\.
+  Additionally, you can control where and how they get saved with some
+  additional flags:
+.RS 0
+.IP \(bu 2
+\fB\-P, \-\-save\-prod\fP: Package will appear in your \fBdependencies\fP\|\. This is the
+.P
+.RS 2
+.nf
+               default unless `\-D` or `\-O` are present\.
+.fi
+.RE
+.IP \(bu 2
+\fB\-D, \-\-save\-dev\fP: Package will appear in your \fBdevDependencies\fP\|\.
+.IP \(bu 2
+\fB\-O, \-\-save\-optional\fP: Package will appear in your \fBoptionalDependencies\fP\|\.
+.IP \(bu 2
+\fB\-\-no\-save\fP: Prevents saving to \fBdependencies\fP\|\.
+When using any of the above options to save dependencies to your
+package\.json, there are two additional, optional flags:
+.IP \(bu 2
+\fB\-E, \-\-save\-exact\fP: Saved dependencies will be configured with an
+exact version rather than using npm's default semver range
+operator\.
+.IP \(bu 2
+\fB\-B, \-\-save\-bundle\fP: Saved dependencies will also be added to your \fBbundleDependencies\fP list\.
+Further, if you have an \fBnpm\-shrinkwrap\.json\fP or \fBpackage\-lock\.json\fP then it
+will be updated as well\.
+\fB<scope>\fP is optional\. The package will be downloaded from the registry
+associated with the specified scope\. If no registry is associated with
+the given scope the default registry is assumed\. See npm help 7 \fBnpm\-scope\fP\|\.
+Note: if you do not include the @\-symbol on your scope name, npm will
+interpret this as a GitHub repository instead, see below\. Scopes names
+must also be followed by a slash\.
+Examples:
+.P
+.RS 2
+.nf
+npm install sax
+npm install githubname/reponame
+npm install @myorg/privatepackage
+npm install node\-tap \-\-save\-dev
+npm install dtrace\-provider \-\-save\-optional
+npm install readable\-stream \-\-save\-exact
+npm install ansi\-regex \-\-save\-bundle
+.fi
+.RE
+
+.RE
+
+.RE
+.P
+.RS 2
+.nf
+**Note**: If there is a file or folder named `<name>` in the current
+working directory, then it will try to install that, and only try to
+fetch the package by name if it is not valid\.
+.fi
+.RE
+.RS 0
+.IP \(bu 2
+\fBnpm install [<@scope>/]<name>@<tag>\fP:
+  Install the version of the package that is referenced by the specified tag\.
+  If the tag does not exist in the registry data for that package, then this
+  will fail\.
+  Example:
+.P
+.RS 2
+.nf
+    npm install sax@latest
+    npm install @myorg/mypackage@latest
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install [<@scope>/]<name>@<version>\fP:
+  Install the specified version of the package\.  This will fail if the
+  version has not been published to the registry\.
+  Example:
+.P
+.RS 2
+.nf
+    npm install sax@0\.1\.1
+    npm install @myorg/privatepackage@1\.5\.0
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install [<@scope>/]<name>@<version range>\fP:
+  Install a version of the package matching the specified version range\.  This
+  will follow the same rules for resolving dependencies described in npm help 5 \fBpackage\.json\fP\|\.
+  Note that most version ranges must be put in quotes so that your shell will
+  treat it as a single argument\.
+  Example:
+.P
+.RS 2
+.nf
+    npm install sax@">=0\.1\.0 <0\.2\.0"
+    npm install @myorg/privatepackage@">=0\.1\.0 <0\.2\.0"
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install <git remote url>\fP:
+  Installs the package from the hosted git provider, cloning it with \fBgit\fP\|\.
+  For a full git remote url, only that URL will be attempted\.
+.P
+.RS 2
+.nf
+    <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit\-ish> | #semver:<semver>]
+.fi
+.RE
+  \fB<protocol>\fP is one of \fBgit\fP, \fBgit+ssh\fP, \fBgit+http\fP, \fBgit+https\fP, or
+  \fBgit+file\fP\|\.
+  If \fB#<commit\-ish>\fP is provided, it will be used to clone exactly that
+  commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\fP can
+  be any valid semver range or exact version, and npm will look for any tags
+  or refs matching that range in the remote repository, much as it would for a
+  registry dependency\. If neither \fB#<commit\-ish>\fP or \fB#semver:<semver>\fP is
+  specified, then the default branch of the repository is used\.
+  If the repository makes use of submodules, those submodules will be cloned
+  as well\.
+  If the package being installed contains a \fBprepare\fP script, its
+  \fBdependencies\fP and \fBdevDependencies\fP will be installed, and the prepare
+  script will be run, before the package is packaged and installed\.
+  The following git environment variables are recognized by npm and will be
+  added to the environment when running git:
+.RS 0
+.IP \(bu 2
+\fBGIT_ASKPASS\fP
+.IP \(bu 2
+\fBGIT_EXEC_PATH\fP
+.IP \(bu 2
+\fBGIT_PROXY_COMMAND\fP
+.IP \(bu 2
+\fBGIT_SSH\fP
+.IP \(bu 2
+\fBGIT_SSH_COMMAND\fP
+.IP \(bu 2
+\fBGIT_SSL_CAINFO\fP
+.IP \(bu 2
+\fBGIT_SSL_NO_VERIFY\fP
+See the git man page for details\.
+Examples:
+.P
+.RS 2
+.nf
+npm install git+ssh://git@github\.com:npm/cli\.git#v1\.0\.27
+npm install git+ssh://git@github\.com:npm/cli#semver:^5\.0
+npm install git+https://isaacs@github\.com/npm/cli\.git
+npm install git://github\.com/npm/cli\.git#v1\.0\.27
+GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\.com:npm/cli\.git
+.fi
+.RE
+
+.RE
+.IP \(bu 2
+\fBnpm install <githubname>/<githubrepo>[#<commit\-ish>]\fP:
+.IP \(bu 2
+\fBnpm install github:<githubname>/<githubrepo>[#<commit\-ish>]\fP:
+  Install the package at \fBhttps://github\.com/githubname/githubrepo\fP by
+  attempting to clone it using \fBgit\fP\|\.
+  If \fB#<commit\-ish>\fP is provided, it will be used to clone exactly that
+  commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\fP can
+  be any valid semver range or exact version, and npm will look for any tags
+  or refs matching that range in the remote repository, much as it would for a
+  registry dependency\. If neither \fB#<commit\-ish>\fP or \fB#semver:<semver>\fP is
+  specified, then \fBmaster\fP is used\.
+  As with regular git dependencies, \fBdependencies\fP and \fBdevDependencies\fP will
+  be installed if the package has a \fBprepare\fP script, before the package is
+  done installing\.
+  Examples:
+.P
+.RS 2
+.nf
+    npm install mygithubuser/myproject
+    npm install github:mygithubuser/myproject
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install gist:[<githubname>/]<gistID>[#<commit\-ish>|#semver:<semver>]\fP:
+  Install the package at \fBhttps://gist\.github\.com/gistID\fP by attempting to
+  clone it using \fBgit\fP\|\. The GitHub username associated with the gist is
+  optional and will not be saved in \fBpackage\.json\fP\|\.
+  As with regular git dependencies, \fBdependencies\fP and \fBdevDependencies\fP will
+  be installed if the package has a \fBprepare\fP script, before the package is
+  done installing\.
+  Example:
+.P
+.RS 2
+.nf
+    npm install gist:101a11beef
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install bitbucket:<bitbucketname>/<bitbucketrepo>[#<commit\-ish>]\fP:
+  Install the package at \fBhttps://bitbucket\.org/bitbucketname/bitbucketrepo\fP
+  by attempting to clone it using \fBgit\fP\|\.
+  If \fB#<commit\-ish>\fP is provided, it will be used to clone exactly that
+  commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\fP can
+  be any valid semver range or exact version, and npm will look for any tags
+  or refs matching that range in the remote repository, much as it would for a
+  registry dependency\. If neither \fB#<commit\-ish>\fP or \fB#semver:<semver>\fP is
+  specified, then \fBmaster\fP is used\.
+  As with regular git dependencies, \fBdependencies\fP and \fBdevDependencies\fP will
+  be installed if the package has a \fBprepare\fP script, before the package is
+  done installing\.
+  Example:
+.P
+.RS 2
+.nf
+    npm install bitbucket:mybitbucketuser/myproject
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install gitlab:<gitlabname>/<gitlabrepo>[#<commit\-ish>]\fP:
+  Install the package at \fBhttps://gitlab\.com/gitlabname/gitlabrepo\fP
+  by attempting to clone it using \fBgit\fP\|\.
+  If \fB#<commit\-ish>\fP is provided, it will be used to clone exactly that
+  commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\fP can
+  be any valid semver range or exact version, and npm will look for any tags
+  or refs matching that range in the remote repository, much as it would for a
+  registry dependency\. If neither \fB#<commit\-ish>\fP or \fB#semver:<semver>\fP is
+  specified, then \fBmaster\fP is used\.
+  As with regular git dependencies, \fBdependencies\fP and \fBdevDependencies\fP will
+  be installed if the package has a \fBprepare\fP script, before the package is
+  done installing\.
+  Example:
+.P
+.RS 2
+.nf
+    npm install gitlab:mygitlabuser/myproject
+    npm install gitlab:myusr/myproj#semver:^5\.0
+.fi
+.RE
+
+.RE
+.P
+You may combine multiple arguments, and even multiple types of arguments\.
+For example:
+.P
+.RS 2
+.nf
+npm install sax@">=0\.1\.0 <0\.2\.0" bench supervisor
+.fi
+.RE
+.P
+The \fB\-\-tag\fP argument will apply to all of the specified install targets\. If a
+tag with the given name exists, the tagged version is preferred over newer
+versions\.
+.P
+The \fB\-\-dry\-run\fP argument will report in the usual way what the install would
+have done without actually installing anything\.
+.P
+The \fB\-\-package\-lock\-only\fP argument will only update the \fBpackage\-lock\.json\fP,
+instead of checking \fBnode_modules\fP and downloading dependencies\.
+.P
+The \fB\-f\fP or \fB\-\-force\fP argument will force npm to fetch remote resources even if a
+local copy exists on disk\.
+.P
+.RS 2
+.nf
+npm install sax \-\-force
+.fi
+.RE
+.P
+The \fB\-g\fP or \fB\-\-global\fP argument will cause npm to install the package globally
+rather than locally\.  See npm help 5 \fBnpm\-folders\fP\|\.
+.P
+The \fB\-\-global\-style\fP argument will cause npm to install the package into
+your local \fBnode_modules\fP folder with the same layout it uses with the
+global \fBnode_modules\fP folder\. Only your direct dependencies will show in
+\fBnode_modules\fP and everything they depend on will be flattened in their
+\fBnode_modules\fP folders\. This obviously will eliminate some deduping\.
+.P
+The \fB\-\-ignore\-scripts\fP argument will cause npm to not execute any
+scripts defined in the package\.json\. See npm help 7 \fBnpm\-scripts\fP\|\.
+.P
+The \fB\-\-legacy\-bundling\fP argument will cause npm to install the package such
+that versions of npm prior to 1\.4, such as the one included with node 0\.8,
+can install the package\. This eliminates all automatic deduping\.
+.P
+The \fB\-\-link\fP argument will cause npm to link global installs into the
+local space in some cases\.
+.P
+The \fB\-\-no\-bin\-links\fP argument will prevent npm from creating symlinks for
+any binaries the package might contain\.
+.P
+The \fB\-\-no\-optional\fP argument will prevent optional dependencies from
+being installed\.
+.P
+The \fB\-\-no\-shrinkwrap\fP argument, which will ignore an available
+package lock or shrinkwrap file and use the package\.json instead\.
+.P
+The \fB\-\-no\-package\-lock\fP argument will prevent npm from creating a
+\fBpackage\-lock\.json\fP file\.  When running with package\-lock's disabled npm
+will not automatically prune your node modules when installing\.
+.P
+The \fB\-\-nodedir=/path/to/node/source\fP argument will allow npm to find the
+node source code so that npm can compile native modules\.
+.P
+The \fB\-\-only={prod[uction]|dev[elopment]}\fP argument will cause either only
+\fBdevDependencies\fP or only non\-\fBdevDependencies\fP to be installed regardless of the \fBNODE_ENV\fP\|\.
+.P
+The \fB\-\-no\-audit\fP argument can be used to disable sending of audit reports to
+the configured registries\.  See npm help \fBnpm\-audit\fP for details on what is sent\.
+.P
+See npm help 7 \fBnpm\-config\fP\|\.  Many of the configuration params have some
+effect on installation, since that's most of what npm does\.
+.SH ALGORITHM
+.P
+To install a package, npm uses the following algorithm:
+.P
+.RS 2
+.nf
+load the existing node_modules tree from disk
+clone the tree
+fetch the package\.json and assorted metadata and add it to the clone
+walk the clone and add any missing dependencies
+  dependencies will be added as close to the top as is possible
+  without breaking any other modules
+compare the original tree with the cloned tree and make a list of
+actions to take to convert one to the other
+execute all of the actions, deepest first
+  kinds of actions are install, update, remove and move
+.fi
+.RE
+.P
+For this \fBpackage{dep}\fP structure: \fBA{B,C}, B{C}, C{D}\fP,
+this algorithm produces:
+.P
+.RS 2
+.nf
+A
++\-\- B
++\-\- C
++\-\- D
+.fi
+.RE
+.P
+That is, the dependency from B to C is satisfied by the fact that A
+already caused C to be installed at a higher level\. D is still installed
+at the top level because nothing conflicts with it\.
+.P
+For \fBA{B,C}, B{C,D@1}, C{D@2}\fP, this algorithm produces:
+.P
+.RS 2
+.nf
+A
++\-\- B
++\-\- C
+   `\-\- D@2
++\-\- D@1
+.fi
+.RE
+.P
+Because B's D@1 will be installed in the top level, C now has to install D@2
+privately for itself\. This algorithm is deterministic, but different trees may
+be produced if two dependencies are requested for installation in a different
+order\.
+.P
+See npm help 5 folders for a more detailed description of the specific
+folder structures that npm creates\.
+.SS Limitations of npm's Install Algorithm
+.P
+npm will refuse to install any package with an identical name to the
+current package\. This can be overridden with the \fB\-\-force\fP flag, but in
+most cases can simply be addressed by changing the local package name\.
+.P
+There are some very rare and pathological edge\-cases where a cycle can
+cause npm to try to install a never\-ending tree of packages\.  Here is
+the simplest case:
+.P
+.RS 2
+.nf
+A \-> B \-> A' \-> B' \-> A \-> B \-> A' \-> B' \-> A \-> \.\.\.
+.fi
+.RE
+.P
+where \fBA\fP is some version of a package, and \fBA'\fP is a different version
+of the same package\.  Because \fBB\fP depends on a different version of \fBA\fP
+than the one that is already in the tree, it must install a separate
+copy\.  The same is true of \fBA'\fP, which must install \fBB'\fP\|\.  Because \fBB'\fP
+depends on the original version of \fBA\fP, which has been overridden, the
+cycle falls into infinite regress\.
+.P
+To avoid this situation, npm flat\-out refuses to install any
+\fBname@version\fP that is already present anywhere in the tree of package
+folder ancestors\.  A more correct, but more complex, solution would be
+to symlink the existing version into the new location\.  If this ever
+affects a real use\-case, it will be investigated\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 5 folders
+.IP \(bu 2
+npm help update
+.IP \(bu 2
+npm help audit
+.IP \(bu 2
+npm help link
+.IP \(bu 2
+npm help rebuild
+.IP \(bu 2
+npm help 7 scripts
+.IP \(bu 2
+npm help build
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 npmrc
+.IP \(bu 2
+npm help 7 registry
+.IP \(bu 2
+npm help dist\-tag
+.IP \(bu 2
+npm help uninstall
+.IP \(bu 2
+npm help shrinkwrap
+.IP \(bu 2
+npm help 5 package\.json
+
+.RE
+

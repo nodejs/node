@@ -1,0 +1,16 @@
+before
+evalmachine.<anonymous>:1
+foo.bar = 5;
+^
+
+ReferenceError: foo is not defined
+    at evalmachine.<anonymous>:1:1
+    at Script.runInContext (vm.js:*)
+    at Script.runInNewContext (vm.js:*)
+    at Object.runInNewContext (vm.js:*)
+    at Object.<anonymous> (*test*message*undefined_reference_in_new_context.js:*)
+    at Module._compile (internal/modules/cjs/loader.js:*)
+    at *..js (internal/modules/cjs/loader.js:*)
+    at Module.load (internal/modules/cjs/loader.js:*)
+    at Function.Module._load (internal/modules/cjs/loader.js:*:*)
+    at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)

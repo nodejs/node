@@ -1,0 +1,80 @@
+{
+  "_from": "npm-audit-report@1.3.2",
+  "_id": "npm-audit-report@1.3.2",
+  "_inBundle": false,
+  "_integrity": "sha512-abeqS5ONyXNaZJPGAf6TOUMNdSe1Y6cpc9MLBRn+CuUoYbfdca6AxOyXVlfIv9OgKX+cacblbG5w7A6ccwoTPw==",
+  "_location": "/npm-audit-report",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "npm-audit-report@1.3.2",
+    "name": "npm-audit-report",
+    "escapedName": "npm-audit-report",
+    "rawSpec": "1.3.2",
+    "saveSpec": null,
+    "fetchSpec": "1.3.2"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/npm-audit-report/-/npm-audit-report-1.3.2.tgz",
+  "_shasum": "303bc78cd9e4c226415076a4f7e528c89fc77018",
+  "_spec": "npm-audit-report@1.3.2",
+  "_where": "/Users/zkat/Documents/code/work/npm",
+  "author": {
+    "name": "Adam Baldwin"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/npm-audit-report/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "cli-table3": "^0.5.0",
+    "console-control-strings": "^1.1.0"
+  },
+  "deprecated": false,
+  "description": "Given a response from the npm security api, render it into a variety of security reports",
+  "devDependencies": {
+    "keyfob": "^1.0.0",
+    "standard": "^11.0.1",
+    "standard-version": "^4.3.0",
+    "tap": "^11.1.5",
+    "weallbehave": "^1.2.0",
+    "weallcontribute": "^1.0.8"
+  },
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "files": [
+    "index.js",
+    "lib",
+    "reporters"
+  ],
+  "homepage": "https://github.com/npm/npm-audit-report#readme",
+  "keywords": [
+    "npm",
+    "security",
+    "report",
+    "audit"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "npm-audit-report",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/npm-audit-report.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap --100 -J --coverage test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "version": "1.3.2"
+}

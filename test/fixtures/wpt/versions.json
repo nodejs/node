@@ -1,0 +1,30 @@
+{
+  "console": {
+    "commit": "9786a4b1317c03b89ea3bf2e997f2e2b6a3690ae",
+    "path": "console"
+  },
+  "encoding": {
+    "commit": "a093a659ed118112138f8a1ffba97a66c1ea8235",
+    "path": "encoding"
+  },
+  "url": {
+    "commit": "75b0f336c50105c6fea47ad253d57219dfa744d3",
+    "path": "url"
+  },
+  "resources": {
+    "commit": "679a364421ce3704289df21e1ff985c14b360981",
+    "path": "resources"
+  },
+  "interfaces": {
+    "commit": "712c9f275e83997884749dbcaa503f12c0ff5bba",
+    "path": "interfaces"
+  },
+  "html/webappapis/microtask-queuing": {
+    "commit": "0c3bed38df6d9dcd1441873728fb5c1bb59c92df",
+    "path": "html/webappapis/microtask-queuing"
+  },
+  "html/webappapis/timers": {
+    "commit": "ddfe9c089bab565a9d3aa37bdef63d8012c1a94c",
+    "path": "html/webappapis/timers"
+  }
+}

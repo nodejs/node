@@ -1,0 +1,42 @@
+{
+  'variables': {
+    'openssl_defines_%%-$arch-%%': [
+%%- foreach $define (@{$config{defines}}) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@lib_cppflags) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@{$target{defines}}) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@{$config{lib_defines}}) {
+  $OUT .= "      '$define',\n";
+} -%%    ],
+    'openssl_cflags_%%-$arch-%%': [
+%%- foreach $cflag (@cflags) {
+      $OUT .= "      '$cflag',\n";
+} -%%    ],
+    'openssl_ex_libs_%%-$arch-%%': [
+      '%%-$target{ex_libs}-%%',
+    ],
+    'openssl_cli_srcs_%%-$arch-%%': [
+%%- foreach $src (@apps_openssl_srcs) {
+  unless ($src eq "apps/openssl.rc") {
+    $OUT .= "      'openssl/$src',\n";
+  }
+}
+foreach $src (@libapps_srcs) {
+  $OUT .= "      'openssl/$src',\n";
+} -%%    ],
+  },
+  'defines': ['<@(openssl_defines_%%-$arch-%%)'],
+  'include_dirs': [
+    './include',
+  ],
+%%- if (!$is_win) {
+  $OUT = "  'cflags' : ['<@(openssl_cflags_$arch)'],
+  'libraries': ['<@(openssl_ex_libs_$arch)'],";
+} -%%
+  'sources': ['<@(openssl_cli_srcs_%%-$arch-%%)'],
+}

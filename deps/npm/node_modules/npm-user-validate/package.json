@@ -1,0 +1,64 @@
+{
+  "_args": [
+    [
+      "npm-user-validate@1.0.0",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "npm-user-validate@1.0.0",
+  "_id": "npm-user-validate@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-jOyg9c6gTU6TUZ73LQVXp1Ei6VE=",
+  "_location": "/npm-user-validate",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "npm-user-validate@1.0.0",
+    "name": "npm-user-validate",
+    "escapedName": "npm-user-validate",
+    "rawSpec": "1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "1.0.0"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/npm-user-validate/-/npm-user-validate-1.0.0.tgz",
+  "_spec": "1.0.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Robert Kowalski",
+    "email": "rok@kowalski.gd"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/npm-user-validate/issues"
+  },
+  "description": "User validations for npm",
+  "devDependencies": {
+    "standard": "^8.4.0",
+    "standard-version": "^3.0.0",
+    "tap": "^7.1.2"
+  },
+  "files": [
+    "npm-user-validate.js"
+  ],
+  "homepage": "https://github.com/npm/npm-user-validate#readme",
+  "keywords": [
+    "npm",
+    "validation",
+    "registry"
+  ],
+  "license": "BSD-2-Clause",
+  "main": "npm-user-validate.js",
+  "name": "npm-user-validate",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/npm-user-validate.git"
+  },
+  "scripts": {
+    "pretest": "standard",
+    "test": "tap --100 test/*.js"
+  },
+  "version": "1.0.0"
+}

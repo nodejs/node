@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2019 the V8 project authors. All rights reserved.  Use of this source
+code is governed by a BSD-style license that can be found in the LICENSE file.
+-->
+<head>
+  <meta charset="utf-8">
+  <title>V8 Turbolizer</title>
+  <link rel="stylesheet" href="turbo-visualizer.css">
+  <link rel="stylesheet" href="tabs.css">
+  <link rel="stylesheet" href="prettify.css">
+  <link rel="icon" type="image/png" href="turbolizer.png">
+</head>
+
+<body>
+  <div id="left" class="content"></div>
+  <div id="resizer-left" class="resizer"></div>
+  <div id="middle">
+
+    <div id="load-file">
+      <input id="upload-helper" type="file">
+      <input id="upload" type="image" title="load graph" class="button-input" src="upload-icon.png" alt="upload graph">
+    </div>
+  </div>
+  <div id="resizer-right" class="resizer"></div>
+  <div id="right" class="content"></div>
+  <div id="source-collapse" class="collapse-pane">
+    <input id="source-expand" type="image" title="show source" src="right-arrow.png" class="button-input invisible">
+    <input id="source-shrink" type="image" title="hide source" src="left-arrow.png" class="button-input">
+  </div>
+  <div id="disassembly-collapse" class="collapse-pane">
+    <input id="disassembly-expand" type="image" title="show disassembly" src="left-arrow.png" class="button-input invisible">
+    <input id="disassembly-shrink" type="image" title="hide disassembly" src="right-arrow.png" class="button-input">
+  </div>
+  <div id="text-placeholder" width="0" height="0" style="position: absolute; top:100000px;">
+    <svg>
+      <text text-anchor="right">
+        <tspan white-space="inherit" id="text-measure">
+      </text>
+    </svg>
+  </div>
+  <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
+  <script src="build/turbolizer.js"></script>
+</body>
+</html>

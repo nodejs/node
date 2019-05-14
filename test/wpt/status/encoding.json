@@ -1,0 +1,51 @@
+{
+  "api-basics.any.js": {
+    "requires": ["small-icu"]
+  },
+  "textdecoder-fatal-streaming.any.js": {
+    "requires": ["small-icu"]
+  },
+  "textdecoder-fatal.any.js": {
+    "requires": ["small-icu"]
+  },
+  "textdecoder-ignorebom.any.js": {
+    "requires": ["small-icu"]
+  },
+  "textdecoder-streaming.any.js": {
+    "requires": ["small-icu"]
+  },
+  "textdecoder-utf16-surrogates.any.js": {
+    "requires": ["small-icu"]
+  },
+  "iso-2022-jp-decoder.any.js": {
+    "requires": ["full-icu"],
+    "fail": "iso-2022-jp decoder state handling bug: https://encoding.spec.whatwg.org/#iso-2022-jp-decoder"
+  },
+  "textdecoder-byte-order-marks.any.js": {
+    "fail": "Mismatching BOM should not be ignored"
+  },
+  "textdecoder-copy.any.js": {
+    "fail": "Should not have output BOM: https://encoding.spec.whatwg.org/#concept-td-serialize"
+  },
+  "textdecoder-fatal-single-byte.any.js": {
+    "requires": ["full-icu"],
+    "fail": "The iso-8859-16 encoding is not supported"
+  },
+  "textdecoder-labels.any.js": {
+    "requires": ["full-icu"],
+    "fail": "The iso-8859-16 encoding is not supported"
+  },
+  "textencoder-constructor-non-utf.any.js": {
+    "requires": ["full-icu"],
+    "fail": "The iso-8859-16 encoding is not supported"
+  },
+  "idlharness.any.js": {
+    "fail": "No implementation of TextDecoderStream and TextEncoderStream"
+  },
+  "replacement-encodings.any.js": {
+    "skip": "decoding-helpers.js needs XMLHttpRequest"
+  },
+  "unsupported-encodings.any.js": {
+    "skip": "decoding-helpers.js needs XMLHttpRequest"
+  }
+}

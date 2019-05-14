@@ -1,0 +1,111 @@
+{
+  "_from": "bluebird@3.5.3",
+  "_id": "bluebird@3.5.3",
+  "_inBundle": false,
+  "_integrity": "sha512-/qKPUQlaW1OyR51WeCPBvRnAlnZFUJkCSG5HzGnuIqhgyJtF+T94lFnn33eiazjRm2LAHVy2guNnaq48X9SJuw==",
+  "_location": "/bluebird",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "bluebird@3.5.3",
+    "name": "bluebird",
+    "escapedName": "bluebird",
+    "rawSpec": "3.5.3",
+    "saveSpec": null,
+    "fetchSpec": "3.5.3"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/",
+    "/bin-links",
+    "/cacache",
+    "/libcipm",
+    "/libnpmhook/npm-registry-fetch",
+    "/npm-registry-fetch",
+    "/npm-registry-fetch/cacache",
+    "/pacote",
+    "/tap"
+  ],
+  "_resolved": "https://registry.npmjs.org/bluebird/-/bluebird-3.5.3.tgz",
+  "_shasum": "7d01c6f9616c9a51ab0f8c549a79dfe6ec33efa7",
+  "_spec": "bluebird@3.5.3",
+  "_where": "/Users/zkat/Documents/code/work/npm",
+  "author": {
+    "name": "Petka Antonov",
+    "email": "petka_antonov@hotmail.com",
+    "url": "http://github.com/petkaantonov/"
+  },
+  "browser": "./js/browser/bluebird.js",
+  "bugs": {
+    "url": "http://github.com/petkaantonov/bluebird/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Full featured Promises/A+ implementation with exceptionally good performance",
+  "devDependencies": {
+    "acorn": "^6.0.2",
+    "acorn-walk": "^6.1.0",
+    "baconjs": "^0.7.43",
+    "bluebird": "^2.9.2",
+    "body-parser": "^1.10.2",
+    "browserify": "^8.1.1",
+    "cli-table": "~0.3.1",
+    "co": "^4.2.0",
+    "cross-spawn": "^0.2.3",
+    "glob": "^4.3.2",
+    "grunt-saucelabs": "~8.4.1",
+    "highland": "^2.3.0",
+    "istanbul": "^0.3.5",
+    "jshint": "^2.6.0",
+    "jshint-stylish": "~0.2.0",
+    "kefir": "^2.4.1",
+    "mkdirp": "~0.5.0",
+    "mocha": "~2.1",
+    "open": "~0.0.5",
+    "optimist": "~0.6.1",
+    "rimraf": "~2.2.6",
+    "rx": "^2.3.25",
+    "serve-static": "^1.7.1",
+    "sinon": "~1.7.3",
+    "uglify-js": "~2.4.16"
+  },
+  "files": [
+    "js/browser",
+    "js/release",
+    "LICENSE"
+  ],
+  "homepage": "https://github.com/petkaantonov/bluebird",
+  "keywords": [
+    "promise",
+    "performance",
+    "promises",
+    "promises-a",
+    "promises-aplus",
+    "async",
+    "await",
+    "deferred",
+    "deferreds",
+    "future",
+    "flow control",
+    "dsl",
+    "fluent interface"
+  ],
+  "license": "MIT",
+  "main": "./js/release/bluebird.js",
+  "name": "bluebird",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/petkaantonov/bluebird.git"
+  },
+  "scripts": {
+    "generate-browser-core": "node tools/build.js --features=core --no-debug --release --zalgo --browser --minify && mv js/browser/bluebird.js js/browser/bluebird.core.js && mv js/browser/bluebird.min.js js/browser/bluebird.core.min.js",
+    "generate-browser-full": "node tools/build.js --no-clean --no-debug --release --browser --minify",
+    "istanbul": "istanbul",
+    "lint": "node scripts/jshint.js",
+    "prepublish": "npm run generate-browser-core && npm run generate-browser-full",
+    "test": "node --expose-gc tools/test.js"
+  },
+  "version": "3.5.3",
+  "webpack": "./js/release/bluebird.js"
+}

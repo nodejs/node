@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+  <title>npm-update</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-update.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../cli/npm-update.html">npm-update</a></h1> <p>Update a package</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm update [-g] [&lt;pkg&gt;...]
+
+aliases: up, upgrade</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This command will update all the packages listed to the latest version
+(specified by the <code>tag</code> config), respecting semver.</p>
+<p>It will also install missing packages. As with all commands that install
+packages, the <code>--dev</code> flag will cause <code>devDependencies</code> to be processed
+as well.</p>
+<p>If the <code>-g</code> flag is specified, this command will update globally installed
+packages.</p>
+<p>If no package name is specified, all packages in the specified location (global
+or local) will be updated.</p>
+<p>As of <code>npm@2.6.1</code>, the <code>npm update</code> will only inspect top-level packages.
+Prior versions of <code>npm</code> would also recursively inspect all dependencies.
+To get the old behavior, use <code>npm --depth 9999 update</code>.</p>
+<p>As of <code>npm@5.0.0</code>, the <code>npm update</code> will change <code>package.json</code> to save the
+new version as the minimum required dependency. To get the old behavior,
+use <code>npm update --no-save</code>.</p>
+<h2 id="examples">EXAMPLES</h2>
+<p>IMPORTANT VERSION NOTE: these examples assume <code>npm@2.6.1</code> or later.  For
+older versions of <code>npm</code>, you must specify <code>--depth 0</code> to get the behavior
+described below.</p>
+<p>For the examples below, assume that the current package is <code>app</code> and it depends
+on dependencies, <code>dep1</code> (<code>dep2</code>, .. etc.).  The published versions of <code>dep1</code> are:</p>
+<pre><code>{
+  &quot;dist-tags&quot;: { &quot;latest&quot;: &quot;1.2.2&quot; },
+  &quot;versions&quot;: [
+    &quot;1.2.2&quot;,
+    &quot;1.2.1&quot;,
+    &quot;1.2.0&quot;,
+    &quot;1.1.2&quot;,
+    &quot;1.1.1&quot;,
+    &quot;1.0.0&quot;,
+    &quot;0.4.1&quot;,
+    &quot;0.4.0&quot;,
+    &quot;0.2.0&quot;
+  ]
+}</code></pre><h3 id="caret-dependencies">Caret Dependencies</h3>
+<p>If <code>app</code>&#39;s <code>package.json</code> contains:</p>
+<pre><code>&quot;dependencies&quot;: {
+  &quot;dep1&quot;: &quot;^1.1.1&quot;
+}</code></pre><p>Then <code>npm update</code> will install <code>dep1@1.2.2</code>, because <code>1.2.2</code> is <code>latest</code> and
+<code>1.2.2</code> satisfies <code>^1.1.1</code>.</p>
+<h3 id="tilde-dependencies">Tilde Dependencies</h3>
+<p>However, if <code>app</code>&#39;s <code>package.json</code> contains:</p>
+<pre><code>&quot;dependencies&quot;: {
+  &quot;dep1&quot;: &quot;~1.1.1&quot;
+}</code></pre><p>In this case, running <code>npm update</code> will install <code>dep1@1.1.2</code>.  Even though the <code>latest</code>
+tag points to <code>1.2.2</code>, this version does not satisfy <code>~1.1.1</code>, which is equivalent
+to <code>&gt;=1.1.1 &lt;1.2.0</code>.  So the highest-sorting version that satisfies <code>~1.1.1</code> is used,
+which is <code>1.1.2</code>.</p>
+<h3 id="caret-dependencies-below-100">Caret Dependencies below 1.0.0</h3>
+<p>Suppose <code>app</code> has a caret dependency on a version below <code>1.0.0</code>, for example:</p>
+<pre><code>&quot;dependencies&quot;: {
+  &quot;dep1&quot;: &quot;^0.2.0&quot;
+}</code></pre><p><code>npm update</code> will install <code>dep1@0.2.0</code>, because there are no other
+versions which satisfy <code>^0.2.0</code>.</p>
+<p>If the dependence were on <code>^0.4.0</code>:</p>
+<pre><code>&quot;dependencies&quot;: {
+  &quot;dep1&quot;: &quot;^0.4.0&quot;
+}</code></pre><p>Then <code>npm update</code> will install <code>dep1@0.4.1</code>, because that is the highest-sorting
+version that satisfies <code>^0.4.0</code> (<code>&gt;= 0.4.0 &lt;0.5.0</code>)</p>
+<h3 id="updating-globally-installed-packages">Updating Globally-Installed Packages</h3>
+<p><code>npm update -g</code> will apply the <code>update</code> action to each globally installed
+package that is <code>outdated</code> -- that is, has a version that is different from
+<code>latest</code>.</p>
+<p>NOTE: If a package has been upgraded to a version newer than <code>latest</code>, it will
+be <em>downgraded</em>.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../cli/npm-install.html">npm-install(1)</a></li>
+<li><a href="../cli/npm-outdated.html">npm-outdated(1)</a></li>
+<li><a href="../cli/npm-shrinkwrap.html">npm-shrinkwrap(1)</a></li>
+<li><a href="../misc/npm-registry.html">npm-registry(7)</a></li>
+<li><a href="../files/npm-folders.html">npm-folders(5)</a></li>
+<li><a href="../cli/npm-ls.html">npm-ls(1)</a></li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-update &mdash; npm@6.9.0</p>
+

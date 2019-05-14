@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+  <title>npm-deprecate</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-deprecate.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../cli/npm-deprecate.html">npm-deprecate</a></h1> <p>Deprecate a version of a package</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm deprecate &lt;pkg&gt;[@&lt;version&gt;] &lt;message&gt;</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This command will update the npm registry entry for a package, providing
+a deprecation warning to all who attempt to install it.</p>
+<p>It works on <a href="https://semver.npmjs.com/">version ranges</a> as well as specific
+versions, so you can do something like this:</p>
+<pre><code>npm deprecate my-thing@&quot;&lt; 0.2.3&quot; &quot;critical bug fixed in v0.2.3&quot;</code></pre><p>Note that you must be the package owner to deprecate something.  See the
+<code>owner</code> and <code>adduser</code> help topics.</p>
+<p>To un-deprecate a package, specify an empty string (<code>&quot;&quot;</code>) for the <code>message</code>
+argument. Note that you must use double quotes with no space between them to
+format an empty string.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../cli/npm-publish.html">npm-publish(1)</a></li>
+<li><a href="../misc/npm-registry.html">npm-registry(7)</a></li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-deprecate &mdash; npm@6.9.0</p>
+

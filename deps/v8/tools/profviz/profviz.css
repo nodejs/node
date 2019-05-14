@@ -1,0 +1,138 @@
+/*
+Copyright 2013 the V8 project authors. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+    * Neither the name of Google Inc. nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+body {
+  background-color: #ddd;
+}
+
+#content {
+  background-color: #fff;
+  width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 25px;
+}
+
+textarea {
+  width: 1200px;
+  resize: none;
+  font-family: monospace;
+  font-size: 12px;
+  color: #000;
+  border: 1px dotted #aaa;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+textarea.log {
+  background-color: #ffe;
+}
+
+.display {
+  width: 1200px;
+  height: 600px;
+  background-color: #fff;
+  display: block;
+  box-sizing: border-box;
+}
+
+table {
+  width: 1200px;
+}
+
+button {
+  width: 100px;
+  height: 20px;
+  border: 1px solid #000;
+  border-color: #aaa;
+  font-family: Verdana;
+  font-size: 12px;
+  background-color: #ddd;
+}
+
+button:hover {
+  background-color: #eee;
+}
+
+#file {
+  width: 200px;
+  height: 20px;
+  border: none;
+  font-family: Verdana;
+  font-size: 12px;
+}
+
+input.range {
+  width: 70px;
+  height: 16px;
+  text-align: right;
+  padding-right: 5px;
+  border: 0px;
+  background-color: #eee;
+  font-family: Verdana;
+  font-size: 12px;
+}
+
+label {
+  height: 20px;
+  font-family: Verdana;
+  font-size: 12px;
+}
+
+.tooltip {
+  border-bottom: 1px dotted #000;
+}
+
+h1 {
+  font-family: Verdana;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.text {
+  font-family: Verdana; 
+  font-size: 12px;
+}
+
+.tt {
+  font-family: monospace;
+  font-size: 12px;
+  color: #822;
+}
+
+a {
+  font-family: Verdana;
+  font-size: 12px;
+  text-decoration: none;
+  color: #282;
+}
+
+a.unroll {
+  border-bottom: 1px dotted #000;
+  color: #222;
+}

@@ -1,0 +1,10 @@
+Test Promise resolution.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+PASS thisInOnFulfilled is undefined
+PASS result is "hello"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

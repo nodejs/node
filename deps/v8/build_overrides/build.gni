@@ -1,0 +1,29 @@
+# Copyright 2016 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Variable that can be used to support multiple build scenarios, like having
+# Chromium specific targets in a client project's GN file etc.
+build_with_chromium = false
+
+# Uncomment these to specify a different NDK location and version in
+# non-Chromium builds.
+# default_android_ndk_root = "//third_party/android_ndk"
+# default_android_ndk_version = "r10e"
+
+# Some non-Chromium builds don't support building java targets.
+enable_java_templates = false
+
+# Some non-Chromium builds don't use Chromium's third_party/binutils.
+linux_use_bundled_binutils_override = true
+
+# Allows different projects to specify their own suppressions files.
+asan_suppressions_file = "//build/sanitizers/asan_suppressions.cc"
+lsan_suppressions_file = "//build/sanitizers/lsan_suppressions.cc"
+tsan_suppressions_file = "//build/sanitizers/tsan_suppressions.cc"
+
+# Skip assertions about 4GiB file size limit.
+ignore_elf32_limitations = true
+
+# Use the system install of Xcode for tools like ibtool, libtool, etc.
+use_system_xcode = true

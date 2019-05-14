@@ -1,0 +1,5 @@
+*%(basename)s:7: SyntaxError: Detected cycle while resolving name 'a' in 'modules-cycle1.js'
+import {a} from "modules-cycle1.js";
+        ^
+SyntaxError: Detected cycle while resolving name 'a' in 'modules-cycle1.js'
+

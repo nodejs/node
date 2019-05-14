@@ -1,0 +1,73 @@
+{
+  "_from": "wcwidth@^1.0.0",
+  "_id": "wcwidth@1.0.1",
+  "_inBundle": false,
+  "_integrity": "sha1-8LDc+RW8X/FSivrbLA4XtTLaL+g=",
+  "_location": "/wcwidth",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "wcwidth@^1.0.0",
+    "name": "wcwidth",
+    "escapedName": "wcwidth",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/columnify"
+  ],
+  "_resolved": "https://registry.npmjs.org/wcwidth/-/wcwidth-1.0.1.tgz",
+  "_shasum": "f0b0dcf915bc5ff1528afadb2c0e17b532da2fe8",
+  "_spec": "wcwidth@^1.0.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/columnify",
+  "author": {
+    "name": "Tim Oxley"
+  },
+  "bugs": {
+    "url": "https://github.com/timoxley/wcwidth/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Woong Jun",
+      "email": "woong.jun@gmail.com",
+      "url": "http://code.woong.org/"
+    }
+  ],
+  "dependencies": {
+    "defaults": "^1.0.3"
+  },
+  "deprecated": false,
+  "description": "Port of C's wcwidth() and wcswidth()",
+  "devDependencies": {
+    "tape": "^4.5.1"
+  },
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "homepage": "https://github.com/timoxley/wcwidth#readme",
+  "keywords": [
+    "wide character",
+    "wc",
+    "wide character string",
+    "wcs",
+    "terminal",
+    "width",
+    "wcwidth",
+    "wcswidth"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "wcwidth",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/timoxley/wcwidth.git"
+  },
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "version": "1.0.1"
+}

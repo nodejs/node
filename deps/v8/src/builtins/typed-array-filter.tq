@@ -1,0 +1,79 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace typed_array_filter {
+  const kBuiltinName: constexpr string = '%TypedArray%.prototype.filter';
+
+  extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
+      void;
+
+  // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.filter
+  transitioning javascript builtin TypedArrayPrototypeFilter(
+      context: Context, receiver: Object, ...arguments): Object {
+    // arguments[0] = callback
+    // arguments[1] = thisArg
+    try {
+      // 1. Let O be the this value.
+      // 2. Perform ? ValidateTypedArray(O).
+      const array: JSTypedArray = Cast<JSTypedArray>(receiver)
+          otherwise ThrowTypeError(kNotTypedArray, kBuiltinName);
+      const src = typed_array::EnsureAttached(array) otherwise IsDetached;
+
+      // 3. Let len be O.[[ArrayLength]].
+      const len: Smi = src.length;
+
+      // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
+      const callbackfn = Cast<Callable>(arguments[0])
+          otherwise ThrowTypeError(kCalledNonCallable, arguments[0]);
+
+      // 5. If thisArg is present, let T be thisArg; else let T be undefined.
+      const thisArg: Object = arguments[1];
+
+      // 6. Let kept be a new empty List.
+      let kept = growable_fixed_array::NewGrowableFixedArray();
+      let witness = typed_array::NewAttachedJSTypedArrayWitness(src);
+
+      // 7. Let k be 0.
+      // 8. Let captured be 0.
+      // 9. Repeat, while k < len
+      for (let k: Smi = 0; k < len; k++) {
+        witness.Recheck() otherwise IsDetached;
+
+        // a. Let Pk be ! ToString(k).
+        // b. Let kValue be ? Get(O, Pk).
+        const value: Object = witness.Load(k);
+
+        // c. Let selected be ToBoolean(? Call(callbackfn, T, « kValue, k, O
+        // »)).
+        const selected: Object =
+            Call(context, callbackfn, thisArg, value, k, witness.GetStable());
+
+        // d. If selected is true, then
+        //    i. Append kValue to the end of kept.
+        //   ii. Increase captured by 1.
+        if (BranchIfToBooleanIsTrue(selected)) kept.Push(value);
+
+        // e.Increase k by 1.
+      }
+
+      // 10. Let A be ? TypedArraySpeciesCreate(O, captured).
+      const lengthSmi: Smi = Convert<Smi>(kept.length);
+      const typedArray: JSTypedArray =
+          typed_array_createtypedarray::TypedArraySpeciesCreateByLength(
+              kBuiltinName, array, lengthSmi);
+
+      // 11. Let n be 0.
+      // 12. For each element e of kept, do
+      //   a. Perform ! Set(A, ! ToString(n), e, true).
+      //   b. Increment n by 1.
+      TypedArrayCopyElements(context, typedArray, kept.ToJSArray(), lengthSmi);
+
+      // 13. Return A.
+      return typedArray;
+    }
+    label IsDetached deferred {
+      ThrowTypeError(kDetachedOperation, kBuiltinName);
+    }
+  }
+}

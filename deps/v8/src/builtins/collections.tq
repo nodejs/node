@@ -1,0 +1,57 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-collections-gen.h'
+
+namespace collections {
+  macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: Object):
+      KeyValuePair
+      labels MayHaveSideEffects {
+    typeswitch (o) {
+      case (a: FastJSArray): {
+        const length: Smi = a.length;
+        typeswitch (a.elements) {
+          case (elements: FixedArray): {
+            return KeyValuePair{
+              length > 0 ? array::LoadElementOrUndefined(elements, 0) :
+                           Undefined,
+              length > 1 ? array::LoadElementOrUndefined(elements, 1) :
+                           Undefined
+            };
+          }
+          case (elements: FixedDoubleArray): {
+            return KeyValuePair{
+              length > 0 ? array::LoadElementOrUndefined(elements, 0) :
+                           Undefined,
+              length > 1 ? array::LoadElementOrUndefined(elements, 1) :
+                           Undefined
+            };
+          }
+          case (Object): deferred {
+            unreachable;
+          }
+        }
+      }
+      case (receiver: JSReceiver): {
+        goto MayHaveSideEffects;
+      }
+      case (o: Object): deferred {
+        ThrowTypeError(kIteratorValueNotAnObject, o);
+      }
+    }
+  }
+
+  transitioning macro LoadKeyValuePair(implicit context: Context)(o: Object):
+      KeyValuePair {
+    try {
+      return LoadKeyValuePairNoSideEffects(o) otherwise Generic;
+    }
+    label Generic {
+      return KeyValuePair{
+        GetProperty(o, Convert<Smi>(0)),
+        GetProperty(o, Convert<Smi>(1))
+      };
+    }
+  }
+}

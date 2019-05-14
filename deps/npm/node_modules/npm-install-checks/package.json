@@ -1,0 +1,63 @@
+{
+  "_args": [
+    [
+      "npm-install-checks@3.0.0",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "npm-install-checks@3.0.0",
+  "_id": "npm-install-checks@3.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-1K7N/VGlPjcjt7L5Oy7ijjB7wNc=",
+  "_location": "/npm-install-checks",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "npm-install-checks@3.0.0",
+    "name": "npm-install-checks",
+    "escapedName": "npm-install-checks",
+    "rawSpec": "3.0.0",
+    "saveSpec": null,
+    "fetchSpec": "3.0.0"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/npm-install-checks/-/npm-install-checks-3.0.0.tgz",
+  "_spec": "3.0.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Robert Kowalski",
+    "email": "rok@kowalski.gd"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/npm-install-checks/issues"
+  },
+  "dependencies": {
+    "semver": "^2.3.0 || 3.x || 4 || 5"
+  },
+  "description": "checks that npm runs during the installation of a module",
+  "devDependencies": {
+    "mkdirp": "~0.3.5",
+    "rimraf": "~2.2.5",
+    "standard": "^5.4.1",
+    "tap": "^5.0.1"
+  },
+  "homepage": "https://github.com/npm/npm-install-checks",
+  "keywords": [
+    "npm,",
+    "install"
+  ],
+  "license": "BSD-2-Clause",
+  "main": "index.js",
+  "name": "npm-install-checks",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/npm-install-checks.git"
+  },
+  "scripts": {
+    "test": "standard && tap --coverage test/*.js"
+  },
+  "version": "3.0.0"
+}

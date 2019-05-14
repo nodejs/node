@@ -1,0 +1,164 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../gni/v8.gni")
+
+group("gn_all") {
+  testonly = true
+
+  data_deps = [
+    "benchmarks:v8_benchmarks",
+    "intl:v8_intl",
+    "fuzzer:v8_fuzzer",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "mozilla:v8_mozilla",
+    "preparser:v8_preparser",
+    "test262:v8_test262",
+    "wasm-js:v8_wasm_js",
+    "wasm-spec-tests:v8_wasm_spec_tests",
+    "webkit:v8_webkit",
+  ]
+
+  deps = [
+    "inspector:inspector-test",
+    "mkgrokdump:mkgrokdump",
+  ]
+
+  if (host_os != "mac" || !is_android) {
+    # These items don't compile for Android on Mac.
+    deps += [
+      "cctest:cctest",
+      "cctest:generate-bytecode-expectations",
+      "unittests:unittests",
+    ]
+  }
+}
+
+###############################################################################
+# Test groups
+#
+
+group("v8_perf") {
+  testonly = true
+
+  data_deps = [
+    "cctest:cctest",
+    "..:d8",
+    "../tools:v8_android_test_runner_deps",
+  ]
+
+  data = [
+    "../tools/run_perf.py",
+
+    # TODO(machenbach): These files are referenced by the perf runner.
+    # They should be transformed into a proper python module.
+    "../tools/testrunner/local/android.py",
+    "../tools/testrunner/local/command.py",
+    "../tools/testrunner/local/utils.py",
+    "../tools/testrunner/objects/output.py",
+
+    # This is often used to trigger performance bots. We include it in the
+    # isolate to not get these builds deduped.
+    "../tools/whitespace.txt",
+    "js-perf-test/",
+    "memory/",
+  ]
+}
+
+group("v8_bot_default") {
+  testonly = true
+
+  data_deps = [
+    "cctest:cctest",
+    "debugger:v8_debugger",
+    "fuzzer:v8_fuzzer",
+    "inspector:inspector-test",
+    "intl:v8_intl",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "mkgrokdump:mkgrokdump",
+    "preparser:v8_preparser",
+    "unittests:unittests",
+    "wasm-js:v8_wasm_js",
+    "wasm-spec-tests:v8_wasm_spec_tests",
+    "webkit:v8_webkit",
+  ]
+}
+
+group("v8_default") {
+  testonly = true
+
+  data_deps = [
+    "cctest:cctest",
+    "debugger:v8_debugger",
+    "fuzzer:v8_fuzzer",
+    "inspector:inspector-test",
+    "intl:v8_intl",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "mkgrokdump:mkgrokdump",
+    "preparser:v8_preparser",
+    "unittests:unittests",
+    "wasm-js:v8_wasm_js",
+    "wasm-spec-tests:v8_wasm_spec_tests",
+  ]
+}
+
+group("v8_optimize_for_size") {
+  testonly = true
+
+  data_deps = [
+    "cctest:cctest",
+    "debugger:v8_debugger",
+    "inspector:inspector-test",
+    "intl:v8_intl",
+    "mjsunit:v8_mjsunit",
+    "webkit:v8_webkit",
+  ]
+}
+
+group("v8_d8_default") {
+  testonly = true
+
+  data_deps = [
+    "debugger:v8_debugger",
+    "intl:v8_intl",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "preparser:v8_preparser",
+    "webkit:v8_webkit",
+  ]
+}
+
+group("v8_run_num_fuzzer") {
+  testonly = true
+
+  data_deps = [
+    "benchmarks:v8_benchmarks",
+    "mjsunit:v8_mjsunit",
+    "webkit:v8_webkit",
+  ]
+}
+
+v8_header_set("common_test_headers") {
+  testonly = true
+
+  configs = []
+
+  public_deps = [
+    # We can't depend on this here, because if the "cctest" target depends on it
+    # we will get duplicate symbols.
+    #"../:v8_for_testing",
+    "../:v8_libbase",
+  ]
+
+  sources = [
+    "common/assembler-tester.h",
+    "common/types-fuzz.h",
+    "common/wasm/flag-utils.h",
+    "common/wasm/test-signatures.h",
+    "common/wasm/wasm-macro-gen.h",
+  ]
+}

@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+  <title>npm-pack</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-pack.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../cli/npm-pack.html">npm-pack</a></h1> <p>Create a tarball from a package</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm pack [[&lt;@scope&gt;/]&lt;pkg&gt;...] [--dry-run]</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>For anything that&#39;s installable (that is, a package folder, tarball,
+tarball url, name@tag, name@version, name, or scoped name), this
+command will fetch it to the cache, and then copy the tarball to the
+current working directory as <code>&lt;name&gt;-&lt;version&gt;.tgz</code>, and then write
+the filenames out to stdout.</p>
+<p>If the same package is specified multiple times, then the file will be
+overwritten the second time.</p>
+<p>If no arguments are supplied, then npm packs the current package folder.</p>
+<p>The <code>--dry-run</code> argument will do everything that pack usually does without
+actually packing anything. Reports on what would have gone into the tarball.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../cli/npm-cache.html">npm-cache(1)</a></li>
+<li><a href="../cli/npm-publish.html">npm-publish(1)</a></li>
+<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
+<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
+<li><a href="../files/npmrc.html">npmrc(5)</a></li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-pack &mdash; npm@6.9.0</p>
+

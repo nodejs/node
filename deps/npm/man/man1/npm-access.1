@@ -1,0 +1,101 @@
+.TH "NPM\-ACCESS" "1" "April 2019" "" ""
+.SH "NAME"
+\fBnpm-access\fR \- Set access level on published packages
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm access public [<package>]
+npm access restricted [<package>]
+
+npm access grant <read\-only|read\-write> <scope:team> [<package>]
+npm access revoke <scope:team> [<package>]
+
+npm access 2fa\-required [<package>]
+npm access 2fa\-not\-required [<package>]
+
+npm access ls\-packages [<user>|<scope>|<scope:team>]
+npm access ls\-collaborators [<package> [<user>]]
+npm access edit [<package>]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+Used to set access controls on private packages\.
+.P
+For all of the subcommands, \fBnpm access\fP will perform actions on the packages
+in the current working directory if no package name is passed to the
+subcommand\.
+.RS 0
+.IP \(bu 2
+public / restricted:
+Set a package to be either publicly accessible or restricted\.
+.IP \(bu 2
+grant / revoke:
+Add or remove the ability of users and teams to have read\-only or read\-write
+access to a package\.
+.IP \(bu 2
+2fa\-required / 2fa\-not\-required:
+Configure whether a package requires that anyone publishing it have two\-factor
+authentication enabled on their account\.
+.IP \(bu 2
+ls\-packages:
+Show all of the packages a user or a team is able to access, along with the
+access level, except for read\-only public packages (it won't print the whole
+registry listing)
+.IP \(bu 2
+ls\-collaborators:
+Show all of the access privileges for a package\. Will only show permissions
+for packages to which you have at least read access\. If \fB<user>\fP is passed in,
+the list is filtered only to teams \fIthat\fR user happens to belong to\.
+.IP \(bu 2
+edit:
+Set the access privileges for a package at once using \fB$EDITOR\fP\|\.
+
+.RE
+.SH DETAILS
+.P
+\fBnpm access\fP always operates directly on the current registry, configurable
+from the command line using \fB\-\-registry=<registry url>\fP\|\.
+.P
+Unscoped packages are \fIalways public\fR\|\.
+.P
+Scoped packages \fIdefault to restricted\fR, but you can either publish them as
+public using \fBnpm publish \-\-access=public\fP, or set their access as public using
+\fBnpm access public\fP after the initial publish\.
+.P
+You must have privileges to set the access of a package:
+.RS 0
+.IP \(bu 2
+You are an owner of an unscoped or scoped package\.
+.IP \(bu 2
+You are a member of the team that owns a scope\.
+.IP \(bu 2
+You have been given read\-write privileges for a package, either as a member
+of a team or directly as an owner\.
+
+.RE
+.P
+If you have two\-factor authentication enabled then you'll have to pass in an
+otp with \fB\-\-otp\fP when making access changes\.
+.P
+If your account is not paid, then attempts to publish scoped packages will fail
+with an HTTP 402 status code (logically enough), unless you use
+\fB\-\-access=public\fP\|\.
+.P
+Management of teams and team memberships is done with the \fBnpm team\fP command\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+\fBlibnpmaccess\fP \fIhttps://npm\.im/libnpmaccess\fR
+.IP \(bu 2
+npm help team
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 7 registry
+
+.RE
+

@@ -1,0 +1,105 @@
+.TH "NPM\-RUN\-SCRIPT" "1" "April 2019" "" ""
+.SH "NAME"
+\fBnpm-run-script\fR \- Run arbitrary package scripts
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm run\-script <command> [\-\-silent] [\-\- <args>\.\.\.]
+
+alias: npm run
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This runs an arbitrary command from a package's \fB"scripts"\fP object\.  If no
+\fB"command"\fP is provided, it will list the available scripts\.  \fBrun[\-script]\fP is
+used by the test, start, restart, and stop commands, but can be called
+directly, as well\. When the scripts in the package are printed out, they're
+separated into lifecycle (test, start, restart) and directly\-run scripts\.
+.P
+As of ` \fIhttps://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
+use custom arguments when executing scripts\. The special option \fB\-\-\fP is used by
+getopt \fIhttps://goo\.gl/KxMmtG\fR to delimit the end of the options\. npm will pass
+all the arguments after the \fB\-\-\fP directly to your script:
+.P
+.RS 2
+.nf
+npm run test \-\- \-\-grep="pattern"
+.fi
+.RE
+.P
+The arguments will only be passed to the script specified after \fBnpm run\fP
+and not to any pre or post script\.
+.P
+The \fBenv\fP script is a special built\-in command that can be used to list
+environment variables that will be available to the script at runtime\. If an
+"env" command is defined in your package, it will take precedence over the
+built\-in\.
+.P
+In addition to the shell's pre\-existing \fBPATH\fP, \fBnpm run\fP adds
+\fBnode_modules/\.bin\fP to the \fBPATH\fP provided to scripts\. Any binaries provided by
+locally\-installed dependencies can be used without the \fBnode_modules/\.bin\fP
+prefix\. For example, if there is a \fBdevDependency\fP on \fBtap\fP in your package,
+you should write:
+.P
+.RS 2
+.nf
+"scripts": {"test": "tap test/\\*\.js"}
+.fi
+.RE
+.P
+instead of
+.P
+.RS 2
+.nf
+"scripts": {"test": "node_modules/\.bin/tap test/\\*\.js"}
+.fi
+.RE
+.P
+to run your tests\.
+.P
+The actual shell your script is run within is platform dependent\. By default,
+on Unix\-like systems it is the \fB/bin/sh\fP command, on Windows it is the \fBcmd\.exe\fP\|\.
+The actual shell referred to by \fB/bin/sh\fP also depends on the system\.
+As of ` \fIhttps://github\.com/npm/npm/releases/tag/v5\.1\.0\fR you can
+customize the shell with the \fBscript\-shell\fP configuration\.
+.P
+Scripts are run from the root of the module, regardless of what your current
+working directory is when you call \fBnpm run\fP\|\. If you want your script to
+use different behavior based on what subdirectory you're in, you can use the
+\fBINIT_CWD\fP environment variable, which holds the full path you were in when
+you ran \fBnpm run\fP\|\.
+.P
+\fBnpm run\fP sets the \fBNODE\fP environment variable to the \fBnode\fP executable with
+which \fBnpm\fP is executed\. Also, if the \fB\-\-scripts\-prepend\-node\-path\fP is passed,
+the directory within which \fBnode\fP resides is added to the
+\fBPATH\fP\|\. If \fB\-\-scripts\-prepend\-node\-path=auto\fP is passed (which has been the
+default in \fBnpm\fP v3), this is only performed when that \fBnode\fP executable is
+not found in the \fBPATH\fP\|\.
+.P
+If you try to run a script without having a \fBnode_modules\fP directory and it fails,
+you will be given a warning to run \fBnpm install\fP, just in case you've forgotten\.
+.P
+You can use the \fB\-\-silent\fP flag to prevent showing \fBnpm ERR!\fP output on error\.
+.P
+You can use the \fB\-\-if\-present\fP flag to avoid exiting with a non\-zero exit code
+when the script is undefined\. This lets you run potentially undefined scripts
+without breaking the execution chain\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 7 scripts
+.IP \(bu 2
+npm help test
+.IP \(bu 2
+npm help start
+.IP \(bu 2
+npm help restart
+.IP \(bu 2
+npm help stop
+.IP \(bu 2
+npm help 7 config
+
+.RE
+

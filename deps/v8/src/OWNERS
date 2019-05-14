@@ -1,0 +1,9 @@
+per-file intl.*=cira@chromium.org
+per-file intl.*=mnita@google.com
+per-file intl.*=jshin@chromium.org
+per-file typing-asm.*=aseemgarg@chromium.org
+per-file objects-body-descriptors*=hpayer@chromium.org
+per-file objects-body-descriptors*=mlippautz@chromium.org
+per-file objects-body-descriptors*=ulan@chromium.org
+
+# COMPONENT: Blink>JavaScript

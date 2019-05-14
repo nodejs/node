@@ -1,0 +1,44 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace arguments {
+
+  struct ArgumentsInfo {
+    frame: Frame;
+    argument_count: bint;
+    formal_parameter_count: bint;
+  }
+
+  // Calculates and returns the frame pointer, argument count and formal
+  // parameter count to be used to access a function's parameters, taking
+  // argument adapter frames into account.
+  //
+  // TODO(danno):
+  // This macro is should only be used in builtins that can be called from
+  // interpreted or JITted code, not from CSA/Torque builtins (the number of
+  // returned formal parameters would be wrong).
+  // It is difficult to actually check/assert this, since interpreted or JITted
+  // frames are StandardFrames, but so are hand-written builtins. Doing that
+  // more refined check would be prohibitively expensive.
+  macro GetArgumentsFrameAndCount(implicit context: Context)(f: JSFunction):
+      ArgumentsInfo {
+    let frame: Frame = LoadParentFramePointer();
+    assert(frame.function == f);
+
+    const shared: SharedFunctionInfo = f.shared_function_info;
+    const formalParameterCount: bint =
+        Convert<bint>(Convert<int32>(shared.formal_parameter_count));
+    let argumentCount: bint = formalParameterCount;
+
+    const adaptor: ArgumentsAdaptorFrame =
+        Cast<ArgumentsAdaptorFrame>(frame.caller)
+        otherwise return ArgumentsInfo{frame, argumentCount, formalParameterCount};
+
+    return ArgumentsInfo{
+      adaptor,
+      Convert<bint>(adaptor.length),
+      formalParameterCount
+    };
+  }
+}

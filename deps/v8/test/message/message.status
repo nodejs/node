@@ -1,0 +1,72 @@
+# Copyright 2008 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+[
+[ALWAYS, {
+  # We don't parse RegExps at scanning time, so we can't fail on octal
+  # escapes (we need to parse to distinguish octal escapes from valid
+  # back-references).
+  'strict-octal-regexp': [SKIP],
+
+  # Modules which are only meant to be imported from by other tests, not to be
+  # tested standalone.
+  'fail/modules-skip*': [SKIP],
+}],  # ALWAYS
+
+# Liftoff is currently only sufficiently implemented on x64 and ia32.
+# TODO(clemensh): Implement on all other platforms (crbug.com/v8/6600).
+['arch != x64 and arch != ia32', {
+  'wasm-trace-memory-liftoff': [SKIP],
+}], # arch != x64 and arch != ia32
+
+['variant == code_serializer', {
+  # TODO(yangguo): Code serializer output is incompatible with all message
+  # tests.
+  '*': [SKIP],
+}],  # variant == code_serializer
+
+['no_i18n == True', {
+  'fail/list-format*': [SKIP],
+}],  # no_i18n == True
+
+##############################################################################
+['lite_mode or variant == jitless', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'mjsunit/fail/assert-promise-result-wasm-compile-fail': [SKIP],
+  'fail/wasm-*': [SKIP],
+  'wasm-*': [SKIP],
+
+  # Test output requires --validate-asm, which is disabled in jitless mode.
+  'asm-*': [SKIP],
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
+
+]

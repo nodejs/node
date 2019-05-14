@@ -1,0 +1,15 @@
+# Configuration file to test system default SSL configuration
+
+openssl_conf = default_conf
+
+[ default_conf ]
+
+ssl_conf = ssl_sect
+
+[ssl_sect]
+
+system_default = ssl_default_sect
+
+[ssl_default_sect]
+MaxProtocol = TLSv1.2
+MinProtocol = TLSv1.2

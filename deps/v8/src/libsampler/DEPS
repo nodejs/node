@@ -1,0 +1,6 @@
+include_rules = [
+  "+include",
+  "-src",
+  "+src/base",
+  "+src/libsampler",
+]
