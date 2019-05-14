@@ -173,10 +173,10 @@ assert.strictEqual(
   '{\n' +
   '  foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func: [Function: func] {\n' +
+  '  func: <ref *1> [Function: func] {\n' +
   '    [length]: 0,\n' +
   '    [name]: \'func\',\n' +
-  '    [prototype]: func { [constructor]: [Circular] }\n' +
+  '    [prototype]: func { [constructor]: [Circular *1] }\n' +
   '  }\n' +
   '}');
 assert.strictEqual(
@@ -186,10 +186,10 @@ assert.strictEqual(
   '  foobar: 1,\n' +
   '  func: [\n' +
   '    {\n' +
-  '      a: [Function: a] {\n' +
+  '      a: <ref *1> [Function: a] {\n' +
   '        [length]: 0,\n' +
   '        [name]: \'a\',\n' +
-  '        [prototype]: a { [constructor]: [Circular] }\n' +
+  '        [prototype]: a { [constructor]: [Circular *1] }\n' +
   '      }\n' +
   '    },\n' +
   '    [length]: 1\n' +
@@ -201,10 +201,10 @@ assert.strictEqual(
   '  foo: \'bar\',\n' +
   '  foobar: {\n' +
   '    foo: \'bar\',\n' +
-  '    func: [Function: func] {\n' +
+  '    func: <ref *1> [Function: func] {\n' +
   '      [length]: 0,\n' +
   '      [name]: \'func\',\n' +
-  '      [prototype]: func { [constructor]: [Circular] }\n' +
+  '      [prototype]: func { [constructor]: [Circular *1] }\n' +
   '    }\n' +
   '  }\n' +
   '}');
@@ -213,18 +213,18 @@ assert.strictEqual(
   '{\n' +
   '  foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func: [Function: func] {\n' +
+  '  func: <ref *1> [Function: func] {\n' +
   '    [length]: 0,\n' +
   '    [name]: \'func\',\n' +
-  '    [prototype]: func { [constructor]: [Circular] }\n' +
+  '    [prototype]: func { [constructor]: [Circular *1] }\n' +
   '  }\n' +
   '} {\n' +
   '  foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func: [Function: func] {\n' +
+  '  func: <ref *1> [Function: func] {\n' +
   '    [length]: 0,\n' +
   '    [name]: \'func\',\n' +
-  '    [prototype]: func { [constructor]: [Circular] }\n' +
+  '    [prototype]: func { [constructor]: [Circular *1] }\n' +
   '  }\n' +
   '}');
 assert.strictEqual(
@@ -232,10 +232,10 @@ assert.strictEqual(
   '{\n' +
   '  foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func: [Function: func] {\n' +
+  '  func: <ref *1> [Function: func] {\n' +
   '    [length]: 0,\n' +
   '    [name]: \'func\',\n' +
-  '    [prototype]: func { [constructor]: [Circular] }\n' +
+  '    [prototype]: func { [constructor]: [Circular *1] }\n' +
   '  }\n' +
   '} %o');
 
