@@ -17,7 +17,8 @@ process.on('warning', common.mustCall((warning) => {
   assert.strictEqual(warning.emitter, e);
   assert.strictEqual(warning.count, 2);
   assert.strictEqual(warning.type, symbol);
-  assert.ok(warning.message.includes('2 Symbol(symbol) listeners added.'));
+  assert.ok(warning.message.includes(
+    '2 Symbol(symbol) listeners added to [EventEmitter].'));
 }));
 
 e.on(symbol, () => {});
