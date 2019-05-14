@@ -58,6 +58,12 @@ for (;;) {
 // Should emit an error, not throw.
 const proc = child_process.spawn(process.execPath, ['-e', '0']);
 
+// Verify that stdio is not setup on EMFILE or ENFILE.
+assert.strictEqual(proc.stdin, undefined);
+assert.strictEqual(proc.stdout, undefined);
+assert.strictEqual(proc.stderr, undefined);
+assert.strictEqual(proc.stdio, undefined);
+
 proc.on('error', common.mustCall(function(err) {
   assert.strictEqual(err.code, 'EMFILE');
 }));
