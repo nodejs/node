@@ -19,7 +19,7 @@ session.post('Runtime.evaluate', {
   expression: 'a',
   throwOnSideEffect: true,
   contextId: 2 // context's id
-}, (error, res) => {
+}, common.mustCall((error, res) => {
   assert.ifError(error),
   assert.deepStrictEqual(res, {
     result: {
@@ -28,4 +28,4 @@ session.post('Runtime.evaluate', {
       description: '100'
     }
   });
-});
+}));
