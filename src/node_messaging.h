@@ -17,12 +17,19 @@ class MessagePort;
 // Represents a single communication message.
 class Message : public MemoryRetainer {
  public:
+  // Create a Message with a specific underlying payload, in the format of the
+  // V8 ValueSerializer API. If `payload` is empty, this message indicates
+  // that the receiving message port should close itself.
   explicit Message(MallocedBuffer<char>&& payload = MallocedBuffer<char>());
 
   Message(Message&& other) = default;
   Message& operator=(Message&& other) = default;
   Message& operator=(const Message&) = delete;
   Message(const Message&) = delete;
+
+  // Whether this is a message indicating that the port is to be closed.
+  // This is the last message to be received by a MessagePort.
+  bool IsCloseMessage() const;
 
   // Deserialize the contained JS value. May only be called once, and only
   // after Serialize() has been called (e.g. by another thread).
@@ -89,10 +96,6 @@ class MessagePortData : public MemoryRetainer {
   // This may be called from any thread.
   void AddToIncomingQueue(Message&& message);
 
-  // Returns true if and only this MessagePort is currently not entangled
-  // with another message port.
-  bool IsSiblingClosed() const;
-
   // Turns `a` and `b` into siblings, i.e. connects the sending side of one
   // to the receiving side of the other. This is not thread-safe.
   static void Entangle(MessagePortData* a, MessagePortData* b);
@@ -109,10 +112,6 @@ class MessagePortData : public MemoryRetainer {
   SET_SELF_SIZE(MessagePortData)
 
  private:
-  // After disentangling this message port, the owner handle (if any)
-  // is asynchronously triggered, so that it can close down naturally.
-  void PingOwnerAfterDisentanglement();
-
   // This mutex protects all fields below it, with the exception of
   // sibling_.
   mutable Mutex mutex_;
@@ -178,7 +177,6 @@ class MessagePort : public HandleWrap {
   // messages.
   std::unique_ptr<MessagePortData> Detach();
 
-  bool IsSiblingClosed() const;
   void Close(
       v8::Local<v8::Value> close_callback = v8::Local<v8::Value>()) override;
 
