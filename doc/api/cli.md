@@ -271,6 +271,17 @@ This flag exists to aid in experimentation with the internal implementation of
 the Node.js http parser.
 This flag is likely to become a no-op and removed at some point in the future.
 
+### `--http-server-default-timeout=milliseconds`
+<!-- YAML
+added: REPLACEME
+-->
+
+Overrides the default value of `http`, `https` and `http2` server socket
+timeout. Setting the value to 0 disables server socket timeout. Unless
+provided, http server sockets timeout after 120s (2 minutes). Programmatic
+setting of the timeout takes precedence over the value set through this
+flag.
+
 ### `--icu-data-dir=file`
 <!-- YAML
 added: v0.11.15
@@ -924,6 +935,7 @@ Node.js options that are allowed are:
 - `--force-fips`
 - `--frozen-intrinsics`
 - `--heapsnapshot-signal`
+- `--http-server-default-timeout`
 - `--icu-data-dir`
 - `--inspect`
 - `--inspect-brk`
