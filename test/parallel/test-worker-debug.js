@@ -206,6 +206,52 @@ async function testTwoWorkers(session, post) {
   await Promise.all([worker1Exited, worker2Exited]);
 }
 
+async function testWaitForDisconnectInWorker(session, post) {
+  console.log('Test NodeRuntime.waitForDisconnect in worker');
+
+  const sessionWithoutWaiting = new Session();
+  sessionWithoutWaiting.connect();
+  const sessionWithoutWaitingPost = doPost.bind(null, sessionWithoutWaiting);
+
+  await sessionWithoutWaitingPost('NodeWorker.enable', {
+    waitForDebuggerOnStart: true
+  });
+  await post('NodeWorker.enable', { waitForDebuggerOnStart: true });
+
+  const attached = [
+    waitForWorkerAttach(session),
+    waitForWorkerAttach(sessionWithoutWaiting)
+  ];
+
+  let worker = null;
+  const exitPromise = runWorker(2, (w) => worker = w);
+
+  const [{ sessionId: sessionId1 }, { sessionId: sessionId2 }] =
+      await Promise.all(attached);
+
+  const workerSession1 = new WorkerSession(session, sessionId1);
+  const workerSession2 = new WorkerSession(sessionWithoutWaiting, sessionId2);
+
+  await workerSession2.post('Runtime.enable');
+  await workerSession1.post('Runtime.enable');
+  await workerSession1.post('NodeRuntime.notifyWhenWaitingForDisconnect', {
+    enabled: true
+  });
+  await workerSession1.post('Runtime.runIfWaitingForDebugger');
+
+  worker.postMessage('resume');
+
+  await waitForEvent(workerSession1, 'NodeRuntime.waitingForDisconnect');
+  post('NodeWorker.detach', { sessionId: sessionId1 });
+  await waitForEvent(workerSession2, 'Runtime.executionContextDestroyed');
+
+  await exitPromise;
+
+  await post('NodeWorker.disable');
+  await sessionWithoutWaitingPost('NodeWorker.disable');
+  sessionWithoutWaiting.disconnect();
+}
+
 async function test() {
   const session = new Session();
   session.connect();
@@ -219,6 +265,7 @@ async function test() {
 
   await testNoWaitOnStart(session, post);
   await testTwoWorkers(session, post);
+  await testWaitForDisconnectInWorker(session, post);
 
   session.disconnect();
   console.log('Test done');
