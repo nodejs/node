@@ -461,6 +461,19 @@ API
 
     Gets memory information (in bytes).
 
+.. c:function:: uint64_t uv_get_constrained_memory(void)
+
+    Gets the amount of memory available to the process (in bytes) based on
+    limits imposed by the OS. If there is no such constraint, or the constraint
+    is unknown, `0` is returned. Note that it is not unusual for this value to
+    be less than or greater than :c:func:`uv_get_total_memory`.
+
+    .. note::
+        This function currently only returns a non-zero value on Linux, based
+        on cgroups if it is present.
+
+    .. versionadded:: 1.29.0
+
 .. c:function:: uint64_t uv_hrtime(void)
 
     Returns the current high-resolution real time. This is expressed in

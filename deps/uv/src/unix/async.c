@@ -61,14 +61,43 @@ int uv_async_send(uv_async_t* handle) {
   if (ACCESS_ONCE(int, handle->pending) != 0)
     return 0;
 
-  if (cmpxchgi(&handle->pending, 0, 1) == 0)
-    uv__async_send(handle->loop);
+  /* Tell the other thread we're busy with the handle. */
+  if (cmpxchgi(&handle->pending, 0, 1) != 0)
+    return 0;
+
+  /* Wake up the other thread's event loop. */
+  uv__async_send(handle->loop);
+
+  /* Tell the other thread we're done. */
+  if (cmpxchgi(&handle->pending, 1, 2) != 1)
+    abort();
 
   return 0;
 }
 
 
+/* Only call this from the event loop thread. */
+static int uv__async_spin(uv_async_t* handle) {
+  int rc;
+
+  for (;;) {
+    /* rc=0 -- handle is not pending.
+     * rc=1 -- handle is pending, other thread is still working with it.
+     * rc=2 -- handle is pending, other thread is done.
+     */
+    rc = cmpxchgi(&handle->pending, 2, 0);
+
+    if (rc != 1)
+      return rc;
+
+    /* Other thread is busy with this handle, spin until it's done. */
+    cpu_relax();
+  }
+}
+
+
 void uv__async_close(uv_async_t* handle) {
+  uv__async_spin(handle);
   QUEUE_REMOVE(&handle->queue);
   uv__handle_stop(handle);
 }
@@ -109,8 +138,8 @@ static void uv__async_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
     QUEUE_REMOVE(q);
     QUEUE_INSERT_TAIL(&loop->async_handles, q);
 
-    if (cmpxchgi(&h->pending, 1, 0) == 0)
-      continue;
+    if (0 == uv__async_spin(h))
+      continue;  /* Not pending. */
 
     if (h->async_cb == NULL)
       continue;

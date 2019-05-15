@@ -39,7 +39,6 @@ def man_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
 
 
 def setup(app):
-    app.info('Initializing manpage plugin')
     app.add_role('man', man_role)
     app.add_config_value('man_url_regex', None, 'env')
     return

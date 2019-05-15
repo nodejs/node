@@ -320,6 +320,11 @@ uint64_t uv_get_total_memory(void) {
 }
 
 
+uint64_t uv_get_constrained_memory(void) {
+  return 0;  /* Memory constraints are unknown. */
+}
+
+
 uv_pid_t uv_os_getpid(void) {
   return GetCurrentProcessId();
 }
@@ -703,9 +708,11 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos_ptr, int* cpu_count_ptr) {
   return 0;
 
  error:
-  /* This is safe because the cpu_infos array is zeroed on allocation. */
-  for (i = 0; i < cpu_count; i++)
-    uv__free(cpu_infos[i].model);
+  if (cpu_infos != NULL) {
+    /* This is safe because the cpu_infos array is zeroed on allocation. */
+    for (i = 0; i < cpu_count; i++)
+      uv__free(cpu_infos[i].model);
+  }
 
   uv__free(cpu_infos);
   uv__free(sppi);

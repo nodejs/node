@@ -380,6 +380,11 @@ uint64_t uv_get_total_memory(void) {
 }
 
 
+uint64_t uv_get_constrained_memory(void) {
+  return 0;  /* Memory constraints are unknown. */
+}
+
+
 void uv_loadavg(double avg[3]) {
   (void) getloadavg(avg, 3);
 }
