@@ -25,6 +25,7 @@ class WorkerAgent : public NodeWorker::Backend {
 
   DispatchResponse enable(bool waitForDebuggerOnStart) override;
   DispatchResponse disable() override;
+  DispatchResponse detach(const String& sessionId) override;
 
  private:
   std::shared_ptr<NodeWorker::Frontend> frontend_;

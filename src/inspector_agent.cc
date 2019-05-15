@@ -472,8 +472,8 @@ class NodeInspectorClient : public V8InspectorClient {
     runMessageLoop();
   }
 
-  void waitForIoShutdown() {
-    waiting_for_io_shutdown_ = true;
+  void waitForSessionsDisconnect() {
+    waiting_for_sessions_disconnect_ = true;
     runMessageLoop();
   }
 
@@ -548,6 +548,8 @@ class NodeInspectorClient : public V8InspectorClient {
       }
       contextDestroyed(env_->context());
     }
+    if (waiting_for_sessions_disconnect_ && !is_main_)
+      waiting_for_sessions_disconnect_ = false;
   }
 
   void dispatchMessageFromFrontend(int session_id, const StringView& message) {
@@ -678,8 +680,9 @@ class NodeInspectorClient : public V8InspectorClient {
   bool shouldRunMessageLoop() {
     if (waiting_for_frontend_)
       return true;
-    if (waiting_for_io_shutdown_ || waiting_for_resume_)
+    if (waiting_for_sessions_disconnect_ || waiting_for_resume_) {
       return hasConnectedSessions();
+    }
     return false;
   }
 
@@ -723,7 +726,7 @@ class NodeInspectorClient : public V8InspectorClient {
   int next_session_id_ = 1;
   bool waiting_for_resume_ = false;
   bool waiting_for_frontend_ = false;
-  bool waiting_for_io_shutdown_ = false;
+  bool waiting_for_sessions_disconnect_ = false;
   // Allows accessing Inspector from non-main threads
   std::unique_ptr<MainThreadInterface> interface_;
   std::shared_ptr<WorkerManager> worker_manager_;
@@ -819,11 +822,14 @@ void Agent::WaitForDisconnect() {
     fprintf(stderr, "Waiting for the debugger to disconnect...\n");
     fflush(stderr);
   }
-  if (!client_->notifyWaitingForDisconnect())
+  if (!client_->notifyWaitingForDisconnect()) {
     client_->contextDestroyed(parent_env_->context());
+  } else if (is_worker) {
+    client_->waitForSessionsDisconnect();
+  }
   if (io_ != nullptr) {
     io_->StopAcceptingNewConnections();
-    client_->waitForIoShutdown();
+    client_->waitForSessionsDisconnect();
   }
 }
 
