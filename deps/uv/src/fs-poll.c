@@ -241,7 +241,7 @@ static void timer_close_cb(uv_handle_t* timer) {
   handle = ctx->parent_handle;
   if (ctx == handle->poll_ctx) {
     handle->poll_ctx = ctx->previous;
-    if (handle->poll_ctx == NULL)
+    if (handle->poll_ctx == NULL && uv__is_closing(handle))
       uv__make_close_pending((uv_handle_t*)handle);
   } else {
     for (last = handle->poll_ctx, it = last->previous;

@@ -59,7 +59,7 @@ int uv__kqueue_init(uv_loop_t* loop) {
 }
 
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
 static int uv__has_forked_with_cfrunloop;
 #endif
 
@@ -70,7 +70,7 @@ int uv__io_fork(uv_loop_t* loop) {
   if (err)
     return err;
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
   if (loop->cf_state != NULL) {
     /* We cannot start another CFRunloop and/or thread in the child
        process; CF aborts if you try or if you try to touch the thread
@@ -86,7 +86,7 @@ int uv__io_fork(uv_loop_t* loop) {
     uv__free(loop->cf_state);
     loop->cf_state = NULL;
   }
-#endif
+#endif /* #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070 */
   return err;
 }
 
@@ -458,7 +458,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   if (uv__is_active(handle))
     return UV_EINVAL;
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
   /* Nullify field to perform checks later */
   handle->cf_cb = NULL;
   handle->realpath = NULL;
@@ -482,7 +482,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
     }
     return r;
   }
-#endif /* defined(__APPLE__) */
+#endif /* #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070 */
 
   /* TODO open asynchronously - but how do we report back errors? */
   fd = open(path, O_RDONLY);
@@ -513,7 +513,7 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
 
   uv__handle_stop(handle);
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
   if (!uv__has_forked_with_cfrunloop)
     r = uv__fsevents_close(handle);
 #endif

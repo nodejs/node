@@ -1,3 +1,59 @@
+2019.05.22, Version 1.29.1 (Stable), d16e6094e1eb3b0b5981ef1dd7e03ec4d466944d
+
+Changes since version 1.29.0:
+
+* unix: simplify uv/posix.h include logic (cjihrig)
+
+* test: increase test timeout (cjihrig)
+
+* linux: fix sscanf() overflows reading from /proc (Ben Noordhuis)
+
+
+2019.05.16, Version 1.29.0 (Stable), 43957efd92c167b352b4c948b617ca7afbee0ed1
+
+Changes since version 1.28.0:
+
+* ibmi: read memory and CPU usage info (Xu Meng)
+
+* doc: update the cmake testing instruction (zlargon)
+
+* unix: fix race condition in uv_async_send() (Ben Noordhuis)
+
+* linux: use O_CLOEXEC instead of EPOLL_CLOEXEC (Ben Noordhuis)
+
+* doc: mark uv_async_send() as async-signal-safe (Ben Noordhuis)
+
+* linux: init st_flags and st_gen when using statx (Oscar Waddell)
+
+* linux: read free/total memory from /proc/meminfo (Ben Noordhuis)
+
+* test: test zero-sized uv_fs_sendfile() writes (Ben Noordhuis)
+
+* unix: don't assert on UV_PROCESS_WINDOWS_* flags (Ben Noordhuis)
+
+* linux: set correct mac address for IP-aliases (Santiago Gimeno)
+
+* win,util: fix null pointer dereferencing (Tobias Nießen)
+
+* unix,win: fix `uv_fs_poll_stop()` when active (Anna Henningsen)
+
+* doc: add missing uv_fs_type entries (Michele Caini)
+
+* doc: fix build with sphinx 2.x (FX Coudert)
+
+* unix: don't make statx system call on Android (George Zhao)
+
+* unix: fix clang scan-build warning (Kyle Edwards)
+
+* unix: fall back to kqueue on older macOS systems (ken-cunningham-webuse)
+
+* unix,win: add uv_get_constrained_memory() (Kelvin Jin)
+
+* darwin: fix thread cancellation fd leak (Ben Noordhuis)
+
+* linux: fix thread cancellation fd leak (Ben Noordhuis)
+
+
 2019.04.16, Version 1.28.0 (Stable), 7bf8fabfa934660ee0fe889f78e151198a1165fc
 
 Changes since version 1.27.0:

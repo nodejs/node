@@ -1406,6 +1406,12 @@ TEST_IMPL(spawn_setuid_fails) {
   options.flags |= UV_PROCESS_SETUID;
   options.uid = 0;
 
+  /* These flags should be ignored on Unices. */
+  options.flags |= UV_PROCESS_WINDOWS_HIDE;
+  options.flags |= UV_PROCESS_WINDOWS_HIDE_CONSOLE;
+  options.flags |= UV_PROCESS_WINDOWS_HIDE_GUI;
+  options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+
   r = uv_spawn(uv_default_loop(), &process, &options);
 #if defined(__CYGWIN__)
   ASSERT(r == UV_EINVAL);
