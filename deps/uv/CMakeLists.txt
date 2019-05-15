@@ -297,8 +297,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
        src/unix/linux-inotify.c
        src/unix/linux-syscalls.c
        src/unix/procfs-exepath.c
-       src/unix/sysinfo-loadavg.c
-       src/unix/sysinfo-memory.c)
+       src/unix/sysinfo-loadavg.c)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")

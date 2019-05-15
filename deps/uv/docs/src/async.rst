@@ -50,6 +50,10 @@ API
         It's safe to call this function from any thread. The callback will be called on the
         loop thread.
 
+    .. note::
+        :c:func:`uv_async_send` is `async-signal-safe <http://man7.org/linux/man-pages/man7/signal-safety.7.html>`_.
+        It's safe to call this function from a signal handler.
+
     .. warning::
         libuv will coalesce calls to :c:func:`uv_async_send`, that is, not every call to it will
         yield an execution of the callback. For example: if :c:func:`uv_async_send` is called 5

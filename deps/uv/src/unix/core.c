@@ -88,6 +88,10 @@
 #include <sys/ioctl.h>
 #endif
 
+#if defined(__linux__)
+#include <sys/syscall.h>
+#endif
+
 static int uv__run_pending(uv_loop_t* loop);
 
 /* Verify that uv_buf_t is ABI-compatible with struct iovec. */
@@ -510,6 +514,29 @@ skip:
 }
 
 
+/* close() on macos has the "interesting" quirk that it fails with EINTR
+ * without closing the file descriptor when a thread is in the cancel state.
+ * That's why libuv calls close$NOCANCEL() instead.
+ *
+ * glibc on linux has a similar issue: close() is a cancellation point and
+ * will unwind the thread when it's in the cancel state. Work around that
+ * by making the system call directly. Musl libc is unaffected.
+ */
+int uv__close_nocancel(int fd) {
+#if defined(__APPLE__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdollar-in-identifier-extension"
+  extern int close$NOCANCEL(int);
+  return close$NOCANCEL(fd);
+#pragma GCC diagnostic pop
+#elif defined(__linux__)
+  return syscall(SYS_close, fd);
+#else
+  return close(fd);
+#endif
+}
+
+
 int uv__close_nocheckstdio(int fd) {
   int saved_errno;
   int rc;
@@ -517,7 +544,7 @@ int uv__close_nocheckstdio(int fd) {
   assert(fd > -1);  /* Catch uninitialized io_watcher.fd bugs. */
 
   saved_errno = errno;
-  rc = close(fd);
+  rc = uv__close_nocancel(fd);
   if (rc == -1) {
     rc = UV__ERR(errno);
     if (rc == UV_EINTR || rc == UV__ERR(EINPROGRESS))
