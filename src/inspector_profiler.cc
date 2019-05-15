@@ -94,7 +94,7 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
                               NewStringType::kNormal,
                               message.length())
            .ToLocal(&message_str)) {
-    fprintf(stderr, "Failed to covert %s profile message\n", type);
+    fprintf(stderr, "Failed to convert %s profile message\n", type);
     return;
   }
 
