@@ -343,8 +343,6 @@ For information about the governance of the Node.js project, see
 **Johan Bergström** &lt;bugs@bergstroem.nu&gt;
 * [jdalton](https://github.com/jdalton) -
 **John-David Dalton** &lt;john.david.dalton@gmail.com&gt;
-* [jhamhader](https://github.com/jhamhader) -
-**Yuval Brik** &lt;yuval@brik.org.il&gt;
 * [jkrems](https://github.com/jkrems) -
 **Jan Krems** &lt;jan.krems@gmail.com&gt; (he/him)
 * [joaocgreis](https://github.com/joaocgreis) -
@@ -488,6 +486,8 @@ For information about the governance of the Node.js project, see
 **Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [isaacs](https://github.com/isaacs) -
 **Isaac Z. Schlueter** &lt;i@izs.me&gt;
+* [jhamhader](https://github.com/jhamhader) -
+**Yuval Brik** &lt;yuval@brik.org.il&gt;
 * [lxe](https://github.com/lxe) -
 **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
 * [matthewloring](https://github.com/matthewloring) -
