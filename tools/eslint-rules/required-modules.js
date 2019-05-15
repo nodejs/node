@@ -4,7 +4,7 @@
  */
 'use strict';
 
-const { isRequireCall } = require('./rules-utils.js');
+const { isRequireCall, isString } = require('./rules-utils.js');
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -23,15 +23,6 @@ module.exports = function(context) {
   // If no modules are required we don't need to check the CallExpressions
   if (requiredModules.length === 0) {
     return {};
-  }
-
-  /**
-   * Function to check if a node is a string literal.
-   * @param {ASTNode} node The node to check.
-   * @returns {boolean} If the node is a string literal.
-   */
-  function isString(node) {
-    return node && node.type === 'Literal' && typeof node.value === 'string';
   }
 
   /**

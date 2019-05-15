@@ -4,7 +4,7 @@
 'use strict';
 
 const path = require('path');
-const { isRequireCall } = require('./rules-utils.js');
+const { isRequireCall, isString } = require('./rules-utils.js');
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -14,15 +14,6 @@ module.exports = function(context) {
   const requiredModule = 'common';
   const isESM = context.parserOptions.sourceType === 'module';
   const foundModules = [];
-
-  /**
-   * Function to check if a node is a string literal.
-   * @param {ASTNode} node The node to check.
-   * @returns {boolean} If the node is a string literal.
-   */
-  function isString(node) {
-    return node && node.type === 'Literal' && typeof node.value === 'string';
-  }
 
   /**
    * Function to check if the path is a module and return its name.

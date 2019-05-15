@@ -8,6 +8,10 @@ function isRequireCall(node) {
 }
 module.exports.isRequireCall = isRequireCall;
 
+module.exports.isString = function(node) {
+  return node && node.type === 'Literal' && typeof node.value === 'string';
+};
+
 module.exports.isDefiningError = function(node) {
   return node.expression &&
          node.expression.type === 'CallExpression' &&
