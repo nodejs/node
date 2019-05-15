@@ -119,14 +119,6 @@ bool NeedsCheckHeapObject(Node* receiver) {
     case IrOpcode::kJSToString:
     case IrOpcode::kTypeOf:
       return false;
-    case IrOpcode::kPhi: {
-      Node* control = NodeProperties::GetControlInput(receiver);
-      if (control->opcode() != IrOpcode::kMerge) return true;
-      for (int i = 0; i < receiver->InputCount() - 1; ++i) {
-        if (NeedsCheckHeapObject(receiver->InputAt(i))) return true;
-      }
-      return false;
-    }
     default:
       return true;
   }
