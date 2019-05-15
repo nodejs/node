@@ -71,6 +71,11 @@ experimental domain NodeWorker
   # Detaches from all running workers and disables attaching to new workers as they are started.
   command disable
 
+  # Detached from the worker with given sessionId.
+  command detach
+    parameters
+      SessionID sessionId
+
   # Issued when attached to a worker.
   event attachedToWorker
     parameters

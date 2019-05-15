@@ -16,10 +16,6 @@ void RuntimeAgent::Wire(UberDispatcher* dispatcher) {
 }
 
 DispatchResponse RuntimeAgent::notifyWhenWaitingForDisconnect(bool enabled) {
-  if (!env_->owns_process_state()) {
-    return DispatchResponse::Error(
-        "NodeRuntime domain can only be used through main thread sessions");
-  }
   notify_when_waiting_for_disconnect_ = enabled;
   return DispatchResponse::OK();
 }

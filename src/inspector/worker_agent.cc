@@ -115,6 +115,11 @@ DispatchResponse WorkerAgent::disable() {
   return DispatchResponse::OK();
 }
 
+DispatchResponse WorkerAgent::detach(const String& sessionId) {
+  workers_->Detached(sessionId);
+  return DispatchResponse::OK();
+}
+
 void NodeWorkers::WorkerCreated(const std::string& title,
                                 const std::string& url,
                                 bool waiting,
