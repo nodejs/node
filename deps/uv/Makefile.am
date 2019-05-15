@@ -425,8 +425,7 @@ libuv_la_SOURCES += src/unix/linux-core.c \
                     src/unix/linux-syscalls.h \
                     src/unix/procfs-exepath.c \
                     src/unix/proctitle.c \
-                    src/unix/sysinfo-loadavg.c \
-                    src/unix/sysinfo-memory.c
+                    src/unix/sysinfo-loadavg.c
 test_run_tests_LDFLAGS += -lutil
 endif
 

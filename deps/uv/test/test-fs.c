@@ -611,6 +611,15 @@ static void sendfile_cb(uv_fs_t* req) {
 }
 
 
+static void sendfile_nodata_cb(uv_fs_t* req) {
+  ASSERT(req == &sendfile_req);
+  ASSERT(req->fs_type == UV_FS_SENDFILE);
+  ASSERT(req->result == 0);
+  sendfile_cb_count++;
+  uv_fs_req_cleanup(req);
+}
+
+
 static void open_noent_cb(uv_fs_t* req) {
   ASSERT(req->fs_type == UV_FS_OPEN);
   ASSERT(req->result == UV_ENOENT);
@@ -1049,7 +1058,7 @@ TEST_IMPL(fs_async_dir) {
 }
 
 
-TEST_IMPL(fs_async_sendfile) {
+static int test_sendfile(void (*setup)(int), uv_fs_cb cb, off_t expected_size) {
   int f, r;
   struct stat s1, s2;
 
@@ -1062,14 +1071,8 @@ TEST_IMPL(fs_async_sendfile) {
   f = open("test_file", O_WRONLY | O_CREAT, S_IWUSR | S_IRUSR);
   ASSERT(f != -1);
 
-  r = write(f, "begin\n", 6);
-  ASSERT(r == 6);
-
-  r = lseek(f, 65536, SEEK_CUR);
-  ASSERT(r == 65542);
-
-  r = write(f, "end\n", 4);
-  ASSERT(r != -1);
+  if (setup != NULL)
+    setup(f);
 
   r = close(f);
   ASSERT(r == 0);
@@ -1087,7 +1090,7 @@ TEST_IMPL(fs_async_sendfile) {
   uv_fs_req_cleanup(&open_req2);
 
   r = uv_fs_sendfile(loop, &sendfile_req, open_req2.result, open_req1.result,
-      0, 131072, sendfile_cb);
+      0, 131072, cb);
   ASSERT(r == 0);
   uv_run(loop, UV_RUN_DEFAULT);
 
@@ -1100,9 +1103,10 @@ TEST_IMPL(fs_async_sendfile) {
   ASSERT(r == 0);
   uv_fs_req_cleanup(&close_req);
 
-  stat("test_file", &s1);
-  stat("test_file2", &s2);
-  ASSERT(65546 == s2.st_size && s1.st_size == s2.st_size);
+  ASSERT(0 == stat("test_file", &s1));
+  ASSERT(0 == stat("test_file2", &s2));
+  ASSERT(s1.st_size == s2.st_size);
+  ASSERT(s2.st_size == expected_size);
 
   /* Cleanup. */
   unlink("test_file");
@@ -1110,6 +1114,23 @@ TEST_IMPL(fs_async_sendfile) {
 
   MAKE_VALGRIND_HAPPY();
   return 0;
+}
+
+
+static void sendfile_setup(int f) {
+  ASSERT(6 == write(f, "begin\n", 6));
+  ASSERT(65542 == lseek(f, 65536, SEEK_CUR));
+  ASSERT(4 == write(f, "end\n", 4));
+}
+
+
+TEST_IMPL(fs_async_sendfile) {
+  return test_sendfile(sendfile_setup, sendfile_cb, 65546);
+}
+
+
+TEST_IMPL(fs_async_sendfile_nodata) {
+  return test_sendfile(NULL, sendfile_nodata_cb, 0);
 }
 
 
@@ -1171,6 +1192,7 @@ TEST_IMPL(fs_fstat) {
   ASSERT(req.result == sizeof(test_buf));
   uv_fs_req_cleanup(&req);
 
+  memset(&req.statbuf, 0xaa, sizeof(req.statbuf));
   r = uv_fs_fstat(NULL, &req, file, NULL);
   ASSERT(r == 0);
   ASSERT(req.result == 0);
@@ -1257,6 +1279,8 @@ TEST_IMPL(fs_fstat) {
          s->st_birthtim.tv_sec == t.st_ctim.tv_sec);
   ASSERT(s->st_birthtim.tv_nsec == 0 ||
          s->st_birthtim.tv_nsec == t.st_ctim.tv_nsec);
+  ASSERT(s->st_flags == 0);
+  ASSERT(s->st_gen == 0);
 #endif
 
   uv_fs_req_cleanup(&req);
