@@ -3,13 +3,9 @@
 <!--introduced_in=v0.10.0-->
 <!-- type=misc -->
 
-The goal of this documentation is to explain the Node.js
-API, both from a reference as well as a conceptual point of view. Each
-section describes a built-in module or high-level concept.
+Welcome to the official API reference documentation for Node.js!
 
-Where appropriate, property types, method arguments, and the arguments
-provided to event handlers are detailed in a list underneath the topic
-heading.
+Node.js is a JavaScript runtime built on the [V8 JavaScript engine][].
 
 ## Contributing
 
@@ -90,3 +86,4 @@ issue 4760](https://github.com/nodejs/node/issues/4760).
 [`stderr`]: process.html#process_process_stderr
 [submit an issue]: https://github.com/nodejs/node/issues/new
 [the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
+[V8 JavaScript engine]: https://v8.dev/
