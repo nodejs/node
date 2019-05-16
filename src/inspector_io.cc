@@ -242,9 +242,13 @@ class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
 std::unique_ptr<InspectorIo> InspectorIo::Start(
     std::shared_ptr<MainThreadHandle> main_thread,
     const std::string& path,
-    std::shared_ptr<HostPort> host_port) {
+    std::shared_ptr<HostPort> host_port,
+    const InspectPublishUid& inspect_publish_uid) {
   auto io = std::unique_ptr<InspectorIo>(
-      new InspectorIo(main_thread, path, host_port));
+      new InspectorIo(main_thread,
+                      path,
+                      host_port,
+                      inspect_publish_uid));
   if (io->request_queue_->Expired()) {  // Thread is not running
     return nullptr;
   }
@@ -253,9 +257,11 @@ std::unique_ptr<InspectorIo> InspectorIo::Start(
 
 InspectorIo::InspectorIo(std::shared_ptr<MainThreadHandle> main_thread,
                          const std::string& path,
-                         std::shared_ptr<HostPort> host_port)
+                         std::shared_ptr<HostPort> host_port,
+                         const InspectPublishUid& inspect_publish_uid)
     : main_thread_(main_thread),
       host_port_(host_port),
+      inspect_publish_uid_(inspect_publish_uid),
       thread_(),
       script_name_(path),
       id_(GenerateID()) {
@@ -293,7 +299,8 @@ void InspectorIo::ThreadMain() {
   InspectorSocketServer server(std::move(delegate),
                                &loop,
                                host_port_->host(),
-                               host_port_->port());
+                               host_port_->port(),
+                               inspect_publish_uid_);
   request_queue_ = queue->handle();
   // Its lifetime is now that of the server delegate
   queue.reset();

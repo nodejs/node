@@ -792,7 +792,10 @@ bool Agent::StartIoThread() {
 
   CHECK_NOT_NULL(client_);
 
-  io_ = InspectorIo::Start(client_->getThreadHandle(), path_, host_port_);
+  io_ = InspectorIo::Start(client_->getThreadHandle(),
+                           path_,
+                           host_port_,
+                           debug_options_.inspect_publish_uid);
   if (io_ == nullptr) {
     return false;
   }

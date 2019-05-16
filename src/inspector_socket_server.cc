@@ -94,14 +94,20 @@ const char* MatchPathSegment(const char* path, const char* expected) {
   return nullptr;
 }
 
-void SendHttpResponse(InspectorSocket* socket, const std::string& response) {
-  const char HEADERS[] = "HTTP/1.0 200 OK\r\n"
+void SendHttpResponse(InspectorSocket* socket,
+                      const std::string& response,
+                      int code) {
+  const char HEADERS[] = "HTTP/1.0 %d OK\r\n"
                          "Content-Type: application/json; charset=UTF-8\r\n"
                          "Cache-Control: no-cache\r\n"
                          "Content-Length: %zu\r\n"
                          "\r\n";
   char header[sizeof(HEADERS) + 20];
-  int header_len = snprintf(header, sizeof(header), HEADERS, response.size());
+  int header_len = snprintf(header,
+                            sizeof(header),
+                            HEADERS,
+                            code,
+                            response.size());
   socket->Write(header, header_len);
   socket->Write(response.data(), response.size());
 }
@@ -110,7 +116,11 @@ void SendVersionResponse(InspectorSocket* socket) {
   std::map<std::string, std::string> response;
   response["Browser"] = "node.js/" NODE_VERSION;
   response["Protocol-Version"] = "1.1";
-  SendHttpResponse(socket, MapToString(response));
+  SendHttpResponse(socket, MapToString(response), 200);
+}
+
+void SendHttpNotFound(InspectorSocket* socket) {
+  SendHttpResponse(socket, "", 404);
 }
 
 void SendProtocolJson(InspectorSocket* socket) {
@@ -131,7 +141,7 @@ void SendProtocolJson(InspectorSocket* socket) {
   CHECK_EQ(Z_STREAM_END, inflate(&strm, Z_FINISH));
   CHECK_EQ(0, strm.avail_out);
   CHECK_EQ(Z_OK, inflateEnd(&strm));
-  SendHttpResponse(socket, data);
+  SendHttpResponse(socket, data, 200);
 }
 }  // namespace
 
@@ -224,8 +234,9 @@ void PrintDebuggerReadyMessage(
     const std::string& host,
     const std::vector<InspectorSocketServer::ServerSocketPtr>& server_sockets,
     const std::vector<std::string>& ids,
+    bool publish_uid_stderr,
     FILE* out) {
-  if (out == nullptr) {
+  if (!publish_uid_stderr || out == nullptr) {
     return;
   }
   for (const auto& server_socket : server_sockets) {
@@ -241,9 +252,15 @@ void PrintDebuggerReadyMessage(
 
 InspectorSocketServer::InspectorSocketServer(
     std::unique_ptr<SocketServerDelegate> delegate, uv_loop_t* loop,
-    const std::string& host, int port, FILE* out)
-    : loop_(loop), delegate_(std::move(delegate)), host_(host), port_(port),
-      next_session_id_(0), out_(out) {
+    const std::string& host, int port,
+    const InspectPublishUid& inspect_publish_uid, FILE* out)
+    : loop_(loop),
+      delegate_(std::move(delegate)),
+      host_(host),
+      port_(port),
+      inspect_publish_uid_(inspect_publish_uid),
+      next_session_id_(0),
+      out_(out) {
   delegate_->AssignServer(this);
   state_ = ServerState::kNew;
 }
@@ -280,8 +297,11 @@ void InspectorSocketServer::SessionTerminated(int session_id) {
   if (connected_sessions_.empty()) {
     if (was_attached && state_ == ServerState::kRunning
         && !server_sockets_.empty()) {
-      PrintDebuggerReadyMessage(host_, server_sockets_,
-                                delegate_->GetTargetIds(), out_);
+      PrintDebuggerReadyMessage(host_,
+                                server_sockets_,
+                                delegate_->GetTargetIds(),
+                                inspect_publish_uid_.console,
+                                out_);
     }
     if (state_ == ServerState::kStopped) {
       delegate_.reset();
@@ -294,6 +314,10 @@ bool InspectorSocketServer::HandleGetRequest(int session_id,
                                              const std::string& path) {
   SocketSession* session = Session(session_id);
   InspectorSocket* socket = session->ws_socket();
+  if (!inspect_publish_uid_.http) {
+    SendHttpNotFound(socket);
+    return true;
+  }
   const char* command = MatchPathSegment(path.c_str(), "/json");
   if (command == nullptr)
     return false;
@@ -342,7 +366,7 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket,
                                                              formatted_address);
     target_map["webSocketDebuggerUrl"] = FormatAddress(detected_host, id, true);
   }
-  SendHttpResponse(socket, MapsToString(response));
+  SendHttpResponse(socket, MapsToString(response), 200);
 }
 
 std::string InspectorSocketServer::GetFrontendURL(bool is_compat,
@@ -397,8 +421,11 @@ bool InspectorSocketServer::Start() {
   }
   delegate_.swap(delegate_holder);
   state_ = ServerState::kRunning;
-  PrintDebuggerReadyMessage(host_, server_sockets_,
-                            delegate_->GetTargetIds(), out_);
+  PrintDebuggerReadyMessage(host_,
+                            server_sockets_,
+                            delegate_->GetTargetIds(),
+                            inspect_publish_uid_.console,
+                            out_);
   return true;
 }
 
