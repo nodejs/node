@@ -86,6 +86,37 @@ void StartIoInterrupt(Isolate* isolate, void* agent) {
   static_cast<Agent*>(agent)->StartIoThread();
 }
 
+std::string BuildMethodNotFoundErrorJSON(
+    int call_id, const std::string& method) {
+  auto error = protocol::DictionaryValue::create();
+  std::ostringstream message;
+  error->setInteger("code", -32601);  // Inspector magic number
+  message << '\'' << method << "\' wasn't found";
+  error->setString("message", message.str());
+  const auto& response = protocol::DictionaryValue::create();
+  response->setInteger("id", call_id);
+  response->setObject("error", std::move(error));
+  return response->toJSONString();
+}
+
+std::vector<std::string> Split(const std::string& string,
+                               const std::string& separator) {
+  std::vector<std::string> result;
+  if (string.empty()) {
+    return result;
+  }
+  size_t pos = 0;
+  size_t len = string.length();
+  while (pos < len) {
+    size_t comma = string.find(separator, pos);
+    if (comma == std::string::npos) {
+      comma = len;
+    }
+    result.push_back(string.substr(pos, comma - pos));
+    pos = comma + 1;
+  }
+  return result;
+}
 
 #ifdef __POSIX__
 static void StartIoThreadWakeup(int signo) {
@@ -221,15 +252,17 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                        std::shared_ptr<WorkerManager> worker_manager,
                        std::unique_ptr<InspectorSessionDelegate> delegate,
                        std::shared_ptr<MainThreadHandle> main_thread_,
+                       std::unordered_set<std::string> domain_whitelist,
                        bool prevent_shutdown)
-      : delegate_(std::move(delegate)), prevent_shutdown_(prevent_shutdown),
-        retaining_context_(false) {
+      : delegate_(std::move(delegate)), domain_whitelist_(domain_whitelist),
+        prevent_shutdown_(prevent_shutdown), retaining_context_(false) {
     session_ = inspector->connect(1, this, StringView());
     node_dispatcher_ = std::make_unique<protocol::UberDispatcher>(this);
     tracing_agent_ =
         std::make_unique<protocol::TracingAgent>(env, main_thread_);
     tracing_agent_->Wire(node_dispatcher_.get());
-    worker_agent_ = std::make_unique<protocol::WorkerAgent>(worker_manager);
+    worker_agent_ = std::make_unique<protocol::WorkerAgent>(
+        worker_manager, delegate_->IsSessionTrusted());
     worker_agent_->Wire(node_dispatcher_.get());
     runtime_agent_ = std::make_unique<protocol::RuntimeAgent>(env);
     runtime_agent_->Wire(node_dispatcher_.get());
@@ -252,6 +285,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     int call_id;
     std::string method;
     node_dispatcher_->parseCommand(value.get(), &call_id, &method);
+    if (!methodWhitelisted(method)) {
+      sendMessageToFrontend(BuildMethodNotFoundErrorJSON(call_id, method));
+      return;
+    }
     if (v8_inspector::V8InspectorSession::canDispatchMethod(
             Utf8ToStringView(method)->string())) {
       session_->dispatchProtocolMessage(message);
@@ -318,12 +355,33 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     DCHECK(false);
   }
 
+  bool methodWhitelisted(const std::string& method) {
+    if (domain_whitelist_.empty() || delegate_->IsSessionTrusted()) {
+      return true;
+    }
+    // "Runtime" domain as a whole is unsafe. It includes capabilities like
+    // arbitrary code execution through the "Runtime.evaluate".
+    // "Runtime.runIfWaitingForDebugger" should still be allowed so that
+    // "--inspect-brk" flag could be used and the frontends were given a chance
+    // to connect and configure inspector before code is executed.
+    if (method == "Runtime.runIfWaitingForDebugger") {
+      return true;
+    }
+    const auto& domainAndMethod = Split(method, ".");
+    if (domainAndMethod.size() < 2) {
+      return true;  // Dispatcher will send a proper error
+    }
+    return
+        domain_whitelist_.find(domainAndMethod[0]) != domain_whitelist_.end();
+  }
+
   std::unique_ptr<protocol::RuntimeAgent> runtime_agent_;
   std::unique_ptr<protocol::TracingAgent> tracing_agent_;
   std::unique_ptr<protocol::WorkerAgent> worker_agent_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
   std::unique_ptr<protocol::UberDispatcher> node_dispatcher_;
+  std::unordered_set<std::string> domain_whitelist_;
   bool prevent_shutdown_;
   bool retaining_context_;
 };
@@ -448,8 +506,12 @@ bool IsFilePath(const std::string& path) {
 
 class NodeInspectorClient : public V8InspectorClient {
  public:
-  explicit NodeInspectorClient(node::Environment* env, bool is_main)
-      : env_(env), is_main_(is_main) {
+  explicit NodeInspectorClient(
+      node::Environment* env,
+      bool is_main,
+      const std::vector<std::string>& domains_whitelist)
+      : env_(env), is_main_(is_main),
+        domains_whitelist_(domains_whitelist.begin(), domains_whitelist.end()) {
     client_ = V8Inspector::create(env->isolate(), this);
     // TODO(bnoordhuis) Make name configurable from src/node.cc.
     std::string name =
@@ -523,6 +585,7 @@ class NodeInspectorClient : public V8InspectorClient {
                                                           getWorkerManager(),
                                                           std::move(delegate),
                                                           getThreadHandle(),
+                                                          domains_whitelist_,
                                                           prevent_shutdown);
     return session_id;
   }
@@ -719,6 +782,7 @@ class NodeInspectorClient : public V8InspectorClient {
   // Allows accessing Inspector from non-main threads
   std::unique_ptr<MainThreadInterface> interface_;
   std::shared_ptr<WorkerManager> worker_manager_;
+  std::unordered_set<std::string> domains_whitelist_;
 };
 
 Agent::Agent(Environment* env)
@@ -744,7 +808,8 @@ bool Agent::Start(const std::string& path,
   CHECK_NOT_NULL(host_port);
   host_port_ = host_port;
 
-  client_ = std::make_shared<NodeInspectorClient>(parent_env_, is_main);
+  client_ = std::make_shared<NodeInspectorClient>(
+      parent_env_, is_main, Split(options.domain_whitelist, ","));
   if (parent_env_->owns_inspector()) {
     CHECK_EQ(start_io_thread_async_initialized.exchange(true), false);
     CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
@@ -971,8 +1036,5 @@ void SameThreadInspectorSession::Dispatch(
   if (client)
     client->dispatchMessageFromFrontend(session_id_, message);
 }
-
-
-
 }  // namespace inspector
 }  // namespace node

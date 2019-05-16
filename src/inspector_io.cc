@@ -203,6 +203,10 @@ class IoSessionDelegate : public InspectorSessionDelegate {
                          StringBuffer::create(message));
   }
 
+  bool IsSessionTrusted() override {
+    return false;
+  }
+
  private:
   std::shared_ptr<RequestQueue> request_queue_;
   int id_;

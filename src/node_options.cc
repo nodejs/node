@@ -263,6 +263,10 @@ DebugOptionsParser::DebugOptionsParser() {
   AddOption("--debug-brk", "", &DebugOptions::break_first_line);
   Implies("--debug-brk", "--debug");
   AddAlias("--debug-brk=", { "--inspect-port", "--debug-brk" });
+
+  AddOption("--inspector-domain-whitelist",
+            "Comma-separated list of enabled Inspector protocol domains",
+            &DebugOptions::domain_whitelist);
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {

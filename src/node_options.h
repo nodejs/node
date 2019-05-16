@@ -70,6 +70,8 @@ class DebugOptions : public Options {
   bool break_first_line = false;
   // --inspect-brk-node
   bool break_node_first_line = false;
+  // --inspector-domain-whitelist
+  std::string domain_whitelist;
 
   enum { kDefaultInspectorPort = 9229 };
 
