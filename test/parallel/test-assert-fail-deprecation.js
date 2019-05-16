@@ -61,3 +61,16 @@ assert.throws(
   function foo() { assert.fail('first', 'second', 'message', '!==', foo); },
   (err) => !/^\s*at\sfoo\b/m.test(err.stack)
 );
+
+// Actual undefined = Error
+assert.throws(() => {
+  assert.fail(undefined);
+}, {
+  code: 'ERR_ASSERTION',
+  name: 'AssertionError',
+  message: 'Failed',
+  operator: 'fail',
+  actual: undefined,
+  expected: undefined,
+  generatedMessage: true
+});
