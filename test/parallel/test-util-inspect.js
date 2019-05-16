@@ -1094,6 +1094,47 @@ if (typeof Symbol !== 'undefined') {
     '[Set Iterator] { 1, ... 1 more item, extra: true }');
 }
 
+// Minimal inspection should still return as much information as possible about
+// the constructor and Symbol.toStringTag.
+{
+  class Foo {
+    get [Symbol.toStringTag]() {
+      return 'ABC';
+    }
+  }
+  const a = new Foo();
+  assert.strictEqual(inspect(a, { depth: -1 }), 'Foo [ABC] {}');
+  a.foo = true;
+  assert.strictEqual(inspect(a, { depth: -1 }), '[Foo [ABC]]');
+  Object.defineProperty(a, Symbol.toStringTag, {
+    value: 'Foo',
+    configurable: true,
+    writable: true
+  });
+  assert.strictEqual(inspect(a, { depth: -1 }), '[Foo]');
+  delete a[Symbol.toStringTag];
+  Object.setPrototypeOf(a, null);
+  assert.strictEqual(inspect(a, { depth: -1 }), '[Foo: null prototype]');
+  delete a.foo;
+  assert.strictEqual(inspect(a, { depth: -1 }), '[Foo: null prototype] {}');
+  Object.defineProperty(a, Symbol.toStringTag, {
+    value: 'ABC',
+    configurable: true
+  });
+  assert.strictEqual(
+    inspect(a, { depth: -1 }),
+    '[Foo: null prototype] [ABC] {}'
+  );
+  Object.defineProperty(a, Symbol.toStringTag, {
+    value: 'Foo',
+    configurable: true
+  });
+  assert.strictEqual(
+    inspect(a, { depth: -1 }),
+    '[Object: null prototype] [Foo] {}'
+  );
+}
+
 // Test alignment of items in container.
 // Assumes that the first numeric character is the start of an item.
 {
