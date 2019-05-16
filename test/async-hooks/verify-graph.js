@@ -99,7 +99,7 @@ module.exports = function verifyGraph(hooks, graph) {
   }
   assert.strictEqual(errors.length, 0);
 
-  // Verify that all expected types are present
+  // Verify that all expected types are present (but more/others are allowed)
   const expTypes = Object.create(null);
   for (let i = 0; i < graph.length; i++) {
     if (expTypes[graph[i].type] == null) expTypes[graph[i].type] = 0;
@@ -107,9 +107,9 @@ module.exports = function verifyGraph(hooks, graph) {
   }
 
   for (const type in expTypes) {
-    assert.strictEqual(typeSeen[type], expTypes[type],
-                       `Type '${type}': expecting: ${expTypes[type]} ` +
-                       `found ${typeSeen[type]}`);
+    assert.ok(typeSeen[type] >= expTypes[type],
+              `Type '${type}': expecting: ${expTypes[type]} ` +
+              `found: ${typeSeen[type]}`);
   }
 };
 
