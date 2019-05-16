@@ -12,8 +12,11 @@ class NodeWorkers
     : public std::enable_shared_from_this<NodeWorkers> {
  public:
   explicit NodeWorkers(std::weak_ptr<NodeWorker::Frontend> frontend,
-                      std::shared_ptr<MainThreadHandle> thread)
-                      : frontend_(frontend), thread_(thread) {}
+                       std::shared_ptr<MainThreadHandle> thread,
+                       bool is_session_trusted)
+                       : frontend_(frontend),
+                         thread_(thread),
+                         is_session_trusted_(is_session_trusted) {}
   void WorkerCreated(const std::string& title,
                      const std::string& url,
                      bool waiting,
@@ -22,9 +25,14 @@ class NodeWorkers
   void Send(const std::string& id, const std::string& message);
   void Detached(const std::string& id);
 
+  bool is_session_trusted() {
+    return is_session_trusted_;
+  }
+
  private:
   std::weak_ptr<NodeWorker::Frontend> frontend_;
   std::shared_ptr<MainThreadHandle> thread_;
+  bool is_session_trusted_;
   std::unordered_map<std::string, std::unique_ptr<InspectorSession>> sessions_;
   int next_target_id_ = 0;
 };
@@ -61,6 +69,10 @@ class ParentInspectorSessionDelegate : public InspectorSessionDelegate {
     workers_->Send(id_, message);
   }
 
+  bool IsSessionTrusted() override {
+    return workers_->is_session_trusted();
+  }
+
  private:
   std::string id_;
   std::shared_ptr<NodeWorkers> workers_;
@@ -77,17 +89,17 @@ std::unique_ptr<NodeWorker::WorkerInfo> WorkerInfo(const std::string& id,
 }
 }  // namespace
 
-WorkerAgent::WorkerAgent(std::weak_ptr<WorkerManager> manager)
-                         : manager_(manager) {}
-
+WorkerAgent::WorkerAgent(std::weak_ptr<WorkerManager> manager,
+                         bool is_session_trusted)
+    : manager_(manager), is_session_trusted_(is_session_trusted) {}
 
 void WorkerAgent::Wire(UberDispatcher* dispatcher) {
   frontend_.reset(new NodeWorker::Frontend(dispatcher->channel()));
   NodeWorker::Dispatcher::wire(dispatcher, this);
   auto manager = manager_.lock();
   CHECK_NOT_NULL(manager);
-  workers_ =
-      std::make_shared<NodeWorkers>(frontend_, manager->MainThread());
+  workers_ = std::make_shared<NodeWorkers>(
+      frontend_, manager->MainThread(), is_session_trusted_);
 }
 
 DispatchResponse WorkerAgent::sendMessageToWorker(const String& message,

@@ -26,6 +26,10 @@ class V8ProfilerConnection {
     void SendMessageToFrontend(
         const v8_inspector::StringView& message) override;
 
+    bool IsSessionTrusted() override {
+      return true;
+    }
+
    private:
     V8ProfilerConnection* connection_;
   };

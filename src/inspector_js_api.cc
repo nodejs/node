@@ -58,6 +58,10 @@ class JSBindingsConnection : public AsyncWrap {
       connection_->OnMessage(argument);
     }
 
+    bool IsSessionTrusted() override {
+      return true;
+    }
+
    private:
     Environment* env_;
     JSBindingsConnection* connection_;

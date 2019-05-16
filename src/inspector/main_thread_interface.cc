@@ -194,8 +194,11 @@ class CrossThreadInspectorSession : public InspectorSession {
 
 class ThreadSafeDelegate : public InspectorSessionDelegate {
  public:
-  ThreadSafeDelegate(std::shared_ptr<MainThreadHandle> thread, int object_id)
-                     : thread_(thread), delegate_(thread, object_id) {}
+  ThreadSafeDelegate(std::shared_ptr<MainThreadHandle> thread,
+                     int object_id,
+                     int is_trusted)
+                     : thread_(thread), delegate_(thread, object_id),
+                       is_trusted_(is_trusted) {}
 
   void SendMessageToFrontend(const v8_inspector::StringView& message) override {
     delegate_.Call(
@@ -205,9 +208,14 @@ class ThreadSafeDelegate : public InspectorSessionDelegate {
     });
   }
 
+  bool IsSessionTrusted() override {
+    return is_trusted_;
+  }
+
  private:
   std::shared_ptr<MainThreadHandle> thread_;
   AnotherThreadObjectReference<InspectorSessionDelegate> delegate_;
+  bool is_trusted_;
 };
 }  // namespace
 
@@ -343,9 +351,10 @@ std::unique_ptr<InspectorSessionDelegate>
 MainThreadHandle::MakeDelegateThreadSafe(
     std::unique_ptr<InspectorSessionDelegate> delegate) {
   int id = newObjectId();
+  bool is_trusted = delegate->IsSessionTrusted();
   main_thread_->AddObject(id, WrapInDeletable(std::move(delegate)));
   return std::unique_ptr<InspectorSessionDelegate>(
-      new ThreadSafeDelegate(shared_from_this(), id));
+      new ThreadSafeDelegate(shared_from_this(), id, is_trusted));
 }
 
 bool MainThreadHandle::Expired() {

@@ -15,7 +15,8 @@ class NodeWorkers;
 
 class WorkerAgent : public NodeWorker::Backend {
  public:
-  explicit WorkerAgent(std::weak_ptr<WorkerManager> manager);
+  explicit WorkerAgent(std::weak_ptr<WorkerManager> manager,
+                       bool is_session_trusted);
   ~WorkerAgent() override = default;
 
   void Wire(UberDispatcher* dispatcher);
@@ -31,6 +32,7 @@ class WorkerAgent : public NodeWorker::Backend {
   std::weak_ptr<WorkerManager> manager_;
   std::unique_ptr<WorkerManagerEventHandle> event_handle_;
   std::shared_ptr<NodeWorkers> workers_;
+  bool is_session_trusted_;
 };
 }  // namespace protocol
 }  // namespace inspector

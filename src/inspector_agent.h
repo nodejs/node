@@ -38,6 +38,7 @@ class InspectorSessionDelegate {
   virtual ~InspectorSessionDelegate() = default;
   virtual void SendMessageToFrontend(const v8_inspector::StringView& message)
                                      = 0;
+  virtual bool IsSessionTrusted() = 0;
 };
 
 class Agent {
