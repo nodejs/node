@@ -328,8 +328,9 @@ if "%target%" == "Clean" goto exit
 :after-build
 rd %config%
 if errorlevel 1 echo "Old build output exists at 'out\%config%'. Please remove." & exit /B
-if EXIST out\%config% mklink /D %config% out\%config%
-if errorlevel 1 exit /B
+:: Use /J because /D (symlink) requires special permissions.
+if EXIST out\%config% mklink /J %config% out\%config%
+if errorlevel 1 echo "Could not create junction to 'out\%config%'." & exit /B
 
 :sign
 @rem Skip signing unless the `sign` option was specified.
