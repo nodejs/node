@@ -3,6 +3,11 @@
  */
 'use strict';
 
+function isRequireCall(node) {
+  return node.callee.type === 'Identifier' && node.callee.name === 'require';
+}
+module.exports.isRequireCall = isRequireCall;
+
 module.exports.isDefiningError = function(node) {
   return node.expression &&
          node.expression.type === 'CallExpression' &&
@@ -16,7 +21,7 @@ module.exports.isDefiningError = function(node) {
  * require calls.
  */
 module.exports.isRequired = function(node, modules) {
-  return node.callee.name === 'require' && node.arguments.length !== 0 &&
+  return isRequireCall(node) && node.arguments.length !== 0 &&
     modules.includes(node.arguments[0].value);
 };
 
@@ -26,7 +31,7 @@ module.exports.isRequired = function(node, modules) {
 */
 const commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
 module.exports.isCommonModule = function(node) {
-  return node.callee.name === 'require' &&
+  return isRequireCall(node) &&
          node.arguments.length !== 0 &&
          commonModuleRegExp.test(node.arguments[0].value);
 };
