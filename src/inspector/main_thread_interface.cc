@@ -197,8 +197,9 @@ class ThreadSafeDelegate : public InspectorSessionDelegate {
   ThreadSafeDelegate(std::shared_ptr<MainThreadHandle> thread,
                      int object_id,
                      int is_trusted)
-                     : thread_(thread), delegate_(thread, object_id),
-                       is_trusted_(is_trusted) {}
+      : thread_(thread),
+        delegate_(thread, object_id),
+        is_trusted_(is_trusted) {}
 
   void SendMessageToFrontend(const v8_inspector::StringView& message) override {
     delegate_.Call(

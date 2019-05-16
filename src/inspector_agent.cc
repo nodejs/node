@@ -99,25 +99,6 @@ std::string BuildMethodNotFoundErrorJSON(
   return response->toJSONString();
 }
 
-std::vector<std::string> Split(const std::string& string,
-                               const std::string& separator) {
-  std::vector<std::string> result;
-  if (string.empty()) {
-    return result;
-  }
-  size_t pos = 0;
-  size_t len = string.length();
-  while (pos < len) {
-    size_t comma = string.find(separator, pos);
-    if (comma == std::string::npos) {
-      comma = len;
-    }
-    result.push_back(string.substr(pos, comma - pos));
-    pos = comma + 1;
-  }
-  return result;
-}
-
 #ifdef __POSIX__
 static void StartIoThreadWakeup(int signo) {
   uv_sem_post(&start_io_thread_semaphore);
@@ -254,8 +235,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                        std::shared_ptr<MainThreadHandle> main_thread_,
                        std::unordered_set<std::string> domain_whitelist,
                        bool prevent_shutdown)
-      : delegate_(std::move(delegate)), domain_whitelist_(domain_whitelist),
-        prevent_shutdown_(prevent_shutdown), retaining_context_(false) {
+      : delegate_(std::move(delegate)),
+        domain_whitelist_(domain_whitelist),
+        prevent_shutdown_(prevent_shutdown),
+        retaining_context_(false) {
     session_ = inspector->connect(1, this, StringView());
     node_dispatcher_ = std::make_unique<protocol::UberDispatcher>(this);
     tracing_agent_ =
@@ -367,7 +350,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     if (method == "Runtime.runIfWaitingForDebugger") {
       return true;
     }
-    const auto& domainAndMethod = Split(method, ".");
+    const auto& domainAndMethod = SplitString(method, '.');
     if (domainAndMethod.size() < 2) {
       return true;  // Dispatcher will send a proper error
     }
@@ -809,7 +792,7 @@ bool Agent::Start(const std::string& path,
   host_port_ = host_port;
 
   client_ = std::make_shared<NodeInspectorClient>(
-      parent_env_, is_main, Split(options.domain_whitelist, ","));
+      parent_env_, is_main, SplitString(options.domain_whitelist, ','));
   if (parent_env_->owns_inspector()) {
     CHECK_EQ(start_io_thread_async_initialized.exchange(true), false);
     CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
