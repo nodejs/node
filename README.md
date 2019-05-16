@@ -34,7 +34,6 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
   * [Collaborators](#collaborators)
   * [Release Keys](#release-keys)
 
-
 ## Support
 
 Node.js contributors have limited availability to address general support
