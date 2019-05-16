@@ -50,6 +50,11 @@ class Options {
   virtual ~Options() = default;
 };
 
+struct InspectPublishUid {
+  bool console;
+  bool http;
+};
+
 // These options are currently essentially per-Environment, but it can be nice
 // to keep them separate since they are a group of options applying to a very
 // specific part of Node. It might also make more sense for them to be
@@ -70,6 +75,10 @@ class DebugOptions : public Options {
   bool break_first_line = false;
   // --inspect-brk-node
   bool break_node_first_line = false;
+  // --inspect-publish-uid
+  std::string inspect_publish_uid_string = "stderr,http";
+
+  InspectPublishUid inspect_publish_uid;
 
   enum { kDefaultInspectorPort = 9229 };
 

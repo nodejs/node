@@ -44,6 +44,21 @@ void DebugOptions::CheckOptions(std::vector<std::string>* errors) {
     errors->push_back("[DEP0062]: `node --inspect --debug-brk` is deprecated. "
                       "Please use `node --inspect-brk` instead.");
   }
+
+  std::vector<std::string> destinations =
+      SplitString(inspect_publish_uid_string, ',');
+  inspect_publish_uid.console = false;
+  inspect_publish_uid.http = false;
+  for (const std::string& destination : destinations) {
+    if (destination == "stderr") {
+      inspect_publish_uid.console = true;
+    } else if (destination == "http") {
+      inspect_publish_uid.http = true;
+    } else {
+      errors->push_back("--inspect-publish-uid destination can be "
+                        "stderr or http");
+    }
+  }
 }
 
 void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
@@ -276,6 +291,12 @@ DebugOptionsParser::DebugOptionsParser() {
   AddOption("--debug-brk", "", &DebugOptions::break_first_line);
   Implies("--debug-brk", "--debug");
   AddAlias("--debug-brk=", { "--inspect-port", "--debug-brk" });
+
+  AddOption("--inspect-publish-uid",
+            "comma separated list of destinations for inspector uid"
+            "(default: stderr,http)",
+            &DebugOptions::inspect_publish_uid_string,
+            kAllowedInEnvironment);
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {

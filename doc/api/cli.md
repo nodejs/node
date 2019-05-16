@@ -400,6 +400,13 @@ default) is not firewall-protected.**
 
 See the [debugging security implications][] section for more information.
 
+### `--inspect-publish-uid=stderr,http`
+
+Specify ways of the inspector web socket url exposure.
+
+By default inspector websocket url is available in stderr and under `/json/list`
+endpoint on `http://host:port/json/list`.
+
 ### `--loader=file`
 <!-- YAML
 added: v9.0.0
@@ -992,6 +999,7 @@ Node.js options that are allowed are:
 - `--inspect`
 - `--inspect-brk`
 - `--inspect-port`
+- `--inspect-publish-uid`
 - `--loader`
 - `--max-http-header-size`
 - `--napi-modules`
