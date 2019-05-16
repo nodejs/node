@@ -43,6 +43,7 @@ class InspectorSocketServer {
                         uv_loop_t* loop,
                         const std::string& host,
                         int port,
+                        const InspectPublishUid& inspect_publish_uid,
                         FILE* out = stderr);
   ~InspectorSocketServer();
 
@@ -88,6 +89,7 @@ class InspectorSocketServer {
   std::unique_ptr<SocketServerDelegate> delegate_;
   const std::string host_;
   int port_;
+  InspectPublishUid inspect_publish_uid_;
   std::vector<ServerSocketPtr> server_sockets_;
   std::map<int, std::pair<std::string, std::unique_ptr<SocketSession>>>
       connected_sessions_;
