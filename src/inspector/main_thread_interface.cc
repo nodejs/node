@@ -196,7 +196,7 @@ class ThreadSafeDelegate : public InspectorSessionDelegate {
  public:
   ThreadSafeDelegate(std::shared_ptr<MainThreadHandle> thread,
                      int object_id,
-                     int is_trusted)
+                     bool is_trusted)
       : thread_(thread),
         delegate_(thread, object_id),
         is_trusted_(is_trusted) {}
