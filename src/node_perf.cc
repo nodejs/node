@@ -1,4 +1,5 @@
 #include "aliased_buffer.h"
+#include "memory_tracker-inl.h"
 #include "node_internals.h"
 #include "node_perf.h"
 #include "node_buffer.h"

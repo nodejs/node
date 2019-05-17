@@ -2,6 +2,7 @@
 
 #include "async_wrap-inl.h"
 #include "debug_utils.h"
+#include "memory_tracker-inl.h"
 #include "node_contextify.h"
 #include "node_buffer.h"
 #include "node_errors.h"

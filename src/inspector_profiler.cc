@@ -2,6 +2,7 @@
 #include <sstream>
 #include "base_object-inl.h"
 #include "debug_utils.h"
+#include "memory_tracker-inl.h"
 #include "node_file.h"
 #include "node_internals.h"
 #include "v8-inspector.h"

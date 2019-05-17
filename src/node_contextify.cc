@@ -21,6 +21,7 @@
 
 #include "node_contextify.h"
 
+#include "memory_tracker-inl.h"
 #include "node_internals.h"
 #include "node_watchdog.h"
 #include "base_object-inl.h"
