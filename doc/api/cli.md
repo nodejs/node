@@ -148,13 +148,6 @@ the ability to import a directory that has an index file.
 
 Please see [customizing esm specifier resolution][] for example usage.
 
-### `--experimental-json-modules`
-<!-- YAML
-added: v12.0.0
--->
-
-Enable experimental JSON support for the ES Module loader.
-
 ### `--experimental-modules`
 <!-- YAML
 added: v8.5.0
