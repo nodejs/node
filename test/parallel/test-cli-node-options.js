@@ -65,6 +65,9 @@ expect('--stack-trace-limit=100',
        /(\s*at f \(\[eval\]:1:\d*\)\r?\n){100}/,
        '(function f() { f(); })();',
        true);
+// Unsupported on arm. See https://crbug.com/v8/8713.
+if (!['arm', 'arm64'].includes(process.arch))
+  expect('--interpreted-frames-native-stack', 'B\n');
 
 function expect(opt, want, command = 'console.log("B")', wantsError = false) {
   const argv = ['-e', command];
