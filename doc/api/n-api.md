@@ -221,6 +221,10 @@ consumed by the various APIs. These APIs should be treated as opaque,
 introspectable only with other N-API calls.
 
 ### napi_status
+<!-- YAML
+added: v8.0.0
+napiVersion: 1
+-->
 Integral status code indicating the success or failure of a N-API call.
 Currently, the following status codes are supported.
 ```C
@@ -250,6 +254,10 @@ If additional information is required upon an API returning a failed status,
 it can be obtained by calling `napi_get_last_error_info`.
 
 ### napi_extended_error_info
+<!-- YAML
+added: v8.0.0
+napiVersion: 1
+-->
 ```C
 typedef struct {
   const char* error_message;
@@ -282,6 +290,10 @@ not allowed.
 This is an opaque pointer that is used to represent a JavaScript value.
 
 ### napi_threadsafe_function
+<!-- YAML
+added: v10.6.0
+napiVersion: 4
+-->
 
 > Stability: 2 - Stable
 
@@ -290,6 +302,10 @@ called asynchronously from multiple threads via
 `napi_call_threadsafe_function()`.
 
 ### napi_threadsafe_function_release_mode
+<!-- YAML
+added: v10.6.0
+napiVersion: 4
+-->
 
 > Stability: 2 - Stable
 
@@ -305,6 +321,10 @@ typedef enum {
 ```
 
 ### napi_threadsafe_function_call_mode
+<!-- YAML
+added: v10.6.0
+napiVersion: 4
+-->
 
 > Stability: 2 - Stable
 
@@ -338,10 +358,18 @@ longer referenced from the current stack frame.
 For more details, review the [Object Lifetime Management][].
 
 #### napi_escapable_handle_scope
+<!-- YAML
+added: v8.0.0
+napiVersion: 1
+-->
 Escapable handle scopes are a special type of handle scope to return values
 created within a particular handle scope to a parent scope.
 
 #### napi_ref
+<!-- YAML
+added: v8.0.0
+napiVersion: 1
+-->
 This is the abstraction to use to reference a `napi_value`. This allows for
 users to manage the lifetimes of JavaScript values, including defining their
 minimum lifetimes explicitly.
@@ -350,11 +378,19 @@ For more details, review the [Object Lifetime Management][].
 
 ### N-API Callback types
 #### napi_callback_info
+<!-- YAML
+added: v8.0.0
+napiVersion: 1
+-->
 Opaque datatype that is passed to a callback function. It can be used for
 getting additional information about the context in which the callback was
 invoked.
 
 #### napi_callback
+<!-- YAML
+added: v8.0.0
+napiVersion: 1
+-->
 Function pointer type for user-provided native functions which are to be
 exposed to JavaScript via N-API. Callback functions should satisfy the
 following signature:
@@ -363,6 +399,10 @@ typedef napi_value (*napi_callback)(napi_env, napi_callback_info);
 ```
 
 #### napi_finalize
+<!-- YAML
+added: v8.0.0
+napiVersion: 1
+-->
 Function pointer type for add-on provided functions that allow the user to be
 notified when externally-owned data is ready to be cleaned up because the
 object with which it was associated with, has been garbage-collected. The user
@@ -377,6 +417,10 @@ typedef void (*napi_finalize)(napi_env env,
 ```
 
 #### napi_async_execute_callback
+<!-- YAML
+added: v8.0.0
+napiVersion: 1
+-->
 Function pointer used with functions that support asynchronous
 operations. Callback functions must satisfy the following signature:
 
@@ -390,6 +434,10 @@ JavaScript objects. Most often, any code that needs to make N-API
 calls should be made in `napi_async_complete_callback` instead.
 
 #### napi_async_complete_callback
+<!-- YAML
+added: v8.0.0
+napiVersion: 1
+-->
 Function pointer used with functions that support asynchronous
 operations. Callback functions must satisfy the following signature:
 
@@ -400,6 +448,10 @@ typedef void (*napi_async_complete_callback)(napi_env env,
 ```
 
 #### napi_threadsafe_function_call_js
+<!-- YAML
+added: v10.6.0
+napiVersion: 4
+-->
 
 > Stability: 2 - Stable
 
@@ -467,6 +519,10 @@ In order to retrieve this information [`napi_get_last_error_info`][]
 is provided which returns a `napi_extended_error_info` structure.
 The format of the `napi_extended_error_info` structure is as follows:
 
+<!-- YAML
+added: v10.6.0
+napiVersion: 4
+-->
 ```C
 typedef struct napi_extended_error_info {
   const char* error_message;
