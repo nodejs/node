@@ -276,6 +276,10 @@ Code GenerateBytecodeHandler(Isolate* isolate, int builtin_index,
 
 }  // namespace
 
+#ifdef _MSC_VER
+#pragma optimize( "", off )
+#endif
+
 // static
 void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
@@ -352,6 +356,11 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 
   builtins->MarkInitialized();
 }
+
+#ifdef _MSC_VER
+#pragma optimize( "", on )
+#endif
+
 
 }  // namespace internal
 }  // namespace v8
