@@ -1,6 +1,7 @@
 # Issues
 
 * [How to Contribute in Issues](#how-to-contribute-in-issues)
+* [New to Node](#new-to-node)
 * [Asking for General Help](#asking-for-general-help)
 * [Discussing non-technical topics](#discussing-non-technical-topics)
 * [Submitting a Bug Report](#submitting-a-bug-report)
