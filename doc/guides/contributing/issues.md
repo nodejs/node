@@ -15,13 +15,16 @@ contribute:
 1. By opening the issue for discussion: For instance, if you believe that you
    have uncovered a bug in Node.js, creating a new issue in the `nodejs/node`
    issue tracker is the way to report it.
+2. We also have a  #node-dev channel on freenode.net if you have questions.
+
+## New to Node
+
+For for those that are new to node:
+
+1. You can view our issues page filtered by "[good first issue](https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)." 
 2. By helping to triage the issue: This can be done either by providing
    supporting details (a test case that demonstrates a bug), or providing
    suggestions on how to address the issue.
-3. By helping to resolve the issue: Typically this is done either in the form
-   of demonstrating that the issue reported is not a problem after all, or more
-   often, by opening a Pull Request that changes some bit of something in
-   `nodejs/node` in a concrete and reviewable manner.
 
 ## Asking for General Help
 
