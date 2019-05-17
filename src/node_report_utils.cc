@@ -1,3 +1,4 @@
+#include "env-inl.h"
 #include "node_internals.h"
 #include "node_report.h"
 #include "util-inl.h"

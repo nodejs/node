@@ -1,5 +1,6 @@
 #include "inspector_agent.h"
 
+#include "env-inl.h"
 #include "inspector/main_thread_interface.h"
 #include "inspector/node_string.h"
 #include "inspector/runtime_agent.h"

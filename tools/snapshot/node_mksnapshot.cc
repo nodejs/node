@@ -5,9 +5,11 @@
 #include <string>
 #include <vector>
 
+#include "env-inl.h"
 #include "libplatform/libplatform.h"
 #include "node_internals.h"
 #include "snapshot_builder.h"
+#include "util-inl.h"
 #include "v8.h"
 
 #ifdef _WIN32

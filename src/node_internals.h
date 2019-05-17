@@ -24,7 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "env-inl.h"
+#include "env.h"
 #include "node.h"
 #include "node_binding.h"
 #include "node_mutex.h"

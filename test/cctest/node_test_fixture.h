@@ -7,7 +7,7 @@
 #include "node.h"
 #include "node_platform.h"
 #include "node_internals.h"
-#include "env.h"
+#include "env-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 #include "libplatform/libplatform.h"
