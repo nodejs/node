@@ -179,7 +179,10 @@ void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
 }
 
 void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
-  const uint64_t total_memory = uv_get_total_memory();
+  const uint64_t constrained_memory = uv_get_constrained_memory();
+  const uint64_t total_memory = constrained_memory > 0 ?
+      std::min(uv_get_total_memory(), constrained_memory) :
+      uv_get_total_memory();
   if (total_memory > 0) {
     // V8 defaults to 700MB or 1.4GB on 32 and 64 bit platforms respectively.
     // This default is based on browser use-cases. Tell V8 to configure the
