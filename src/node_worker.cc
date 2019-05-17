@@ -1,5 +1,6 @@
 #include "node_worker.h"
 #include "debug_utils.h"
+#include "memory_tracker-inl.h"
 #include "node_errors.h"
 #include "node_buffer.h"
 #include "node_options-inl.h"

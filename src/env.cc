@@ -1,6 +1,7 @@
 #include "env.h"
 
 #include "async_wrap.h"
+#include "memory_tracker-inl.h"
 #include "node_buffer.h"
 #include "node_context_data.h"
 #include "node_errors.h"

@@ -24,7 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "memory_tracker-inl.h"
+#include "memory_tracker.h"
 #include "v8.h"
 #include <type_traits>  // std::remove_reference
 

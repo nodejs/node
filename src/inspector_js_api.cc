@@ -1,6 +1,7 @@
 #include "base_object-inl.h"
 #include "inspector_agent.h"
 #include "inspector_io.h"
+#include "memory_tracker-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 #include "v8-inspector.h"

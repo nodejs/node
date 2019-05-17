@@ -2,6 +2,7 @@
 #undef NODE_EXPERIMENTAL_HTTP
 #endif
 
+#include "memory_tracker-inl.h"
 #include "node_http_parser_impl.h"
 #include "node_metadata.h"
 #include "util-inl.h"
