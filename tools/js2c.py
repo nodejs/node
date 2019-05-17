@@ -177,6 +177,7 @@ def ReadMacros(macro_files):
 
 
 TEMPLATE = """
+#include "env-inl.h"
 #include "node_native_module.h"
 #include "node_internals.h"
 

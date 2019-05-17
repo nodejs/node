@@ -1,5 +1,6 @@
 #include "node_url.h"
 #include "node_i18n.h"
+#include "util-inl.h"
 
 #include "gtest/gtest.h"
 
