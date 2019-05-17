@@ -19,11 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node_watchdog.h"
 #include <algorithm>
+
 #include "debug_utils.h"
+#include "env-inl.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "node_watchdog.h"
 #include "util-inl.h"
 
 namespace node {
