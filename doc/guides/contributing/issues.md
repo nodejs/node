@@ -18,9 +18,7 @@ contribute:
    issue tracker is the way to report it.
 2. We also have a  #node-dev channel on freenode.net if you have questions.
 
-## New to Node
-
-For for those that are new to node:
+## New to Node.js
 
 1. You can view our issues page filtered by "[good first issue](https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)" 
 2. By helping to triage the issue: This can be done either by providing
