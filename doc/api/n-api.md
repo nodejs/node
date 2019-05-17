@@ -3,8 +3,6 @@
 <!--introduced_in=v7.10.0-->
 <!-- type=misc -->
 
-> Stability: 2 - Stable
-
 N-API (pronounced N as in the letter, followed by API)
 is an API for building native Addons. It is independent from
 the underlying JavaScript runtime (ex V8) and is maintained as part of
@@ -283,15 +281,11 @@ This is an opaque pointer that is used to represent a JavaScript value.
 
 ### napi_threadsafe_function
 
-> Stability: 2 - Stable
-
 This is an opaque pointer that represents a JavaScript function which can be
 called asynchronously from multiple threads via
 `napi_call_threadsafe_function()`.
 
 ### napi_threadsafe_function_release_mode
-
-> Stability: 2 - Stable
 
 A value to be given to `napi_release_threadsafe_function()` to indicate whether
 the thread-safe function is to be closed immediately (`napi_tsfn_abort`) or
@@ -305,8 +299,6 @@ typedef enum {
 ```
 
 ### napi_threadsafe_function_call_mode
-
-> Stability: 2 - Stable
 
 A value to be given to `napi_call_threadsafe_function()` to indicate whether
 the call should block whenever the queue associated with the thread-safe
@@ -400,8 +392,6 @@ typedef void (*napi_async_complete_callback)(napi_env env,
 ```
 
 #### napi_threadsafe_function_call_js
-
-> Stability: 2 - Stable
 
 Function pointer used with asynchronous thread-safe function calls. The callback
 will be called on the main thread. Its purpose is to use a data item arriving
@@ -4599,8 +4589,6 @@ prevent the event loop from exiting. The APIs `napi_ref_threadsafe_function` and
 
 ### napi_create_threadsafe_function
 
-> Stability: 2 - Stable
-
 <!-- YAML
 added: v10.6.0
 napiVersion: 4
@@ -4643,8 +4631,6 @@ parameters and with `undefined` as its `this` value.
 
 ### napi_get_threadsafe_function_context
 
-> Stability: 2 - Stable
-
 <!-- YAML
 added: v10.6.0
 napiVersion: 4
@@ -4661,8 +4647,6 @@ napi_get_threadsafe_function_context(napi_threadsafe_function func,
 This API may be called from any thread which makes use of `func`.
 
 ### napi_call_threadsafe_function
-
-> Stability: 2 - Stable
 
 <!-- YAML
 added: v10.6.0
@@ -4691,8 +4675,6 @@ This API may be called from any thread which makes use of `func`.
 
 ### napi_acquire_threadsafe_function
 
-> Stability: 2 - Stable
-
 <!-- YAML
 added: v10.6.0
 napiVersion: 4
@@ -4713,8 +4695,6 @@ it.
 This API may be called from any thread which will start making use of `func`.
 
 ### napi_release_threadsafe_function
-
-> Stability: 2 - Stable
 
 <!-- YAML
 added: v10.6.0
@@ -4743,8 +4723,6 @@ This API may be called from any thread which will stop making use of `func`.
 
 ### napi_ref_threadsafe_function
 
-> Stability: 2 - Stable
-
 <!-- YAML
 added: v10.6.0
 napiVersion: 4
@@ -4764,8 +4742,6 @@ also idempotent.
 This API may only be called from the main thread.
 
 ### napi_unref_threadsafe_function
-
-> Stability: 2 - Stable
 
 <!-- YAML
 added: v10.6.0
