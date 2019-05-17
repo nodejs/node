@@ -1,6 +1,7 @@
 #include "module_wrap.h"
 
 #include "env.h"
+#include "memory_tracker-inl.h"
 #include "node_errors.h"
 #include "node_url.h"
 #include "util-inl.h"

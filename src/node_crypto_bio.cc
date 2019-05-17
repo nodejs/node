@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "base_object-inl.h"
+#include "memory_tracker-inl.h"
 #include "node_crypto_bio.h"
 #include "openssl/bio.h"
 #include "util-inl.h"
