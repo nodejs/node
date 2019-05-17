@@ -22,7 +22,7 @@ contribute:
 
 For for those that are new to node:
 
-1. You can view our issues page filtered by "[good first issue](https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)." 
+1. You can view our issues page filtered by "[good first issue](https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)" 
 2. By helping to triage the issue: This can be done either by providing
    supporting details (a test case that demonstrates a bug), or providing
    suggestions on how to address the issue.
