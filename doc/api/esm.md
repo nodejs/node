@@ -409,18 +409,11 @@ fs.readFileSync = () => Buffer.from('Hello, ESM');
 fs.readFileSync === readFileSync;
 ```
 
-## Experimental JSON Modules
+## JSON Modules
 
-**Note: This API is still being designed and is subject to change.**
+JSON modules follow the [WHATWG JSON modules specification][].
 
-Currently importing JSON modules are only supported in the `commonjs` mode
-and are loaded using the CJS loader. [WHATWG JSON modules][] are currently
-being standardized, and are experimentally supported by including the
-additional flag `--experimental-json-modules` when running Node.js.
-
-When the `--experimental-json-modules` flag is included both the
-`commonjs` and `module` mode will use the new experimental JSON
-loader. The imported JSON only exposes a `default`, there is no
+The imported JSON only exposes a `default`. There is no
 support for named exports. A cache entry is created in the CommonJS
 cache, to avoid duplication. The same object will be returned in
 CommonJS if the JSON module has already been imported from the
@@ -431,14 +424,6 @@ Assuming an `index.mjs` with
 <!-- eslint-skip -->
 ```js
 import packageConfig from './package.json';
-```
-
-The `--experimental-json-modules` flag is needed for the module
-to work.
-
-```bash
-node --experimental-modules index.mjs # fails
-node --experimental-modules --experimental-json-modules index.mjs # works
 ```
 
 ## Experimental Wasm Modules
@@ -763,7 +748,7 @@ success!
 [CommonJS]: modules.html
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
-[WHATWG JSON modules]: https://github.com/whatwg/html/issues/4315
+[WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules

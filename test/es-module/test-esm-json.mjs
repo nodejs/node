@@ -1,4 +1,5 @@
-// Flags: --experimental-modules --experimental-json-modules
+// Flags: --experimental-modules
+
 import '../common/index.mjs';
 import { strictEqual } from 'assert';
 

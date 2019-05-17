@@ -117,11 +117,6 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     }
   }
 
-  if (experimental_json_modules && !experimental_modules) {
-    errors->push_back("--experimental-json-modules requires "
-                      "--experimental-modules be enabled");
-  }
-
   if (experimental_wasm_modules && !experimental_modules) {
     errors->push_back("--experimental-wasm-modules requires "
                       "--experimental-modules be enabled");
@@ -271,10 +266,6 @@ DebugOptionsParser::DebugOptionsParser() {
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
-  AddOption("--experimental-json-modules",
-            "experimental JSON interop support for the ES Module loader",
-            &EnvironmentOptions::experimental_json_modules,
-            kAllowedInEnvironment);
   AddOption("--experimental-modules",
             "experimental ES Module support and caching modules",
             &EnvironmentOptions::experimental_modules,
