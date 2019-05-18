@@ -113,7 +113,7 @@
     'v8_enable_embedded_builtins%': 1,
 
     # Enable the registration of unwinding info for Windows/x64.
-    'v8_win64_unwinding_info%': 0,
+    'v8_win64_unwinding_info%': 1,
 
     # Enable code comments for builtins in the snapshot (impacts performance).
     'v8_enable_snapshot_code_comments%': 0,
