@@ -1022,7 +1022,7 @@ within the child process to close the IPC channel as well.
 added: v0.1.90
 -->
 
-* `signal` {string}
+* `signal` {number|string}
 
 The `subprocess.kill()` method sends a signal to the child process. If no
 argument is given, the process will be sent the `'SIGTERM'` signal. See
