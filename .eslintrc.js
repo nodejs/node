@@ -38,6 +38,7 @@ module.exports = {
     {
       files: [
         'doc/api/esm.md',
+        'doc/api/modules.md',
         '*.mjs',
         'test/es-module/test-esm-example-loader.js',
       ],

@@ -918,11 +918,11 @@ added:
 * Returns: {[`require`][]} Require function
 
 ```js
-const { createRequire } = require('module');
-const requireUtil = createRequire(require.resolve('../src/utils/'));
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
-// Require `../src/utils/some-tool`
-requireUtil('./some-tool');
+// sibling-module.js is a CommonJS module.
+const siblingModule = require('./sibling-module');
 ```
 
 ### module.createRequireFromPath(filename)
