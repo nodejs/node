@@ -26,15 +26,15 @@
         '<(SHARED_INTERMEDIATE_DIR)',
       ],
       'sources': [
-        '<(V8_ROOT)/src/async-hooks-wrapper.cc',
-        '<(V8_ROOT)/src/async-hooks-wrapper.h',
-        '<(V8_ROOT)/src/d8-console.cc',
-        '<(V8_ROOT)/src/d8-console.h',
-        '<(V8_ROOT)/src/d8-js.cc',
-        '<(V8_ROOT)/src/d8-platforms.cc',
-        '<(V8_ROOT)/src/d8-platforms.h',
-        '<(V8_ROOT)/src/d8.cc',
-        '<(V8_ROOT)/src/d8.h',
+        '<(V8_ROOT)/src/d8/async-hooks-wrapper.cc',
+        '<(V8_ROOT)/src/d8/async-hooks-wrapper.h',
+        '<(V8_ROOT)/src/d8/d8-console.cc',
+        '<(V8_ROOT)/src/d8/d8-console.h',
+        '<(V8_ROOT)/src/d8/d8-js.cc',
+        '<(V8_ROOT)/src/d8/d8-platforms.cc',
+        '<(V8_ROOT)/src/d8/d8-platforms.h',
+        '<(V8_ROOT)/src/d8/d8.cc',
+        '<(V8_ROOT)/src/d8/d8.h',
       ],
       'conditions': [
         [ 'want_separate_host_toolset==1', {
@@ -46,10 +46,10 @@
         ['(OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="netbsd" \
            or OS=="openbsd" or OS=="solaris" or OS=="android" \
            or OS=="qnx" or OS=="aix")', {
-             'sources': [ '<(V8_ROOT)/src/d8-posix.cc', ]
+             'sources': [ '<(V8_ROOT)/src/d8/d8-posix.cc', ]
            }],
         [ 'OS=="win"', {
-          'sources': [ '<(V8_ROOT)/src/d8-windows.cc', ]
+          'sources': [ '<(V8_ROOT)/src/d8/d8-windows.cc', ]
         }],
         [ 'component!="shared_library"', {
           'conditions': [
