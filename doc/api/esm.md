@@ -277,8 +277,7 @@ if this behavior is desired.
 
 These CommonJS variables are not available in ES modules.
 
-`require` can be imported into an ES module using
-[`module.createRequireFromPath()`][].
+`require` can be imported into an ES module using [`module.createRequire()`][].
 
 An equivalent for `__filename` and `__dirname` is [`import.meta.url`][].
 
@@ -313,7 +312,7 @@ For now, only modules using the `file:` protocol can be loaded.
 
 `require` always treats the files it references as CommonJS. This applies
 whether `require` is used the traditional way within a CommonJS environment, or
-in an ES module environment using [`module.createRequireFromPath()`][].
+in an ES module environment using [`module.createRequire()`][].
 
 To include an ES module into CommonJS, use [`import()`][].
 
@@ -321,7 +320,7 @@ To include an ES module into CommonJS, use [`import()`][].
 
 An `import` statement can reference either ES module or CommonJS JavaScript.
 Other file types such as JSON and Native modules are not supported. For those,
-use [`module.createRequireFromPath()`][].
+use [`module.createRequire()`][].
 
 `import` statements are permitted only in ES modules. For similar functionality
 in CommonJS, see [`import()`][].
@@ -362,14 +361,15 @@ to include ES module files from CommonJS code.
 
 ## CommonJS, JSON, and Native Modules
 
-CommonJS, JSON, and Native modules can be used with [`module.createRequireFromPath()`][].
+CommonJS, JSON, and Native modules can be used with
+[`module.createRequire()`][].
 
 ```js
 // cjs.js
 module.exports = 'cjs';
 
 // esm.mjs
-import { createRequireFromPath as createRequire } from 'module';
+import { createRequire } from 'module';
 import { fileURLToPath as fromURL } from 'url';
 
 const require = createRequire(fromURL(import.meta.url));
@@ -759,7 +759,7 @@ success!
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`import()`]: #esm_import-expressions
 [`import.meta.url`]: #esm_import_meta
-[`module.createRequireFromPath()`]: modules.html#modules_module_createrequirefrompath_filename
+[`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [CommonJS]: modules.html
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
