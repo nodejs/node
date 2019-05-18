@@ -1569,6 +1569,16 @@ should be passed to [`net.Socket`][].
 
 If `options` is a string, then it specifies the encoding.
 
+```js
+// Create a stream of file copy functions
+const fs = require('fs');
+
+const rs = fs.createReadStream('./out.txt');
+const ws = fs.createWriteStream('./input.txt', { flags: 'a' });
+
+rs.pipe(ws); // Out.txt content pipe to input.txt
+```
+
 ## fs.exists(path, callback)
 <!-- YAML
 added: v0.0.2
