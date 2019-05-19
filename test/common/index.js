@@ -528,7 +528,15 @@ let catchWarning;
 function expectWarning(nameOrMap, expected, code) {
   if (catchWarning === undefined) {
     catchWarning = {};
-    process.on('warning', (warning) => catchWarning[warning.name](warning));
+    process.on('warning', (warning) => {
+      if (!catchWarning[warning.name]) {
+        throw new TypeError(
+          `"${warning.name}" was triggered without being expected.\n` +
+          util.inspect(warning)
+        );
+      }
+      catchWarning[warning.name](warning);
+    });
   }
   if (typeof nameOrMap === 'string') {
     catchWarning[nameOrMap] = _expectWarning(nameOrMap, expected, code);
