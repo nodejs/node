@@ -66,9 +66,11 @@
 
 #include <memory>
 
-#ifdef __POSIX__
+// We cannot use __POSIX__ in this header because that's only defined when
+// building Node.js.
+#ifndef _WIN32
 #include <signal.h>
-#endif  // __POSIX__
+#endif  // _WIN32
 
 #define NODE_MAKE_VERSION(major, minor, patch)                                \
   ((major) * 0x1000 + (minor) * 0x100 + (patch))
@@ -812,7 +814,7 @@ class NODE_EXTERN AsyncResource {
   async_context async_context_;
 };
 
-#ifdef __POSIX__
+#ifndef _WIN32
 // Register a signal handler without interrupting
 // any handlers that node itself needs.
 NODE_EXTERN
@@ -821,7 +823,7 @@ void RegisterSignalHandler(int signal,
                                            siginfo_t* info,
                                            void* ucontext),
                            bool reset_handler = false);
-#endif  // __POSIX__
+#endif  // _WIN32
 
 }  // namespace node
 
