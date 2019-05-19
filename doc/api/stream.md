@@ -502,6 +502,13 @@ This property contains the number of bytes (or objects) in the queue
 ready to be written. The value provides introspection data regarding
 the status of the `highWaterMark`.
 
+##### writable.writableObjectMode
+<!-- YAML
+added: REPLACEME
+-->
+
+Getter for the property `objectMode` of a given `Writable` stream.
+
 ##### writable.write(chunk[, encoding][, callback])
 <!-- YAML
 added: v0.9.4
@@ -1088,6 +1095,13 @@ added: v9.4.0
 This property contains the number of bytes (or objects) in the queue
 ready to be read. The value provides introspection data regarding
 the status of the `highWaterMark`.
+
+##### readable.readableObjectMode
+<!-- YAML
+added: REPLACEME
+-->
+
+Getter for the property `objectMode` of a given `Readable` stream.
 
 ##### readable.resume()
 <!-- YAML

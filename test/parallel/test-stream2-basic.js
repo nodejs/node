@@ -23,6 +23,7 @@
 
 const common = require('../common');
 const R = require('_stream_readable');
+const W = require('_stream_writable');
 const assert = require('assert');
 
 const EE = require('events').EventEmitter;
@@ -419,4 +420,16 @@ class TestWriter extends EE {
   r._read = common.mustCall();
   const r2 = r.setEncoding('utf8').pause().resume().pause();
   assert.strictEqual(r, r2);
+}
+
+{
+  // Verify readableObjectMode property
+  const r = new R({ objectMode: true });
+  assert.strictEqual(r.readableObjectMode, true);
+}
+
+{
+  // Verify writableObjectMode property
+  const w = new W({ objectMode: true });
+  assert.strictEqual(w.writableObjectMode, true);
 }
