@@ -282,6 +282,14 @@
         'ImageHasSafeExceptionHandlers': 'false',
       },
     },
+
+    'conditions': [
+      ['OS=="aix"', {
+        'ldflags': [
+          '-Wl,-bnoerrmsg',
+        ],
+      }],
+    ],
   },
 
   'targets': [
