@@ -182,7 +182,27 @@ assert.throws(
 }
 
 // Use a RegExp to validate the error message.
-a.throws(() => thrower(TypeError), /\[object Object\]/);
+{
+  a.throws(() => thrower(TypeError), /\[object Object\]/);
+
+  const symbol = Symbol('foo');
+  a.throws(() => {
+    throw symbol;
+  }, /foo/);
+
+  a.throws(() => {
+    a.throws(() => {
+      throw symbol;
+    }, /abc/);
+  }, {
+    message: 'The input did not match the regular expression /abc/. ' +
+             "Input:\n\n'Symbol(foo)'\n",
+    code: 'ERR_ASSERTION',
+    operator: 'throws',
+    actual: symbol,
+    expected: /abc/
+  });
+}
 
 // Use a fn to validate the error object.
 a.throws(() => thrower(TypeError), (err) => {
