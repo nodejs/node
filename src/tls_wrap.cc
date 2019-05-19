@@ -1035,8 +1035,11 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
 
   // Set the servername as early as possible
   Local<Object> owner = p->GetOwner();
-  USE(owner->Set(env->context(), env->servername_string(),
-      OneByteString(env->isolate(), servername)));
+  if (!owner->Set(env->context(),
+                  env->servername_string(),
+                  OneByteString(env->isolate(), servername)).FromMaybe(false)) {
+    return SSL_TLSEXT_ERR_NOACK;
+  }
 
   if (!object->Get(env->context(), env->sni_context_string()).ToLocal(&ctx))
     return SSL_TLSEXT_ERR_NOACK;
