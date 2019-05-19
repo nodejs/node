@@ -5,9 +5,10 @@
 {
   'variables': {
     'inspector_protocol_files': [
+      'lib/encoding_h.template',
+      'lib/encoding_cpp.template',
       'lib/Allocator_h.template',
       'lib/Array_h.template',
-      'lib/Collections_h.template',
       'lib/DispatcherBase_cpp.template',
       'lib/DispatcherBase_h.template',
       'lib/ErrorSupport_cpp.template',
@@ -27,7 +28,7 @@
       'templates/Imported_h.template',
       'templates/TypeBuilder_cpp.template',
       'templates/TypeBuilder_h.template',
-      'CodeGenerator.py',
+      'code_generator.py',
     ]
   }
 }

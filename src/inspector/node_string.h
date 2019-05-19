@@ -20,16 +20,6 @@ using String = std::string;
 using StringBuilder = std::ostringstream;
 using ProtocolMessage = std::string;
 
-class StringUTF8Adapter {
- public:
-  explicit StringUTF8Adapter(const std::string& string) : string_(string) { }
-  const char* Data() const { return string_.data(); }
-  size_t length() const { return string_.length(); }
-
- private:
-  const std::string& string_;
-};
-
 namespace StringUtil {
 // NOLINTNEXTLINE(runtime/references) This is V8 API...
 inline void builderAppend(StringBuilder& builder, char c) {
@@ -82,6 +72,13 @@ std::unique_ptr<Value> parseMessage(const std::string& message, bool binary);
 ProtocolMessage jsonToMessage(String message);
 ProtocolMessage binaryToMessage(std::vector<uint8_t> message);
 String fromUTF8(const uint8_t* data, size_t length);
+String fromUTF16(const uint16_t* data, size_t length);
+const uint8_t* CharactersUTF8(const String& s);
+size_t CharacterCount(const String& s);
+
+// Unimplemented. The generated code will fall back to CharactersUTF8().
+inline uint8_t* CharactersLatin1(const String& s) { return nullptr; }
+inline const uint16_t* CharactersUTF16(const String& s) { return nullptr; }
 
 extern size_t kNotFound;
 }  // namespace StringUtil

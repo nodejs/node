@@ -73,7 +73,7 @@ class SendMessageRequest : public Request {
     if (frontend_wrapper == nullptr) return;
     auto frontend = frontend_wrapper->get();
     if (frontend != nullptr) {
-      frontend->sendRawNotification(message_);
+      frontend->sendRawJSONNotification(message_);
     }
   }
 

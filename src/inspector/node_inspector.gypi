@@ -15,9 +15,12 @@
     'node_protocol_files': [
       '<(protocol_tool_path)/lib/Allocator_h.template',
       '<(protocol_tool_path)/lib/Array_h.template',
-      '<(protocol_tool_path)/lib/Collections_h.template',
+      '<(protocol_tool_path)/lib/base_string_adapter_cc.template',
+      '<(protocol_tool_path)/lib/base_string_adapter_h.template',
       '<(protocol_tool_path)/lib/DispatcherBase_cpp.template',
       '<(protocol_tool_path)/lib/DispatcherBase_h.template',
+      '<(protocol_tool_path)/lib/encoding_cpp.template',
+      '<(protocol_tool_path)/lib/encoding_h.template',
       '<(protocol_tool_path)/lib/ErrorSupport_cpp.template',
       '<(protocol_tool_path)/lib/ErrorSupport_h.template',
       '<(protocol_tool_path)/lib/Forward_h.template',

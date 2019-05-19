@@ -74,20 +74,20 @@ def parse(data, file_name, map_binary_to_string=False):
         if len(trimLine) == 0:
             continue
 
-        match = re.compile('^(experimental )?(deprecated )?domain (.*)').match(line)
+        match = re.compile(r'^(experimental )?(deprecated )?domain (.*)').match(line)
         if match:
             domain = createItem({'domain' : match.group(3)}, match.group(1), match.group(2))
             protocol['domains'].append(domain)
             continue
 
-        match = re.compile('^  depends on ([^\s]+)').match(line)
+        match = re.compile(r'^  depends on ([^\s]+)').match(line)
         if match:
             if 'dependencies' not in domain:
                 domain['dependencies'] = []
             domain['dependencies'].append(match.group(1))
             continue
 
-        match = re.compile('^  (experimental )?(deprecated )?type (.*) extends (array of )?([^\s]+)').match(line)
+        match = re.compile(r'^  (experimental )?(deprecated )?type (.*) extends (array of )?([^\s]+)').match(line)
         if match:
             if 'types' not in domain:
                 domain['types'] = []
@@ -96,7 +96,7 @@ def parse(data, file_name, map_binary_to_string=False):
             domain['types'].append(item)
             continue
 
-        match = re.compile('^  (experimental )?(deprecated )?(command|event) (.*)').match(line)
+        match = re.compile(r'^  (experimental )?(deprecated )?(command|event) (.*)').match(line)
         if match:
             list = []
             if match.group(3) == 'command':
@@ -114,7 +114,7 @@ def parse(data, file_name, map_binary_to_string=False):
             list.append(item)
             continue
 
-        match = re.compile('^      (experimental )?(deprecated )?(optional )?(array of )?([^\s]+) ([^\s]+)').match(line)
+        match = re.compile(r'^      (experimental )?(deprecated )?(optional )?(array of )?([^\s]+) ([^\s]+)').match(line)
         if match:
             param = createItem({}, match.group(1), match.group(2), match.group(6))
             if match.group(3):
@@ -125,36 +125,36 @@ def parse(data, file_name, map_binary_to_string=False):
             subitems.append(param)
             continue
 
-        match = re.compile('^    (parameters|returns|properties)').match(line)
+        match = re.compile(r'^    (parameters|returns|properties)').match(line)
         if match:
             subitems = item[match.group(1)] = []
             continue
 
-        match = re.compile('^    enum').match(line)
+        match = re.compile(r'^    enum').match(line)
         if match:
             enumliterals = item['enum'] = []
             continue
 
-        match = re.compile('^version').match(line)
+        match = re.compile(r'^version').match(line)
         if match:
             continue
 
-        match = re.compile('^  major (\d+)').match(line)
+        match = re.compile(r'^  major (\d+)').match(line)
         if match:
             protocol['version']['major'] = match.group(1)
             continue
 
-        match = re.compile('^  minor (\d+)').match(line)
+        match = re.compile(r'^  minor (\d+)').match(line)
         if match:
             protocol['version']['minor'] = match.group(1)
             continue
 
-        match = re.compile('^    redirect ([^\s]+)').match(line)
+        match = re.compile(r'^    redirect ([^\s]+)').match(line)
         if match:
             item['redirect'] = match.group(1)
             continue
 
-        match = re.compile('^      (  )?[^\s]+$').match(line)
+        match = re.compile(r'^      (  )?[^\s]+$').match(line)
         if match:
             # enum literal
             enumliterals.append(trimLine)
