@@ -352,6 +352,13 @@ process.on('exit', function() {
 assert.strictEqual(require('../fixtures/utf8-bom.js'), 42);
 assert.strictEqual(require('../fixtures/utf8-bom.json'), 42);
 
+// Loading files with BOM + shebang.
+// See https://github.com/nodejs/node/issues/27767
+assert.throws(() => {
+  require('../fixtures/utf8-bom-shebang.js');
+}, { name: 'SyntaxError' });
+assert.strictEqual(require('../fixtures/utf8-shebang-bom.js'), 42);
+
 // Error on the first line of a module should
 // have the correct line number
 assert.throws(function() {
