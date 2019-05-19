@@ -487,6 +487,12 @@ void TrapWebAssemblyOrContinue(int signo, siginfo_t* info, void* ucontext) {
     if (prev != nullptr) {
       prev(signo, info, ucontext);
     } else {
+      // Reset to the default signal handler, i.e. cause a hard crash.
+      struct sigaction sa;
+      memset(&sa, 0, sizeof(sa));
+      sa.sa_handler = SIG_DFL;
+      CHECK_EQ(sigaction(signo, &sa, nullptr), 0);
+
       ResetStdio();
       raise(signo);
     }

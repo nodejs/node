@@ -63,6 +63,12 @@ static void Abort(const FunctionCallbackInfo<Value>& args) {
   Abort();
 }
 
+// For internal testing only, not exposed to userland.
+static void CauseSegfault(const FunctionCallbackInfo<Value>& args) {
+  // This should crash hard all platforms.
+  *static_cast<void**>(nullptr) = nullptr;
+}
+
 static void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(env->owns_process_state());
@@ -405,6 +411,7 @@ static void InitializeProcessMethods(Local<Object> target,
     env->SetMethod(target, "_debugProcess", DebugProcess);
     env->SetMethod(target, "_debugEnd", DebugEnd);
     env->SetMethod(target, "abort", Abort);
+    env->SetMethod(target, "causeSegfault", CauseSegfault);
     env->SetMethod(target, "chdir", Chdir);
   }
 
