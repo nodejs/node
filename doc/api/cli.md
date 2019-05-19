@@ -216,7 +216,7 @@ builtin properties on a subclass will throw in strict mode due to the ECMA-262
 issue https://github.com/tc39/ecma262/pull/1307. This flag may still change
 or be removed in the future.
 
-To avoid these cases any builtin function overrides should be defined upfront:
+To avoid these cases, any builtin function overrides should be defined upfront:
 
 <!-- eslint-disable no-redeclare -->
 ```js
