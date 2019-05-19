@@ -27,13 +27,16 @@ template("inspector_protocol_generate") {
   inspector_protocol_dir = invoker.inspector_protocol_dir
 
   action(target_name) {
-    script = "$inspector_protocol_dir/CodeGenerator.py"
+    script = "$inspector_protocol_dir/code_generator.py"
 
     inputs = [
       invoker.config_file,
+      "$inspector_protocol_dir/lib/base_string_adapter_cc.template",
+      "$inspector_protocol_dir/lib/base_string_adapter_h.template",
+      "$inspector_protocol_dir/lib/encoding_h.template",
+      "$inspector_protocol_dir/lib/encoding_cpp.template",
       "$inspector_protocol_dir/lib/Allocator_h.template",
       "$inspector_protocol_dir/lib/Array_h.template",
-      "$inspector_protocol_dir/lib/Collections_h.template",
       "$inspector_protocol_dir/lib/DispatcherBase_cpp.template",
       "$inspector_protocol_dir/lib/DispatcherBase_h.template",
       "$inspector_protocol_dir/lib/ErrorSupport_cpp.template",
