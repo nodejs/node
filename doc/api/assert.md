@@ -1210,10 +1210,14 @@ assert.throws(
   () => {
     throw new Error('Wrong value');
   },
-  function(err) {
-    if ((err instanceof Error) && /value/.test(err)) {
-      return true;
-    }
+  (err) => {
+    assert(err instanceof Error);
+    assert(/value/.test(err));
+    // Returning anything from validation functions besides `true` is not
+    // recommended. Doing so results in the caught error being thrown again.
+    // That is mostly not the desired outcome. Throw an error about the specific
+    // validation that failed instead (as done in this example).
+    return true;
   },
   'unexpected error'
 );
