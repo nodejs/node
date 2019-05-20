@@ -10,6 +10,7 @@ const commonFixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const http2 = require('http2');
 const tls = require('tls');
 const net = require('net');
@@ -48,6 +49,25 @@ server.on('error', common.mustNotCall());
   }));
 }
 
+// Test that `http2.createServer()` supports `net.Server` options.
+{
+  const server = http2.createServer({ allowHalfOpen: true });
+
+  server.on('connection', common.mustCall((socket) => {
+    assert.strictEqual(socket.allowHalfOpen, true);
+    socket.end();
+    server.close();
+  }));
+
+  assert.strictEqual(server.allowHalfOpen, true);
+
+  server.listen(0, common.mustCall(() => {
+    const port = server.address().port;
+    const socket = net.connect(port, common.mustCall());
+    socket.resume();
+  }));
+}
+
 // Test the secure server socket timeout.
 {
   let client;
@@ -65,5 +85,31 @@ server.on('error', common.mustNotCall());
       rejectUnauthorized: false,
       ALPNProtocols: ['h2']
     }, common.mustCall());
+  }));
+}
+
+// Test that `http2.createSecureServer()` supports `net.Server` options.
+{
+  const server = http2.createSecureServer({
+    allowHalfOpen: true,
+    ...options
+  });
+
+  server.on('secureConnection', common.mustCall((socket) => {
+    assert.strictEqual(socket.allowHalfOpen, true);
+    socket.end();
+    server.close();
+  }));
+
+  assert.strictEqual(server.allowHalfOpen, true);
+
+  server.listen(0, common.mustCall(() => {
+    const port = server.address().port;
+    const socket = tls.connect({
+      port: port,
+      rejectUnauthorized: false,
+      ALPNProtocols: ['h2']
+    }, common.mustCall());
+    socket.resume();
   }));
 }
