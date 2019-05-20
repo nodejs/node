@@ -237,6 +237,8 @@ uint64_t Environment::AllocateThreadId() {
 
 Environment::Environment(IsolateData* isolate_data,
                          Local<Context> context,
+                         const std::vector<std::string>& args,
+                         const std::vector<std::string>& exec_args,
                          Flags flags,
                          uint64_t thread_id)
     : isolate_(context->GetIsolate()),
@@ -244,6 +246,8 @@ Environment::Environment(IsolateData* isolate_data,
       immediate_info_(context->GetIsolate()),
       tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
+      exec_argv_(exec_args),
+      argv_(args),
       should_abort_on_uncaught_toggle_(isolate_, 1),
       stream_base_state_(isolate_, StreamBase::kNumStreamBaseStateFields),
       flags_(flags),
@@ -306,6 +310,22 @@ Environment::Environment(IsolateData* isolate_data,
       performance::NODE_PERFORMANCE_MILESTONE_V8_START,
       performance::performance_v8_start);
 
+  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACING_CATEGORY_NODE1(environment)) != 0) {
+    auto traced_value = tracing::TracedValue::Create();
+    traced_value->BeginArray("args");
+    for (const std::string& arg : args) traced_value->AppendString(arg);
+    traced_value->EndArray();
+    traced_value->BeginArray("exec_args");
+    for (const std::string& arg : exec_args) traced_value->AppendString(arg);
+    traced_value->EndArray();
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE1(environment),
+                                      "Environment",
+                                      this,
+                                      "args",
+                                      std::move(traced_value));
+  }
+
   // By default, always abort when --abort-on-uncaught-exception was passed.
   should_abort_on_uncaught_toggle_[0] = 1;
 
@@ -318,6 +338,8 @@ Environment::Environment(IsolateData* isolate_data,
   if (options_->no_force_async_hooks_checks) {
     async_hooks_.no_force_checks();
   }
+
+  set_process_object(node::CreateProcessObject(this).ToLocalChecked());
 }
 
 CompileFnEntry::CompileFnEntry(Environment* env, uint32_t id)
@@ -432,35 +454,6 @@ void Environment::ExitEnv() {
   set_can_call_into_js(false);
   thread_stopper()->Stop();
   isolate_->TerminateExecution();
-}
-
-MaybeLocal<Object> Environment::ProcessCliArgs(
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args) {
-  argv_ = args;
-  exec_argv_ = exec_args;
-
-  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-          TRACING_CATEGORY_NODE1(environment)) != 0) {
-    auto traced_value = tracing::TracedValue::Create();
-    traced_value->BeginArray("args");
-    for (const std::string& arg : args) traced_value->AppendString(arg);
-    traced_value->EndArray();
-    traced_value->BeginArray("exec_args");
-    for (const std::string& arg : exec_args) traced_value->AppendString(arg);
-    traced_value->EndArray();
-    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE1(environment),
-                                      "Environment",
-                                      this,
-                                      "args",
-                                      std::move(traced_value));
-  }
-
-  Local<Object> process_object =
-      node::CreateProcessObject(this, args, exec_args)
-          .FromMaybe(Local<Object>());
-  set_process_object(process_object);
-  return process_object;
 }
 
 void Environment::RegisterHandleCleanups() {

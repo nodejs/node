@@ -31,10 +31,7 @@ v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* warning,
                                               const char* deprecation_code);
 
-v8::MaybeLocal<v8::Object> CreateProcessObject(
-    Environment* env,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args);
+v8::MaybeLocal<v8::Object> CreateProcessObject(Environment* env);
 void PatchProcessObject(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 namespace task_queue {
