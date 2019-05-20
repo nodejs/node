@@ -47,6 +47,7 @@
 #endif
 
 #if HAVE_INSPECTOR
+#include "inspector_agent.h"
 #include "inspector_io.h"
 #endif
 
@@ -58,6 +59,10 @@
 #include "libplatform/libplatform.h"
 #endif  // NODE_USE_V8_PLATFORM
 #include "v8-profiler.h"
+
+#if HAVE_INSPECTOR
+#include "inspector/worker_inspector.h"  // ParentInspectorHandle
+#endif
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
 #include "../deps/v8/src/third_party/vtune/v8-vtune.h"
@@ -125,7 +130,6 @@ using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Object;
-using v8::Script;
 using v8::String;
 using v8::Undefined;
 using v8::V8;
@@ -222,6 +226,51 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
   return scope.EscapeMaybe(result);
 }
 
+#if HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
+int Environment::InitializeInspector(
+    inspector::ParentInspectorHandle* parent_handle) {
+  std::string inspector_path;
+  if (parent_handle != nullptr) {
+    DCHECK(!is_main_thread());
+    inspector_path = parent_handle->url();
+    inspector_agent_->SetParentHandle(
+        std::unique_ptr<inspector::ParentInspectorHandle>(parent_handle));
+  } else {
+    inspector_path = argv_.size() > 1 ? argv_[1].c_str() : "";
+  }
+
+  CHECK(!inspector_agent_->IsListening());
+  // Inspector agent can't fail to start, but if it was configured to listen
+  // right away on the websocket port and fails to bind/etc, this will return
+  // false.
+  inspector_agent_->Start(inspector_path,
+                          options_->debug_options(),
+                          inspector_host_port(),
+                          is_main_thread());
+  if (options_->debug_options().inspector_enabled &&
+      !inspector_agent_->IsListening()) {
+    return 12;  // Signal internal error
+  }
+
+  profiler::StartProfilers(this);
+
+  if (options_->debug_options().break_node_first_line) {
+    inspector_agent_->PauseOnNextJavascriptStatement("Break at bootstrap");
+  }
+
+  return 0;
+}
+#endif  // HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
+
+void Environment::InitializeDiagnostics() {
+  isolate_->GetHeapProfiler()->AddBuildEmbedderGraphCallback(
+      Environment::BuildEmbedderGraph, this);
+
+#if defined HAVE_DTRACE || defined HAVE_ETW
+  InitDTrace(this);
+#endif
+}
+
 MaybeLocal<Value> RunBootstrapping(Environment* env) {
   CHECK(!env->has_run_bootstrapping_code());
 
@@ -229,17 +278,9 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
 
-#if HAVE_INSPECTOR
-  profiler::StartProfilers(env);
-#endif  // HAVE_INSPECTOR
 
   // Add a reference to the global object
   Local<Object> global = context->Global();
-
-#if defined HAVE_DTRACE || defined HAVE_ETW
-  InitDTrace(env);
-#endif
-
   Local<Object> process = env->process_object();
 
   // Setting global properties for the bootstrappers to use:
@@ -249,12 +290,6 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   global->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global)
       .Check();
 
-#if HAVE_INSPECTOR
-  if (env->options()->debug_options().break_node_first_line) {
-    env->inspector_agent()->PauseOnNextJavascriptStatement(
-        "Break at bootstrap");
-  }
-#endif  // HAVE_INSPECTOR
 
   // Create binding loaders
   std::vector<Local<String>> loaders_params = {
