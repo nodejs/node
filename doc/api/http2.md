@@ -1910,6 +1910,10 @@ error will be thrown.
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27782
+    description: The `options` parameter now supports `net.createServer()`
+                 options.
   - version: v8.9.3
     pr-url: https://github.com/nodejs/node/pull/17105
     description: Added the `maxOutstandingPings` option with a default limit of
@@ -1985,6 +1989,7 @@ changes:
     `Http2ServerResponse` class to use.
     Useful for extending the original `Http2ServerResponse`.
     **Default:** `Http2ServerResponse`.
+  * ...: Any [`net.createServer()`][] option can be provided.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2Server}
 
@@ -3465,6 +3470,7 @@ following additional properties:
 [`http2.createServer()`]: #http2_http2_createserver_options_onrequesthandler
 [`http2session.close()`]: #http2_http2session_close_callback
 [`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
+[`net.createServer()`]: net.html#net_net_createserver_options_connectionlistener
 [`net.Server.close()`]: net.html#net_server_close_callback
 [`net.Socket.bufferSize`]: net.html#net_socket_buffersize
 [`net.Socket.prototype.ref()`]: net.html#net_socket_ref
