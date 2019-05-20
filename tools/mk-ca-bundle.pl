@@ -265,7 +265,7 @@ while (<TXT>) {
       $encoded =~ s/(.{1,${opt_w}})/"$1\\n"\n/g;
       my $pem = "\"-----BEGIN CERTIFICATE-----\\n\"\n"
               . $encoded
-              . "\"-----END CERTIFICATE-----\\n\",\n";
+              . "\"-----END CERTIFICATE-----\",\n";
       print CRT "\n/* $caname */\n";
 
       my $maxStringLength = length($caname);
