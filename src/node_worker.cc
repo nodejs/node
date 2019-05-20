@@ -41,17 +41,6 @@ namespace worker {
 namespace {
 
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
-void StartWorkerInspector(
-    Environment* child,
-    std::unique_ptr<inspector::ParentInspectorHandle> parent_handle,
-    const std::string& url) {
-  child->inspector_agent()->SetParentHandle(std::move(parent_handle));
-  child->inspector_agent()->Start(url,
-                                  child->options()->debug_options(),
-                                  child->inspector_host_port(),
-                                  false);
-}
-
 void WaitForWorkerInspectorToStop(Environment* child) {
   child->inspector_agent()->WaitForDisconnect();
   child->inspector_agent()->Stop();
@@ -66,11 +55,11 @@ Worker::Worker(Environment* env,
                std::shared_ptr<PerIsolateOptions> per_isolate_opts,
                std::vector<std::string>&& exec_argv)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER),
-      url_(url),
       per_isolate_opts_(per_isolate_opts),
       exec_argv_(exec_argv),
       platform_(env->isolate_data()->platform()),
-      profiler_idle_notifier_started_(env->profiler_idle_notifier_started()),
+      // XXX(joyeecheung): should this be per_process::v8_is_profiling instead?
+      start_profiler_idle_notifier_(env->profiler_idle_notifier_started()),
       thread_id_(Environment::AllocateThreadId()),
       env_vars_(env->env_vars()) {
   Debug(this, "Creating new worker instance with thread id %llu", thread_id_);
@@ -264,7 +253,7 @@ void Worker::Run() {
         env_->set_abort_on_uncaught_exception(false);
         env_->set_worker_context(this);
 
-        env_->InitializeLibuv(profiler_idle_notifier_started_);
+        env_->InitializeLibuv(start_profiler_idle_notifier_);
       }
       {
         Mutex::ScopedLock lock(mutex_);
@@ -275,12 +264,10 @@ void Worker::Run() {
       if (is_stopped()) return;
       {
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
-        StartWorkerInspector(env_.get(),
-                             std::move(inspector_parent_handle_),
-                             url_);
-#endif
+        env_->InitializeInspector(inspector_parent_handle_.release());
         inspector_started = true;
-
+#endif
+        env_->InitializeDiagnostics();
         HandleScope handle_scope(isolate_);
         AsyncCallbackScope callback_scope(env_.get());
         env_->async_hooks()->push_async_ids(1, 0);

@@ -74,6 +74,10 @@ namespace profiler {
 class V8CoverageConnection;
 class V8CpuProfilerConnection;
 }  // namespace profiler
+
+namespace inspector {
+class ParentInspectorHandle;
+}
 #endif  // HAVE_INSPECTOR
 
 namespace worker {
@@ -795,6 +799,12 @@ class Environment : public MemoryRetainer {
   void MemoryInfo(MemoryTracker* tracker) const override;
 
   void CreateProperties();
+#if HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
+  // If the environment is created for a worker, pass parent_handle and
+  // the ownership if transferred into the Environment.
+  int InitializeInspector(inspector::ParentInspectorHandle* parent_handle);
+#endif
+  void InitializeDiagnostics();
 
   inline size_t async_callback_scope_depth() const;
   inline void PushAsyncCallbackScope();
