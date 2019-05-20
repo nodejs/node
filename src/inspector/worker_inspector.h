@@ -60,6 +60,7 @@ class ParentInspectorHandle {
   bool WaitForConnect() {
     return wait_;
   }
+  const std::string& url() const { return url_; }
 
  private:
   int id_;

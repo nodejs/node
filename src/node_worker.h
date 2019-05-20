@@ -54,7 +54,6 @@ class Worker : public AsyncWrap {
  private:
   void OnThreadStopped();
   void CreateEnvMessagePort(Environment* env);
-  const std::string url_;
 
   std::shared_ptr<PerIsolateOptions> per_isolate_opts_;
   std::vector<std::string> exec_argv_;
@@ -62,7 +61,7 @@ class Worker : public AsyncWrap {
 
   MultiIsolatePlatform* platform_;
   v8::Isolate* isolate_ = nullptr;
-  bool profiler_idle_notifier_started_;
+  bool start_profiler_idle_notifier_;
   uv_thread_t tid_;
 
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
