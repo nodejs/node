@@ -261,17 +261,6 @@ MaybeLocal<Value> RunBootstrapping(Environment* env) {
   global->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global)
       .Check();
 
-  // Store primordials setup by the per-context script in the environment.
-  Local<Object> per_context_bindings;
-  Local<Value> primordials;
-  if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
-      !per_context_bindings->Get(context, env->primordials_string())
-           .ToLocal(&primordials) ||
-      !primordials->IsObject()) {
-    return MaybeLocal<Value>();
-  }
-  env->set_primordials(primordials.As<Object>());
-
 #if HAVE_INSPECTOR
   if (env->options()->debug_options().break_node_first_line) {
     env->inspector_agent()->PauseOnNextJavascriptStatement(
