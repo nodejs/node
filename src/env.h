@@ -823,14 +823,13 @@ class Environment : public MemoryRetainer {
 
   Environment(IsolateData* isolate_data,
               v8::Local<v8::Context> context,
+              const std::vector<std::string>& args,
+              const std::vector<std::string>& exec_args,
               Flags flags = Flags(),
               uint64_t thread_id = kNoThreadId);
   ~Environment();
 
   void InitializeLibuv(bool start_profiler_idle_notifier);
-  v8::MaybeLocal<v8::Object> ProcessCliArgs(
-      const std::vector<std::string>& args,
-      const std::vector<std::string>& exec_args);
   inline const std::vector<std::string>& exec_argv();
   inline const std::vector<std::string>& argv();
 

@@ -188,11 +188,12 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
   std::unique_ptr<Environment> env = std::make_unique<Environment>(
       isolate_data_.get(),
       context,
+      args_,
+      exec_args_,
       static_cast<Environment::Flags>(Environment::kIsMainThread |
                                       Environment::kOwnsProcessState |
                                       Environment::kOwnsInspector));
   env->InitializeLibuv(per_process::v8_is_profiling);
-  env->ProcessCliArgs(args_, exec_args_);
 
 #if HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
   CHECK(!env->inspector_agent()->IsListening());
