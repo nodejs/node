@@ -291,7 +291,7 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-Specify the sampling interval in bytes for the heap profiles generated
+Specify the average sampling interval in bytes for the heap profiles generated
 by `--heap-prof`. The default is 32 * 1024 bytes.
 
 ### `--heap-prof-name`
