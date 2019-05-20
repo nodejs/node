@@ -218,14 +218,10 @@ or be removed in the future.
 
 To avoid these cases, any builtin function overrides should be defined upfront:
 
-<!-- eslint-disable no-redeclare -->
 ```js
 const o = {};
 // THROWS: Cannot assign read only property 'toString' of object
 o.toString = () => 'string';
-
-// OK
-const o = { toString: () => 'string' };
 
 class X {
   constructor() {
@@ -234,6 +230,11 @@ class X {
 }
 // THROWS: Cannot assign read only property 'toString' of object
 new X();
+```
+
+```js
+// OK
+const o = { toString: () => 'string' };
 
 class X {
   toString = undefined;
