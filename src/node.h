@@ -815,8 +815,12 @@ class NODE_EXTERN AsyncResource {
 };
 
 #ifndef _WIN32
-// Register a signal handler without interrupting
-// any handlers that node itself needs.
+// Register a signal handler without interrupting any handlers that node
+// itself needs. This does override handlers registered through
+// process.on('SIG...', function() { ... }). The `reset_handler` flag indicates
+// whether the signal handler for the given signal should be reset to its
+// default value before executing the handler (i.e. it works like SA_RESETHAND).
+// The `reset_handler` flag is invalid when `signal` is SIGSEGV.
 NODE_EXTERN
 void RegisterSignalHandler(int signal,
                            void (*handler)(int signal,

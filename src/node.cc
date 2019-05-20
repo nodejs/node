@@ -477,13 +477,15 @@ void LoadEnvironment(Environment* env) {
   USE(StartMainThreadExecution(env));
 }
 
+#ifdef __POSIX__
+typedef void (*sigaction_cb)(int signo, siginfo_t* info, void* ucontext);
+#endif
 #if NODE_USE_V8_WASM_TRAP_HANDLER
-static std::atomic<void (*)(int signo, siginfo_t* info, void* ucontext)>
-    previous_sigsegv_action;
+static std::atomic<sigaction_cb> previous_sigsegv_action;
 
 void TrapWebAssemblyOrContinue(int signo, siginfo_t* info, void* ucontext) {
   if (!v8::TryHandleWebAssemblyTrapPosix(signo, info, ucontext)) {
-    auto prev = previous_sigsegv_action.load();
+    sigaction_cb prev = previous_sigsegv_action.load();
     if (prev != nullptr) {
       prev(signo, info, ucontext);
     } else {
@@ -502,13 +504,13 @@ void TrapWebAssemblyOrContinue(int signo, siginfo_t* info, void* ucontext) {
 
 #ifdef __POSIX__
 void RegisterSignalHandler(int signal,
-                           void (*handler)(int signal,
-                                           siginfo_t* info,
-                                           void* ucontext),
+                           sigaction_cb handler,
                            bool reset_handler) {
+  CHECK_NOT_NULL(handler);
 #if NODE_USE_V8_WASM_TRAP_HANDLER
   if (signal == SIGSEGV) {
     CHECK(previous_sigsegv_action.is_lock_free());
+    CHECK(!reset_handler);
     previous_sigsegv_action.store(handler);
     return;
   }
