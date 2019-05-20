@@ -271,7 +271,7 @@ void Worker::Run() {
         HandleScope handle_scope(isolate_);
         AsyncCallbackScope callback_scope(env_.get());
         env_->async_hooks()->push_async_ids(1, 0);
-        if (!RunBootstrapping(env_.get()).IsEmpty()) {
+        if (!env_->RunBootstrapping().IsEmpty()) {
           CreateEnvMessagePort(env_.get());
           if (is_stopped()) return;
           Debug(this, "Created message port for worker %llu", thread_id_);
