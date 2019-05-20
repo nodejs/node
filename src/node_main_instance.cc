@@ -205,7 +205,7 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
   }
 
   env->InitializeDiagnostics();
-  if (RunBootstrapping(env.get()).IsEmpty()) {
+  if (env->RunBootstrapping().IsEmpty()) {
     *exit_code = 1;
   }
 

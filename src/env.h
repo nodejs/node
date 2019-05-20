@@ -806,6 +806,10 @@ class Environment : public MemoryRetainer {
 #endif
   void InitializeDiagnostics();
 
+  v8::MaybeLocal<v8::Value> BootstrapInternalLoaders();
+  v8::MaybeLocal<v8::Value> BootstrapNode();
+  v8::MaybeLocal<v8::Value> RunBootstrapping();
+
   inline size_t async_callback_scope_depth() const;
   inline void PushAsyncCallbackScope();
   inline void PopAsyncCallbackScope();

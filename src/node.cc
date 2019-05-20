@@ -129,7 +129,6 @@ using options_parser::kAllowedInEnvironment;
 using options_parser::kDisallowedInEnvironment;
 
 using v8::Boolean;
-using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
@@ -282,99 +281,111 @@ void Environment::InitializeDiagnostics() {
 #endif
 }
 
-MaybeLocal<Value> RunBootstrapping(Environment* env) {
-  CHECK(!env->has_run_bootstrapping_code());
-
-  EscapableHandleScope scope(env->isolate());
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
-
-
-  // Add a reference to the global object
-  Local<Object> global = context->Global();
-  Local<Object> process = env->process_object();
-
-  // Setting global properties for the bootstrappers to use:
-  // - global
-  // Expose the global object as a property on itself
-  // (Allows you to set stuff on `global` from anywhere in JavaScript.)
-  global->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global)
-      .Check();
-
+MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
+  EscapableHandleScope scope(isolate_);
 
   // Create binding loaders
   std::vector<Local<String>> loaders_params = {
-      env->process_string(),
-      FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
-      FIXED_ONE_BYTE_STRING(isolate, "getInternalBinding"),
-      env->primordials_string()};
+      process_string(),
+      FIXED_ONE_BYTE_STRING(isolate_, "getLinkedBinding"),
+      FIXED_ONE_BYTE_STRING(isolate_, "getInternalBinding"),
+      primordials_string()};
   std::vector<Local<Value>> loaders_args = {
-      process,
-      env->NewFunctionTemplate(binding::GetLinkedBinding)
-          ->GetFunction(context)
+      process_object(),
+      NewFunctionTemplate(binding::GetLinkedBinding)
+          ->GetFunction(context())
           .ToLocalChecked(),
-      env->NewFunctionTemplate(binding::GetInternalBinding)
-          ->GetFunction(context)
+      NewFunctionTemplate(binding::GetInternalBinding)
+          ->GetFunction(context())
           .ToLocalChecked(),
-      env->primordials()};
+      primordials()};
 
   // Bootstrap internal loaders
-  MaybeLocal<Value> loader_exports = ExecuteBootstrapper(
-      env, "internal/bootstrap/loaders", &loaders_params, &loaders_args);
-  if (loader_exports.IsEmpty()) {
+  Local<Value> loader_exports;
+  if (!ExecuteBootstrapper(
+           this, "internal/bootstrap/loaders", &loaders_params, &loaders_args)
+           .ToLocal(&loader_exports)) {
     return MaybeLocal<Value>();
   }
-
-  Local<Object> loader_exports_obj =
-      loader_exports.ToLocalChecked().As<Object>();
+  CHECK(loader_exports->IsObject());
+  Local<Object> loader_exports_obj = loader_exports.As<Object>();
   Local<Value> internal_binding_loader =
-      loader_exports_obj->Get(context, env->internal_binding_string())
+      loader_exports_obj->Get(context(), internal_binding_string())
           .ToLocalChecked();
-  env->set_internal_binding_loader(internal_binding_loader.As<Function>());
-
+  CHECK(internal_binding_loader->IsFunction());
+  set_internal_binding_loader(internal_binding_loader.As<Function>());
   Local<Value> require =
-      loader_exports_obj->Get(context, env->require_string()).ToLocalChecked();
-  env->set_native_module_require(require.As<Function>());
+      loader_exports_obj->Get(context(), require_string()).ToLocalChecked();
+  CHECK(require->IsFunction());
+  set_native_module_require(require.As<Function>());
+
+  return scope.Escape(loader_exports);
+}
+
+MaybeLocal<Value> Environment::BootstrapNode() {
+  EscapableHandleScope scope(isolate_);
+
+  Local<Object> global = context()->Global();
+  // TODO(joyeecheung): this can be done in JS land now.
+  global->Set(context(), FIXED_ONE_BYTE_STRING(isolate_, "global"), global)
+      .Check();
 
   // process, require, internalBinding, isMainThread,
   // ownsProcessState, primordials
   std::vector<Local<String>> node_params = {
-      env->process_string(),
-      env->require_string(),
-      env->internal_binding_string(),
-      FIXED_ONE_BYTE_STRING(isolate, "isMainThread"),
-      FIXED_ONE_BYTE_STRING(isolate, "ownsProcessState"),
-      env->primordials_string()};
+      process_string(),
+      require_string(),
+      internal_binding_string(),
+      FIXED_ONE_BYTE_STRING(isolate_, "isMainThread"),
+      FIXED_ONE_BYTE_STRING(isolate_, "ownsProcessState"),
+      primordials_string()};
   std::vector<Local<Value>> node_args = {
-      process,
-      require,
-      internal_binding_loader,
-      Boolean::New(isolate, env->is_main_thread()),
-      Boolean::New(isolate, env->owns_process_state()),
-      env->primordials()};
+      process_object(),
+      native_module_require(),
+      internal_binding_loader(),
+      Boolean::New(isolate_, is_main_thread()),
+      Boolean::New(isolate_, owns_process_state()),
+      primordials()};
 
   MaybeLocal<Value> result = ExecuteBootstrapper(
-      env, "internal/bootstrap/node", &node_params, &node_args);
+      this, "internal/bootstrap/node", &node_params, &node_args);
 
   Local<Object> env_var_proxy;
-  if (!CreateEnvVarProxy(context, isolate, env->as_callback_data())
+  if (!CreateEnvVarProxy(context(), isolate_, as_callback_data())
            .ToLocal(&env_var_proxy) ||
-      process
-          ->Set(env->context(),
-                FIXED_ONE_BYTE_STRING(env->isolate(), "env"),
-                env_var_proxy)
-          .IsNothing())
+      process_object()
+          ->Set(
+              context(), FIXED_ONE_BYTE_STRING(isolate_, "env"), env_var_proxy)
+          .IsNothing()) {
     return MaybeLocal<Value>();
+  }
+
+  return scope.EscapeMaybe(result);
+}
+
+MaybeLocal<Value> Environment::RunBootstrapping() {
+  EscapableHandleScope scope(isolate_);
+
+  CHECK(!has_run_bootstrapping_code());
+
+  if (BootstrapInternalLoaders().IsEmpty()) {
+    return MaybeLocal<Value>();
+  }
+
+  Local<Value> result;
+  if (!BootstrapNode().ToLocal(&result)) {
+    return MaybeLocal<Value>();
+  }
 
   // Make sure that no request or handle is created during bootstrap -
   // if necessary those should be done in pre-execution.
   // TODO(joyeecheung): print handles/requests before aborting
-  CHECK(env->req_wrap_queue()->IsEmpty());
-  CHECK(env->handle_wrap_queue()->IsEmpty());
+  CHECK(req_wrap_queue()->IsEmpty());
+  CHECK(handle_wrap_queue()->IsEmpty());
 
-  env->set_has_run_bootstrapping_code(true);
+  set_has_run_bootstrapping_code(true);
 
-  return scope.EscapeMaybe(result);
+  return scope.Escape(result);
 }
 
 void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
