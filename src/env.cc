@@ -235,6 +235,32 @@ uint64_t Environment::AllocateThreadId() {
   return next_thread_id++;
 }
 
+void Environment::CreateProperties() {
+  HandleScope handle_scope(isolate_);
+  Local<Context> ctx = context();
+  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
+  templ->InstanceTemplate()->SetInternalFieldCount(1);
+  Local<Object> obj = templ->GetFunction(ctx)
+                          .ToLocalChecked()
+                          ->NewInstance(ctx)
+                          .ToLocalChecked();
+  obj->SetAlignedPointerInInternalField(0, this);
+  set_as_callback_data(obj);
+  set_as_callback_data_template(templ);
+
+  // Store primordials setup by the per-context script in the environment.
+  Local<Object> per_context_bindings =
+      GetPerContextExports(ctx).ToLocalChecked();
+  Local<Value> primordials =
+      per_context_bindings->Get(ctx, primordials_string()).ToLocalChecked();
+  CHECK(primordials->IsObject());
+  set_primordials(primordials.As<Object>());
+
+  Local<Object> process_object =
+      node::CreateProcessObject(this).FromMaybe(Local<Object>());
+  set_process_object(process_object);
+}
+
 Environment::Environment(IsolateData* isolate_data,
                          Local<Context> context,
                          const std::vector<std::string>& args,
@@ -258,16 +284,6 @@ Environment::Environment(IsolateData* isolate_data,
   // We'll be creating new objects so make sure we've entered the context.
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context);
-  {
-    Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
-    templ->InstanceTemplate()->SetInternalFieldCount(1);
-    Local<Object> obj =
-        templ->GetFunction(context).ToLocalChecked()->NewInstance(
-            context).ToLocalChecked();
-    obj->SetAlignedPointerInInternalField(0, this);
-    set_as_callback_data(obj);
-    set_as_callback_data_template(templ);
-  }
 
   set_env_vars(per_process::system_environment);
 
@@ -339,7 +355,9 @@ Environment::Environment(IsolateData* isolate_data,
     async_hooks_.no_force_checks();
   }
 
-  set_process_object(node::CreateProcessObject(this).ToLocalChecked());
+  // TODO(joyeecheung): deserialize when the snapshot covers the environment
+  // properties.
+  CreateProperties();
 }
 
 CompileFnEntry::CompileFnEntry(Environment* env, uint32_t id)

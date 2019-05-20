@@ -796,6 +796,8 @@ class Environment : public MemoryRetainer {
   bool IsRootNode() const override { return true; }
   void MemoryInfo(MemoryTracker* tracker) const override;
 
+  void CreateProperties();
+
   inline size_t async_callback_scope_depth() const;
   inline void PushAsyncCallbackScope();
   inline void PopAsyncCallbackScope();
