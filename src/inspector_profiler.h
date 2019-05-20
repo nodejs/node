@@ -115,7 +115,7 @@ class V8HeapProfilerConnection : public V8ProfilerConnection {
   void Start() override;
   void End() override;
 
-  const char* type() const override { return type_.c_str(); }
+  const char* type() const override { return "heap"; }
   bool ending() const override { return ending_; }
 
   std::string GetDirectory() const override;
@@ -125,7 +125,6 @@ class V8HeapProfilerConnection : public V8ProfilerConnection {
  private:
   std::unique_ptr<inspector::InspectorSession> session_;
   bool ending_ = false;
-  std::string type_ = "heap";
 };
 
 }  // namespace profiler

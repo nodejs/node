@@ -407,7 +407,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::heap_prof_dir);
   AddOption("--heap-prof-interval",
             "specified sampling interval in bytes for the V8 heap "
-            "profile generated with --heap-prof. (default: 32 * 1024)",
+            "profile generated with --heap-prof. (default: 512 * 1024)",
             &EnvironmentOptions::heap_prof_interval);
 #endif  // HAVE_INSPECTOR
   AddOption("--redirect-warnings",
