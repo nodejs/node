@@ -21,7 +21,11 @@ contribute:
 3. By helping to resolve the issue: Typically this is done either in the form
    of demonstrating that the issue reported is not a problem after all, or more
    often, by opening a Pull Request that changes some bit of something in
-   `nodejs/node` in a concrete and reviewable manner.
+   `nodejs/node` in a concrete and reviewable manner. 
+
+New contributors may find the tagging system useful, especially the "good first issue" tag. A collection of the issues identified as good first issues can be found here: "https://github.com/nodejs/node/contribute".
+
+When submitting, please also remember to submit your pull requests properly by following the directions here: https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md
 
 ## Asking for General Help
 
