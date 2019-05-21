@@ -72,7 +72,7 @@
 
     ##### end V8 defaults #####
 
-    # This variable need to be updated when N-API version change
+    # This variable needs to be updated when N-API version change
     'napi_build_version': 4,
 
     'conditions': [
