@@ -99,14 +99,6 @@
 # endif
 #endif
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-// Internally, do not include util-inl.h into files unless they need it's
-// inline definitions.
-#else
-// Externally, it must be included for backwards API compatibility.
-#  include <util-inl.h>
-#endif
-
 // Forward-declare libuv loop
 struct uv_loop_s;
 
