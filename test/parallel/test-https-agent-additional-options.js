@@ -42,7 +42,26 @@ const updatedValues = new Map([
 function variations(iter, port, cb) {
   const { done, value } = iter.next();
   if (done) {
-    return common.mustCall(cb);
+    return common.mustCall((res) => {
+      res.resume();
+      https.globalAgent.once('free', common.mustCall(() => {
+        // Verify that different keep-alived connections are created
+        // for the base call and each variation
+        const keys = Object.keys(https.globalAgent.freeSockets);
+        assert.strictEqual(keys.length, 1 + updatedValues.size);
+        let i = 1;
+        for (const [, value] of updatedValues) {
+          assert.ok(
+            keys[i].startsWith(value.toString() + ':') ||
+            keys[i].endsWith(':' + value.toString()) ||
+            keys[i].includes(':' + value.toString() + ':')
+          );
+          i++;
+        }
+        https.globalAgent.destroy();
+        server.close();
+      }));
+    });
   } else {
     const [key, val] = value;
     return common.mustCall((res) => {
@@ -59,30 +78,6 @@ function variations(iter, port, cb) {
 
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;
-  const globalAgent = https.globalAgent;
-  globalAgent.keepAlive = true;
-  https.get(getBaseOptions(port), variations(
-    updatedValues.entries(),
-    port,
-    common.mustCall((res) => {
-      res.resume();
-      globalAgent.once('free', common.mustCall(() => {
-        // Verify that different keep-alived connections are created
-        // for the base call and each variation
-        const keys = Object.keys(globalAgent.freeSockets);
-        assert.strictEqual(keys.length, 1 + updatedValues.size);
-        let i = 1;
-        for (const [, value] of updatedValues) {
-          assert.ok(
-            keys[i].startsWith(value.toString() + ':') ||
-            keys[i].endsWith(':' + value.toString()) ||
-            keys[i].includes(':' + value.toString() + ':')
-          );
-          i++;
-        }
-        globalAgent.destroy();
-        server.close();
-      }));
-    })
-  ));
+  https.globalAgent.keepAlive = true;
+  https.get(getBaseOptions(port), variations(updatedValues.entries(), port));
 }));
