@@ -38,16 +38,19 @@ const MB = KB * KB;
   grep.stdout._handle.readStart = common.mustNotCall();
 
   [cat, grep, wc].forEach((child, index) => {
-    child.stderr.on('data', (d) => {
+    const errorHandler = (thing, type) => {
       // Don't want to assert here, as we might miss error code info.
-      console.error(`got unexpected data from child #${index}:\n${d}`);
-    });
-    child.on('exit', common.mustCall(function(code) {
-      assert.strictEqual(code, 0);
+      console.error(`unexpected ${type} from child #${index}:\n${thing}`);
+    };
+
+    child.stderr.on('data', (d) => { errorHandler(d, 'data'); });
+    child.on('error', (err) => { errorHandler(err, 'error'); });
+    child.on('exit', common.mustCall((code) => {
+      assert.strictEqual(code, 0, `child ${index} exited with code ${code}`);
     }));
   });
 
-  wc.stdout.on('data', common.mustCall(function(data) {
+  wc.stdout.on('data', common.mustCall((data) => {
     assert.strictEqual(data.toString().trim(), MB.toString());
   }));
 }
