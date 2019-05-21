@@ -127,7 +127,7 @@ if (isMainThread) {
 
 ## worker.receiveMessageOnPort(port)
 <!-- YAML
-added: REPLACEME
+added: v12.3.0
 -->
 
 * `port` {MessagePort}
