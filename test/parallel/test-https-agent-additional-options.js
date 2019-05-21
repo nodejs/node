@@ -15,7 +15,7 @@ const options = {
   minVersion: 'TLSv1.1',
 };
 
-const server = https.Server(options, function(req, res) {
+const server = https.Server(options, (req, res) => {
   res.writeHead(200);
   res.end('hello world\n');
 });
@@ -45,9 +45,9 @@ function variations(iter, port, cb) {
     return common.mustCall(cb);
   } else {
     const [key, val] = value;
-    return common.mustCall(function(res) {
+    return common.mustCall((res) => {
       res.resume();
-      https.globalAgent.once('free', common.mustCall(function() {
+      https.globalAgent.once('free', common.mustCall(() => {
         https.get(
           Object.assign({}, getBaseOptions(port), { [key]: val }),
           variations(iter, port, cb)
@@ -57,16 +57,16 @@ function variations(iter, port, cb) {
   }
 }
 
-server.listen(0, common.mustCall(function() {
-  const port = this.address().port;
+server.listen(0, common.mustCall(() => {
+  const port = server.address().port;
   const globalAgent = https.globalAgent;
   globalAgent.keepAlive = true;
   https.get(getBaseOptions(port), variations(
     updatedValues.entries(),
     port,
-    common.mustCall(function(res) {
+    common.mustCall((res) => {
       res.resume();
-      globalAgent.once('free', common.mustCall(function() {
+      globalAgent.once('free', common.mustCall(() => {
         // Verify that different keep-alived connections are created
         // for the base call and each variation
         const keys = Object.keys(globalAgent.freeSockets);
