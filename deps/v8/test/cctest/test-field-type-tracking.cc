@@ -2883,6 +2883,192 @@ TEST(HoleyMutableHeapNumber) {
   CHECK_EQ(kHoleNanInt64, MutableHeapNumber::cast(*obj)->value_as_bits());
 }
 
+namespace {
+
+template <class... Args>
+MaybeHandle<Object> Call(Isolate* isolate, Handle<JSFunction> function,
+                         Args... args) {
+  Handle<Object> argv[] = {args...};
+  return Execution::Call(isolate, function,
+                         isolate->factory()->undefined_value(), sizeof...(args),
+                         argv);
+}
+
+void TestStoreToConstantField(const char* store_func_source,
+                              Handle<Object> value1, Handle<Object> value2,
+                              Representation expected_rep,
+                              PropertyConstness expected_constness,
+                              int store_repetitions) {
+  Isolate* isolate = CcTest::i_isolate();
+  CompileRun(store_func_source);
+
+  Handle<JSFunction> store_func = GetGlobal<JSFunction>("store");
+
+  const PropertyConstness kExpectedInitialFieldConstness =
+      FLAG_track_constant_fields ? PropertyConstness::kConst
+                                 : PropertyConstness::kMutable;
+
+  Handle<Map> initial_map = Map::Create(isolate, 4);
+
+  // Store value1 to obj1 and check that it got property with expected
+  // representation and constness.
+  Handle<JSObject> obj1 = isolate->factory()->NewJSObjectFromMap(initial_map);
+  for (int i = 0; i < store_repetitions; i++) {
+    Call(isolate, store_func, obj1, value1).Check();
+  }
+
+  Handle<Map> map(obj1->map(), isolate);
+  CHECK(!map->is_dictionary_map());
+  CHECK(!map->is_deprecated());
+  CHECK_EQ(1, map->NumberOfOwnDescriptors());
+
+  CHECK(map->instance_descriptors()->GetDetails(0).representation().Equals(
+      expected_rep));
+  CHECK_EQ(kExpectedInitialFieldConstness,
+           map->instance_descriptors()->GetDetails(0).constness());
+
+  // Store value2 to obj2 and check that it got same map and property details
+  // did not change.
+  Handle<JSObject> obj2 = isolate->factory()->NewJSObjectFromMap(initial_map);
+  Call(isolate, store_func, obj2, value2).Check();
+
+  CHECK_EQ(*map, obj2->map());
+  CHECK(!map->is_dictionary_map());
+  CHECK(!map->is_deprecated());
+  CHECK_EQ(1, map->NumberOfOwnDescriptors());
+
+  CHECK(map->instance_descriptors()->GetDetails(0).representation().Equals(
+      expected_rep));
+  CHECK_EQ(kExpectedInitialFieldConstness,
+           map->instance_descriptors()->GetDetails(0).constness());
+
+  // Store value2 to obj1 and check that property became mutable.
+  Call(isolate, store_func, obj1, value2).Check();
+
+  CHECK_EQ(*map, obj1->map());
+  CHECK(!map->is_dictionary_map());
+  CHECK(!map->is_deprecated());
+  CHECK_EQ(1, map->NumberOfOwnDescriptors());
+
+  CHECK(map->instance_descriptors()->GetDetails(0).representation().Equals(
+      expected_rep));
+  CHECK_EQ(expected_constness,
+           map->instance_descriptors()->GetDetails(0).constness());
+}
+
+void TestStoreToConstantField_PlusMinusZero(const char* store_func_source,
+                                            int store_repetitions) {
+  Isolate* isolate = CcTest::i_isolate();
+  CompileRun(store_func_source);
+
+  Handle<Object> minus_zero = isolate->factory()->NewNumber(-0.0);
+  Handle<Object> plus_zero = isolate->factory()->NewNumber(0.0);
+
+  // +0 and -0 are treated as not equal upon stores.
+  const PropertyConstness kExpectedFieldConstness = PropertyConstness::kMutable;
+
+  TestStoreToConstantField(store_func_source, minus_zero, plus_zero,
+                           Representation::Double(), kExpectedFieldConstness,
+                           store_repetitions);
+}
+
+void TestStoreToConstantField_NaN(const char* store_func_source,
+                                  int store_repetitions) {
+  Isolate* isolate = CcTest::i_isolate();
+  CompileRun(store_func_source);
+
+  uint64_t nan_bits = uint64_t{0x7FF8000000000001};
+  double nan_double1 = bit_cast<double>(nan_bits);
+  double nan_double2 = bit_cast<double>(nan_bits | 0x12300);
+  CHECK(std::isnan(nan_double1));
+  CHECK(std::isnan(nan_double2));
+  CHECK_NE(nan_double1, nan_double2);
+  CHECK_NE(bit_cast<uint64_t>(nan_double1), bit_cast<uint64_t>(nan_double2));
+
+  Handle<Object> nan1 = isolate->factory()->NewNumber(nan_double1);
+  Handle<Object> nan2 = isolate->factory()->NewNumber(nan_double2);
+
+  // NaNs with different bit patters are treated as equal upon stores.
+  const PropertyConstness kExpectedFieldConstness =
+      FLAG_track_constant_fields ? PropertyConstness::kConst
+                                 : PropertyConstness::kMutable;
+
+  TestStoreToConstantField(store_func_source, nan1, nan2,
+                           Representation::Double(), kExpectedFieldConstness,
+                           store_repetitions);
+}
+
+}  // namespace
+
+TEST(StoreToConstantField_PlusMinusZero) {
+  FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* store_func_source =
+      "function store(o, v) {"
+      "  %SetNamedProperty(o, 'v', v);"
+      "}";
+
+  TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
+  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
+
+  TestStoreToConstantField_NaN(store_func_source, 1);
+  TestStoreToConstantField_NaN(store_func_source, 2);
+}
+
+TEST(StoreToConstantField_ObjectDefineProperty) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* store_func_source =
+      "function store(o, v) {"
+      "  Object.defineProperty(o, 'v', "
+      "                        {value: v, "
+      "                         writable: true, "
+      "                         configurable: true, "
+      "                         enumerable: true});"
+      "}";
+
+  TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
+  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
+
+  TestStoreToConstantField_NaN(store_func_source, 1);
+  TestStoreToConstantField_NaN(store_func_source, 2);
+}
+
+TEST(StoreToConstantField_ReflectSet) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* store_func_source =
+      "function store(o, v) {"
+      "  Reflect.set(o, 'v', v);"
+      "}";
+
+  TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
+  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
+
+  TestStoreToConstantField_NaN(store_func_source, 1);
+  TestStoreToConstantField_NaN(store_func_source, 2);
+}
+
+TEST(StoreToConstantField_StoreIC) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* store_func_source =
+      "function store(o, v) {"
+      "  o.v = v;"
+      "}";
+
+  TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
+  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
+
+  TestStoreToConstantField_NaN(store_func_source, 1);
+  TestStoreToConstantField_NaN(store_func_source, 2);
+}
+
 }  // namespace test_field_type_tracking
 }  // namespace compiler
 }  // namespace internal

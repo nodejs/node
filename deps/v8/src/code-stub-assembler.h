@@ -3095,7 +3095,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // ECMA#sec-samevalue
   // Similar to StrictEqual except that NaNs are treated as equal and minus zero
   // differs from positive zero.
-  void BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true, Label* if_false);
+  enum class SameValueMode { kNumbersOnly, kFull };
+  void BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true, Label* if_false,
+                         SameValueMode mode = SameValueMode::kFull);
+  // A part of BranchIfSameValue() that handles two double values.
+  // Treats NaN == NaN and +0 != -0.
+  void BranchIfSameNumberValue(TNode<Float64T> lhs_value,
+                               TNode<Float64T> rhs_value, Label* if_true,
+                               Label* if_false);
 
   enum HasPropertyLookupMode { kHasProperty, kForInHasProperty };
 

@@ -383,6 +383,16 @@ double Object::Number() const {
                  : HeapNumber::unchecked_cast(*this)->value();
 }
 
+// static
+bool Object::SameNumberValue(double value1, double value2) {
+  // SameNumberValue(NaN, NaN) is true.
+  if (value1 != value2) {
+    return std::isnan(value1) && std::isnan(value2);
+  }
+  // SameNumberValue(0.0, -0.0) is false.
+  return (std::signbit(value1) == std::signbit(value2));
+}
+
 bool Object::IsNaN() const {
   return this->IsHeapNumber() && std::isnan(HeapNumber::cast(*this)->value());
 }
