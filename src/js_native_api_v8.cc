@@ -2138,21 +2138,6 @@ napi_status napi_get_value_string_utf16(napi_env env,
   return napi_clear_last_error(env);
 }
 
-napi_status napi_coerce_to_object(napi_env env,
-                                  napi_value value,
-                                  napi_value* result) {
-  NAPI_PREAMBLE(env);
-  CHECK_ARG(env, value);
-  CHECK_ARG(env, result);
-
-  v8::Local<v8::Context> context = env->context();
-  v8::Local<v8::Object> obj;
-  CHECK_TO_OBJECT(env, context, obj, value);
-
-  *result = v8impl::JsValueFromV8LocalValue(obj);
-  return GET_RETURN_STATUS(env);
-}
-
 napi_status napi_coerce_to_bool(napi_env env,
                                 napi_value value,
                                 napi_value* result) {
@@ -2167,37 +2152,28 @@ napi_status napi_coerce_to_bool(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
-napi_status napi_coerce_to_number(napi_env env,
-                                  napi_value value,
-                                  napi_value* result) {
-  NAPI_PREAMBLE(env);
-  CHECK_ARG(env, value);
-  CHECK_ARG(env, result);
+#define GEN_COERCE_FUNCTION(UpperCaseName, MixedCaseName, LowerCaseName)      \
+  napi_status napi_coerce_to_##LowerCaseName(napi_env env,                    \
+                                             napi_value value,                \
+                                             napi_value* result) {            \
+    NAPI_PREAMBLE(env);                                                       \
+    CHECK_ARG(env, value);                                                    \
+    CHECK_ARG(env, result);                                                   \
+                                                                              \
+    v8::Local<v8::Context> context = env->context();                          \
+    v8::Local<v8::MixedCaseName> str;                                         \
+                                                                              \
+    CHECK_TO_##UpperCaseName(env, context, str, value);                       \
+                                                                              \
+    *result = v8impl::JsValueFromV8LocalValue(str);                           \
+    return GET_RETURN_STATUS(env);                                            \
+  }
 
-  v8::Local<v8::Context> context = env->context();
-  v8::Local<v8::Number> num;
+GEN_COERCE_FUNCTION(NUMBER, Number, number)
+GEN_COERCE_FUNCTION(OBJECT, Object, object)
+GEN_COERCE_FUNCTION(STRING, String, string)
 
-  CHECK_TO_NUMBER(env, context, num, value);
-
-  *result = v8impl::JsValueFromV8LocalValue(num);
-  return GET_RETURN_STATUS(env);
-}
-
-napi_status napi_coerce_to_string(napi_env env,
-                                  napi_value value,
-                                  napi_value* result) {
-  NAPI_PREAMBLE(env);
-  CHECK_ARG(env, value);
-  CHECK_ARG(env, result);
-
-  v8::Local<v8::Context> context = env->context();
-  v8::Local<v8::String> str;
-
-  CHECK_TO_STRING(env, context, str, value);
-
-  *result = v8impl::JsValueFromV8LocalValue(str);
-  return GET_RETURN_STATUS(env);
-}
+#undef GEN_COERCE_FUNCTION
 
 napi_status napi_wrap(napi_env env,
                       napi_value js_object,
