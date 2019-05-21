@@ -49,6 +49,18 @@ Returns an object containing commonly used operating system specific constants
 for error codes, process signals, and so on. The specific constants currently
 defined are described in [OS Constants](#os_os_constants_1).
 
+## os.constrainedmem()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {integer}
+
+The `os.constrainedmem()` method returns the an integer that represents the
+amount of memory available to the process (in bytes) based on limits imposed by
+the operating system. If there is no such constraint, or the constraint is
+unknown, `0` is returned.
+
 ## os.cpus()
 <!-- YAML
 added: v0.3.3

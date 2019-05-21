@@ -151,6 +151,14 @@ static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void GetConstrainedMemory(const FunctionCallbackInfo<Value>& args) {
+  double amount = uv_get_constrained_memory();
+  if (amount < 0)
+    return;
+  args.GetReturnValue().Set(amount);
+}
+
+
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
   double uptime;
   int err = uv_uptime(&uptime);
@@ -390,6 +398,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getUptime", GetUptime);
   env->SetMethod(target, "getTotalMem", GetTotalMemory);
   env->SetMethod(target, "getFreeMem", GetFreeMemory);
+  env->SetMethod(target, "getConstrainedMem", GetConstrainedMemory);
   env->SetMethod(target, "getCPUs", GetCPUInfo);
   env->SetMethod(target, "getOSType", GetOSType);
   env->SetMethod(target, "getOSRelease", GetOSRelease);

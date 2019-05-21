@@ -126,6 +126,7 @@ if (!common.isSunOS) {
   assert.ok(os.loadavg().length > 0);
   assert.ok(os.freemem() > 0);
   assert.ok(os.totalmem() > 0);
+  assert.ok(os.constrainedmem() >= 0);
 }
 
 const interfaces = os.networkInterfaces();
@@ -249,3 +250,6 @@ is.number(os.uptime(), 'uptime');
 
 is.number(+os.freemem, 'freemem');
 is.number(os.freemem(), 'freemem');
+
+is.number(+os.constrainedmem, 'constrainedmem');
+is.number(os.constrainedmem(), 'constrainedmem');
