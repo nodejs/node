@@ -39,41 +39,35 @@ const updatedValues = new Map([
   ['sessionIdContext', 'sessionIdContext'],
 ]);
 
+let value;
 function variations(iter, port, cb) {
-  const { done, value } = iter.next();
-  if (done) {
-    return common.mustCall((res) => {
-      res.resume();
-      https.globalAgent.once('free', common.mustCall(() => {
-        // Verify that different keep-alived connections are created
-        // for the base call and each variation
-        const keys = Object.keys(https.globalAgent.freeSockets);
-        assert.strictEqual(keys.length, 1 + updatedValues.size);
-        let i = 1;
-        for (const [, value] of updatedValues) {
-          assert.ok(
-            keys[i].startsWith(value.toString() + ':') ||
-            keys[i].endsWith(':' + value.toString()) ||
-            keys[i].includes(':' + value.toString() + ':')
-          );
-          i++;
-        }
+  return common.mustCall((res) => {
+    res.resume();
+    https.globalAgent.once('free', common.mustCall(() => {
+      // Verify that the most recent connection is in the freeSockets pool.
+      const keys = Object.keys(https.globalAgent.freeSockets);
+      if (value) {
+        assert.ok(
+          keys.some((val) => val.startsWith(value.toString() + ':') ||
+                            val.endsWith(':' + value.toString()) ||
+                            val.includes(':' + value.toString() + ':')),
+          `missing value: ${value.toString()} in ${keys}`
+        );
+      }
+      const next = iter.next();
+
+      if (next.done) {
         https.globalAgent.destroy();
         server.close();
-      }));
-    });
-  } else {
-    const [key, val] = value;
-    return common.mustCall((res) => {
-      res.resume();
-      https.globalAgent.once('free', common.mustCall(() => {
-        https.get(
-          Object.assign({}, getBaseOptions(port), { [key]: val }),
-          variations(iter, port, cb)
-        );
-      }));
-    });
-  }
+      } else {
+        // Save `value` for check the next time.
+        value = next.value.val;
+        const [key, val] = next.value;
+        https.get(Object.assign({}, getBaseOptions(port), { [key]: val }),
+                  variations(iter, port, cb));
+      }
+    }));
+  });
 }
 
 server.listen(0, common.mustCall(() => {
