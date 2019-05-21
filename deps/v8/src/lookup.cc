@@ -934,10 +934,14 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
       // Uninitialized double field.
       return true;
     }
-    return bit_cast<double>(bits) == value->Number();
+    return Object::SameNumberValue(bit_cast<double>(bits), value->Number());
   } else {
     Object current_value = holder->RawFastPropertyAt(field_index);
-    return current_value->IsUninitialized(isolate()) || current_value == value;
+    if (current_value->IsUninitialized(isolate()) || current_value == value) {
+      return true;
+    }
+    return current_value->IsNumber() && value->IsNumber() &&
+           Object::SameNumberValue(current_value->Number(), value->Number());
   }
 }
 

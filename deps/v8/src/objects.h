@@ -854,6 +854,10 @@ class Object {
   // to implement the Object.is function.
   V8_EXPORT_PRIVATE bool SameValue(Object other);
 
+  // A part of SameValue which handles Number vs. Number case.
+  // Treats NaN == NaN and +0 != -0.
+  inline static bool SameNumberValue(double number1, double number2);
+
   // Checks whether this object has the same value as the given one.
   // +0 and -0 are treated equal. Everything else is the same as SameValue.
   // This function is implemented according to ES6, section 7.2.4 and is used

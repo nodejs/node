@@ -12367,7 +12367,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
 // This algorithm differs from the Strict Equality Comparison Algorithm in its
 // treatment of signed zeroes and NaNs.
 void CodeStubAssembler::BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true,
-                                          Label* if_false) {
+                                          Label* if_false, SameValueMode mode) {
   VARIABLE(var_lhs_value, MachineRepresentation::kFloat64);
   VARIABLE(var_rhs_value, MachineRepresentation::kFloat64);
   Label do_fcmp(this);
@@ -12413,10 +12413,12 @@ void CodeStubAssembler::BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true,
                  if_lhsisbigint(this);
              Node* const lhs_map = LoadMap(lhs);
              GotoIf(IsHeapNumberMap(lhs_map), &if_lhsisheapnumber);
-             Node* const lhs_instance_type = LoadMapInstanceType(lhs_map);
-             GotoIf(IsStringInstanceType(lhs_instance_type), &if_lhsisstring);
-             Branch(IsBigIntInstanceType(lhs_instance_type), &if_lhsisbigint,
-                    if_false);
+             if (mode != SameValueMode::kNumbersOnly) {
+               Node* const lhs_instance_type = LoadMapInstanceType(lhs_map);
+               GotoIf(IsStringInstanceType(lhs_instance_type), &if_lhsisstring);
+               GotoIf(IsBigIntInstanceType(lhs_instance_type), &if_lhsisbigint);
+             }
+             Goto(if_false);
 
              BIND(&if_lhsisheapnumber);
              {
@@ -12426,53 +12428,62 @@ void CodeStubAssembler::BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true,
                Goto(&do_fcmp);
              }
 
-             BIND(&if_lhsisstring);
-             {
-               // Now we can only yield true if {rhs} is also a String
-               // with the same sequence of characters.
-               GotoIfNot(IsString(rhs), if_false);
-               Node* const result = CallBuiltin(Builtins::kStringEqual,
-                                                NoContextConstant(), lhs, rhs);
-               Branch(IsTrue(result), if_true, if_false);
-             }
+             if (mode != SameValueMode::kNumbersOnly) {
+               BIND(&if_lhsisstring);
+               {
+                 // Now we can only yield true if {rhs} is also a String
+                 // with the same sequence of characters.
+                 GotoIfNot(IsString(rhs), if_false);
+                 Node* const result = CallBuiltin(
+                     Builtins::kStringEqual, NoContextConstant(), lhs, rhs);
+                 Branch(IsTrue(result), if_true, if_false);
+               }
 
-             BIND(&if_lhsisbigint);
-             {
-               GotoIfNot(IsBigInt(rhs), if_false);
-               Node* const result = CallRuntime(Runtime::kBigIntEqualToBigInt,
-                                                NoContextConstant(), lhs, rhs);
-               Branch(IsTrue(result), if_true, if_false);
+               BIND(&if_lhsisbigint);
+               {
+                 GotoIfNot(IsBigInt(rhs), if_false);
+                 Node* const result =
+                     CallRuntime(Runtime::kBigIntEqualToBigInt,
+                                 NoContextConstant(), lhs, rhs);
+                 Branch(IsTrue(result), if_true, if_false);
+               }
              }
            });
   }
 
   BIND(&do_fcmp);
   {
-    Node* const lhs_value = var_lhs_value.value();
-    Node* const rhs_value = var_rhs_value.value();
+    TNode<Float64T> lhs_value = UncheckedCast<Float64T>(var_lhs_value.value());
+    TNode<Float64T> rhs_value = UncheckedCast<Float64T>(var_rhs_value.value());
+    BranchIfSameNumberValue(lhs_value, rhs_value, if_true, if_false);
+  }
+}
 
-    Label if_equal(this), if_notequal(this);
-    Branch(Float64Equal(lhs_value, rhs_value), &if_equal, &if_notequal);
+void CodeStubAssembler::BranchIfSameNumberValue(TNode<Float64T> lhs_value,
+                                                TNode<Float64T> rhs_value,
+                                                Label* if_true,
+                                                Label* if_false) {
+  Label if_equal(this), if_notequal(this);
+  Branch(Float64Equal(lhs_value, rhs_value), &if_equal, &if_notequal);
 
-    BIND(&if_equal);
-    {
-      // We still need to handle the case when {lhs} and {rhs} are -0.0 and
-      // 0.0 (or vice versa). Compare the high word to
-      // distinguish between the two.
-      Node* const lhs_hi_word = Float64ExtractHighWord32(lhs_value);
-      Node* const rhs_hi_word = Float64ExtractHighWord32(rhs_value);
+  BIND(&if_equal);
+  {
+    // We still need to handle the case when {lhs} and {rhs} are -0.0 and
+    // 0.0 (or vice versa). Compare the high word to
+    // distinguish between the two.
+    Node* const lhs_hi_word = Float64ExtractHighWord32(lhs_value);
+    Node* const rhs_hi_word = Float64ExtractHighWord32(rhs_value);
 
-      // If x is +0 and y is -0, return false.
-      // If x is -0 and y is +0, return false.
-      Branch(Word32Equal(lhs_hi_word, rhs_hi_word), if_true, if_false);
-    }
+    // If x is +0 and y is -0, return false.
+    // If x is -0 and y is +0, return false.
+    Branch(Word32Equal(lhs_hi_word, rhs_hi_word), if_true, if_false);
+  }
 
-    BIND(&if_notequal);
-    {
-      // Return true iff both {rhs} and {lhs} are NaN.
-      GotoIf(Float64Equal(lhs_value, lhs_value), if_false);
-      Branch(Float64Equal(rhs_value, rhs_value), if_false, if_true);
-    }
+  BIND(&if_notequal);
+  {
+    // Return true iff both {rhs} and {lhs} are NaN.
+    GotoIf(Float64Equal(lhs_value, lhs_value), if_false);
+    Branch(Float64Equal(rhs_value, rhs_value), if_false, if_true);
   }
 }
 
