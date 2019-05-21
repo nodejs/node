@@ -1608,7 +1608,7 @@ os.environ['PYTHON_EXECUTABLE'] = sys.executable
 
 write('config.mk', do_not_edit + config)
 
-gyp_args = ['--no-parallel', '-Dconfiguring_node=1', "-DPYTHON_EXECUTABLE=" + os.path.realpath(sys.executable)]
+gyp_args = ['--no-parallel', '-Dconfiguring_node=1', "-DPYTHON_EXECUTABLE=%s" % sys.executable]
 
 if options.use_ninja:
   gyp_args += ['-f', 'ninja']
