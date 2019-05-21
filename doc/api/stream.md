@@ -504,7 +504,7 @@ the status of the `highWaterMark`.
 
 ##### writable.writableObjectMode
 <!-- YAML
-added: REPLACEME
+added: v12.3.0
 -->
 
 Getter for the property `objectMode` of a given `Writable` stream.
@@ -1098,7 +1098,7 @@ the status of the `highWaterMark`.
 
 ##### readable.readableObjectMode
 <!-- YAML
-added: REPLACEME
+added: v12.3.0
 -->
 
 Getter for the property `objectMode` of a given `Readable` stream.

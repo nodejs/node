@@ -336,7 +336,7 @@ connections using TLS or SSL.
 
 ### Event: 'keylog'
 <!-- YAML
-added: REPLACEME
+added: v12.3.0
 -->
 
 * `line` {Buffer} Line of ASCII text, in NSS `SSLKEYLOGFILE` format.
@@ -654,7 +654,7 @@ Construct a new `tls.TLSSocket` object from an existing TCP socket.
 
 ### Event: 'keylog'
 <!-- YAML
-added: REPLACEME
+added: v12.3.0
 -->
 
 * `line` {Buffer} Line of ASCII text, in NSS `SSLKEYLOGFILE` format.
@@ -1486,7 +1486,7 @@ publicly trusted list of CAs as given in
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
+  - version: v12.3.0
     pr-url: https://github.com/nodejs/node/pull/27665
     description: The `options` parameter now supports `net.createServer()`
                  options.
@@ -1602,7 +1602,7 @@ console.log(tls.getCiphers()); // ['aes128-gcm-sha256', 'aes128-sha', ...]
 
 ## tls.rootCertificates
 <!-- YAML
-added: REPLACEME
+added: v12.3.0
 -->
 
 * {string[]}

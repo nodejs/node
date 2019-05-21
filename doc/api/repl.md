@@ -140,7 +140,7 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 #### Global Uncaught Exceptions
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.3.0
     pr-url: https://github.com/nodejs/node/pull/27151
     description: The `'uncaughtException'` event is from now on triggered if the
                  repl is used as standalone program.
