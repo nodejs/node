@@ -102,6 +102,17 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
+// Start the thread in blocking mode, and assert that all values are passed.
+// Quit after it's done.
+// Doesn't pass the callback js function to napi_create_threadsafe_function.
+// Instead, use an alternative reference to get js function called.
+.then(() => testWithJSMarshaller({
+  threadStarter: 'StartThreadNoJsFunc',
+  maxQueueSize: binding.MAX_QUEUE_SIZE,
+  quitAfter: binding.ARRAY_LENGTH
+}))
+.then((result) => assert.deepStrictEqual(result, expectedArray))
+
 // Start the thread in blocking mode with an infinite queue, and assert that all
 // values are passed. Quit after it's done.
 .then(() => testWithJSMarshaller({
