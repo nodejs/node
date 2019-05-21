@@ -1202,23 +1202,23 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
 
     BIND(&inobject);
     {
-      Node* field_offset = TimesTaggedSize(field_index);
+      TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_index));
       Label tagged_rep(this), double_rep(this);
       Branch(
           Word32Equal(representation, Int32Constant(Representation::kDouble)),
           &double_rep, &tagged_rep);
       BIND(&double_rep);
       {
-        Node* double_value = ChangeNumberToFloat64(value);
+        TNode<Float64T> double_value = ChangeNumberToFloat64(value);
         if (FLAG_unbox_double_fields) {
           if (do_transitioning_store) {
             StoreMap(object, object_map);
           } else if (FLAG_track_constant_fields) {
             Label if_mutable(this);
             GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-            Node* current_value =
-                LoadObjectField(object, field_offset, MachineType::Float64());
-            Branch(Float64Equal(current_value, double_value), &done, slow);
+            TNode<Float64T> current_value =
+                LoadObjectField<Float64T>(CAST(object), field_offset);
+            BranchIfSameNumberValue(current_value, double_value, &done, slow);
             BIND(&if_mutable);
           }
           StoreObjectFieldNoWriteBarrier(object, field_offset, double_value,
@@ -1234,8 +1234,9 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
             if (FLAG_track_constant_fields) {
               Label if_mutable(this);
               GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-              Node* current_value = LoadHeapNumberValue(mutable_heap_number);
-              Branch(Float64Equal(current_value, double_value), &done, slow);
+              TNode<Float64T> current_value =
+                  LoadHeapNumberValue(mutable_heap_number);
+              BranchIfSameNumberValue(current_value, double_value, &done, slow);
               BIND(&if_mutable);
             }
             StoreHeapNumberValue(mutable_heap_number, double_value);
@@ -1251,9 +1252,10 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
         } else if (FLAG_track_constant_fields) {
           Label if_mutable(this);
           GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-          Node* current_value =
-              LoadObjectField(object, field_offset, MachineType::AnyTagged());
-          Branch(WordEqual(current_value, value), &done, slow);
+          TNode<Object> current_value =
+              LoadObjectField(CAST(object), field_offset);
+          BranchIfSameValue(current_value, value, &done, slow,
+                            SameValueMode::kNumbersOnly);
           BIND(&if_mutable);
         }
         StoreObjectField(object, field_offset, value);
@@ -1303,12 +1305,13 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
         {
           Node* mutable_heap_number =
               LoadPropertyArrayElement(properties, backing_store_index);
-          Node* double_value = ChangeNumberToFloat64(value);
+          TNode<Float64T> double_value = ChangeNumberToFloat64(value);
           if (FLAG_track_constant_fields) {
             Label if_mutable(this);
             GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-            Node* current_value = LoadHeapNumberValue(mutable_heap_number);
-            Branch(Float64Equal(current_value, double_value), &done, slow);
+            TNode<Float64T> current_value =
+                LoadHeapNumberValue(mutable_heap_number);
+            BranchIfSameNumberValue(current_value, double_value, &done, slow);
             BIND(&if_mutable);
           }
           StoreHeapNumberValue(mutable_heap_number, double_value);
@@ -1319,9 +1322,10 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           if (FLAG_track_constant_fields) {
             Label if_mutable(this);
             GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-            Node* current_value =
+            TNode<Object> current_value =
                 LoadPropertyArrayElement(properties, backing_store_index);
-            Branch(WordEqual(current_value, value), &done, slow);
+            BranchIfSameValue(current_value, value, &done, slow,
+                              SameValueMode::kNumbersOnly);
             BIND(&if_mutable);
           }
           StorePropertyArrayElement(properties, backing_store_index, value);
@@ -1813,7 +1817,7 @@ void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
   }
 
   Node* index = DecodeWord<StoreHandler::FieldIndexBits>(handler_word);
-  Node* offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
+  TNode<IntPtrT> offset = Signed(TimesTaggedSize(index));
   if (representation.IsDouble()) {
     if (!FLAG_unbox_double_fields || !is_inobject) {
       // Load the mutable heap number.
@@ -1831,14 +1835,14 @@ void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
               &done);
     {
       if (store_value_as_double) {
-        Node* current_value =
-            LoadObjectField(property_storage, offset, MachineType::Float64());
-        GotoIfNot(Float64Equal(current_value, value), bailout);
+        TNode<Float64T> current_value =
+            LoadObjectField<Float64T>(CAST(property_storage), offset);
+        BranchIfSameNumberValue(current_value, UncheckedCast<Float64T>(value),
+                                &done, bailout);
       } else {
         Node* current_value = LoadObjectField(property_storage, offset);
-        GotoIfNot(WordEqual(current_value, value), bailout);
+        Branch(WordEqual(current_value, value), &done, bailout);
       }
-      Goto(&done);
     }
     BIND(&done);
   }
