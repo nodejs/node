@@ -478,7 +478,8 @@ typedef void (*napi_threadsafe_function_call_js)(napi_env env,
 - `[in] env`: The environment to use for API calls, or `NULL` if the thread-safe
 function is being torn down and `data` may need to be freed.
 - `[in] js_callback`: The JavaScript function to call, or `NULL` if the
-thread-safe function is being torn down and `data` may need to be freed.
+thread-safe function is being torn down and `data` may need to be freed. It may
+also be `NULL` if the thread-safe function was created without `js_callback`.
 - `[in] context`: The optional data with which the thread-safe function was
 created.
 - `[in] data`: Data created by the secondary thread. It is the responsibility of
@@ -4657,6 +4658,10 @@ prevent the event loop from exiting. The APIs `napi_ref_threadsafe_function` and
 <!-- YAML
 added: v10.6.0
 napiVersion: 4
+changes:
+  - version: v10.17.0
+    pr-url: https://github.com/nodejs/node/pull/27791
+    description: Made `func` parameter optional with custom `call_js_cb`.
 -->
 ```C
 NAPI_EXTERN napi_status
@@ -4674,7 +4679,8 @@ napi_create_threadsafe_function(napi_env env,
 ```
 
 - `[in] env`: The environment that the API is invoked under.
-- `[in] func`: The JavaScript function to call from another thread.
+- `[in] func`: An optional JavaScript function to call from another thread.
+It must be provided if `NULL` is passed to `call_js_cb`.
 - `[in] async_resource`: An optional object associated with the async work that
 will be passed to possible `async_hooks` [`init` hooks][].
 - `[in] async_resource_name`: A JavaScript string to provide an identifier for
