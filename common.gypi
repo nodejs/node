@@ -72,6 +72,9 @@
 
     ##### end V8 defaults #####
 
+    # This variable need to be updated when N-API version change
+    'napi_build_version': 4,
+
     'conditions': [
       ['target_arch=="arm64"', {
         # Disabled pending https://github.com/nodejs/node/issues/23913.
