@@ -336,7 +336,6 @@ class WPTRunner {
       fetch(file) {
         return resource.fetch(file);
       },
-      location: {},
       GLOBAL: {
         isWindow() { return false; }
       },
@@ -375,8 +374,6 @@ class WPTRunner {
     // TODO(joyeecheung): we are not a window - work with the upstream to
     // add a new scope for us.
 
-    const { Worker } = require('worker_threads');
-    sandbox.DedicatedWorker = Worker;  // Pretend we are a Worker
     return context;
   }
 
