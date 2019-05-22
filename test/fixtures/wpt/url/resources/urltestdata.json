@@ -4633,6 +4633,22 @@
     "search": "",
     "hash": ""
   },
+  "# unknown scheme with non-URL characters in the path",
+  {
+    "input": "wow:\uFFFF",
+    "base": "about:blank",
+    "href": "wow:%EF%BF%BF",
+    "origin": "null",
+    "protocol": "wow:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "%EF%BF%BF",
+    "search": "",
+    "hash": ""
+  },
   "# Hosts and percent-encoding",
   {
     "input": "ftp://example.com%80/",
