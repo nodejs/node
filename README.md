@@ -27,12 +27,12 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
     * [API Documentation](#api-documentation)
   * [Verifying Binaries](#verifying-binaries)
 * [Building Node.js](#building-nodejs)
+* [Contributing to Node.js](#contributing-to-nodejs)
 * [Security](#security)
 * [Current Project Team Members](#current-project-team-members)
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
   * [Release Keys](#release-keys)
-* [Contributing to Node.js](#contributing-to-nodejs)
 
 ## Support
 
