@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#12.3.1">12.3.1</a><br/>
 <a href="#12.3.0">12.3.0</a><br/>
 <a href="#12.2.0">12.2.0</a><br/>
 <a href="#12.1.0">12.1.0</a><br/>
@@ -30,6 +31,24 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.3.1"></a>
+## 2019-05-22, Version 12.3.1 (Current), @BridgeAR
+
+### Notable changes
+
+* **deps**:
+  * Fix handling of +0/-0 when constant field tracking is enabled (Michaël Zasso) [#27792](https://github.com/nodejs/node/pull/27792)
+  * Fix `os.freemem()` and `os.totalmem` correctness (cjihrig) [#27718](https://github.com/nodejs/node/pull/27718)
+* **src**:
+  * Fix v12.3.0 regression that prevents native addons from compiling [#27804](https://github.com/nodejs/node/pull/27804)
+
+### Commits
+
+* [[`c478884725`](https://github.com/nodejs/node/commit/c478884725)] - **deps**: V8: cherry-pick 94c87fe (Michaël Zasso) [#27792](https://github.com/nodejs/node/pull/27792)
+* [[`aed74ccb4c`](https://github.com/nodejs/node/commit/aed74ccb4c)] - **deps**: upgrade to libuv 1.29.1 (cjihrig) [#27718](https://github.com/nodejs/node/pull/27718)
+* [[`7438a557af`](https://github.com/nodejs/node/commit/7438a557af)] - **src**: remove util-inl.h include in node.h (Anna Henningsen) [#27804](https://github.com/nodejs/node/pull/27804)
+* [[`6f7005465a`](https://github.com/nodejs/node/commit/6f7005465a)] - **src, lib**: take control of prepareStackTrace (Gus Caplan) [#23926](https://github.com/nodejs/node/pull/23926)
 
 <a id="12.3.0"></a>
 ## 2019-05-21, Version 12.3.0 (Current), @BridgeAR
