@@ -206,16 +206,15 @@ a full path including extension: `"./index.mjs"`, not `"./index"`.
 If the `package.json` `"type"` field is omitted, a `.js` file in `"main"` will
 be interpreted as CommonJS.
 
-> Currently a package can define _either_ a CommonJS entry point **or** an ES
-> module entry point; there is no way to specify separate entry points for
-> CommonJS and ES module usage. This means that a package entry point can be
-> included via `require` or via `import` but not both.
->
-> Such a limitation makes it difficult for packages to support both new versions
-> of Node.js that understand ES modules and older versions of Node.js that
-> understand only CommonJS. There is work ongoing to remove this limitation, and
-> it will very likely entail changes to the behavior of `"main"` as defined
-> here.
+The `"main"` field can point to exactly one file, regardless of whether the
+package is referenced via `require` (in a CommonJS context) or `import` (in an
+ES module context). Package authors who want to publish a package to be used in
+both contexts can do so by setting `"main"` to point to the CommonJS entry point
+and informing the package’s users of the path to the ES module entry point. Such
+a package would be accessible like `require('pkg')` and `import
+'pkg/module.mjs'`. Alternatively the package `"main"` could point to the ES
+module entry point and legacy users could be informed of the CommonJS entry
+point path, e.g. `require('pkg/commonjs')`.
 
 ## <code>import</code> Specifiers
 
