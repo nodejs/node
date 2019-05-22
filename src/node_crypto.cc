@@ -33,6 +33,7 @@
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "string_bytes.h"
+#include "threadpoolwork-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 

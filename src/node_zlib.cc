@@ -24,6 +24,7 @@
 
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#include "threadpoolwork-inl.h"
 #include "util-inl.h"
 
 #include "v8.h"
