@@ -24,26 +24,6 @@ const badChunks = [
     value: [65]
   },
   {
-    name: 'detached ArrayBufferView',
-    value: (() => {
-      const u8 = new Uint8Array([65]);
-      const ab = u8.buffer;
-      const mc = new MessageChannel();
-      mc.port1.postMessage(ab, [ab]);
-      return u8;
-    })()
-  },
-  {
-    name: 'detached ArrayBuffer',
-    value: (() => {
-      const u8 = new Uint8Array([65]);
-      const ab = u8.buffer;
-      const mc = new MessageChannel();
-      mc.port1.postMessage(ab, [ab]);
-      return ab;
-    })()
-  },
-  {
     name: 'SharedArrayBuffer',
     // Use a getter to postpone construction so that all tests don't fail where
     // SharedArrayBuffer is not yet implemented.
