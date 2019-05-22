@@ -513,7 +513,7 @@ policies and contribution forms [3].
             return new DedicatedWorkerTestEnvironment();
         }
 
-        if (!('self' in global_scope)) {
+        if (!('location' in global_scope)) {
             return new ShellTestEnvironment();
         }
 
@@ -635,7 +635,7 @@ policies and contribution forms [3].
      * which can make it a lot easier to test a very specific series of events,
      * including ensuring that unexpected events are not fired at any point.
      */
-    function EventWatcher(test, watchedNode, eventTypes)
+    function EventWatcher(test, watchedNode, eventTypes, timeoutPromise)
     {
         if (typeof eventTypes == 'string') {
             eventTypes = [eventTypes];
@@ -712,6 +712,27 @@ policies and contribution forms [3].
                 recordedEvents = [];
             }
             return new Promise(function(resolve, reject) {
+                var timeout = test.step_func(function() {
+                    // If the timeout fires after the events have been received
+                    // or during a subsequent call to wait_for, ignore it.
+                    if (!waitingFor || waitingFor.resolve !== resolve)
+                        return;
+
+                    // This should always fail, otherwise we should have
+                    // resolved the promise.
+                    assert_true(waitingFor.types.length == 0,
+                                'Timed out waiting for ' + waitingFor.types.join(', '));
+                    var result = recordedEvents;
+                    recordedEvents = null;
+                    var resolveFunc = waitingFor.resolve;
+                    waitingFor = null;
+                    resolveFunc(result);
+                });
+
+                if (timeoutPromise) {
+                    timeoutPromise().then(timeout);
+                }
+
                 waitingFor = {
                     types: types,
                     resolve: resolve,
@@ -1111,7 +1132,7 @@ policies and contribution forms [3].
             assert(Math.abs(actual[i] - expected[i]) <= epsilon,
                    "assert_array_approx_equals", description,
                    "property ${i}, expected ${expected} +/- ${epsilon}, expected ${expected} but got ${actual}",
-                   {i:i, expected:expected[i], actual:actual[i]});
+                   {i:i, expected:expected[i], actual:actual[i], epsilon:epsilon});
         }
     }
     expose(assert_array_approx_equals, "assert_array_approx_equals");
@@ -1478,7 +1499,7 @@ policies and contribution forms [3].
         }
         this.name = name;
 
-        this.phase = tests.is_aborted ?
+        this.phase = (tests.is_aborted || tests.phase === tests.phases.COMPLETE) ?
             this.phases.COMPLETE : this.phases.INITIAL;
 
         this.status = this.NOTRUN;
@@ -1486,11 +1507,9 @@ policies and contribution forms [3].
         this.index = null;
 
         this.properties = properties;
-        var timeout = properties.timeout ? properties.timeout : settings.test_timeout;
-        if (timeout !== null) {
-            this.timeout_length = timeout * tests.timeout_multiplier;
-        } else {
-            this.timeout_length = null;
+        this.timeout_length = settings.test_timeout;
+        if (this.timeout_length !== null) {
+            this.timeout_length *= tests.timeout_multiplier;
         }
 
         this.message = null;
@@ -1502,6 +1521,13 @@ policies and contribution forms [3].
         this.cleanup_callbacks = [];
         this._user_defined_cleanup_count = 0;
         this._done_callbacks = [];
+
+        // Tests declared following harness completion are likely an indication
+        // of a programming error, but they cannot be reported
+        // deterministically.
+        if (tests.phase === tests.phases.COMPLETE) {
+            return;
+        }
 
         tests.push(this);
     }
@@ -1904,7 +1930,9 @@ policies and contribution forms [3].
      */
     function RemoteContext(remote, message_target, message_filter) {
         this.running = true;
+        this.started = false;
         this.tests = new Array();
+        this.early_exception = null;
 
         var this_obj = this;
         // If remote context is cross origin assigning to onerror is not
@@ -1943,6 +1971,21 @@ policies and contribution forms [3].
     }
 
     RemoteContext.prototype.remote_error = function(error) {
+        if (error.preventDefault) {
+            error.preventDefault();
+        }
+
+        // Defer interpretation of errors until the testing protocol has
+        // started and the remote test's `allow_uncaught_exception` property
+        // is available.
+        if (!this.started) {
+            this.early_exception = error;
+        } else if (!this.allow_uncaught_exception) {
+            this.report_uncaught(error);
+        }
+    };
+
+    RemoteContext.prototype.report_uncaught = function(error) {
         var message = error.message || String(error);
         var filename = (error.filename ? " " + error.filename: "");
         // FIXME: Display remote error states separately from main document
@@ -1950,9 +1993,14 @@ policies and contribution forms [3].
         tests.set_status(tests.status.ERROR,
                          "Error in remote" + filename + ": " + message,
                          error.stack);
+    };
 
-        if (error.preventDefault) {
-            error.preventDefault();
+    RemoteContext.prototype.start = function(data) {
+        this.started = true;
+        this.allow_uncaught_exception = data.properties.allow_uncaught_exception;
+
+        if (this.early_exception && !this.allow_uncaught_exception) {
+            this.report_uncaught(this.early_exception);
         }
     };
 
@@ -2002,6 +2050,7 @@ policies and contribution forms [3].
     };
 
     RemoteContext.prototype.message_handlers = {
+        start: RemoteContext.prototype.start,
         test_state: RemoteContext.prototype.test_state,
         result: RemoteContext.prototype.test_done,
         complete: RemoteContext.prototype.remote_done
@@ -2114,6 +2163,9 @@ policies and contribution forms [3].
                     }
                 } else if (p == "timeout_multiplier") {
                     this.timeout_multiplier = value;
+                    if (this.timeout_length) {
+                         this.timeout_length *= this.timeout_multiplier;
+                    }
                 }
             }
         }
@@ -2338,12 +2390,53 @@ policies and contribution forms [3].
         return duplicates;
     };
 
+    function code_unit_str(char) {
+        return 'U+' + char.charCodeAt(0).toString(16);
+    }
+
+    function sanitize_unpaired_surrogates(str) {
+        return str.replace(/([\ud800-\udbff])(?![\udc00-\udfff])/g,
+                           function(_, unpaired)
+                           {
+                               return code_unit_str(unpaired);
+                           })
+                  // This replacement is intentionally implemented without an
+                  // ES2018 negative lookbehind assertion to support runtimes
+                  // which do not yet implement that language feature.
+                  .replace(/(^|[^\ud800-\udbff])([\udc00-\udfff])/g,
+                           function(_, previous, unpaired) {
+                              if (/[\udc00-\udfff]/.test(previous)) {
+                                  previous = code_unit_str(previous);
+                              }
+
+                              return previous + code_unit_str(unpaired);
+                           });
+    }
+
+    function sanitize_all_unpaired_surrogates(tests) {
+        forEach (tests,
+                 function (test)
+                 {
+                     var sanitized = sanitize_unpaired_surrogates(test.name);
+
+                     if (test.name !== sanitized) {
+                         test.name = sanitized;
+                         delete test._structured_clone;
+                     }
+                 });
+    }
+
     Tests.prototype.notify_complete = function() {
         var this_obj = this;
         var duplicates;
 
         if (this.status.status === null) {
             duplicates = this.find_duplicates();
+
+            // Some transports adhere to UTF-8's restriction on unpaired
+            // surrogates. Sanitize the titles so that the results can be
+            // consistently sent via all transports.
+            sanitize_all_unpaired_surrogates(this.tests);
 
             // Test names are presumed to be unique within test files--this
             // allows consumers to use them for identification purposes.
@@ -2536,6 +2629,9 @@ policies and contribution forms [3].
 
     Output.prototype.resolve_log = function() {
         var output_document;
+        if (this.output_node) {
+            return;
+        }
         if (typeof this.output_document === "function") {
             output_document = this.output_document.apply(undefined);
         } else {
@@ -2546,7 +2642,7 @@ policies and contribution forms [3].
         }
         var node = output_document.getElementById("log");
         if (!node) {
-            if (!document.readyState == "loading") {
+            if (output_document.readyState === "loading") {
                 return;
             }
             node = output_document.createElementNS("http://www.w3.org/1999/xhtml", "div");
@@ -2583,11 +2679,11 @@ policies and contribution forms [3].
         if (this.phase < this.STARTED) {
             this.init();
         }
-        if (!this.enabled) {
+        if (!this.enabled || this.phase === this.COMPLETE) {
             return;
         }
+        this.resolve_log();
         if (this.phase < this.HAVE_RESULTS) {
-            this.resolve_log();
             this.phase = this.HAVE_RESULTS;
         }
         var done_count = tests.tests.length - tests.num_pending;

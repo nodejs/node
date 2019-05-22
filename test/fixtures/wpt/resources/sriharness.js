@@ -97,3 +97,4 @@ SRIStyleTest.prototype.execute = function() {
     container.appendChild(e);
     this.customCallback(e, container);
 };
+
