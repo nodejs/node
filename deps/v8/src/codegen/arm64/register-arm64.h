@@ -559,6 +559,8 @@ using Simd128Register = VRegister;
 // Lists of registers.
 class V8_EXPORT_PRIVATE CPURegList {
  public:
+  CPURegList() = default;
+
   template <typename... CPURegisters>
   explicit CPURegList(CPURegister reg0, CPURegisters... regs)
       : list_(CPURegister::ListOf(reg0, regs...)),
