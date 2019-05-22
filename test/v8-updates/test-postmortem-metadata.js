@@ -41,6 +41,9 @@ const symbols = nm.stdout.toString().split('\n').reduce((filtered, line) => {
 
   return filtered;
 }, []);
+
+assert.notStrictEqual(symbols.length, 0, 'No postmortem metadata detected');
+
 const missing = getExpectedSymbols().filter((symbol) => {
   return !symbols.includes(symbol);
 });
