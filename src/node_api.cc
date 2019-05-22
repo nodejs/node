@@ -6,6 +6,7 @@
 #include "node_binding.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "threadpoolwork-inl.h"
 #include "util-inl.h"
 
 #include <memory>

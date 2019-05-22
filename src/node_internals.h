@@ -255,27 +255,6 @@ class ThreadPoolWork {
   uv_work_t work_req_;
 };
 
-void ThreadPoolWork::ScheduleWork() {
-  env_->IncreaseWaitingRequestCounter();
-  int status = uv_queue_work(
-      env_->event_loop(),
-      &work_req_,
-      [](uv_work_t* req) {
-        ThreadPoolWork* self = ContainerOf(&ThreadPoolWork::work_req_, req);
-        self->DoThreadPoolWork();
-      },
-      [](uv_work_t* req, int status) {
-        ThreadPoolWork* self = ContainerOf(&ThreadPoolWork::work_req_, req);
-        self->env_->DecreaseWaitingRequestCounter();
-        self->AfterThreadPoolWork(status);
-      });
-  CHECK_EQ(status, 0);
-}
-
-int ThreadPoolWork::CancelWork() {
-  return uv_cancel(reinterpret_cast<uv_req_t*>(&work_req_));
-}
-
 #define TRACING_CATEGORY_NODE "node"
 #define TRACING_CATEGORY_NODE1(one)                                           \
     TRACING_CATEGORY_NODE ","                                                 \
