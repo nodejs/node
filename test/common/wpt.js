@@ -41,16 +41,25 @@ class ResourceLoader {
     this.path = path;
   }
 
-  fetch(url, asPromise = true) {
+  /**
+   * Load a resource in test/fixtures/wpt specified with a URL
+   * @param {string} from the path of the file loading this resource,
+   *                      relative to thw WPT folder.
+   * @param {string} url the url of the resource being loaded.
+   * @param {boolean} asPromise if true, return the resource in a
+   *                            pseudo-Response object.
+   */
+  read(from, url, asFetch = true) {
     // We need to patch this to load the WebIDL parser
     url = url.replace(
       '/resources/WebIDLParser.js',
       '/resources/webidl2/lib/webidl2.js'
     );
+    const base = path.dirname(from);
     const file = url.startsWith('/') ?
       fixtures.path('wpt', url) :
-      fixtures.path('wpt', this.path, url);
-    if (asPromise) {
+      fixtures.path('wpt', base, url);
+    if (asFetch) {
       return fsPromises.readFile(file)
         .then((data) => {
           return {
@@ -155,8 +164,12 @@ class WPTTest {
     }
   }
 
+  getRelativePath() {
+    return path.join(this.module, this.filename);
+  }
+
   getAbsolutePath() {
-    return fixtures.path('wpt', this.module, this.filename);
+    return fixtures.path('wpt', this.getRelativePath());
   }
 
   getContent() {
@@ -217,20 +230,41 @@ class StatusLoader {
     this.tests = [];
   }
 
+  /**
+   * Grep for all .*.js file recursively in a directory.
+   * @param {string} dir
+   */
+  grep(dir) {
+    let result = [];
+    const list = fs.readdirSync(dir);
+    for (const file of list) {
+      const filepath = path.join(dir, file);
+      const stat = fs.statSync(filepath);
+      if (stat.isDirectory()) {
+        const list = this.grep(filepath);
+        result = result.concat(list);
+      } else {
+        if (!(/\.\w+\.js$/.test(filepath))) {
+          continue;
+        }
+        result.push(filepath);
+      }
+    }
+    return result;
+  }
+
   load() {
     const dir = path.join(__dirname, '..', 'wpt');
     const statusFile = path.join(dir, 'status', `${this.path}.json`);
     const result = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
     this.rules.addRules(result);
 
-    const list = fs.readdirSync(fixtures.path('wpt', this.path));
-
+    const subDir = fixtures.path('wpt', this.path);
+    const list = this.grep(subDir);
     for (const file of list) {
-      if (!(/\.\w+\.js$/.test(file))) {
-        continue;
-      }
-      const match = this.rules.match(file);
-      this.tests.push(new WPTTest(this.path, file, match));
+      const relativePath = path.relative(subDir, file);
+      const match = this.rules.match(relativePath);
+      this.tests.push(new WPTTest(this.path, relativePath, match));
     }
     this.loaded = true;
   }
@@ -309,8 +343,9 @@ class WPTRunner {
       const meta = test.title = this.getMeta(content);
 
       const absolutePath = test.getAbsolutePath();
-      const context = this.generateContext(test.filename);
-      const code = this.mergeScripts(meta, content);
+      const context = this.generateContext(test);
+      const relativePath = test.getRelativePath();
+      const code = this.mergeScripts(relativePath, meta, content);
       try {
         vm.runInContext(code, context, {
           filename: absolutePath
@@ -327,14 +362,14 @@ class WPTRunner {
     this.tryFinish();
   }
 
-  mock() {
+  mock(testfile) {
     const resource = this.resource;
     const result = {
       // This is a mock, because at the moment fetch is not implemented
       // in Node.js, but some tests and harness depend on this to pull
       // resources.
       fetch(file) {
-        return resource.fetch(file);
+        return resource.read(testfile, file, true);
       },
       GLOBAL: {
         isWindow() { return false; }
@@ -346,16 +381,17 @@ class WPTRunner {
   }
 
   // Note: this is how our global space for the WPT test should look like
-  getSandbox() {
-    const result = this.mock();
+  getSandbox(filename) {
+    const result = this.mock(filename);
     for (const [name, desc] of this.globals) {
       Object.defineProperty(result, name, desc);
     }
     return result;
   }
 
-  generateContext(filename) {
-    const sandbox = this.sandbox = this.getSandbox();
+  generateContext(test) {
+    const filename = test.filename;
+    const sandbox = this.sandbox = this.getSandbox(test.getRelativePath());
     const context = this.context = vm.createContext(sandbox);
 
     const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
@@ -509,7 +545,7 @@ class WPTRunner {
     }
   }
 
-  mergeScripts(meta, content) {
+  mergeScripts(base, meta, content) {
     if (!meta.script) {
       return content;
     }
@@ -517,7 +553,7 @@ class WPTRunner {
     // only one script
     let result = '';
     for (const script of meta.script) {
-      result += this.resource.fetch(script, false);
+      result += this.resource.read(base, script, false);
     }
 
     return result + content;
