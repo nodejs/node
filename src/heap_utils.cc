@@ -1,3 +1,4 @@
+#include "diagnosticfilename-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "stream_base-inl.h"

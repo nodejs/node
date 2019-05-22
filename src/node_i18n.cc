@@ -45,7 +45,6 @@
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
 #include "base_object-inl.h"
-#include "env-inl.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_errors.h"
