@@ -1178,6 +1178,9 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27816
+    description: The `hints` option is now supported.
   - version: v12.2.0
     pr-url: https://github.com/nodejs/node/pull/27497
     description: The `enableTrace` option is now supported.
@@ -1248,13 +1251,9 @@ changes:
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
     `tls.createSecureContext()`.
-  * `lookup`: {Function} Custom lookup function. **Default:**
-    [`dns.lookup()`][].
-  * `timeout`: {number} If set and if a socket is created internally, will call
-    [`socket.setTimeout(timeout)`][] after the socket is created, but before it
-    starts the connection.
   * ...: [`tls.createSecureContext()`][] options that are used if the
     `secureContext` option is missing, otherwise they are ignored.
+  * ...: Any [`socket.connect()`][] option not already listed.
 * `callback` {Function}
 * Returns: {tls.TLSSocket}
 
@@ -1771,7 +1770,6 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`--tls-cipher-list`]: cli.html#cli_tls_cipher_list_list
 [`NODE_OPTIONS`]: cli.html#cli_node_options_options
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
-[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`net.createServer()`]: net.html#net_net_createserver_options_connectionlistener
 [`net.Server.address()`]: net.html#net_server_address
 [`net.Server`]: net.html#net_class_net_server
@@ -1781,7 +1779,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`server.getTicketKeys()`]: #tls_server_getticketkeys
 [`server.listen()`]: net.html#net_server_listen
 [`server.setTicketKeys()`]: #tls_server_setticketkeys_keys
-[`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
+[`socket.connect()`]: net.html#net_socket_connect_options_connectlistener
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.DEFAULT_MAX_VERSION`]: #tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: #tls_tls_default_min_version
