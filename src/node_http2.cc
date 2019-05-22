@@ -1437,7 +1437,7 @@ void Http2Session::HandleOriginFrame(const nghttp2_frame* frame) {
   Local<Context> context = env()->context();
   Context::Scope context_scope(context);
 
-  DEBUG_HTTP2SESSION2(this, "handling origin frame");
+  DEBUG_HTTP2SESSION(this, "handling origin frame");
 
   nghttp2_extension ext = frame->ext;
   nghttp2_ext_origin* origin = static_cast<nghttp2_ext_origin*>(ext.payload);
