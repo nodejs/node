@@ -28,11 +28,11 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
   * [Verifying Binaries](#verifying-binaries)
 * [Building Node.js](#building-nodejs)
 * [Security](#security)
+* [Contributing to Node.js](#contributing-to-nodejs)
 * [Current Project Team Members](#current-project-team-members)
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
   * [Release Keys](#release-keys)
-* [Contributing to Node.js](#contributing-to-nodejs)
 
 ## Support
 
@@ -159,6 +159,12 @@ source and a list of supported platforms.
 
 For information on reporting security vulnerabilities in Node.js, see
 [SECURITY.md](./SECURITY.md).
+
+## Contributing to Node.js
+
+* [Contributing to the project][]
+* [Working Groups][]
+* [Strategic Initiatives][]
 
 ## Current Project Team Members
 
@@ -592,12 +598,6 @@ Other keys used to sign some previous releases:
 `114F43EE0176B71C7BC219DD50A3051F888C628D`
 * **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt;
 `7937DFD2AB06298B2293C3187D33FF9D0246406D`
-
-## Contributing to Node.js
-
-* [Contributing to the project][]
-* [Working Groups][]
-* [Strategic Initiatives][]
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
