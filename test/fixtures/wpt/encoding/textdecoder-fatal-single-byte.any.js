@@ -1,4 +1,6 @@
+// META: timeout=long
 // META: title=Encoding API: Fatal flag for single byte encodings
+// META: timeout=long
 
 var singleByteEncodings = [
      {encoding: 'IBM866', bad: []},
