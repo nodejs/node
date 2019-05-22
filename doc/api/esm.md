@@ -449,6 +449,11 @@ node --experimental-modules --experimental-wasm-modules index.mjs
 
 would provide the exports interface for the instantiation of `module.wasm`.
 
+### WASI
+
+Additionally, if `--experimental-wasi-modules` is passed, Wasm modules
+conforming to [WASI][] specification will be run.
+
 ## Experimental Loader hooks
 
 **Note: This API is currently being redesigned and will still change.**
@@ -749,3 +754,4 @@ success!
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
+[WASI]: https://wasi.dev

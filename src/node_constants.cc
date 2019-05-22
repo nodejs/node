@@ -1260,6 +1260,18 @@ void DefineSystemConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, COPYFILE_FICLONE_FORCE);
 # undef COPYFILE_FICLONE_FORCE
 #endif
+
+#ifdef SEEK_SET
+  NODE_DEFINE_CONSTANT(target, SEEK_SET);
+#endif
+
+#ifdef SEEK_CUR
+  NODE_DEFINE_CONSTANT(target, SEEK_CUR);
+#endif
+
+#ifdef SEEK_END
+  NODE_DEFINE_CONSTANT(target, SEEK_END);
+#endif
 }
 
 void DefineDLOpenConstants(Local<Object> target) {

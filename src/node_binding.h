@@ -49,6 +49,18 @@ namespace node {
 #define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)                   \
   NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)
 
+#define NODE_MODULE_CONTEXT_AWARE_INTERNAL_NAPI(modname, regfunc)              \
+  static napi_module _module = {                                               \
+    NAPI_MODULE_VERSION,                                                       \
+    NM_F_INTERNAL,                                                             \
+    __FILE__,                                                                  \
+    regfunc,                                                                   \
+    #modname,                                                                  \
+    nullptr,                                                                   \
+    {0},                                                                       \
+  };                                                                           \
+  void _register_##modname() { napi_module_register(&_module); }               \
+
 // Globals per process
 // This is set by node::Init() which is used by embedders
 extern bool node_is_initialized;

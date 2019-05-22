@@ -190,6 +190,13 @@ added: v12.3.0
 
 Enable experimental WebAssembly module support.
 
+### `--experimental-wasi-modules`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental [WASI][] module support.
+
 ### `--force-fips`
 <!-- YAML
 added: v6.0.0
@@ -1208,3 +1215,4 @@ greater than `4` (its current default value). For more information, see the
 [experimental ECMAScript Module]: esm.html#esm_resolve_hook
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
+[WASI]: https://wasi.dev
