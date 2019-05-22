@@ -39,3 +39,23 @@ promise_test(async () => {
   assert_array_equals(array, [expectedOutputString],
                       'the output should be in one chunk');
 }, 'a trailing empty chunk should be ignored');
+
+promise_test(async () => {
+  const buffer = new ArrayBuffer(3);
+  const view = new Uint8Array(buffer, 1, 1);
+  view[0] = 65;
+  new MessageChannel().port1.postMessage(buffer, [buffer]);
+  const input = readableStreamFromArray([view]);
+  const output = input.pipeThrough(new TextDecoderStream());
+  const array = await readableStreamToArray(output);
+  assert_array_equals(array, [], 'no chunks should be output');
+}, 'decoding a transferred Uint8Array chunk should give no output');
+
+promise_test(async () => {
+  const buffer = new ArrayBuffer(1);
+  new MessageChannel().port1.postMessage(buffer, [buffer]);
+  const input = readableStreamFromArray([buffer]);
+  const output = input.pipeThrough(new TextDecoderStream());
+  const array = await readableStreamToArray(output);
+  assert_array_equals(array, [], 'no chunks should be output');
+}, 'decoding a transferred ArrayBuffer chunk should give no output');
