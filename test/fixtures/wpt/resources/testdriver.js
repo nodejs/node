@@ -192,32 +192,89 @@
          * @returns {Promise} fufiled after the actions are performed, or rejected in
          *                    the cases the WebDriver command errors
          */
-        action_sequence(actions) {
+        action_sequence: function(actions) {
             return window.test_driver_internal.action_sequence(actions);
+        },
+
+        /**
+         * Generates a test report on the current page
+         *
+         * The generate_test_report function generates a report (to be observed
+         * by ReportingObserver) for testing purposes, as described in
+         * {@link https://w3c.github.io/reporting/#generate-test-report-command}
+         *
+         * @returns {Promise} fulfilled after the report is generated, or
+         *                    rejected if the report generation fails
+         */
+        generate_test_report: function(message) {
+            return window.test_driver_internal.generate_test_report(message);
         }
     };
 
     window.test_driver_internal = {
         /**
-         * Triggers a user-initiated click
+         * This flag should be set to `true` by any code which implements the
+         * internal methods defined below for automation purposes. Doing so
+         * allows the library to signal failure immediately when an automated
+         * implementation of one of the methods is not available.
+         */
+        in_automation: false,
+
+        /**
+         * Waits for a user-initiated click
          *
          * @param {Element} element - element to be clicked
          * @param {{x: number, y: number} coords - viewport coordinates to click at
-         * @returns {Promise} fulfilled after click occurs or rejected if click fails
+         * @returns {Promise} fulfilled after click occurs
          */
         click: function(element, coords) {
-            return Promise.reject(new Error("unimplemented"));
+            if (this.in_automation) {
+                return Promise.reject(new Error('Not implemented'));
+            }
+
+            return new Promise(function(resolve, reject) {
+                element.addEventListener("click", resolve);
+            });
         },
 
         /**
-         * Triggers a user-initiated click
+         * Waits for an element to receive a series of key presses
          *
-         * @param {Element} element - element to be clicked
-         * @param {String} keys - keys to send to the element
-         * @returns {Promise} fulfilled after keys are sent or rejected if click fails
+         * @param {Element} element - element which should receve key presses
+         * @param {String} keys - keys to expect
+         * @returns {Promise} fulfilled after keys are received or rejected if
+         *                    an incorrect key sequence is received
          */
         send_keys: function(element, keys) {
-            return Promise.reject(new Error("unimplemented"));
+            if (this.in_automation) {
+                return Promise.reject(new Error('Not implemented'));
+            }
+
+            return new Promise(function(resolve, reject) {
+                var seen = "";
+
+                function remove() {
+                    element.removeEventListener("keydown", onKeyDown);
+                }
+
+                function onKeyDown(event) {
+                    if (event.key.length > 1) {
+                        return;
+                    }
+
+                    seen += event.key;
+
+                    if (keys.indexOf(seen) !== 0) {
+                        reject(new Error("Unexpected key sequence: " + seen));
+                        remove();
+                    } else if (seen === keys) {
+                        resolve();
+                        remove();
+                    }
+                }
+
+                element.addEventListener("keydown", onKeyDown);
+            });
         },
 
         /**
@@ -237,6 +294,17 @@
          *                    fail
          */
         action_sequence: function(actions) {
+            return Promise.reject(new Error("unimplemented"));
+        },
+
+        /**
+         * Generates a test report on the current page
+         *
+         * @param {String} message - the message to be contained in the report
+         * @returns {Promise} fulfilled after the report is generated, or
+         *                    rejected if the report generation fails
+         */
+        generate_test_report: function(message) {
             return Promise.reject(new Error("unimplemented"));
         }
     };
