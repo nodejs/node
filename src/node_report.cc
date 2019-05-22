@@ -1,6 +1,7 @@
 #include "env-inl.h"
 #include "node_report.h"
 #include "debug_utils.h"
+#include "diagnosticfilename-inl.h"
 #include "node_internals.h"
 #include "node_metadata.h"
 #include "util.h"

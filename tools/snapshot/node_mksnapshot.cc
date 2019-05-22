@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 
-#include "env-inl.h"
 #include "libplatform/libplatform.h"
 #include "node_internals.h"
 #include "snapshot_builder.h"

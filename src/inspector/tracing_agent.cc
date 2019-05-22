@@ -2,9 +2,6 @@
 #include "main_thread_interface.h"
 #include "node_internals.h"
 #include "node_v8_platform-inl.h"
-
-#include "env-inl.h"
-#include "util-inl.h"
 #include "v8.h"
 
 #include <set>

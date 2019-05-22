@@ -321,17 +321,15 @@ class DiagnosticFilename {
  public:
   static void LocalTime(TIME_TYPE* tm_struct);
 
-  DiagnosticFilename(Environment* env,
-                     const char* prefix,
-                     const char* ext) :
-      filename_(MakeFilename(env->thread_id(), prefix, ext)) {}
+  inline DiagnosticFilename(Environment* env,
+                            const char* prefix,
+                            const char* ext);
 
-  DiagnosticFilename(uint64_t thread_id,
-                     const char* prefix,
-                     const char* ext) :
-      filename_(MakeFilename(thread_id, prefix, ext)) {}
+  inline DiagnosticFilename(uint64_t thread_id,
+                            const char* prefix,
+                            const char* ext);
 
-  const char* operator*() const { return filename_.c_str(); }
+  inline const char* operator*() const;
 
  private:
   static std::string MakeFilename(
