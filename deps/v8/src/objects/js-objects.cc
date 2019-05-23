@@ -5836,5 +5836,10 @@ Handle<String> JSMessageObject::GetSourceLine() const {
   return isolate->factory()->NewSubString(src, info.line_start, info.line_end);
 }
 
+// Explicit instantiation definitions.
+template void JSObject::ApplyAttributesToDictionary(
+    Isolate* isolate, ReadOnlyRoots roots, Handle<NumberDictionary> dictionary,
+    const PropertyAttributes attributes);
+
 }  // namespace internal
 }  // namespace v8
