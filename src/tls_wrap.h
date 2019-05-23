@@ -193,6 +193,8 @@ class TLSWrap : public AsyncWrap,
  private:
   static void GetWriteQueueSize(
       const v8::FunctionCallbackInfo<v8::Value>& info);
+
+  crypto::BIOPointer bio_trace_;
 };
 
 }  // namespace node
