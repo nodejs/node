@@ -2,6 +2,8 @@
 #include "node_errors.h"
 #include "node_process.h"
 
+#include <time.h>  // tzset(), _tzset()
+
 #ifdef __APPLE__
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
@@ -64,6 +66,19 @@ Mutex env_var_mutex;
 std::shared_ptr<KVStore> system_environment = std::make_shared<RealEnvStore>();
 }  // namespace per_process
 
+template <typename T>
+void DateTimeConfigurationChangeNotification(Isolate* isolate, const T& key) {
+  if (key.length() == 2 && key[0] == 'T' && key[1] == 'Z') {
+#ifdef __POSIX__
+    tzset();
+#else
+    _tzset();
+#endif
+    auto constexpr time_zone_detection = Isolate::TimeZoneDetection::kRedetect;
+    isolate->DateTimeConfigurationChangeNotification(time_zone_detection);
+  }
+}
+
 Local<String> RealEnvStore::Get(Isolate* isolate,
                                 Local<String> property) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
@@ -115,6 +130,7 @@ void RealEnvStore::Set(Isolate* isolate,
     SetEnvironmentVariableW(key_ptr, reinterpret_cast<WCHAR*>(*val));
   }
 #endif
+  DateTimeConfigurationChangeNotification(isolate, key);
 }
 
 int32_t RealEnvStore::Query(Isolate* isolate, Local<String> property) const {
@@ -150,6 +166,7 @@ void RealEnvStore::Delete(Isolate* isolate, Local<String> property) {
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
   SetEnvironmentVariableW(key_ptr, nullptr);
 #endif
+  DateTimeConfigurationChangeNotification(isolate, key);
 }
 
 Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
