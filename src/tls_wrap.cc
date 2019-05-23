@@ -939,9 +939,9 @@ void TLSWrap::EnableTrace(
 
 #if HAVE_SSL_TRACE
   if (wrap->ssl_) {
-    BIO* b = BIO_new_fp(stderr,  BIO_NOCLOSE | BIO_FP_TEXT);
+    wrap->bio_trace_.reset(BIO_new_fp(stderr,  BIO_NOCLOSE | BIO_FP_TEXT));
     SSL_set_msg_callback(wrap->ssl_.get(), SSL_trace);
-    SSL_set_msg_callback_arg(wrap->ssl_.get(), b);
+    SSL_set_msg_callback_arg(wrap->ssl_.get(), wrap->bio_trace_.get());
   }
 #endif
 }
