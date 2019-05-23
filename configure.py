@@ -34,6 +34,7 @@ import nodedownload
 # imports in tools/
 sys.path.insert(0, 'tools')
 import getmoduleversion
+import getnapibuildversion
 from gyp_node import run_gyp
 
 # imports in deps/v8/tools/node
@@ -1147,6 +1148,10 @@ def configure_node(o):
   else:
     o['variables']['node_target_type'] = 'executable'
 
+def configure_napi(output):
+  version = getnapibuildversion.get_napi_version()
+  output['variables']['napi_build_version'] = version
+
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
@@ -1626,6 +1631,7 @@ if (options.dest_os):
 flavor = GetFlavor(flavor_params)
 
 configure_node(output)
+configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
