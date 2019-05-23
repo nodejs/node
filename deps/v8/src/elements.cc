@@ -62,6 +62,11 @@
 namespace v8 {
 namespace internal {
 
+// Explicit instantiation declarations.
+extern template void JSObject::ApplyAttributesToDictionary(
+    Isolate* isolate, ReadOnlyRoots roots, Handle<NumberDictionary> dictionary,
+    const PropertyAttributes attributes);
+
 
 namespace {
 
