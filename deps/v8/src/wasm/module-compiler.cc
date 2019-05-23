@@ -131,7 +131,14 @@ class CompilationUnitQueues {
       queues_[task_id].next_steal_task_id_ = next_task_id(task_id);
     }
     for (auto& atomic_counter : num_units_) {
-      std::atomic_init(&atomic_counter, size_t{0});
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wbraced-scalar-init"
+#endif
+      atomic_counter = ATOMIC_VAR_INIT(0);
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
     }
   }
 
