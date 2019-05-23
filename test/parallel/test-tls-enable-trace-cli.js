@@ -36,8 +36,8 @@ child.on('close', common.mustCall((code, signal) => {
   assert.strictEqual(signal, null);
   assert.strictEqual(stdout.trim(), '');
   assert(/Warning: Enabling --trace-tls can expose sensitive/.test(stderr));
+  assert(/Sent Record/.test(stderr));
   assert(/Received Record/.test(stderr));
-  assert(/ClientHello/.test(stderr));
 }));
 
 function test() {
@@ -55,12 +55,14 @@ function test() {
       key: keys.agent6.key
     },
   }, common.mustCall((err, pair, cleanup) => {
-    if (err) {
-      console.error(err);
-      console.error(err.opensslErrorStack);
-      console.error(err.reason);
-      assert(err);
+    if (pair.server.err) {
+      console.trace('server', pair.server.err);
     }
+    if (pair.client.err) {
+      console.trace('client', pair.client.err);
+    }
+    assert.ifError(pair.server.err);
+    assert.ifError(pair.client.err);
 
     return cleanup();
   }));

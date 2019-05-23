@@ -940,7 +940,16 @@ void TLSWrap::EnableTrace(
 #if HAVE_SSL_TRACE
   if (wrap->ssl_) {
     wrap->bio_trace_.reset(BIO_new_fp(stderr,  BIO_NOCLOSE | BIO_FP_TEXT));
-    SSL_set_msg_callback(wrap->ssl_.get(), SSL_trace);
+    SSL_set_msg_callback(wrap->ssl_.get(), [](int write_p, int version, int
+          content_type, const void* buf, size_t len, SSL* ssl, void* arg) void {
+        // BIO_write(), etc., called by SSL_trace, may error. The error should
+        // be ignored, trace is a "best effort", and its usually because stderr
+        // is a non-blocking pipe, and its buffer has overflowed. Leaving errors
+        // on the stack that can get picked up by later SSL_ calls causes
+        // unwanted failures in SSL_ calls, so keep the error stack unchanged.
+        crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+        SSL_trace(write_p,  version, content_type, buf, len, ssl, arg);
+    });
     SSL_set_msg_callback_arg(wrap->ssl_.get(), wrap->bio_trace_.get());
   }
 #endif
