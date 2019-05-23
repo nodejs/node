@@ -8940,7 +8940,8 @@ std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate,
   auto microtask_queue =
       i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(isolate));
   microtask_queue->set_microtasks_policy(policy);
-  return microtask_queue;
+  std::unique_ptr<MicrotaskQueue> ret(std::move(microtask_queue));
+  return ret;
 }
 
 MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)
