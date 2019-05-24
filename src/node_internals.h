@@ -91,6 +91,7 @@ void PrintCaughtException(v8::Isolate* isolate,
                           const v8::TryCatch& try_catch);
 
 void WaitForInspectorDisconnect(Environment* env);
+void ResetStdio();  // Safe to call more than once and from signal handlers.
 void SignalExit(int signo);
 #ifdef __POSIX__
 void RegisterSignalHandler(int signal,
