@@ -147,7 +147,7 @@ To get the exact filename that will be loaded when `require()` is called, use
 the `require.resolve()` function.
 
 Putting together all of the above, here is the high-level algorithm
-in pseudocode of what `require.resolve()` does:
+in pseudocode of what `require()` does:
 
 ```txt
 require(X) from module at path Y
@@ -342,7 +342,7 @@ If the given path does not exist, `require()` will throw an [`Error`][] with its
 <!--type=misc-->
 
 It is convenient to organize programs and libraries into self-contained
-directories, and then provide a single entry point to that library.
+directories, and then provide a single entry point to those directories.
 There are three ways in which a folder may be passed to `require()` as
 an argument.
 
