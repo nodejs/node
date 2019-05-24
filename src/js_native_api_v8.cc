@@ -1171,26 +1171,45 @@ napi_status napi_define_properties(napi_env env,
       return napi_set_last_error(env, status);
     }
 
-    v8::PropertyAttribute attributes =
-        v8impl::V8PropertyAttributesFromDescriptor(p);
-
     if (p->getter != nullptr || p->setter != nullptr) {
-      v8::Local<v8::Value> cbdata = v8impl::CreateAccessorCallbackData(
-        env,
-        p->getter,
-        p->setter,
-        p->data);
+      v8::Local<v8::Value> local_getter;
+      v8::Local<v8::Value> local_setter;
 
-      auto set_maybe = obj->SetAccessor(
-        context,
-        property_name,
-        p->getter ? v8impl::GetterCallbackWrapper::Invoke : nullptr,
-        p->setter ? v8impl::SetterCallbackWrapper::Invoke : nullptr,
-        cbdata,
-        v8::AccessControl::DEFAULT,
-        attributes);
+      if (p->getter != nullptr) {
+        v8::Local<v8::Value> getter_data =
+            v8impl::CreateFunctionCallbackData(env, p->getter, p->data);
+        CHECK_MAYBE_EMPTY(env, getter_data, napi_generic_failure);
 
-      if (!set_maybe.FromMaybe(false)) {
+        v8::MaybeLocal<v8::Function> maybe_getter =
+            v8::Function::New(context,
+                              v8impl::FunctionCallbackWrapper::Invoke,
+                              getter_data);
+        CHECK_MAYBE_EMPTY(env, maybe_getter, napi_generic_failure);
+
+        local_getter = maybe_getter.ToLocalChecked();
+      }
+      if (p->setter != nullptr) {
+        v8::Local<v8::Value> setter_data =
+            v8impl::CreateFunctionCallbackData(env, p->setter, p->data);
+        CHECK_MAYBE_EMPTY(env, setter_data, napi_generic_failure);
+
+        v8::MaybeLocal<v8::Function> maybe_setter =
+            v8::Function::New(context,
+                              v8impl::FunctionCallbackWrapper::Invoke,
+                              setter_data);
+        CHECK_MAYBE_EMPTY(env, maybe_setter, napi_generic_failure);
+        local_setter = maybe_setter.ToLocalChecked();
+      }
+
+      v8::PropertyDescriptor descriptor(local_getter, local_setter);
+      descriptor.set_enumerable((p->attributes & napi_enumerable) != 0);
+      descriptor.set_configurable((p->attributes & napi_configurable) != 0);
+
+      auto define_maybe = obj->DefineProperty(context,
+                                              property_name,
+                                              descriptor);
+
+      if (!define_maybe.FromMaybe(false)) {
         return napi_set_last_error(env, napi_invalid_arg);
       }
     } else if (p->method != nullptr) {
@@ -1206,8 +1225,14 @@ napi_status napi_define_properties(napi_env env,
 
       CHECK_MAYBE_EMPTY(env, maybe_fn, napi_generic_failure);
 
-      auto define_maybe = obj->DefineOwnProperty(
-        context, property_name, maybe_fn.ToLocalChecked(), attributes);
+      v8::PropertyDescriptor descriptor(maybe_fn.ToLocalChecked(),
+                                        (p->attributes & napi_writable) != 0);
+      descriptor.set_enumerable((p->attributes & napi_enumerable) != 0);
+      descriptor.set_configurable((p->attributes & napi_configurable) != 0);
+
+      auto define_maybe = obj->DefineProperty(context,
+                                              property_name,
+                                              descriptor);
 
       if (!define_maybe.FromMaybe(false)) {
         return napi_set_last_error(env, napi_generic_failure);
@@ -1215,8 +1240,13 @@ napi_status napi_define_properties(napi_env env,
     } else {
       v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(p->value);
 
+      v8::PropertyDescriptor descriptor(value,
+                                        (p->attributes & napi_writable) != 0);
+      descriptor.set_enumerable((p->attributes & napi_enumerable) != 0);
+      descriptor.set_configurable((p->attributes & napi_configurable) != 0);
+
       auto define_maybe =
-          obj->DefineOwnProperty(context, property_name, value, attributes);
+          obj->DefineProperty(context, property_name, descriptor);
 
       if (!define_maybe.FromMaybe(false)) {
         return napi_set_last_error(env, napi_invalid_arg);
