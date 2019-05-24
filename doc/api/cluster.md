@@ -855,16 +855,17 @@ socket.on('data', (id) => {
   const worker = cluster.workers[id];
 });
 ```
-[`Worker`]: #cluster_class_worker
-[`Error`]: errors.html#errors_class_error
+
 [`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [`child_process` event: `'exit'`]: child_process.html#child_process_event_exit
 [`child_process` event: `'message'`]: child_process.html#child_process_event_message
 [`cluster.settings`]: #cluster_cluster_settings
 [`disconnect`]: child_process.html#child_process_subprocess_disconnect
+[`Error`]: errors.html#errors_class_error
 [`kill`]: process.html#process_process_kill_pid_signal
 [`process` event: `'message'`]: process.html#process_event_message
 [`server.close()`]: net.html#net_event_close
+[`Worker`]: #cluster_class_worker
 [`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
