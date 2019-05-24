@@ -291,7 +291,7 @@ void TLSWrap::EncOut() {
   // No encrypted output ready to write to the underlying stream.
   if (BIO_pending(enc_out_) == 0) {
     Debug(this, "No pending encrypted output");
-    if (pending_cleartext_input_.empty())
+    if (pending_cleartext_input_.size() == 0)
       InvokeQueued(0);
     return;
   }
@@ -509,28 +509,21 @@ void TLSWrap::ClearIn() {
     return;
   }
 
-  std::vector<uv_buf_t> buffers;
-  buffers.swap(pending_cleartext_input_);
-
-  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
-
-  size_t i;
-  int written = 0;
-  for (i = 0; i < buffers.size(); ++i) {
-    size_t avail = buffers[i].len;
-    char* data = buffers[i].base;
-    written = SSL_write(ssl_.get(), data, avail);
-    Debug(this, "Writing %zu bytes, written = %d", avail, written);
-    CHECK(written == -1 || written == static_cast<int>(avail));
-    if (written == -1)
-      break;
+  if (pending_cleartext_input_.size() == 0) {
+    Debug(this, "Returning from ClearIn(), no pending data");
+    return;
   }
 
+  std::vector<char> data = std::move(pending_cleartext_input_);
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  int written = SSL_write(ssl_.get(), data.data(), data.size());
+  Debug(this, "Writing %zu bytes, written = %d", data.size(), written);
+  CHECK(written == -1 || written == static_cast<int>(data.size()));
+
   // All written
-  if (i == buffers.size()) {
+  if (written != -1) {
     Debug(this, "Successfully wrote all data to SSL");
-    // We wrote all the buffers, so no writes failed (written < 0 on failure).
-    CHECK_GE(written, 0);
     return;
   }
 
@@ -548,13 +541,10 @@ void TLSWrap::ClearIn() {
     // possible.
     InvokeQueued(UV_EPROTO, error_str.c_str());
   } else {
-    Debug(this, "Pushing back %zu buffers", buffers.size() - i);
-    // Push back the not-yet-written pending buffers into their queue.
-    // This can be skipped in the error case because no further writes
-    // would succeed anyway.
-    pending_cleartext_input_.insert(pending_cleartext_input_.end(),
-                                    buffers.begin() + i,
-                                    buffers.end());
+    Debug(this, "Pushing data back");
+    // Push back the not-yet-written data. This can be skipped in the error
+    // case because no further writes would succeed anyway.
+    pending_cleartext_input_ = std::move(data);
   }
 
   return;
@@ -640,14 +630,10 @@ int TLSWrap::DoWrite(WriteWrap* w,
     return UV_EPROTO;
   }
 
-  bool empty = true;
+  size_t length = 0;
   size_t i;
-  for (i = 0; i < count; i++) {
-    if (bufs[i].len > 0) {
-      empty = false;
-      break;
-    }
-  }
+  for (i = 0; i < count; i++)
+    length += bufs[i].len;
 
   // We want to trigger a Write() on the underlying stream to drive the stream
   // system, but don't want to encrypt empty buffers into a TLS frame, so see
@@ -659,7 +645,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
   // stream. Since the bufs are empty, it won't actually write non-TLS data
   // onto the socket, we just want the side-effects. After, make sure the
   // WriteWrap was accepted by the stream, or that we call Done() on it.
-  if (empty) {
+  if (length == 0) {
     Debug(this, "Empty write");
     ClearOut();
     if (BIO_pending(enc_out_) == 0) {
@@ -683,23 +669,36 @@ int TLSWrap::DoWrite(WriteWrap* w,
   current_write_ = w;
 
   // Write encrypted data to underlying stream and call Done().
-  if (empty) {
+  if (length == 0) {
     EncOut();
     return 0;
   }
 
+  std::vector<char> data;
   crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int written = 0;
-  for (i = 0; i < count; i++) {
-    written = SSL_write(ssl_.get(), bufs[i].base, bufs[i].len);
-    CHECK(written == -1 || written == static_cast<int>(bufs[i].len));
-    Debug(this, "Writing %zu bytes, written = %d", bufs[i].len, written);
-    if (written == -1)
-      break;
+  if (count != 1) {
+    data = std::vector<char>(length);
+    size_t offset = 0;
+    for (i = 0; i < count; i++) {
+      memcpy(data.data() + offset, bufs[i].base, bufs[i].len);
+      offset += bufs[i].len;
+    }
+    written = SSL_write(ssl_.get(), data.data(), length);
+  } else {
+    // Only one buffer: try to write directly, only store if it fails
+    written = SSL_write(ssl_.get(), bufs[0].base, bufs[0].len);
+    if (written == -1) {
+      data = std::vector<char>(length);
+      memcpy(data.data(), bufs[0].base, bufs[0].len);
+    }
   }
 
-  if (i != count) {
+  CHECK(written == -1 || written == static_cast<int>(length));
+  Debug(this, "Writing %zu bytes, written = %d", length, written);
+
+  if (written == -1) {
     int err;
     Local<Value> arg = GetSSLError(written, &err, &error_);
 
@@ -710,11 +709,10 @@ int TLSWrap::DoWrite(WriteWrap* w,
       return UV_EPROTO;
     }
 
-    Debug(this, "Saving %zu buffers for later write", count - i);
+    Debug(this, "Saving data for later write");
     // Otherwise, save unwritten data so it can be written later by ClearIn().
-    pending_cleartext_input_.insert(pending_cleartext_input_.end(),
-                                    &bufs[i],
-                                    &bufs[count]);
+    CHECK_EQ(pending_cleartext_input_.size(), 0);
+    pending_cleartext_input_ = std::move(data);
   }
 
   // Write any encrypted/handshake output that may be ready.

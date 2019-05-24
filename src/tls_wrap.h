@@ -166,7 +166,7 @@ class TLSWrap : public AsyncWrap,
   BIO* enc_in_ = nullptr;   // StreamListener fills this for SSL_read().
   BIO* enc_out_ = nullptr;  // SSL_write()/handshake fills this for EncOut().
   // Waiting for ClearIn() to pass to SSL_write().
-  std::vector<uv_buf_t> pending_cleartext_input_;
+  std::vector<char> pending_cleartext_input_;
   size_t write_size_ = 0;
   WriteWrap* current_write_ = nullptr;
   WriteWrap* current_empty_write_ = nullptr;
