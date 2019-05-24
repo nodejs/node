@@ -19,7 +19,7 @@ internalCp.ChildProcess.prototype.spawn = common.mustCall(function(options) {
 }, 2);
 
 internalCp.spawnSync = common.mustCall(function(options) {
-  assert.strictEqual(options.options.windowsHide, true);
+  assert.strictEqual(options.windowsHide, true);
   return originalSpawnSync.apply(this, arguments);
 });
 

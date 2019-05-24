@@ -36,7 +36,7 @@ if (process.argv[2] === 'child') {
   // Verify that the default kill signal is SIGTERM.
   {
     const child = spawn(undefined, (opts) => {
-      assert.strictEqual(opts.options.killSignal, undefined);
+      assert.strictEqual(opts.killSignal, undefined);
     });
 
     assert.strictEqual(child.signal, 'SIGTERM');
@@ -45,7 +45,7 @@ if (process.argv[2] === 'child') {
   // Verify that a string signal name is handled properly.
   {
     const child = spawn('SIGKILL', (opts) => {
-      assert.strictEqual(opts.options.killSignal, SIGKILL);
+      assert.strictEqual(opts.killSignal, SIGKILL);
     });
 
     assert.strictEqual(child.signal, 'SIGKILL');
@@ -56,7 +56,7 @@ if (process.argv[2] === 'child') {
     assert.strictEqual(typeof SIGKILL, 'number');
 
     const child = spawn(SIGKILL, (opts) => {
-      assert.strictEqual(opts.options.killSignal, SIGKILL);
+      assert.strictEqual(opts.killSignal, SIGKILL);
     });
 
     assert.strictEqual(child.signal, 'SIGKILL');
