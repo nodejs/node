@@ -8,6 +8,10 @@ const path = require('path');
 const NodePlugin = require('./tools/node_modules/eslint-plugin-node-core');
 NodePlugin.RULES_DIR = path.resolve(__dirname, 'tools', 'eslint-rules');
 
+// The Module._findPath() monkeypatching is to make it so that ESLint will work
+// if invoked by a globally-installed ESLint or ESLint installed elsewhere
+// rather than the one we ship. This makes it possible for IDEs to lint files
+// with our rules while people edit them.
 const ModuleFindPath = Module._findPath;
 const hacks = [
   'eslint-plugin-node-core',
@@ -236,7 +240,7 @@ module.exports = {
       {
         selector: "CallExpression[callee.property.name='strictEqual'][arguments.0.type='Literal']:not([arguments.1.type='Literal']):not([arguments.1.type='ObjectExpression']):not([arguments.1.type='ArrayExpression']):not([arguments.1.type='UnaryExpression'])",
         message: 'The first argument should be the `actual`, not the `expected` value.',
-      }
+      },
     ],
     /* eslint-enable max-len */
     'no-return-await': 'error',
