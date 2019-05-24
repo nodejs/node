@@ -21,7 +21,8 @@ process.on('exit', () => {
 });
 
 socket.on('error', (err) => {
-  if (/^Error: fake DNS$/.test(err)) {
+  const fakeDNSReg = /^Error: fake DNS$/;
+  if (fakeDNSReg.test(err)) {
     // The DNS lookup should fail since it is monkey patched. At that point in
     // time, the send queue should be populated with the send() operation. There
     // should also be two listeners - this function and the dgram internal one
@@ -39,6 +40,8 @@ socket.on('error', (err) => {
     sendFailures++;
     assert.strictEqual(socket[kStateSymbol].queue, undefined);
     assert.strictEqual(socket.listenerCount('error'), 1);
+    assert(err.cause instanceof Error);
+    assert(fakeDNSReg.test(err.cause));
     return;
   }
 
