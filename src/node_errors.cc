@@ -229,7 +229,7 @@ void AppendExceptionLine(Environment* env,
     Mutex::ScopedLock lock(per_process::tty_mutex);
     env->set_printed_error(true);
 
-    uv_tty_reset_mode();
+    ResetStdio();
     PrintErrorString("\n%s", source.c_str());
     return;
   }
