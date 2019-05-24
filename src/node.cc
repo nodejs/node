@@ -108,6 +108,7 @@
 #else
 #include <pthread.h>
 #include <sys/resource.h>  // getrlimit, setrlimit
+#include <termios.h>       // tcgetattr, tcsetattr
 #include <unistd.h>        // STDIN_FILENO, STDERR_FILENO
 #endif
 
@@ -194,7 +195,7 @@ void WaitForInspectorDisconnect(Environment* env) {
 
 #ifdef __POSIX__
 void SignalExit(int signo, siginfo_t* info, void* ucontext) {
-  uv_tty_reset_mode();
+  ResetStdio();
   raise(signo);
 }
 #endif  // __POSIX__
@@ -486,7 +487,7 @@ void TrapWebAssemblyOrContinue(int signo, siginfo_t* info, void* ucontext) {
     if (prev != nullptr) {
       prev(signo, info, ucontext);
     } else {
-      uv_tty_reset_mode();
+      ResetStdio();
       raise(signo);
     }
   }
@@ -516,6 +517,16 @@ void RegisterSignalHandler(int signal,
 
 #endif  // __POSIX__
 
+#ifdef __POSIX__
+static struct {
+  int flags;
+  bool isatty;
+  struct stat stat;
+  struct termios termios;
+} stdio[1 + STDERR_FILENO];
+#endif  // __POSIX__
+
+
 inline void PlatformInit() {
 #ifdef __POSIX__
 #if HAVE_INSPECTOR
@@ -526,15 +537,17 @@ inline void PlatformInit() {
 #endif  // HAVE_INSPECTOR
 
   // Make sure file descriptors 0-2 are valid before we start logging anything.
-  for (int fd = STDIN_FILENO; fd <= STDERR_FILENO; fd += 1) {
-    struct stat ignored;
-    if (fstat(fd, &ignored) == 0)
+  for (auto& s : stdio) {
+    const int fd = &s - stdio;
+    if (fstat(fd, &s.stat) == 0)
       continue;
     // Anything but EBADF means something is seriously wrong.  We don't
     // have to special-case EINTR, fstat() is not interruptible.
     if (errno != EBADF)
       ABORT();
     if (fd != open("/dev/null", O_RDWR))
+      ABORT();
+    if (fstat(fd, &s.stat) != 0)
       ABORT();
   }
 
@@ -557,6 +570,27 @@ inline void PlatformInit() {
     CHECK_EQ(0, sigaction(nr, &act, nullptr));
   }
 #endif  // !NODE_SHARED_MODE
+
+  // Record the state of the stdio file descriptors so we can restore it
+  // on exit.  Needs to happen before installing signal handlers because
+  // they make use of that information.
+  for (auto& s : stdio) {
+    const int fd = &s - stdio;
+    int err;
+
+    do
+      s.flags = fcntl(fd, F_GETFL);
+    while (s.flags == -1 && errno == EINTR);  // NOLINT
+    CHECK_NE(s.flags, -1);
+
+    if (!isatty(fd)) continue;
+    s.isatty = true;
+
+    do
+      err = tcgetattr(fd, &s.termios);
+    while (err == -1 && errno == EINTR);  // NOLINT
+    CHECK_EQ(err, 0);
+  }
 
   RegisterSignalHandler(SIGINT, SignalExit, true);
   RegisterSignalHandler(SIGTERM, SignalExit, true);
@@ -610,6 +644,54 @@ inline void PlatformInit() {
   }
 #endif  // _WIN32
 }
+
+
+// Safe to call more than once and from signal handlers.
+void ResetStdio() {
+  uv_tty_reset_mode();
+#ifdef __POSIX__
+  for (auto& s : stdio) {
+    const int fd = &s - stdio;
+
+    struct stat tmp;
+    if (-1 == fstat(fd, &tmp)) {
+      CHECK_EQ(errno, EBADF);  // Program closed file descriptor.
+      continue;
+    }
+
+    bool is_same_file =
+        (s.stat.st_dev == tmp.st_dev && s.stat.st_ino == tmp.st_ino);
+    if (!is_same_file) continue;  // Program reopened file descriptor.
+
+    int flags;
+    do
+      flags = fcntl(fd, F_GETFL);
+    while (flags == -1 && errno == EINTR);  // NOLINT
+    CHECK_NE(flags, -1);
+
+    // Restore the O_NONBLOCK flag if it changed.
+    if (O_NONBLOCK & (flags ^ s.flags)) {
+      flags &= ~O_NONBLOCK;
+      flags |= s.flags & O_NONBLOCK;
+
+      int err;
+      do
+        err = fcntl(fd, F_SETFL, flags);
+      while (err == -1 && errno == EINTR);  // NOLINT
+      CHECK_NE(err, -1);
+    }
+
+    if (s.isatty) {
+      int err;
+      do
+        err = tcsetattr(fd, TCSANOW, &s.termios);
+      while (err == -1 && errno == EINTR);  // NOLINT
+      CHECK_NE(err, -1);
+    }
+  }
+#endif  // __POSIX__
+}
+
 
 int ProcessGlobalArgs(std::vector<std::string>* args,
                       std::vector<std::string>* exec_args,
@@ -866,7 +948,7 @@ void Init(int* argc,
 }
 
 InitializationResult InitializeOncePerProcess(int argc, char** argv) {
-  atexit([] () { uv_tty_reset_mode(); });
+  atexit(ResetStdio);
   PlatformInit();
   per_process::node_start_time = uv_hrtime();
 
