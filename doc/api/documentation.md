@@ -17,12 +17,9 @@ Report errors in this documentation in [the issue tracker][]. See
 
 <!--type=misc-->
 
-Throughout the documentation are indications of a section's
-stability. The Node.js API is still somewhat changing, and as it
-matures, certain parts are more reliable than others. Some are so
-proven, and so relied upon, that they are unlikely to ever change at
-all. Others are brand new and experimental, or known to be hazardous
-and being redesigned.
+Throughout the documentation are indications of a section's stability. Some APIs
+are so proven and so relied upon that they are unlikely to ever change at all.
+Others are brand new and experimental, or known to be hazardous.
 
 The stability indices are as follows:
 
