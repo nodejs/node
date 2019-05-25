@@ -2487,7 +2487,7 @@ const writeable = fs.createWriteStream('./file');
 (async function() {
   for await (const chunk of iterator) {
     // Handle backpressure on write
-    if (!writeable.write(value))
+    if (!writeable.write(chunk))
       await once(writeable, 'drain');
   }
   writeable.end();
