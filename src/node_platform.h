@@ -146,12 +146,12 @@ class NodePlatform : public MultiIsolatePlatform {
   void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
                                  double delay_in_seconds) override;
   void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {
-    abort();
+    UNREACHABLE();
   }
   void CallDelayedOnForegroundThread(v8::Isolate* isolate,
                                      v8::Task* task,
                                      double delay_in_seconds) override {
-    abort();
+    UNREACHABLE();
   }
   bool IdleTasksEnabled(v8::Isolate* isolate) override;
   double MonotonicallyIncreasingTime() override;
