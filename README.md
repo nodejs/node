@@ -27,8 +27,8 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
     * [API Documentation](#api-documentation)
   * [Verifying Binaries](#verifying-binaries)
 * [Building Node.js](#building-nodejs)
-* [Contributing to Node.js](#contributing-to-nodejs)
 * [Security](#security)
+* [Contributing to Node.js](#contributing-to-nodejs)
 * [Current Project Team Members](#current-project-team-members)
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
@@ -155,16 +155,16 @@ the file's signature.
 See [BUILDING.md](BUILDING.md) for instructions on how to build Node.js from
 source and a list of supported platforms.
 
+## Security
+
+For information on reporting security vulnerabilities in Node.js, see
+[SECURITY.md](./SECURITY.md).
+
 ## Contributing to Node.js
 
 * [Contributing to the project][]
 * [Working Groups][]
 * [Strategic Initiatives][]
-
-## Security
-
-For information on reporting security vulnerabilities in Node.js, see
-[SECURITY.md](./SECURITY.md).
 
 ## Current Project Team Members
 
