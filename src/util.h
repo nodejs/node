@@ -181,8 +181,8 @@ void DumpBacktrace(FILE* fp);
 #endif
 
 
-#define UNREACHABLE(expr)                                                     \
-  ERROR_AND_ABORT("Unreachable code reached: " expr)
+#define UNREACHABLE(...)                                                      \
+  ERROR_AND_ABORT("Unreachable code reached" __VA_OPT__(": ") __VA_ARGS__)
 
 // TAILQ-style intrusive list node.
 template <typename T>
