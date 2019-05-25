@@ -445,17 +445,6 @@ NodePlatform::ForIsolate(Isolate* isolate) {
   return data;
 }
 
-void NodePlatform::CallOnForegroundThread(Isolate* isolate, Task* task) {
-  ForIsolate(isolate)->PostTask(std::unique_ptr<Task>(task));
-}
-
-void NodePlatform::CallDelayedOnForegroundThread(Isolate* isolate,
-                                                 Task* task,
-                                                 double delay_in_seconds) {
-  ForIsolate(isolate)->PostDelayedTask(
-    std::unique_ptr<Task>(task), delay_in_seconds);
-}
-
 bool NodePlatform::FlushForegroundTasks(Isolate* isolate) {
   return ForIsolate(isolate)->FlushForegroundTasksInternal();
 }
