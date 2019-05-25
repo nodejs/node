@@ -107,6 +107,7 @@ class NodeTestFixture : public ::testing::Test {
   void TearDown() override {
     isolate_->Exit();
     isolate_->Dispose();
+    platform->DrainTasks(isolate_);
     platform->UnregisterIsolate(isolate_);
     isolate_ = nullptr;
   }

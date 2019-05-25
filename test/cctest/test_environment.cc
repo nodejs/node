@@ -88,6 +88,19 @@ TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   EXPECT_TRUE(called_cb_2);
 }
 
+TEST_F(EnvironmentTest, NoEnvironmentSanity) {
+  const v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = v8::Context::New(isolate_);
+  EXPECT_EQ(node::Environment::GetCurrent(context), nullptr);
+  EXPECT_EQ(node::GetCurrentEnvironment(context), nullptr);
+  EXPECT_EQ(node::Environment::GetCurrent(isolate_), nullptr);
+
+  v8::Context::Scope context_scope(context);
+  EXPECT_EQ(node::Environment::GetCurrent(context), nullptr);
+  EXPECT_EQ(node::GetCurrentEnvironment(context), nullptr);
+  EXPECT_EQ(node::Environment::GetCurrent(isolate_), nullptr);
+}
+
 TEST_F(EnvironmentTest, NonNodeJSContext) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
