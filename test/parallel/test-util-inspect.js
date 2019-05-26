@@ -339,9 +339,13 @@ assert.strictEqual(
   const value = {};
   value.a = value;
   assert.strictEqual(util.inspect(value), '<ref *1> { a: [Circular *1] }');
-  const getterFn = { get one() { return null; } }
+  const getterFn = {
+    get one() {
+      return null;
+    }
+  };
   assert.strictEqual(
-    util.inspect(getterFn, {getters: true}),
+    util.inspect(getterFn, { getters: true }),
     '{ one: [Getter: null] }'
   );
 }
