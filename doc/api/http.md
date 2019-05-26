@@ -2061,7 +2061,12 @@ order:
     (`'data'` will not be emitted at all if the response body is empty, for
     instance, in most redirects)
   * `'end'` on the `res` object
+* `'error'` if the server response is received while still writing to request.
 * `'close'`
+
+Note that `response` can be emitted even before the client request has
+been ended (`end()`). If the client is still writing after `response` an
+`ECONNRESET` error might also be emitted.
 
 In the case of a connection error, the following events will be emitted:
 
