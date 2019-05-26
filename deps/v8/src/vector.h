@@ -321,6 +321,7 @@ class EmbeddedVector : public Vector<T> {
     }
   }
 
+#if !defined(V8_OS_WIN)
   // When copying, make underlying Vector to reference our buffer.
   EmbeddedVector(const EmbeddedVector& rhs) V8_NOEXCEPT : Vector<T>(rhs) {
     MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
@@ -334,6 +335,7 @@ class EmbeddedVector : public Vector<T> {
     this->set_start(buffer_);
     return *this;
   }
+#endif
 
  private:
   T buffer_[kSize];
