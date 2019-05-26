@@ -28,7 +28,7 @@ const stream = new OldStream();
 
 stream.pipe(hasher2).on('finish', common.mustCall(function() {
   const hash = hasher2.read().toString('hex');
-  assert.strictEqual(expected, hash);
+  assert.strictEqual(hash, expected);
 }));
 
 stream.emit('data', Buffer.from('hello'));
