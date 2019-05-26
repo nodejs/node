@@ -244,3 +244,17 @@ test([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], `
 │    1    │ 'Z' │  2  │
 └─────────┴─────┴─────┘
 `);
+
+{
+  const line = '─'.repeat(79);
+  const header = `${' '.repeat(37)}name${' '.repeat(40)}`;
+  const name = 'very long long long long long long long long long long long ' +
+               'long long long long';
+  test([{ name }], `
+┌─────────┬──${line}──┐
+│ (index) │  ${header}│
+├─────────┼──${line}──┤
+│    0    │ '${name}' │
+└─────────┴──${line}──┘
+`);
+}
