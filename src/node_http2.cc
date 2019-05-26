@@ -1782,11 +1782,13 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   // Shrink to the actual amount of used data.
   buf.Resize(nread);
 
-  IncrementCurrentSessionMemory(buf.size());
+  IncrementCurrentSessionMemory(nread);
   OnScopeLeave on_scope_leave([&]() {
     // Once finished handling this write, reset the stream buffer.
     // The memory has either been free()d or was handed over to V8.
-    DecrementCurrentSessionMemory(buf.size());
+    // We use `nread` instead of `buf.size()` here, because the buffer is
+    // cleared as part of the `.ToArrayBuffer()` call below.
+    DecrementCurrentSessionMemory(nread);
     stream_buf_ab_ = Local<ArrayBuffer>();
     stream_buf_ = uv_buf_init(nullptr, 0);
   });
