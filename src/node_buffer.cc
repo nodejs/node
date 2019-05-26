@@ -463,17 +463,17 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  SPREAD_BUFFER_ARG(args.This(), ts_obj);
+  ArrayBufferViewContents<char> buffer(args.This());
 
-  if (ts_obj_length == 0)
+  if (buffer.length() == 0)
     return args.GetReturnValue().SetEmptyString();
 
-  SLICE_START_END(env, args[0], args[1], ts_obj_length)
+  SLICE_START_END(env, args[0], args[1], buffer.length())
 
   Local<Value> error;
   MaybeLocal<Value> ret =
       StringBytes::Encode(isolate,
-                          ts_obj_data + start,
+                          buffer.data() + start,
                           length,
                           encoding,
                           &error);
@@ -492,9 +492,8 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
-  Local<Object> buffer_obj = args[0].As<Object>();
+  ArrayBufferViewContents<char> source(args[0]);
   Local<Object> target_obj = args[1].As<Object>();
-  SPREAD_BUFFER_ARG(buffer_obj, ts_obj);
   SPREAD_BUFFER_ARG(target_obj, target);
 
   size_t target_start = 0;
@@ -503,14 +502,14 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &target_start));
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &source_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[4], ts_obj_length,
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[4], source.length(),
                                           &source_end));
 
   // Copy 0 bytes; we're done
   if (target_start >= target_length || source_start >= source_end)
     return args.GetReturnValue().Set(0);
 
-  if (source_start > ts_obj_length)
+  if (source_start > source.length())
     return THROW_ERR_OUT_OF_RANGE(
         env, "The value of \"sourceStart\" is out of range.");
 
@@ -519,9 +518,9 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
   uint32_t to_copy = std::min(
       std::min(source_end - source_start, target_length - target_start),
-      ts_obj_length - source_start);
+      source.length() - source_start);
 
-  memmove(target_data + target_start, ts_obj_data + source_start, to_copy);
+  memmove(target_data + target_start, source.data() + source_start, to_copy);
   args.GetReturnValue().Set(to_copy);
 }
 
@@ -689,8 +688,8 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
-  SPREAD_BUFFER_ARG(args[0], ts_obj);
-  SPREAD_BUFFER_ARG(args[1], target);
+  ArrayBufferViewContents<char> source(args[0]);
+  ArrayBufferViewContents<char> target(args[1]);
 
   size_t target_start = 0;
   size_t source_start = 0;
@@ -699,15 +698,15 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &target_start));
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &source_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[4], target_length,
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[4], target.length(),
                                           &target_end));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[5], ts_obj_length,
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[5], source.length(),
                                           &source_end));
 
-  if (source_start > ts_obj_length)
+  if (source_start > source.length())
     return THROW_ERR_OUT_OF_RANGE(
         env, "The value of \"sourceStart\" is out of range.");
-  if (target_start > target_length)
+  if (target_start > target.length())
     return THROW_ERR_OUT_OF_RANGE(
         env, "The value of \"targetStart\" is out of range.");
 
@@ -716,11 +715,11 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
 
   size_t to_cmp =
       std::min(std::min(source_end - source_start, target_end - target_start),
-               ts_obj_length - source_start);
+               source.length() - source_start);
 
   int val = normalizeCompareVal(to_cmp > 0 ?
-                                  memcmp(ts_obj_data + source_start,
-                                         target_data + target_start,
+                                  memcmp(source.data() + source_start,
+                                         target.data() + target_start,
                                          to_cmp) : 0,
                                 source_end - source_start,
                                 target_end - target_start);
@@ -733,14 +732,14 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
-  SPREAD_BUFFER_ARG(args[0], obj_a);
-  SPREAD_BUFFER_ARG(args[1], obj_b);
+  ArrayBufferViewContents<char> a(args[0]);
+  ArrayBufferViewContents<char> b(args[1]);
 
-  size_t cmp_length = std::min(obj_a_length, obj_b_length);
+  size_t cmp_length = std::min(a.length(), b.length());
 
   int val = normalizeCompareVal(cmp_length > 0 ?
-                                memcmp(obj_a_data, obj_b_data, cmp_length) : 0,
-                                obj_a_length, obj_b_length);
+                                memcmp(a.data(), b.data(), cmp_length) : 0,
+                                a.length(), b.length());
   args.GetReturnValue().Set(val);
 }
 
@@ -792,16 +791,16 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   enum encoding enc = ParseEncoding(isolate, args[3], UTF8);
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
-  SPREAD_BUFFER_ARG(args[0], ts_obj);
+  ArrayBufferViewContents<char> buffer(args[0]);
 
   Local<String> needle = args[1].As<String>();
   int64_t offset_i64 = args[2].As<Integer>()->Value();
   bool is_forward = args[4]->IsTrue();
 
-  const char* haystack = ts_obj_data;
+  const char* haystack = buffer.data();
   // Round down to the nearest multiple of 2 in case of UCS2.
   const size_t haystack_length = (enc == UCS2) ?
-      ts_obj_length &~ 1 : ts_obj_length;  // NOLINT(whitespace/operators)
+      buffer.length() &~ 1 : buffer.length();  // NOLINT(whitespace/operators)
 
   size_t needle_length;
   if (!StringBytes::Size(isolate, needle, enc).To(&needle_length)) return;
@@ -909,15 +908,15 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[1]);
-  SPREAD_BUFFER_ARG(args[0], ts_obj);
-  SPREAD_BUFFER_ARG(args[1], buf);
+  ArrayBufferViewContents<char> haystack_contents(args[0]);
+  ArrayBufferViewContents<char> needle_contents(args[1]);
   int64_t offset_i64 = args[2].As<Integer>()->Value();
   bool is_forward = args[4]->IsTrue();
 
-  const char* haystack = ts_obj_data;
-  const size_t haystack_length = ts_obj_length;
-  const char* needle = buf_data;
-  const size_t needle_length = buf_length;
+  const char* haystack = haystack_contents.data();
+  const size_t haystack_length = haystack_contents.length();
+  const char* needle = needle_contents.data();
+  const size_t needle_length = needle_contents.length();
 
   int64_t opt_offset = IndexOfOffset(haystack_length,
                                      offset_i64,
@@ -978,27 +977,28 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[3]->IsBoolean());
 
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  SPREAD_BUFFER_ARG(args[0], ts_obj);
+  ArrayBufferViewContents<char> buffer(args[0]);
 
   uint32_t needle = args[1].As<Uint32>()->Value();
   int64_t offset_i64 = args[2].As<Integer>()->Value();
   bool is_forward = args[3]->IsTrue();
 
-  int64_t opt_offset = IndexOfOffset(ts_obj_length, offset_i64, 1, is_forward);
-  if (opt_offset <= -1 || ts_obj_length == 0) {
+  int64_t opt_offset =
+      IndexOfOffset(buffer.length(), offset_i64, 1, is_forward);
+  if (opt_offset <= -1 || buffer.length() == 0) {
     return args.GetReturnValue().Set(-1);
   }
   size_t offset = static_cast<size_t>(opt_offset);
-  CHECK_LT(offset, ts_obj_length);
+  CHECK_LT(offset, buffer.length());
 
   const void* ptr;
   if (is_forward) {
-    ptr = memchr(ts_obj_data + offset, needle, ts_obj_length - offset);
+    ptr = memchr(buffer.data() + offset, needle, buffer.length() - offset);
   } else {
-    ptr = node::stringsearch::MemrchrFill(ts_obj_data, needle, offset + 1);
+    ptr = node::stringsearch::MemrchrFill(buffer.data(), needle, offset + 1);
   }
   const char* ptr_char = static_cast<const char*>(ptr);
-  args.GetReturnValue().Set(ptr ? static_cast<int>(ptr_char - ts_obj_data)
+  args.GetReturnValue().Set(ptr ? static_cast<int>(ptr_char - buffer.data())
                                 : -1);
 }
 

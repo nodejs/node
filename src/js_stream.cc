@@ -167,9 +167,9 @@ void JSStream::ReadBuffer(const FunctionCallbackInfo<Value>& args) {
   JSStream* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  CHECK(Buffer::HasInstance(args[0]));
-  char* data = Buffer::Data(args[0]);
-  int len = Buffer::Length(args[0]);
+  ArrayBufferViewContents<char> buffer(args[0]);
+  const char* data = buffer.data();
+  int len = buffer.length();
 
   // Repeatedly ask the stream's owner for memory, copy the data that we
   // just read from JS into those buffers and emit them as reads.

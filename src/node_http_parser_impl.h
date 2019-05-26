@@ -466,18 +466,15 @@ class Parser : public AsyncWrap, public StreamListener {
     CHECK(parser->current_buffer_.IsEmpty());
     CHECK_EQ(parser->current_buffer_len_, 0);
     CHECK_NULL(parser->current_buffer_data_);
-    CHECK_EQ(Buffer::HasInstance(args[0]), true);
 
-    Local<Object> buffer_obj = args[0].As<Object>();
-    char* buffer_data = Buffer::Data(buffer_obj);
-    size_t buffer_len = Buffer::Length(buffer_obj);
+    ArrayBufferViewContents<char> buffer(args[0]);
 
     // This is a hack to get the current_buffer to the callbacks with the least
     // amount of overhead. Nothing else will run while http_parser_execute()
     // runs, therefore this pointer can be set and used for the execution.
-    parser->current_buffer_ = buffer_obj;
+    parser->current_buffer_ = args[0].As<Object>();
 
-    Local<Value> ret = parser->Execute(buffer_data, buffer_len);
+    Local<Value> ret = parser->Execute(buffer.data(), buffer.length());
 
     if (!ret.IsEmpty())
       args.GetReturnValue().Set(ret);
@@ -643,7 +640,7 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
-  Local<Value> Execute(char* data, size_t len) {
+  Local<Value> Execute(const char* data, size_t len) {
     EscapableHandleScope scope(env()->isolate());
 
     current_buffer_len_ = len;
@@ -857,7 +854,7 @@ class Parser : public AsyncWrap, public StreamListener {
   bool got_exception_;
   Local<Object> current_buffer_;
   size_t current_buffer_len_;
-  char* current_buffer_data_;
+  const char* current_buffer_data_;
 #ifdef NODE_EXPERIMENTAL_HTTP
   unsigned int execute_depth_ = 0;
   bool pending_pause_ = false;
