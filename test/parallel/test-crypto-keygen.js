@@ -907,6 +907,20 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     });
   }
 
+  // Invalid hash value.
+  for (const hashValue of [123, true, {}, []]) {
+    common.expectsError(() => {
+      generateKeyPairSync('rsa-pss', {
+        modulusLength: 4096,
+        hash: hashValue
+      });
+    }, {
+      type: TypeError,
+      code: 'ERR_INVALID_OPT_VALUE',
+      message: `The value "${hashValue}" is invalid for option "hash"`
+    });
+  }
+
   // Invalid private key type.
   for (const type of ['foo', 'spki']) {
     common.expectsError(() => {
