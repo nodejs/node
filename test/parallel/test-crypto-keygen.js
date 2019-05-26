@@ -987,3 +987,39 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     });
   }
 }
+{
+  // Test RSA-PSS.
+  common.expectsError(
+    () => {
+      generateKeyPair('rsa-pss', {
+        modulusLength: 512,
+        saltLength: 16,
+        hash: 'sha256',
+        mgf1Hash: undefined
+      });
+    },
+    {
+      type: TypeError,
+      code: 'ERR_INVALID_CALLBACK',
+      message: 'Callback must be a function. Received undefined'
+    }
+  );
+
+  for (const mgf1Hash of [null, 0, false, {}, []]) {
+    common.expectsError(
+      () => {
+        generateKeyPair('rsa-pss', {
+          modulusLength: 512,
+          saltLength: 16,
+          hash: 'sha256',
+          mgf1Hash
+        });
+      },
+      {
+        type: TypeError,
+        code: 'ERR_INVALID_OPT_VALUE',
+        message: `The value "${mgf1Hash}" is invalid for option "mgf1Hash"`
+      }
+    );
+  }
+}
