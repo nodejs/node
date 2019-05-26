@@ -34,7 +34,7 @@ server.on('stream', common.mustCall((stream, headers, flags, rawHeaders) => {
     'foo, bar, baz'
   ];
 
-  assert.deepStrictEqual(expected, rawHeaders);
+  assert.deepStrictEqual(rawHeaders, expected);
   stream.respond(src);
   stream.end();
 }));
