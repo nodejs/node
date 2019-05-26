@@ -12,13 +12,13 @@ const server = http.createServer(common.mustCall((req, res) => {
   res.end();
 }));
 
-server.listen(1337, '127.0.0.1');
+server.listen(0, '127.0.0.1', common.mustCall(() => {
+  const req = http.request({
+    port: server.address().port,
+    host: '127.0.0.1',
+    method: 'GET',
+  });
+  req.end();
+}));
+
 server.unref();
-
-const req = http.request({
-  port: 1337,
-  host: '127.0.0.1',
-  method: 'GET',
-});
-
-req.end();
