@@ -28,11 +28,9 @@ The stability indices are as follows:
 
 <!-- separator -->
 
-> Stability: 1 - Experimental. This feature is still under active development
-> and subject to non-backward compatible changes or removal in any future
-> version. Use of the feature is not recommended in production environments.
-> Experimental features are not subject to the Node.js Semantic Versioning
-> model.
+> Stability: 1 - Experimental. The feature is not subject to Semantic Versioning
+> rules. Non-backward compatible changes or removal may occur in any future
+> release. Use of the feature is not recommended in production environments.
 
 <!-- separator -->
 
