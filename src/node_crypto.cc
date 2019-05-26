@@ -5766,11 +5766,10 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
   THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Private key");
+  ArrayBufferViewContents<unsigned char> priv_buffer(args[0]);
 
   BignumPointer priv(BN_bin2bn(
-      reinterpret_cast<unsigned char*>(Buffer::Data(args[0].As<Object>())),
-      Buffer::Length(args[0].As<Object>()),
-      nullptr));
+      priv_buffer.data(), priv_buffer.length(), nullptr));
   if (!priv)
     return env->ThrowError("Failed to convert Buffer to BN");
 
@@ -6687,14 +6686,11 @@ OpenSSLBuffer ExportChallenge(const char* data, int len) {
 void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  size_t len = Buffer::Length(args[0]);
-  if (len == 0)
+  ArrayBufferViewContents<char> input(args[0]);
+  if (input.length() == 0)
     return args.GetReturnValue().SetEmptyString();
 
-  char* data = Buffer::Data(args[0]);
-  CHECK_NOT_NULL(data);
-
-  OpenSSLBuffer cert = ExportChallenge(data, len);
+  OpenSSLBuffer cert = ExportChallenge(input.data(), input.length());
   if (!cert)
     return args.GetReturnValue().SetEmptyString();
 
@@ -6749,16 +6745,13 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
 
 
 void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
-  CHECK(Buffer::HasInstance(args[0]));
-  CHECK(Buffer::HasInstance(args[1]));
+  ArrayBufferViewContents<char> buf1(args[0]);
+  ArrayBufferViewContents<char> buf2(args[1]);
 
-  size_t buf_length = Buffer::Length(args[0]);
-  CHECK_EQ(buf_length, Buffer::Length(args[1]));
+  CHECK_EQ(buf1.length(), buf2.length());
 
-  const char* buf1 = Buffer::Data(args[0]);
-  const char* buf2 = Buffer::Data(args[1]);
-
-  return args.GetReturnValue().Set(CRYPTO_memcmp(buf1, buf2, buf_length) == 0);
+  return args.GetReturnValue().Set(
+      CRYPTO_memcmp(buf1.data(), buf2.data(), buf1.length()) == 0);
 }
 
 void InitCryptoOnce() {
