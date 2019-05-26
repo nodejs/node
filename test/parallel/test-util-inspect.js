@@ -896,6 +896,10 @@ assert.strictEqual(
 // Test boxed primitives output the correct values.
 assert.strictEqual(util.inspect(new String('test')), "[String: 'test']");
 assert.strictEqual(
+  util.inspect(new String('test'), { colors: true }),
+  "\u001b[32m[String: 'test']\u001b[39m"
+);
+assert.strictEqual(
   util.inspect(Object(Symbol('test'))),
   '[Symbol: Symbol(test)]'
 );
