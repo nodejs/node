@@ -96,7 +96,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
     client.on('origin', mustCall((origins) => {
       const check = checks.shift();
       originSet.push(...check);
-      deepStrictEqual(originSet, client.originSet);
+      deepStrictEqual(client.originSet, originSet);
       deepStrictEqual(origins, check);
       countdown.dec();
     }, 2));
