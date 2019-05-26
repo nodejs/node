@@ -76,7 +76,7 @@ echoServer.on('listening', function() {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(2 * 256, recv.length);
+  assert.strictEqual(recv.length, 2 * 256);
 
   const a = recv.split('');
 
