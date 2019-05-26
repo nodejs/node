@@ -5,6 +5,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { SourceTextModule, createContext } = require('vm');
+const util = require('util');
 
 (async function test1() {
   const context = createContext({
@@ -63,3 +64,21 @@ const { SourceTextModule, createContext } = require('vm');
   const m3 = new SourceTextModule('3', { context: context2 });
   assert.strictEqual(m3.url, 'vm:module(0)');
 })();
+
+// Check inspection of the instance
+{
+  const context = createContext({ foo: 'bar' });
+  const m = new SourceTextModule('1', { context });
+
+  assert.strictEqual(
+    util.inspect(m),
+    "SourceTextModule {\n  status: 'uninstantiated',\n  linkingStatus:" +
+    " 'unlinked',\n  url: 'vm:module(0)',\n  context: { foo: 'bar' }\n}"
+  );
+  assert.strictEqual(
+    m[util.inspect.custom].call(Object.create(null)),
+    'SourceTextModule {\n  status: undefined,\n  linkingStatus: undefined,' +
+    '\n  url: undefined,\n  context: undefined\n}'
+  );
+  assert.strictEqual(util.inspect(m, { depth: -1 }), '[SourceTextModule]');
+}
