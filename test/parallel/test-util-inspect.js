@@ -339,6 +339,15 @@ assert.strictEqual(
   const value = {};
   value.a = value;
   assert.strictEqual(util.inspect(value), '{ a: [Circular] }');
+  const getterFn = {
+    get one() {
+      return null;
+    }
+  };
+  assert.strictEqual(
+    util.inspect(getterFn, { getters: true }),
+    '{ one: [Getter: null] }'
+  );
 }
 
 // Array with dynamic properties.
