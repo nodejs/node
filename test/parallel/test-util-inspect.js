@@ -853,6 +853,13 @@ util.inspect({ hasOwnProperty: null });
 }
 
 {
+  const subject = { [util.inspect.custom]: common.mustCall((depth) => {
+    assert.strictEqual(depth, null);
+  }) };
+  util.inspect(subject, { depth: null });
+}
+
+{
   // Returning `this` from a custom inspection function works.
   const subject = { a: 123, [util.inspect.custom]() { return this; } };
   const UIC = 'nodejs.util.inspect.custom';
