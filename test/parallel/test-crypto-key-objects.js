@@ -52,6 +52,16 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 }
 
 {
+  // Attempting to create a key with non-object handle should throw
+  common.expectsError(() => new KeyObject('secret', ''), {
+    type: TypeError,
+    code: 'ERR_INVALID_ARG_TYPE',
+    message:
+      'The "handle" argument must be of type object. Received type string'
+  });
+}
+
+{
   const keybuf = randomBytes(32);
   const key = createSecretKey(keybuf);
   assert.strictEqual(key.type, 'secret');
