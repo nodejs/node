@@ -96,7 +96,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
     client.on('origin', mustCall((origins) => {
       const check = checks.shift();
       originSet.push(...check);
-      deepStrictEqual(originSet, client.originSet);
+      deepStrictEqual(client.originSet, originSet);
       deepStrictEqual(origins, check);
       countdown.dec();
     }, 2));
@@ -121,7 +121,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
 
     client.on('origin', mustCall((origins) => {
       originSet.push(...check);
-      deepStrictEqual(originSet, client.originSet);
+      deepStrictEqual(client.originSet, originSet);
       deepStrictEqual(origins, check);
       client.close();
       server.close();
@@ -148,11 +148,11 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
     const client = connect(origin, { ca });
 
     client.on('origin', mustCall((origins) => {
-      deepStrictEqual([origin, 'https://foo.org'], client.originSet);
+      deepStrictEqual(client.originSet, [origin, 'https://foo.org']);
       const req = client.request({ ':authority': 'foo.org' });
       req.on('response', mustCall((headers) => {
-        strictEqual(421, headers[':status']);
-        deepStrictEqual([origin], client.originSet);
+        strictEqual(headers[':status'], 421);
+        deepStrictEqual(client.originSet, [origin]);
       }));
       req.resume();
       req.on('close', mustCall(() => {
