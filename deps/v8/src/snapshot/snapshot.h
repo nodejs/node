@@ -8,6 +8,7 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/startup-serializer.h"
 
+#include "src/objects/objects-inl.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
