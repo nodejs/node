@@ -1,3 +1,4 @@
+'use strict';
 const assert = require('assert');
 const m = require('module');
 
