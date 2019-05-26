@@ -378,10 +378,66 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     testSignVerify(publicKey, privateKey);
   }));
 
+  // Test async elliptic curve key generation, e.g. for ECDSA, with a SEC1
+  // private key with paramEncoding explicit.
+  generateKeyPair('ec', {
+    namedCurve: 'prime256v1',
+    paramEncoding: 'explicit',
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem'
+    },
+    privateKeyEncoding: {
+      type: 'sec1',
+      format: 'pem'
+    }
+  }, common.mustCall((err, publicKey, privateKey) => {
+    assert.ifError(err);
+
+    assert.strictEqual(typeof publicKey, 'string');
+    assert(spkiExp.test(publicKey));
+    assert.strictEqual(typeof privateKey, 'string');
+    assert(sec1Exp.test(privateKey));
+
+    testSignVerify(publicKey, privateKey);
+  }));
+
   // Do the same with an encrypted private key.
   generateKeyPair('ec', {
     namedCurve: 'prime256v1',
     paramEncoding: 'named',
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem'
+    },
+    privateKeyEncoding: {
+      type: 'sec1',
+      format: 'pem',
+      cipher: 'aes-128-cbc',
+      passphrase: 'secret'
+    }
+  }, common.mustCall((err, publicKey, privateKey) => {
+    assert.ifError(err);
+
+    assert.strictEqual(typeof publicKey, 'string');
+    assert(spkiExp.test(publicKey));
+    assert.strictEqual(typeof privateKey, 'string');
+    assert(sec1EncExp('AES-128-CBC').test(privateKey));
+
+    // Since the private key is encrypted, signing shouldn't work anymore.
+    common.expectsError(() => testSignVerify(publicKey, privateKey), {
+      type: TypeError,
+      code: 'ERR_MISSING_PASSPHRASE',
+      message: 'Passphrase required for encrypted key'
+    });
+
+    testSignVerify(publicKey, { key: privateKey, passphrase: 'secret' });
+  }));
+
+  // Do the same with an encrypted private key with paramEncoding explicit.
+  generateKeyPair('ec', {
+    namedCurve: 'prime256v1',
+    paramEncoding: 'explicit',
     publicKeyEncoding: {
       type: 'spki',
       format: 'pem'
@@ -417,6 +473,42 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   generateKeyPair('ec', {
     namedCurve: 'P-256',
     paramEncoding: 'named',
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem'
+    },
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'pem',
+      cipher: 'aes-128-cbc',
+      passphrase: 'top secret'
+    }
+  }, common.mustCall((err, publicKey, privateKey) => {
+    assert.ifError(err);
+
+    assert.strictEqual(typeof publicKey, 'string');
+    assert(spkiExp.test(publicKey));
+    assert.strictEqual(typeof privateKey, 'string');
+    assert(pkcs8EncExp.test(privateKey));
+
+    // Since the private key is encrypted, signing shouldn't work anymore.
+    common.expectsError(() => testSignVerify(publicKey, privateKey), {
+      type: TypeError,
+      code: 'ERR_MISSING_PASSPHRASE',
+      message: 'Passphrase required for encrypted key'
+    });
+
+    testSignVerify(publicKey, {
+      key: privateKey,
+      passphrase: 'top secret'
+    });
+  }));
+
+  // Test async elliptic curve key generation, e.g. for ECDSA, with an encrypted
+  // private key with paramEncoding explicit.
+  generateKeyPair('ec', {
+    namedCurve: 'P-256',
+    paramEncoding: 'explicit',
     publicKeyEncoding: {
       type: 'spki',
       format: 'pem'
