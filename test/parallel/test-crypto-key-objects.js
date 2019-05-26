@@ -13,6 +13,7 @@ const {
   createSecretKey,
   createPublicKey,
   createPrivateKey,
+  KeyObject,
   randomBytes,
   publicEncrypt,
   privateDecrypt
@@ -36,6 +37,17 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "key.byteLength" is out of range. ' +
              'It must be > 0. Received 0'
+  });
+}
+
+{
+  // Attempting to create a key of a wrong type should throw
+  const TYPE = 'wrong_type';
+
+  common.expectsError(() => new KeyObject(TYPE), {
+    type: TypeError,
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: `The argument 'type' is invalid. Received '${TYPE}'`
   });
 }
 
