@@ -89,6 +89,14 @@ function test_simple_error_callback(realpath, realpathSync, cb) {
   }));
 }
 
+function test_simple_error_cb_with_null_options(realpath, realpathSync, cb) {
+  realpath('/this/path/does/not/exist', null, common.mustCall(function(err, s) {
+    assert(err);
+    assert(!s);
+    cb();
+  }));
+}
+
 function test_simple_relative_symlink(realpath, realpathSync, callback) {
   console.log('test_simple_relative_symlink');
   if (skipSymlinks) {
@@ -395,6 +403,7 @@ function test_up_multiple(realpath, realpathSync, cb) {
 
   assertEqualPath(realpathSync(abedabeda), abedabeda_real);
   assertEqualPath(realpathSync(abedabed), abedabed_real);
+
   realpath(abedabeda, function(er, real) {
     assert.ifError(er);
     assertEqualPath(abedabeda_real, real);
@@ -406,6 +415,48 @@ function test_up_multiple(realpath, realpathSync, cb) {
   });
 }
 
+
+// Going up with .. multiple times with options = null
+// .
+// `-- a/
+//     |-- b/
+//     |   `-- e -> ..
+//     `-- d -> ..
+// realpath(a/b/e/d/a/b/e/d/a) ==> a
+function test_up_multiple_with_null_options(realpath, realpathSync, cb) {
+  console.error('test_up_multiple');
+  if (skipSymlinks) {
+    common.printSkipMessage('symlink test (no privs)');
+    return cb();
+  }
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
+  fs.mkdirSync(tmp('a'), 0o755);
+  fs.mkdirSync(tmp('a/b'), 0o755);
+  fs.symlinkSync('..', tmp('a/d'), 'dir');
+  unlink.push(tmp('a/d'));
+  fs.symlinkSync('..', tmp('a/b/e'), 'dir');
+  unlink.push(tmp('a/b/e'));
+
+  const abedabed = tmp('abedabed'.split('').join('/'));
+  const abedabed_real = tmp('');
+
+  const abedabeda = tmp('abedabeda'.split('').join('/'));
+  const abedabeda_real = tmp('a');
+
+  assertEqualPath(realpathSync(abedabeda), abedabeda_real);
+  assertEqualPath(realpathSync(abedabed), abedabed_real);
+
+  realpath(abedabeda, null, function(er, real) {
+    assert.ifError(er);
+    assertEqualPath(abedabeda_real, real);
+    realpath(abedabed, null, function(er, real) {
+      assert.ifError(er);
+      assertEqualPath(abedabed_real, real);
+      cb();
+    });
+  });
+}
 
 // Absolute symlinks with children.
 // .
@@ -474,10 +525,19 @@ function test_root(realpath, realpathSync, cb) {
   });
 }
 
+function test_root_with_null_options(realpath, realpathSync, cb) {
+  realpath('/', null, function(err, result) {
+    assert.ifError(err);
+    assertEqualPath(root, result);
+    cb();
+  });
+}
+
 // ----------------------------------------------------------------------------
 
 const tests = [
   test_simple_error_callback,
+  test_simple_error_cb_with_null_options,
   test_simple_relative_symlink,
   test_simple_absolute_symlink,
   test_deep_relative_file_symlink,
@@ -491,7 +551,9 @@ const tests = [
   test_upone_actual,
   test_abs_with_kids,
   test_up_multiple,
+  test_up_multiple_with_null_options,
   test_root,
+  test_root_with_null_options
 ];
 const numtests = tests.length;
 let testsRun = 0;
