@@ -8,6 +8,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
 #include "src/ostreams.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
