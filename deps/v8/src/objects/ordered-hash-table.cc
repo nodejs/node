@@ -957,6 +957,7 @@ OrderedHashTableHandler<SmallOrderedNameDictionary,
                         OrderedNameDictionary>::Allocate(Isolate* isolate,
                                                          int capacity);
 
+#if !defined(V8_OS_WIN)
 template <class SmallTable, class LargeTable>
 bool OrderedHashTableHandler<SmallTable, LargeTable>::Delete(
     Handle<HeapObject> table, Handle<Object> key) {
@@ -969,7 +970,9 @@ bool OrderedHashTableHandler<SmallTable, LargeTable>::Delete(
   // down to a smaller hash table.
   return LargeTable::Delete(Handle<LargeTable>::cast(table), key);
 }
+#endif
 
+#if !defined(V8_OS_WIN)
 template <class SmallTable, class LargeTable>
 bool OrderedHashTableHandler<SmallTable, LargeTable>::HasKey(
     Isolate* isolate, Handle<HeapObject> table, Handle<Object> key) {
@@ -980,6 +983,7 @@ bool OrderedHashTableHandler<SmallTable, LargeTable>::HasKey(
   DCHECK(LargeTable::Is(table));
   return LargeTable::HasKey(isolate, LargeTable::cast(*table), *key);
 }
+#endif
 
 template bool
 OrderedHashTableHandler<SmallOrderedHashSet, OrderedHashSet>::HasKey(
