@@ -32,6 +32,7 @@ server.listen(0, common.mustCall(() => {
 
   const req = client.request({ ':path': '/' });
   req.end();
+  req.resume(); // Otherwise close won't be emitted if there's pending data.
 
   req.on('close', common.mustCall(() => {
     client.close();
