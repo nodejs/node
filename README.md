@@ -36,29 +36,8 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 
 ## Support
 
-Node.js contributors have limited availability to address general support
-questions. Please make sure you are using a [currently-supported version of
-Node.js](https://github.com/nodejs/Release#release-schedule).
-
-When looking for support, please first search for your question in these venues:
-
-* [Node.js Website][]
-* [Node.js Help][]
-* [Open or closed issues in the Node.js GitHub organization](https://github.com/issues?utf8=%E2%9C%93&q=sort%3Aupdated-desc+org%3Anodejs+is%3Aissue)
-
-If you didn't find an answer in the resources above, try these unofficial
-resources:
-
-* [Questions tagged 'node.js' on StackOverflow][]
-* [#node.js channel on chat.freenode.net][]
-* [Node.js Slack Community](https://node-js.slack.com/)
-  * To register: [nodeslackers.com](http://www.nodeslackers.com/)
-
-GitHub issues are for tracking enhancements and bugs, not general support.
-
-The open source license grants you the freedom to use Node.js. It does not
-guarantee commitments of other people's time. Please be respectful and manage
-your expectations.
+Looking for help? Check out the
+[instructions for getting support](.github/SUPPORT.md).
 
 ## Release Types
 
@@ -601,10 +580,6 @@ Other keys used to sign some previous releases:
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
-[Node.js Help]: https://github.com/nodejs/help
 [Node.js Foundation]: https://nodejs.org/en/foundation/
-[Node.js Website]: https://nodejs.org/en/
-[Questions tagged 'node.js' on StackOverflow]: https://stackoverflow.com/questions/tagged/node.js
 [Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
 [Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md
-[#node.js channel on chat.freenode.net]: https://webchat.freenode.net?channels=node.js&uio=d4
