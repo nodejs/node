@@ -1,4 +1,3 @@
-#include "env-inl.h"
 #include "node.h"
 #include "node_errors.h"
 #include "node_internals.h"
@@ -8,6 +7,7 @@
 
 #include <atomic>
 
+class Environment;
 namespace node {
 
 using v8::Array;

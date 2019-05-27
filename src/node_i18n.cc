@@ -67,6 +67,7 @@
 #include <unicode/uversion.h>
 #include <unicode/ustring.h>
 
+class Environment;
 #ifdef NODE_HAVE_SMALL_ICU
 /* if this is defined, we have a 'secondary' entry point.
    compare following to utypes.h defs for U_ICUDATA_ENTRY_POINT */

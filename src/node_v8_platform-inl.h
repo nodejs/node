@@ -5,7 +5,6 @@
 
 #include <memory>
 
-#include "env-inl.h"
 #include "node.h"
 #include "node_metadata.h"
 #include "node_options.h"
@@ -13,6 +12,7 @@
 #include "tracing/trace_event.h"
 #include "tracing/traced_value.h"
 
+class Environment;
 namespace node {
 
 // Ensures that __metadata trace events are only emitted

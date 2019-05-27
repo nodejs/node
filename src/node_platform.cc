@@ -1,12 +1,12 @@
 #include "node_platform.h"
 #include "node_internals.h"
 
-#include "env-inl.h"
 #include "debug_utils.h"
 #include <algorithm>
 #include <cmath>
 #include <memory>
 
+class Environment;
 namespace node {
 
 using v8::Isolate;

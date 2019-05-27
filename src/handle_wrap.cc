@@ -21,10 +21,10 @@
 
 #include "handle_wrap.h"
 #include "async_wrap-inl.h"
-#include "env-inl.h"
 #include "util-inl.h"
 #include "node.h"
 
+class Environment;
 namespace node {
 
 using v8::Context;

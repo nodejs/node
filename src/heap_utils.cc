@@ -1,5 +1,4 @@
 #include "diagnosticfilename-inl.h"
-#include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
@@ -24,6 +23,7 @@ using v8::ObjectTemplate;
 using v8::String;
 using v8::Value;
 
+class Environment;
 namespace node {
 namespace heap {
 

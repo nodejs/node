@@ -5,7 +5,6 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "node_errors.h"
-#include "env-inl.h"
 #include "js_stream.h"
 #include "string_bytes.h"
 #include "util-inl.h"
@@ -13,6 +12,7 @@
 
 #include <climits>  // INT_MAX
 
+class Environment;
 namespace node {
 
 using v8::Array;

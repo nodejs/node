@@ -4,10 +4,9 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "env.h"
-
 #include <string>
 
+class Environment;
 namespace node {
 namespace url {
 

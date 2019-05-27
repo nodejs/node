@@ -29,7 +29,6 @@
 #include "util.h"
 
 #include "async_wrap-inl.h"
-#include "env-inl.h"
 #include "stream_base-inl.h"
 #include "v8.h"
 
@@ -50,7 +49,7 @@
 // No copying is performed when slicing the buffer, only small reference
 // allocations.
 
-
+class Environment;
 namespace node {
 namespace {  // NOLINT(build/namespaces)
 

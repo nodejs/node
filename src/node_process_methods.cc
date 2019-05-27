@@ -1,5 +1,4 @@
 #include "base_object-inl.h"
-#include "env-inl.h"
 #include "node.h"
 #include "node_errors.h"
 #include "node_internals.h"
@@ -28,6 +27,7 @@ typedef int mode_t;
 #include <termios.h>  // tcgetattr, tcsetattr
 #endif
 
+class Environment;
 namespace node {
 
 using v8::Array;

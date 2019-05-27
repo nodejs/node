@@ -7,6 +7,7 @@
 #include "async_wrap-inl.h"
 #include "uv.h"
 
+class Environment;
 namespace node {
 
 ReqWrapBase::ReqWrapBase(Environment* env) {

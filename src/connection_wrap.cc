@@ -1,13 +1,13 @@
 #include "connection_wrap.h"
 
 #include "connect_wrap.h"
-#include "env-inl.h"
 #include "pipe_wrap.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "tcp_wrap.h"
 #include "util-inl.h"
 
+class Environment;
 namespace node {
 
 using v8::Boolean;

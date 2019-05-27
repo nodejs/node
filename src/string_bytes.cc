@@ -22,7 +22,6 @@
 #include "string_bytes.h"
 
 #include "base64.h"
-#include "env-inl.h"
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "util.h"
@@ -38,6 +37,7 @@
 // use external string resources.
 #define EXTERN_APEX 0xFBEE9
 
+class Environment;
 namespace node {
 
 using v8::HandleScope;

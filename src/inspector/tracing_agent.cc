@@ -7,6 +7,7 @@
 #include <set>
 #include <sstream>
 
+class Environment;
 namespace node {
 namespace inspector {
 namespace protocol {

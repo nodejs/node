@@ -1,4 +1,3 @@
-#include "env-inl.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_metadata.h"
@@ -8,6 +7,7 @@
 
 #include <climits>  // PATH_MAX
 
+class Environment;
 namespace node {
 using v8::Context;
 using v8::DEFAULT;

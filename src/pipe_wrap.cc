@@ -23,7 +23,6 @@
 
 #include "async_wrap.h"
 #include "connection_wrap.h"
-#include "env-inl.h"
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_buffer.h"
@@ -32,6 +31,7 @@
 #include "stream_wrap.h"
 #include "util-inl.h"
 
+class Environment;
 namespace node {
 
 using v8::Context;

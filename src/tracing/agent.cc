@@ -4,8 +4,8 @@
 #include "trace_event.h"
 #include "tracing/node_trace_buffer.h"
 #include "debug_utils.h"
-#include "env-inl.h"
 
+class Environment;
 namespace node {
 namespace tracing {
 

@@ -1,8 +1,8 @@
-#include "env-inl.h"
 #include "node_internals.h"
 #include "node_process.h"
 #include "async_wrap.h"
 
+class Environment;
 namespace node {
 
 using v8::Context;

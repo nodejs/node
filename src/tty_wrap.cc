@@ -21,13 +21,13 @@
 
 #include "tty_wrap.h"
 
-#include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
 
+class Environment;
 namespace node {
 
 using v8::Array;

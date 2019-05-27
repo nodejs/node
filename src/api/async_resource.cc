@@ -1,6 +1,7 @@
 #include "node.h"
-#include "env-inl.h"
 
+
+class Environment;
 namespace node {
 
 using v8::Function;

@@ -22,7 +22,6 @@
 #define CARES_STATICLIB
 #include "ares.h"
 #include "async_wrap-inl.h"
-#include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "req_wrap-inl.h"
@@ -53,6 +52,7 @@
 # define AI_V4MAPPED 0
 #endif
 
+class Environment;
 namespace node {
 namespace cares_wrap {
 

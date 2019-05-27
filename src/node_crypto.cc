@@ -31,7 +31,6 @@
 
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
-#include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "string_bytes.h"
 #include "threadpoolwork-inl.h"
@@ -58,6 +57,8 @@
 #include <memory>
 #include <utility>
 #include <vector>
+
+class Environment;
 
 static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
                                  | ASN1_STRFLGS_UTF8_CONVERT

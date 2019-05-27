@@ -26,10 +26,10 @@
 
 #include "node_crypto.h"
 #include "openssl/bio.h"
-#include "env.h"
 #include "util.h"
 #include "v8.h"
 
+class Environment;
 namespace node {
 namespace crypto {
 

@@ -24,7 +24,6 @@
 #include "node_buffer.h"
 
 #include "async_wrap-inl.h"
-#include "env-inl.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
 
@@ -41,6 +40,7 @@
 #include <cstring>
 #include <atomic>
 
+class Environment;
 namespace node {
 
 using v8::Array;
