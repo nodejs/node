@@ -941,7 +941,8 @@ void TLSWrap::EnableTrace(
   if (wrap->ssl_) {
     wrap->bio_trace_.reset(BIO_new_fp(stderr,  BIO_NOCLOSE | BIO_FP_TEXT));
     SSL_set_msg_callback(wrap->ssl_.get(), [](int write_p, int version, int
-          content_type, const void* buf, size_t len, SSL* ssl, void* arg) void {
+          content_type, const void* buf, size_t len, SSL* ssl, void* arg)
+        -> void {
         // BIO_write(), etc., called by SSL_trace, may error. The error should
         // be ignored, trace is a "best effort", and its usually because stderr
         // is a non-blocking pipe, and its buffer has overflowed. Leaving errors
