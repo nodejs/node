@@ -19,7 +19,7 @@
     "unist-util-visit": "^1.4.0"
   },
   "devDependencies": {
-    "js-yaml": "^3.12.2"
+    "js-yaml": "^3.13.1"
   },
   "optionalDependencies": {},
   "bin": "./generate.js"
