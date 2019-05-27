@@ -6,9 +6,6 @@ const fs = require('fs');
 const assert = require('assert');
 const cluster = require('cluster');
 
-const TEST_TIMEOUT = 1000;
-
-const timeout = ms => new Promise(resolve => setTimeout(resolve, ms));
 const waitForEvent = (eventEmiter, event) => new Promise(resolve => eventEmiter.on(event, resolve));
 
 function findLogFileWithName(name, dir) {
@@ -36,10 +33,7 @@ async function shouldFillLogfileArg() {
   cluster.on('exit', handler);
 
   try {
-    await Promise.race([
-      timeout(TEST_TIMEOUT),
-      waitForEvent(cluster, 'exit')
-    ]);
+    await waitForEvent(cluster, 'exit');
   } finally {
     cluster.removeListener('exit', handler);
     tmpdir.refresh();
@@ -67,10 +61,7 @@ async function shouldCreateLogWithArgName() {
   cluster.on('exit', handler);
 
   try {
-    await Promise.race([
-      timeout(TEST_TIMEOUT),
-      waitForEvent(cluster, 'exit')
-    ]);
+    await waitForEvent(cluster, 'exit');
   } finally {
     cluster.removeListener('exit', handler);
     tmpdir.refresh();
