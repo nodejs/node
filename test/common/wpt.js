@@ -94,7 +94,7 @@ class StatusRule {
    * @returns {RegExp}
    */
   transformPattern(pattern) {
-    const result = pattern.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&');
+    const result = path.normalize(pattern).replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&');
     return new RegExp(result.replace('*', '.*'));
   }
 }
