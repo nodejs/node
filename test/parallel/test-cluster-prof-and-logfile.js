@@ -6,11 +6,12 @@ const fs = require('fs');
 const assert = require('assert');
 const cluster = require('cluster');
 
-const waitForEvent = (eventEmiter, event) => new Promise(resolve => eventEmiter.on(event, resolve));
+const waitForEvent = (eventEmiter, event) =>
+  new Promise((resolve) => eventEmiter.on(event, resolve));
 
 function findLogFileWithName(name, dir) {
   const data = fs.readdirSync(dir, 'utf8');
-  return data.filter(file => file.includes(name));
+  return data.filter((file) => file.includes(name));
 }
 
 async function shouldFillLogfileArg() {
@@ -23,8 +24,8 @@ async function shouldFillLogfileArg() {
   });
 
   cluster.fork();
-  
-  const handler = common.mustCall(worker => {
+
+  const handler = common.mustCall((worker) => {
     const EXPECTED_FILENAME = 'v8-' + worker.process.pid;
     const reports = findLogFileWithName(EXPECTED_FILENAME, tmpdir.path);
     assert.strictEqual(reports.length, 1);
@@ -53,7 +54,7 @@ async function shouldCreateLogWithArgName() {
 
   cluster.fork();
 
-  const handler = common.mustCall(worker => {
+  const handler = common.mustCall((worker) => {
     const reports = findLogFileWithName(EXPECTED_FILENAME, tmpdir.path);
     assert.strictEqual(reports.length, 1);
   });
@@ -72,5 +73,5 @@ if (cluster.isMaster) {
   (async () => {
     await shouldFillLogfileArg();
     await shouldCreateLogWithArgName();
-  })()
+  })();
 }
