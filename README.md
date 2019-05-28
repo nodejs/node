@@ -413,7 +413,7 @@ For information about the governance of the Node.js project, see
 * [Qard](https://github.com/Qard) -
 **Stephen Belanger** &lt;admin@stephenbelanger.com&gt; (he/him)
 * [refack](https://github.com/refack) -
-**Refael Ackermann** &lt;refack@gmail.com&gt; (he/him)
+**Refael Ackermann (רפאל פלחי)** &lt;refack@gmail.com&gt; (he/him/הוא/אתה)
 * [richardlau](https://github.com/richardlau) -
 **Richard Lau** &lt;riclau@uk.ibm.com&gt;
 * [ronkorving](https://github.com/ronkorving) -
