@@ -6,7 +6,8 @@ Node.js](https://github.com/nodejs/Release#release-schedule).
 
 When looking for support, please first search for your question in these venues:
 
-* [Node.js Website](https://nodejs.org/en/)
+* [Node.js Website](https://nodejs.org/en/), especially the
+  [API docs](https://nodejs.org/api/)
 * [Node.js Help](https://github.com/nodejs/help)
 * [Open or closed issues in the Node.js GitHub organization](https://github.com/issues?utf8=%E2%9C%93&q=sort%3Aupdated-desc+org%3Anodejs+is%3Aissue)
 
