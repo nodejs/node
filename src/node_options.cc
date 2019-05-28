@@ -210,6 +210,23 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 
   Insert(&DebugOptionsParser::instance,
          &EnvironmentOptions::get_debug_options);
+
+  AddOption("--tls-min-v1.0",
+            "set default TLS minimum to TLSv1.0 (default: TLSv1.0)",
+            &EnvironmentOptions::tls_min_v1_0,
+            kAllowedInEnvironment);
+  AddOption("--tls-min-v1.1",
+            "set default TLS minimum to TLSv1.1 (default: TLSv1.0)",
+            &EnvironmentOptions::tls_min_v1_1,
+            kAllowedInEnvironment);
+  AddOption("--tls-min-v1.2",
+            "set default TLS minimum to TLSv1.2 (default: TLSv1.0)",
+            &EnvironmentOptions::tls_min_v1_2,
+            kAllowedInEnvironment);
+  AddOption("--tls-max-v1.2",
+            "set default TLS maximum to TLSv1.2 (default: TLSv1.2)",
+            &EnvironmentOptions::tls_max_v1_2,
+            kAllowedInEnvironment);
 }
 
 EnvironmentOptionsParser EnvironmentOptionsParser::instance;

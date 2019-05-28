@@ -10,11 +10,12 @@ const {
 const DEFAULT_MIN_VERSION = tls.DEFAULT_MIN_VERSION;
 const DEFAULT_MAX_VERSION = tls.DEFAULT_MAX_VERSION;
 
-// For v11.x, the default is fixed and cannot be changed via CLI.
-assert.strictEqual(DEFAULT_MIN_VERSION, 'TLSv1');
-
 function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
   assert(proto || cerr || serr, 'test missing any expectations');
+  // Report where test was called from. Strip leading garbage from
+  //     at Object.<anonymous> (file:line)
+  // from the stack location, we only want the file:line part.
+  const where = (new Error()).stack.split('\n')[2].replace(/[^(]*/, '');
   connect({
     client: {
       checkServerIdentity: (servername, cert) => { },
@@ -34,9 +35,28 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
     function u(_) { return _ === undefined ? 'U' : _; }
     console.log('test:', u(cmin), u(cmax), u(cprot), u(smin), u(smax), u(sprot),
                 'expect', u(proto), u(cerr), u(serr));
+    console.log('   ', where);
     if (!proto) {
-      console.log('client', pair.client.err ? pair.client.err.code : undefined);
-      console.log('server', pair.server.err ? pair.server.err.code : undefined);
+      function setCode(err) {
+        if (!err) return;
+        if (err.code) return;
+        // Convert error message to a .code, because .code wasn't always present
+        // in older versions.
+        if (/unsupported protocol/.test(err.message))
+          err.code = 'ERR_SSL_UNSUPPORTED_PROTOCOL';
+        else if (/wrong version number/.test(err.message))
+          err.code = 'ERR_SSL_WRONG_VERSION_NUMBER';
+        else if (/version too low/.test(err.message))
+          err.code = 'ERR_SSL_UNSUPPORTED_PROTOCOL';
+        else
+          err.code = err.message;
+      }
+      setCode(pair.server.err);
+      setCode(pair.client.err);
+      console.log('client', pair.client.err ? pair.client.err.code :
+        pair.client.err);
+      console.log('server', pair.server.err ? pair.server.err.code :
+        pair.server.err);
       // 11.x doesn't have https://github.com/nodejs/node/pull/24729
       if (cerr === 'ERR_TLS_INVALID_PROTOCOL_METHOD' &&
           pair.client.err &&
