@@ -89,7 +89,7 @@
  * version matching should open a pull request to reserve a number in this
  * registry.
  */
-#define NODE_MODULE_VERSION 72
+#define NODE_MODULE_VERSION 74
 
 // the NAPI_VERSION provided by this version of the runtime
 #define NAPI_VERSION  4
