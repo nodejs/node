@@ -51,7 +51,7 @@ require('../common');
 // assert all "canonical" flags begin with dash(es)
 {
   process.allowedNodeEnvironmentFlags.forEach((flag) => {
-    assert(/^--?[a-z28_-]+$/.test(flag), `Unexpected format for flag ${flag}`);
+    assert(/^--?[a-z.0-9_-]+$/.test(flag), `Unexpected format for flag ${flag}`);
   });
 }
 

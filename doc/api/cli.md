@@ -359,6 +359,38 @@ added: v4.0.0
 Specify an alternative default TLS cipher list. Requires Node.js to be built
 with crypto support (default).
 
+### `--tls-max-v1.2`
+<!-- YAML
+added: REPLACEME
+-->
+
+Does nothing, [`tls.DEFAULT_MAX_VERSION`][] is always 'TLSv1.2'. Exists for
+compatibility with Node.js 11.x and higher.
+
+### `--tls-min-v1.0`
+<!-- YAML
+added: REPLACEME
+-->
+
+Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1'. Use for compatibility with
+old TLS clients or servers.
+
+### `--tls-min-v1.1`
+<!-- YAML
+added: REPLACEME
+-->
+
+Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.1'. Use for compatibility
+with old TLS clients or servers.
+
+### `--tls-min-v1.2`
+<!-- YAML
+added: REPLACEME
+-->
+
+Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.2'. Use this to disable
+support for earlier TLS versions, which are less secure.
+
 ### `--trace-deprecation`
 <!-- YAML
 added: v0.8.0
