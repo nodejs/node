@@ -203,8 +203,8 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 }
 
 [
-  { private: fixtures.readSync('test_ed25519_privkey.pem', 'ascii'),
-    public: fixtures.readSync('test_ed25519_pubkey.pem', 'ascii'),
+  { private: fixtures.readKey('ed25519_private.pem', 'ascii'),
+    public: fixtures.readKey('ed25519_public.pem', 'ascii'),
     keyType: 'ed25519' },
   { private: fixtures.readSync('test_ed448_privkey.pem', 'ascii'),
     public: fixtures.readSync('test_ed448_pubkey.pem', 'ascii'),
