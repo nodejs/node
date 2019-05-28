@@ -38,7 +38,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.12',
+    'v8_embedder_string': '-node.13',
 
     ##### V8 defaults for Node.js #####
 
@@ -70,7 +70,7 @@
     # https://github.com/nodejs/node/pull/22920/files#r222779926
     'v8_enable_fast_mksnapshot': 0,
 
-    'v8_win64_unwinding_info': 0,
+    'v8_win64_unwinding_info': 1,
 
     # TODO(refack): make v8-perfetto happen
     'v8_use_perfetto': 0,
