@@ -10,7 +10,7 @@ namespace array_of {
     const len: Smi = Convert<Smi>(arguments.length);
 
     // 2. Let items be the List of arguments passed to this function.
-    const items: constexpr Arguments = arguments;
+    const items: Arguments = arguments;
 
     // 3. Let C be the this value.
     const c: Object = receiver;

@@ -166,6 +166,10 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // this flag, the code range must be small enough to fit all offsets into
   // the instruction immediates.
   bool use_pc_relative_calls_and_jumps = false;
+  // Enables the collection of information useful for the generation of unwind
+  // info. This is useful in some platform (Win64) where the unwind info depends
+  // on a function prologue/epilogue.
+  bool collect_win64_unwind_info = false;
 
   // Constructs V8-agnostic set of options from current state.
   AssemblerOptions EnableV8AgnosticCode() const;
@@ -275,8 +279,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   Handle<Code> GetCodeTarget(intptr_t code_target_index) const;
   // Update to the code target at {code_target_index} to {target}.
   void UpdateCodeTarget(intptr_t code_target_index, Handle<Code> target);
-  // Reserves space in the code target vector.
-  void ReserveCodeTargetSpace(size_t num_of_code_targets);
 
   // The buffer into which code and relocation info are generated.
   std::unique_ptr<AssemblerBuffer> buffer_;
@@ -372,7 +374,7 @@ class PredictableCodeSizeScope {
 
 
 // Enable a specified feature within a scope.
-class CpuFeatureScope {
+class V8_EXPORT_PRIVATE CpuFeatureScope {
  public:
   enum CheckPolicy {
     kCheckSupported,

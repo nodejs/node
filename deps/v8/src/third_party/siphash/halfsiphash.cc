@@ -17,7 +17,7 @@
  * Altered to match V8's use case.
  */
 
-#include <stdint.h>
+#include "src/third_party/siphash/halfsiphash.h"
 
 #include "src/base/logging.h"
 #include "src/base/v8-fallthrough.h"

@@ -30,8 +30,11 @@ class Statement;
 class StringSet;
 class VariableProxy;
 
+typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
+    UnresolvedList;
+
 // A hash map to support fast variable declaration and lookup.
-class VariableMap: public ZoneHashMap {
+class VariableMap : public ZoneHashMap {
  public:
   explicit VariableMap(Zone* zone);
 
@@ -40,7 +43,7 @@ class VariableMap: public ZoneHashMap {
                     InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag, bool* was_added);
 
-  Variable* Lookup(const AstRawString* name);
+  V8_EXPORT_PRIVATE Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
   void Add(Zone* zone, Variable* var);
 };
@@ -79,13 +82,12 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 #endif
 
-  typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
-      UnresolvedList;
-
   DeclarationScope* AsDeclarationScope();
   const DeclarationScope* AsDeclarationScope() const;
   ModuleScope* AsModuleScope();
   const ModuleScope* AsModuleScope() const;
+  ClassScope* AsClassScope();
+  const ClassScope* AsClassScope() const;
 
   class Snapshot final {
    public:
@@ -347,9 +349,12 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_module_scope() const { return scope_type_ == MODULE_SCOPE; }
   bool is_script_scope() const { return scope_type_ == SCRIPT_SCOPE; }
   bool is_catch_scope() const { return scope_type_ == CATCH_SCOPE; }
-  bool is_block_scope() const { return scope_type_ == BLOCK_SCOPE; }
+  bool is_block_scope() const {
+    return scope_type_ == BLOCK_SCOPE || scope_type_ == CLASS_SCOPE;
+  }
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
   bool is_declaration_scope() const { return is_declaration_scope_; }
+  bool is_class_scope() const { return scope_type_ == CLASS_SCOPE; }
 
   bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
   bool IsAsmModule() const;
@@ -455,6 +460,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // The number of contexts between this and the outermost context that has a
   // sloppy eval call. One if this->calls_sloppy_eval().
   int ContextChainLengthUntilOutermostSloppyEval() const;
+
+  // Find the closest class scope in the current scope and outer scopes. If no
+  // class scope is found, nullptr will be returned.
+  ClassScope* GetClassScope();
 
   // Find the first function, script, eval or (declaration) block scope. This is
   // the scope where var declarations will be hoisted to in the implementation.
@@ -589,11 +598,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   static Variable* LookupSloppyEval(VariableProxy* proxy, Scope* scope,
                                     Scope* outer_scope_end, Scope* entry_point,
                                     bool force_context_allocation);
-  static bool ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
+  static void ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
                                        Scope* end);
   void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
-  V8_WARN_UNUSED_RESULT bool ResolveVariable(ParseInfo* info,
-                                             VariableProxy* proxy);
+  void ResolveVariable(ParseInfo* info, VariableProxy* proxy);
   V8_WARN_UNUSED_RESULT bool ResolveVariablesRecursively(ParseInfo* info);
 
   // Finds free variables of this scope. This mutates the unresolved variables
@@ -638,6 +646,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void SetDefaults();
 
   friend class DeclarationScope;
+  friend class ClassScope;
   friend class ScopeTestHelper;
 
   Zone* zone_;
@@ -1154,6 +1163,75 @@ class ModuleScope final : public DeclarationScope {
 
  private:
   ModuleDescriptor* const module_descriptor_;
+};
+
+class V8_EXPORT_PRIVATE ClassScope : public Scope {
+ public:
+  ClassScope(Zone* zone, Scope* outer_scope);
+  // Deserialization.
+  ClassScope(Zone* zone, Handle<ScopeInfo> scope_info);
+
+  // Declare a private name in the private name map and add it to the
+  // local variables of this scope.
+  Variable* DeclarePrivateName(const AstRawString* name, bool* was_added);
+
+  void AddUnresolvedPrivateName(VariableProxy* proxy);
+
+  // Try resolving all unresolved private names found in the current scope.
+  // Called from DeclarationScope::AllocateVariables() when reparsing a
+  // method to generate code or when eval() is called to access private names.
+  // If there are any private names that cannot be resolved, returns false.
+  V8_WARN_UNUSED_RESULT bool ResolvePrivateNames(ParseInfo* info);
+
+  // Called after the entire class literal is parsed.
+  // - If we are certain a private name cannot be resolve, return that
+  //   variable proxy.
+  // - If we find the private name in the scope chain, return nullptr.
+  //   If the name is found in the current class scope, resolve it
+  //   immediately.
+  // - If we are not sure if the private name can be resolved or not yet,
+  //   return nullptr.
+  VariableProxy* ResolvePrivateNamesPartially();
+
+  // Get the current tail of unresolved private names to be used to
+  // reset the tail.
+  UnresolvedList::Iterator GetUnresolvedPrivateNameTail();
+
+  // Reset the tail of unresolved private names, discard everything
+  // between the tail passed into this method and the current tail.
+  void ResetUnresolvedPrivateNameTail(UnresolvedList::Iterator tail);
+
+  // Migrate private names added between the tail passed into this method
+  // and the current tail.
+  void MigrateUnresolvedPrivateNameTail(AstNodeFactory* ast_node_factory,
+                                        UnresolvedList::Iterator tail);
+
+ private:
+  friend class Scope;
+  // Find the private name declared in the private name map first,
+  // if it cannot be found there, try scope info if there is any.
+  // Returns nullptr if it cannot be found.
+  Variable* LookupPrivateName(VariableProxy* proxy);
+  // Lookup a private name from the local private name map of the current
+  // scope.
+  Variable* LookupLocalPrivateName(const AstRawString* name);
+  // Lookup a private name from the scope info of the current scope.
+  Variable* LookupPrivateNameInScopeInfo(const AstRawString* name);
+
+  struct RareData : public ZoneObject {
+    explicit RareData(Zone* zone) : private_name_map(zone) {}
+    UnresolvedList unresolved_private_names;
+    VariableMap private_name_map;
+  };
+
+  V8_INLINE RareData* EnsureRareData() {
+    if (rare_data_ == nullptr) {
+      rare_data_ = new (zone_) RareData(zone_);
+    }
+    return rare_data_;
+  }
+
+  RareData* rare_data_ = nullptr;
 };
 
 }  // namespace internal

@@ -359,12 +359,22 @@ void WasmMemoryGrowDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
+void WasmTableGetDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void WasmTableSetDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
 void WasmThrowDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
-void WasmAtomicWakeDescriptor::InitializePlatformSpecific(
+void WasmAtomicNotifyDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
@@ -397,7 +407,7 @@ void RunMicrotasksDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
-void BigIntToWasmI64Descriptor::InitializePlatformSpecific(
+void I64ToBigIntDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }

@@ -92,7 +92,7 @@ static ArgPassingHelper<T> GetHelper(
 
 // Pass int32_t, return int32_t.
 TEST(TestArgumentPassing_int32) {
-  WasmRunner<int32_t, int32_t> runner(ExecutionTier::kOptimized);
+  WasmRunner<int32_t, int32_t> runner(ExecutionTier::kTurbofan);
   WasmFunctionCompiler& f2 = runner.NewFunction<int32_t, int32_t>();
 
   auto helper = GetHelper(
@@ -110,7 +110,7 @@ TEST(TestArgumentPassing_int32) {
 
 // Pass int64_t, return double.
 TEST(TestArgumentPassing_double_int64) {
-  WasmRunner<double, int32_t, int32_t> runner(ExecutionTier::kOptimized);
+  WasmRunner<double, int32_t, int32_t> runner(ExecutionTier::kTurbofan);
   WasmFunctionCompiler& f2 = runner.NewFunction<double, int64_t>();
 
   auto helper = GetHelper(
@@ -143,7 +143,7 @@ TEST(TestArgumentPassing_double_int64) {
 // Pass double, return int64_t.
 TEST(TestArgumentPassing_int64_double) {
   // Outer function still returns double.
-  WasmRunner<double, double> runner(ExecutionTier::kOptimized);
+  WasmRunner<double, double> runner(ExecutionTier::kTurbofan);
   WasmFunctionCompiler& f2 = runner.NewFunction<int64_t, double>();
 
   auto helper = GetHelper(
@@ -162,7 +162,7 @@ TEST(TestArgumentPassing_int64_double) {
 
 // Pass float, return double.
 TEST(TestArgumentPassing_float_double) {
-  WasmRunner<double, float> runner(ExecutionTier::kOptimized);
+  WasmRunner<double, float> runner(ExecutionTier::kTurbofan);
   WasmFunctionCompiler& f2 = runner.NewFunction<double, float>();
 
   auto helper = GetHelper(
@@ -180,7 +180,7 @@ TEST(TestArgumentPassing_float_double) {
 
 // Pass two doubles, return double.
 TEST(TestArgumentPassing_double_double) {
-  WasmRunner<double, double, double> runner(ExecutionTier::kOptimized);
+  WasmRunner<double, double, double> runner(ExecutionTier::kTurbofan);
   WasmFunctionCompiler& f2 = runner.NewFunction<double, double, double>();
 
   auto helper = GetHelper(runner, f2,
@@ -200,7 +200,7 @@ TEST(TestArgumentPassing_double_double) {
 TEST(TestArgumentPassing_AllTypes) {
   // The second and third argument will be combined to an i64.
   WasmRunner<double, int32_t, int32_t, int32_t, float, double> runner(
-      ExecutionTier::kOptimized);
+      ExecutionTier::kTurbofan);
   WasmFunctionCompiler& f2 =
       runner.NewFunction<double, int32_t, int64_t, float, double>();
 

@@ -764,10 +764,19 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
   while (bytes_processed < bytes_to_process || completion == FORCE_COMPLETION) {
     HeapObject obj = marking_worklist()->Pop();
     if (obj.is_null()) break;
-    // Left trimming may result in white, grey, or black filler objects on the
-    // marking deque. Ignore these objects.
+    // Left trimming may result in grey or black filler objects on the marking
+    // worklist. Ignore these objects.
     if (obj->IsFiller()) {
-      DCHECK(!marking_state()->IsImpossible(obj));
+      // Due to copying mark bits and the fact that grey and black have their
+      // first bit set, one word fillers are always black.
+      DCHECK_IMPLIES(
+          obj->map() == ReadOnlyRoots(heap()).one_pointer_filler_map(),
+          marking_state()->IsBlack(obj));
+      // Other fillers may be black or grey depending on the color of the object
+      // that was trimmed.
+      DCHECK_IMPLIES(
+          obj->map() != ReadOnlyRoots(heap()).one_pointer_filler_map(),
+          marking_state()->IsBlackOrGrey(obj));
       continue;
     }
     bytes_processed += VisitObject(obj->map(), obj);

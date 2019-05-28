@@ -1517,6 +1517,25 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitChangeInt32ToInt64(node);
     case IrOpcode::kChangeUint32ToUint64:
       return MarkAsWord64(node), VisitChangeUint32ToUint64(node);
+// TODO(mips-team): Support compress pointers.
+#ifdef V8_COMPRESS_POINTERS
+    case IrOpcode::kChangeTaggedToCompressed:
+      return MarkAsCompressed(node), VisitChangeTaggedToCompressed(node);
+    case IrOpcode::kChangeTaggedPointerToCompressedPointer:
+      return MarkAsCompressed(node),
+             VisitChangeTaggedPointerToCompressedPointer(node);
+    case IrOpcode::kChangeTaggedSignedToCompressedSigned:
+      return MarkAsWord32(node),
+             VisitChangeTaggedSignedToCompressedSigned(node);
+    case IrOpcode::kChangeCompressedToTagged:
+      return MarkAsReference(node), VisitChangeCompressedToTagged(node);
+    case IrOpcode::kChangeCompressedPointerToTaggedPointer:
+      return MarkAsReference(node),
+             VisitChangeCompressedPointerToTaggedPointer(node);
+    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
+      return MarkAsWord64(node),
+             VisitChangeCompressedSignedToTaggedSigned(node);
+#endif
     case IrOpcode::kTruncateFloat64ToFloat32:
       return MarkAsFloat32(node), VisitTruncateFloat64ToFloat32(node);
     case IrOpcode::kTruncateFloat64ToWord32:
@@ -1764,8 +1783,6 @@ void InstructionSelector::VisitNode(Node* node) {
       ATOMIC_CASE(Exchange)
       ATOMIC_CASE(CompareExchange)
 #undef ATOMIC_CASE
-    case IrOpcode::kSpeculationFence:
-      return VisitSpeculationFence(node);
     case IrOpcode::kProtectedLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
@@ -1989,7 +2006,7 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kI8x16GtU:
       return MarkAsSimd128(node), VisitI8x16GtU(node);
     case IrOpcode::kI8x16GeU:
-      return MarkAsSimd128(node), VisitI16x8GeU(node);
+      return MarkAsSimd128(node), VisitI8x16GeU(node);
     case IrOpcode::kS128Zero:
       return MarkAsSimd128(node), VisitS128Zero(node);
     case IrOpcode::kS128And:
@@ -2283,6 +2300,37 @@ void InstructionSelector::VisitChangeInt64ToFloat64(Node* node) {
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   UNIMPLEMENTED();
 }
+
+// TODO(mips-team): Support compress pointers.
+#ifdef V8_COMPRESS_POINTERS
+void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitChangeTaggedPointerToCompressedPointer(
+    Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
+    Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
+    Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
+    Node* node) {
+  UNIMPLEMENTED();
+}
+#endif
 
 void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
   UNIMPLEMENTED();

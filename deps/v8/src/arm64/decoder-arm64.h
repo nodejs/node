@@ -86,7 +86,7 @@ namespace internal {
 
 // The Visitor interface. Disassembler and simulator (and other tools)
 // must provide implementations for all of these functions.
-class DecoderVisitor {
+class V8_EXPORT_PRIVATE DecoderVisitor {
  public:
   virtual ~DecoderVisitor() {}
 
@@ -95,9 +95,8 @@ class DecoderVisitor {
   #undef DECLARE
 };
 
-
 // A visitor that dispatches to a list of visitors.
-class DispatchingDecoderVisitor : public DecoderVisitor {
+class V8_EXPORT_PRIVATE DispatchingDecoderVisitor : public DecoderVisitor {
  public:
   DispatchingDecoderVisitor() {}
   virtual ~DispatchingDecoderVisitor() {}
@@ -121,7 +120,7 @@ class DispatchingDecoderVisitor : public DecoderVisitor {
   //
   // will call in order visitor methods in V3, V2, V1, V4.
   void AppendVisitor(DecoderVisitor* visitor);
-  void PrependVisitor(DecoderVisitor* visitor);
+  V8_EXPORT_PRIVATE void PrependVisitor(DecoderVisitor* visitor);
   void InsertVisitorBefore(DecoderVisitor* new_visitor,
                            DecoderVisitor* registered_visitor);
   void InsertVisitorAfter(DecoderVisitor* new_visitor,
@@ -141,7 +140,6 @@ class DispatchingDecoderVisitor : public DecoderVisitor {
   // Visitors are registered in a list.
   std::list<DecoderVisitor*> visitors_;
 };
-
 
 template<typename V>
 class Decoder : public V {

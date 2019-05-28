@@ -28,7 +28,7 @@ using InvalidatedSlots = std::map<HeapObject, int, Object::Comparer>;
 // implementation with complexity O(m*log(m) + n), where
 // m is the number of invalidated objects in the memory chunk.
 // n is the number of IsValid queries.
-class InvalidatedSlotsFilter {
+class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
  public:
   explicit InvalidatedSlotsFilter(MemoryChunk* chunk);
   inline bool IsValid(Address slot);

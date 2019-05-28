@@ -58,6 +58,9 @@ bool IsWasmCompileAllowed(v8::Isolate* isolate, v8::Local<v8::Value> value,
   return (is_async && ctrls.AllowAnySizeForAsync) ||
          (value->IsArrayBuffer() &&
           v8::Local<v8::ArrayBuffer>::Cast(value)->ByteLength() <=
+              ctrls.MaxWasmBufferSize) ||
+         (value->IsArrayBufferView() &&
+          v8::Local<v8::ArrayBufferView>::Cast(value)->ByteLength() <=
               ctrls.MaxWasmBufferSize);
 }
 
@@ -230,6 +233,15 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
+  // Check we called PrepareFunctionForOptimization and hold the bytecode
+  // array to prevent it from getting flushed.
+  // TODO(mythria): Enable this check once we add PrepareForOptimization in all
+  // tests before calling OptimizeFunctionOnNextCall.
+  // CHECK(!ObjectHashTable::cast(
+  //          isolate->heap()->pending_optimize_for_test_bytecode())
+  //          ->Lookup(handle(function->shared(), isolate))
+  //          ->IsTheHole());
+
   // The following conditions were lifted (in part) from the DCHECK inside
   // JSFunction::MarkForOptimization().
 
@@ -296,17 +308,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+namespace {
 
-  // Only one function should be prepared for optimization at a time
-  CHECK(isolate->heap()->pending_optimize_for_test_bytecode()->IsUndefined());
-
+bool EnsureFeedbackVector(Handle<JSFunction> function) {
   // Check function allows lazy compilation.
   if (!function->shared()->allows_lazy_compilation()) {
-    return ReadOnlyRoots(isolate).undefined_value();
+    return false;
   }
 
   // If function isn't compiled, compile it now.
@@ -314,12 +321,34 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   if (!is_compiled_scope.is_compiled() &&
       !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
                          &is_compiled_scope)) {
-    return ReadOnlyRoots(isolate).undefined_value();
+    return false;
   }
 
   // Ensure function has a feedback vector to hold type feedback for
   // optimization.
   JSFunction::EnsureFeedbackVector(function);
+  return true;
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  EnsureFeedbackVector(function);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  if (!EnsureFeedbackVector(function)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
 
   // If optimization is disabled for the function, return without making it
   // pending optimize for test.
@@ -344,8 +373,16 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
 
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
-  isolate->heap()->SetPendingOptimizeForTestBytecode(
-      function->shared()->GetBytecodeArray());
+  Handle<ObjectHashTable> table =
+      isolate->heap()->pending_optimize_for_test_bytecode()->IsUndefined()
+          ? ObjectHashTable::New(isolate, 1)
+          : handle(ObjectHashTable::cast(
+                       isolate->heap()->pending_optimize_for_test_bytecode()),
+                   isolate);
+  table = ObjectHashTable::Put(
+      table, handle(function->shared(), isolate),
+      handle(function->shared()->GetBytecodeArray(), isolate));
+  isolate->heap()->SetPendingOptimizeForTestBytecode(*table);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -414,7 +451,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1 || args.length() == 2);
   int status = 0;
-  if (FLAG_lite_mode) {
+  if (FLAG_lite_mode || FLAG_jitless) {
+    // Both jitless and lite modes cannot optimize. Unit tests should handle
+    // these the same way. In the future, the two flags may become synonyms.
     status |= static_cast<int>(OptimizationStatus::kLiteMode);
   }
   if (!isolate->use_optimizer()) {
@@ -1061,17 +1100,23 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, wire_bytes, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, wire_bytes, 1);
+  CHECK(!buffer->was_detached());
+  CHECK(!wire_bytes->WasDetached());
+
+  Handle<JSArrayBuffer> wire_bytes_buffer = wire_bytes->GetBuffer();
+  Vector<const uint8_t> wire_bytes_vec{
+      reinterpret_cast<const uint8_t*>(wire_bytes_buffer->backing_store()) +
+          wire_bytes->byte_offset(),
+      wire_bytes->byte_length()};
+  Vector<uint8_t> buffer_vec{
+      reinterpret_cast<uint8_t*>(buffer->backing_store()),
+      buffer->byte_length()};
 
   // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
   // JSArrayBuffer backing store doesn't get relocated.
   MaybeHandle<WasmModuleObject> maybe_module_object =
-      wasm::DeserializeNativeModule(
-          isolate,
-          {reinterpret_cast<uint8_t*>(buffer->backing_store()),
-           buffer->byte_length()},
-          {reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
-           wire_bytes->byte_length()});
+      wasm::DeserializeNativeModule(isolate, buffer_vec, wire_bytes_vec);
   Handle<WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -1138,6 +1183,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
       reinterpret_cast<wasm::MemoryTracingInfo*>(info_addr.ptr());
 
   // Find the caller wasm frame.
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
   StackTraceFrameIterator it(isolate);
   DCHECK(!it.done());
   DCHECK(it.is_wasm());
@@ -1151,8 +1197,8 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   int func_start =
       frame->wasm_instance()->module()->functions[func_index].code.offset();
   wasm::ExecutionTier tier = frame->wasm_code()->is_liftoff()
-                                 ? wasm::ExecutionTier::kBaseline
-                                 : wasm::ExecutionTier::kOptimized;
+                                 ? wasm::ExecutionTier::kLiftoff
+                                 : wasm::ExecutionTier::kTurbofan;
   wasm::TraceMemoryOperation(tier, info, func_index, pos - func_start,
                              mem_start);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1165,7 +1211,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   CONVERT_SMI_ARG_CHECKED(function_index, 1);
   auto* native_module = instance->module_object()->native_module();
   isolate->wasm_engine()->CompileFunction(
-      isolate, native_module, function_index, wasm::ExecutionTier::kOptimized);
+      isolate, native_module, function_index, wasm::ExecutionTier::kTurbofan);
   CHECK(!native_module->compilation_state()->failed());
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1180,9 +1226,9 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   wasm::NativeModule* native_module =
       exp_fun->instance()->module_object()->native_module();
   uint32_t func_index = exp_fun->function_index();
-  return isolate->heap()->ToBoolean(
-      native_module->has_code(func_index) &&
-      native_module->code(func_index)->is_liftoff());
+  wasm::WasmCodeRefScope code_ref_scope;
+  wasm::WasmCode* code = native_module->GetCode(func_index);
+  return isolate->heap()->ToBoolean(code && code->is_liftoff());
 }
 
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
@@ -1202,14 +1248,6 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
 
   instance->module_object()->native_module()->set_lazy_compile_frozen(true);
   return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_WasmMemoryHasFullGuardRegion) {
-  DCHECK_EQ(1, args.length());
-  DisallowHeapAllocation no_gc;
-  CONVERT_ARG_CHECKED(WasmMemoryObject, memory, 0);
-
-  return isolate->heap()->ToBoolean(memory->has_full_guard_region(isolate));
 }
 
 }  // namespace internal

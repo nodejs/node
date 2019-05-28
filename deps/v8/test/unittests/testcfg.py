@@ -2,6 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import os
 
 from testrunner.local import command
@@ -23,7 +26,7 @@ class TestLoader(testsuite.TestLoader):
       shell += ".exe"
 
     output = None
-    for i in xrange(3): # Try 3 times in case of errors.
+    for i in range(3): # Try 3 times in case of errors.
       cmd = command.Command(
         cmd_prefix=self.test_config.command_prefix,
         shell=shell,
@@ -32,13 +35,13 @@ class TestLoader(testsuite.TestLoader):
       if output.exit_code == 0:
         break
 
-      print "Test executable failed to list the tests (try %d).\n\nCmd:" % i
-      print cmd
-      print "\nStdout:"
-      print output.stdout
-      print "\nStderr:"
-      print output.stderr
-      print "\nExit code: %d" % output.exit_code
+      print("Test executable failed to list the tests (try %d).\n\nCmd:" % i)
+      print(cmd)
+      print("\nStdout:")
+      print(output.stdout)
+      print("\nStderr:")
+      print(output.stderr)
+      print("\nExit code: %d" % output.exit_code)
     else:
       raise Exception("Test executable failed to list the tests.")
 

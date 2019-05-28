@@ -20,7 +20,7 @@ namespace wasm {
 
 namespace {
 bool IsValidFunctionName(const Vector<const char> &name) {
-  if (name.is_empty()) return false;
+  if (name.empty()) return false;
   const char *special_chars = "_.+-*/\\^~=<>!?@#$%&|:'`";
   for (char c : name) {
     bool valid_char = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') ||
@@ -120,11 +120,9 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         break;
       }
       case kExprBrOnExn: {
-        BranchDepthImmediate<Decoder::kNoValidate> imm_br(&i, i.pc());
-        ExceptionIndexImmediate<Decoder::kNoValidate> imm_idx(
-            &i, i.pc() + imm_br.length);
-        os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm_br.depth << ' '
-           << imm_idx.index;
+        BranchOnExceptionImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.depth.depth << ' '
+           << imm.index.index;
         break;
       }
       case kExprElse:
@@ -143,7 +141,8 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         break;
       }
       case kExprCallIndirect: {
-        CallIndirectImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        CallIndirectImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+                                                        i.pc());
         DCHECK_EQ(0, imm.table_index);
         os << "call_indirect " << imm.sig_index;
         break;

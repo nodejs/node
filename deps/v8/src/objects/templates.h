@@ -26,18 +26,8 @@ class TemplateInfo : public Struct {
 
   DECL_CAST(TemplateInfo)
 
-  // Layout description.
-#define TEMPLATE_INFO_FIELDS(V)            \
-  V(kTagOffset, kTaggedSize)               \
-  V(kSerialNumberOffset, kTaggedSize)      \
-  V(kNumberOfProperties, kTaggedSize)      \
-  V(kPropertyListOffset, kTaggedSize)      \
-  V(kPropertyAccessorsOffset, kTaggedSize) \
-  /* Header size. */                       \
-  V(kHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, TEMPLATE_INFO_FIELDS)
-#undef TEMPLATE_INFO_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_TEMPLATE_INFO_FIELDS)
 
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
@@ -68,21 +58,9 @@ class FunctionTemplateRareData : public Struct {
   DECL_PRINTER(FunctionTemplateRareData)
   DECL_VERIFIER(FunctionTemplateRareData)
 
-  // Layout description.
-#define SYMBOL_FIELDS(V)                           \
-  V(kPrototypeTemplateOffset, kTaggedSize)         \
-  V(kPrototypeProviderTemplateOffset, kTaggedSize) \
-  V(kParentTemplateOffset, kTaggedSize)            \
-  V(kNamedPropertyHandlerOffset, kTaggedSize)      \
-  V(kIndexedPropertyHandlerOffset, kTaggedSize)    \
-  V(kInstanceTemplateOffset, kTaggedSize)          \
-  V(kInstanceCallHandlerOffset, kTaggedSize)       \
-  V(kAccessCheckInfoOffset, kTaggedSize)           \
-  /* Total size. */                                \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, SYMBOL_FIELDS)
-#undef SYMBOL_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      HeapObject::kHeaderSize,
+      TORQUE_GENERATED_FUNCTION_TEMPLATE_RARE_DATA_FIELDS)
 
   OBJECT_CONSTRUCTORS(FunctionTemplateRareData, Struct);
 };
@@ -191,22 +169,8 @@ class FunctionTemplateInfo : public TemplateInfo {
 
   static const int kInvalidSerialNumber = 0;
 
-  // Layout description.
-#define FUNCTION_TEMPLATE_INFO_FIELDS(V)          \
-  V(kCallCodeOffset, kTaggedSize)                 \
-  V(kClassNameOffset, kTaggedSize)                \
-  V(kSignatureOffset, kTaggedSize)                \
-  V(kFunctionTemplateRareDataOffset, kTaggedSize) \
-  V(kSharedFunctionInfoOffset, kTaggedSize)       \
-  V(kFlagOffset, kTaggedSize)                     \
-  V(kLengthOffset, kTaggedSize)                   \
-  V(kCachedPropertyNameOffset, kTaggedSize)       \
-  /* Total size. */                               \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kHeaderSize,
-                                FUNCTION_TEMPLATE_INFO_FIELDS)
-#undef FUNCTION_TEMPLATE_INFO_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kSize,
+                                TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FIELDS)
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info,
@@ -257,16 +221,8 @@ class ObjectTemplateInfo : public TemplateInfo {
   DECL_VERIFIER(ObjectTemplateInfo)
 
   // Layout description.
-#define OBJECT_TEMPLATE_INFO_FIELDS(V)                                   \
-  V(kConstructorOffset, kTaggedSize)                                     \
-  /* LSB is for immutable_proto, higher bits for embedder_field_count */ \
-  V(kDataOffset, kTaggedSize)                                            \
-  /* Total size. */                                                      \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kHeaderSize,
-                                OBJECT_TEMPLATE_INFO_FIELDS)
-#undef OBJECT_TEMPLATE_INFO_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kSize,
+                                TORQUE_GENERATED_OBJECT_TEMPLATE_INFO_FIELDS)
 
   // Starting from given object template's constructor walk up the inheritance
   // chain till a function template that has an instance template is found.

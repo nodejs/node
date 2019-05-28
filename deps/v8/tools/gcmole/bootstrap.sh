@@ -27,16 +27,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# This script will build libgcmole.so. Building a recent clang needs a
-# recent GCC, so if you explicitly want to use GCC 4.8, use:
-#
-#    CC=gcc-4.8 CPP=cpp-4.8 CXX=g++-4.8 CXXFLAGS=-static-libstdc++ CXXCPP=cpp-4.8 ./bootstrap.sh
+# This script will build libgcmole.so as well as a corresponding recent
+# version of Clang and LLVM. The Clang will be built with the locally
+# installed compiler and statically link against the local libstdc++ so
+# that the resulting binary is easier transferable between different
+# environments.
 
-CLANG_RELEASE=3.5
+CLANG_RELEASE=8.0
 
-THIS_DIR="$(dirname "${0}")"
+THIS_DIR="$(readlink -f "$(dirname "${0}")")"
 LLVM_DIR="${THIS_DIR}/../../third_party/llvm"
-CLANG_DIR="${LLVM_DIR}/tools/clang"
+CLANG_DIR="${THIS_DIR}/../../third_party/clang"
+BUILD_DIR="${THIS_DIR}/../../third_party/llvm+clang-build"
 
 LLVM_REPO_URL=${LLVM_URL:-https://llvm.org/svn/llvm-project}
 
@@ -70,7 +72,7 @@ if [[ "${OS}" = "Darwin" ]] && xcodebuild -version | grep -q 'Xcode 3.2' ; then
   fi
 fi
 
-echo Getting LLVM r"${CLANG_RELEASE}" in "${LLVM_DIR}"
+echo Getting LLVM release "${CLANG_RELEASE}" in "${LLVM_DIR}"
 if ! svn co --force \
     "${LLVM_REPO_URL}/llvm/branches/release_${CLANG_RELEASE/./}" \
     "${LLVM_DIR}"; then
@@ -81,7 +83,7 @@ if ! svn co --force \
       "${LLVM_DIR}"
 fi
 
-echo Getting clang r"${CLANG_RELEASE}" in "${CLANG_DIR}"
+echo Getting clang release "${CLANG_RELEASE}" in "${CLANG_DIR}"
 svn co --force \
     "${LLVM_REPO_URL}/cfe/branches/release_${CLANG_RELEASE/./}" \
     "${CLANG_DIR}"
@@ -97,33 +99,32 @@ elif [ "${OS}" = "Darwin" ]; then
 fi
 
 # Build clang.
-cd "${LLVM_DIR}"
-if [[ ! -f ./config.status ]]; then
-  ../llvm/configure \
-      --enable-optimized \
-      --disable-threads \
-      --disable-pthreads \
-      --without-llvmgcc \
-      --without-llvmgxx
+if [ ! -e "${BUILD_DIR}" ]; then
+  mkdir "${BUILD_DIR}"
 fi
-
+cd "${BUILD_DIR}"
+cmake -DCMAKE_CXX_FLAGS="-static-libstdc++" -DLLVM_ENABLE_TERMINFO=OFF \
+    -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang "${LLVM_DIR}"
 MACOSX_DEPLOYMENT_TARGET=10.5 make -j"${NUM_JOBS}"
+
+# Strip the clang binary.
 STRIP_FLAGS=
 if [ "${OS}" = "Darwin" ]; then
   # See http://crbug.com/256342
   STRIP_FLAGS=-x
 fi
-strip ${STRIP_FLAGS} Release+Asserts/bin/clang
+strip ${STRIP_FLAGS} bin/clang
 cd -
 
 # Build libgcmole.so
 make -C "${THIS_DIR}" clean
-make -C "${THIS_DIR}" LLVM_SRC_ROOT="${LLVM_DIR}" libgcmole.so
+make -C "${THIS_DIR}" LLVM_SRC_ROOT="${LLVM_DIR}" \
+    CLANG_SRC_ROOT="${CLANG_DIR}" BUILD_ROOT="${BUILD_DIR}" libgcmole.so
 
 set +x
 
 echo
 echo You can now run gcmole using this command:
 echo
-echo CLANG_BIN=\"third_party/llvm/Release+Asserts/bin\" lua tools/gcmole/gcmole.lua
+echo CLANG_BIN=\"third_party/llvm+clang-build/bin\" lua tools/gcmole/gcmole.lua
 echo

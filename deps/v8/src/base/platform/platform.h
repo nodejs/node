@@ -188,11 +188,14 @@ class V8_BASE_EXPORT OS {
 
   class V8_BASE_EXPORT MemoryMappedFile {
    public:
+    enum class FileMode { kReadOnly, kReadWrite };
+
     virtual ~MemoryMappedFile() = default;
     virtual void* memory() const = 0;
     virtual size_t size() const = 0;
 
-    static MemoryMappedFile* open(const char* name);
+    static MemoryMappedFile* open(const char* name,
+                                  FileMode mode = FileMode::kReadWrite);
     static MemoryMappedFile* create(const char* name, size_t size,
                                     void* initial);
   };
@@ -245,6 +248,8 @@ class V8_BASE_EXPORT OS {
   static int GetCurrentProcessId();
 
   static int GetCurrentThreadId();
+
+  static void AdjustSchedulingParams();
 
   static void ExitProcess(int exit_code);
 
@@ -308,7 +313,7 @@ inline void EnsureConsoleOutput() {
 class V8_BASE_EXPORT Thread {
  public:
   // Opaque data type for thread-local storage keys.
-  typedef int32_t LocalStorageKey;
+  using LocalStorageKey = int32_t;
 
   class Options {
    public:

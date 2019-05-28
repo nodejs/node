@@ -581,8 +581,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     CSA_ASSERT(this, IsPropertyCell(holder));
     // Ensure the property cell doesn't contain the hole.
     Node* value = LoadObjectField(holder, PropertyCell::kValueOffset);
-    Node* details =
-        LoadAndUntagToWord32ObjectField(holder, PropertyCell::kDetailsOffset);
+    Node* details = LoadAndUntagToWord32ObjectField(
+        holder, PropertyCell::kPropertyDetailsRawOffset);
     GotoIf(IsTheHole(value), miss);
 
     exit_point->Return(
@@ -1890,27 +1890,29 @@ void AccessorAssembler::EmitElementLoad(
       if_fast_double(this), if_fast_holey_double(this), if_nonfast(this),
       if_dictionary(this);
   GotoIf(
-      Int32GreaterThan(elements_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
+      Int32GreaterThan(elements_kind, Int32Constant(LAST_FROZEN_ELEMENTS_KIND)),
       &if_nonfast);
 
   EmitFastElementsBoundsCheck(object, elements, intptr_index,
                               is_jsarray_condition, out_of_bounds);
   int32_t kinds[] = {// Handled by if_fast_packed.
                      PACKED_SMI_ELEMENTS, PACKED_ELEMENTS,
+                     PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
                      // Handled by if_fast_holey.
                      HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
                      // Handled by if_fast_double.
                      PACKED_DOUBLE_ELEMENTS,
                      // Handled by if_fast_holey_double.
                      HOLEY_DOUBLE_ELEMENTS};
-  Label* labels[] = {// FAST_{SMI,}_ELEMENTS
-                     &if_fast_packed, &if_fast_packed,
-                     // FAST_HOLEY_{SMI,}_ELEMENTS
-                     &if_fast_holey, &if_fast_holey,
-                     // PACKED_DOUBLE_ELEMENTS
-                     &if_fast_double,
-                     // HOLEY_DOUBLE_ELEMENTS
-                     &if_fast_holey_double};
+  Label* labels[] = {
+      // FAST_{SMI,}_ELEMENTS
+      &if_fast_packed, &if_fast_packed, &if_fast_packed, &if_fast_packed,
+      // FAST_HOLEY_{SMI,}_ELEMENTS
+      &if_fast_holey, &if_fast_holey,
+      // PACKED_DOUBLE_ELEMENTS
+      &if_fast_double,
+      // HOLEY_DOUBLE_ELEMENTS
+      &if_fast_holey_double};
   Switch(elements_kind, unimplemented_elements_kind, kinds, labels,
          arraysize(kinds));
 
@@ -2122,8 +2124,8 @@ void AccessorAssembler::InvalidateValidityCellIfPrototype(Node* map,
 
     Node* function = ExternalConstant(
         ExternalReference::invalidate_prototype_chains_function());
-    CallCFunction1(MachineType::AnyTagged(), MachineType::AnyTagged(), function,
-                   map);
+    CallCFunction(function, MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), map));
     Goto(&cont);
   }
   BIND(&cont);
@@ -2883,9 +2885,10 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
           ExternalReference::try_internalize_string_function());
       Node* const isolate_ptr =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
-      var_name.Bind(CallCFunction2(
-          MachineType::AnyTagged(), MachineType::Pointer(),
-          MachineType::AnyTagged(), function, isolate_ptr, name));
+      var_name.Bind(
+          CallCFunction(function, MachineType::AnyTagged(),
+                        std::make_pair(MachineType::Pointer(), isolate_ptr),
+                        std::make_pair(MachineType::AnyTagged(), name)));
       Goto(&if_internalized);
     }
 
@@ -3175,8 +3178,8 @@ void AccessorAssembler::StoreGlobalIC_PropertyCellCase(Node* property_cell,
   // runtime.
   Node* cell_contents =
       LoadObjectField(property_cell, PropertyCell::kValueOffset);
-  Node* details = LoadAndUntagToWord32ObjectField(property_cell,
-                                                  PropertyCell::kDetailsOffset);
+  Node* details = LoadAndUntagToWord32ObjectField(
+      property_cell, PropertyCell::kPropertyDetailsRawOffset);
   GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask), miss);
   CSA_ASSERT(this,
              Word32Equal(DecodeWord32<PropertyDetails::KindField>(details),
@@ -3382,7 +3385,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
 //////////////////// Public methods.
 
 void AccessorAssembler::GenerateLoadIC() {
-  typedef LoadWithVectorDescriptor Descriptor;
+  using Descriptor = LoadWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3395,7 +3398,7 @@ void AccessorAssembler::GenerateLoadIC() {
 }
 
 void AccessorAssembler::GenerateLoadIC_Megamorphic() {
-  typedef LoadWithVectorDescriptor Descriptor;
+  using Descriptor = LoadWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3420,7 +3423,7 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
 }
 
 void AccessorAssembler::GenerateLoadIC_Noninlined() {
-  typedef LoadWithVectorDescriptor Descriptor;
+  using Descriptor = LoadWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3450,7 +3453,7 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
 }
 
 void AccessorAssembler::GenerateLoadIC_Uninitialized() {
-  typedef LoadWithVectorDescriptor Descriptor;
+  using Descriptor = LoadWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3463,7 +3466,7 @@ void AccessorAssembler::GenerateLoadIC_Uninitialized() {
 }
 
 void AccessorAssembler::GenerateLoadICTrampoline() {
-  typedef LoadDescriptor Descriptor;
+  using Descriptor = LoadDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3475,7 +3478,7 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
 }
 
 void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
-  typedef LoadDescriptor Descriptor;
+  using Descriptor = LoadDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3488,7 +3491,7 @@ void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
 }
 
 void AccessorAssembler::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
-  typedef LoadGlobalWithVectorDescriptor Descriptor;
+  using Descriptor = LoadGlobalWithVectorDescriptor;
 
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
@@ -3505,7 +3508,7 @@ void AccessorAssembler::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
 }
 
 void AccessorAssembler::GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode) {
-  typedef LoadGlobalDescriptor Descriptor;
+  using Descriptor = LoadGlobalDescriptor;
 
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
@@ -3518,7 +3521,7 @@ void AccessorAssembler::GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode) {
 }
 
 void AccessorAssembler::GenerateKeyedLoadIC() {
-  typedef LoadWithVectorDescriptor Descriptor;
+  using Descriptor = LoadWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3531,7 +3534,7 @@ void AccessorAssembler::GenerateKeyedLoadIC() {
 }
 
 void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
-  typedef LoadWithVectorDescriptor Descriptor;
+  using Descriptor = LoadWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3544,7 +3547,7 @@ void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
 }
 
 void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
-  typedef LoadDescriptor Descriptor;
+  using Descriptor = LoadDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3557,7 +3560,7 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
 }
 
 void AccessorAssembler::GenerateKeyedLoadICTrampoline_Megamorphic() {
-  typedef LoadDescriptor Descriptor;
+  using Descriptor = LoadDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3570,7 +3573,7 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline_Megamorphic() {
 }
 
 void AccessorAssembler::GenerateKeyedLoadIC_PolymorphicName() {
-  typedef LoadWithVectorDescriptor Descriptor;
+  using Descriptor = LoadWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3583,7 +3586,7 @@ void AccessorAssembler::GenerateKeyedLoadIC_PolymorphicName() {
 }
 
 void AccessorAssembler::GenerateStoreGlobalIC() {
-  typedef StoreGlobalWithVectorDescriptor Descriptor;
+  using Descriptor = StoreGlobalWithVectorDescriptor;
 
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
@@ -3596,7 +3599,7 @@ void AccessorAssembler::GenerateStoreGlobalIC() {
 }
 
 void AccessorAssembler::GenerateStoreGlobalICTrampoline() {
-  typedef StoreGlobalDescriptor Descriptor;
+  using Descriptor = StoreGlobalDescriptor;
 
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
@@ -3608,7 +3611,7 @@ void AccessorAssembler::GenerateStoreGlobalICTrampoline() {
 }
 
 void AccessorAssembler::GenerateStoreIC() {
-  typedef StoreWithVectorDescriptor Descriptor;
+  using Descriptor = StoreWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3622,7 +3625,7 @@ void AccessorAssembler::GenerateStoreIC() {
 }
 
 void AccessorAssembler::GenerateStoreICTrampoline() {
-  typedef StoreDescriptor Descriptor;
+  using Descriptor = StoreDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3636,7 +3639,7 @@ void AccessorAssembler::GenerateStoreICTrampoline() {
 }
 
 void AccessorAssembler::GenerateKeyedStoreIC() {
-  typedef StoreWithVectorDescriptor Descriptor;
+  using Descriptor = StoreWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3650,7 +3653,7 @@ void AccessorAssembler::GenerateKeyedStoreIC() {
 }
 
 void AccessorAssembler::GenerateKeyedStoreICTrampoline() {
-  typedef StoreDescriptor Descriptor;
+  using Descriptor = StoreDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3664,7 +3667,7 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline() {
 }
 
 void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
-  typedef StoreWithVectorDescriptor Descriptor;
+  using Descriptor = StoreWithVectorDescriptor;
 
   Node* array = Parameter(Descriptor::kReceiver);
   Node* index = Parameter(Descriptor::kName);
@@ -3678,7 +3681,7 @@ void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
 }
 
 void AccessorAssembler::GenerateCloneObjectIC_Slow() {
-  typedef CloneObjectWithVectorDescriptor Descriptor;
+  using Descriptor = CloneObjectWithVectorDescriptor;
   TNode<HeapObject> source = CAST(Parameter(Descriptor::kSource));
   TNode<Smi> flags = CAST(Parameter(Descriptor::kFlags));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
@@ -3748,7 +3751,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
 }
 
 void AccessorAssembler::GenerateCloneObjectIC() {
-  typedef CloneObjectWithVectorDescriptor Descriptor;
+  using Descriptor = CloneObjectWithVectorDescriptor;
   TNode<HeapObject> source = CAST(Parameter(Descriptor::kSource));
   Node* flags = Parameter(Descriptor::kFlags);
   Node* slot = Parameter(Descriptor::kSlot);
@@ -3902,7 +3905,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
 }
 
 void AccessorAssembler::GenerateKeyedHasIC() {
-  typedef LoadWithVectorDescriptor Descriptor;
+  using Descriptor = LoadWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3915,7 +3918,7 @@ void AccessorAssembler::GenerateKeyedHasIC() {
 }
 
 void AccessorAssembler::GenerateKeyedHasIC_Megamorphic() {
-  typedef LoadWithVectorDescriptor Descriptor;
+  using Descriptor = LoadWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -3926,7 +3929,7 @@ void AccessorAssembler::GenerateKeyedHasIC_Megamorphic() {
 }
 
 void AccessorAssembler::GenerateKeyedHasIC_PolymorphicName() {
-  typedef LoadWithVectorDescriptor Descriptor;
+  using Descriptor = LoadWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);

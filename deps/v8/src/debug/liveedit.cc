@@ -1114,6 +1114,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       Handle<DebugInfo> debug_info(sfi->GetDebugInfo(), isolate);
       isolate->debug()->RemoveBreakInfoAndMaybeFree(debug_info);
     }
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, sfi);
     UpdatePositions(isolate, sfi, diffs);
 
     sfi->set_script(*new_script);

@@ -64,6 +64,7 @@
 //  V8_OS_FUCHSIA       - Fuchsia
 //  V8_OS_LINUX         - Linux
 //  V8_OS_MACOSX        - Mac OS X
+//  V8_OS_IOS           - iOS
 //  V8_OS_NETBSD        - NetBSD
 //  V8_OS_OPENBSD       - OpenBSD
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
@@ -80,6 +81,9 @@
 # define V8_OS_BSD 1
 # define V8_OS_MACOSX 1
 # define V8_OS_POSIX 1
+# if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+#  define V8_OS_IOS 1
+# endif  // defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 #elif defined(__CYGWIN__)
 # define V8_OS_CYGWIN 1
 # define V8_OS_POSIX 1

@@ -222,8 +222,6 @@ bool HeapObject::IsPromiseReactionJobTask() const {
   return IsPromiseFulfillReactionJobTask() || IsPromiseRejectReactionJobTask();
 }
 
-bool HeapObject::IsEnumCache() const { return IsTuple2(); }
-
 bool HeapObject::IsFrameArray() const { return IsFixedArrayExact(); }
 
 bool HeapObject::IsArrayList() const {
@@ -594,16 +592,8 @@ ObjectSlot HeapObject::RawField(int byte_offset) const {
   return ObjectSlot(FIELD_ADDR(*this, byte_offset));
 }
 
-ObjectSlot HeapObject::RawField(const HeapObject obj, int byte_offset) {
-  return ObjectSlot(FIELD_ADDR(obj, byte_offset));
-}
-
 MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
   return MaybeObjectSlot(FIELD_ADDR(*this, byte_offset));
-}
-
-MaybeObjectSlot HeapObject::RawMaybeWeakField(HeapObject obj, int byte_offset) {
-  return MaybeObjectSlot(FIELD_ADDR(obj, byte_offset));
 }
 
 MapWord MapWord::FromMap(const Map map) { return MapWord(map.ptr()); }
@@ -817,6 +807,7 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
   return GetWriteBarrierModeForObject(*this, &promise);
 }
 
+// static
 AllocationAlignment HeapObject::RequiredAlignment(Map map) {
 #ifdef V8_COMPRESS_POINTERS
   // TODO(ishell, v8:8875): Consider using aligned allocations once the

@@ -2967,7 +2967,7 @@ T Simulator::FPMulx(T op1, T op2) {
   if ((std::isinf(op1) && (op2 == 0.0)) || (std::isinf(op2) && (op1 == 0.0))) {
     // inf * 0.0 returns +/-2.0.
     T two = 2.0;
-    return copysign(1.0, op1) * copysign(1.0, op2) * two;
+    return std::copysign(1.0, op1) * std::copysign(1.0, op2) * two;
   }
   return FPMul(op1, op2);
 }
@@ -2976,8 +2976,8 @@ template <typename T>
 T Simulator::FPMulAdd(T a, T op1, T op2) {
   T result = FPProcessNaNs3(a, op1, op2);
 
-  T sign_a = copysign(1.0, a);
-  T sign_prod = copysign(1.0, op1) * copysign(1.0, op2);
+  T sign_a = std::copysign(1.0, a);
+  T sign_prod = std::copysign(1.0, op1) * std::copysign(1.0, op2);
   bool isinf_prod = std::isinf(op1) || std::isinf(op2);
   bool operation_generates_nan =
       (std::isinf(op1) && (op2 == 0.0)) ||                     // inf * 0.0
@@ -3012,7 +3012,7 @@ T Simulator::FPMulAdd(T a, T op1, T op2) {
   // Work around broken fma implementations for rounded zero results: If a is
   // 0.0, the sign of the result is the sign of op1 * op2 before rounding.
   if ((a == 0.0) && (result == 0.0)) {
-    return copysign(0.0, sign_prod);
+    return std::copysign(0.0, sign_prod);
   }
 
   return result;
@@ -3031,8 +3031,8 @@ T Simulator::FPDiv(T op1, T op2) {
     if (op2 == 0.0) {
       FPProcessException();
       if (!std::isnan(op1)) {
-        double op1_sign = copysign(1.0, op1);
-        double op2_sign = copysign(1.0, op2);
+        double op1_sign = std::copysign(1.0, op1);
+        double op2_sign = std::copysign(1.0, op2);
         return static_cast<T>(op1_sign * op2_sign * kFP64PositiveInfinity);
       }
     }
@@ -3050,7 +3050,7 @@ T Simulator::FPSqrt(T op) {
     FPProcessException();
     return FPDefaultNaN<T>();
   } else {
-    return sqrt(op);
+    return std::sqrt(op);
   }
 }
 
@@ -3059,7 +3059,8 @@ T Simulator::FPMax(T a, T b) {
   T result = FPProcessNaNs(a, b);
   if (std::isnan(result)) return result;
 
-  if ((a == 0.0) && (b == 0.0) && (copysign(1.0, a) != copysign(1.0, b))) {
+  if ((a == 0.0) && (b == 0.0) &&
+      (std::copysign(1.0, a) != std::copysign(1.0, b))) {
     // a and b are zero, and the sign differs: return +0.0.
     return 0.0;
   } else {
@@ -3084,7 +3085,8 @@ T Simulator::FPMin(T a, T b) {
   T result = FPProcessNaNs(a, b);
   if (std::isnan(result)) return result;
 
-  if ((a == 0.0) && (b == 0.0) && (copysign(1.0, a) != copysign(1.0, b))) {
+  if ((a == 0.0) && (b == 0.0) &&
+      (std::copysign(1.0, a) != std::copysign(1.0, b))) {
     // a and b are zero, and the sign differs: return -0.0.
     return -0.0;
   } else {
@@ -3516,7 +3518,7 @@ LogicVRegister Simulator::fabs_(VectorFormat vform, LogicVRegister dst,
   dst.ClearForWrite(vform);
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
     T op = src.Float<T>(i);
-    if (copysign(1.0, op) < 0.0) {
+    if (std::copysign(1.0, op) < 0.0) {
       op = -op;
     }
     dst.SetFloat(i, op);
@@ -3865,12 +3867,12 @@ T Simulator::FPRecipSqrtEstimate(T op) {
   if (std::isnan(op)) {
     return FPProcessNaN(op);
   } else if (op == 0.0) {
-    if (copysign(1.0, op) < 0.0) {
+    if (std::copysign(1.0, op) < 0.0) {
       return kFP64NegativeInfinity;
     } else {
       return kFP64PositiveInfinity;
     }
-  } else if (copysign(1.0, op) < 0.0) {
+  } else if (std::copysign(1.0, op) < 0.0) {
     FPProcessException();
     return FPDefaultNaN<T>();
   } else if (std::isinf(op)) {

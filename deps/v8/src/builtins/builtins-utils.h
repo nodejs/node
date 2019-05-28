@@ -83,7 +83,7 @@ class BuiltinArguments : public Arguments {
   V8_WARN_UNUSED_RESULT Address Builtin_##name(                              \
       int args_length, Address* args_object, Isolate* isolate) {             \
     DCHECK(isolate->context().is_null() || isolate->context()->IsContext()); \
-    if (V8_UNLIKELY(FLAG_runtime_stats)) {                                   \
+    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {             \
       return Builtin_Impl_Stats_##name(args_length, args_object, isolate);   \
     }                                                                        \
     BuiltinArguments args(args_length, args_object);                         \

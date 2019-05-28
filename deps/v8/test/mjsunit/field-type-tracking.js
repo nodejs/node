@@ -148,11 +148,11 @@
   var f2 = new Narf(2);
   var f3 = new Narf(3);
   function baz(f, y) { f.y = y; }
-  baz(f1, {y: 9});
-  baz(f2, {y: 9});
-  baz(f2, {y: 9});
+  baz(f1, {b: 9});
+  baz(f2, {b: 9});
+  baz(f2, {b: 9});
   %OptimizeFunctionOnNextCall(baz);
-  baz(f2, {y: 9});
+  baz(f2, {b: 9});
   baz(f3, {a: -1});
   assertUnoptimized(baz);
 })();

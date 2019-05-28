@@ -760,7 +760,7 @@ TEST(RelocatingCharacterStream) {
   i::Vector<const i::uc16> two_byte_vector(uc16_buffer.get(), length);
   i::Handle<i::String> two_byte_string =
       i_isolate->factory()
-          ->NewStringFromTwoByte(two_byte_vector, i::NOT_TENURED)
+          ->NewStringFromTwoByte(two_byte_vector, i::AllocationType::kYoung)
           .ToHandleChecked();
   std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
       i::ScannerStream::For(i_isolate, two_byte_string, 0, length));

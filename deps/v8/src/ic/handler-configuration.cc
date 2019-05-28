@@ -48,7 +48,7 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
       handler->set_data2(HeapObjectReference::Weak(*native_context));
     } else {
       // Enable access checks on receiver.
-      typedef typename ICHandler::DoAccessCheckOnReceiverBits Bit;
+      using Bit = typename ICHandler::DoAccessCheckOnReceiverBits;
       *smi_handler = SetBitFieldValue<Bit>(isolate, *smi_handler, true);
     }
     checks_count++;
@@ -56,7 +56,7 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
              !receiver_map->IsJSGlobalObjectMap()) {
     if (!fill_handler) {
       // Enable lookup on receiver.
-      typedef typename ICHandler::LookupOnReceiverBits Bit;
+      using Bit = typename ICHandler::LookupOnReceiverBits;
       *smi_handler = SetBitFieldValue<Bit>(isolate, *smi_handler, true);
     }
   }

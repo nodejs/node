@@ -668,14 +668,9 @@ Node* InterpreterAssembler::LoadAndUntagConstantPoolEntryAtOperandIndex(
   return SmiUntag(LoadConstantPoolEntryAtOperandIndex(operand_index));
 }
 
-TNode<FeedbackVector> InterpreterAssembler::LoadFeedbackVector() {
+TNode<HeapObject> InterpreterAssembler::LoadFeedbackVector() {
   TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
   return CodeStubAssembler::LoadFeedbackVector(function);
-}
-
-Node* InterpreterAssembler::LoadFeedbackVectorUnchecked() {
-  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
-  return CodeStubAssembler::LoadFeedbackVectorUnchecked(function);
 }
 
 void InterpreterAssembler::CallPrologue() {
@@ -1258,48 +1253,48 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
 void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   Comment("[ UpdateInterruptBudget");
 
-  Node* budget_offset =
-      IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);
-
   // Assert that the weight is positive (negative weights should be implemented
   // as backward updates).
   CSA_ASSERT(this, Int32GreaterThanOrEqual(weight, Int32Constant(0)));
 
-  // Update budget by |weight| and check if it reaches zero.
-  Variable new_budget(this, MachineRepresentation::kWord32);
-  Node* old_budget =
-      Load(MachineType::Int32(), BytecodeArrayTaggedPointer(), budget_offset);
+  Label load_budget_from_bytecode(this), load_budget_done(this);
+  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
+  TNode<FeedbackCell> feedback_cell =
+      CAST(LoadObjectField(function, JSFunction::kFeedbackCellOffset));
+  TNode<Int32T> old_budget = LoadObjectField<Int32T>(
+      feedback_cell, FeedbackCell::kInterruptBudgetOffset);
+
   // Make sure we include the current bytecode in the budget calculation.
-  Node* budget_after_bytecode =
-      Int32Sub(old_budget, Int32Constant(CurrentBytecodeSize()));
+  TNode<Int32T> budget_after_bytecode =
+      Signed(Int32Sub(old_budget, Int32Constant(CurrentBytecodeSize())));
 
+  Label done(this);
+  TVARIABLE(Int32T, new_budget);
   if (backward) {
-    new_budget.Bind(Int32Sub(budget_after_bytecode, weight));
-
+    // Update budget by |weight| and check if it reaches zero.
+    new_budget = Signed(Int32Sub(budget_after_bytecode, weight));
     Node* condition =
         Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
     Label ok(this), interrupt_check(this, Label::kDeferred);
     Branch(condition, &ok, &interrupt_check);
 
-    // Perform interrupt and reset budget.
     BIND(&interrupt_check);
-    {
-      CallRuntime(Runtime::kInterrupt, GetContext());
-      new_budget.Bind(Int32Constant(Interpreter::InterruptBudget()));
-      Goto(&ok);
-    }
+    CallRuntime(Runtime::kBytecodeBudgetInterrupt, GetContext(), function);
+    Goto(&done);
 
     BIND(&ok);
   } else {
     // For a forward jump, we know we only increase the interrupt budget, so
     // no need to check if it's below zero.
-    new_budget.Bind(Int32Add(budget_after_bytecode, weight));
+    new_budget = Signed(Int32Add(budget_after_bytecode, weight));
   }
 
   // Update budget.
-  StoreNoWriteBarrier(MachineRepresentation::kWord32,
-                      BytecodeArrayTaggedPointer(), budget_offset,
-                      new_budget.value());
+  StoreObjectFieldNoWriteBarrier(
+      feedback_cell, FeedbackCell::kInterruptBudgetOffset, new_budget.value(),
+      MachineRepresentation::kWord32);
+  Goto(&done);
+  BIND(&done);
   Comment("] UpdateInterruptBudget");
 }
 
@@ -1787,7 +1782,7 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
 
   // Record the type feedback collected for {object}.
   Node* slot_index = BytecodeOperandIdx(0);
-  Node* maybe_feedback_vector = LoadFeedbackVectorUnchecked();
+  Node* maybe_feedback_vector = LoadFeedbackVector();
 
   UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_index);
 

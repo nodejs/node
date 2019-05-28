@@ -434,27 +434,31 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->sp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[15]);
   state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[11]);
 #endif  // V8_HOST_ARCH_*
-#elif V8_OS_MACOSX
-#if V8_HOST_ARCH_X64
-#if __DARWIN_UNIX03
+#elif V8_OS_IOS
+
+#if V8_TARGET_ARCH_ARM64
+  // Building for the iOS device.
+  state->pc = reinterpret_cast<void*>(mcontext->__ss.__pc);
+  state->sp = reinterpret_cast<void*>(mcontext->__ss.__sp);
+  state->fp = reinterpret_cast<void*>(mcontext->__ss.__fp);
+#elif V8_TARGET_ARCH_X64
+  // Building for the iOS simulator.
   state->pc = reinterpret_cast<void*>(mcontext->__ss.__rip);
   state->sp = reinterpret_cast<void*>(mcontext->__ss.__rsp);
   state->fp = reinterpret_cast<void*>(mcontext->__ss.__rbp);
-#else  // !__DARWIN_UNIX03
-  state->pc = reinterpret_cast<void*>(mcontext->ss.rip);
-  state->sp = reinterpret_cast<void*>(mcontext->ss.rsp);
-  state->fp = reinterpret_cast<void*>(mcontext->ss.rbp);
-#endif  // __DARWIN_UNIX03
+#else
+#error Unexpected iOS target architecture.
+#endif  // V8_TARGET_ARCH_ARM64
+
+#elif V8_OS_MACOSX
+#if V8_HOST_ARCH_X64
+  state->pc = reinterpret_cast<void*>(mcontext->__ss.__rip);
+  state->sp = reinterpret_cast<void*>(mcontext->__ss.__rsp);
+  state->fp = reinterpret_cast<void*>(mcontext->__ss.__rbp);
 #elif V8_HOST_ARCH_IA32
-#if __DARWIN_UNIX03
   state->pc = reinterpret_cast<void*>(mcontext->__ss.__eip);
   state->sp = reinterpret_cast<void*>(mcontext->__ss.__esp);
   state->fp = reinterpret_cast<void*>(mcontext->__ss.__ebp);
-#else  // !__DARWIN_UNIX03
-  state->pc = reinterpret_cast<void*>(mcontext->ss.eip);
-  state->sp = reinterpret_cast<void*>(mcontext->ss.esp);
-  state->fp = reinterpret_cast<void*>(mcontext->ss.ebp);
-#endif  // __DARWIN_UNIX03
 #endif  // V8_HOST_ARCH_IA32
 #elif V8_OS_FREEBSD
 #if V8_HOST_ARCH_IA32

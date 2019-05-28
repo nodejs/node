@@ -346,23 +346,23 @@ class PreParserExpression {
       : code_(expression_code) {}
 
   // The first three bits are for the Type.
-  typedef BitField<Type, 0, 3> TypeField;
+  using TypeField = BitField<Type, 0, 3>;
 
   // The high order bit applies only to nodes which would inherit from the
   // Expression ASTNode --- This is by necessity, due to the fact that
   // Expression nodes may be represented as multiple Types, not exclusively
   // through kExpression.
   // TODO(caitp, adamk): clean up PreParserExpression bitfields.
-  typedef BitField<bool, TypeField::kNext, 1> IsParenthesizedField;
+  using IsParenthesizedField = BitField<bool, TypeField::kNext, 1>;
 
   // The rest of the bits are interpreted depending on the value
   // of the Type field, so they can share the storage.
-  typedef BitField<ExpressionType, IsParenthesizedField::kNext, 4>
-      ExpressionTypeField;
-  typedef BitField<PreParserIdentifier::Type, IsParenthesizedField::kNext, 8>
-      IdentifierTypeField;
-  typedef BitField<bool, IsParenthesizedField::kNext, 1>
-      HasCoverInitializedNameField;
+  using ExpressionTypeField =
+      BitField<ExpressionType, IsParenthesizedField::kNext, 4>;
+  using IdentifierTypeField =
+      BitField<PreParserIdentifier::Type, IsParenthesizedField::kNext, 8>;
+  using HasCoverInitializedNameField =
+      BitField<bool, IsParenthesizedField::kNext, 1>;
 
   uint32_t code_;
   friend class PreParser;
@@ -873,36 +873,36 @@ class PreParserPropertyList {};
 
 template <>
 struct ParserTypes<PreParser> {
-  typedef ParserBase<PreParser> Base;
-  typedef PreParser Impl;
+  using Base = ParserBase<PreParser>;
+  using Impl = PreParser;
 
   // Return types for traversing functions.
-  typedef PreParserExpression ClassLiteralProperty;
-  typedef PreParserExpression Expression;
-  typedef PreParserExpression FunctionLiteral;
-  typedef PreParserExpression ObjectLiteralProperty;
-  typedef PreParserExpression Suspend;
-  typedef PreParserExpressionList ExpressionList;
-  typedef PreParserExpressionList ObjectPropertyList;
-  typedef PreParserFormalParameters FormalParameters;
-  typedef PreParserIdentifier Identifier;
-  typedef PreParserPropertyList ClassPropertyList;
-  typedef PreParserScopedStatementList StatementList;
-  typedef PreParserBlock Block;
-  typedef PreParserStatement BreakableStatement;
-  typedef PreParserStatement ForStatement;
-  typedef PreParserStatement IterationStatement;
-  typedef PreParserStatement Statement;
+  using ClassLiteralProperty = PreParserExpression;
+  using Expression = PreParserExpression;
+  using FunctionLiteral = PreParserExpression;
+  using ObjectLiteralProperty = PreParserExpression;
+  using Suspend = PreParserExpression;
+  using ExpressionList = PreParserExpressionList;
+  using ObjectPropertyList = PreParserExpressionList;
+  using FormalParameters = PreParserFormalParameters;
+  using Identifier = PreParserIdentifier;
+  using ClassPropertyList = PreParserPropertyList;
+  using StatementList = PreParserScopedStatementList;
+  using Block = PreParserBlock;
+  using BreakableStatement = PreParserStatement;
+  using ForStatement = PreParserStatement;
+  using IterationStatement = PreParserStatement;
+  using Statement = PreParserStatement;
 
   // For constructing objects returned by the traversing functions.
-  typedef PreParserFactory Factory;
+  using Factory = PreParserFactory;
 
   // Other implementation-specific tasks.
-  typedef PreParserFuncNameInferrer FuncNameInferrer;
-  typedef PreParserSourceRange SourceRange;
-  typedef PreParserSourceRangeScope SourceRangeScope;
-  typedef PreParserTarget Target;
-  typedef PreParserTargetScope TargetScope;
+  using FuncNameInferrer = PreParserFuncNameInferrer;
+  using SourceRange = PreParserSourceRange;
+  using SourceRangeScope = PreParserSourceRangeScope;
+  using Target = PreParserTarget;
+  using TargetScope = PreParserTargetScope;
 };
 
 
@@ -922,9 +922,9 @@ class PreParser : public ParserBase<PreParser> {
   friend class ParserBase<PreParser>;
 
  public:
-  typedef PreParserIdentifier Identifier;
-  typedef PreParserExpression Expression;
-  typedef PreParserStatement Statement;
+  using Identifier = PreParserIdentifier;
+  using Expression = PreParserExpression;
+  using Statement = PreParserStatement;
 
   enum PreParseResult {
     kPreParseStackOverflow,
@@ -956,7 +956,7 @@ class PreParser : public ParserBase<PreParser> {
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  PreParseResult PreParseProgram();
+  V8_EXPORT_PRIVATE PreParseResult PreParseProgram();
 
   // Parses a single function literal, from the opening parentheses before
   // parameters to the closing brace after the body.
@@ -1012,7 +1012,7 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE bool SkipFunction(const AstRawString* name, FunctionKind kind,
                               FunctionLiteral::FunctionType function_type,
                               DeclarationScope* function_scope,
-                              int* num_parameters,
+                              int* num_parameters, int* function_length,
                               ProducedPreparseData** produced_preparse_data) {
     UNREACHABLE();
   }
@@ -1101,6 +1101,11 @@ class PreParser : public ParserBase<PreParser> {
     DeclareVariableName(proxy->raw_name(), mode, scope, was_added, position,
                         kind);
     // Don't bother actually binding the proxy.
+  }
+
+  Variable* DeclarePrivateVariableName(const AstRawString* name,
+                                       ClassScope* scope, bool* was_added) {
+    return scope->DeclarePrivateName(name, was_added);
   }
 
   Variable* DeclareVariableName(const AstRawString* name, VariableMode mode,
@@ -1225,12 +1230,14 @@ class PreParser : public ParserBase<PreParser> {
                           &was_added);
     }
   }
-  V8_INLINE void DeclareClassProperty(const PreParserIdentifier& class_name,
+  V8_INLINE void DeclareClassProperty(ClassScope* scope,
+                                      const PreParserIdentifier& class_name,
                                       const PreParserExpression& property,
                                       bool is_constructor,
                                       ClassInfo* class_info) {}
 
-  V8_INLINE void DeclareClassField(const PreParserExpression& property,
+  V8_INLINE void DeclareClassField(ClassScope* scope,
+                                   const PreParserExpression& property,
                                    const PreParserIdentifier& property_name,
                                    bool is_static, bool is_computed_name,
                                    bool is_private, ClassInfo* class_info) {
@@ -1240,16 +1247,20 @@ class PreParser : public ParserBase<PreParser> {
       DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
-          VariableMode::kConst, scope(), &was_added);
+          VariableMode::kConst, scope, &was_added);
     } else if (is_private) {
       bool was_added;
-      DeclareVariableName(property_name.string_, VariableMode::kConst, scope(),
-                          &was_added);
+      DeclarePrivateVariableName(property_name.string_, scope, &was_added);
+      if (!was_added) {
+        Scanner::Location loc(property.position(), property.position() + 1);
+        ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
+                        property_name.string_);
+      }
     }
   }
 
   V8_INLINE PreParserExpression
-  RewriteClassLiteral(Scope* scope, const PreParserIdentifier& name,
+  RewriteClassLiteral(ClassScope* scope, const PreParserIdentifier& name,
                       ClassInfo* class_info, int pos, int end_pos) {
     bool has_default_constructor = !class_info->has_seen_constructor;
     // Account for the default constructor.
@@ -1575,6 +1586,15 @@ class PreParser : public ParserBase<PreParser> {
                                                       int pos) {
     if (token != Token::STRING) return PreParserExpression::Default();
     return PreParserExpression::StringLiteral();
+  }
+
+  PreParserExpression ExpressionFromPrivateName(ClassScope* class_scope,
+                                                const PreParserIdentifier& name,
+                                                int start_position) {
+    VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
+        name.string_, NORMAL_VARIABLE, start_position);
+    class_scope->AddUnresolvedPrivateName(proxy);
+    return PreParserExpression::FromIdentifier(name);
   }
 
   PreParserExpression ExpressionFromIdentifier(

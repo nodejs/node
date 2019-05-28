@@ -22,7 +22,7 @@ namespace internal {
 // Each descriptor has a key, property attributes, property type,
 // property index (in the actual instance-descriptor array) and
 // optionally a piece of data.
-class Descriptor final {
+class V8_EXPORT_PRIVATE Descriptor final {
  public:
   Descriptor();
 

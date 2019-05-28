@@ -9,7 +9,7 @@
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-function WasmAtomicWake(memory, offset, index, num) {
+function WasmAtomicNotify(memory, offset, index, num) {
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory("m", "memory", 0, 20, "shared");
   builder.addFunction("main", kSig_i_ii)
@@ -17,7 +17,7 @@ function WasmAtomicWake(memory, offset, index, num) {
       kExprGetLocal, 0,
       kExprGetLocal, 1,
       kAtomicPrefix,
-      kExprAtomicWake, /* alignment */ 0, offset])
+      kExprAtomicNotify, /* alignment */ 0, offset])
     .exportAs("main");
 
   // Instantiate module, get function exports
@@ -84,7 +84,7 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
   // Valid indexes are 0-65535 (1 page).
   [-2, 65536, 0xffffffff].forEach(function(invalidIndex) {
     assertThrows(function() {
-      WasmAtomicWake(memory, 0, invalidIndex, -1);
+      WasmAtomicNotify(memory, 0, invalidIndex, -1);
     }, Error);
     assertThrows(function() {
       WasmI32AtomicWait(memory, 0, invalidIndex, 0, -1);
@@ -93,7 +93,7 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
       WasmI64AtomicWait(memory, 0, invalidIndex, 0, 0, -1);
     }, Error);
     assertThrows(function() {
-      WasmAtomicWake(memory, invalidIndex, 0, -1);
+      WasmAtomicNotify(memory, invalidIndex, 0, -1);
     }, Error);
     assertThrows(function() {
       WasmI32AtomicWait(memory, invalidIndex, 0, 0, -1);
@@ -102,7 +102,7 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
       WasmI64AtomicWait(memory, invalidIndex, 0, 0, 0, -1);
     }, Error);
     assertThrows(function() {
-      WasmAtomicWake(memory, invalidIndex/2, invalidIndex/2, -1);
+      WasmAtomicNotify(memory, invalidIndex/2, invalidIndex/2, -1);
     }, Error);
     assertThrows(function() {
       WasmI32AtomicWait(memory, invalidIndex/2, invalidIndex/2, 0, -1);
@@ -119,10 +119,10 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
   // Wait and wake must be 4 byte aligned.
   [1, 2, 3].forEach(function(invalid) {
     assertThrows(function() {
-      WasmAtomicWake(memory, invalid, 0, -1)
+      WasmAtomicNotify(memory, invalid, 0, -1)
     }, Error);
     assertThrows(function() {
-      WasmAtomicWake(memory, 0, invalid, -1)
+      WasmAtomicNotify(memory, 0, invalid, -1)
     }, Error);
     assertThrows(function() {
       WasmI32AtomicWait(memory, invalid, 0, 0, -1)
@@ -196,7 +196,7 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
 
   [-1, 0, 4, 100, 0xffffffff].forEach(function(count) {
-    WasmAtomicWake(memory, 0, 0, count);
+    WasmAtomicNotify(memory, 0, 0, count);
   });
 })();
 
@@ -299,13 +299,13 @@ if (this.Worker) {
     if (num >= numWorkers) {
       // if numWorkers or more is passed to wake, numWorkers workers should be
       // woken.
-      assertEquals(numWorkers, WasmAtomicWake(memory, 0, index, num));
+      assertEquals(numWorkers, WasmAtomicNotify(memory, 0, index, num));
     } else {
       // if num < numWorkers is passed to wake, num workers should be woken.
       // Then the remaining workers are woken for the next part
-      assertEquals(num, WasmAtomicWake(memory, 0, index, num));
+      assertEquals(num, WasmAtomicNotify(memory, 0, index, num));
       assertEquals(numWorkers-num,
-                   WasmAtomicWake(memory, 0, index, numWorkers));
+                   WasmAtomicNotify(memory, 0, index, numWorkers));
     }
     for (let id = 0; id < numWorkers; id++) {
       assertEquals(msg, workers[id].getMessage());

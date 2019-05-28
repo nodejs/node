@@ -683,8 +683,8 @@ void MaterializedLiteral::BuildConstants(Isolate* isolate) {
 
 Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
     Isolate* isolate) {
-  Handle<FixedArray> raw_strings =
-      isolate->factory()->NewFixedArray(this->raw_strings()->length(), TENURED);
+  Handle<FixedArray> raw_strings = isolate->factory()->NewFixedArray(
+      this->raw_strings()->length(), AllocationType::kOld);
   bool raw_and_cooked_match = true;
   for (int i = 0; i < raw_strings->length(); ++i) {
     if (this->cooked_strings()->at(i) == nullptr ||
@@ -697,7 +697,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
   Handle<FixedArray> cooked_strings = raw_strings;
   if (!raw_and_cooked_match) {
     cooked_strings = isolate->factory()->NewFixedArray(
-        this->cooked_strings()->length(), TENURED);
+        this->cooked_strings()->length(), AllocationType::kOld);
     for (int i = 0; i < cooked_strings->length(); ++i) {
       if (this->cooked_strings()->at(i) != nullptr) {
         cooked_strings->set(i, *this->cooked_strings()->at(i)->string());
@@ -872,7 +872,7 @@ Handle<Object> Literal::BuildValue(Isolate* isolate) const {
     case kSmi:
       return handle(Smi::FromInt(smi_), isolate);
     case kHeapNumber:
-      return isolate->factory()->NewNumber(number_, TENURED);
+      return isolate->factory()->NewNumber(number_, AllocationType::kOld);
     case kString:
       return string_->string();
     case kSymbol:

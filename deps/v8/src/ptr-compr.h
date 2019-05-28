@@ -5,9 +5,9 @@
 #ifndef V8_PTR_COMPR_H_
 #define V8_PTR_COMPR_H_
 
-#if V8_TARGET_ARCH_64_BIT
-
 #include "src/globals.h"
+
+#if V8_TARGET_ARCH_64_BIT
 
 namespace v8 {
 namespace internal {

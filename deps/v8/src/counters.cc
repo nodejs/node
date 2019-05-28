@@ -17,6 +17,10 @@
 namespace v8 {
 namespace internal {
 
+std::atomic_uint TracingFlags::runtime_stats{0};
+std::atomic_uint TracingFlags::gc_stats{0};
+std::atomic_uint TracingFlags::ic_stats{0};
+
 StatsTable::StatsTable(Counters* counters)
     : lookup_function_(nullptr),
       create_histogram_function_(nullptr),
@@ -224,7 +228,9 @@ Counters::Counters(Isolate* isolate)
     const char* caption;
   } kStatsCounters[] = {
 #define SC(name, caption) {&Counters::name##_, "c:" #caption},
-      STATS_COUNTER_LIST_1(SC) STATS_COUNTER_LIST_2(SC)
+  STATS_COUNTER_LIST_1(SC)
+  STATS_COUNTER_LIST_2(SC)
+  STATS_COUNTER_NATIVE_CODE_LIST(SC)
 #undef SC
 #define SC(name)                                             \
   {&Counters::count_of_##name##_, "c:" "V8.CountOf_" #name}, \
@@ -258,10 +264,8 @@ void Counters::ResetCounterFunction(CounterLookupCallback f) {
 #define SC(name, caption) name##_.Reset();
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
-#undef SC
-
-#define SC(name, caption) name##_.Reset();
   STATS_COUNTER_TS_LIST(SC)
+  STATS_COUNTER_NATIVE_CODE_LIST(SC)
 #undef SC
 
 #define SC(name)              \
@@ -485,8 +489,7 @@ void RuntimeCallStats::CorrectCurrentCounterId(
 }
 
 bool RuntimeCallStats::IsCalledOnTheSameThread() {
-  if (!thread_id_.Equals(ThreadId::Invalid()))
-    return thread_id_.Equals(ThreadId::Current());
+  if (thread_id_.IsValid()) return thread_id_ == ThreadId::Current();
   thread_id_ = ThreadId::Current();
   return true;
 }
@@ -508,7 +511,7 @@ void RuntimeCallStats::Print(std::ostream& os) {
 }
 
 void RuntimeCallStats::Reset() {
-  if (V8_LIKELY(FLAG_runtime_stats == 0)) return;
+  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
 
   // In tracing, we only what to trace the time spent on top level trace events,
   // if runtime counter stack is not empty, we should clear the whole runtime
@@ -539,13 +542,13 @@ WorkerThreadRuntimeCallStats::~WorkerThreadRuntimeCallStats() {
 }
 
 base::Thread::LocalStorageKey WorkerThreadRuntimeCallStats::GetKey() {
-  DCHECK(FLAG_runtime_stats);
+  DCHECK(TracingFlags::is_runtime_stats_enabled());
   if (!tls_key_) tls_key_ = base::Thread::CreateThreadLocalKey();
   return *tls_key_;
 }
 
 RuntimeCallStats* WorkerThreadRuntimeCallStats::NewTable() {
-  DCHECK(FLAG_runtime_stats);
+  DCHECK(TracingFlags::is_runtime_stats_enabled());
   std::unique_ptr<RuntimeCallStats> new_table =
       base::make_unique<RuntimeCallStats>();
   RuntimeCallStats* result = new_table.get();
@@ -568,7 +571,7 @@ void WorkerThreadRuntimeCallStats::AddToMainTable(
 WorkerThreadRuntimeCallStatsScope::WorkerThreadRuntimeCallStatsScope(
     WorkerThreadRuntimeCallStats* worker_stats)
     : table_(nullptr) {
-  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
 
   table_ = reinterpret_cast<RuntimeCallStats*>(
       base::Thread::GetThreadLocal(worker_stats->GetKey()));
@@ -577,8 +580,8 @@ WorkerThreadRuntimeCallStatsScope::WorkerThreadRuntimeCallStatsScope(
     base::Thread::SetThreadLocal(worker_stats->GetKey(), table_);
   }
 
-  if (FLAG_runtime_stats &
-      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+  if ((TracingFlags::runtime_stats.load(std::memory_order_relaxed) &
+       v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
     table_->Reset();
   }
 }
@@ -586,7 +589,7 @@ WorkerThreadRuntimeCallStatsScope::WorkerThreadRuntimeCallStatsScope(
 WorkerThreadRuntimeCallStatsScope::~WorkerThreadRuntimeCallStatsScope() {
   if (V8_LIKELY(table_ == nullptr)) return;
 
-  if ((FLAG_runtime_stats &
+  if ((TracingFlags::runtime_stats.load(std::memory_order_relaxed) &
        v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
     auto value = v8::tracing::TracedValue::Create();
     table_->Dump(value.get());

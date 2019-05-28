@@ -366,7 +366,7 @@ class TorqueLintProcessor(CacheableSourceFileProcessor):
     return name.endswith('.tq')
 
   def GetPathsToSearch(self):
-    dirs = ['third-party', 'src']
+    dirs = ['third_party', 'src']
     test_dirs = ['torque']
     return dirs + [join('test', dir) for dir in test_dirs]
 
@@ -522,7 +522,8 @@ class SourceProcessor(SourceFileProcessor):
       if match:
         print("%s Flags should use '-' (not '_')" % name)
         result = False
-      if not "mjsunit/mjsunit.js" in name:
+      if (not "mjsunit/mjsunit.js" in name and
+          not "mjsunit/mjsunit_numfuzz.js" in name):
         if ASSERT_OPTIMIZED_PATTERN.search(contents) and \
             not FLAGS_ENABLE_OPT.search(contents):
           print("%s Flag --opt should be set if " \
@@ -658,6 +659,7 @@ def PyTests(workspace):
       join(workspace, 'tools', 'clusterfuzz', 'v8_foozzie_test.py'),
       join(workspace, 'tools', 'release', 'test_scripts.py'),
       join(workspace, 'tools', 'unittests', 'run_tests_test.py'),
+      join(workspace, 'tools', 'unittests', 'run_perf_test.py'),
       join(workspace, 'tools', 'testrunner', 'testproc', 'variant_unittest.py'),
     ]:
     print('Running ' + script)

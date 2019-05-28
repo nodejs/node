@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "include/v8-internal.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +20,7 @@ class Assembler;
 // Code comments section layout:
 // byte count              content
 // ------------------------------------------------------------------------
-// 4                       size as uint32_t
+// 4                       size as uint32_t (only for sanity check)
 // [Inline array of CodeCommentEntry in increasing pc_offset order]
 // ┌ 4                     pc_offset of entry as uint32_t
 // ├ 4                     length of the comment including terminating '\0'
@@ -34,7 +35,7 @@ struct CodeCommentEntry {
 
 class CodeCommentsWriter {
  public:
-  void Add(uint32_t pc_offset, std::string comment);
+  V8_EXPORT_PRIVATE void Add(uint32_t pc_offset, std::string comment);
   void Emit(Assembler* assm);
   size_t entry_count() const;
   uint32_t section_size() const;
@@ -44,10 +45,10 @@ class CodeCommentsWriter {
   std::vector<CodeCommentEntry> comments_;
 };
 
-class CodeCommentsIterator {
+class V8_EXPORT_PRIVATE CodeCommentsIterator {
  public:
-  // Address can be kNullAddress. In this case HasCurrent() will return false.
-  explicit CodeCommentsIterator(Address code_comments_start);
+  CodeCommentsIterator(Address code_comments_start,
+                       uint32_t code_comments_size);
   uint32_t size() const;
   const char* GetComment() const;
   uint32_t GetCommentSize() const;
@@ -57,10 +58,12 @@ class CodeCommentsIterator {
 
  private:
   Address code_comments_start_;
+  uint32_t code_comments_size_;
   Address current_entry_;
 };
 
-void PrintCodeCommentsSection(std::ostream& out, Address code_comments_start);
+void PrintCodeCommentsSection(std::ostream& out, Address code_comments_start,
+                              uint32_t code_comments_size);
 
 }  // namespace internal
 }  // namespace v8

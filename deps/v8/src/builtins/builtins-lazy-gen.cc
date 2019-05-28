@@ -127,13 +127,24 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
       CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
   TNode<Code> sfi_code = GetSharedFunctionInfoCode(shared, &compile_function);
 
-  // Compile function if we don't have a valid feedback vector.
-  TNode<FeedbackVector> feedback_vector =
-      LoadFeedbackVector(function, &compile_function);
+  TNode<HeapObject> feedback_cell_value = LoadFeedbackCellValue(function);
+
+  // If feedback cell isn't initialized, compile function
+  GotoIf(IsUndefined(feedback_cell_value), &compile_function);
+
+  Label use_sfi_code(this);
+  // If there is no feedback, don't check for optimized code.
+  GotoIf(HasInstanceType(feedback_cell_value, CLOSURE_FEEDBACK_CELL_ARRAY_TYPE),
+         &use_sfi_code);
+
+  // If it isn't undefined or fixed array it must be a feedback vector.
+  CSA_ASSERT(this, IsFeedbackVector(feedback_cell_value));
 
   // Is there an optimization marker or optimized code in the feedback vector?
-  MaybeTailCallOptimizedCodeSlot(function, feedback_vector);
+  MaybeTailCallOptimizedCodeSlot(function, CAST(feedback_cell_value));
+  Goto(&use_sfi_code);
 
+  BIND(&use_sfi_code);
   // If not, install the SFI's code entry and jump to that.
   CSA_ASSERT(this, WordNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
                                               isolate(), CompileLazy))));

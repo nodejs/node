@@ -180,7 +180,7 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
                                           Handle<Object> data) {
   Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
   Handle<Object> arg = Handle<Object>(message->argument(), isolate);
-  return MessageFormatter::FormatMessage(isolate, message->type(), arg);
+  return MessageFormatter::Format(isolate, message->type(), arg);
 }
 
 std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
@@ -205,18 +205,6 @@ Object EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
   return shared->inferred_name();
 }
 
-Object EvalFromScript(Isolate* isolate, Handle<Script> script) {
-  if (!script->has_eval_from_shared()) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  Handle<SharedFunctionInfo> eval_from_shared(script->eval_from_shared(),
-                                              isolate);
-  return eval_from_shared->script()->IsScript()
-             ? eval_from_shared->script()
-             : ReadOnlyRoots(isolate).undefined_value();
-}
-
 MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
   Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
   if (!sourceURL->IsUndefined(isolate)) {
@@ -239,44 +227,49 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
     builder.AppendCString("<anonymous>");
   }
 
-  Handle<Object> eval_from_script_obj =
-      handle(EvalFromScript(isolate, script), isolate);
-  if (eval_from_script_obj->IsScript()) {
-    Handle<Script> eval_from_script =
-        Handle<Script>::cast(eval_from_script_obj);
-    builder.AppendCString(" (");
-    if (eval_from_script->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
-      // Eval script originated from another eval.
-      Handle<String> str;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, str, FormatEvalOrigin(isolate, eval_from_script), String);
-      builder.AppendString(str);
-    } else {
-      DCHECK(eval_from_script->compilation_type() !=
-             Script::COMPILATION_TYPE_EVAL);
-      // eval script originated from "real" source.
-      Handle<Object> name_obj = handle(eval_from_script->name(), isolate);
-      if (eval_from_script->name()->IsString()) {
-        builder.AppendString(Handle<String>::cast(name_obj));
-
-        Script::PositionInfo info;
-        if (Script::GetPositionInfo(eval_from_script, script->GetEvalPosition(),
-                                    &info, Script::NO_OFFSET)) {
-          builder.AppendCString(":");
-
-          Handle<String> str = isolate->factory()->NumberToString(
-              handle(Smi::FromInt(info.line + 1), isolate));
-          builder.AppendString(str);
-
-          builder.AppendCString(":");
-
-          str = isolate->factory()->NumberToString(
-              handle(Smi::FromInt(info.column + 1), isolate));
-          builder.AppendString(str);
-        }
+  if (script->has_eval_from_shared()) {
+    Handle<SharedFunctionInfo> eval_from_shared(script->eval_from_shared(),
+                                                isolate);
+    if (eval_from_shared->script()->IsScript()) {
+      Handle<Script> eval_from_script =
+          handle(Script::cast(eval_from_shared->script()), isolate);
+      builder.AppendCString(" (");
+      if (eval_from_script->compilation_type() ==
+          Script::COMPILATION_TYPE_EVAL) {
+        // Eval script originated from another eval.
+        Handle<String> str;
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, str, FormatEvalOrigin(isolate, eval_from_script), String);
+        builder.AppendString(str);
       } else {
-        DCHECK(!eval_from_script->name()->IsString());
-        builder.AppendCString("unknown source");
+        DCHECK(eval_from_script->compilation_type() !=
+               Script::COMPILATION_TYPE_EVAL);
+        // eval script originated from "real" source.
+        Handle<Object> name_obj = handle(eval_from_script->name(), isolate);
+        if (eval_from_script->name()->IsString()) {
+          builder.AppendString(Handle<String>::cast(name_obj));
+
+          Script::PositionInfo info;
+
+          if (Script::GetPositionInfo(eval_from_script,
+                                      Script::GetEvalPosition(isolate, script),
+                                      &info, Script::NO_OFFSET)) {
+            builder.AppendCString(":");
+
+            Handle<String> str = isolate->factory()->NumberToString(
+                handle(Smi::FromInt(info.line + 1), isolate));
+            builder.AppendString(str);
+
+            builder.AppendCString(":");
+
+            str = isolate->factory()->NumberToString(
+                handle(Smi::FromInt(info.column + 1), isolate));
+            builder.AppendString(str);
+          }
+        } else {
+          DCHECK(!eval_from_script->name()->IsString());
+          builder.AppendCString("unknown source");
+        }
       }
     }
     builder.AppendCString(")");
@@ -302,6 +295,12 @@ int StackFrameBase::GetScriptId() const {
 bool StackFrameBase::IsEval() {
   return HasScript() &&
          GetScript()->compilation_type() == Script::COMPILATION_TYPE_EVAL;
+}
+
+MaybeHandle<String> StackFrameBase::ToString() {
+  IncrementalStringBuilder builder(isolate_);
+  ToString(builder);
+  return builder.Finish();
 }
 
 void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
@@ -616,9 +615,7 @@ void AppendMethodCall(Isolate* isolate, JSStackFrame* call_site,
 
 }  // namespace
 
-MaybeHandle<String> JSStackFrame::ToString() {
-  IncrementalStringBuilder builder(isolate_);
-
+void JSStackFrame::ToString(IncrementalStringBuilder& builder) {
   Handle<Object> function_name = GetFunctionName();
 
   const bool is_toplevel = IsToplevel();
@@ -638,7 +635,7 @@ MaybeHandle<String> JSStackFrame::ToString() {
         handle(Smi::FromInt(offset_), isolate_), isolate_);
     builder.AppendString(index_string);
     builder.AppendCString(")");
-    return builder.Finish();
+    return;
   }
   if (is_method_call) {
     AppendMethodCall(isolate_, this, &builder);
@@ -653,17 +650,21 @@ MaybeHandle<String> JSStackFrame::ToString() {
     builder.AppendString(Handle<String>::cast(function_name));
   } else {
     AppendFileLocation(isolate_, this, &builder);
-    return builder.Finish();
+    return;
   }
 
   builder.AppendCString(" (");
   AppendFileLocation(isolate_, this, &builder);
   builder.AppendCString(")");
 
-  return builder.Finish();
+  return;
 }
 
-int JSStackFrame::GetPosition() const { return code_->SourcePosition(offset_); }
+int JSStackFrame::GetPosition() const {
+  Handle<SharedFunctionInfo> shared = handle(function_->shared(), isolate_);
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
+  return code_->SourcePosition(offset_);
+}
 
 bool JSStackFrame::HasScript() const {
   return function_->shared()->script()->IsScript();
@@ -686,8 +687,10 @@ void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   if (array->IsWasmInterpretedFrame(frame_ix)) {
     code_ = nullptr;
   } else {
-    code_ = reinterpret_cast<wasm::WasmCode*>(
-        array->WasmCodeObject(frame_ix)->foreign_address());
+    // The {WasmCode*} is held alive by the {GlobalWasmCodeRef}.
+    auto global_wasm_code_ref =
+        Managed<wasm::GlobalWasmCodeRef>::cast(array->WasmCodeObject(frame_ix));
+    code_ = global_wasm_code_ref->get()->code();
   }
   offset_ = array->Offset(frame_ix)->value();
 }
@@ -710,9 +713,7 @@ Handle<Object> WasmStackFrame::GetFunctionName() {
   return name;
 }
 
-MaybeHandle<String> WasmStackFrame::ToString() {
-  IncrementalStringBuilder builder(isolate_);
-
+void WasmStackFrame::ToString(IncrementalStringBuilder& builder) {
   Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
                                          isolate_);
   MaybeHandle<String> module_name =
@@ -744,7 +745,7 @@ MaybeHandle<String> WasmStackFrame::ToString() {
 
   if (has_name) builder.AppendCString(")");
 
-  return builder.Finish();
+  return;
 }
 
 int WasmStackFrame::GetPosition() const {
@@ -821,12 +822,10 @@ int AsmJsWasmStackFrame::GetColumnNumber() {
   return Script::GetColumnNumber(script, GetPosition()) + 1;
 }
 
-MaybeHandle<String> AsmJsWasmStackFrame::ToString() {
+void AsmJsWasmStackFrame::ToString(IncrementalStringBuilder& builder) {
   // The string should look exactly as the respective javascript frame string.
-  // Keep this method in line to JSStackFrame::ToString().
-
-  IncrementalStringBuilder builder(isolate_);
-
+  // Keep this method in line to
+  // JSStackFrame::ToString(IncrementalStringBuilder&).
   Handle<Object> function_name = GetFunctionName();
 
   if (IsNonEmptyString(function_name)) {
@@ -838,7 +837,7 @@ MaybeHandle<String> AsmJsWasmStackFrame::ToString() {
 
   if (IsNonEmptyString(function_name)) builder.AppendCString(")");
 
-  return builder.Finish();
+  return;
 }
 
 FrameArrayIterator::FrameArrayIterator(Isolate* isolate,
@@ -975,12 +974,8 @@ class PrepareStackTraceScope {
 MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
                                                  Handle<JSObject> error,
                                                  Handle<Object> raw_stack) {
-  DCHECK(raw_stack->IsJSArray());
-  Handle<JSArray> raw_stack_array = Handle<JSArray>::cast(raw_stack);
-
-  DCHECK(raw_stack_array->elements()->IsFixedArray());
-  Handle<FrameArray> elems(FrameArray::cast(raw_stack_array->elements()),
-                           isolate);
+  DCHECK(raw_stack->IsFixedArray());
+  Handle<FrameArray> elems = Handle<FrameArray>::cast(raw_stack);
 
   const bool in_recursion = isolate->formatting_stack_trace();
   if (!in_recursion) {
@@ -1045,47 +1040,46 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   RETURN_ON_EXCEPTION(isolate, AppendErrorString(isolate, error, &builder),
                       Object);
 
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
+
   for (FrameArrayIterator it(isolate, elems); it.HasFrame(); it.Advance()) {
     builder.AppendCString("\n    at ");
 
     StackFrameBase* frame = it.Frame();
-    MaybeHandle<String> maybe_frame_string = frame->ToString();
-    if (maybe_frame_string.is_null()) {
-      // CallSite.toString threw. Try to return a string representation of the
-      // thrown exception instead.
+    frame->ToString(builder);
+    if (isolate->has_pending_exception()) {
+      // CallSite.toString threw. Parts of the current frame might have been
+      // stringified already regardless. Still, try to append a string
+      // representation of the thrown exception.
 
-      DCHECK(isolate->has_pending_exception());
       Handle<Object> pending_exception =
           handle(isolate->pending_exception(), isolate);
       isolate->clear_pending_exception();
       isolate->set_external_caught_exception(false);
 
-      maybe_frame_string = ErrorUtils::ToString(isolate, pending_exception);
-      if (maybe_frame_string.is_null()) {
+      MaybeHandle<String> exception_string =
+          ErrorUtils::ToString(isolate, pending_exception);
+      if (exception_string.is_null()) {
         // Formatting the thrown exception threw again, give up.
 
         builder.AppendCString("<error>");
       } else {
         // Formatted thrown exception successfully, append it.
         builder.AppendCString("<error: ");
-        builder.AppendString(maybe_frame_string.ToHandleChecked());
+        builder.AppendString(exception_string.ToHandleChecked());
         builder.AppendCString("<error>");
       }
-    } else {
-      // CallSite.toString completed without throwing.
-      builder.AppendString(maybe_frame_string.ToHandleChecked());
     }
   }
 
   return builder.Finish();
 }
 
-Handle<String> MessageFormatter::FormatMessage(Isolate* isolate,
-                                               MessageTemplate index,
-                                               Handle<Object> arg) {
+Handle<String> MessageFormatter::Format(Isolate* isolate, MessageTemplate index,
+                                        Handle<Object> arg) {
   Factory* factory = isolate->factory();
   Handle<String> result_string = Object::NoSideEffectsToString(isolate, arg);
-  MaybeHandle<String> maybe_result_string = MessageFormatter::FormatMessage(
+  MaybeHandle<String> maybe_result_string = MessageFormatter::Format(
       isolate, index, result_string, factory->empty_string(),
       factory->empty_string());
   if (!maybe_result_string.ToHandle(&result_string)) {
@@ -1114,11 +1108,11 @@ const char* MessageFormatter::TemplateString(MessageTemplate index) {
   }
 }
 
-MaybeHandle<String> MessageFormatter::FormatMessage(Isolate* isolate,
-                                                    MessageTemplate index,
-                                                    Handle<String> arg0,
-                                                    Handle<String> arg1,
-                                                    Handle<String> arg2) {
+MaybeHandle<String> MessageFormatter::Format(Isolate* isolate,
+                                             MessageTemplate index,
+                                             Handle<String> arg0,
+                                             Handle<String> arg1,
+                                             Handle<String> arg2) {
   const char* template_string = TemplateString(index);
   if (template_string == nullptr) {
     isolate->ThrowIllegalOperation();
@@ -1275,9 +1269,9 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
 
 namespace {
 
-Handle<String> FormatMessage(Isolate* isolate, MessageTemplate index,
-                             Handle<Object> arg0, Handle<Object> arg1,
-                             Handle<Object> arg2) {
+Handle<String> DoFormatMessage(Isolate* isolate, MessageTemplate index,
+                               Handle<Object> arg0, Handle<Object> arg1,
+                               Handle<Object> arg2) {
   Handle<String> arg0_str = Object::NoSideEffectsToString(isolate, arg0);
   Handle<String> arg1_str = Object::NoSideEffectsToString(isolate, arg1);
   Handle<String> arg2_str = Object::NoSideEffectsToString(isolate, arg2);
@@ -1285,8 +1279,7 @@ Handle<String> FormatMessage(Isolate* isolate, MessageTemplate index,
   isolate->native_context()->IncrementErrorsThrown();
 
   Handle<String> msg;
-  if (!MessageFormatter::FormatMessage(isolate, index, arg0_str, arg1_str,
-                                       arg2_str)
+  if (!MessageFormatter::Format(isolate, index, arg0_str, arg1_str, arg2_str)
            .ToHandle(&msg)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
@@ -1314,7 +1307,7 @@ MaybeHandle<Object> ErrorUtils::MakeGenericError(
   DCHECK(mode != SKIP_UNTIL_SEEN);
 
   Handle<Object> no_caller;
-  Handle<String> msg = FormatMessage(isolate, index, arg0, arg1, arg2);
+  Handle<String> msg = DoFormatMessage(isolate, index, arg0, arg1, arg2);
   return ErrorUtils::Construct(isolate, constructor, constructor, msg, mode,
                                no_caller, false);
 }

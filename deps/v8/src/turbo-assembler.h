@@ -17,6 +17,22 @@ namespace internal {
 // platform-independent bits.
 class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
  public:
+  // Constructors are declared public to inherit them in derived classes
+  // with `using` directive.
+  TurboAssemblerBase(const AssemblerOptions& options,
+                     std::unique_ptr<AssemblerBuffer> buffer = {})
+      : TurboAssemblerBase(nullptr, options.EnableV8AgnosticCode(),
+                           CodeObjectRequired::kNo, std::move(buffer)) {}
+
+  TurboAssemblerBase(Isolate* isolate, CodeObjectRequired create_code_object,
+                     std::unique_ptr<AssemblerBuffer> buffer = {})
+      : TurboAssemblerBase(isolate, AssemblerOptions::Default(isolate),
+                           create_code_object, std::move(buffer)) {}
+
+  TurboAssemblerBase(Isolate* isolate, const AssemblerOptions& options,
+                     CodeObjectRequired create_code_object,
+                     std::unique_ptr<AssemblerBuffer> buffer = {});
+
   Isolate* isolate() const {
     DCHECK(!options().v8_agnostic_code);
     return isolate_;
@@ -89,20 +105,6 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
       Isolate* isolate, const ExternalReference& reference);
 
  protected:
-  TurboAssemblerBase(const AssemblerOptions& options,
-                     std::unique_ptr<AssemblerBuffer> buffer = {})
-      : TurboAssemblerBase(nullptr, options.EnableV8AgnosticCode(),
-                           CodeObjectRequired::kNo, std::move(buffer)) {}
-
-  TurboAssemblerBase(Isolate* isolate, CodeObjectRequired create_code_object,
-                     std::unique_ptr<AssemblerBuffer> buffer = {})
-      : TurboAssemblerBase(isolate, AssemblerOptions::Default(isolate),
-                           create_code_object, std::move(buffer)) {}
-
-  TurboAssemblerBase(Isolate* isolate, const AssemblerOptions& options,
-                     CodeObjectRequired create_code_object,
-                     std::unique_ptr<AssemblerBuffer> buffer = {});
-
   void RecordCommentForOffHeapTrampoline(int builtin_index);
 
   Isolate* const isolate_ = nullptr;

@@ -109,25 +109,30 @@ class CompilationState {
 
   void AbortCompilation();
 
-  void SetError(uint32_t func_index, const WasmError& error);
+  void SetError();
 
   void SetWireBytesStorage(std::shared_ptr<WireBytesStorage>);
 
-  std::shared_ptr<WireBytesStorage> GetWireBytesStorage() const;
+  V8_EXPORT_PRIVATE std::shared_ptr<WireBytesStorage> GetWireBytesStorage()
+      const;
 
   void AddCallback(callback_t);
 
   bool failed() const;
 
-  void OnFinishedUnit(ExecutionTier, WasmCode*);
+  void OnFinishedUnit(WasmCode*);
+  void OnFinishedUnits(Vector<WasmCode*>);
 
  private:
   friend class NativeModule;
   friend class WasmCompilationUnit;
   CompilationState() = delete;
 
-  static std::unique_ptr<CompilationState> New(NativeModule*,
-                                               std::shared_ptr<Counters>);
+  // The CompilationState keeps a {std::weak_ptr} back to the {NativeModule}
+  // such that it can keep it alive (by regaining a {std::shared_ptr}) in
+  // certain scopes.
+  static std::unique_ptr<CompilationState> New(
+      const std::shared_ptr<NativeModule>&, std::shared_ptr<Counters>);
 };
 
 }  // namespace wasm

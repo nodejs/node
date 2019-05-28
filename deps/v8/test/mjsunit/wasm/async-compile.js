@@ -66,7 +66,7 @@ assertPromiseResult(async function badFunctionInTheMiddle() {
   let buffer = builder.toBuffer();
   await assertCompileError(
       buffer,
-      'Compiling wasm function \"bad\" failed: ' +
+      'Compiling function #10:\"bad\" failed: ' +
           'expected 1 elements on the stack for fallthru to @1, found 0 @+94');
 }());
 

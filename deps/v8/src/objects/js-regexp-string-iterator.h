@@ -37,16 +37,9 @@ class JSRegExpStringIterator : public JSObject {
   DECL_VERIFIER(JSRegExpStringIterator)
 
   // Layout description.
-#define JS_REGEXP_STRING_ITERATOR_FIELDS(V) \
-  V(kIteratingRegExpOffset, kTaggedSize)    \
-  V(kIteratedStringOffset, kTaggedSize)     \
-  V(kFlagsOffset, kTaggedSize)              \
-  /* Header size. */                        \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_REGEXP_STRING_ITERATOR_FIELDS)
-#undef JS_REGEXP_STRING_ITERATOR_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+    JSObject::kHeaderSize,
+    TORQUE_GENERATED_JSREG_EXP_STRING_ITERATOR_FIELDS)
 
   static const int kDoneBit = 0;
   static const int kGlobalBit = 1;

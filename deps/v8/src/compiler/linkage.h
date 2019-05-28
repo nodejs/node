@@ -163,7 +163,7 @@ class LinkageLocation {
   MachineType machine_type_;
 };
 
-typedef Signature<LinkageLocation> LocationSignature;
+using LocationSignature = Signature<LinkageLocation>;
 
 // Describes a call to various parts of the compiler. Every call has the notion
 // of a "target", which is the first input to the call.
@@ -198,7 +198,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kFixedTargetRegister = 1u << 7,
     kAllowCallThroughSlot = 1u << 8
   };
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
 
   CallDescriptor(Kind kind, MachineType target_type, LinkageLocation target_loc,
                  LocationSignature* location_sig, size_t stack_param_count,

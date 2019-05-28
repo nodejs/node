@@ -731,15 +731,14 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
         has_constant_pool_entry_(false) {}
 
   void AddFunctionDeclaration(const AstRawString* name, FeedbackSlot slot,
-                              FeedbackSlot literal_slot,
-                              FunctionLiteral* func) {
+                              int feedback_cell_index, FunctionLiteral* func) {
     DCHECK(!slot.IsInvalid());
-    declarations_.push_back(Declaration(name, slot, literal_slot, func));
+    declarations_.push_back(Declaration(name, slot, feedback_cell_index, func));
   }
 
   void AddUndefinedDeclaration(const AstRawString* name, FeedbackSlot slot) {
     DCHECK(!slot.IsInvalid());
-    declarations_.push_back(Declaration(name, slot, nullptr));
+    declarations_.push_back(Declaration(name, slot));
   }
 
   Handle<FixedArray> AllocateDeclarations(UnoptimizedCompilationInfo* info,
@@ -748,7 +747,7 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
     DCHECK(has_constant_pool_entry_);
     int array_index = 0;
     Handle<FixedArray> data = isolate->factory()->NewFixedArray(
-        static_cast<int>(declarations_.size() * 4), TENURED);
+        static_cast<int>(declarations_.size() * 4), AllocationType::kOld);
     for (const Declaration& declaration : declarations_) {
       FunctionLiteral* func = declaration.func;
       Handle<Object> initial_value;
@@ -765,11 +764,11 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
       data->set(array_index++, *declaration.name->string());
       data->set(array_index++, Smi::FromInt(declaration.slot.ToInt()));
       Object undefined_or_literal_slot;
-      if (declaration.literal_slot.IsInvalid()) {
+      if (declaration.feedback_cell_index_for_function == -1) {
         undefined_or_literal_slot = ReadOnlyRoots(isolate).undefined_value();
       } else {
         undefined_or_literal_slot =
-            Smi::FromInt(declaration.literal_slot.ToInt());
+            Smi::FromInt(declaration.feedback_cell_index_for_function);
       }
       data->set(array_index++, undefined_or_literal_slot);
       data->set(array_index++, *initial_value);
@@ -795,18 +794,23 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
   struct Declaration {
     Declaration() : slot(FeedbackSlot::Invalid()), func(nullptr) {}
     Declaration(const AstRawString* name, FeedbackSlot slot,
-                FeedbackSlot literal_slot, FunctionLiteral* func)
-        : name(name), slot(slot), literal_slot(literal_slot), func(func) {}
-    Declaration(const AstRawString* name, FeedbackSlot slot,
-                FunctionLiteral* func)
+                int feedback_cell_index, FunctionLiteral* func)
         : name(name),
           slot(slot),
-          literal_slot(FeedbackSlot::Invalid()),
+          feedback_cell_index_for_function(feedback_cell_index),
           func(func) {}
+    Declaration(const AstRawString* name, FeedbackSlot slot)
+        : name(name),
+          slot(slot),
+          feedback_cell_index_for_function(-1),
+          func(nullptr) {}
 
     const AstRawString* name;
     FeedbackSlot slot;
-    FeedbackSlot literal_slot;
+    // Only valid for function declarations. Specifies the index into the
+    // closure_feedback_cell array used when creating closures of this
+    // function.
+    int feedback_cell_index_for_function;
     FunctionLiteral* func;
   };
   ZoneVector<Declaration> declarations_;
@@ -836,51 +840,61 @@ class BytecodeGenerator::CurrentScope final {
 
 class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
  public:
+  enum class SlotKind {
+    kStoreGlobalSloppy,
+    kStoreGlobalStrict,
+    kStoreNamedStrict,
+    kStoreNamedSloppy,
+    kLoadProperty,
+    kLoadGlobalNotInsideTypeof,
+    kLoadGlobalInsideTypeof,
+    kClosureFeedbackCell
+  };
+
   explicit FeedbackSlotCache(Zone* zone) : map_(zone) {}
 
-  void Put(FeedbackSlotKind slot_kind, Variable* variable, FeedbackSlot slot) {
-    PutImpl(slot_kind, 0, variable, slot);
+  void Put(SlotKind slot_kind, Variable* variable, int slot_index) {
+    PutImpl(slot_kind, 0, variable, slot_index);
   }
-  void Put(FeedbackSlotKind slot_kind, AstNode* node, FeedbackSlot slot) {
-    PutImpl(slot_kind, 0, node, slot);
+  void Put(SlotKind slot_kind, AstNode* node, int slot_index) {
+    PutImpl(slot_kind, 0, node, slot_index);
   }
-  void Put(FeedbackSlotKind slot_kind, int variable_index,
-           const AstRawString* name, FeedbackSlot slot) {
-    PutImpl(slot_kind, variable_index, name, slot);
+  void Put(SlotKind slot_kind, int variable_index, const AstRawString* name,
+           int slot_index) {
+    PutImpl(slot_kind, variable_index, name, slot_index);
   }
 
-  FeedbackSlot Get(FeedbackSlotKind slot_kind, Variable* variable) const {
+  int Get(SlotKind slot_kind, Variable* variable) const {
     return GetImpl(slot_kind, 0, variable);
   }
-  FeedbackSlot Get(FeedbackSlotKind slot_kind, AstNode* node) const {
+  int Get(SlotKind slot_kind, AstNode* node) const {
     return GetImpl(slot_kind, 0, node);
   }
-  FeedbackSlot Get(FeedbackSlotKind slot_kind, int variable_index,
-                   const AstRawString* name) const {
+  int Get(SlotKind slot_kind, int variable_index,
+          const AstRawString* name) const {
     return GetImpl(slot_kind, variable_index, name);
   }
 
  private:
-  typedef std::tuple<FeedbackSlotKind, int, const void*> Key;
+  using Key = std::tuple<SlotKind, int, const void*>;
 
-  void PutImpl(FeedbackSlotKind slot_kind, int index, const void* node,
-               FeedbackSlot slot) {
+  void PutImpl(SlotKind slot_kind, int index, const void* node,
+               int slot_index) {
     Key key = std::make_tuple(slot_kind, index, node);
-    auto entry = std::make_pair(key, slot);
+    auto entry = std::make_pair(key, slot_index);
     map_.insert(entry);
   }
 
-  FeedbackSlot GetImpl(FeedbackSlotKind slot_kind, int index,
-                       const void* node) const {
+  int GetImpl(SlotKind slot_kind, int index, const void* node) const {
     Key key = std::make_tuple(slot_kind, index, node);
     auto iter = map_.find(key);
     if (iter != map_.end()) {
       return iter->second;
     }
-    return FeedbackSlot();
+    return -1;
   }
 
-  ZoneMap<Key, FeedbackSlot> map_;
+  ZoneMap<Key, int> map_;
 };
 
 class BytecodeGenerator::IteratorRecord final {
@@ -955,7 +969,7 @@ BytecodeGenerator::BytecodeGenerator(
 
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     Isolate* isolate, Handle<Script> script) {
-  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 #ifdef DEBUG
   // Unoptimized compilation should be context-independent. Verify that we don't
   // access the native context by nulling it out during finalization.
@@ -1285,9 +1299,9 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
     case VariableLocation::UNALLOCATED: {
       FeedbackSlot slot =
           GetCachedLoadGlobalICSlot(NOT_INSIDE_TYPEOF, variable);
-      FeedbackSlot literal_slot = GetCachedCreateClosureSlot(decl->fun());
+      int literal_index = GetCachedCreateClosureSlot(decl->fun());
       globals_builder()->AddFunctionDeclaration(variable->raw_name(), slot,
-                                                literal_slot, decl->fun());
+                                                literal_index, decl->fun());
       AddToEagerLiteralsIfEager(decl->fun());
       break;
     }
@@ -1353,8 +1367,7 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 
   globals_builder()->set_constant_pool_entry(
       builder()->AllocateDeferredConstantPoolEntry());
-  int encoded_flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
-                      DeclareGlobalsNativeFlag::encode(info()->is_native());
+  int encoded_flags = DeclareGlobalsEvalFlag::encode(info()->is_eval());
 
   // Emit code to declare globals.
   RegisterList args = register_allocator()->NewRegisterList(3);
@@ -1895,8 +1908,7 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
       expr->pretenure(), closure_scope()->is_function_scope(),
       info()->might_always_opt());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
-  FeedbackSlot slot = GetCachedCreateClosureSlot(expr);
-  builder()->CreateClosure(entry, feedback_index(slot), flags);
+  builder()->CreateClosure(entry, GetCachedCreateClosureSlot(expr), flags);
   function_literals_.push_back(std::make_pair(expr, entry));
   AddToEagerLiteralsIfEager(expr);
 }
@@ -2155,8 +2167,9 @@ void BytecodeGenerator::BuildInstanceMemberInitialization(Register constructor,
 void BytecodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
-  FeedbackSlot slot = feedback_spec()->AddCreateClosureSlot();
-  builder()->CreateClosure(entry, feedback_index(slot), NOT_TENURED);
+  int index = feedback_spec()->AddFeedbackCellForCreateClosure();
+  uint8_t flags = CreateClosureFlags::Encode(false, false, false);
+  builder()->CreateClosure(entry, index, flags);
   native_function_literals_.push_back(std::make_pair(expr, entry));
 }
 
@@ -5789,30 +5802,31 @@ int BytecodeGenerator::feedback_index(FeedbackSlot slot) const {
 
 FeedbackSlot BytecodeGenerator::GetCachedLoadGlobalICSlot(
     TypeofMode typeof_mode, Variable* variable) {
-  FeedbackSlotKind slot_kind =
+  FeedbackSlotCache::SlotKind slot_kind =
       typeof_mode == INSIDE_TYPEOF
-          ? FeedbackSlotKind::kLoadGlobalInsideTypeof
-          : FeedbackSlotKind::kLoadGlobalNotInsideTypeof;
-  FeedbackSlot slot = feedback_slot_cache()->Get(slot_kind, variable);
+          ? FeedbackSlotCache::SlotKind::kLoadGlobalInsideTypeof
+          : FeedbackSlotCache::SlotKind::kLoadGlobalNotInsideTypeof;
+  FeedbackSlot slot(feedback_slot_cache()->Get(slot_kind, variable));
   if (!slot.IsInvalid()) {
     return slot;
   }
   slot = feedback_spec()->AddLoadGlobalICSlot(typeof_mode);
-  feedback_slot_cache()->Put(slot_kind, variable, slot);
+  feedback_slot_cache()->Put(slot_kind, variable, feedback_index(slot));
   return slot;
 }
 
 FeedbackSlot BytecodeGenerator::GetCachedStoreGlobalICSlot(
     LanguageMode language_mode, Variable* variable) {
-  FeedbackSlotKind slot_kind = is_strict(language_mode)
-                                   ? FeedbackSlotKind::kStoreGlobalStrict
-                                   : FeedbackSlotKind::kStoreGlobalSloppy;
-  FeedbackSlot slot = feedback_slot_cache()->Get(slot_kind, variable);
+  FeedbackSlotCache::SlotKind slot_kind =
+      is_strict(language_mode)
+          ? FeedbackSlotCache::SlotKind::kStoreGlobalStrict
+          : FeedbackSlotCache::SlotKind::kStoreGlobalSloppy;
+  FeedbackSlot slot(feedback_slot_cache()->Get(slot_kind, variable));
   if (!slot.IsInvalid()) {
     return slot;
   }
   slot = feedback_spec()->AddStoreGlobalICSlot(language_mode);
-  feedback_slot_cache()->Put(slot_kind, variable, slot);
+  feedback_slot_cache()->Put(slot_kind, variable, feedback_index(slot));
   return slot;
 }
 
@@ -5821,18 +5835,20 @@ FeedbackSlot BytecodeGenerator::GetCachedLoadICSlot(const Expression* expr,
   if (!FLAG_ignition_share_named_property_feedback) {
     return feedback_spec()->AddLoadICSlot();
   }
-  FeedbackSlotKind slot_kind = FeedbackSlotKind::kLoadProperty;
+  FeedbackSlotCache::SlotKind slot_kind =
+      FeedbackSlotCache::SlotKind::kLoadProperty;
   if (!expr->IsVariableProxy()) {
     return feedback_spec()->AddLoadICSlot();
   }
   const VariableProxy* proxy = expr->AsVariableProxy();
-  FeedbackSlot slot =
-      feedback_slot_cache()->Get(slot_kind, proxy->var()->index(), name);
+  FeedbackSlot slot(
+      feedback_slot_cache()->Get(slot_kind, proxy->var()->index(), name));
   if (!slot.IsInvalid()) {
     return slot;
   }
   slot = feedback_spec()->AddLoadICSlot();
-  feedback_slot_cache()->Put(slot_kind, proxy->var()->index(), name, slot);
+  feedback_slot_cache()->Put(slot_kind, proxy->var()->index(), name,
+                             feedback_index(slot));
   return slot;
 }
 
@@ -5841,33 +5857,35 @@ FeedbackSlot BytecodeGenerator::GetCachedStoreICSlot(const Expression* expr,
   if (!FLAG_ignition_share_named_property_feedback) {
     return feedback_spec()->AddStoreICSlot(language_mode());
   }
-  FeedbackSlotKind slot_kind = is_strict(language_mode())
-                                   ? FeedbackSlotKind::kStoreNamedStrict
-                                   : FeedbackSlotKind::kStoreNamedSloppy;
+  FeedbackSlotCache::SlotKind slot_kind =
+      is_strict(language_mode())
+          ? FeedbackSlotCache::SlotKind::kStoreNamedStrict
+          : FeedbackSlotCache::SlotKind::kStoreNamedSloppy;
   if (!expr->IsVariableProxy()) {
     return feedback_spec()->AddStoreICSlot(language_mode());
   }
   const VariableProxy* proxy = expr->AsVariableProxy();
-  FeedbackSlot slot =
-      feedback_slot_cache()->Get(slot_kind, proxy->var()->index(), name);
+  FeedbackSlot slot(
+      feedback_slot_cache()->Get(slot_kind, proxy->var()->index(), name));
   if (!slot.IsInvalid()) {
     return slot;
   }
   slot = feedback_spec()->AddStoreICSlot(language_mode());
-  feedback_slot_cache()->Put(slot_kind, proxy->var()->index(), name, slot);
+  feedback_slot_cache()->Put(slot_kind, proxy->var()->index(), name,
+                             feedback_index(slot));
   return slot;
 }
 
-FeedbackSlot BytecodeGenerator::GetCachedCreateClosureSlot(
-    FunctionLiteral* literal) {
-  FeedbackSlotKind slot_kind = FeedbackSlotKind::kCreateClosure;
-  FeedbackSlot slot = feedback_slot_cache()->Get(slot_kind, literal);
-  if (!slot.IsInvalid()) {
-    return slot;
+int BytecodeGenerator::GetCachedCreateClosureSlot(FunctionLiteral* literal) {
+  FeedbackSlotCache::SlotKind slot_kind =
+      FeedbackSlotCache::SlotKind::kClosureFeedbackCell;
+  int index = feedback_slot_cache()->Get(slot_kind, literal);
+  if (index != -1) {
+    return index;
   }
-  slot = feedback_spec()->AddCreateClosureSlot();
-  feedback_slot_cache()->Put(slot_kind, literal, slot);
-  return slot;
+  index = feedback_spec()->AddFeedbackCellForCreateClosure();
+  feedback_slot_cache()->Put(slot_kind, literal, index);
+  return index;
 }
 
 FeedbackSlot BytecodeGenerator::GetDummyCompareICSlot() {

@@ -335,6 +335,9 @@ class OperandGenerator {
           case MachineRepresentation::kTagged:
           case MachineRepresentation::kTaggedSigned:
           case MachineRepresentation::kTaggedPointer:
+          case MachineRepresentation::kCompressed:
+          case MachineRepresentation::kCompressedSigned:
+          case MachineRepresentation::kCompressedPointer:
             return Constant(static_cast<int32_t>(0));
           case MachineRepresentation::kFloat64:
             return Constant(static_cast<double>(0));

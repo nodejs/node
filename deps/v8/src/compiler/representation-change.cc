@@ -176,6 +176,20 @@ Node* RepresentationChanger::GetRepresentationFor(
       DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetTaggedRepresentationFor(node, output_rep, output_type,
                                         use_info.truncation());
+    case MachineRepresentation::kCompressedSigned:
+      DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
+             use_info.type_check() == TypeCheckKind::kSignedSmall);
+      return GetCompressedSignedRepresentationFor(node, output_rep, output_type,
+                                                  use_node, use_info);
+    case MachineRepresentation::kCompressedPointer:
+      DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
+             use_info.type_check() == TypeCheckKind::kHeapObject);
+      return GetCompressedPointerRepresentationFor(
+          node, output_rep, output_type, use_node, use_info);
+    case MachineRepresentation::kCompressed:
+      DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
+      return GetCompressedRepresentationFor(node, output_rep, output_type,
+                                            use_info.truncation());
     case MachineRepresentation::kFloat32:
       DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetFloat32RepresentationFor(node, output_rep, output_type,
@@ -339,6 +353,17 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedSigned);
     }
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+  } else if (output_rep == MachineRepresentation::kCompressed) {
+    if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+      op = simplified()->CheckedCompressedToTaggedSigned(use_info.feedback());
+    } else if (output_type.Is(Type::SignedSmall())) {
+      op = simplified()->ChangeCompressedToTaggedSigned();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTaggedSigned);
+    }
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kTaggedSigned);
@@ -422,6 +447,16 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     // TODO(turbofan): Consider adding a Bailout operator that just deopts
     // for TaggedSigned output representation.
     op = simplified()->CheckedTaggedToTaggedPointer(use_info.feedback());
+  } else if (output_rep == MachineRepresentation::kCompressedPointer) {
+    op = machine()->ChangeCompressedPointerToTaggedPointer();
+  } else if (output_rep == MachineRepresentation::kCompressed &&
+             use_info.type_check() == TypeCheckKind::kHeapObject) {
+    if (!output_type.Maybe(Type::SignedSmall())) {
+      return node;
+    }
+    // TODO(turbofan): Consider adding a Bailout operator that just deopts
+    // for CompressedSigned output representation.
+    op = simplified()->CheckedCompressedToTaggedPointer(use_info.feedback());
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kTaggedPointer);
@@ -535,9 +570,133 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTagged);
     }
+  } else if (IsAnyCompressed(output_rep)) {
+    op = machine()->ChangeCompressedToTagged();
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kTagged);
+  }
+  return jsgraph()->graph()->NewNode(op, node);
+}
+
+Node* RepresentationChanger::GetCompressedSignedRepresentationFor(
+    Node* node, MachineRepresentation output_rep, Type output_type,
+    Node* use_node, UseInfo use_info) {
+  // Select the correct X -> Compressed operator.
+  const Operator* op;
+  if (output_type.Is(Type::None())) {
+    // This is an impossible value; it should not be used at runtime.
+    return jsgraph()->graph()->NewNode(
+        jsgraph()->common()->DeadValue(
+            MachineRepresentation::kCompressedSigned),
+        node);
+  } else if (output_rep == MachineRepresentation::kTaggedSigned) {
+    op = machine()->ChangeTaggedSignedToCompressedSigned();
+  } else if (output_rep == MachineRepresentation::kTagged) {
+    if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+      op = simplified()->CheckedTaggedToCompressedSigned(use_info.feedback());
+    } else if (output_type.Is(Type::SignedSmall())) {
+      op = simplified()->ChangeTaggedToCompressedSigned();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTaggedSigned);
+    }
+  } else if (output_rep == MachineRepresentation::kBit) {
+    // TODO(v8:8977): specialize here and below
+    node = GetTaggedSignedRepresentationFor(node, output_rep, output_type,
+                                            use_node, use_info);
+    op = machine()->ChangeTaggedSignedToCompressedSigned();
+  } else if (IsWord(output_rep)) {
+    node = GetTaggedSignedRepresentationFor(node, output_rep, output_type,
+                                            use_node, use_info);
+    op = machine()->ChangeTaggedSignedToCompressedSigned();
+  } else if (output_rep == MachineRepresentation::kWord64) {
+    node = GetTaggedSignedRepresentationFor(node, output_rep, output_type,
+                                            use_node, use_info);
+    op = machine()->ChangeTaggedSignedToCompressedSigned();
+  } else if (output_rep == MachineRepresentation::kFloat32) {
+    node = GetTaggedSignedRepresentationFor(node, output_rep, output_type,
+                                            use_node, use_info);
+    op = machine()->ChangeTaggedSignedToCompressedSigned();
+  } else if (output_rep == MachineRepresentation::kFloat64) {
+    node = GetTaggedSignedRepresentationFor(node, output_rep, output_type,
+                                            use_node, use_info);
+    op = machine()->ChangeTaggedSignedToCompressedSigned();
+  } else {
+    return TypeError(node, output_rep, output_type,
+                     MachineRepresentation::kCompressedSigned);
+  }
+  return InsertConversion(node, op, use_node);
+}
+
+Node* RepresentationChanger::GetCompressedPointerRepresentationFor(
+    Node* node, MachineRepresentation output_rep, Type output_type,
+    Node* use_node, UseInfo use_info) {
+  // Select the correct X -> CompressedPointer operator.
+  Operator const* op;
+  if (output_type.Is(Type::None())) {
+    // This is an impossible value; it should not be used at runtime.
+    return jsgraph()->graph()->NewNode(
+        jsgraph()->common()->DeadValue(
+            MachineRepresentation::kCompressedPointer),
+        node);
+  } else if (output_rep == MachineRepresentation::kTaggedPointer) {
+    op = machine()->ChangeTaggedPointerToCompressedPointer();
+  } else if (output_rep == MachineRepresentation::kTagged &&
+             use_info.type_check() == TypeCheckKind::kHeapObject) {
+    if (!output_type.Maybe(Type::SignedSmall())) {
+      return node;
+    }
+    // TODO(turbofan): Consider adding a Bailout operator that just deopts
+    // for TaggedSigned output representation.
+    op = simplified()->CheckedTaggedToCompressedPointer(use_info.feedback());
+    return TypeError(node, output_rep, output_type,
+                     MachineRepresentation::kCompressedPointer);
+  }
+  return InsertConversion(node, op, use_node);
+}
+
+Node* RepresentationChanger::GetCompressedRepresentationFor(
+    Node* node, MachineRepresentation output_rep, Type output_type,
+    Truncation truncation) {
+  if (output_rep == MachineRepresentation::kCompressedSigned ||
+      output_rep == MachineRepresentation::kCompressedPointer) {
+    // this is a no-op.
+    return node;
+  }
+  // Select the correct X -> Compressed operator.
+  const Operator* op;
+  if (output_type.Is(Type::None())) {
+    // This is an impossible value; it should not be used at runtime.
+    return jsgraph()->graph()->NewNode(
+        jsgraph()->common()->DeadValue(MachineRepresentation::kCompressed),
+        node);
+  } else if (output_rep == MachineRepresentation::kBit) {
+    // TODO(v8:8977): specialize here and below
+    node =
+        GetTaggedRepresentationFor(node, output_rep, output_type, truncation);
+    op = machine()->ChangeTaggedToCompressed();
+  } else if (IsWord(output_rep)) {
+    node =
+        GetTaggedRepresentationFor(node, output_rep, output_type, truncation);
+    op = machine()->ChangeTaggedToCompressed();
+  } else if (output_rep == MachineRepresentation::kWord64) {
+    node =
+        GetTaggedRepresentationFor(node, output_rep, output_type, truncation);
+    op = machine()->ChangeTaggedToCompressed();
+  } else if (output_rep == MachineRepresentation::kFloat32) {
+    node =
+        GetTaggedRepresentationFor(node, output_rep, output_type, truncation);
+    op = machine()->ChangeTaggedToCompressed();
+  } else if (output_rep == MachineRepresentation::kFloat64) {
+    node =
+        GetTaggedRepresentationFor(node, output_rep, output_type, truncation);
+    op = machine()->ChangeTaggedToCompressed();
+  } else if (IsAnyTagged(output_rep)) {
+    op = machine()->ChangeTaggedToCompressed();
+  } else {
+    return TypeError(node, output_rep, output_type,
+                     MachineRepresentation::kCompressed);
   }
   return jsgraph()->graph()->NewNode(op, node);
 }
@@ -591,6 +750,18 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
       node = jsgraph()->graph()->NewNode(op, node);
       op = machine()->TruncateFloat64ToFloat32();
     }
+  } else if (output_rep == MachineRepresentation::kCompressed) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedToTagged();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetFloat32RepresentationFor(node, MachineRepresentation::kTagged,
+                                       output_type, truncation);
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetFloat32RepresentationFor(
+        node, MachineRepresentation::kTaggedSigned, output_type, truncation);
   } else if (output_rep == MachineRepresentation::kFloat64) {
     op = machine()->TruncateFloat64ToFloat32();
   } else if (output_rep == MachineRepresentation::kWord64) {
@@ -678,6 +849,19 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       op = simplified()->CheckedTaggedToFloat64(
           CheckTaggedInputMode::kNumberOrOddball, use_info.feedback());
     }
+  } else if (output_rep == MachineRepresentation::kCompressed) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedToTagged();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetFloat64RepresentationFor(node, MachineRepresentation::kTagged,
+                                       output_type, use_node, use_info);
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetFloat64RepresentationFor(node,
+                                       MachineRepresentation::kTaggedSigned,
+                                       output_type, use_node, use_info);
   } else if (output_rep == MachineRepresentation::kFloat32) {
     op = machine()->ChangeFloat32ToFloat64();
   } else if (output_rep == MachineRepresentation::kWord64) {
@@ -826,6 +1010,19 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord32);
     }
+  } else if (output_rep == MachineRepresentation::kCompressed) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedToTagged();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetWord32RepresentationFor(node, MachineRepresentation::kTagged,
+                                      output_type, use_node, use_info);
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetWord32RepresentationFor(node,
+                                      MachineRepresentation::kTaggedSigned,
+                                      output_type, use_node, use_info);
   } else if (output_rep == MachineRepresentation::kWord32) {
     // Only the checked case should get here, the non-checked case is
     // handled in GetRepresentationFor.
@@ -939,6 +1136,18 @@ Node* RepresentationChanger::GetBitRepresentationFor(
                                        jsgraph()->IntPtrConstant(0));
     return jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
                                        jsgraph()->Int32Constant(0));
+  } else if (output_rep == MachineRepresentation::kCompressed) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedToTagged();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetBitRepresentationFor(node, MachineRepresentation::kTagged,
+                                   output_type);
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetBitRepresentationFor(node, MachineRepresentation::kTaggedSigned,
+                                   output_type);
   } else if (IsWord(output_rep)) {
     node = jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
                                        jsgraph()->Int32Constant(0));
@@ -1069,6 +1278,19 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
     }
+  } else if (output_rep == MachineRepresentation::kCompressed) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedToTagged();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetWord64RepresentationFor(node, MachineRepresentation::kTagged,
+                                      output_type, use_node, use_info);
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetWord64RepresentationFor(node,
+                                      MachineRepresentation::kTaggedSigned,
+                                      output_type, use_node, use_info);
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kWord64);

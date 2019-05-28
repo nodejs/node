@@ -132,6 +132,11 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       return UseInfo::AnyTagged();
+    case MachineRepresentation::kCompressedSigned:
+      return UseInfo::CompressedSigned();
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
+      return UseInfo::AnyCompressed();
     case MachineRepresentation::kFloat64:
       return UseInfo::TruncatingFloat64();
     case MachineRepresentation::kFloat32:
@@ -1100,6 +1105,10 @@ class RepresentationSelector {
     // Do not distinguish between various Tagged variations.
     if (IsAnyTagged(rep)) {
       return MachineType::AnyTagged();
+    }
+    // Do not distinguish between various Compressed variations.
+    if (IsAnyCompressed(rep)) {
+      return MachineType::AnyCompressed();
     }
     // Word64 representation is only valid for safe integer values.
     if (rep == MachineRepresentation::kWord64) {
@@ -2576,8 +2585,17 @@ class RepresentationSelector {
       }
       case IrOpcode::kSameValue: {
         if (truncation.IsUnused()) return VisitUnused(node);
-        VisitBinop(node, UseInfo::AnyTagged(),
-                   MachineRepresentation::kTaggedPointer);
+        if (BothInputsAre(node, Type::Number())) {
+          VisitBinop(node, UseInfo::TruncatingFloat64(),
+                     MachineRepresentation::kBit);
+          if (lower()) {
+            NodeProperties::ChangeOp(node,
+                                     lowering->simplified()->NumberSameValue());
+          }
+        } else {
+          VisitBinop(node, UseInfo::AnyTagged(),
+                     MachineRepresentation::kTaggedPointer);
+        }
         return;
       }
       case IrOpcode::kTypeOf: {
@@ -3208,8 +3226,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kNewDoubleElements:
       case IrOpcode::kNewSmiOrObjectElements: {
-        VisitUnop(node, UseInfo::TruncatingWord32(),
-                  MachineRepresentation::kTaggedPointer);
+        VisitUnop(node, UseInfo::Word(), MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kNewArgumentsElements: {

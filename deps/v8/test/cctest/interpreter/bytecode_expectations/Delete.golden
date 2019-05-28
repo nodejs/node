@@ -105,7 +105,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   56 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(41),
   /*   56 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   64 S> */ B(CreateClosure), U8(2), U8(1), U8(2),
+  /*   64 S> */ B(CreateClosure), U8(2), U8(0), U8(2),
   /*   93 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(1),
                 B(LdaSmi), I8(1),

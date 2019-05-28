@@ -35,6 +35,19 @@ void RecordWriteDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
+void EphemeronKeyBarrierDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  const Register default_stub_registers[] = {arg_reg_1, arg_reg_2, arg_reg_3,
+                                             arg_reg_4, kReturnRegister0};
+
+  data->RestrictAllocatableRegisters(default_stub_registers,
+                                     arraysize(default_stub_registers));
+
+  CHECK_LE(static_cast<size_t>(kParameterCount),
+           arraysize(default_stub_registers));
+  data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
+}
+
 const Register FastNewFunctionContextDescriptor::ScopeInfoRegister() {
   return rdi;
 }

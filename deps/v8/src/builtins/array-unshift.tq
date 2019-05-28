@@ -6,7 +6,7 @@ namespace array_unshift {
   extern builtin ArrayUnshift(Context, JSFunction, Object, int32);
 
   macro TryFastArrayUnshift(
-      context: Context, receiver: Object, arguments: constexpr Arguments): never
+      context: Context, receiver: Object, arguments: Arguments): never
       labels Slow {
     const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
     array::EnsureWriteableFastElements(array);
@@ -21,8 +21,7 @@ namespace array_unshift {
   }
 
   transitioning macro GenericArrayUnshift(
-      context: Context, receiver: Object,
-      arguments: constexpr Arguments): Number {
+      context: Context, receiver: Object, arguments: Arguments): Number {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 

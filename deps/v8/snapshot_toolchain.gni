@@ -60,9 +60,6 @@ if (v8_snapshot_toolchain == "") {
     # binaries built for the same OS, so build the snapshot with the current
     # toolchain here, too.
     v8_snapshot_toolchain = current_toolchain
-  } else if (current_os == "win" && host_os == "mac" && is_clang) {
-    # This is a mac -> win cross-compile, which is only supported w/ clang.
-    v8_snapshot_toolchain = "//build/toolchain/mac:clang_${v8_current_cpu}"
   } else if (host_cpu == "x64" &&
              (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
     # We don't support snapshot generation for big-endian targets,
@@ -101,7 +98,7 @@ if (v8_snapshot_toolchain == "") {
     if (_cpus != "") {
       v8_snapshot_toolchain = "//build/toolchain/${host_os}:${_clang}${_cpus}"
     } else if (is_win && v8_current_cpu == "arm64") {
-      # cross compile Windows arm64 with Windows x64 toolchain.
+      # cross compile Windows arm64 with host toolchain.
       v8_snapshot_toolchain = host_toolchain
     }
   }

@@ -39,7 +39,7 @@ bool PrototypeInfo::HasObjectCreateMap() {
   return cache->IsWeak();
 }
 
-ACCESSORS(PrototypeInfo, module_namespace, Object, kJSModuleNamespaceOffset)
+ACCESSORS(PrototypeInfo, module_namespace, Object, kJsModuleNamespaceOffset)
 ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)
 WEAK_ACCESSORS(PrototypeInfo, object_create_map, kObjectCreateMapOffset)
 SMI_ACCESSORS(PrototypeInfo, registry_slot, kRegistrySlotOffset)

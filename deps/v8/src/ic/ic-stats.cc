@@ -4,7 +4,7 @@
 
 #include "src/ic/ic-stats.h"
 
-#include "src/flags.h"
+#include "src/counters.h"
 #include "src/objects-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
@@ -21,7 +21,7 @@ ICStats::ICStats() : ic_infos_(MAX_IC_INFO), pos_(0) {
 }
 
 void ICStats::Begin() {
-  if (V8_LIKELY(!FLAG_ic_stats)) return;
+  if (V8_LIKELY(!TracingFlags::is_ic_stats_enabled())) return;
   base::Relaxed_Store(&enabled_, 1);
 }
 

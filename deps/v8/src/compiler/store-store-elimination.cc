@@ -71,7 +71,7 @@ namespace compiler {
 
 namespace {
 
-typedef uint32_t StoreOffset;
+using StoreOffset = uint32_t;
 
 struct UnobservableStore {
   NodeId id_;

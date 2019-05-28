@@ -7,7 +7,6 @@
 #include <limits>
 
 #include "src/base/logging.h"
-#include "src/base/safe_math.h"
 
 namespace v8 {
 namespace base {
@@ -71,49 +70,30 @@ int32_t SignedMod32(int32_t lhs, int32_t rhs) {
   return lhs % rhs;
 }
 
-
-int64_t FromCheckedNumeric(const internal::CheckedNumeric<int64_t> value) {
-  if (value.IsValid())
-    return value.ValueUnsafe();
-
-  // We could return max/min but we don't really expose what the maximum delta
-  // is. Instead, return max/(-max), which is something that clients can reason
-  // about.
-  // TODO(rvargas) crbug.com/332611: don't use internal values.
-  int64_t limit = std::numeric_limits<int64_t>::max();
-  if (value.validity() == internal::RANGE_UNDERFLOW)
-    limit = -limit;
-  return value.ValueOrDefault(limit);
-}
-
-
 int64_t SignedSaturatedAdd64(int64_t lhs, int64_t rhs) {
-  internal::CheckedNumeric<int64_t> rv(lhs);
-  rv += rhs;
-  return FromCheckedNumeric(rv);
+  using limits = std::numeric_limits<int64_t>;
+  // Underflow if {lhs + rhs < min}. In that case, return {min}.
+  if (rhs < 0 && lhs < limits::min() - rhs) return limits::min();
+  // Overflow if {lhs + rhs > max}. In that case, return {max}.
+  if (rhs >= 0 && lhs > limits::max() - rhs) return limits::max();
+  return lhs + rhs;
 }
-
 
 int64_t SignedSaturatedSub64(int64_t lhs, int64_t rhs) {
-  internal::CheckedNumeric<int64_t> rv(lhs);
-  rv -= rhs;
-  return FromCheckedNumeric(rv);
+  using limits = std::numeric_limits<int64_t>;
+  // Underflow if {lhs - rhs < min}. In that case, return {min}.
+  if (rhs > 0 && lhs < limits::min() + rhs) return limits::min();
+  // Overflow if {lhs - rhs > max}. In that case, return {max}.
+  if (rhs <= 0 && lhs > limits::max() + rhs) return limits::max();
+  return lhs - rhs;
 }
 
 bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
-  internal::CheckedNumeric<int32_t> rv(lhs);
-  rv *= rhs;
-  int32_t limit = std::numeric_limits<int32_t>::max();
-  *val = rv.ValueOrDefault(limit);
-  return !rv.IsValid();
-}
-
-bool SignedMulOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
-  internal::CheckedNumeric<int64_t> rv(lhs);
-  rv *= rhs;
-  int64_t limit = std::numeric_limits<int64_t>::max();
-  *val = rv.ValueOrDefault(limit);
-  return !rv.IsValid();
+  // Compute the result as {int64_t}, then check for overflow.
+  int64_t result = int64_t{lhs} * int64_t{rhs};
+  *val = static_cast<int32_t>(result);
+  using limits = std::numeric_limits<int32_t>;
+  return result < limits::min() || result > limits::max();
 }
 
 }  // namespace bits

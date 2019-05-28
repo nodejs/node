@@ -1,6 +1,4 @@
-per-file *-mips*=arikalo@wavecomp.com
-per-file *-mips*=prudic@wavecomp.com
-per-file *-mips*=skovacevic@wavecomp.com
+per-file *-mips*=xwafish@gmail.com
 per-file *-ppc*=dstence@us.ibm.com
 per-file *-ppc*=joransiu@ca.ibm.com
 per-file *-ppc*=jyan@ca.ibm.com

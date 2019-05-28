@@ -6,7 +6,7 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-import-wrapper-cache-inl.h"
+#include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module.h"
 
 #include "test/cctest/cctest.h"
@@ -17,7 +17,7 @@ namespace internal {
 namespace wasm {
 namespace test_wasm_import_wrapper_cache {
 
-std::unique_ptr<NativeModule> NewModule(Isolate* isolate) {
+std::shared_ptr<NativeModule> NewModule(Isolate* isolate) {
   std::shared_ptr<WasmModule> module(new WasmModule);
   bool can_request_more = false;
   size_t size = 16384;
@@ -31,6 +31,7 @@ TEST(CacheHit) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   auto module = NewModule(isolate);
   TestSignatures sigs;
+  WasmCodeRefScope wasm_code_ref_scope;
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
 
@@ -51,6 +52,7 @@ TEST(CacheMissSig) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   auto module = NewModule(isolate);
   TestSignatures sigs;
+  WasmCodeRefScope wasm_code_ref_scope;
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
 
@@ -71,6 +73,7 @@ TEST(CacheMissKind) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   auto module = NewModule(isolate);
   TestSignatures sigs;
+  WasmCodeRefScope wasm_code_ref_scope;
 
   auto kind1 = compiler::WasmImportCallKind::kJSFunctionArityMatch;
   auto kind2 = compiler::WasmImportCallKind::kJSFunctionArityMismatch;
@@ -92,6 +95,7 @@ TEST(CacheHitMissSig) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   auto module = NewModule(isolate);
   TestSignatures sigs;
+  WasmCodeRefScope wasm_code_ref_scope;
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
 

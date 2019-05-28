@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --opt --allow-natives-syntax --expose-gc --stress-flush-bytecode
+// Flags: --opt --allow-natives-syntax --expose-gc --flush-bytecode
+// Flags: --stress-flush-bytecode
 
 function foo(a) {}
 

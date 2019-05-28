@@ -30,7 +30,7 @@ class GapResolver final {
       : assembler_(assembler), split_rep_(MachineRepresentation::kSimd128) {}
 
   // Resolve a set of parallel moves, emitting assembler instructions.
-  void Resolve(ParallelMove* parallel_move);
+  V8_EXPORT_PRIVATE void Resolve(ParallelMove* parallel_move);
 
  private:
   // Performs the given move, possibly performing other moves to unblock the

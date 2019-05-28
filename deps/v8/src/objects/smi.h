@@ -87,7 +87,8 @@ class Smi : public Object {
   //  1 if x > y.
   // Returns the result (a tagged Smi) as a raw Address for ExternalReference
   // usage.
-  static Address LexicographicCompare(Isolate* isolate, Smi x, Smi y);
+  V8_EXPORT_PRIVATE static Address LexicographicCompare(Isolate* isolate, Smi x,
+                                                        Smi y);
 
   DECL_CAST(Smi)
 

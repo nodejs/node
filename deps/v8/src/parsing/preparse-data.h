@@ -89,8 +89,8 @@ struct PreparseByteDataConstants {
       4 * kVarint32MaxSize + 1 * kUint8Size;
 };
 
-class PreparseDataBuilder : public ZoneObject,
-                            public PreparseByteDataConstants {
+class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
+                                              public PreparseByteDataConstants {
  public:
   // Create a PreparseDataBuilder object which will collect data as we
   // parse.
@@ -110,7 +110,7 @@ class PreparseDataBuilder : public ZoneObject,
 
     void Start(DeclarationScope* function_scope);
     void SetSkippableFunction(DeclarationScope* function_scope,
-                              int num_inner_functions);
+                              int function_length, int num_inner_functions);
     inline ~DataGatheringScope() {
       if (builder_ == nullptr) return;
       Close();
@@ -125,7 +125,8 @@ class PreparseDataBuilder : public ZoneObject,
     DISALLOW_COPY_AND_ASSIGN(DataGatheringScope);
   };
 
-  class ByteData : public ZoneObject, public PreparseByteDataConstants {
+  class V8_EXPORT_PRIVATE ByteData : public ZoneObject,
+                                     public PreparseByteDataConstants {
    public:
     ByteData()
         : byte_data_(nullptr), index_(0), free_quarters_in_last_byte_(0) {}
@@ -199,10 +200,6 @@ class PreparseDataBuilder : public ZoneObject,
   bool HasDataForParent() const;
 
   static bool ScopeNeedsData(Scope* scope);
-  void AddSkippableFunction(int start_position, int end_position,
-                            int num_parameters, int num_inner_functions,
-                            LanguageMode language_mode, bool has_data,
-                            bool uses_super_property);
 
  private:
   friend class BuilderProducedPreparseData;
@@ -228,6 +225,7 @@ class PreparseDataBuilder : public ZoneObject,
   };
 
   DeclarationScope* function_scope_;
+  int function_length_;
   int num_inner_functions_;
   int num_inner_with_data_;
 
@@ -271,8 +269,8 @@ class ConsumedPreparseData {
  public:
   // Creates a ConsumedPreparseData representing the data of an on-heap
   // PreparseData |data|.
-  static std::unique_ptr<ConsumedPreparseData> For(Isolate* isolate,
-                                                   Handle<PreparseData> data);
+  V8_EXPORT_PRIVATE static std::unique_ptr<ConsumedPreparseData> For(
+      Isolate* isolate, Handle<PreparseData> data);
 
   // Creates a ConsumedPreparseData representing the data of an off-heap
   // ZonePreparseData |data|.
@@ -283,7 +281,7 @@ class ConsumedPreparseData {
 
   virtual ProducedPreparseData* GetDataForSkippableFunction(
       Zone* zone, int start_position, int* end_position, int* num_parameters,
-      int* num_inner_functions, bool* uses_super_property,
+      int* function_length, int* num_inner_functions, bool* uses_super_property,
       LanguageMode* language_mode) = 0;
 
   // Restores the information needed for allocating the Scope's (and its

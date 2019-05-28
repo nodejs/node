@@ -5,12 +5,13 @@
 #ifndef V8_SNAPSHOT_CODE_SERIALIZER_H_
 #define V8_SNAPSHOT_CODE_SERIALIZER_H_
 
+#include "src/base/macros.h"
 #include "src/snapshot/serializer.h"
 
 namespace v8 {
 namespace internal {
 
-class ScriptData {
+class V8_EXPORT_PRIVATE ScriptData {
  public:
   ScriptData(const byte* data, int length);
   ~ScriptData() {
@@ -44,7 +45,8 @@ class ScriptData {
 
 class CodeSerializer : public Serializer {
  public:
-  static ScriptCompiler::CachedData* Serialize(Handle<SharedFunctionInfo> info);
+  V8_EXPORT_PRIVATE static ScriptCompiler::CachedData* Serialize(
+      Handle<SharedFunctionInfo> info);
 
   ScriptData* SerializeSharedFunctionInfo(Handle<SharedFunctionInfo> info);
 

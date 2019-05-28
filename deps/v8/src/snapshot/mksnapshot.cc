@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
+#include <iomanip>
 
 #include "include/libplatform/libplatform.h"
 #include "src/assembler-arch.h"
@@ -244,6 +245,31 @@ void WriteEmbeddedFile(i::EmbeddedFileWriter* writer) {
   i::EmbeddedData embedded_blob = i::EmbeddedData::FromBlob();
   writer->WriteEmbedded(&embedded_blob);
 }
+
+using CounterMap = std::map<std::string, int>;
+CounterMap* counter_map_ = nullptr;
+
+void MaybeSetCounterFunction(v8::Isolate* isolate) {
+  // If --native-code-counters is on then we enable all counters to make
+  // sure we generate code to increment them from the snapshot.
+  //
+  // Note: For the sake of the mksnapshot, the counter function must only
+  // return distinct addresses for each counter s.t. the serializer can properly
+  // distinguish between them. In theory it should be okay to just return an
+  // incremented int value each time this function is called, but we play it
+  // safe and return a real distinct memory location tied to every counter name.
+  if (i::FLAG_native_code_counters) {
+    counter_map_ = new CounterMap();
+    isolate->SetCounterFunction([](const char* name) -> int* {
+      auto map_entry = counter_map_->find(name);
+      if (map_entry == counter_map_->end()) {
+        counter_map_->emplace(name, 0);
+      }
+      return &counter_map_->at(name);
+    });
+  }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -275,7 +301,9 @@ int main(int argc, char** argv) {
 
     i::EmbeddedFileWriter embedded_writer;
     embedded_writer.SetEmbeddedFile(i::FLAG_embedded_src);
-    embedded_writer.SetEmbeddedVariant(i::FLAG_embedded_variant);
+    if (i::FLAG_embedded_variant != nullptr) {
+      embedded_writer.SetEmbeddedVariant(i::FLAG_embedded_variant);
+    }
 
     std::unique_ptr<char> embed_script(
         GetExtraCode(argc >= 2 ? argv[1] : nullptr, "embedding"));
@@ -286,6 +314,9 @@ int main(int argc, char** argv) {
     v8::StartupData blob;
     {
       v8::Isolate* isolate = v8::Isolate::Allocate();
+
+      MaybeSetCounterFunction(isolate);
+
       if (i::FLAG_embedded_builtins) {
         // Set code range such that relative jumps for builtins to
         // builtin calls in the snapshot are possible.
@@ -314,6 +345,8 @@ int main(int argc, char** argv) {
       blob = WarmUpSnapshotDataBlob(&snapshot_creator, warmup_script.get());
       delete[] cold.data;
     }
+
+    delete counter_map_;
 
     CHECK(blob.data);
     snapshot_writer.WriteSnapshot(blob);

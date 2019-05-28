@@ -245,7 +245,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
 
     Handle<InterpreterData> interpreter_data =
         Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
-            INTERPRETER_DATA_TYPE, TENURED));
+            INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
     interpreter_data->set_bytecode_array(info->GetBytecodeArray());
     interpreter_data->set_interpreter_trampoline(*code);
@@ -319,12 +319,11 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Script script = Script::cast(result->script());
     Handle<Script> script_handle(script, isolate);
     if (script->name()->IsString()) name = String::cast(script->name());
-    Handle<String> name_handle(name, isolate);
     if (FLAG_log_function_events) {
-      LOG(isolate, FunctionEvent("deserialize", script->id(),
-                                 timer.Elapsed().InMillisecondsF(),
-                                 result->StartPosition(), result->EndPosition(),
-                                 *name_handle));
+      LOG(isolate,
+          FunctionEvent("deserialize", script->id(),
+                        timer.Elapsed().InMillisecondsF(),
+                        result->StartPosition(), result->EndPosition(), name));
     }
     if (log_code_creation) {
       Script::InitLineEnds(Handle<Script>(script, isolate));
@@ -336,8 +335,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
           int line_num = script->GetLineNumber(info->StartPosition()) + 1;
           int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
           PROFILE(isolate, CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
-                                           info->abstract_code(), info,
-                                           *name_handle, line_num, column_num));
+                                           info->abstract_code(), info, name,
+                                           line_num, column_num));
         }
       }
     }

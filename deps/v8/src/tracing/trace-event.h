@@ -47,7 +47,7 @@ enum CategoryGroupEnabledFlags {
 // By default, trace IDs are eventually converted to a single 64-bit number. Use
 // this macro to add a scope string.
 #define TRACE_ID_WITH_SCOPE(scope, id) \
-  trace_event_internal::TraceID::WithScope(scope, id)
+  v8::internal::tracing::TraceID::WithScope(scope, id)
 
 #define INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE() \
   TRACE_EVENT_API_LOAD_CATEGORY_GROUP_ENABLED() &                        \
@@ -298,7 +298,7 @@ const uint64_t kNoId = 0;
 
 class TraceEventHelper {
  public:
-  static v8::TracingController* GetTracingController();
+  V8_EXPORT_PRIVATE static v8::TracingController* GetTracingController();
 };
 
 // TraceID encapsulates an ID that can either be an integer or pointer. Pointers

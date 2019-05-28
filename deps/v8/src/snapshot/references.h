@@ -154,7 +154,7 @@ class SerializerReferenceMap
                                        base::KeyEqualityMatcher<intptr_t>,
                                        base::DefaultAllocationPolicy> {
  public:
-  typedef base::TemplateHashMapEntry<uintptr_t, SerializerReference> Entry;
+  using Entry = base::TemplateHashMapEntry<uintptr_t, SerializerReference>;
 
   SerializerReferenceMap() : attached_reference_index_(0) {}
 

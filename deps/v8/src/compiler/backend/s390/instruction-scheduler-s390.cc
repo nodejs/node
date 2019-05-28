@@ -138,6 +138,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_LoadAndTestWord64:
     case kS390_LoadAndTestFloat32:
     case kS390_LoadAndTestFloat64:
+    case kS390_DecompressSigned:
+    case kS390_DecompressPointer:
+    case kS390_DecompressAny:
+    case kS390_CompressSigned:
+    case kS390_CompressPointer:
+    case kS390_CompressAny:
       return kNoOpcodeFlags;
 
     case kS390_LoadWordS8:

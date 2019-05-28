@@ -236,66 +236,6 @@ Handle<String> UnitAsString(Isolate* isolate, URelativeDateTimeUnit unit_enum) {
   }
 }
 
-MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
-    Isolate* isolate, const icu::UnicodeString& formatted,
-    const icu::UnicodeString& integer_part, URelativeDateTimeUnit unit_enum,
-    double number, const icu::NumberFormat& nf) {
-  Factory* factory = isolate->factory();
-  Handle<JSArray> array = factory->NewJSArray(0);
-  int32_t found = formatted.indexOf(integer_part);
-
-  Handle<String> substring;
-  if (found < 0) {
-    // Cannot find the integer_part in the formatted.
-    // Return [{'type': 'literal', 'value': formatted}]
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
-                               Intl::ToString(isolate, formatted), JSArray);
-    Intl::AddElement(isolate, array,
-                     0,                          // index
-                     factory->literal_string(),  // field_type_string
-                     substring);
-  } else {
-    // Found the formatted integer in the result.
-    int index = 0;
-
-    // array.push({
-    //     'type': 'literal',
-    //     'value': formatted.substring(0, found)})
-    if (found > 0) {
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
-                                 Intl::ToString(isolate, formatted, 0, found),
-                                 JSArray);
-      Intl::AddElement(isolate, array, index++,
-                       factory->literal_string(),  // field_type_string
-                       substring);
-    }
-
-    Handle<String> unit = UnitAsString(isolate, unit_enum);
-
-    Handle<Object> number_obj = factory->NewNumber(number);
-    Maybe<int> maybe_format_to_parts = JSNumberFormat::FormatToParts(
-        isolate, array, index, nf, number_obj, unit);
-    MAYBE_RETURN(maybe_format_to_parts, Handle<JSArray>());
-    index = maybe_format_to_parts.FromJust();
-
-    // array.push({
-    //     'type': 'literal',
-    //     'value': formatted.substring(
-    //         found + integer_part.length, formatted.length)})
-    if (found + integer_part.length() < formatted.length()) {
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, substring,
-          Intl::ToString(isolate, formatted, found + integer_part.length(),
-                         formatted.length()),
-          JSArray);
-      Intl::AddElement(isolate, array, index,
-                       factory->literal_string(),  // field_type_string
-                       substring);
-    }
-  }
-  return array;
-}
-
 bool GetURelativeDateTimeUnit(Handle<String> unit,
                               URelativeDateTimeUnit* unit_enum) {
   std::unique_ptr<char[]> unit_str = unit->ToCString();
@@ -329,37 +269,32 @@ bool GetURelativeDateTimeUnit(Handle<String> unit,
   return true;
 }
 
-}  // namespace
-
-MaybeHandle<Object> JSRelativeTimeFormat::Format(
-    Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
-    Handle<JSRelativeTimeFormat> format_holder, const char* func_name,
-    bool to_parts) {
-  Factory* factory = isolate->factory();
-
+template <typename T>
+MaybeHandle<T> FormatCommon(
+    Isolate* isolate, Handle<JSRelativeTimeFormat> format,
+    Handle<Object> value_obj, Handle<Object> unit_obj, const char* func_name,
+    MaybeHandle<T> (*formatToResult)(Isolate*,
+                                     const icu::FormattedRelativeDateTime&,
+                                     Handle<Object>, Handle<String>)) {
   // 3. Let value be ? ToNumber(value).
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                             Object::ToNumber(isolate, value_obj), Object);
+                             Object::ToNumber(isolate, value_obj), T);
   double number = value->Number();
   // 4. Let unit be ? ToString(unit).
   Handle<String> unit;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, unit, Object::ToString(isolate, unit_obj),
-                             Object);
-
+                             T);
   // 4. If isFinite(value) is false, then throw a RangeError exception.
   if (!std::isfinite(number)) {
     THROW_NEW_ERROR(
         isolate,
         NewRangeError(MessageTemplate::kNotFiniteNumber,
                       isolate->factory()->NewStringFromAsciiChecked(func_name)),
-        Object);
+        T);
   }
-
-  icu::RelativeDateTimeFormatter* formatter =
-      format_holder->icu_formatter()->raw();
+  icu::RelativeDateTimeFormatter* formatter = format->icu_formatter()->raw();
   CHECK_NOT_NULL(formatter);
-
   URelativeDateTimeUnit unit_enum;
   if (!GetURelativeDateTimeUnit(unit, &unit_enum)) {
     THROW_NEW_ERROR(
@@ -367,45 +302,137 @@ MaybeHandle<Object> JSRelativeTimeFormat::Format(
         NewRangeError(MessageTemplate::kInvalidUnit,
                       isolate->factory()->NewStringFromAsciiChecked(func_name),
                       unit),
-        Object);
+        T);
   }
-
   UErrorCode status = U_ZERO_ERROR;
-  icu::UnicodeString formatted;
-
-  if (format_holder->numeric() == JSRelativeTimeFormat::Numeric::ALWAYS) {
-    formatter->formatNumeric(number, unit_enum, formatted, status);
-  } else {
-    DCHECK_EQ(JSRelativeTimeFormat::Numeric::AUTO, format_holder->numeric());
-    formatter->format(number, unit_enum, formatted, status);
-  }
-
+  icu::FormattedRelativeDateTime formatted =
+      (format->numeric() == JSRelativeTimeFormat::Numeric::ALWAYS)
+          ? formatter->formatNumericToValue(number, unit_enum, status)
+          : formatter->formatToValue(number, unit_enum, status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), Object);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
   }
+  return formatToResult(isolate, formatted, value,
+                        UnitAsString(isolate, unit_enum));
+}
 
-  if (to_parts) {
-    icu::UnicodeString number_str;
-    icu::FieldPosition pos;
-    double abs_number = std::abs(number);
-    formatter->getNumberFormat().format(abs_number, number_str, pos, status);
-    if (U_FAILURE(status)) {
-      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError),
-                      Object);
+MaybeHandle<String> FormatToString(
+    Isolate* isolate, const icu::FormattedRelativeDateTime& formatted,
+    Handle<Object> value, Handle<String> unit) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString result = formatted.toString(status);
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
+  }
+  return Intl::ToString(isolate, result);
+}
+
+Maybe<bool> AddLiteral(Isolate* isolate, Handle<JSArray> array,
+                       const icu::UnicodeString& string, int32_t index,
+                       int32_t start, int32_t limit) {
+  Handle<String> substring;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, substring, Intl::ToString(isolate, string, start, limit),
+      Nothing<bool>());
+  Intl::AddElement(isolate, array, index, isolate->factory()->literal_string(),
+                   substring);
+  return Just(true);
+}
+
+Maybe<bool> AddUnit(Isolate* isolate, Handle<JSArray> array,
+                    const icu::UnicodeString& string, int32_t index,
+                    int32_t start, int32_t limit, int32_t field_id,
+                    Handle<Object> value, Handle<String> unit) {
+  Handle<String> substring;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, substring, Intl::ToString(isolate, string, start, limit),
+      Nothing<bool>());
+  Intl::AddElement(isolate, array, index,
+                   Intl::NumberFieldToType(isolate, value, field_id), substring,
+                   isolate->factory()->unit_string(), unit);
+  return Just(true);
+}
+
+MaybeHandle<JSArray> FormatToJSArray(
+    Isolate* isolate, const icu::FormattedRelativeDateTime& formatted,
+    Handle<Object> value, Handle<String> unit) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString string = formatted.toString(status);
+
+  Factory* factory = isolate->factory();
+  Handle<JSArray> array = factory->NewJSArray(0);
+  icu::ConstrainedFieldPosition cfpos;
+  cfpos.constrainCategory(UFIELD_CATEGORY_NUMBER);
+  int32_t index = 0;
+
+  int32_t previous_end = 0;
+  Handle<String> substring;
+  std::vector<std::pair<int32_t, int32_t>> groups;
+  while (formatted.nextPosition(cfpos, status) && U_SUCCESS(status)) {
+    int32_t category = cfpos.getCategory();
+    int32_t field = cfpos.getField();
+    int32_t start = cfpos.getStart();
+    int32_t limit = cfpos.getLimit();
+    if (category == UFIELD_CATEGORY_NUMBER) {
+      if (field == UNUM_GROUPING_SEPARATOR_FIELD) {
+        groups.push_back(std::pair<int32_t, int32_t>(start, limit));
+        continue;
+      }
+      if (start > previous_end) {
+        Maybe<bool> maybe_added =
+            AddLiteral(isolate, array, string, index++, previous_end, start);
+        MAYBE_RETURN(maybe_added, Handle<JSArray>());
+      }
+      if (field == UNUM_INTEGER_FIELD) {
+        for (auto start_limit : groups) {
+          if (start_limit.first > start) {
+            Maybe<bool> maybe_added =
+                AddUnit(isolate, array, string, index++, start,
+                        start_limit.first, field, value, unit);
+            MAYBE_RETURN(maybe_added, Handle<JSArray>());
+            maybe_added = AddUnit(isolate, array, string, index++,
+                                  start_limit.first, start_limit.second,
+                                  UNUM_GROUPING_SEPARATOR_FIELD, value, unit);
+            MAYBE_RETURN(maybe_added, Handle<JSArray>());
+            start = start_limit.second;
+          }
+        }
+      }
+      Maybe<bool> maybe_added = AddUnit(isolate, array, string, index++, start,
+                                        limit, field, value, unit);
+      MAYBE_RETURN(maybe_added, Handle<JSArray>());
+      previous_end = limit;
     }
-
-    Handle<JSArray> elements;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, elements,
-                               GenerateRelativeTimeFormatParts(
-                                   isolate, formatted, number_str, unit_enum,
-                                   abs_number, formatter->getNumberFormat()),
-                               Object);
-    return elements;
+  }
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
+  }
+  if (string.length() > previous_end) {
+    Maybe<bool> maybe_added = AddLiteral(isolate, array, string, index,
+                                         previous_end, string.length());
+    MAYBE_RETURN(maybe_added, Handle<JSArray>());
   }
 
-  return factory->NewStringFromTwoByte(Vector<const uint16_t>(
-      reinterpret_cast<const uint16_t*>(formatted.getBuffer()),
-      formatted.length()));
+  JSObject::ValidateElements(*array);
+  return array;
+}
+
+}  // namespace
+
+MaybeHandle<String> JSRelativeTimeFormat::Format(
+    Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
+    Handle<JSRelativeTimeFormat> format) {
+  return FormatCommon<String>(isolate, format, value_obj, unit_obj,
+                              "Intl.RelativeTimeFormat.prototype.format",
+                              FormatToString);
+}
+
+MaybeHandle<JSArray> JSRelativeTimeFormat::FormatToParts(
+    Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
+    Handle<JSRelativeTimeFormat> format) {
+  return FormatCommon<JSArray>(
+      isolate, format, value_obj, unit_obj,
+      "Intl.RelativeTimeFormat.prototype.formatToParts", FormatToJSArray);
 }
 
 const std::set<std::string>& JSRelativeTimeFormat::GetAvailableLocales() {

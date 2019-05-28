@@ -39,7 +39,7 @@ class JSSegmenter : public JSObject {
   V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSSegmenter> segmenter_holder);
 
-  static const std::set<std::string>& GetAvailableLocales();
+  V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
   Handle<String> GranularityAsString() const;
 

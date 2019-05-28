@@ -102,7 +102,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
   Type Name(int args_length, Address* args_object, Isolate* isolate) {        \
     DCHECK(isolate->context().is_null() || isolate->context()->IsContext());  \
     CLOBBER_DOUBLE_REGISTERS();                                               \
-    if (V8_UNLIKELY(FLAG_runtime_stats)) {                                    \
+    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {              \
       return Stats_##Name(args_length, args_object, isolate);                 \
     }                                                                         \
     Arguments args(args_length, args_object);                                 \

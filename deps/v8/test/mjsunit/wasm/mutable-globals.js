@@ -21,6 +21,10 @@ function assertGlobalIsValid(global) {
   assertThrows(() => new WebAssembly.Global({}), TypeError);
   assertThrows(() => new WebAssembly.Global({value: 'foo'}), TypeError);
   assertThrows(() => new WebAssembly.Global({value: 'i128'}), TypeError);
+  // Without --experimental-wasm-anyref, globals of type {anyref} and {anyfunc}
+  // are not allowed.
+  assertThrows(() => new WebAssembly.Global({value: 'anyref'}), TypeError);
+  assertThrows(() => new WebAssembly.Global({value: 'anyfunc'}), TypeError);
 
   for (let type of ['i32', 'f32', 'f64', 'i64']) {
     assertGlobalIsValid(new WebAssembly.Global({value: type}));

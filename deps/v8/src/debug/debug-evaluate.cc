@@ -215,7 +215,6 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   }
 }
 
-
 void DebugEvaluate::ContextBuilder::UpdateValues() {
   scope_iterator_.Restart();
   for (ContextChainElement& element : context_chain_) {
@@ -300,8 +299,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(CreateObjectLiteralWithoutAllocationSite) \
   V(CreateRegExpLiteral)                      \
   /* Called from builtins */                  \
-  V(AllocateInNewSpace)                       \
-  V(AllocateInTargetSpace)                    \
+  V(AllocateInYoungGeneration)                \
+  V(AllocateInOldGeneration)                  \
   V(AllocateSeqOneByteString)                 \
   V(AllocateSeqTwoByteString)                 \
   V(ArrayIncludes_Slow)                       \
@@ -375,8 +374,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 }
 
 bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
-  typedef interpreter::Bytecode Bytecode;
-  typedef interpreter::Bytecodes Bytecodes;
+  using interpreter::Bytecode;
+  using interpreter::Bytecodes;
   if (Bytecodes::IsWithoutExternalSideEffects(bytecode)) return true;
   if (Bytecodes::IsCallOrConstruct(bytecode)) return true;
   if (Bytecodes::IsJumpIfToBoolean(bytecode)) return true;
@@ -504,6 +503,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kObjectPrototypeIsPrototypeOf:
     case Builtins::kObjectPrototypePropertyIsEnumerable:
     case Builtins::kObjectPrototypeToString:
+    case Builtins::kObjectPrototypeToLocaleString:
     // Array builtins.
     case Builtins::kArrayIsArray:
     case Builtins::kArrayConstructor:
@@ -546,12 +546,14 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kTypedArrayPrototypeFind:
     case Builtins::kTypedArrayPrototypeFindIndex:
     case Builtins::kTypedArrayPrototypeIncludes:
+    case Builtins::kTypedArrayPrototypeJoin:
     case Builtins::kTypedArrayPrototypeIndexOf:
     case Builtins::kTypedArrayPrototypeLastIndexOf:
     case Builtins::kTypedArrayPrototypeSlice:
     case Builtins::kTypedArrayPrototypeSubArray:
     case Builtins::kTypedArrayPrototypeEvery:
     case Builtins::kTypedArrayPrototypeSome:
+    case Builtins::kTypedArrayPrototypeToLocaleString:
     case Builtins::kTypedArrayPrototypeFilter:
     case Builtins::kTypedArrayPrototypeMap:
     case Builtins::kTypedArrayPrototypeReduce:
@@ -609,6 +611,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kDatePrototypeToISOString:
     case Builtins::kDatePrototypeToUTCString:
     case Builtins::kDatePrototypeToString:
+#ifdef V8_INTL_SUPPORT
+    case Builtins::kDatePrototypeToLocaleString:
+    case Builtins::kDatePrototypeToLocaleDateString:
+    case Builtins::kDatePrototypeToLocaleTimeString:
+#endif
     case Builtins::kDatePrototypeToTimeString:
     case Builtins::kDatePrototypeToJson:
     case Builtins::kDatePrototypeToPrimitive:
@@ -625,7 +632,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     // WeakMap builtins.
     case Builtins::kWeakMapConstructor:
     case Builtins::kWeakMapGet:
-    case Builtins::kWeakMapHas:
+    case Builtins::kWeakMapPrototypeHas:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:
@@ -674,6 +681,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kNumberPrototypeToFixed:
     case Builtins::kNumberPrototypeToPrecision:
     case Builtins::kNumberPrototypeToString:
+    case Builtins::kNumberPrototypeToLocaleString:
     case Builtins::kNumberPrototypeValueOf:
     // BigInt builtins.
     case Builtins::kBigIntConstructor:
@@ -690,7 +698,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kSetPrototypeValues:
     // WeakSet builtins.
     case Builtins::kWeakSetConstructor:
-    case Builtins::kWeakSetHas:
+    case Builtins::kWeakSetPrototypeHas:
     // String builtins. Strings are immutable.
     case Builtins::kStringFromCharCode:
     case Builtins::kStringFromCodePoint:
@@ -770,8 +778,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kRegExpConstructor:
     // Internal.
     case Builtins::kStrictPoisonPillThrower:
-    case Builtins::kAllocateInNewSpace:
-    case Builtins::kAllocateInOldSpace:
+    case Builtins::kAllocateInYoungGeneration:
+    case Builtins::kAllocateInOldGeneration:
       return DebugInfo::kHasNoSideEffect;
 
     // Set builtins.
@@ -816,7 +824,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
 }
 
 bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
-  typedef interpreter::Bytecode Bytecode;
+  using interpreter::Bytecode;
   switch (bytecode) {
     case Bytecode::kStaNamedProperty:
     case Bytecode::kStaNamedPropertyNoFeedback:
@@ -949,6 +957,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
     case Builtins::kFlattenIntoArray:
     case Builtins::kGetProperty:
     case Builtins::kHasProperty:
+    case Builtins::kCreateHTML:
     case Builtins::kNonNumberToNumber:
     case Builtins::kNonPrimitiveToPrimitive_Number:
     case Builtins::kNumberToString:
@@ -976,6 +985,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
       switch (caller) {
         case Builtins::kArrayPrototypeJoin:
         case Builtins::kArrayPrototypeToLocaleString:
+        case Builtins::kTypedArrayPrototypeJoin:
+        case Builtins::kTypedArrayPrototypeToLocaleString:
           return true;
         default:
           return false;

@@ -22,13 +22,16 @@ namespace v8 {
 
 class ArrayBufferAllocator;
 
+typedef std::map<std::string, int> CounterMap;
+
 // RAII-like Isolate instance wrapper.
 class IsolateWrapper final {
  public:
   // When enforce_pointer_compression is true the Isolate is created with
   // enabled pointer compression. When it's false then the Isolate is created
   // with the default pointer compression state for current build.
-  explicit IsolateWrapper(bool enforce_pointer_compression = false);
+  explicit IsolateWrapper(CounterLookupCallback counter_lookup_callback,
+                          bool enforce_pointer_compression = false);
   ~IsolateWrapper();
 
   v8::Isolate* isolate() const { return isolate_; }
@@ -46,7 +49,8 @@ class SharedIsolateHolder final {
 
   static void CreateIsolate() {
     CHECK_NULL(isolate_wrapper_);
-    isolate_wrapper_ = new IsolateWrapper();
+    isolate_wrapper_ =
+        new IsolateWrapper([](const char* name) -> int* { return nullptr; });
   }
 
   static void DeleteIsolate() {
@@ -61,6 +65,34 @@ class SharedIsolateHolder final {
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedIsolateHolder);
 };
 
+class SharedIsolateAndCountersHolder final {
+ public:
+  static v8::Isolate* isolate() { return isolate_wrapper_->isolate(); }
+
+  static void CreateIsolate() {
+    CHECK_NULL(counter_map_);
+    CHECK_NULL(isolate_wrapper_);
+    counter_map_ = new CounterMap();
+    isolate_wrapper_ = new IsolateWrapper(LookupCounter);
+  }
+
+  static void DeleteIsolate() {
+    CHECK_NOT_NULL(counter_map_);
+    CHECK_NOT_NULL(isolate_wrapper_);
+    delete isolate_wrapper_;
+    isolate_wrapper_ = nullptr;
+    delete counter_map_;
+    counter_map_ = nullptr;
+  }
+
+ private:
+  static int* LookupCounter(const char* name);
+  static CounterMap* counter_map_;
+  static v8::IsolateWrapper* isolate_wrapper_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SharedIsolateAndCountersHolder);
+};
+
 //
 // A set of mixins from which the test fixtures will be constructed.
 //
@@ -68,7 +100,8 @@ template <typename TMixin>
 class WithPrivateIsolateMixin : public TMixin {
  public:
   explicit WithPrivateIsolateMixin(bool enforce_pointer_compression = false)
-      : isolate_wrapper_(enforce_pointer_compression) {}
+      : isolate_wrapper_([](const char* name) -> int* { return nullptr; },
+                         enforce_pointer_compression) {}
 
   v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
 
@@ -81,20 +114,20 @@ class WithPrivateIsolateMixin : public TMixin {
   DISALLOW_COPY_AND_ASSIGN(WithPrivateIsolateMixin);
 };
 
-template <typename TMixin>
+template <typename TMixin, typename TSharedIsolateHolder = SharedIsolateHolder>
 class WithSharedIsolateMixin : public TMixin {
  public:
   WithSharedIsolateMixin() = default;
 
-  v8::Isolate* v8_isolate() const { return SharedIsolateHolder::isolate(); }
+  v8::Isolate* v8_isolate() const { return TSharedIsolateHolder::isolate(); }
 
   static void SetUpTestCase() {
     TMixin::SetUpTestCase();
-    SharedIsolateHolder::CreateIsolate();
+    TSharedIsolateHolder::CreateIsolate();
   }
 
   static void TearDownTestCase() {
-    SharedIsolateHolder::DeleteIsolate();
+    TSharedIsolateHolder::DeleteIsolate();
     TMixin::TearDownTestCase();
   }
 
@@ -295,6 +328,14 @@ using TestWithNativeContext =            //
                 WithSharedIsolateMixin<  //
                     ::testing::Test>>>>;
 
+using TestWithNativeContextAndCounters =  //
+    WithInternalIsolateMixin<             //
+        WithContextMixin<                 //
+            WithIsolateScopeMixin<        //
+                WithSharedIsolateMixin<   //
+                    ::testing::Test,      //
+                    SharedIsolateAndCountersHolder>>>>;
+
 using TestWithNativeContextAndZone =         //
     WithZoneMixin<                           //
         WithInternalIsolateMixin<            //
@@ -309,7 +350,9 @@ class SaveFlags {
   ~SaveFlags();
 
  private:
-  std::vector<const char*>* non_default_flags_;
+#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) ctype SAVED_##nam;
+#include "src/flag-definitions.h"  // NOLINT
+#undef FLAG_MODE_APPLY
 
   DISALLOW_COPY_AND_ASSIGN(SaveFlags);
 };

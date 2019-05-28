@@ -48,11 +48,10 @@ class Execution final : public AllStatic {
   // If message_handling is MessageHandling::kReport, exceptions (except for
   // termination exceptions) will be stored in exception_out (if not a
   // nullptr).
-  static MaybeHandle<Object> TryCall(Isolate* isolate, Handle<Object> callable,
-                                     Handle<Object> receiver, int argc,
-                                     Handle<Object> argv[],
-                                     MessageHandling message_handling,
-                                     MaybeHandle<Object>* exception_out);
+  V8_EXPORT_PRIVATE static MaybeHandle<Object> TryCall(
+      Isolate* isolate, Handle<Object> callable, Handle<Object> receiver,
+      int argc, Handle<Object> argv[], MessageHandling message_handling,
+      MaybeHandle<Object>* exception_out);
   // Convenience method for performing RunMicrotasks
   static MaybeHandle<Object> TryRunMicrotasks(
       Isolate* isolate, MicrotaskQueue* microtask_queue,
@@ -91,12 +90,14 @@ class V8_EXPORT_PRIVATE StackGuard final {
   // it has been set up.
   void ClearThread(const ExecutionAccess& lock);
 
-#define INTERRUPT_LIST(V)                       \
-  V(TERMINATE_EXECUTION, TerminateExecution, 0) \
-  V(GC_REQUEST, GC, 1)                          \
-  V(INSTALL_CODE, InstallCode, 2)               \
-  V(API_INTERRUPT, ApiInterrupt, 3)             \
-  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 4)
+#define INTERRUPT_LIST(V)                                         \
+  V(TERMINATE_EXECUTION, TerminateExecution, 0)                   \
+  V(GC_REQUEST, GC, 1)                                            \
+  V(INSTALL_CODE, InstallCode, 2)                                 \
+  V(API_INTERRUPT, ApiInterrupt, 3)                               \
+  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 4) \
+  V(GROW_SHARED_MEMORY, GrowSharedMemory, 5)                      \
+  V(LOG_WASM_CODE, LogWasmCode, 6)
 
 #define V(NAME, Name, id)                                                    \
   inline bool Check##Name() { return CheckInterrupt(NAME); }                 \

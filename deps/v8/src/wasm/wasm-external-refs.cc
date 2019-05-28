@@ -250,11 +250,36 @@ void float64_pow_wrapper(Address data) {
 }
 
 void memory_copy_wrapper(Address dst, Address src, uint32_t size) {
-  MemMove(reinterpret_cast<void*>(dst), reinterpret_cast<void*>(src), size);
+  // Use explicit forward and backward copy to match the required semantics for
+  // the memory.copy instruction. It is assumed that the caller of this
+  // function has already performed bounds checks, so {src + size} and
+  // {dst + size} should not overflow.
+  DCHECK(src + size >= src && dst + size >= dst);
+  uint8_t* dst8 = reinterpret_cast<uint8_t*>(dst);
+  uint8_t* src8 = reinterpret_cast<uint8_t*>(src);
+  if (src < dst && src + size > dst && dst + size > src) {
+    dst8 += size - 1;
+    src8 += size - 1;
+    for (; size > 0; size--) {
+      *dst8-- = *src8--;
+    }
+  } else {
+    for (; size > 0; size--) {
+      *dst8++ = *src8++;
+    }
+  }
 }
 
 void memory_fill_wrapper(Address dst, uint32_t value, uint32_t size) {
-  memset(reinterpret_cast<void*>(dst), value, size);
+  // Use an explicit forward copy to match the required semantics for the
+  // memory.fill instruction. It is assumed that the caller of this function
+  // has already performed bounds checks, so {dst + size} should not overflow.
+  DCHECK(dst + size >= dst);
+  uint8_t* dst8 = reinterpret_cast<uint8_t*>(dst);
+  uint8_t value8 = static_cast<uint8_t>(value);
+  for (; size > 0; size--) {
+    *dst8++ = value8;
+  }
 }
 
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;

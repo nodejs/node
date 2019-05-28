@@ -107,8 +107,8 @@ end
 # Search for a pointer inside all valid pages.
 define space_find
   set $space = $arg0
-  set $current_page = $space->anchor()->next_page()
-  while ($current_page != $space->anchor())
+  set $current_page = $space->first_page()
+  while ($current_page != 0)
     printf "#   Searching in %p - %p\n", $current_page->area_start(), $current_page->area_end()-1
     find $current_page->area_start(), $current_page->area_end()-1, $arg1
     set $current_page = $current_page->next_page()

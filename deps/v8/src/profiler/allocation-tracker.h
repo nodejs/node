@@ -61,7 +61,7 @@ class AllocationTraceTree {
   AllocationTraceNode* AddPathFromEnd(const Vector<unsigned>& path);
   AllocationTraceNode* root() { return &root_; }
   unsigned next_node_id() { return next_node_id_++; }
-  void Print(AllocationTracker* tracker);
+  V8_EXPORT_PRIVATE void Print(AllocationTracker* tracker);
 
  private:
   unsigned next_node_id_;
@@ -70,8 +70,7 @@ class AllocationTraceTree {
   DISALLOW_COPY_AND_ASSIGN(AllocationTraceTree);
 };
 
-
-class AddressToTraceMap {
+class V8_EXPORT_PRIVATE AddressToTraceMap {
  public:
   void AddRange(Address addr, int size, unsigned node_id);
   unsigned GetTraceNodeId(Address addr);
@@ -110,7 +109,7 @@ class AllocationTracker {
   AllocationTracker(HeapObjectsMap* ids, StringsStorage* names);
   ~AllocationTracker();
 
-  void PrepareForSerialization();
+  V8_EXPORT_PRIVATE void PrepareForSerialization();
   void AllocationEvent(Address addr, int size);
 
   AllocationTraceTree* trace_tree() { return &trace_tree_; }

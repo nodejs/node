@@ -1,8 +1,0 @@
-*%(basename)s:4: RangeError: When style is 'narrow', 'unit' is the only allowed value for the type option.
-new Intl.ListFormat("en", {style: 'narrow'})
-^
-RangeError: When style is 'narrow', 'unit' is the only allowed value for the type option.
-    at new ListFormat (<anonymous>)
-    at *%(basename)s:4:1
-
-

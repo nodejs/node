@@ -460,9 +460,9 @@ TEST_F(LoadEliminationTest, AliasAnalysisForFinishRegion) {
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   load_elimination.Reduce(effect);
 
-  Node* object0 = effect =
-      graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
-                       jsgraph()->Constant(16), effect, control);
+  Node* object0 = effect = graph()->NewNode(
+      simplified()->Allocate(Type::Any(), AllocationType::kYoung),
+      jsgraph()->Constant(16), effect, control);
   load_elimination.Reduce(effect);
 
   Node* region0 = effect =
@@ -473,9 +473,9 @@ TEST_F(LoadEliminationTest, AliasAnalysisForFinishRegion) {
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   load_elimination.Reduce(effect);
 
-  Node* object1 = effect =
-      graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
-                       jsgraph()->Constant(16), effect, control);
+  Node* object1 = effect = graph()->NewNode(
+      simplified()->Allocate(Type::Any(), AllocationType::kYoung),
+      jsgraph()->Constant(16), effect, control);
   load_elimination.Reduce(effect);
 
   Node* region1 = effect =

@@ -27,8 +27,6 @@ class V8_PLATFORM_EXPORT WorkerThread : public NON_EXPORTED_BASE(base::Thread) {
   void Run() override;
 
  private:
-  friend class QuitTask;
-
   TaskQueue* queue_;
 
   DISALLOW_COPY_AND_ASSIGN(WorkerThread);

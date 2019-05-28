@@ -20,11 +20,13 @@ are:
     This code is copyrighted by Sun Microsystems Inc. and released
     under a 3-clause BSD license.
 
-  - Valgrind client API header, located at third_party/valgrind/valgrind.h
-    This is release under the BSD license.
+  - Valgrind client API header, located at src/third_party/valgrind/valgrind.h
+    This is released under the BSD license.
 
-  - antlr4 parser generator Cpp library located in third_party/antlr4
-    This is release under the BSD license.
+  - The Wasm C/C++ API headers, located at third_party/wasm-api/wasm.{h,hh}
+    This is released under the Apache license. The API's upstream prototype
+    implementation also formed the basis of V8's implementation in
+    src/wasm/c-api.cc.
 
 These libraries have their own licenses; we recommend you read them,
 as their terms may differ from the terms below.

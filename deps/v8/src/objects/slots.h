@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SLOTS_H_
 
 #include "src/globals.h"
+#include "src/v8memory.h"
 
 namespace v8 {
 namespace internal {
@@ -172,6 +173,84 @@ class FullHeapObjectSlot : public SlotBase<FullHeapObjectSlot, Address> {
   inline HeapObject ToHeapObject() const;
 
   inline void StoreHeapObject(HeapObject value) const;
+};
+
+// TODO(ishell, v8:8875): When pointer compression is enabled the [u]intptr_t
+// and double fields are only kTaggedSize aligned so in order to avoid undefined
+// behavior in C++ code we use this iterator adaptor when using STL algorithms
+// with unaligned pointers.
+// It will be removed once all v8:8875 is fixed and all the full pointer and
+// double values in compressed V8 heap are properly aligned.
+template <typename T>
+class UnalignedSlot : public SlotBase<UnalignedSlot<T>, T, 1> {
+ public:
+  // This class is a stand-in for "T&" that uses custom read/write operations
+  // for the actual memory accesses.
+  class Reference {
+   public:
+    explicit Reference(Address address) : address_(address) {}
+    Reference(const Reference&) V8_NOEXCEPT = default;
+
+    Reference& operator=(const Reference& other) V8_NOEXCEPT {
+      WriteUnalignedValue<T>(address_, other.value());
+      return *this;
+    }
+    Reference& operator=(T value) {
+      WriteUnalignedValue<T>(address_, value);
+      return *this;
+    }
+
+    // Values of type UnalignedSlot::reference must be implicitly convertible
+    // to UnalignedSlot::value_type.
+    operator T() const { return value(); }
+
+    void swap(Reference& other) {
+      T tmp = value();
+      WriteUnalignedValue<T>(address_, other.value());
+      WriteUnalignedValue<T>(other.address_, tmp);
+    }
+
+    bool operator<(const Reference& other) const {
+      return value() < other.value();
+    }
+
+    bool operator==(const Reference& other) const {
+      return value() == other.value();
+    }
+
+   private:
+    T value() const { return ReadUnalignedValue<T>(address_); }
+
+    Address address_;
+  };
+
+  // The rest of this class follows C++'s "RandomAccessIterator" requirements.
+  // Most of the heavy lifting is inherited from SlotBase.
+  using difference_type = int;
+  using value_type = T;
+  using reference = Reference;
+  using pointer = T*;
+  using iterator_category = std::random_access_iterator_tag;
+
+  UnalignedSlot() : SlotBase<UnalignedSlot<T>, T, 1>(kNullAddress) {}
+  explicit UnalignedSlot(Address address)
+      : SlotBase<UnalignedSlot<T>, T, 1>(address) {}
+  explicit UnalignedSlot(T* address)
+      : SlotBase<UnalignedSlot<T>, T, 1>(reinterpret_cast<Address>(address)) {}
+
+  Reference operator*() const {
+    return Reference(SlotBase<UnalignedSlot<T>, T, 1>::address());
+  }
+  Reference operator[](difference_type i) const {
+    return Reference(SlotBase<UnalignedSlot<T>, T, 1>::address() +
+                     i * sizeof(T));
+  }
+
+  friend void swap(Reference lhs, Reference rhs) { lhs.swap(rhs); }
+
+  friend difference_type operator-(UnalignedSlot a, UnalignedSlot b) {
+    return static_cast<int>(a.address() - b.address()) / sizeof(T);
+  }
 };
 
 }  // namespace internal

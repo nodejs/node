@@ -1926,7 +1926,8 @@ int32_t TranslationIterator::Next() {
 bool TranslationIterator::HasNext() const { return index_ < buffer_->length(); }
 
 Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
-  Handle<ByteArray> result = factory->NewByteArray(CurrentIndex(), TENURED);
+  Handle<ByteArray> result =
+      factory->NewByteArray(CurrentIndex(), AllocationType::kOld);
   contents_.CopyTo(result->GetDataStartAddress());
   return result;
 }
@@ -2220,7 +2221,7 @@ Handle<FixedArray> MaterializedObjectStore::EnsureStackEntries(int length) {
   }
 
   Handle<FixedArray> new_array =
-      isolate()->factory()->NewFixedArray(new_length, TENURED);
+      isolate()->factory()->NewFixedArray(new_length, AllocationType::kOld);
   for (int i = 0; i < array->length(); i++) {
     new_array->set(i, array->get(i));
   }
@@ -3071,13 +3072,19 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       intptr_t value = registers->GetRegister(input_reg);
+#if defined(V8_COMPRESS_POINTERS)
+      Address uncompressed_value = DecompressTaggedAny(
+          isolate()->isolate_root(), static_cast<uint32_t>(value));
+#else
+      Address uncompressed_value = value;
+#endif
       if (trace_file != nullptr) {
-        PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", value,
+        PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", uncompressed_value,
                converter.NameOfCPURegister(input_reg));
-        Object(value)->ShortPrint(trace_file);
+        Object(uncompressed_value)->ShortPrint(trace_file);
       }
       TranslatedValue translated_value =
-          TranslatedValue::NewTagged(this, Object(value));
+          TranslatedValue::NewTagged(this, Object(uncompressed_value));
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
@@ -3193,13 +3200,20 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
+#if defined(V8_COMPRESS_POINTERS)
+      Address uncompressed_value = DecompressTaggedAny(
+          isolate()->isolate_root(), static_cast<uint32_t>(value));
+#else
+      Address uncompressed_value = value;
+#endif
       if (trace_file != nullptr) {
-        PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ", value,
-               slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
-        Object(value)->ShortPrint(trace_file);
+        PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ",
+               uncompressed_value, slot_offset < 0 ? '-' : '+',
+               std::abs(slot_offset));
+        Object(uncompressed_value)->ShortPrint(trace_file);
       }
       TranslatedValue translated_value =
-          TranslatedValue::NewTagged(this, Object(value));
+          TranslatedValue::NewTagged(this, Object(uncompressed_value));
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
@@ -3752,7 +3766,7 @@ Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
   // It is important to allocate all the objects tenured so that the marker
   // does not visit them.
   Handle<ByteArray> object_storage =
-      isolate()->factory()->NewByteArray(allocate_size, TENURED);
+      isolate()->factory()->NewByteArray(allocate_size, AllocationType::kOld);
   for (int i = 0; i < object_storage->length(); i++) {
     object_storage->set(i, kStoreTagged);
   }
@@ -3949,7 +3963,7 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
   bool new_store = false;
   if (previously_materialized_objects.is_null()) {
     previously_materialized_objects =
-        isolate_->factory()->NewFixedArray(length, TENURED);
+        isolate_->factory()->NewFixedArray(length, AllocationType::kOld);
     for (int i = 0; i < length; i++) {
       previously_materialized_objects->set(i, *marker);
     }

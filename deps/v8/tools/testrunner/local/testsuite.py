@@ -241,15 +241,16 @@ def _load_testsuite_module(name, root):
 
 class TestSuite(object):
   @staticmethod
-  def Load(root, test_config):
+  def Load(root, test_config, framework_name):
     name = root.split(os.path.sep)[-1]
     with _load_testsuite_module(name, root) as module:
-      return module.GetSuite(name, root, test_config)
+      return module.GetSuite(name, root, test_config, framework_name)
 
-  def __init__(self, name, root, test_config):
+  def __init__(self, name, root, test_config, framework_name):
     self.name = name  # string
     self.root = root  # string containing path
     self.test_config = test_config
+    self.framework_name = framework_name  # name of the test runner impl
     self.tests = None  # list of TestCase objects
     self.statusfile = None
 

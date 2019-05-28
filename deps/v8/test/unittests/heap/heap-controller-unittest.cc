@@ -19,7 +19,7 @@
 namespace v8 {
 namespace internal {
 
-typedef TestWithIsolate HeapControllerTest;
+using HeapControllerTest = TestWithIsolate;
 
 double Round(double x) {
   // Round to three digits.

@@ -28,7 +28,7 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 PASS eval('function f(){return true;}') is undefined.
 PASS eval('function f(){return true;};f')() is true
-PASS eval('function(){return false;}')() threw exception SyntaxError: Unexpected token (.
+PASS eval('function(){return false;}')() threw exception SyntaxError: Function statements require a function name.
 PASS successfullyParsed is true
 
 TEST COMPLETE

@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/heap/heap-inl.h"  // For Space::identity().
+#include "src/heap/read-only-heap.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -71,14 +72,14 @@ void Serializer::OutputStatistics(const char* name) {
 
 #ifdef OBJECT_PRINT
   PrintF("  Instance types (count and bytes):\n");
-#define PRINT_INSTANCE_TYPE(Name)                                              \
-  for (int space = 0; space < LAST_SPACE; ++space) {                           \
-    if (instance_type_count_[space][Name]) {                                   \
-      PrintF("%10d %10" PRIuS "  %-10s %s\n",                                  \
-             instance_type_count_[space][Name],                                \
-             instance_type_size_[space][Name],                                 \
-             AllocationSpaceName(static_cast<AllocationSpace>(space)), #Name); \
-    }                                                                          \
+#define PRINT_INSTANCE_TYPE(Name)                                             \
+  for (int space = 0; space < LAST_SPACE; ++space) {                          \
+    if (instance_type_count_[space][Name]) {                                  \
+      PrintF("%10d %10" PRIuS "  %-10s %s\n",                                 \
+             instance_type_count_[space][Name],                               \
+             instance_type_size_[space][Name],                                \
+             Heap::GetSpaceName(static_cast<AllocationSpace>(space)), #Name); \
+    }                                                                         \
   }
   INSTANCE_TYPE_LIST(PRINT_INSTANCE_TYPE)
 #undef PRINT_INSTANCE_TYPE
@@ -540,7 +541,7 @@ void Serializer::ObjectSerializer::Serialize() {
   if (object_->IsExternalString()) {
     SerializeExternalString();
     return;
-  } else if (!serializer_->isolate()->heap()->InReadOnlySpace(object_)) {
+  } else if (!ReadOnlyHeap::Contains(object_)) {
     // Only clear padding for strings outside RO_SPACE. RO_SPACE should have
     // been cleared elsewhere.
     if (object_->IsSeqOneByteString()) {

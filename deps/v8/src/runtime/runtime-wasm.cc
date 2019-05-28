@@ -20,6 +20,7 @@
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-value.h"
 
 namespace v8 {
 namespace internal {
@@ -54,6 +55,11 @@ class ClearThreadInWasmScope {
   }
 };
 
+Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
+  HandleScope scope(isolate);
+  Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(message);
+  return isolate->Throw(*error_obj);
+}
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmIsValidAnyFuncValue) {
@@ -89,14 +95,10 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
+  ClearThreadInWasmScope clear_wasm_flag;
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
-  ClearThreadInWasmScope clear_wasm_flag;
-
-  HandleScope scope(isolate);
-  Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
-      MessageTemplateFromInt(message_id));
-  return isolate->Throw(*error_obj);
+  return ThrowWasmError(isolate, MessageTemplateFromInt(message_id));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
@@ -192,6 +194,49 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
     frame_pointer = it.frame()->fp();
   }
 
+  // Reserve buffers for argument and return values.
+  DCHECK_GE(instance->module()->functions.size(), func_index);
+  wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
+  DCHECK_GE(kMaxInt, sig->parameter_count());
+  int num_params = static_cast<int>(sig->parameter_count());
+  ScopedVector<wasm::WasmValue> wasm_args(num_params);
+  DCHECK_GE(kMaxInt, sig->return_count());
+  int num_returns = static_cast<int>(sig->return_count());
+  ScopedVector<wasm::WasmValue> wasm_rets(num_returns);
+
+  // Copy the arguments for the {arg_buffer} into a vector of {WasmValue}. This
+  // also boxes reference types into handles, which needs to happen before any
+  // methods that could trigger a GC are being called.
+  Address arg_buf_ptr = arg_buffer;
+  for (int i = 0; i < num_params; ++i) {
+#define CASE_ARG_TYPE(type, ctype)                                          \
+  case wasm::type:                                                          \
+    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),       \
+              sizeof(ctype));                                               \
+    wasm_args[i] = wasm::WasmValue(ReadUnalignedValue<ctype>(arg_buf_ptr)); \
+    arg_buf_ptr += sizeof(ctype);                                           \
+    break;
+    switch (sig->GetParam(i)) {
+      CASE_ARG_TYPE(kWasmI32, uint32_t)
+      CASE_ARG_TYPE(kWasmI64, uint64_t)
+      CASE_ARG_TYPE(kWasmF32, float)
+      CASE_ARG_TYPE(kWasmF64, double)
+#undef CASE_ARG_TYPE
+      case wasm::kWasmAnyRef:
+      case wasm::kWasmAnyFunc:
+      case wasm::kWasmExceptRef: {
+        DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),
+                  kSystemPointerSize);
+        Handle<Object> ref(ReadUnalignedValue<Object>(arg_buf_ptr), isolate);
+        wasm_args[i] = wasm::WasmValue(ref);
+        arg_buf_ptr += kSystemPointerSize;
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
+
   // Set the current isolate's context.
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
@@ -202,12 +247,45 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   Handle<WasmDebugInfo> debug_info =
       WasmInstanceObject::GetOrCreateDebugInfo(instance);
   bool success = WasmDebugInfo::RunInterpreter(
-      isolate, debug_info, frame_pointer, func_index, arg_buffer);
+      isolate, debug_info, frame_pointer, func_index, wasm_args, wasm_rets);
 
+  // Early return on failure.
   if (!success) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
+
+  // Copy return values from the vector of {WasmValue} into {arg_buffer}. This
+  // also un-boxes reference types from handles into raw pointers.
+  arg_buf_ptr = arg_buffer;
+  for (int i = 0; i < num_returns; ++i) {
+#define CASE_RET_TYPE(type, ctype)                                     \
+  case wasm::type:                                                     \
+    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)), \
+              sizeof(ctype));                                          \
+    WriteUnalignedValue<ctype>(arg_buf_ptr, wasm_rets[i].to<ctype>()); \
+    arg_buf_ptr += sizeof(ctype);                                      \
+    break;
+    switch (sig->GetReturn(i)) {
+      CASE_RET_TYPE(kWasmI32, uint32_t)
+      CASE_RET_TYPE(kWasmI64, uint64_t)
+      CASE_RET_TYPE(kWasmF32, float)
+      CASE_RET_TYPE(kWasmF64, double)
+#undef CASE_RET_TYPE
+      case wasm::kWasmAnyRef:
+      case wasm::kWasmAnyFunc:
+      case wasm::kWasmExceptRef: {
+        DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),
+                  kSystemPointerSize);
+        WriteUnalignedValue<Object>(arg_buf_ptr, *wasm_rets[i].to_anyref());
+        arg_buf_ptr += kSystemPointerSize;
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
+
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -244,8 +322,10 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   DCHECK_EQ(*instance, WasmCompileLazyFrame::cast(it.frame())->wasm_instance());
 #endif
 
-  Address entrypoint = wasm::CompileLazy(
-      isolate, instance->module_object()->native_module(), func_index);
+  auto* native_module = instance->module_object()->native_module();
+  wasm::CompileLazy(isolate, native_module, func_index);
+
+  Address entrypoint = native_module->GetCallTargetForFunction(func_index);
   return Object(entrypoint);
 }
 
@@ -264,7 +344,7 @@ Handle<JSArrayBuffer> getSharedArrayBuffer(Handle<WasmInstanceObject> instance,
   return array_buffer;
 }
 
-RUNTIME_FUNCTION(Runtime_WasmAtomicWake) {
+RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -326,6 +406,159 @@ Object ThrowTableOutOfBounds(Isolate* isolate,
   return isolate->Throw(*error_obj);
 }
 }  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
+  // This runtime function is always being called from wasm code.
+  ClearThreadInWasmScope flag_scope;
+
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 1);
+  CONVERT_UINT32_ARG_CHECKED(entry_index, 2);
+  DCHECK_LT(table_index, instance->tables()->length());
+  auto table = handle(
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+
+  if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
+  }
+
+  return *WasmTableObject::Get(isolate, table, entry_index);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
+  // This runtime function is always being called from wasm code.
+  ClearThreadInWasmScope flag_scope;
+
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 1);
+  CONVERT_UINT32_ARG_CHECKED(entry_index, 2);
+  CONVERT_ARG_CHECKED(Object, element_raw, 3);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> element(element_raw, isolate);
+  DCHECK_LT(table_index, instance->tables()->length());
+  auto table = handle(
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+
+  if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
+  }
+  WasmTableObject::Set(isolate, table, entry_index, element);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmIndirectCallCheckSignatureAndGetTargetInstance) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  auto instance =
+      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 0);
+  CONVERT_UINT32_ARG_CHECKED(entry_index, 1);
+  CONVERT_UINT32_ARG_CHECKED(sig_index, 2);
+  DCHECK(isolate->context().is_null());
+  isolate->set_context(instance->native_context());
+
+  DCHECK_LT(table_index, instance->tables()->length());
+  auto table_obj = handle(
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+
+  // This check is already done in generated code.
+  DCHECK(WasmTableObject::IsInBounds(isolate, table_obj, entry_index));
+
+  bool is_valid;
+  bool is_null;
+  MaybeHandle<WasmInstanceObject> maybe_target_instance;
+  int function_index;
+  WasmTableObject::GetFunctionTableEntry(
+      isolate, table_obj, entry_index, &is_valid, &is_null,
+      &maybe_target_instance, &function_index);
+
+  CHECK(is_valid);
+  if (is_null) {
+    // We throw a signature mismatch trap to be in sync with the generated
+    // code. There we do a signature check instead of a null-check. Trap
+    // reasons are not defined in the spec. Otherwise, a null-check is
+    // performed before a signature, according to the spec.
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapFuncSigMismatch);
+  }
+
+  // Now we do the signature check.
+  Handle<WasmInstanceObject> target_instance =
+      maybe_target_instance.ToHandleChecked();
+
+  const wasm::WasmModule* target_module =
+      target_instance->module_object()->native_module()->module();
+
+  wasm::FunctionSig* target_sig = target_module->functions[function_index].sig;
+
+  auto target_sig_id = instance->module()->signature_map.Find(*target_sig);
+  uint32_t expected_sig_id = instance->module()->signature_ids[sig_index];
+
+  if (expected_sig_id != static_cast<uint32_t>(target_sig_id)) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapFuncSigMismatch);
+  }
+
+  if (function_index <
+      static_cast<int>(target_instance->module()->num_imported_functions)) {
+    // The function in the target instance was imported. Use its imports table,
+    // which contains a tuple needed by the import wrapper.
+    ImportedFunctionEntry entry(target_instance, function_index);
+    return entry.object_ref();
+  }
+  return *target_instance;
+}
+
+RUNTIME_FUNCTION(Runtime_WasmIndirectCallGetTargetAddress) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  auto instance =
+      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 0);
+  CONVERT_UINT32_ARG_CHECKED(entry_index, 1);
+
+  DCHECK_LT(table_index, instance->tables()->length());
+  auto table_obj = handle(
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+
+  DCHECK(WasmTableObject::IsInBounds(isolate, table_obj, entry_index));
+
+  bool is_valid;
+  bool is_null;
+  MaybeHandle<WasmInstanceObject> maybe_target_instance;
+  int function_index;
+  WasmTableObject::GetFunctionTableEntry(
+      isolate, table_obj, entry_index, &is_valid, &is_null,
+      &maybe_target_instance, &function_index);
+
+  CHECK(is_valid);
+  // The null-check should already have been done in
+  // Runtime_WasmIndirectCallCheckSignatureAndGetTargetInstance. That runtime
+  // function should always be called first.
+  CHECK(!is_null);
+
+  Handle<WasmInstanceObject> target_instance =
+      maybe_target_instance.ToHandleChecked();
+
+  Address call_target = 0;
+  if (function_index <
+      static_cast<int>(target_instance->module()->num_imported_functions)) {
+    // The function in the target instance was imported. Use its imports table,
+    // which contains a tuple needed by the import wrapper.
+    ImportedFunctionEntry entry(target_instance, function_index);
+    call_target = entry.target();
+  } else {
+    // The function in the target instance was not imported.
+    call_target = target_instance->GetCallTarget(function_index);
+  }
+
+  // The return value is an address and not a SMI. However, the address is
+  // always aligned, and a SMI uses the same space as {Address}.
+  CHECK(HAS_SMI_TAG(call_target));
+  return Smi(call_target);
+}
 
 RUNTIME_FUNCTION(Runtime_WasmTableInit) {
   HandleScope scope(isolate);

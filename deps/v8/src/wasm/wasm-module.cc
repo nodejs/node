@@ -27,6 +27,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+// static
+const uint32_t WasmElemSegment::kNullIndex;
+
 WireBytesRef WasmModule::LookupFunctionName(const ModuleWireBytes& wire_bytes,
                                             uint32_t function_index) const {
   if (!function_names) {
@@ -63,7 +66,7 @@ WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   os << "#" << name.function_->func_index;
-  if (!name.name_.is_empty()) {
+  if (!name.name_.empty()) {
     if (name.name_.start()) {
       os << ":";
       os.write(name.name_.start(), name.name_.length());

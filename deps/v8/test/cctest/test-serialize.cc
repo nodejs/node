@@ -39,6 +39,7 @@
 #include "src/debug/debug.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/read-only-heap.h"
 #include "src/heap/spaces.h"
 #include "src/interpreter/interpreter.h"
 #include "src/macro-assembler-inl.h"
@@ -168,32 +169,8 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
   return true;
 }
 
-v8::StartupData CreateSnapshotDataBlob(
-    v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
-    const char* embedded_source) {
-  // Create a new isolate and a new context from scratch, optionally run
-  // a script to embed, and serialize to create a snapshot blob.
-  DisableEmbeddedBlobRefcounting();
-  v8::StartupData result = {nullptr, 0};
-  {
-    v8::SnapshotCreator snapshot_creator;
-    v8::Isolate* isolate = snapshot_creator.GetIsolate();
-    {
-      v8::HandleScope scope(isolate);
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      if (embedded_source != nullptr &&
-          !RunExtraCode(isolate, context, embedded_source, "<embedded>")) {
-        return result;
-      }
-      snapshot_creator.SetDefaultContext(context);
-    }
-    result = snapshot_creator.CreateBlob(function_code_handling);
-  }
-  return result;
-}
-
 v8::StartupData CreateSnapshotDataBlob(const char* embedded_source = nullptr) {
-  return CreateSnapshotDataBlob(
+  return CreateSnapshotDataBlobInternal(
       v8::SnapshotCreator::FunctionCodeHandling::kClear, embedded_source);
 }
 
@@ -769,6 +746,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlob1) {
   DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params1;
@@ -800,6 +778,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOverwriteGlobal) {
   DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params1;
@@ -838,6 +817,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
       function f() { return global; }
       )javascript";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params1;
@@ -856,8 +836,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
     i::String str = *v8::Utils::OpenHandle(*result.As<v8::String>());
     CHECK_EQ(std::string(str->ToCString().get()), "A");
     CHECK(!str.IsInternalizedString());
-    CHECK(
-        !reinterpret_cast<i::Isolate*>(isolate1)->heap()->InReadOnlySpace(str));
+    CHECK(!i::ReadOnlyHeap::Contains(str));
   }
   isolate1->Dispose();
   delete[] data1.data;  // We can dispose of the snapshot blob now.
@@ -878,8 +857,9 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
       "function i() { return '/* a comment */'.search(re2); }\n"
       "f(); f(); g(); g(); h(); h(); i(); i();\n";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 =
-      CreateSnapshotDataBlob(function_code_handling, source);
+      CreateSnapshotDataBlobInternal(function_code_handling, source);
 
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
@@ -945,6 +925,7 @@ UNINITIALIZED_TEST(SnapshotChecksum) {
   DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 = CreateSnapshotDataBlob(source1);
   CHECK(i::Snapshot::VerifyChecksum(&data1));
   const_cast<char*>(data1.data)[142] = data1.data[142] ^ 4;  // Flip a bit.
@@ -1257,6 +1238,44 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
   FreeCurrentEmbeddedBlob();
 }
 
+UNINITIALIZED_TEST(CustomSnapshotDataBlobTypedArrayNoEmbedderFieldCallback) {
+  const char* code = "var x = new Uint8Array(8);";
+  DisableAlwaysOpt();
+  i::FLAG_allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator;
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+
+      CompileRun(code);
+      creator.SetDefaultContext(context, v8::SerializeInternalFieldsCallback());
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  v8::Isolate::CreateParams create_params;
+  create_params.snapshot_blob = &blob;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = TestSerializer::NewIsolate(create_params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(
+        isolate, nullptr, v8::MaybeLocal<v8::ObjectTemplate>(),
+        v8::MaybeLocal<v8::Value>(), v8::DeserializeInternalFieldsCallback());
+    v8::Context::Scope c_scope(context);
+  }
+  isolate->Dispose();
+  delete[] blob.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(CustomSnapshotDataBlob2) {
   DisableAlwaysOpt();
   const char* source2 =
@@ -1264,6 +1283,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlob2) {
       "function g() { return 43; }"
       "/./.test('a')";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data2 = CreateSnapshotDataBlob(source2);
 
   v8::Isolate::CreateParams params2;
@@ -1308,6 +1328,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
 
   const char* source2 = "o.a(42)";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params;
@@ -1359,6 +1380,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithLocker) {
 
   const char* source1 = "function f() { return 42; }";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params1;
@@ -1392,6 +1414,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStackOverflow) {
       "  b = c;"
       "}";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data = CreateSnapshotDataBlob(source);
 
   v8::Isolate::CreateParams params;
@@ -1432,6 +1455,7 @@ UNINITIALIZED_TEST(SnapshotDataBlobWithWarmup) {
   DisableAlwaysOpt();
   const char* warmup = "Math.abs(1); Math.random = 1;";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData cold = CreateSnapshotDataBlob();
   v8::StartupData warm = WarmUpSnapshotDataBlob(cold, warmup);
   delete[] cold.data;
@@ -1467,6 +1491,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithWarmup) {
       "var a = 5";
   const char* warmup = "a = f()";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData cold = CreateSnapshotDataBlob(source);
   v8::StartupData warm = WarmUpSnapshotDataBlob(cold, warmup);
   delete[] cold.data;
@@ -1506,6 +1531,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
                       StaticCharVector("a.push(function() {return 7});"),
                       StaticCharVector("\0"), 10000);
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data =
       CreateSnapshotDataBlob(reinterpret_cast<const char*>(source.start()));
 
@@ -2414,8 +2440,6 @@ TEST(CodeSerializerAfterExecute) {
     Handle<SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
     CHECK(sfi->HasBytecodeArray());
     BytecodeArray bytecode = sfi->GetBytecodeArray();
-    CHECK_EQ(bytecode->interrupt_budget(),
-             interpreter::Interpreter::InterruptBudget());
     CHECK_EQ(bytecode->osr_loop_nesting_level(), 0);
 
     {
@@ -3777,25 +3801,6 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
   }
   isolate->Dispose();
   delete[] blob.data;
-  FreeCurrentEmbeddedBlob();
-}
-
-UNINITIALIZED_TEST(SerializationStats) {
-  FLAG_profile_deserialization = true;
-  FLAG_always_opt = false;
-  v8::StartupData blob = CreateSnapshotDataBlob();
-  delete[] blob.data;
-
-  // Track the embedded blob size as well.
-  {
-    int embedded_blob_size = 0;
-    if (FLAG_embedded_builtins) {
-      i::EmbeddedData d = i::EmbeddedData::FromBlob();
-      embedded_blob_size = static_cast<int>(d.size());
-    }
-    PrintF("Embedded blob is %d bytes\n", embedded_blob_size);
-  }
-
   FreeCurrentEmbeddedBlob();
 }
 

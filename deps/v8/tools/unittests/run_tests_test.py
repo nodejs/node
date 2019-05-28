@@ -513,7 +513,7 @@ class SystemTest(unittest.TestCase):
       self.assertIn(
         'Done running sweet/bananas default: FAIL', result.stdout, result)
       self.assertIn('Test had no allocation output', result.stdout, result)
-      self.assertIn('--predictable --verify_predictable', result.stdout, result)
+      self.assertIn('--predictable --verify-predictable', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
   def testSlowArch(self):

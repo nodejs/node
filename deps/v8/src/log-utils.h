@@ -53,7 +53,7 @@ class Log {
 
   // This mode is only used in tests, as temporary files are automatically
   // deleted on close and thus can't be accessed afterwards.
-  static const char* const kLogToTemporaryFile;
+  V8_EXPORT_PRIVATE static const char* const kLogToTemporaryFile;
   static const char* const kLogToConsole;
 
   // Utility class for formatting log messages. It escapes the given messages

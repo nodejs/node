@@ -49,7 +49,9 @@ Handle<FeedbackVector> NewFeedbackVector(Isolate* isolate, Spec* spec) {
   // Set the raw feedback metadata to circumvent checks that we are not
   // overwriting existing metadata.
   shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
-  return FeedbackVector::New(isolate, shared);
+  Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
+      ClosureFeedbackCellArray::New(isolate, shared);
+  return FeedbackVector::New(isolate, shared, closure_feedback_cell_array);
 }
 
 template <typename Spec>

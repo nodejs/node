@@ -6,7 +6,7 @@
 #define V8_OBJECTS_JS_COLLECTION_H_
 
 #include "src/objects.h"
-#include "src/objects/ordered-hash-table.h"
+#include "src/objects/js-collection-iterator.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,8 +14,13 @@
 namespace v8 {
 namespace internal {
 
+class OrderedHashSet;
+class OrderedHashMap;
+
 class JSCollection : public JSObject {
  public:
+  DECL_CAST(JSCollection)
+
   // [table]: the backing hash table
   DECL_ACCESSORS(table, Object)
 
@@ -97,22 +102,16 @@ class JSWeakCollection : public JSObject {
   DECL_ACCESSORS(table, Object)
 
   static void Initialize(Handle<JSWeakCollection> collection, Isolate* isolate);
-  static void Set(Handle<JSWeakCollection> collection, Handle<Object> key,
-                  Handle<Object> value, int32_t hash);
+  V8_EXPORT_PRIVATE static void Set(Handle<JSWeakCollection> collection,
+                                    Handle<Object> key, Handle<Object> value,
+                                    int32_t hash);
   static bool Delete(Handle<JSWeakCollection> collection, Handle<Object> key,
                      int32_t hash);
   static Handle<JSArray> GetEntries(Handle<JSWeakCollection> holder,
                                     int max_entries);
 
-// Layout description.
-#define JS_WEAK_COLLECTION_FIELDS(V) \
-  V(kTableOffset, kTaggedSize)       \
-  /* Header size. */                 \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_WEAK_COLLECTION_FIELDS)
-#undef JS_WEAK_COLLECTION_FIELDS
+                                TORQUE_GENERATED_JSWEAK_COLLECTION_FIELDS)
 
   static const int kAddFunctionDescriptorIndex = 3;
 
@@ -120,7 +119,7 @@ class JSWeakCollection : public JSObject {
   class BodyDescriptorImpl;
 
   // Visit the whole object.
-  typedef BodyDescriptorImpl BodyDescriptor;
+  using BodyDescriptor = BodyDescriptorImpl;
 
   OBJECT_CONSTRUCTORS(JSWeakCollection, JSObject);
 };

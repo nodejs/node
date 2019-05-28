@@ -4,15 +4,9 @@
 
 #include "src/zone/accounting-allocator.h"
 
-#include <cstdlib>
-
-#if V8_LIBC_BIONIC
-#include <malloc.h>  // NOLINT
-#endif
-
 #include "src/allocation.h"
-#include "src/asan.h"
-#include "src/msan.h"
+#include "src/base/logging.h"
+#include "src/zone/zone-segment.h"
 
 namespace v8 {
 namespace internal {

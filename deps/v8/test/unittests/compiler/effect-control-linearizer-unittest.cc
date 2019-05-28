@@ -40,6 +40,7 @@ class EffectControlLinearizerTest : public GraphTest {
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   SourcePositionTable* source_positions() { return source_positions_; }
   NodeOriginTable* node_origins() { return node_origins_; }
+  std::vector<Handle<Map>>* maps() { return &maps_; }
 
  private:
   MachineOperatorBuilder machine_;
@@ -48,6 +49,7 @@ class EffectControlLinearizerTest : public GraphTest {
   JSGraph jsgraph_;
   SourcePositionTable* source_positions_;
   NodeOriginTable* node_origins_;
+  std::vector<Handle<Map>> maps_;
 };
 
 namespace {
@@ -87,7 +89,7 @@ TEST_F(EffectControlLinearizerTest, SimpleLoad) {
   // Run the state effect introducer.
   EffectControlLinearizer introducer(
       jsgraph(), &schedule, zone(), source_positions(), node_origins(),
-      EffectControlLinearizer::kDoNotMaskArrayIndex);
+      EffectControlLinearizer::kDoNotMaskArrayIndex, maps());
   introducer.Run();
 
   EXPECT_THAT(load,
@@ -150,7 +152,7 @@ TEST_F(EffectControlLinearizerTest, DiamondLoad) {
   // Run the state effect introducer.
   EffectControlLinearizer introducer(
       jsgraph(), &schedule, zone(), source_positions(), node_origins(),
-      EffectControlLinearizer::kDoNotMaskArrayIndex);
+      EffectControlLinearizer::kDoNotMaskArrayIndex, maps());
   introducer.Run();
 
   // The effect input to the return should be an effect phi with the
@@ -218,7 +220,7 @@ TEST_F(EffectControlLinearizerTest, LoopLoad) {
   // Run the state effect introducer.
   EffectControlLinearizer introducer(
       jsgraph(), &schedule, zone(), source_positions(), node_origins(),
-      EffectControlLinearizer::kDoNotMaskArrayIndex);
+      EffectControlLinearizer::kDoNotMaskArrayIndex, maps());
   introducer.Run();
 
   ASSERT_THAT(ret, IsReturn(load, load, if_true));
@@ -282,7 +284,7 @@ TEST_F(EffectControlLinearizerTest, CloneBranch) {
 
   EffectControlLinearizer introducer(
       jsgraph(), &schedule, zone(), source_positions(), node_origins(),
-      EffectControlLinearizer::kDoNotMaskArrayIndex);
+      EffectControlLinearizer::kDoNotMaskArrayIndex, maps());
   introducer.Run();
 
   Capture<Node *> branch1_capture, branch2_capture;

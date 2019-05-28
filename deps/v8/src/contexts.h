@@ -7,6 +7,7 @@
 
 #include "src/function-kind.h"
 #include "src/objects/fixed-array.h"
+#include "torque-generated/class-definitions-from-dsl.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -229,6 +230,10 @@ enum ContextLookupFlags {
     promise_thrower_finally_shared_fun)                                        \
   V(PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN, SharedFunctionInfo,                \
     promise_all_resolve_element_shared_fun)                                    \
+  V(PROMISE_ALL_SETTLED_RESOLVE_ELEMENT_SHARED_FUN, SharedFunctionInfo,        \
+    promise_all_settled_resolve_element_shared_fun)                            \
+  V(PROMISE_ALL_SETTLED_REJECT_ELEMENT_SHARED_FUN, SharedFunctionInfo,         \
+    promise_all_settled_reject_element_shared_fun)                             \
   V(PROMISE_PROTOTYPE_INDEX, JSObject, promise_prototype)                      \
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
@@ -375,8 +380,9 @@ class ScriptContextTable : public FixedArray {
   // valid information about its location.
   // If it returns false, `result` is untouched.
   V8_WARN_UNUSED_RESULT
-  static bool Lookup(Isolate* isolate, ScriptContextTable table, String name,
-                     LookupResult* result);
+  V8_EXPORT_PRIVATE static bool Lookup(Isolate* isolate,
+                                       ScriptContextTable table, String name,
+                                       LookupResult* result);
 
   V8_WARN_UNUSED_RESULT
   static Handle<ScriptContextTable> Extend(Handle<ScriptContextTable> table,
@@ -450,25 +456,16 @@ class Context : public HeapObject {
   // Setter with explicit barrier mode.
   V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
 
-  // Layout description.
-#define CONTEXT_FIELDS(V)                                             \
-  V(kLengthOffset, kTaggedSize)                                       \
-  /* TODO(ishell): remove this fixedArray-like header size. */        \
-  V(kHeaderSize, 0)                                                   \
-  V(kStartOfTaggedFieldsOffset, 0)                                    \
-  V(kStartOfStrongFieldsOffset, 0)                                    \
-  /* Tagged fields. */                                                \
-  V(kScopeInfoOffset, kTaggedSize)                                    \
-  V(kPreviousOffset, kTaggedSize)                                     \
-  V(kExtensionOffset, kTaggedSize)                                    \
-  V(kNativeContextOffset, kTaggedSize)                                \
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_CONTEXT_FIELDS)
+  // TODO(v8:8989): [torque] Support marker constants.
+  /* TODO(ishell): remove this fixedArray-like header size. */
+  static const int kHeaderSize = kScopeInfoOffset;
+  static const int kStartOfTaggedFieldsOffset = kScopeInfoOffset;
   /* Header size. */                                                  \
   /* TODO(ishell): use this as header size once MIN_CONTEXT_SLOTS */  \
   /* is removed in favour of offset-based access to common fields. */ \
-  V(kTodoHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CONTEXT_FIELDS)
-#undef CONTEXT_FIELDS
+  static const int kTodoHeaderSize = kSize;
 
   // Garbage collection support.
   V8_INLINE static constexpr int SizeFor(int length) {
@@ -551,7 +548,7 @@ class Context : public HeapObject {
   inline void set_extension(HeapObject object);
   JSObject extension_object();
   JSReceiver extension_receiver();
-  ScopeInfo scope_info();
+  V8_EXPORT_PRIVATE ScopeInfo scope_info();
 
   // Find the module context (assuming there is one) and return the associated
   // module object.
@@ -566,7 +563,7 @@ class Context : public HeapObject {
   Context closure_context();
 
   // Returns a JSGlobalProxy object or null.
-  JSGlobalProxy global_proxy();
+  V8_EXPORT_PRIVATE JSGlobalProxy global_proxy();
   void set_global_proxy(JSGlobalProxy global);
 
   // Get the JSGlobalObject object.
@@ -595,7 +592,7 @@ class Context : public HeapObject {
 
   // The native context also stores a list of all optimized code and a
   // list of all deoptimized code, which are needed by the deoptimizer.
-  void AddOptimizedCode(Code code);
+  V8_EXPORT_PRIVATE void AddOptimizedCode(Code code);
   void SetOptimizedCodeListHead(Object head);
   Object OptimizedCodeListHead();
   void SetDeoptimizedCodeListHead(Object head);

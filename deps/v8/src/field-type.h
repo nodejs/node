@@ -19,11 +19,12 @@ class FieldType : public Object {
  public:
   static FieldType None();
   static FieldType Any();
-  static Handle<FieldType> None(Isolate* isolate);
-  static Handle<FieldType> Any(Isolate* isolate);
-  static FieldType Class(Map map);
-  static Handle<FieldType> Class(Handle<Map> map, Isolate* isolate);
-  static FieldType cast(Object object);
+  V8_EXPORT_PRIVATE static Handle<FieldType> None(Isolate* isolate);
+  V8_EXPORT_PRIVATE static Handle<FieldType> Any(Isolate* isolate);
+  V8_EXPORT_PRIVATE static FieldType Class(Map map);
+  V8_EXPORT_PRIVATE static Handle<FieldType> Class(Handle<Map> map,
+                                                   Isolate* isolate);
+  V8_EXPORT_PRIVATE static FieldType cast(Object object);
   static FieldType unchecked_cast(Object object) {
     return FieldType(object.ptr());
   }

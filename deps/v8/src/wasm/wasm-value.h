@@ -6,6 +6,7 @@
 #define V8_WASM_WASM_VALUE_H_
 
 #include "src/boxed-float.h"
+#include "src/handles.h"
 #include "src/v8memory.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone-containers.h"
@@ -62,7 +63,10 @@ class Simd128 {
   V(f32_boxed, kWasmF32, Float32) \
   V(f64, kWasmF64, double)        \
   V(f64_boxed, kWasmF64, Float64) \
-  V(s128, kWasmS128, Simd128)
+  V(s128, kWasmS128, Simd128)     \
+  V(anyref, kWasmAnyRef, Handle<Object>)
+
+ASSERT_TRIVIALLY_COPYABLE(Handle<Object>);
 
 // A wasm value with type information.
 class WasmValue {

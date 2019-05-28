@@ -155,6 +155,10 @@ class V8_EXPORT_PRIVATE NodeProperties final {
       JSHeapBroker* broker, Node* receiver, Node* effect,
       ZoneHandleSet<Map>* maps_return);
 
+  // Return the initial map of the new-target if the allocation can be inlined.
+  static base::Optional<MapRef> GetJSCreateMap(JSHeapBroker* broker,
+                                               Node* receiver);
+
   static bool HasInstanceTypeWitness(JSHeapBroker* broker, Node* receiver,
                                      Node* effect, InstanceType instance_type);
 

@@ -22,7 +22,7 @@ class WeakCell;
 class JSFinalizationGroup : public JSObject {
  public:
   DECL_PRINTER(JSFinalizationGroup)
-  DECL_VERIFIER(JSFinalizationGroup)
+  EXPORT_DECL_VERIFIER(JSFinalizationGroup)
   DECL_CAST(JSFinalizationGroup)
 
   DECL_ACCESSORS(native_context, NativeContext)
@@ -86,7 +86,7 @@ class JSFinalizationGroup : public JSObject {
 class WeakCell : public HeapObject {
  public:
   DECL_PRINTER(WeakCell)
-  DECL_VERIFIER(WeakCell)
+  EXPORT_DECL_VERIFIER(WeakCell)
   DECL_CAST(WeakCell)
 
   DECL_ACCESSORS(finalization_group, Object)
@@ -141,7 +141,7 @@ class WeakCell : public HeapObject {
 class JSWeakRef : public JSObject {
  public:
   DECL_PRINTER(JSWeakRef)
-  DECL_VERIFIER(JSWeakRef)
+  EXPORT_DECL_VERIFIER(JSWeakRef)
   DECL_CAST(JSWeakRef)
 
   DECL_ACCESSORS(target, HeapObject)

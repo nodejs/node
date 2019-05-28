@@ -80,11 +80,13 @@ class CharacterRange {
   CharacterRange() : from_(0), to_(0) {}
   // For compatibility with the CHECK_OK macro
   CharacterRange(void* null) { DCHECK_NULL(null); }  // NOLINT
-  static void AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
-                             Zone* zone);
+  V8_EXPORT_PRIVATE static void AddClassEscape(char type,
+                                               ZoneList<CharacterRange>* ranges,
+                                               Zone* zone);
   // Add class escapes. Add case equivalent closure for \w and \W if necessary.
-  static void AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
-                             bool add_unicode_case_equivalents, Zone* zone);
+  V8_EXPORT_PRIVATE static void AddClassEscape(
+      char type, ZoneList<CharacterRange>* ranges,
+      bool add_unicode_case_equivalents, Zone* zone);
   static Vector<const int> GetWordBounds();
   static inline CharacterRange Singleton(uc32 value) {
     return CharacterRange(value, value);
@@ -112,12 +114,12 @@ class CharacterRange {
   bool is_valid() { return from_ <= to_; }
   bool IsEverything(uc32 max) { return from_ == 0 && to_ >= max; }
   bool IsSingleton() { return (from_ == to_); }
-  static void AddCaseEquivalents(Isolate* isolate, Zone* zone,
-                                 ZoneList<CharacterRange>* ranges,
-                                 bool is_one_byte);
+  V8_EXPORT_PRIVATE static void AddCaseEquivalents(
+      Isolate* isolate, Zone* zone, ZoneList<CharacterRange>* ranges,
+      bool is_one_byte);
   // Whether a range list is in canonical form: Ranges ordered by from value,
   // and ranges non-overlapping and non-adjacent.
-  static bool IsCanonical(ZoneList<CharacterRange>* ranges);
+  V8_EXPORT_PRIVATE static bool IsCanonical(ZoneList<CharacterRange>* ranges);
   // Convert range list to canonical form. The characters covered by the ranges
   // will still be the same, but no character is in more than one range, and
   // adjacent ranges are merged. The resulting list may be shorter than the
@@ -148,7 +150,7 @@ class CharacterSet final {
     standard_set_type_ = special_set_type;
   }
   bool is_standard() { return standard_set_type_ != 0; }
-  void Canonicalize();
+  V8_EXPORT_PRIVATE void Canonicalize();
 
  private:
   ZoneList<CharacterRange>* ranges_;
@@ -208,7 +210,8 @@ class RegExpTree : public ZoneObject {
   // expression.
   virtual Interval CaptureRegisters() { return Interval::Empty(); }
   virtual void AppendToText(RegExpText* text, Zone* zone);
-  std::ostream& Print(std::ostream& os, Zone* zone);  // NOLINT
+  V8_EXPORT_PRIVATE std::ostream& Print(std::ostream& os,
+                                        Zone* zone);  // NOLINT
 #define MAKE_ASTYPE(Name)           \
   virtual RegExp##Name* As##Name(); \
   virtual bool Is##Name();
@@ -300,7 +303,7 @@ class RegExpCharacterClass final : public RegExpTree {
     NEGATED = 1 << 0,
     CONTAINS_SPLIT_SURROGATE = 1 << 1,
   };
-  typedef base::Flags<Flag> CharacterClassFlags;
+  using CharacterClassFlags = base::Flags<Flag>;
 
   RegExpCharacterClass(
       Zone* zone, ZoneList<CharacterRange>* ranges, JSRegExp::Flags flags,

@@ -87,9 +87,7 @@ class StackArgumentsAccessor {
 
 class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
-  template <typename... Args>
-  explicit TurboAssembler(Args&&... args)
-      : TurboAssemblerBase(std::forward<Args>(args)...) {}
+  using TurboAssemblerBase::TurboAssemblerBase;
 
   template <typename Dst, typename... Args>
   struct AvxHelper {
@@ -149,6 +147,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Addsd, addsd)
   AVX_OP(Mulsd, mulsd)
   AVX_OP(Andps, andps)
+  AVX_OP(Andnps, andnps)
   AVX_OP(Andpd, andpd)
   AVX_OP(Orpd, orpd)
   AVX_OP(Cmpeqps, cmpeqps)
@@ -321,6 +320,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     movq(dst, Immediate64(ptr, rmode));
   }
 
+  // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
+  void MovePair(Register dst0, Register src0, Register dst1, Register src1);
+
   void MoveStringConstant(Register result, const StringConstantBase* string,
                           RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
 
@@ -439,6 +441,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
                            SaveFPRegsMode fp_mode, Address wasm_target);
+  void CallEphemeronKeyBarrier(Register object, Register address,
+                               SaveFPRegsMode fp_mode);
 
   void MoveNumber(Register dst, double value);
   void MoveNonSmi(Register dst, double value);
@@ -483,7 +487,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // When pointer compression is enabled, uses |scratch| to decompress the
   // value.
   void LoadAnyTaggedField(Register destination, Operand field_operand,
-                          Register scratch);
+                          Register scratch = kScratchRegister);
 
   // Loads a field containing a HeapObject, decompresses it if necessary and
   // pushes full pointer to the stack. When pointer compression is enabled,
@@ -508,7 +512,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DecompressTaggedSigned(Register destination, Operand field_operand);
   void DecompressTaggedPointer(Register destination, Operand field_operand);
   void DecompressAnyTagged(Register destination, Operand field_operand,
-                           Register scratch);
+                           Register scratch = kScratchRegister);
 
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -528,9 +532,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 // MacroAssembler implements a collection of frequently used macros.
 class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
-  template <typename... Args>
-  explicit MacroAssembler(Args&&... args)
-      : TurboAssembler(std::forward<Args>(args)...) {}
+  using TurboAssembler::TurboAssembler;
 
   // Loads and stores the value of an external reference.
   // Special case code for load and store to take advantage of

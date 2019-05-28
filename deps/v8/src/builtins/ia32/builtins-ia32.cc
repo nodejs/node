@@ -47,15 +47,11 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
-  //  -- eax : argument count (preserved for callee)
   //  -- edx : new target (preserved for callee)
   //  -- edi : target function (preserved for callee)
   // -----------------------------------
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Push the number of arguments to the callee.
-    __ SmiTag(eax);
-    __ push(eax);
     // Push a copy of the target function and the new target.
     __ push(edi);
     __ push(edx);
@@ -68,8 +64,6 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     // Restore target function and new target.
     __ pop(edx);
     __ pop(edi);
-    __ pop(eax);
-    __ SmiUntag(eax);
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
@@ -78,6 +72,30 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 
 namespace {
 
+void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
+                                 Register scratch, Label* stack_overflow,
+                                 bool include_receiver = false) {
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  ExternalReference real_stack_limit =
+      ExternalReference::address_of_real_stack_limit(masm->isolate());
+  // Compute the space that is left as a negative number in scratch. If
+  // we already overflowed, this will be a positive number.
+  __ mov(scratch, __ ExternalReferenceAsOperand(real_stack_limit, scratch));
+  __ sub(scratch, esp);
+  // Add the size of the arguments.
+  static_assert(kSystemPointerSize == 4,
+                "The next instruction assumes kSystemPointerSize == 4");
+  __ lea(scratch, Operand(scratch, num_args, times_system_pointer_size, 0));
+  if (include_receiver) {
+    __ add(scratch, Immediate(kSystemPointerSize));
+  }
+  // See if we overflowed, i.e. scratch is positive.
+  __ cmp(scratch, Immediate(0));
+  __ j(greater, stack_overflow);  // Signed comparison.
+}
+
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax: number of arguments
@@ -85,6 +103,10 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   //  -- edx: new target
   //  -- esi: context
   // -----------------------------------
+
+  Label stack_overflow;
+
+  Generate_StackOverflowCheck(masm, eax, ecx, &stack_overflow);
 
   // Enter a construct frame.
   {
@@ -145,30 +167,13 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
                       1 * kSystemPointerSize));  // 1 ~ receiver
   __ PushReturnAddressFrom(ecx);
   __ ret(0);
-}
 
-void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
-                                 Register scratch, Label* stack_overflow,
-                                 bool include_receiver = false) {
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_stack_limit(masm->isolate());
-  // Compute the space that is left as a negative number in scratch. If
-  // we already overflowed, this will be a positive number.
-  __ mov(scratch, __ ExternalReferenceAsOperand(real_stack_limit, scratch));
-  __ sub(scratch, esp);
-  // Add the size of the arguments.
-  static_assert(kSystemPointerSize == 4,
-                "The next instruction assumes kSystemPointerSize == 4");
-  __ lea(scratch, Operand(scratch, num_args, times_system_pointer_size, 0));
-  if (include_receiver) {
-    __ add(scratch, Immediate(kSystemPointerSize));
+  __ bind(&stack_overflow);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    __ int3();  // This should be unreachable.
   }
-  // See if we overflowed, i.e. scratch is positive.
-  __ cmp(scratch, Immediate(0));
-  __ j(greater, stack_overflow);  // Signed comparison.
 }
 
 }  // namespace
@@ -790,12 +795,11 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
 static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
                                            Register scratch) {
   // ----------- S t a t e -------------
-  //  -- eax : argument count (preserved for callee if needed, and caller)
   //  -- edx : new target (preserved for callee if needed, and caller)
   //  -- edi : target function (preserved for callee if needed, and caller)
   //  -- ecx : feedback vector (also used as scratch, value is not preserved)
   // -----------------------------------
-  DCHECK(!AreAliased(eax, edx, edi, scratch));
+  DCHECK(!AreAliased(edx, edi, scratch));
 
   Label optimized_code_slot_is_weak_ref, fallthrough;
 
@@ -854,7 +858,6 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
 
     __ LoadWeakValue(optimized_code_entry, &fallthrough);
 
-    __ push(eax);
     __ push(edx);
 
     // Check if the optimized code is marked for deopt. If it is, bailout to a
@@ -873,14 +876,12 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
     __ LoadCodeObjectEntry(ecx, optimized_code_entry);
     __ pop(edx);
-    __ pop(eax);
     __ jmp(ecx);
 
     // Optimized code slot contains deoptimized code, evict it and re-enter the
     // closure's code.
     __ bind(&found_deoptimized_code);
     __ pop(edx);
-    __ pop(eax);
     GenerateTailCallToReturnedCode(masm, Runtime::kEvictOptimizedCodeSlot);
   }
 
@@ -983,7 +984,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(feedback_vector,
          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
-  __ JumpIfRoot(feedback_vector, RootIndex::kUndefinedValue, &push_stack_frame);
+  __ mov(eax, FieldOperand(feedback_vector, HeapObject::kMapOffset));
+  __ CmpInstanceType(eax, FEEDBACK_VECTOR_TYPE);
+  __ j(not_equal, &push_stack_frame);
 
   // Read off the optimized code slot in the closure's feedback vector, and if
   // there is optimized code or an optimization marker, call that instead.
@@ -1022,10 +1025,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
         AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
 
-  // Reset code age.
-  __ mov_b(FieldOperand(kInterpreterBytecodeArrayRegister,
-                        BytecodeArray::kBytecodeAgeOffset),
-           Immediate(BytecodeArray::kNoAgeBytecodeAge));
+  // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset are
+  // 8-bit fields next to each other, so we could just optimize by writing a
+  // 16-bit. These static asserts guard our assumption is valid.
+  STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
+                BytecodeArray::kOSRNestingLevelOffset + kCharSize);
+  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
+  __ mov_w(FieldOperand(kInterpreterBytecodeArrayRegister,
+                        BytecodeArray::kOSRNestingLevelOffset),
+           Immediate(0));
 
   // Push bytecode array.
   __ push(kInterpreterBytecodeArrayRegister);

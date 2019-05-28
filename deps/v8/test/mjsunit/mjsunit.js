@@ -690,7 +690,7 @@ var prettyPrinted;
     // optimization is always disabled, explicitly exit the test with a warning.
     if (opt_status & V8OptimizationStatus.kLiteMode) {
       print("Warning: Test uses assertOptimized in Lite mode, skipping test.");
-      quit(0);
+      testRunner.quit(0);
     }
     // Tests that use assertOptimized() do not make sense if --no-opt
     // option is provided. Such tests must add --opt to flags comment.

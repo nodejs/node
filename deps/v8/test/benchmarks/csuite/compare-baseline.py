@@ -10,6 +10,9 @@ runner directly into this script or specify the results file with
 the -f option.
 '''
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import csv
 import math
 from optparse import OptionParser

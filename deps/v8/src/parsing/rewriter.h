@@ -5,6 +5,8 @@
 #ifndef V8_PARSING_REWRITER_H_
 #define V8_PARSING_REWRITER_H_
 
+#include "src/base/macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -23,7 +25,7 @@ class Rewriter {
   //
   // Assumes code has been parsed and scopes have been analyzed.  Mutates the
   // AST, so the AST should not continue to be used in the case of failure.
-  static bool Rewrite(ParseInfo* info);
+  V8_EXPORT_PRIVATE static bool Rewrite(ParseInfo* info);
 };
 
 

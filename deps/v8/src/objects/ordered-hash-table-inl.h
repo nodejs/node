@@ -11,6 +11,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/js-collection-iterator.h"
 #include "src/objects/slots.h"
 
 // Has to be the last include (doesn't have include guards):

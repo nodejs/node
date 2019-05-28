@@ -13,6 +13,7 @@
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
 #include "src/interpreter/interpreter.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -34,9 +35,6 @@ static const int kOSRBytecodeSizeAllowancePerTick = 48;
 // Maximum size in bytes of generated code for a function to be optimized
 // the very first time it is seen on the stack.
 static const int kMaxBytecodeSizeForEarlyOpt = 90;
-
-// Certain functions are simply too big to be worth optimizing.
-static const int kMaxBytecodeSizeForOpt = 60 * KB;
 
 #define OPTIMIZATION_REASON_LIST(V)                            \
   V(DoNotOptimize, "do not optimize")                          \
@@ -69,36 +67,12 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
       any_ic_changed_(false) {
 }
 
-static void GetICCounts(JSFunction function, int* ic_with_type_info_count,
-                        int* ic_generic_count, int* ic_total_count,
-                        int* type_info_percentage, int* generic_percentage) {
-  FeedbackVector vector = function->feedback_vector();
-  vector->ComputeCounts(ic_with_type_info_count, ic_generic_count,
-                        ic_total_count);
-
-  if (*ic_total_count > 0) {
-    *type_info_percentage = 100 * *ic_with_type_info_count / *ic_total_count;
-    *generic_percentage = 100 * *ic_generic_count / *ic_total_count;
-  } else {
-    *type_info_percentage = 100;  // Compared against lower bound.
-    *generic_percentage = 0;      // Compared against upper bound.
-  }
-}
-
 static void TraceRecompile(JSFunction function, const char* reason,
                            const char* type) {
   if (FLAG_trace_opt) {
     PrintF("[marking ");
     function->ShortPrint();
     PrintF(" for %s recompilation, reason: %s", type, reason);
-    if (FLAG_type_info_threshold > 0) {
-      int typeinfo, generic, total, type_percentage, generic_percentage;
-      GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
-                  &generic_percentage);
-      PrintF(", ICs with typeinfo: %d/%d (%d%%)", typeinfo, total,
-             type_percentage);
-      PrintF(", generic ICs: %d/%d (%d%%)", generic, total, generic_percentage);
-    }
     PrintF("]\n");
   }
 }
@@ -187,10 +161,6 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
                                                    BytecodeArray bytecode) {
   int ticks = function->feedback_vector()->profiler_ticks();
-  if (bytecode->length() > kMaxBytecodeSizeForOpt) {
-    return OptimizationReason::kDoNotOptimize;
-  }
-
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
       (bytecode->length() / kBytecodeSizeAllowancePerTick);
@@ -222,6 +192,8 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
   if (!isolate_->use_optimizer()) return;
 
   DisallowHeapAllocation no_gc;
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.MarkCandidatesForOptimization");
 
   // Run through the JavaScript frames and collect them. If we already
   // have a sample of the function, we mark it for optimizations

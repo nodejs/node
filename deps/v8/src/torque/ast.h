@@ -20,18 +20,18 @@ namespace torque {
 #define AST_EXPRESSION_NODE_KIND_LIST(V) \
   V(CallExpression)                      \
   V(CallMethodExpression)                \
-  V(LoadObjectFieldExpression)           \
-  V(StoreObjectFieldExpression)          \
   V(IntrinsicCallExpression)             \
   V(StructExpression)                    \
   V(LogicalOrExpression)                 \
   V(LogicalAndExpression)                \
+  V(SpreadExpression)                    \
   V(ConditionalExpression)               \
   V(IdentifierExpression)                \
   V(StringLiteralExpression)             \
   V(NumberLiteralExpression)             \
   V(FieldAccessExpression)               \
   V(ElementAccessExpression)             \
+  V(DereferenceExpression)               \
   V(AssignmentExpression)                \
   V(IncrementDecrementExpression)        \
   V(NewExpression)                       \
@@ -42,7 +42,8 @@ namespace torque {
 #define AST_TYPE_EXPRESSION_NODE_KIND_LIST(V) \
   V(BasicTypeExpression)                      \
   V(FunctionTypeExpression)                   \
-  V(UnionTypeExpression)
+  V(UnionTypeExpression)                      \
+  V(ReferenceTypeExpression)
 
 #define AST_STATEMENT_NODE_KIND_LIST(V) \
   V(BlockStatement)                     \
@@ -221,31 +222,6 @@ struct IdentifierExpression : LocationExpression {
   std::vector<TypeExpression*> generic_arguments;
 };
 
-struct LoadObjectFieldExpression : Expression {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(LoadObjectFieldExpression)
-  LoadObjectFieldExpression(SourcePosition pos, Expression* base,
-                            std::string field_name)
-      : Expression(kKind, pos),
-        base(std::move(base)),
-        field_name(std::move(field_name)) {}
-  Expression* base;
-  std::string field_name;
-};
-
-struct StoreObjectFieldExpression : Expression {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(StoreObjectFieldExpression)
-  StoreObjectFieldExpression(SourcePosition pos, Expression* base,
-                             std::string field_name, Expression* value)
-      : Expression(kKind, pos),
-        base(std::move(base)),
-        field_name(std::move(field_name)),
-        value(std::move(value)) {}
-  Expression* base;
-  std::string field_name;
-  Expression* value;
-  size_t offset;
-};
-
 struct IntrinsicCallExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(IntrinsicCallExpression)
   IntrinsicCallExpression(SourcePosition pos, std::string name,
@@ -291,18 +267,20 @@ struct CallExpression : Expression {
   std::vector<std::string> labels;
 };
 
+struct NameAndExpression {
+  Identifier* name;
+  Expression* expression;
+};
+
 struct StructExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(StructExpression)
-  StructExpression(SourcePosition pos,
-                   std::vector<std::string> namespace_qualification,
-                   std::string name, std::vector<Expression*> expressions)
+  StructExpression(SourcePosition pos, TypeExpression* type,
+                   std::vector<NameAndExpression> initializers)
       : Expression(kKind, pos),
-        namespace_qualification(std::move(namespace_qualification)),
-        name(std::move(name)),
-        expressions(std::move(expressions)) {}
-  std::vector<std::string> namespace_qualification;
-  std::string name;
-  std::vector<Expression*> expressions;
+        type(type),
+        initializers(std::move(initializers)) {}
+  TypeExpression* type;
+  std::vector<NameAndExpression> initializers;
 };
 
 struct LogicalOrExpression : Expression {
@@ -319,6 +297,13 @@ struct LogicalAndExpression : Expression {
       : Expression(kKind, pos), left(left), right(right) {}
   Expression* left;
   Expression* right;
+};
+
+struct SpreadExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(SpreadExpression)
+  SpreadExpression(SourcePosition pos, Expression* spreadee)
+      : Expression(kKind, pos), spreadee(spreadee) {}
+  Expression* spreadee;
 };
 
 struct ConditionalExpression : Expression {
@@ -360,23 +345,31 @@ struct ElementAccessExpression : LocationExpression {
 struct FieldAccessExpression : LocationExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(FieldAccessExpression)
   FieldAccessExpression(SourcePosition pos, Expression* object,
-                        std::string field)
-      : LocationExpression(kKind, pos),
-        object(object),
-        field(std::move(field)) {}
+                        Identifier* field)
+      : LocationExpression(kKind, pos), object(object), field(field) {}
   Expression* object;
-  std::string field;
+  Identifier* field;
+};
+
+struct DereferenceExpression : LocationExpression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(DereferenceExpression)
+  DereferenceExpression(SourcePosition pos, Expression* reference)
+      : LocationExpression(kKind, pos), reference(reference) {}
+  Expression* reference;
 };
 
 struct AssignmentExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(AssignmentExpression)
-  AssignmentExpression(SourcePosition pos, LocationExpression* location,
+  AssignmentExpression(SourcePosition pos, Expression* location,
+                       Expression* value)
+      : AssignmentExpression(pos, location, base::nullopt, value) {}
+  AssignmentExpression(SourcePosition pos, Expression* location,
                        base::Optional<std::string> op, Expression* value)
       : Expression(kKind, pos),
         location(location),
         op(std::move(op)),
         value(value) {}
-  LocationExpression* location;
+  Expression* location;
   base::Optional<std::string> op;
   Expression* value;
 };
@@ -385,10 +378,10 @@ enum class IncrementDecrementOperator { kIncrement, kDecrement };
 
 struct IncrementDecrementExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(IncrementDecrementExpression)
-  IncrementDecrementExpression(SourcePosition pos, LocationExpression* location,
+  IncrementDecrementExpression(SourcePosition pos, Expression* location,
                                IncrementDecrementOperator op, bool postfix)
       : Expression(kKind, pos), location(location), op(op), postfix(postfix) {}
-  LocationExpression* location;
+  Expression* location;
   IncrementDecrementOperator op;
   bool postfix;
 };
@@ -412,10 +405,12 @@ struct AssumeTypeImpossibleExpression : Expression {
 struct NewExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(NewExpression)
   NewExpression(SourcePosition pos, TypeExpression* type,
-                std::vector<Expression*> parameters)
-      : Expression(kKind, pos), type(type), parameters(parameters) {}
+                std::vector<NameAndExpression> initializers)
+      : Expression(kKind, pos),
+        type(type),
+        initializers(std::move(initializers)) {}
   TypeExpression* type;
-  std::vector<Expression*> parameters;
+  std::vector<NameAndExpression> initializers;
 };
 
 struct ParameterList {
@@ -468,6 +463,13 @@ struct UnionTypeExpression : TypeExpression {
       : TypeExpression(kKind, pos), a(a), b(b) {}
   TypeExpression* a;
   TypeExpression* b;
+};
+
+struct ReferenceTypeExpression : TypeExpression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(ReferenceTypeExpression)
+  ReferenceTypeExpression(SourcePosition pos, TypeExpression* referenced_type)
+      : TypeExpression(kKind, pos), referenced_type(referenced_type) {}
+  TypeExpression* referenced_type;
 };
 
 struct ExpressionStatement : Statement {
@@ -667,18 +669,18 @@ struct BlockStatement : Statement {
 struct TypeDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TypeDeclaration)
   TypeDeclaration(SourcePosition pos, Identifier* name, bool transient,
-                  base::Optional<std::string> extends,
+                  base::Optional<Identifier*> extends,
                   base::Optional<std::string> generates,
                   base::Optional<std::string> constexpr_generates)
       : Declaration(kKind, pos),
         name(name),
         transient(transient),
-        extends(std::move(extends)),
+        extends(extends),
         generates(std::move(generates)),
         constexpr_generates(std::move(constexpr_generates)) {}
   Identifier* name;
   bool transient;
-  base::Optional<std::string> extends;
+  base::Optional<Identifier*> extends;
   base::Optional<std::string> generates;
   base::Optional<std::string> constexpr_generates;
 };
@@ -699,12 +701,14 @@ struct NameAndTypeExpression {
 
 struct StructFieldExpression {
   NameAndTypeExpression name_and_type;
+  bool const_qualified;
 };
 
 struct ClassFieldExpression {
   NameAndTypeExpression name_and_type;
   base::Optional<std::string> index;
   bool weak;
+  bool const_qualified;
 };
 
 struct LabelAndTypes {
@@ -910,13 +914,15 @@ struct StructDeclaration : Declaration {
 struct ClassDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ClassDeclaration)
   ClassDeclaration(SourcePosition pos, Identifier* name, bool is_extern,
-                   bool transient, base::Optional<std::string> super,
+                   bool generate_print, bool transient,
+                   base::Optional<std::string> super,
                    base::Optional<std::string> generates,
                    std::vector<Declaration*> methods,
                    std::vector<ClassFieldExpression> fields)
       : Declaration(kKind, pos),
         name(name),
         is_extern(is_extern),
+        generate_print(generate_print),
         transient(transient),
         super(std::move(super)),
         generates(std::move(generates)),
@@ -924,6 +930,7 @@ struct ClassDeclaration : Declaration {
         fields(std::move(fields)) {}
   Identifier* name;
   bool is_extern;
+  bool generate_print;
   bool transient;
   base::Optional<std::string> super;
   base::Optional<std::string> generates;

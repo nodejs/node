@@ -150,7 +150,7 @@ class CompilationCacheRegExp: public CompilationSubCache {
 // scripts and evals. The shared function infos are looked up using
 // the source string as the key. For regular expressions the
 // compilation data is cached.
-class CompilationCache {
+class V8_EXPORT_PRIVATE CompilationCache {
  public:
   // Finds the script shared function info for a source
   // string. Returns an empty handle if the cache doesn't contain a
@@ -239,7 +239,6 @@ class CompilationCache {
 
   DISALLOW_COPY_AND_ASSIGN(CompilationCache);
 };
-
 
 }  // namespace internal
 }  // namespace v8

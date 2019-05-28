@@ -54,14 +54,14 @@ struct CharTraits;
 
 template <>
 struct CharTraits<uint8_t> {
-  typedef SeqOneByteString String;
-  typedef ExternalOneByteString ExternalString;
+  using String = SeqOneByteString;
+  using ExternalString = ExternalOneByteString;
 };
 
 template <>
 struct CharTraits<uint16_t> {
-  typedef SeqTwoByteString String;
-  typedef ExternalTwoByteString ExternalString;
+  using String = SeqTwoByteString;
+  using ExternalString = ExternalTwoByteString;
 };
 
 template <typename Char>
@@ -79,7 +79,7 @@ struct Range {
 template <typename Char>
 class OnHeapStream {
  public:
-  typedef typename CharTraits<Char>::String String;
+  using String = typename CharTraits<Char>::String;
 
   OnHeapStream(Handle<String> string, size_t start_offset, size_t end)
       : string_(string), start_offset_(start_offset), length_(end) {}
@@ -109,7 +109,7 @@ class OnHeapStream {
 // ExternalTwoByteString.
 template <typename Char>
 class ExternalStringStream {
-  typedef typename CharTraits<Char>::ExternalString ExternalString;
+  using ExternalString = typename CharTraits<Char>::ExternalString;
 
  public:
   ExternalStringStream(ExternalString string, size_t start_offset,
@@ -431,7 +431,7 @@ bool BufferedUtf16CharacterStream::ReadBlock() {
 //
 // This implementation is fairly complex, since data arrives in chunks which
 // may 'cut' arbitrarily into utf-8 characters. Also, seeking to a given
-// character position is tricky because the byte position cannot be dericed
+// character position is tricky because the byte position cannot be derived
 // from the character position.
 //
 // TODO(verwaest): Decode utf8 chunks into utf16 chunks on the blink side
@@ -444,7 +444,7 @@ class Utf8ExternalStreamingStream : public BufferedUtf16CharacterStream {
       : current_({0, {0, 0, 0, unibrow::Utf8::State::kAccept}}),
         source_stream_(source_stream) {}
   ~Utf8ExternalStreamingStream() final {
-    for (size_t i = 0; i < chunks_.size(); i++) delete[] chunks_[i].data;
+    for (const Chunk& chunk : chunks_) delete[] chunk.data;
   }
 
   bool can_access_heap() const final { return false; }

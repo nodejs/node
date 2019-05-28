@@ -17,6 +17,11 @@
 #include "src/vector.h"
 
 namespace v8 {
+
+namespace tracing {
+class TracedValue;
+}
+
 namespace internal {
 
 class DeferredHandles;
@@ -55,7 +60,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     kTraceTurboJson = 1 << 14,
     kTraceTurboGraph = 1 << 15,
     kTraceTurboScheduled = 1 << 16,
-    kWasmRuntimeExceptionSupport = 1 << 17
+    kWasmRuntimeExceptionSupport = 1 << 17,
+    kTurboControlFlowAwareAllocation = 1 << 18,
+    kTurboPreprocessRanges = 1 << 19
   };
 
   // Construct a compilation info for optimized compilation.
@@ -83,6 +90,18 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
 
   // Flags used by optimized compilation.
+
+  void MarkAsTurboControlFlowAwareAllocation() {
+    SetFlag(kTurboControlFlowAwareAllocation);
+  }
+  bool is_turbo_control_flow_aware_allocation() const {
+    return GetFlag(kTurboControlFlowAwareAllocation);
+  }
+
+  void MarkAsTurboPreprocessRanges() { SetFlag(kTurboPreprocessRanges); }
+  bool is_turbo_preprocess_ranges() const {
+    return GetFlag(kTurboPreprocessRanges);
+  }
 
   void MarkAsFunctionContextSpecializing() {
     SetFlag(kFunctionContextSpecializing);
@@ -211,19 +230,15 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   void ReopenHandlesInNewHandleScope(Isolate* isolate);
 
-  void AbortOptimization(BailoutReason reason) {
-    DCHECK_NE(reason, BailoutReason::kNoReason);
-    if (bailout_reason_ == BailoutReason::kNoReason) bailout_reason_ = reason;
-    SetFlag(kDisableFutureOptimization);
-  }
+  void AbortOptimization(BailoutReason reason);
 
-  void RetryOptimization(BailoutReason reason) {
-    DCHECK_NE(reason, BailoutReason::kNoReason);
-    if (GetFlag(kDisableFutureOptimization)) return;
-    bailout_reason_ = reason;
-  }
+  void RetryOptimization(BailoutReason reason);
 
   BailoutReason bailout_reason() const { return bailout_reason_; }
+
+  bool is_disable_future_optimization() const {
+    return GetFlag(kDisableFutureOptimization);
+  }
 
   int optimization_id() const {
     DCHECK(IsOptimizing());
@@ -263,6 +278,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   void set_trace_turbo_filename(std::unique_ptr<char[]> filename) {
     trace_turbo_filename_ = std::move(filename);
   }
+
+  std::unique_ptr<v8::tracing::TracedValue> ToTracedValue();
 
  private:
   OptimizedCompilationInfo(Code::Kind code_kind, Zone* zone);

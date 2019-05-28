@@ -319,7 +319,8 @@ size_t StreamingDecoder::DecodeVarInt32::ReadBytes(
   TRACE_STREAMING("ReadBytes of a VarInt\n");
   memcpy(remaining_buf.start(), &bytes.first(), new_bytes);
   buf.Truncate(offset() + new_bytes);
-  Decoder decoder(buf, streaming->module_offset());
+  Decoder decoder(buf,
+                  streaming->module_offset() - static_cast<uint32_t>(offset()));
   value_ = decoder.consume_u32v(field_name_);
   // The number of bytes we actually needed to read.
   DCHECK_GT(decoder.pc(), buffer().start());

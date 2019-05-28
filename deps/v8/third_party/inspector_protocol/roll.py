@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from __future__ import print_function
 import argparse
 import sys
 import os
@@ -123,7 +124,7 @@ def main(argv):
     CheckRepoIsNotAtMasterBranch(downstream)
     src_dir = upstream
     dest_dir = os.path.join(downstream, 'third_party/inspector_protocol')
-  print 'Rolling %s into %s ...' % (src_dir, dest_dir)
+  print('Rolling %s into %s ...' % (src_dir, dest_dir))
   src_files = set(FindFilesToSyncIn(src_dir))
   dest_files = set(FindFilesToSyncIn(dest_dir))
   to_add = [f for f in src_files if f not in dest_files]
@@ -131,16 +132,16 @@ def main(argv):
   to_copy = [f for f in src_files
              if (f in dest_files and not FilesAreEqual(
                  os.path.join(src_dir, f), os.path.join(dest_dir, f)))]
-  print 'To add: %s' % to_add
-  print 'To delete: %s' % to_delete
-  print 'To copy: %s' % to_copy
+  print('To add: %s' % to_add)
+  print('To delete: %s' % to_delete)
+  print('To copy: %s' % to_copy)
   if not to_add and not to_delete and not to_copy:
-    print 'Nothing to do. You\'re good.'
+    print('Nothing to do. You\'re good.')
     sys.exit(0)
   if not args.force:
-    print 'Rerun with --force if you wish the modifications to be done.'
+    print('Rerun with --force if you wish the modifications to be done.')
     sys.exit(1)
-  print 'You said --force ... as you wish, modifying the destination.'
+  print('You said --force ... as you wish, modifying the destination.')
   for f in to_add + to_copy:
     shutil.copyfile(os.path.join(src_dir, f), os.path.join(dest_dir, f))
     shutil.copymode(os.path.join(src_dir, f), os.path.join(dest_dir, f))

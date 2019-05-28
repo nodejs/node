@@ -121,7 +121,7 @@ class ModuleDescriptor : public ZoneObject {
 
   // Custom content-based comparer for the below maps, to keep them stable
   // across parses.
-  struct AstRawStringComparer {
+  struct V8_EXPORT_PRIVATE AstRawStringComparer {
     bool operator()(const AstRawString* lhs, const AstRawString* rhs) const;
   };
 

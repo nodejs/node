@@ -237,6 +237,8 @@
   V(ChangeTaggedToUint32)            \
   V(ChangeTaggedToFloat64)           \
   V(ChangeTaggedToTaggedSigned)      \
+  V(ChangeCompressedToTaggedSigned)  \
+  V(ChangeTaggedToCompressedSigned)  \
   V(ChangeInt31ToTaggedSigned)       \
   V(ChangeInt32ToTagged)             \
   V(ChangeInt64ToTagged)             \
@@ -276,7 +278,11 @@
   V(CheckedTaggedToFloat64)           \
   V(CheckedTaggedToInt64)             \
   V(CheckedTaggedToTaggedSigned)      \
-  V(CheckedTaggedToTaggedPointer)
+  V(CheckedTaggedToTaggedPointer)     \
+  V(CheckedCompressedToTaggedSigned)  \
+  V(CheckedCompressedToTaggedPointer) \
+  V(CheckedTaggedToCompressedSigned)  \
+  V(CheckedTaggedToCompressedPointer)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \
@@ -287,6 +293,7 @@
   V(SpeculativeNumberLessThanOrEqual)    \
   V(ReferenceEqual)                      \
   V(SameValue)                           \
+  V(NumberSameValue)                     \
   V(StringEqual)                         \
   V(StringLessThan)                      \
   V(StringLessThanOrEqual)
@@ -598,110 +605,115 @@
   V(Word64AtomicExchange)                \
   V(Word64AtomicCompareExchange)
 
-#define MACHINE_OP_LIST(V)           \
-  MACHINE_UNOP_32_LIST(V)            \
-  MACHINE_BINOP_32_LIST(V)           \
-  MACHINE_BINOP_64_LIST(V)           \
-  MACHINE_COMPARE_BINOP_LIST(V)      \
-  MACHINE_FLOAT32_BINOP_LIST(V)      \
-  MACHINE_FLOAT32_UNOP_LIST(V)       \
-  MACHINE_FLOAT64_BINOP_LIST(V)      \
-  MACHINE_FLOAT64_UNOP_LIST(V)       \
-  MACHINE_WORD64_ATOMIC_OP_LIST(V)   \
-  V(DebugAbort)                      \
-  V(DebugBreak)                      \
-  V(Comment)                         \
-  V(Load)                            \
-  V(PoisonedLoad)                    \
-  V(Store)                           \
-  V(StackSlot)                       \
-  V(Word32Popcnt)                    \
-  V(Word64Popcnt)                    \
-  V(Word64Clz)                       \
-  V(Word64Ctz)                       \
-  V(Word64ReverseBits)               \
-  V(Word64ReverseBytes)              \
-  V(Int64AbsWithOverflow)            \
-  V(BitcastTaggedToWord)             \
-  V(BitcastWordToTagged)             \
-  V(BitcastWordToTaggedSigned)       \
-  V(TruncateFloat64ToWord32)         \
-  V(ChangeFloat32ToFloat64)          \
-  V(ChangeFloat64ToInt32)            \
-  V(ChangeFloat64ToInt64)            \
-  V(ChangeFloat64ToUint32)           \
-  V(ChangeFloat64ToUint64)           \
-  V(Float64SilenceNaN)               \
-  V(TruncateFloat64ToInt64)          \
-  V(TruncateFloat64ToUint32)         \
-  V(TruncateFloat32ToInt32)          \
-  V(TruncateFloat32ToUint32)         \
-  V(TryTruncateFloat32ToInt64)       \
-  V(TryTruncateFloat64ToInt64)       \
-  V(TryTruncateFloat32ToUint64)      \
-  V(TryTruncateFloat64ToUint64)      \
-  V(ChangeInt32ToFloat64)            \
-  V(ChangeInt32ToInt64)              \
-  V(ChangeInt64ToFloat64)            \
-  V(ChangeUint32ToFloat64)           \
-  V(ChangeUint32ToUint64)            \
-  V(TruncateFloat64ToFloat32)        \
-  V(TruncateInt64ToInt32)            \
-  V(RoundFloat64ToInt32)             \
-  V(RoundInt32ToFloat32)             \
-  V(RoundInt64ToFloat32)             \
-  V(RoundInt64ToFloat64)             \
-  V(RoundUint32ToFloat32)            \
-  V(RoundUint64ToFloat32)            \
-  V(RoundUint64ToFloat64)            \
-  V(BitcastFloat32ToInt32)           \
-  V(BitcastFloat64ToInt64)           \
-  V(BitcastInt32ToFloat32)           \
-  V(BitcastInt64ToFloat64)           \
-  V(Float64ExtractLowWord32)         \
-  V(Float64ExtractHighWord32)        \
-  V(Float64InsertLowWord32)          \
-  V(Float64InsertHighWord32)         \
-  V(TaggedPoisonOnSpeculation)       \
-  V(Word32PoisonOnSpeculation)       \
-  V(Word64PoisonOnSpeculation)       \
-  V(LoadStackPointer)                \
-  V(LoadFramePointer)                \
-  V(LoadParentFramePointer)          \
-  V(UnalignedLoad)                   \
-  V(UnalignedStore)                  \
-  V(Int32PairAdd)                    \
-  V(Int32PairSub)                    \
-  V(Int32PairMul)                    \
-  V(Word32PairShl)                   \
-  V(Word32PairShr)                   \
-  V(Word32PairSar)                   \
-  V(ProtectedLoad)                   \
-  V(ProtectedStore)                  \
-  V(Word32AtomicLoad)                \
-  V(Word32AtomicStore)               \
-  V(Word32AtomicExchange)            \
-  V(Word32AtomicCompareExchange)     \
-  V(Word32AtomicAdd)                 \
-  V(Word32AtomicSub)                 \
-  V(Word32AtomicAnd)                 \
-  V(Word32AtomicOr)                  \
-  V(Word32AtomicXor)                 \
-  V(Word32AtomicPairLoad)            \
-  V(Word32AtomicPairStore)           \
-  V(Word32AtomicPairAdd)             \
-  V(Word32AtomicPairSub)             \
-  V(Word32AtomicPairAnd)             \
-  V(Word32AtomicPairOr)              \
-  V(Word32AtomicPairXor)             \
-  V(Word32AtomicPairExchange)        \
-  V(Word32AtomicPairCompareExchange) \
-  V(SpeculationFence)                \
-  V(SignExtendWord8ToInt32)          \
-  V(SignExtendWord16ToInt32)         \
-  V(SignExtendWord8ToInt64)          \
-  V(SignExtendWord16ToInt64)         \
-  V(SignExtendWord32ToInt64)         \
+#define MACHINE_OP_LIST(V)                  \
+  MACHINE_UNOP_32_LIST(V)                   \
+  MACHINE_BINOP_32_LIST(V)                  \
+  MACHINE_BINOP_64_LIST(V)                  \
+  MACHINE_COMPARE_BINOP_LIST(V)             \
+  MACHINE_FLOAT32_BINOP_LIST(V)             \
+  MACHINE_FLOAT32_UNOP_LIST(V)              \
+  MACHINE_FLOAT64_BINOP_LIST(V)             \
+  MACHINE_FLOAT64_UNOP_LIST(V)              \
+  MACHINE_WORD64_ATOMIC_OP_LIST(V)          \
+  V(DebugAbort)                             \
+  V(DebugBreak)                             \
+  V(Comment)                                \
+  V(Load)                                   \
+  V(PoisonedLoad)                           \
+  V(Store)                                  \
+  V(StackSlot)                              \
+  V(Word32Popcnt)                           \
+  V(Word64Popcnt)                           \
+  V(Word64Clz)                              \
+  V(Word64Ctz)                              \
+  V(Word64ReverseBits)                      \
+  V(Word64ReverseBytes)                     \
+  V(Int64AbsWithOverflow)                   \
+  V(BitcastTaggedToWord)                    \
+  V(BitcastWordToTagged)                    \
+  V(BitcastWordToTaggedSigned)              \
+  V(TruncateFloat64ToWord32)                \
+  V(ChangeFloat32ToFloat64)                 \
+  V(ChangeFloat64ToInt32)                   \
+  V(ChangeFloat64ToInt64)                   \
+  V(ChangeFloat64ToUint32)                  \
+  V(ChangeFloat64ToUint64)                  \
+  V(Float64SilenceNaN)                      \
+  V(TruncateFloat64ToInt64)                 \
+  V(TruncateFloat64ToUint32)                \
+  V(TruncateFloat32ToInt32)                 \
+  V(TruncateFloat32ToUint32)                \
+  V(TryTruncateFloat32ToInt64)              \
+  V(TryTruncateFloat64ToInt64)              \
+  V(TryTruncateFloat32ToUint64)             \
+  V(TryTruncateFloat64ToUint64)             \
+  V(ChangeInt32ToFloat64)                   \
+  V(ChangeInt32ToInt64)                     \
+  V(ChangeInt64ToFloat64)                   \
+  V(ChangeUint32ToFloat64)                  \
+  V(ChangeUint32ToUint64)                   \
+  V(ChangeTaggedToCompressed)               \
+  V(ChangeTaggedPointerToCompressedPointer) \
+  V(ChangeTaggedSignedToCompressedSigned)   \
+  V(ChangeCompressedToTagged)               \
+  V(ChangeCompressedPointerToTaggedPointer) \
+  V(ChangeCompressedSignedToTaggedSigned)   \
+  V(TruncateFloat64ToFloat32)               \
+  V(TruncateInt64ToInt32)                   \
+  V(RoundFloat64ToInt32)                    \
+  V(RoundInt32ToFloat32)                    \
+  V(RoundInt64ToFloat32)                    \
+  V(RoundInt64ToFloat64)                    \
+  V(RoundUint32ToFloat32)                   \
+  V(RoundUint64ToFloat32)                   \
+  V(RoundUint64ToFloat64)                   \
+  V(BitcastFloat32ToInt32)                  \
+  V(BitcastFloat64ToInt64)                  \
+  V(BitcastInt32ToFloat32)                  \
+  V(BitcastInt64ToFloat64)                  \
+  V(Float64ExtractLowWord32)                \
+  V(Float64ExtractHighWord32)               \
+  V(Float64InsertLowWord32)                 \
+  V(Float64InsertHighWord32)                \
+  V(TaggedPoisonOnSpeculation)              \
+  V(Word32PoisonOnSpeculation)              \
+  V(Word64PoisonOnSpeculation)              \
+  V(LoadStackPointer)                       \
+  V(LoadFramePointer)                       \
+  V(LoadParentFramePointer)                 \
+  V(UnalignedLoad)                          \
+  V(UnalignedStore)                         \
+  V(Int32PairAdd)                           \
+  V(Int32PairSub)                           \
+  V(Int32PairMul)                           \
+  V(Word32PairShl)                          \
+  V(Word32PairShr)                          \
+  V(Word32PairSar)                          \
+  V(ProtectedLoad)                          \
+  V(ProtectedStore)                         \
+  V(Word32AtomicLoad)                       \
+  V(Word32AtomicStore)                      \
+  V(Word32AtomicExchange)                   \
+  V(Word32AtomicCompareExchange)            \
+  V(Word32AtomicAdd)                        \
+  V(Word32AtomicSub)                        \
+  V(Word32AtomicAnd)                        \
+  V(Word32AtomicOr)                         \
+  V(Word32AtomicXor)                        \
+  V(Word32AtomicPairLoad)                   \
+  V(Word32AtomicPairStore)                  \
+  V(Word32AtomicPairAdd)                    \
+  V(Word32AtomicPairSub)                    \
+  V(Word32AtomicPairAnd)                    \
+  V(Word32AtomicPairOr)                     \
+  V(Word32AtomicPairXor)                    \
+  V(Word32AtomicPairExchange)               \
+  V(Word32AtomicPairCompareExchange)        \
+  V(SignExtendWord8ToInt32)                 \
+  V(SignExtendWord16ToInt32)                \
+  V(SignExtendWord8ToInt64)                 \
+  V(SignExtendWord16ToInt64)                \
+  V(SignExtendWord32ToInt64)                \
   V(UnsafePointerAdd)
 
 #define MACHINE_SIMD_OP_LIST(V) \

@@ -20,6 +20,11 @@ namespace v8_inspector {
 class ValueMirror;
 enum class WrapMode;
 
+struct PrivatePropertyMirror {
+  String16 name;
+  std::unique_ptr<ValueMirror> value;
+};
+
 struct InternalPropertyMirror {
   String16 name;
   std::unique_ptr<ValueMirror> value;
@@ -72,6 +77,8 @@ class ValueMirror {
   static void getInternalProperties(
       v8::Local<v8::Context> context, v8::Local<v8::Object> object,
       std::vector<InternalPropertyMirror>* mirrors);
+  static std::vector<PrivatePropertyMirror> getPrivateProperties(
+      v8::Local<v8::Context> context, v8::Local<v8::Object> object);
 };
 }  // namespace v8_inspector
 

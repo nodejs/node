@@ -423,11 +423,13 @@ TEST(Unwind_StackBounds_WithUnwinding) {
                                                  stack_base);
   CHECK(!unwound);
 
-  // Change the return address so that it is not in range.
+  // Change the return address so that it is not in range. We will not range
+  // check the stack[9] FP value because we have finished unwinding and the
+  // contents of rbp does not necessarily have to be the FP in this case.
   stack[10] = 202;
   unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
                                             stack_base);
-  CHECK(!unwound);
+  CHECK(unwound);
 }
 
 TEST(PCIsInV8_BadState_Fail) {
@@ -482,8 +484,8 @@ TEST(PCIsInV8_InCodeOrEmbeddedRange) {
                       embedded_range_length);
 }
 
-// PCIsInV8 doesn't check if the PC is in JSEntrydirectly. It's assumed that the
-// CodeRange or EmbeddedCodeRange contain JSEntry.
+// PCIsInV8 doesn't check if the PC is in JSEntry directly. It's assumed that
+// the CodeRange or EmbeddedCodeRange contain JSEntry.
 TEST(PCIsInV8_InJSEntryRange) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();

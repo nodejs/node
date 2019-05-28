@@ -8,6 +8,9 @@ Local benchmark runner.
 The -c option is mandatory.
 '''
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import math
 from optparse import OptionParser
 import os
@@ -96,7 +99,7 @@ class BenchmarkSuite(object):
     elif self.name in self.kGeometricScoreSuites:
       self.ComputeScoreV8Octane(self.name)
     else:
-      print "Don't know how to compute score for suite: '%s'" % self.name
+      print("Don't know how to compute score for suite: '%s'" % self.name)
 
   def IsBetterThan(self, other):
     if self.name in self.kClassicScoreSuites:
@@ -104,7 +107,7 @@ class BenchmarkSuite(object):
     elif self.name in self.kGeometricScoreSuites:
       return self.score > other.score
     else:
-      print "Don't know how to compare score for suite: '%s'" % self.name
+      print("Don't know how to compare score for suite: '%s'" % self.name)
 
 
 class BenchmarkRunner(object):
@@ -140,7 +143,7 @@ class BenchmarkRunner(object):
       outfile = "%s/out.%d.txt" % (self.outdir, i)
       if os.path.exists(outfile) and not self.opts.force:
         continue
-      print "run #%d" % i
+      print("run #%d" % i)
       cmdline = "%s > %s" % (self.opts.command, outfile)
       subprocess.call(cmdline, shell=True)
       time.sleep(self.opts.sleep)
@@ -179,11 +182,11 @@ class BenchmarkRunner(object):
 
     suite.ProcessResults(self.opts)
     suite.ComputeScore()
-    print ("%s,%.1f,%.2f,%d " %
-        (suite.name, suite.score, suite.sigma, suite.num)),
+    print(("%s,%.1f,%.2f,%d " %
+        (suite.name, suite.score, suite.sigma, suite.num)), end='')
     if self.opts.verbose:
-      print ""
-    print ""
+      print("")
+    print("")
 
 
 if __name__ == '__main__':
@@ -206,14 +209,14 @@ if __name__ == '__main__':
   opts.sleep = int(opts.sleep)
 
   if not opts.command:
-    print "You must specify the command to run (-c). Aborting."
+    print("You must specify the command to run (-c). Aborting.")
     sys.exit(1)
 
   cachedir = os.path.abspath(os.getcwd())
   if not opts.cachedir:
     opts.cachedir = cachedir
   if not os.path.exists(opts.cachedir):
-    print "Directory " + opts.cachedir + " is not valid. Aborting."
+    print("Directory " + opts.cachedir + " is not valid. Aborting.")
     sys.exit(1)
 
   br = BenchmarkRunner(args, os.getcwd(), opts)

@@ -86,12 +86,11 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
 
   // If the SharedFunctionInfo has old bytecode, mark it as flushable,
   // otherwise visit the function data field strongly.
-  if (shared_info->ShouldFlushBytecode()) {
+  if (shared_info->ShouldFlushBytecode(Heap::GetBytecodeFlushMode())) {
     collector_->AddBytecodeFlushingCandidate(shared_info);
   } else {
     VisitPointer(shared_info,
-                 HeapObject::RawField(shared_info,
-                                      SharedFunctionInfo::kFunctionDataOffset));
+                 shared_info.RawField(SharedFunctionInfo::kFunctionDataOffset));
   }
   return size;
 }
@@ -249,8 +248,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
     if (marking_state()->IsBlackOrGrey(target)) {
       // Record the slot inside the JSWeakRef, since the IterateBody below
       // won't visit it.
-      ObjectSlot slot =
-          HeapObject::RawField(weak_ref, JSWeakRef::kTargetOffset);
+      ObjectSlot slot = weak_ref.RawField(JSWeakRef::kTargetOffset);
       collector_->RecordSlot(weak_ref, slot, target);
     } else {
       // JSWeakRef points to a potentially dead object. We have to process
@@ -272,8 +270,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
     if (marking_state()->IsBlackOrGrey(target)) {
       // Record the slot inside the WeakCell, since the IterateBody below
       // won't visit it.
-      ObjectSlot slot =
-          HeapObject::RawField(weak_cell, WeakCell::kTargetOffset);
+      ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
       collector_->RecordSlot(weak_cell, slot, target);
     } else {
       // WeakCell points to a potentially dead object. We have to process
@@ -413,8 +410,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
     int start = static_cast<int>(current_progress_bar);
     int end = Min(size, start + kProgressBarScanningChunk);
     if (start < end) {
-      VisitPointers(object, HeapObject::RawField(object, start),
-                    HeapObject::RawField(object, end));
+      VisitPointers(object, object.RawField(start), object.RawField(end));
       // Setting the progress bar can fail if the object that is currently
       // scanned is also revisited. In this case, there may be two tasks racing
       // on the progress counter. The looser can bail out because the progress

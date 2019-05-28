@@ -25,6 +25,13 @@ namespace ls {
 static const char kContentLength[] = "Content-Length: ";
 static const size_t kContentLengthSize = sizeof(kContentLength) - 1;
 
+#ifdef V8_OS_WIN
+// On Windows, in text mode, \n is translated to \r\n.
+constexpr const char* kProtocolLineEnding = "\n\n";
+#else
+constexpr const char* kProtocolLineEnding = "\r\n\r\n";
+#endif
+
 JsonValue ReadMessage() {
   std::string line;
   std::getline(std::cin, line);
@@ -42,7 +49,7 @@ JsonValue ReadMessage() {
 
   Logger::Log("[incoming] ", content, "\n\n");
 
-  return ParseJson(content);
+  return ParseJson(content).value;
 }
 
 void WriteMessage(JsonValue& message) {
@@ -50,7 +57,7 @@ void WriteMessage(JsonValue& message) {
 
   Logger::Log("[outgoing] ", content, "\n\n");
 
-  std::cout << kContentLength << content.size() << "\r\n\r\n";
+  std::cout << kContentLength << content.size() << kProtocolLineEnding;
   std::cout << content << std::flush;
 }
 
@@ -59,15 +66,16 @@ namespace {
 void RecompileTorque() {
   Logger::Log("[info] Start compilation run ...\n");
 
-  LanguageServerData::Get() = LanguageServerData();
-  SourceFileMap::Get() = SourceFileMap();
-
   TorqueCompilerOptions options;
   options.output_directory = "";
   options.verbose = false;
   options.collect_language_server_data = true;
   options.abort_on_lint_errors = false;
-  CompileTorque(TorqueFileList::Get(), options);
+
+  TorqueCompilerResult result = CompileTorque(TorqueFileList::Get(), options);
+
+  LanguageServerData::Get() = result.language_server_data;
+  SourceFileMap::Get() = result.source_file_map;
 
   Logger::Log("[info] Finished compilation run ...\n");
 }
@@ -119,24 +127,23 @@ void HandleTorqueFileListNotification(TorqueFileListNotification notification) {
     // We only consider file URIs (there shouldn't be anything else).
     // Internally we store the URI instead of the path, eliminating the need
     // to encode it again.
-    if (auto maybe_path = FileUriDecode(file_json.ToString())) {
-      files.push_back(file_json.ToString());
-      Logger::Log("    ", *maybe_path, "\n");
-    }
+    files.push_back(file_json.ToString());
+    Logger::Log("    ", file_json.ToString(), "\n");
   }
 
   // The Torque compiler expects to see some files first,
   // we need to order them in the correct way.
-  std::sort(files.begin(), files.end(),
-            [](const std::string& a, const std::string& b) {
-              if (a.find("base.tq") != std::string::npos) return true;
-              if (b.find("base.tq") != std::string::npos) return false;
-
-              if (a.find("array.tq") != std::string::npos) return true;
-              if (b.find("array.tq") != std::string::npos) return false;
-
-              return false;
-            });
+  // TODO(szuend): Remove this, once the compiler doesn't require the input
+  //               files to be in a specific order.
+  std::vector<std::string> sort_to_front = {"base.tq", "frames.tq",
+                                            "arguments.tq", "array.tq"};
+  std::sort(files.begin(), files.end(), [&](std::string a, std::string b) {
+    for (const std::string& fixed_file : sort_to_front) {
+      if (a.find(fixed_file) != std::string::npos) return true;
+      if (b.find(fixed_file) != std::string::npos) return false;
+    }
+    return a < b;
+  });
 
   RecompileTorque();
 }

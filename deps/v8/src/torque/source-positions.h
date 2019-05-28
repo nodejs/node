@@ -34,6 +34,10 @@ struct LineAndColumn {
   int column;
 
   static LineAndColumn Invalid() { return {-1, -1}; }
+
+  bool operator==(const LineAndColumn& other) const {
+    return line == other.line && column == other.column;
+  }
 };
 
 struct SourcePosition {
@@ -57,6 +61,10 @@ struct SourcePosition {
     if (pos.line == start.line && pos.column < start.column) return false;
     if (pos.line == end.line && pos.column >= end.column) return false;
     return true;
+  }
+
+  bool operator==(const SourcePosition& pos) const {
+    return source == pos.source && start == pos.start && end == pos.end;
   }
 };
 

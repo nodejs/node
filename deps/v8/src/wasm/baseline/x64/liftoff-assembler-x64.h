@@ -434,6 +434,14 @@ void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
   }
 }
 
+void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
+  if (lhs != dst) {
+    leal(dst, Operand(lhs, imm));
+  } else {
+    addl(dst, Immediate(imm));
+  }
+}
+
 void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
   if (dst != rhs) {
     // Default path.
@@ -701,6 +709,15 @@ void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
     leaq(dst.gp(), Operand(lhs.gp(), rhs.gp(), times_1, 0));
   } else {
     addq(dst.gp(), rhs.gp());
+  }
+}
+
+void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  if (lhs.gp() != dst.gp()) {
+    leaq(dst.gp(), Operand(lhs.gp(), imm));
+  } else {
+    addq(dst.gp(), Immediate(imm));
   }
 }
 

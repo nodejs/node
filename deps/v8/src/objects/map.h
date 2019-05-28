@@ -93,7 +93,7 @@ enum class ObjectFields {
   kMaybePointers,
 };
 
-typedef std::vector<Handle<Map>> MapHandles;
+using MapHandles = std::vector<Handle<Map>>;
 
 // All heap objects have a Map that describes their structure.
 //  A Map contains information about:
@@ -240,6 +240,8 @@ class Map : public HeapObject {
   // Bit field.
   //
   DECL_PRIMITIVE_ACCESSORS(bit_field, byte)
+  // Atomic accessors, used for whitelisting legitimate concurrent accesses.
+  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, byte)
 
 // Bit positions for |bit_field|.
 #define MAP_BIT_FIELD_FIELDS(V, _)          \
@@ -353,7 +355,7 @@ class Map : public HeapObject {
 
   // Completes inobject slack tracking for the transition tree starting at this
   // initial map.
-  void CompleteInobjectSlackTracking(Isolate* isolate);
+  V8_EXPORT_PRIVATE void CompleteInobjectSlackTracking(Isolate* isolate);
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -419,6 +421,9 @@ class Map : public HeapObject {
   inline bool has_fast_string_wrapper_elements() const;
   inline bool has_fixed_typed_array_elements() const;
   inline bool has_dictionary_elements() const;
+  inline bool has_frozen_or_sealed_elements() const;
+  inline bool has_sealed_elements() const;
+  inline bool has_frozen_elements() const;
 
   // Returns true if the current map doesn't have DICTIONARY_ELEMENTS but if a
   // map with DICTIONARY_ELEMENTS was found in the prototype chain.
@@ -461,8 +466,8 @@ class Map : public HeapObject {
   // Return the map of the root of object's prototype chain.
   Map GetPrototypeChainRootMap(Isolate* isolate) const;
 
-  Map FindRootMap(Isolate* isolate) const;
-  Map FindFieldOwner(Isolate* isolate, int descriptor) const;
+  V8_EXPORT_PRIVATE Map FindRootMap(Isolate* isolate) const;
+  V8_EXPORT_PRIVATE Map FindFieldOwner(Isolate* isolate, int descriptor) const;
 
   inline int GetInObjectPropertyOffset(int index) const;
 
@@ -525,25 +530,22 @@ class Map : public HeapObject {
       PropertyConstness* constness, Representation* representation,
       Handle<FieldType>* field_type);
 
-  static Handle<Map> ReconfigureProperty(Isolate* isolate, Handle<Map> map,
-                                         int modify_index,
-                                         PropertyKind new_kind,
-                                         PropertyAttributes new_attributes,
-                                         Representation new_representation,
-                                         Handle<FieldType> new_field_type);
+  V8_EXPORT_PRIVATE static Handle<Map> ReconfigureProperty(
+      Isolate* isolate, Handle<Map> map, int modify_index,
+      PropertyKind new_kind, PropertyAttributes new_attributes,
+      Representation new_representation, Handle<FieldType> new_field_type);
 
-  static Handle<Map> ReconfigureElementsKind(Isolate* isolate, Handle<Map> map,
-                                             ElementsKind new_elements_kind);
+  V8_EXPORT_PRIVATE static Handle<Map> ReconfigureElementsKind(
+      Isolate* isolate, Handle<Map> map, ElementsKind new_elements_kind);
 
-  static Handle<Map> PrepareForDataProperty(Isolate* isolate,
-                                            Handle<Map> old_map,
-                                            int descriptor_number,
-                                            PropertyConstness constness,
-                                            Handle<Object> value);
+  V8_EXPORT_PRIVATE static Handle<Map> PrepareForDataProperty(
+      Isolate* isolate, Handle<Map> old_map, int descriptor_number,
+      PropertyConstness constness, Handle<Object> value);
 
-  static Handle<Map> Normalize(Isolate* isolate, Handle<Map> map,
-                               PropertyNormalizationMode mode,
-                               const char* reason);
+  V8_EXPORT_PRIVATE static Handle<Map> Normalize(Isolate* isolate,
+                                                 Handle<Map> map,
+                                                 PropertyNormalizationMode mode,
+                                                 const char* reason);
 
   // Tells whether the map is used for JSObjects in dictionary mode (ie
   // normalized objects, ie objects for which HasFastProperties returns false).
@@ -556,11 +558,11 @@ class Map : public HeapObject {
   DECL_BOOLEAN_ACCESSORS(is_access_check_needed)
 
   // [prototype]: implicit prototype object.
-  DECL_ACCESSORS(prototype, Object)
+  DECL_ACCESSORS(prototype, HeapObject)
   // TODO(jkummerow): make set_prototype private.
-  static void SetPrototype(Isolate* isolate, Handle<Map> map,
-                           Handle<Object> prototype,
-                           bool enable_prototype_setup_mode = true);
+  V8_EXPORT_PRIVATE static void SetPrototype(
+      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype,
+      bool enable_prototype_setup_mode = true);
 
   // [constructor]: points back to the function or FunctionTemplateInfo
   // responsible for this map.
@@ -576,15 +578,16 @@ class Map : public HeapObject {
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with the constructor (see above).
-  inline Object GetBackPointer() const;
+  inline HeapObject GetBackPointer() const;
   inline void SetBackPointer(Object value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [instance descriptors]: describes the object.
   inline DescriptorArray instance_descriptors() const;
   inline DescriptorArray synchronized_instance_descriptors() const;
-  void SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
-                              int number_of_own_descriptors);
+  V8_EXPORT_PRIVATE void SetInstanceDescriptors(Isolate* isolate,
+                                                DescriptorArray descriptors,
+                                                int number_of_own_descriptors);
 
   // [layout descriptor]: describes the object layout.
   DECL_ACCESSORS(layout_descriptor, LayoutDescriptor)
@@ -666,49 +669,52 @@ class Map : public HeapObject {
   // is found by re-transitioning from the root of the transition tree using the
   // descriptor array of the map. Returns MaybeHandle<Map>() if no updated map
   // is found.
-  static MaybeHandle<Map> TryUpdate(Isolate* isolate,
-                                    Handle<Map> map) V8_WARN_UNUSED_RESULT;
-  static Map TryUpdateSlow(Isolate* isolate, Map map) V8_WARN_UNUSED_RESULT;
+  V8_EXPORT_PRIVATE static MaybeHandle<Map> TryUpdate(
+      Isolate* isolate, Handle<Map> map) V8_WARN_UNUSED_RESULT;
+  V8_EXPORT_PRIVATE static Map TryUpdateSlow(Isolate* isolate,
+                                             Map map) V8_WARN_UNUSED_RESULT;
 
   // Returns a non-deprecated version of the input. This method may deprecate
   // existing maps along the way if encodings conflict. Not for use while
   // gathering type feedback. Use TryUpdate in those cases instead.
-  static Handle<Map> Update(Isolate* isolate, Handle<Map> map);
+  V8_EXPORT_PRIVATE static Handle<Map> Update(Isolate* isolate,
+                                              Handle<Map> map);
 
   static inline Handle<Map> CopyInitialMap(Isolate* isolate, Handle<Map> map);
-  static Handle<Map> CopyInitialMap(Isolate* isolate, Handle<Map> map,
-                                    int instance_size, int in_object_properties,
-                                    int unused_property_fields);
+  V8_EXPORT_PRIVATE static Handle<Map> CopyInitialMap(
+      Isolate* isolate, Handle<Map> map, int instance_size,
+      int in_object_properties, int unused_property_fields);
   static Handle<Map> CopyInitialMapNormalized(
       Isolate* isolate, Handle<Map> map,
       PropertyNormalizationMode mode = CLEAR_INOBJECT_PROPERTIES);
   static Handle<Map> CopyDropDescriptors(Isolate* isolate, Handle<Map> map);
-  static Handle<Map> CopyInsertDescriptor(Isolate* isolate, Handle<Map> map,
-                                          Descriptor* descriptor,
-                                          TransitionFlag flag);
+  V8_EXPORT_PRIVATE static Handle<Map> CopyInsertDescriptor(
+      Isolate* isolate, Handle<Map> map, Descriptor* descriptor,
+      TransitionFlag flag);
 
   static MaybeObjectHandle WrapFieldType(Isolate* isolate,
                                          Handle<FieldType> type);
-  static FieldType UnwrapFieldType(MaybeObject wrapped_type);
+  V8_EXPORT_PRIVATE static FieldType UnwrapFieldType(MaybeObject wrapped_type);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithField(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithField(
       Isolate* isolate, Handle<Map> map, Handle<Name> name,
       Handle<FieldType> type, PropertyAttributes attributes,
       PropertyConstness constness, Representation representation,
       TransitionFlag flag);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithConstant(
-      Isolate* isolate, Handle<Map> map, Handle<Name> name,
-      Handle<Object> constant, PropertyAttributes attributes,
-      TransitionFlag flag);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Map>
+  CopyWithConstant(Isolate* isolate, Handle<Map> map, Handle<Name> name,
+                   Handle<Object> constant, PropertyAttributes attributes,
+                   TransitionFlag flag);
 
   // Returns a new map with all transitions dropped from the given map and
   // the ElementsKind set.
   static Handle<Map> TransitionElementsTo(Isolate* isolate, Handle<Map> map,
                                           ElementsKind to_kind);
 
-  static Handle<Map> AsElementsKind(Isolate* isolate, Handle<Map> map,
-                                    ElementsKind kind);
+  V8_EXPORT_PRIVATE static Handle<Map> AsElementsKind(Isolate* isolate,
+                                                      Handle<Map> map,
+                                                      ElementsKind kind);
 
   static Handle<Map> CopyAsElementsKind(Isolate* isolate, Handle<Map> map,
                                         ElementsKind kind, TransitionFlag flag);
@@ -716,10 +722,9 @@ class Map : public HeapObject {
   static Handle<Map> AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
                                     Handle<SharedFunctionInfo> shared_info);
 
-  static Handle<Map> CopyForPreventExtensions(Isolate* isolate, Handle<Map> map,
-                                              PropertyAttributes attrs_to_add,
-                                              Handle<Symbol> transition_marker,
-                                              const char* reason);
+  V8_EXPORT_PRIVATE static Handle<Map> CopyForPreventExtensions(
+      Isolate* isolate, Handle<Map> map, PropertyAttributes attrs_to_add,
+      Handle<Symbol> transition_marker, const char* reason);
 
   static Handle<Map> FixProxy(Handle<Map> map, InstanceType type, int size);
 
@@ -727,21 +732,17 @@ class Map : public HeapObject {
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.
   inline bool TooManyFastProperties(StoreOrigin store_origin) const;
-  static Handle<Map> TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
-                                              Handle<Name> name,
-                                              Handle<Object> value,
-                                              PropertyAttributes attributes,
-                                              PropertyConstness constness,
-                                              StoreOrigin store_origin);
-  static Handle<Map> TransitionToAccessorProperty(
+  V8_EXPORT_PRIVATE static Handle<Map> TransitionToDataProperty(
+      Isolate* isolate, Handle<Map> map, Handle<Name> name,
+      Handle<Object> value, PropertyAttributes attributes,
+      PropertyConstness constness, StoreOrigin store_origin);
+  V8_EXPORT_PRIVATE static Handle<Map> TransitionToAccessorProperty(
       Isolate* isolate, Handle<Map> map, Handle<Name> name, int descriptor,
       Handle<Object> getter, Handle<Object> setter,
       PropertyAttributes attributes);
-  static Handle<Map> ReconfigureExistingProperty(Isolate* isolate,
-                                                 Handle<Map> map,
-                                                 int descriptor,
-                                                 PropertyKind kind,
-                                                 PropertyAttributes attributes);
+  V8_EXPORT_PRIVATE static Handle<Map> ReconfigureExistingProperty(
+      Isolate* isolate, Handle<Map> map, int descriptor, PropertyKind kind,
+      PropertyAttributes attributes);
 
   inline void AppendDescriptor(Isolate* isolate, Descriptor* desc);
 
@@ -755,7 +756,8 @@ class Map : public HeapObject {
   // instance descriptors.
   static Handle<Map> Copy(Isolate* isolate, Handle<Map> map,
                           const char* reason);
-  static Handle<Map> Create(Isolate* isolate, int inobject_properties);
+  V8_EXPORT_PRIVATE static Handle<Map> Create(Isolate* isolate,
+                                              int inobject_properties);
 
   // Returns the next free property index (only valid for FAST MODE).
   int NextFreePropertyIndex() const;
@@ -767,8 +769,9 @@ class Map : public HeapObject {
 
   static inline int SlackForArraySize(int old_size, int size_limit);
 
-  static void EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map,
-                                    int slack);
+  V8_EXPORT_PRIVATE static void EnsureDescriptorSlack(Isolate* isolate,
+                                                      Handle<Map> map,
+                                                      int slack);
 
   // Returns the map to be used for instances when the given {prototype} is
   // passed to an Object.create call. Might transition the given {prototype}.
@@ -786,8 +789,8 @@ class Map : public HeapObject {
   // Returns the transitioned map for this map with the most generic
   // elements_kind that's found in |candidates|, or |nullptr| if no match is
   // found at all.
-  Map FindElementsKindTransitionedMap(Isolate* isolate,
-                                      MapHandles const& candidates);
+  V8_EXPORT_PRIVATE Map FindElementsKindTransitionedMap(
+      Isolate* isolate, MapHandles const& candidates);
 
   inline bool CanTransition() const;
 
@@ -818,8 +821,8 @@ class Map : public HeapObject {
                : ObjectFields::kMaybePointers;
   }
 
-  static Handle<Map> TransitionToPrototype(Isolate* isolate, Handle<Map> map,
-                                           Handle<Object> prototype);
+  V8_EXPORT_PRIVATE static Handle<Map> TransitionToPrototype(
+      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
 
   static Handle<Map> TransitionToImmutableProto(Isolate* isolate,
                                                 Handle<Map> map);
@@ -881,7 +884,7 @@ class Map : public HeapObject {
   // the descriptor array.
   inline void NotifyLeafMapLayoutChange(Isolate* isolate);
 
-  static VisitorId GetVisitorId(Map map);
+  V8_EXPORT_PRIVATE static VisitorId GetVisitorId(Map map);
 
   // Returns true if objects with given instance type are allowed to have
   // fast transitionable elements kinds. This predicate is used to ensure
@@ -892,6 +895,9 @@ class Map : public HeapObject {
   static inline bool CanHaveFastTransitionableElementsKind(
       InstanceType instance_type);
   inline bool CanHaveFastTransitionableElementsKind() const;
+
+  // Whether this is the map of the given native context's global proxy.
+  bool IsMapOfGlobalProxy(Handle<NativeContext> native_context) const;
 
  private:
   // This byte encodes either the instance size without the in-object slack or
@@ -929,7 +935,7 @@ class Map : public HeapObject {
   static Handle<Map> ShareDescriptor(Isolate* isolate, Handle<Map> map,
                                      Handle<DescriptorArray> descriptors,
                                      Descriptor* descriptor);
-  static Handle<Map> AddMissingTransitions(
+  V8_EXPORT_PRIVATE static Handle<Map> AddMissingTransitions(
       Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors,
       Handle<LayoutDescriptor> full_layout_descriptor);
   static void InstallDescriptors(

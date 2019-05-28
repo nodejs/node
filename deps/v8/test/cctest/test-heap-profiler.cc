@@ -1672,11 +1672,11 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   CHECK(ValidateSnapshot(snapshot));
 
   const v8::HeapGraphNode* native_group_aaa =
-      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kNative, "aaa-group");
-  CHECK(native_group_aaa);
+      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "aaa-group");
+  CHECK_NOT_NULL(native_group_aaa);
   const v8::HeapGraphNode* native_group_ccc =
-      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kNative, "ccc-group");
-  CHECK(native_group_ccc);
+      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "ccc-group");
+  CHECK_NOT_NULL(native_group_ccc);
 
   const v8::HeapGraphNode* n_AAA =
       GetNode(native_group_aaa, v8::HeapGraphNode::kString, "AAA");
@@ -1849,26 +1849,26 @@ TEST(GetHeapValueForNode) {
   CHECK(heap_profiler->FindObjectById(global->GetId())->IsObject());
   v8::Local<v8::Object> js_global =
       env->Global()->GetPrototype().As<v8::Object>();
-  CHECK(js_global == heap_profiler->FindObjectById(global->GetId()));
+  CHECK_EQ(js_global, heap_profiler->FindObjectById(global->GetId()));
   const v8::HeapGraphNode* obj =
       GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "a");
   CHECK(heap_profiler->FindObjectById(obj->GetId())->IsObject());
   v8::Local<v8::Object> js_obj = js_global->Get(env.local(), v8_str("a"))
                                      .ToLocalChecked()
                                      .As<v8::Object>();
-  CHECK(js_obj == heap_profiler->FindObjectById(obj->GetId()));
+  CHECK_EQ(js_obj, heap_profiler->FindObjectById(obj->GetId()));
   const v8::HeapGraphNode* s_prop = GetProperty(
       env->GetIsolate(), obj, v8::HeapGraphEdge::kProperty, "s_prop");
   v8::Local<v8::String> js_s_prop = js_obj->Get(env.local(), v8_str("s_prop"))
                                         .ToLocalChecked()
                                         .As<v8::String>();
-  CHECK(js_s_prop == heap_profiler->FindObjectById(s_prop->GetId()));
+  CHECK_EQ(js_s_prop, heap_profiler->FindObjectById(s_prop->GetId()));
   const v8::HeapGraphNode* n_prop = GetProperty(
       env->GetIsolate(), obj, v8::HeapGraphEdge::kProperty, "n_prop");
   v8::Local<v8::String> js_n_prop = js_obj->Get(env.local(), v8_str("n_prop"))
                                         .ToLocalChecked()
                                         .As<v8::String>();
-  CHECK(js_n_prop == heap_profiler->FindObjectById(n_prop->GetId()));
+  CHECK_EQ(js_n_prop, heap_profiler->FindObjectById(n_prop->GetId()));
 }
 
 
@@ -2948,7 +2948,8 @@ TEST(WeakContainers) {
   CHECK_NE(0, count);
   for (int i = 0; i < count; ++i) {
     const v8::HeapGraphEdge* prop = dependent_code->GetChild(i);
-    CHECK_EQ(v8::HeapGraphEdge::kInternal, prop->GetType());
+    CHECK(prop->GetType() == v8::HeapGraphEdge::kInternal ||
+          prop->GetType() == v8::HeapGraphEdge::kWeak);
   }
 }
 
@@ -3908,7 +3909,10 @@ TEST(WeakReference) {
   i::Handle<i::SharedFunctionInfo> shared_function =
       i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared(),
                                        i_isolate);
-  i::Handle<i::FeedbackVector> fv = factory->NewFeedbackVector(shared_function);
+  i::Handle<i::ClosureFeedbackCellArray> feedback_cell_array =
+      i::ClosureFeedbackCellArray::New(i_isolate, shared_function);
+  i::Handle<i::FeedbackVector> fv =
+      factory->NewFeedbackVector(shared_function, feedback_cell_array);
 
   // Create a Code.
   i::Assembler assm(i::AssemblerOptions{});

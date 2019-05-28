@@ -353,8 +353,8 @@
   'regress/regress-crbug-772056': [SKIP],
   'regress/regress-crbug-816961': [SKIP],
   'regress/wasm/*': [SKIP],
-  'tools/compiler-trace-flags': [SKIP],
   'regress/regress-8947': [SKIP],
+  'regress/regress-v8-9106': [SKIP],
   'wasm/*': [SKIP],
 
   # Other tests that use asm / wasm / optimized code.
@@ -364,12 +364,14 @@
   'asm/call-annotation': [SKIP],
   'asm/global-imports': [SKIP],
   'asm/regress-913822': [SKIP],
+  'asm/regress-937650': [SKIP],
   'asm/return-types': [SKIP],
   'regress/regress-599719': [SKIP],
   'regress/regress-6196': [SKIP],
   'regress/regress-6700': [SKIP],
   'regress/regress-6838-2': [SKIP],
   'regress/regress-6838-3': [SKIP],
+  'regress/regress-9022': [SKIP],
   'regress/regress-crbug-934138': [SKIP],
 
   # Timeouts in lite / jitless mode.
@@ -384,6 +386,10 @@
   'regress/regress-crbug-721835': [SKIP],
   'regress/regress-crbug-759327': [SKIP],
   'regress/regress-crbug-898974': [SKIP],
+
+  # These tests check that we can trace the compiler.
+  'tools/compiler-trace-flags': [SKIP],
+  'tools/compiler-trace-flags-wasm': [SKIP]
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
@@ -391,150 +397,6 @@
   # TODO(v8:8510): Tests that currently fail with lazy source positions.
   'stack-traces-overflow': [SKIP],
 }], # lite_mode
-
-##############################################################################
-['variant == jitless', {
-  # https://crbug.com/v8/7777
-  'array-literal-transitions': [SKIP],
-  'array-push5': [SKIP],
-  'array-shift4': [SKIP],
-  'array-store-and-grow': [SKIP],
-  'code-coverage-block-opt': [SKIP],
-  'compiler/abstract-equal-receiver': [SKIP],
-  'compiler/abstract-equal-symbol': [SKIP],
-  'compiler/abstract-equal-undetectable': [SKIP],
-  'compiler/array-buffer-is-view': [SKIP],
-  'compiler/array-multiple-receiver-maps': [SKIP],
-  'compiler/array-push-3': [SKIP],
-  'compiler/array-slice-clone': [SKIP],
-  'compiler/constant-fold-cow-array': [SKIP],
-  'compiler/dataview-deopt': [SKIP],
-  'compiler/dataview-get': [SKIP],
-  'compiler/dataview-neutered': [SKIP],
-  'compiler/dataview-set': [SKIP],
-  'compiler/deopt-array-builtins': [SKIP],
-  'compiler/deopt-array-push': [SKIP],
-  'compiler/deopt-inlined-from-call': [SKIP],
-  'compiler/deopt-numberoroddball-binop': [SKIP],
-  'compiler/deopt-string-outofbounds': [SKIP],
-  'compiler/dont-flush-code-marked-for-opt': [SKIP],
-  'compiler/increment-typefeedback': [SKIP],
-  'compiler/inlined-array-pop-opt': [SKIP],
-  'compiler/inlined-call': [SKIP],
-  'compiler/integral32-add-sub': [SKIP],
-  'compiler/manual-concurrent-recompile': [SKIP],
-  'compiler/math-imul': [SKIP],
-  'compiler/native-context-specialization-hole-check': [SKIP],
-  'compiler/number-abs': [SKIP],
-  'compiler/number-ceil': [SKIP],
-  'compiler/number-comparison-truncations': [SKIP],
-  'compiler/number-divide': [SKIP],
-  'compiler/number-floor': [SKIP],
-  'compiler/number-max': [SKIP],
-  'compiler/number-min': [SKIP],
-  'compiler/number-modulus': [SKIP],
-  'compiler/number-round': [SKIP],
-  'compiler/number-toboolean': [SKIP],
-  'compiler/number-trunc': [SKIP],
-  'compiler/optimized-float32array-length': [SKIP],
-  'compiler/optimized-float64array-length': [SKIP],
-  'compiler/optimized-int32array-length': [SKIP],
-  'compiler/optimized-uint32array-length': [SKIP],
-  'compiler/opt-next-call': [SKIP],
-  'compiler/opt-next-call-turbo': [SKIP],
-  'compiler/promise-resolve-stable-maps': [SKIP],
-  'compiler/redundancy-elimination': [SKIP],
-  'compiler/regress-5320': [SKIP],
-  'compiler/regress-compare-negate': [SKIP],
-  'compiler/stress-deopt-count-1': [SKIP],
-  'compiler/stress-deopt-count-2': [SKIP],
-  'compiler/string-from-code-point': [SKIP],
-  'compiler/uint8-clamped-array': [SKIP],
-  'constant-folding-2': [SKIP],
-  'default-nospec': [SKIP],
-  'deopt-minus-zero': [SKIP],
-  'deopt-recursive-eager-once': [SKIP],
-  'deopt-recursive-lazy-once': [SKIP],
-  'deopt-recursive-soft-once': [SKIP],
-  'deopt-unlinked': [SKIP],
-  'deopt-with-fp-regs': [SKIP],
-  'deserialize-optimize-inner': [SKIP],
-  'div-mul-minus-one': [SKIP],
-  'elements-transition-hoisting': [SKIP],
-  'ensure-growing-store-learns': [SKIP],
-  'es6/array-iterator-turbo': [SKIP],
-  'es6/block-let-crankshaft': [SKIP],
-  'es6/block-let-crankshaft-sloppy': [SKIP],
-  'es6/block-scoping': [SKIP],
-  'es6/block-scoping-sloppy': [SKIP],
-  'es6/collections-constructor-custom-iterator': [SKIP],
-  'es6/collections-constructor-iterator-side-effect': [SKIP],
-  'es6/collections-constructor-with-modified-array-prototype': [SKIP],
-  'es6/collections-constructor-with-modified-protoype': [SKIP],
-  'es6/map-constructor-entry-side-effect': [SKIP],
-  'es6/map-constructor-entry-side-effect2': [SKIP],
-  'es6/map-constructor-entry-side-effect3': [SKIP],
-  'es6/map-constructor-entry-side-effect4': [SKIP],
-  'field-type-tracking': [SKIP],
-  'getters-on-elements': [SKIP],
-  'ignition/throw-if-hole': [SKIP],
-  'ignition/throw-if-not-hole': [SKIP],
-  'ignition/throw-super-not-called': [SKIP],
-  'keyed-load-hole-to-undefined': [SKIP],
-  'keyed-load-with-string-key': [SKIP],
-  'keyed-load-with-symbol-key': [SKIP],
-  'math-deopt': [SKIP],
-  'math-floor-of-div-minus-zero': [SKIP],
-  'modules-turbo1': [SKIP],
-  'never-optimize': [SKIP],
-  'object-seal': [SKIP],
-  'optimized-map': [SKIP],
-  'regress/regress-2132': [SKIP],
-  'regress/regress-2250': [SKIP],
-  'regress/regress-2315': [SKIP],
-  'regress/regress-2339': [SKIP],
-  'regress/regress-2451': [SKIP],
-  'regress/regress-252797': [SKIP],
-  'regress/regress-2618': [SKIP],
-  'regress/regress-3176': [SKIP],
-  'regress/regress-3650-3': [SKIP],
-  'regress/regress-3709': [SKIP],
-  'regress/regress-385565': [SKIP],
-  'regress/regress-4380': [SKIP],
-  'regress/regress-5404': [SKIP],
-  'regress/regress-5790': [SKIP],
-  'regress/regress-5802': [SKIP],
-  'regress/regress-6607-1': [SKIP],
-  'regress/regress-6607-2': [SKIP],
-  'regress/regress-6941': [SKIP],
-  'regress/regress-6948': [SKIP],
-  'regress/regress-6989': [SKIP],
-  'regress/regress-6991': [SKIP],
-  'regress/regress-7014-1': [SKIP],
-  'regress/regress-7014-2': [SKIP],
-  'regress/regress-7135': [SKIP],
-  'regress/regress-7254': [SKIP],
-  'regress/regress-7510': [SKIP],
-  'regress/regress-794825': [SKIP],
-  'regress/regress-8913': [SKIP],
-  'regress/regress-crbug-554831': [SKIP],
-  'regress/regress-crbug-587068': [SKIP],
-  'regress/regress-crbug-594183': [SKIP],
-  'regress/regress-crbug-882233-2': [SKIP],
-  'regress/regress-embedded-cons-string': [SKIP],
-  'regress/regress-map-invalidation-2': [SKIP],
-  'regress/regress-param-local-type': [SKIP],
-  'regress/regress-store-uncacheable': [SKIP],
-  'regress/regress-v8-5697': [SKIP],
-  'shared-function-tier-up-turbo': [SKIP],
-  'shift-for-integer-div': [SKIP],
-  'sin-cos': [SKIP],
-  'smi-mul': [SKIP],
-  'smi-mul-const': [SKIP],
-  'string-deopt': [SKIP],
-  'strong-rooted-literals': [SKIP],
-  'unary-minus-deopt': [SKIP],
-}], # variant == jitless
 
 ##############################################################################
 ['byteorder == big', {
@@ -900,7 +762,7 @@
 }],  # 'isolates'
 
 ##############################################################################
-['deopt_fuzzer == True', {
+['deopt_fuzzer', {
 
   # Skip tests that are not suitable for deoptimization fuzzing.
   'never-optimize': [SKIP],
@@ -921,8 +783,11 @@
   'shared-function-tier-up-turbo': [SKIP],
 
   # Fails deopt_fuzzer due to --deopt_every_n_times
-  'es6/array-iterator-turbo': [SKIP]
-}],  # 'deopt_fuzzer == True'
+  'es6/array-iterator-turbo': [SKIP],
+
+  # Too slow tests.
+  'regress/regress-740784': [SKIP],
+}],  # 'deopt_fuzzer'
 
 ##############################################################################
 ['gc_fuzzer', {
@@ -941,27 +806,12 @@
 
   # Fails allocation on tsan.
   'es6/classes': [PASS, ['tsan', SKIP]],
+  'regress/regress-779407': [PASS, ['tsan', SKIP]],
 
   # Tests that fail some assertions due to checking internal state sensitive
-  # to GC. We mark PASS,FAIL to not skip those tests on the endurance fuzzer.
-  'array-literal-feedback': [PASS, FAIL],
-  'compiler/dataview-neutered': [PASS, FAIL],
-  'compiler/native-context-specialization-hole-check': [PASS, FAIL],
-  'elements-transition-hoisting': [PASS, FAIL],
-  'es6/collections-constructor-custom-iterator': [PASS, FAIL],
-  'ignition/throw-if-not-hole': [PASS, FAIL],
-  'keyed-load-with-symbol-key': [PASS, FAIL],
-  'object-seal': [PASS, FAIL],
-  'regress/regress-3709': [PASS, FAIL],
-  'regress/regress-385565': [PASS, FAIL],
-  'regress/regress-6948': [PASS, FAIL],
-  'regress/regress-7014-1': [PASS, FAIL],
-  'regress/regress-7014-2': [PASS, FAIL],
-  'regress/regress-7510': [PASS, FAIL],
-  'regress/regress-crbug-882233-2': [PASS, FAIL],
-  'regress/regress-trap-allocation-memento': [PASS, FAIL],
-  'regress/regress-unlink-closures-on-deopt': [PASS, FAIL],
-  'shared-function-tier-up-turbo': [PASS, FAIL],
+  # to GC.
+  'compiler/native-context-specialization-hole-check': [SKIP],
+  'shared-function-tier-up-turbo': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
@@ -1001,18 +851,19 @@
 }],  # 'predictable == True'
 
 ##############################################################################
-['simulator_run and (arch == ppc or arch == ppc64 or arch == s390 or arch == s390x)', {
+['simulator_run and (arch in [ppc64, s390x])', {
 
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
   'regress/regress-740784': [SKIP],
+  'regress/regress-crbug-941743': [SKIP],
   'regress/regress-crbug-482998': [PASS, SLOW],
   'regress/regress-91008': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
-}],  # 'simulator_run and (arch == ppc or arch == ppc64 or arch == s390 or arch == s390x)'
+}],  # 'simulator_run and (arch in [ppc64, s390x])'
 
 ##############################################################################
 ['arch == ppc64', {
@@ -1023,13 +874,10 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
-['arch == ppc64 or arch == ppc or arch == s390 or arch == s390x', {
-
-  # TODO(ppc/s390): fix constant pool issue and implement tagging for reloc
-  'wasm/compiled-module-serialization': [SKIP],
-  'regress/wasm/regress-808980': [SKIP],
-  'regress/wasm/regress-808848': [SKIP],
-}],  # 'arch == ppc64 or arch == ppc or arch == s390 or arch == s390x'
+['arch == s390x', {
+  # stack overflow
+  'regress/regress-crbug-178790': [PASS, ['mode == debug', SKIP]],
+}],  # 'arch == s390x'
 
 ##############################################################################
 ['variant == stress', {
@@ -1044,7 +892,8 @@
   'regress/regress-336820': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
   # Too slow for TSAN in stress mode.
-  'es6/classes': [PASS, ['tsan', SKIP]],
+  # Goes OOM on ODROID devices: https://crbug.com/v8/9026
+  'es6/classes': [PASS, ['tsan or (arch == arm and not simulator_run)', SKIP]],
   'regress/regress-1122': [PASS, ['tsan', SKIP]],
 
   # Too slow with gc_stress on arm64.
@@ -1151,6 +1000,7 @@
   # TODO(ssauleau): implement BigInt<>Wasm conversion for other arch -
   # crbug.com/v8/7741
   'wasm/bigint': [SKIP],
+  'wasm/bigint-i64-to-imported-js-func': [SKIP],
 }], # arch in [arm, android_arm, android_ia32, ia32, ppc, s390, s390x, mipsel, mips]
 
 ##############################################################################
@@ -1163,5 +1013,11 @@
 ['variant == jitless and not embedded_builtins', {
   '*': [SKIP],
 }], # variant == jitless and not embedded_builtins
+
+##############################################################################
+['variant == future', {
+  # crbug.com/v8/9094
+  'compiler/constant-fold-cow-array': [SKIP],
+}], # variant == future
 
 ]

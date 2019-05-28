@@ -40,10 +40,10 @@ class V8_EXPORT_PRIVATE FlagList {
   // The following syntax for flags is accepted (both '-' and '--' are ok):
   //
   //   --flag        (bool flags only)
-  //   --noflag      (bool flags only)
+  //   --no-flag     (bool flags only)
   //   --flag=value  (non-bool flags only, no spaces around '=')
   //   --flag value  (non-bool flags only)
-  //   --            (equivalent to --js_arguments, captures all remaining args)
+  //   --            (capture all remaining args in JavaScript)
   static int SetFlagsFromCommandLine(int* argc,
                                      char** argv,
                                      bool remove_flags);

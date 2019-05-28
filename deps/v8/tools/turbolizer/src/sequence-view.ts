@@ -165,6 +165,7 @@ export class SequenceView extends TextView {
     }
 
     const sequenceBlock = createElement("div", "schedule-block");
+    sequenceBlock.classList.toggle("deferred", block.deferred);
 
     const blockId = createElement("div", ["block-id", "com", "clickable"], block.id);
     blockId.onclick = mkBlockLinkHandler(block.id);

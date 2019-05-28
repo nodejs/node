@@ -18,6 +18,7 @@ class HeapObject;
 class MaybeObject;
 class Object;
 class RelocInfo;
+class EphemeronHashTable;
 
 // Note: In general it is preferred to use the macros defined in
 // object-macros.h.
@@ -37,6 +38,8 @@ void WriteBarrierForCode(Code host);
 void GenerationalBarrier(HeapObject object, ObjectSlot slot, Object value);
 void GenerationalBarrier(HeapObject object, MaybeObjectSlot slot,
                          MaybeObject value);
+void GenerationalEphemeronKeyBarrier(EphemeronHashTable table, ObjectSlot slot,
+                                     Object value);
 void GenerationalBarrierForElements(Heap* heap, FixedArray array, int offset,
                                     int length);
 void GenerationalBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);

@@ -73,7 +73,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kEager, is_eager, set_eager)
   FLAG_ACCESSOR(kEval, is_eval, set_eval)
   FLAG_ACCESSOR(kStrictMode, is_strict_mode, set_strict_mode)
-  FLAG_ACCESSOR(kNative, is_native, set_native)
   FLAG_ACCESSOR(kModule, is_module, set_module)
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
@@ -236,8 +235,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
     void Enqueue(ParseInfo* outer_parse_info, const AstRawString* function_name,
                  FunctionLiteral* literal);
 
-    typedef std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator
-        EnqueuedJobsIterator;
+    using EnqueuedJobsIterator =
+        std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator;
 
     EnqueuedJobsIterator begin() { return enqueued_jobs_.begin(); }
     EnqueuedJobsIterator end() { return enqueued_jobs_.end(); }

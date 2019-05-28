@@ -47,8 +47,9 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   static Handle<BigInt> MakeImmutable(Handle<MutableBigInt> result);
 
   // Allocation helpers.
-  static MaybeHandle<MutableBigInt> New(Isolate* isolate, int length,
-                                        PretenureFlag pretenure = NOT_TENURED);
+  static MaybeHandle<MutableBigInt> New(
+      Isolate* isolate, int length,
+      AllocationType allocation = AllocationType::kYoung);
   static Handle<BigInt> NewFromInt(Isolate* isolate, int value);
   static Handle<BigInt> NewFromDouble(Isolate* isolate, double value);
   void InitializeDigits(int length, byte value = 0);
@@ -223,13 +224,13 @@ NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 #include "src/objects/object-macros-undef.h"
 
 MaybeHandle<MutableBigInt> MutableBigInt::New(Isolate* isolate, int length,
-                                              PretenureFlag pretenure) {
+                                              AllocationType allocation) {
   if (length > BigInt::kMaxLength) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
                     MutableBigInt);
   }
   Handle<MutableBigInt> result =
-      Cast(isolate->factory()->NewBigInt(length, pretenure));
+      Cast(isolate->factory()->NewBigInt(length, allocation));
   result->initialize_bitfield(false, length);
 #if DEBUG
   result->InitializeDigits(length, 0xBF);
@@ -688,7 +689,8 @@ MaybeHandle<MutableBigInt> MutableBigInt::BitwiseAnd(Isolate* isolate,
     // Assume that x is the positive BigInt.
     if (x->sign()) std::swap(x, y);
     // x & (-y) == x & ~(y-1) == x &~ (y-1)
-    return AbsoluteAndNot(isolate, x, AbsoluteSubOne(isolate, y));
+    Handle<MutableBigInt> y_1 = AbsoluteSubOne(isolate, y);
+    return AbsoluteAndNot(isolate, x, y_1);
   }
 }
 
@@ -1862,7 +1864,7 @@ static const size_t kBitsPerCharTableMultiplier = 1u << kBitsPerCharTableShift;
 
 MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
     Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
-    PretenureFlag pretenure) {
+    AllocationType allocation) {
   DCHECK(2 <= radix && radix <= 36);
   DCHECK_GE(charcount, 0);
   size_t bits_per_char = kMaxBitsPerChar[radix];
@@ -1877,7 +1879,7 @@ MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
       int length = static_cast<int>((bits_min + kDigitBits - 1) / kDigitBits);
       if (length <= kMaxLength) {
         Handle<MutableBigInt> result =
-            MutableBigInt::New(isolate, length, pretenure).ToHandleChecked();
+            MutableBigInt::New(isolate, length, allocation).ToHandleChecked();
         result->InitializeDigits(length);
         return result;
       }
@@ -1936,13 +1938,13 @@ void BigInt::SerializeDigits(uint8_t* storage) {
 // version in value-serializer.cc!
 MaybeHandle<BigInt> BigInt::FromSerializedDigits(
     Isolate* isolate, uint32_t bitfield, Vector<const uint8_t> digits_storage,
-    PretenureFlag pretenure) {
+    AllocationType allocation) {
   int bytelength = LengthBits::decode(bitfield);
   DCHECK(digits_storage.length() == bytelength);
   bool sign = SignBits::decode(bitfield);
   int length = (bytelength + kDigitSize - 1) / kDigitSize;  // Round up.
   Handle<MutableBigInt> result =
-      MutableBigInt::Cast(isolate->factory()->NewBigInt(length, pretenure));
+      MutableBigInt::Cast(isolate->factory()->NewBigInt(length, allocation));
   result->initialize_bitfield(sign, length);
   void* digits =
       reinterpret_cast<void*>(result->ptr() + kDigitsOffset - kHeapObjectTag);
@@ -2484,11 +2486,11 @@ uint64_t BigInt::AsUint64(bool* lossless) {
 
 #if V8_TARGET_ARCH_32_BIT
 #define HAVE_TWODIGIT_T 1
-typedef uint64_t twodigit_t;
+using twodigit_t = uint64_t;
 #elif defined(__SIZEOF_INT128__)
 // Both Clang and GCC support this on x64.
 #define HAVE_TWODIGIT_T 1
-typedef __uint128_t twodigit_t;
+using twodigit_t = __uint128_t;
 #endif
 
 // {carry} must point to an initialized digit_t and will either be incremented

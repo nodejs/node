@@ -34,7 +34,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
                 B(Star), R(0),
-  /*   56 E> */ B(CallUndefinedReceiver0), R(0), U8(1),
+  /*   56 E> */ B(CallUndefinedReceiver0), R(0), U8(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -56,7 +56,7 @@ bytecodes: [
                 B(Star), R(0),
                 B(LdaSmi), I8(1),
                 B(Star), R(1),
-  /*   67 E> */ B(CallUndefinedReceiver1), R(0), R(1), U8(1),
+  /*   67 E> */ B(CallUndefinedReceiver1), R(0), R(1), U8(0),
   /*   70 S> */ B(Return),
 ]
 constant pool: [

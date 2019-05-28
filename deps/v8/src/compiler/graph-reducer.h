@@ -21,7 +21,7 @@ class Node;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef uint32_t NodeId;
+using NodeId = uint32_t;
 
 // Possible outcomes for decisions.
 enum class Decision : uint8_t { kUnknown, kTrue, kFalse };

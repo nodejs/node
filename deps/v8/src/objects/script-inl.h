@@ -29,7 +29,7 @@ SMI_ACCESSORS(Script, id, kIdOffset)
 SMI_ACCESSORS(Script, line_offset, kLineOffsetOffset)
 SMI_ACCESSORS(Script, column_offset, kColumnOffsetOffset)
 ACCESSORS(Script, context_data, Object, kContextOffset)
-SMI_ACCESSORS(Script, type, kTypeOffset)
+SMI_ACCESSORS(Script, type, kScriptTypeOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
 ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Object,
                   kEvalFromSharedOrWrappedArgumentsOffset,

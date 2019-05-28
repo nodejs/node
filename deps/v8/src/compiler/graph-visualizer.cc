@@ -1172,7 +1172,8 @@ std::ostream& operator<<(std::ostream& os, const InstructionBlockAsJSON& b) {
   const InstructionSequence* code = b.code_;
   os << "{";
   os << "\"id\": " << block->rpo_number() << ",";
-  os << "\"deferred\": " << block->IsDeferred() << ",";
+  os << "\"deferred\": " << (block->IsDeferred() ? "true" : "false");
+  os << ",";
   os << "\"loop_header\": " << block->IsLoopHeader() << ",";
   if (block->IsLoopHeader()) {
     os << "\"loop_end\": " << block->loop_end() << ",";

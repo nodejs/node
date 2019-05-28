@@ -19,6 +19,10 @@ The suite json format is expected to be:
   "test_flags": [<flag to the test file>, ...],
   "run_count": <how often will this suite run (optional)>,
   "run_count_XXX": <how often will this suite run for arch XXX (optional)>,
+  "timeout": <how long test is allowed to run>,
+  "timeout_XXX": <how long test is allowed run run for arch XXX>,
+  "retry_count": <how many times to retry failures (in addition to first try)",
+  "retry_count_XXX": <how many times to retry failures for arch XXX>
   "resources": [<js file to be moved to android device>, ...]
   "main": <main js perf runner file>,
   "results_regexp": <optional regexp>,
@@ -104,6 +108,7 @@ from __future__ import print_function
 from functools import reduce
 
 from collections import OrderedDict
+import datetime
 import json
 import logging
 import math
@@ -124,16 +129,16 @@ except NameError:  # Python 3
   basestring = str
 
 ARCH_GUESS = utils.DefaultArch()
-SUPPORTED_ARCHS = ["arm",
-                   "ia32",
-                   "mips",
-                   "mipsel",
-                   "x64",
-                   "arm64"]
+SUPPORTED_ARCHS = ['arm',
+                   'ia32',
+                   'mips',
+                   'mipsel',
+                   'x64',
+                   'arm64']
 
-GENERIC_RESULTS_RE = re.compile(r"^RESULT ([^:]+): ([^=]+)= ([^ ]+) ([^ ]*)$")
-RESULT_STDDEV_RE = re.compile(r"^\{([^\}]+)\}$")
-RESULT_LIST_RE = re.compile(r"^\[([^\]]+)\]$")
+GENERIC_RESULTS_RE = re.compile(r'^RESULT ([^:]+): ([^=]+)= ([^ ]+) ([^ ]*)$')
+RESULT_STDDEV_RE = re.compile(r'^\{([^\}]+)\}$')
+RESULT_LIST_RE = re.compile(r'^\[([^\]]+)\]$')
 TOOLS_BASE = os.path.abspath(os.path.dirname(__file__))
 INFRA_FAILURE_RETCODE = 87
 
@@ -157,17 +162,26 @@ class Results(object):
   def __init__(self, traces=None, errors=None):
     self.traces = traces or []
     self.errors = errors or []
+    self.timeouts = []
+    self.near_timeouts = []  # > 90% of the max runtime
 
   def ToDict(self):
-    return {"traces": self.traces, "errors": self.errors}
+    return {
+        'traces': self.traces,
+        'errors': self.errors,
+        'timeouts': self.timeouts,
+        'near_timeouts': self.near_timeouts,
+    }
 
   def WriteToFile(self, file_name):
-    with open(file_name, "w") as f:
+    with open(file_name, 'w') as f:
       f.write(json.dumps(self.ToDict()))
 
   def __add__(self, other):
     self.traces += other.traces
     self.errors += other.errors
+    self.timeouts += other.timeouts
+    self.near_timeouts += other.near_timeouts
     return self
 
   def __str__(self):  # pragma: no cover
@@ -188,7 +202,7 @@ class Measurement(object):
     self.stddev_regexp = stddev_regexp
     self.results = []
     self.errors = []
-    self.stddev = ""
+    self.stddev = ''
     self.process_size = False
 
   def ConsumeOutput(self, stdout):
@@ -196,28 +210,28 @@ class Measurement(object):
       result = re.search(self.results_regexp, stdout, re.M).group(1)
       self.results.append(str(float(result)))
     except ValueError:
-      self.errors.append("Regexp \"%s\" returned a non-numeric for test %s."
+      self.errors.append('Regexp "%s" returned a non-numeric for test %s.'
                          % (self.results_regexp, self.name))
     except:
-      self.errors.append("Regexp \"%s\" didn't match for test %s."
+      self.errors.append('Regexp "%s" did not match for test %s.'
                          % (self.results_regexp, self.name))
 
     try:
       if self.stddev_regexp and self.stddev:
-        self.errors.append("Test %s should only run once since a stddev "
-                           "is provided by the test." % self.name)
+        self.errors.append('Test %s should only run once since a stddev '
+                           'is provided by the test.' % self.name)
       if self.stddev_regexp:
         self.stddev = re.search(self.stddev_regexp, stdout, re.M).group(1)
     except:
-      self.errors.append("Regexp \"%s\" didn't match for test %s."
+      self.errors.append('Regexp "%s" did not match for test %s.'
                          % (self.stddev_regexp, self.name))
 
   def GetResults(self):
     return Results([{
-      "graphs": self.graphs,
-      "units": self.units,
-      "results": self.results,
-      "stddev": self.stddev,
+      'graphs': self.graphs,
+      'units': self.units,
+      'results': self.results,
+      'stddev': self.stddev,
     }], self.errors)
 
 
@@ -255,7 +269,7 @@ def RunResultsProcessor(results_processor, stdout, count):
       stderr=subprocess.PIPE,
   )
   result, _ = p.communicate(input=stdout)
-  logging.info(">>> Processed stdout (#%d):\n%s", count, result)
+  logging.info('>>> Processed stdout (#%d):\n%s', count, result)
   return result
 
 
@@ -267,7 +281,7 @@ def AccumulateResults(
   Args:
     graph_names: List of names that configure the base path of the traces. E.g.
                  ['v8', 'Octane'].
-    trace_configs: List of "TraceConfig" instances. Each trace config defines
+    trace_configs: List of 'TraceConfig' instances. Each trace config defines
                    how to perform a measurement.
     iter_output: Iterator over the standard output of each test run.
     perform_measurement: Whether to actually run tests and perform measurements.
@@ -275,7 +289,7 @@ def AccumulateResults(
                          and trybot, but want to ignore second run on CI without
                          having to spread this logic throughout the script.
     calc_total: Boolean flag to speficy the calculation of a summary trace.
-  Returns: A "Results" object.
+  Returns: A 'Results' object.
   """
   measurements = [
     trace.CreateMeasurement(perform_measurement) for trace in trace_configs]
@@ -289,21 +303,21 @@ def AccumulateResults(
     return res
 
   # Assume all traces have the same structure.
-  if len(set(map(lambda t: len(t["results"]), res.traces))) != 1:
-    res.errors.append("Not all traces have the same number of results.")
+  if len(set(map(lambda t: len(t['results']), res.traces))) != 1:
+    res.errors.append('Not all traces have the same number of results.')
     return res
 
   # Calculate the geometric means for all traces. Above we made sure that
   # there is at least one trace and that the number of results is the same
   # for each trace.
-  n_results = len(res.traces[0]["results"])
-  total_results = [GeometricMean(t["results"][i] for t in res.traces)
+  n_results = len(res.traces[0]['results'])
+  total_results = [GeometricMean(t['results'][i] for t in res.traces)
                    for i in range(0, n_results)]
   res.traces.append({
-    "graphs": graph_names + ["Total"],
-    "units": res.traces[0]["units"],
-    "results": total_results,
-    "stddev": "",
+    'graphs': graph_names + ['Total'],
+    'units': res.traces[0]['units'],
+    'results': total_results,
+    'stddev': '',
   })
   return res
 
@@ -317,7 +331,7 @@ def AccumulateGenericResults(graph_names, suite_units, iter_output):
                  ['v8', 'Octane'].
     suite_units: Measurement default units as defined by the benchmark suite.
     iter_output: Iterator over the standard output of each test run.
-  Returns: A "Results" object.
+  Returns: A 'Results' object.
   """
   traces = OrderedDict()
   for stdout in iter_output():
@@ -327,7 +341,7 @@ def AccumulateGenericResults(graph_names, suite_units, iter_output):
     for line in stdout.strip().splitlines():
       match = GENERIC_RESULTS_RE.match(line)
       if match:
-        stddev = ""
+        stddev = ''
         graph = match.group(1)
         trace = match.group(2)
         body = match.group(3)
@@ -336,10 +350,10 @@ def AccumulateGenericResults(graph_names, suite_units, iter_output):
         match_list = RESULT_LIST_RE.match(body)
         errors = []
         if match_stddev:
-          result, stddev = map(str.strip, match_stddev.group(1).split(","))
+          result, stddev = map(str.strip, match_stddev.group(1).split(','))
           results = [result]
         elif match_list:
-          results = map(str.strip, match_list.group(1).split(","))
+          results = map(str.strip, match_list.group(1).split(','))
         else:
           results = [body.strip()]
 
@@ -347,17 +361,17 @@ def AccumulateGenericResults(graph_names, suite_units, iter_output):
           results = map(lambda r: str(float(r)), results)
         except ValueError:
           results = []
-          errors = ["Found non-numeric in %s" %
-                    "/".join(graph_names + [graph, trace])]
+          errors = ['Found non-numeric in %s' %
+                    '/'.join(graph_names + [graph, trace])]
 
         trace_result = traces.setdefault(trace, Results([{
-          "graphs": graph_names + [graph, trace],
-          "units": (units or suite_units).strip(),
-          "results": [],
-          "stddev": "",
+          'graphs': graph_names + [graph, trace],
+          'units': (units or suite_units).strip(),
+          'results': [],
+          'stddev': '',
         }], errors))
-        trace_result.traces[0]["results"].extend(results)
-        trace_result.traces[0]["stddev"] = stddev
+        trace_result.traces[0]['results'].extend(results)
+        trace_result.traces[0]['stddev'] = stddev
 
   return reduce(lambda r, t: r + t, traces.itervalues(), Results())
 
@@ -373,11 +387,12 @@ class Node(object):
 
 class DefaultSentinel(Node):
   """Fake parent node with all default values."""
-  def __init__(self, binary = "d8"):
+  def __init__(self, binary = 'd8'):
     super(DefaultSentinel, self).__init__()
     self.binary = binary
     self.run_count = 10
     self.timeout = 60
+    self.retry_count = 0
     self.path = []
     self.graphs = []
     self.flags = []
@@ -387,7 +402,7 @@ class DefaultSentinel(Node):
     self.results_processor = None
     self.results_regexp = None
     self.stddev_regexp = None
-    self.units = "score"
+    self.units = 'score'
     self.total = False
     self.owners = []
 
@@ -401,34 +416,36 @@ class GraphConfig(Node):
     super(GraphConfig, self).__init__()
     self._suite = suite
 
-    assert isinstance(suite.get("path", []), list)
-    assert isinstance(suite.get("owners", []), list)
-    assert isinstance(suite["name"], basestring)
-    assert isinstance(suite.get("flags", []), list)
-    assert isinstance(suite.get("test_flags", []), list)
-    assert isinstance(suite.get("resources", []), list)
+    assert isinstance(suite.get('path', []), list)
+    assert isinstance(suite.get('owners', []), list)
+    assert isinstance(suite['name'], basestring)
+    assert isinstance(suite.get('flags', []), list)
+    assert isinstance(suite.get('test_flags', []), list)
+    assert isinstance(suite.get('resources', []), list)
 
     # Accumulated values.
-    self.path = parent.path[:] + suite.get("path", [])
-    self.graphs = parent.graphs[:] + [suite["name"]]
-    self.flags = parent.flags[:] + suite.get("flags", [])
-    self.test_flags = parent.test_flags[:] + suite.get("test_flags", [])
-    self.owners = parent.owners[:] + suite.get("owners", [])
+    self.path = parent.path[:] + suite.get('path', [])
+    self.graphs = parent.graphs[:] + [suite['name']]
+    self.flags = parent.flags[:] + suite.get('flags', [])
+    self.test_flags = parent.test_flags[:] + suite.get('test_flags', [])
+    self.owners = parent.owners[:] + suite.get('owners', [])
 
     # Values independent of parent node.
-    self.resources = suite.get("resources", [])
+    self.resources = suite.get('resources', [])
 
     # Descrete values (with parent defaults).
-    self.binary = suite.get("binary", parent.binary)
-    self.run_count = suite.get("run_count", parent.run_count)
-    self.run_count = suite.get("run_count_%s" % arch, self.run_count)
-    self.timeout = suite.get("timeout", parent.timeout)
-    self.timeout = suite.get("timeout_%s" % arch, self.timeout)
-    self.units = suite.get("units", parent.units)
-    self.total = suite.get("total", parent.total)
+    self.binary = suite.get('binary', parent.binary)
+    self.run_count = suite.get('run_count', parent.run_count)
+    self.run_count = suite.get('run_count_%s' % arch, self.run_count)
+    self.retry_count = suite.get('retry_count', parent.retry_count)
+    self.retry_count = suite.get('retry_count_%s' % arch, self.retry_count)
+    self.timeout = suite.get('timeout', parent.timeout)
+    self.timeout = suite.get('timeout_%s' % arch, self.timeout)
+    self.units = suite.get('units', parent.units)
+    self.total = suite.get('total', parent.total)
     self.results_processor = suite.get(
-        "results_processor", parent.results_processor)
-    self.process_size = suite.get("process_size", parent.process_size)
+        'results_processor', parent.results_processor)
+    self.process_size = suite.get('process_size', parent.process_size)
 
     # A regular expression for results. If the parent graph provides a
     # regexp and the current suite has none, a string place holder for the
@@ -436,17 +453,17 @@ class GraphConfig(Node):
     # TODO(machenbach): Currently that makes only sense for the leaf level.
     # Multiple place holders for multiple levels are not supported.
     if parent.results_regexp:
-      regexp_default = parent.results_regexp % re.escape(suite["name"])
+      regexp_default = parent.results_regexp % re.escape(suite['name'])
     else:
       regexp_default = None
-    self.results_regexp = suite.get("results_regexp", regexp_default)
+    self.results_regexp = suite.get('results_regexp', regexp_default)
 
     # A similar regular expression for the standard deviation (optional).
     if parent.stddev_regexp:
-      stddev_default = parent.stddev_regexp % re.escape(suite["name"])
+      stddev_default = parent.stddev_regexp % re.escape(suite['name'])
     else:
       stddev_default = None
-    self.stddev_regexp = suite.get("stddev_regexp", stddev_default)
+    self.stddev_regexp = suite.get('stddev_regexp', stddev_default)
 
 
 class TraceConfig(GraphConfig):
@@ -471,9 +488,14 @@ class TraceConfig(GraphConfig):
 class RunnableConfig(GraphConfig):
   """Represents a runnable suite definition (i.e. has a main file).
   """
+  def __init__(self, suite, parent, arch):
+    super(RunnableConfig, self).__init__(suite, parent, arch)
+    self.has_timeouts = False
+    self.has_near_timeouts = False
+
   @property
   def main(self):
-    return self._suite.get("main", "")
+    return self._suite.get('main', '')
 
   def PostProcess(self, stdouts_iter):
     if self.results_processor:
@@ -494,17 +516,17 @@ class RunnableConfig(GraphConfig):
     os.chdir(os.path.join(suite_dir, bench_dir))
 
   def GetCommandFlags(self, extra_flags=None):
-    suffix = ["--"] + self.test_flags if self.test_flags else []
+    suffix = ['--'] + self.test_flags if self.test_flags else []
     return self.flags + (extra_flags or []) + [self.main] + suffix
 
   def GetCommand(self, cmd_prefix, shell_dir, extra_flags=None):
     # TODO(machenbach): This requires +.exe if run on windows.
     extra_flags = extra_flags or []
     if self.binary != 'd8' and '--prof' in extra_flags:
-      logging.info("Profiler supported only on a benchmark run with d8")
+      logging.info('Profiler supported only on a benchmark run with d8')
 
     if self.process_size:
-      cmd_prefix = ["/usr/bin/time", "--format=MaxMemory: %MKB"] + cmd_prefix
+      cmd_prefix = ['/usr/bin/time', '--format=MaxMemory: %MKB'] + cmd_prefix
     if self.binary.endswith('.py'):
       # Copy cmd_prefix instead of update (+=).
       cmd_prefix = cmd_prefix + [sys.executable]
@@ -572,23 +594,23 @@ def MakeGraphConfig(suite, arch, parent):
   if isinstance(parent, RunnableConfig):
     # Below a runnable can only be traces.
     return TraceConfig(suite, parent, arch)
-  elif suite.get("main") is not None:
+  elif suite.get('main') is not None:
     # A main file makes this graph runnable. Empty strings are accepted.
-    if suite.get("tests"):
+    if suite.get('tests'):
       # This graph has subgraphs (traces).
       return RunnableConfig(suite, parent, arch)
     else:
       # This graph has no subgraphs, it's a leaf.
       return RunnableTraceConfig(suite, parent, arch)
-  elif suite.get("generic"):
+  elif suite.get('generic'):
     # This is a generic suite definition. It is either a runnable executable
     # or has a main js file.
     return RunnableGenericConfig(suite, parent, arch)
-  elif suite.get("tests"):
+  elif suite.get('tests'):
     # This is neither a leaf nor a runnable.
     return GraphConfig(suite, parent, arch)
   else:  # pragma: no cover
-    raise Exception("Invalid suite configuration.")
+    raise Exception('Invalid suite configuration.')
 
 
 def BuildGraphConfigs(suite, arch, parent):
@@ -597,11 +619,11 @@ def BuildGraphConfigs(suite, arch, parent):
   """
 
   # TODO(machenbach): Implement notion of cpu type?
-  if arch not in suite.get("archs", SUPPORTED_ARCHS):
+  if arch not in suite.get('archs', SUPPORTED_ARCHS):
     return None
 
   graph = MakeGraphConfig(suite, arch, parent)
-  for subsuite in suite.get("tests", []):
+  for subsuite in suite.get('tests', []):
     BuildGraphConfigs(subsuite, arch, graph)
   parent.AppendChild(graph)
   return graph
@@ -619,7 +641,7 @@ def FlattenRunnables(node, node_cb):
       for result in FlattenRunnables(child, node_cb):
         yield result
   else:  # pragma: no cover
-    raise Exception("Invalid suite configuration.")
+    raise Exception('Invalid suite configuration.')
 
 
 class Platform(object):
@@ -647,6 +669,14 @@ class Platform(object):
   def _Run(self, runnable, count, secondary=False):
     raise NotImplementedError()  # pragma: no cover
 
+  def _TimedRun(self, runnable, count, secondary=False):
+    runnable_start_time = datetime.datetime.utcnow()
+    stdout = self._Run(runnable, count, secondary)
+    runnable_duration = datetime.datetime.utcnow() - runnable_start_time
+    if runnable_duration.total_seconds() > 0.9 * runnable.timeout:
+      runnable.has_near_timeouts = True
+    return stdout
+
   def Run(self, runnable, count):
     """Execute the benchmark's main file.
 
@@ -658,9 +688,9 @@ class Platform(object):
     Returns: A tuple with the two benchmark outputs. The latter will be None if
              options.shell_dir_secondary was not specified.
     """
-    stdout = self._Run(runnable, count, secondary=False)
+    stdout = self._TimedRun(runnable, count, secondary=False)
     if self.shell_dir_secondary:
-      return stdout, self._Run(runnable, count, secondary=True)
+      return stdout, self._TimedRun(runnable, count, secondary=True)
     else:
       return stdout, None
 
@@ -674,9 +704,9 @@ class DesktopPlatform(Platform):
     command.setup(utils.GuessOS(), options.device)
 
     if options.prioritize or options.affinitize != None:
-      self.command_prefix = ["schedtool"]
+      self.command_prefix = ['schedtool']
       if options.prioritize:
-        self.command_prefix += ["-n", "-20"]
+        self.command_prefix += ['-n', '-20']
       if options.affinitize != None:
       # schedtool expects a bit pattern when setting affinity, where each
       # bit set to '1' corresponds to a core where the process may run on.
@@ -684,8 +714,8 @@ class DesktopPlatform(Platform):
       # a core number, we need to map to said bit pattern.
         cpu = int(options.affinitize)
         core = 1 << cpu
-        self.command_prefix += ["-a", ("0x%x" % core)]
-      self.command_prefix += ["-e"]
+        self.command_prefix += ['-a', ('0x%x' % core)]
+      self.command_prefix += ['-e']
 
   def PreExecution(self):
     pass
@@ -700,32 +730,33 @@ class DesktopPlatform(Platform):
   def _Run(self, runnable, count, secondary=False):
     suffix = ' - secondary' if secondary else ''
     shell_dir = self.shell_dir_secondary if secondary else self.shell_dir
-    title = ">>> %%s (#%d)%s:" % ((count + 1), suffix)
+    title = '>>> %%s (#%d)%s:' % ((count + 1), suffix)
     cmd = runnable.GetCommand(self.command_prefix, shell_dir, self.extra_flags)
     try:
       output = cmd.execute()
     except OSError:  # pragma: no cover
-      logging.exception(title % "OSError")
+      logging.exception(title % 'OSError')
       raise
 
-    logging.info(title % "Stdout" + "\n%s", output.stdout)
+    logging.info(title % 'Stdout' + '\n%s', output.stdout)
     if output.stderr:  # pragma: no cover
       # Print stderr for debugging.
-      logging.info(title % "Stderr" + "\n%s", output.stderr)
+      logging.info(title % 'Stderr' + '\n%s', output.stderr)
     if output.timed_out:
-      logging.warning(">>> Test timed out after %ss.", runnable.timeout)
+      logging.warning('>>> Test timed out after %ss.', runnable.timeout)
+      runnable.has_timeouts = True
       raise TestFailedError()
     if output.exit_code != 0:
-      logging.warning(">>> Test crashed.")
+      logging.warning('>>> Test crashed.')
       raise TestFailedError()
     if '--prof' in self.extra_flags:
-      os_prefix = {"linux": "linux", "macos": "mac"}.get(utils.GuessOS())
+      os_prefix = {'linux': 'linux', 'macos': 'mac'}.get(utils.GuessOS())
       if os_prefix:
-        tick_tools = os.path.join(TOOLS_BASE, "%s-tick-processor" % os_prefix)
-        subprocess.check_call(tick_tools + " --only-summary", shell=True)
+        tick_tools = os.path.join(TOOLS_BASE, '%s-tick-processor' % os_prefix)
+        subprocess.check_call(tick_tools + ' --only-summary', shell=True)
       else:  # pragma: no cover
         logging.warning(
-            "Profiler option currently supported on Linux and Mac OS.")
+            'Profiler option currently supported on Linux and Mac OS.')
 
     # time outputs to stderr
     if runnable.process_size:
@@ -754,13 +785,13 @@ class AndroidPlatform(Platform):  # pragma: no cover
       bench_rel = os.path.normpath(os.path.join(*node.path))
       bench_abs = os.path.join(suite_dir, bench_rel)
     else:
-      bench_rel = "."
+      bench_rel = '.'
       bench_abs = suite_dir
 
-    self.driver.push_executable(self.shell_dir, "bin", node.binary)
+    self.driver.push_executable(self.shell_dir, 'bin', node.binary)
     if self.shell_dir_secondary:
       self.driver.push_executable(
-          self.shell_dir_secondary, "bin_secondary", node.binary)
+          self.shell_dir_secondary, 'bin_secondary', node.binary)
 
     if isinstance(node, RunnableConfig):
       self.driver.push_file(bench_abs, node.main, bench_rel)
@@ -769,15 +800,15 @@ class AndroidPlatform(Platform):  # pragma: no cover
 
   def _Run(self, runnable, count, secondary=False):
     suffix = ' - secondary' if secondary else ''
-    target_dir = "bin_secondary" if secondary else "bin"
-    title = ">>> %%s (#%d)%s:" % ((count + 1), suffix)
+    target_dir = 'bin_secondary' if secondary else 'bin'
+    title = '>>> %%s (#%d)%s:' % ((count + 1), suffix)
     self.driver.drop_ram_caches()
 
     # Relative path to benchmark directory.
     if runnable.path:
       bench_rel = os.path.normpath(os.path.join(*runnable.path))
     else:
-      bench_rel = "."
+      bench_rel = '.'
 
     logcat_file = None
     if self.options.dump_logcats_to:
@@ -796,18 +827,19 @@ class AndroidPlatform(Platform):  # pragma: no cover
           timeout=runnable.timeout,
           logcat_file=logcat_file,
       )
-      logging.info(title % "Stdout" + "\n%s", stdout)
+      logging.info(title % 'Stdout' + '\n%s', stdout)
     except android.CommandFailedException as e:
-      logging.info(title % "Stdout" + "\n%s", e.output)
+      logging.info(title % 'Stdout' + '\n%s', e.output)
       logging.warning('>>> Test crashed.')
       raise TestFailedError()
     except android.TimeoutException as e:
       if e.output is not None:
-        logging.info(title % "Stdout" + "\n%s", e.output)
-      logging.warning(">>> Test timed out after %ss.", runnable.timeout)
+        logging.info(title % 'Stdout' + '\n%s', e.output)
+      logging.warning('>>> Test timed out after %ss.', runnable.timeout)
+      runnable.has_timeouts = True
       raise TestFailedError()
     if runnable.process_size:
-      return stdout + "MaxMemory: Unsupported"
+      return stdout + 'MaxMemory: Unsupported'
     return stdout
 
 class CustomMachineConfiguration:
@@ -835,44 +867,44 @@ class CustomMachineConfiguration:
   @staticmethod
   def GetASLR():
     try:
-      with open("/proc/sys/kernel/randomize_va_space", "r") as f:
+      with open('/proc/sys/kernel/randomize_va_space', 'r') as f:
         return int(f.readline().strip())
     except Exception:
-      logging.exception("Failed to get current ASLR settings.")
+      logging.exception('Failed to get current ASLR settings.')
       raise
 
   @staticmethod
   def SetASLR(value):
     try:
-      with open("/proc/sys/kernel/randomize_va_space", "w") as f:
+      with open('/proc/sys/kernel/randomize_va_space', 'w') as f:
         f.write(str(value))
     except Exception:
       logging.exception(
-          "Failed to update ASLR to %s. Are we running under sudo?", value)
+          'Failed to update ASLR to %s. Are we running under sudo?', value)
       raise
 
     new_value = CustomMachineConfiguration.GetASLR()
     if value != new_value:
-      raise Exception("Present value is %s" % new_value)
+      raise Exception('Present value is %s' % new_value)
 
   @staticmethod
   def GetCPUCoresRange():
     try:
-      with open("/sys/devices/system/cpu/present", "r") as f:
+      with open('/sys/devices/system/cpu/present', 'r') as f:
         indexes = f.readline()
-        r = map(int, indexes.split("-"))
+        r = map(int, indexes.split('-'))
         if len(r) == 1:
           return range(r[0], r[0] + 1)
         return range(r[0], r[1] + 1)
     except Exception:
-      logging.exception("Failed to retrieve number of CPUs.")
+      logging.exception('Failed to retrieve number of CPUs.')
       raise
 
   @staticmethod
   def GetCPUPathForId(cpu_index):
-    ret = "/sys/devices/system/cpu/cpu"
+    ret = '/sys/devices/system/cpu/cpu'
     ret += str(cpu_index)
-    ret += "/cpufreq/scaling_governor"
+    ret += '/cpufreq/scaling_governor'
     return ret
 
   @staticmethod
@@ -882,17 +914,17 @@ class CustomMachineConfiguration:
       ret = None
       for cpu_index in cpu_indices:
         cpu_device = CustomMachineConfiguration.GetCPUPathForId(cpu_index)
-        with open(cpu_device, "r") as f:
+        with open(cpu_device, 'r') as f:
           # We assume the governors of all CPUs are set to the same value
           val = f.readline().strip()
           if ret == None:
             ret = val
           elif ret != val:
-            raise Exception("CPU cores have differing governor settings")
+            raise Exception('CPU cores have differing governor settings')
       return ret
     except Exception:
-      logging.exception("Failed to get the current CPU governor. Is the CPU "
-                        "governor disabled? Check BIOS.")
+      logging.exception('Failed to get the current CPU governor. Is the CPU '
+                        'governor disabled? Check BIOS.')
       raise
 
   @staticmethod
@@ -901,123 +933,124 @@ class CustomMachineConfiguration:
       cpu_indices = CustomMachineConfiguration.GetCPUCoresRange()
       for cpu_index in cpu_indices:
         cpu_device = CustomMachineConfiguration.GetCPUPathForId(cpu_index)
-        with open(cpu_device, "w") as f:
+        with open(cpu_device, 'w') as f:
           f.write(value)
 
     except Exception:
-      logging.exception("Failed to change CPU governor to %s. Are we "
-                        "running under sudo?", value)
+      logging.exception('Failed to change CPU governor to %s. Are we '
+                        'running under sudo?', value)
       raise
 
     cur_value = CustomMachineConfiguration.GetCPUGovernor()
     if cur_value != value:
-      raise Exception("Could not set CPU governor. Present value is %s"
+      raise Exception('Could not set CPU governor. Present value is %s'
                       % cur_value )
 
 def Main(args):
   parser = optparse.OptionParser()
-  parser.add_option("--android-build-tools", help="Deprecated.")
-  parser.add_option("--arch",
-                    help=("The architecture to run tests for, "
-                          "'auto' or 'native' for auto-detect"),
-                    default="x64")
-  parser.add_option("--buildbot",
-                    help="Adapt to path structure used on buildbots and adds "
-                         "timestamps/level to all logged status messages",
-                    default=False, action="store_true")
-  parser.add_option("-d", "--device",
-                    help="The device ID to run Android tests on. If not given "
-                         "it will be autodetected.")
-  parser.add_option("--extra-flags",
-                    help="Additional flags to pass to the test executable",
-                    default="")
-  parser.add_option("--json-test-results",
-                    help="Path to a file for storing json results.")
-  parser.add_option("--json-test-results-secondary",
-                    "--json-test-results-no-patch",  # TODO(sergiyb): Deprecate.
-                    help="Path to a file for storing json results from run "
-                         "without patch or for reference build run.")
-  parser.add_option("--outdir", help="Base directory with compile output",
-                    default="out")
-  parser.add_option("--outdir-secondary",
-                    "--outdir-no-patch",  # TODO(sergiyb): Deprecate.
-                    help="Base directory with compile output without patch or "
-                         "for reference build")
-  parser.add_option("--binary-override-path",
-                    help="JavaScript engine binary. By default, d8 under "
-                    "architecture-specific build dir. "
-                    "Not supported in conjunction with outdir-secondary.")
-  parser.add_option("--prioritize",
-                    help="Raise the priority to nice -20 for the benchmarking "
-                    "process.Requires Linux, schedtool, and sudo privileges.",
-                    default=False, action="store_true")
-  parser.add_option("--affinitize",
-                    help="Run benchmarking process on the specified core. "
-                    "For example: "
-                    "--affinitize=0 will run the benchmark process on core 0. "
-                    "--affinitize=3 will run the benchmark process on core 3. "
-                    "Requires Linux, schedtool, and sudo privileges.",
+  parser.add_option('--android-build-tools', help='Deprecated.')
+  parser.add_option('--arch',
+                    help=('The architecture to run tests for, '
+                          '"auto" or "native" for auto-detect'),
+                    default='x64')
+  parser.add_option('--buildbot',
+                    help='Adapt to path structure used on buildbots and adds '
+                         'timestamps/level to all logged status messages',
+                    default=False, action='store_true')
+  parser.add_option('-d', '--device',
+                    help='The device ID to run Android tests on. If not given '
+                         'it will be autodetected.')
+  parser.add_option('--extra-flags',
+                    help='Additional flags to pass to the test executable',
+                    default='')
+  parser.add_option('--json-test-results',
+                    help='Path to a file for storing json results.')
+  parser.add_option('--json-test-results-secondary',
+                    '--json-test-results-no-patch',  # TODO(sergiyb): Deprecate.
+                    help='Path to a file for storing json results from run '
+                         'without patch or for reference build run.')
+  parser.add_option('--outdir', help='Base directory with compile output',
+                    default='out')
+  parser.add_option('--outdir-secondary',
+                    '--outdir-no-patch',  # TODO(sergiyb): Deprecate.
+                    help='Base directory with compile output without patch or '
+                         'for reference build')
+  parser.add_option('--binary-override-path',
+                    help='JavaScript engine binary. By default, d8 under '
+                    'architecture-specific build dir. '
+                    'Not supported in conjunction with outdir-secondary.')
+  parser.add_option('--prioritize',
+                    help='Raise the priority to nice -20 for the benchmarking '
+                    'process.Requires Linux, schedtool, and sudo privileges.',
+                    default=False, action='store_true')
+  parser.add_option('--affinitize',
+                    help='Run benchmarking process on the specified core. '
+                    'For example: '
+                    '--affinitize=0 will run the benchmark process on core 0. '
+                    '--affinitize=3 will run the benchmark process on core 3. '
+                    'Requires Linux, schedtool, and sudo privileges.',
                     default=None)
-  parser.add_option("--noaslr",
-                    help="Disable ASLR for the duration of the benchmarked "
-                    "process. Requires Linux and sudo privileges.",
-                    default=False, action="store_true")
-  parser.add_option("--cpu-governor",
-                    help="Set cpu governor to specified policy for the "
-                    "duration of the benchmarked process. Typical options: "
-                    "'powersave' for more stable results, or 'performance' "
-                    "for shorter completion time of suite, with potentially "
-                    "more noise in results.")
-  parser.add_option("--filter",
-                    help="Only run the benchmarks beginning with this string. "
-                    "For example: "
-                    "--filter=JSTests/TypedArrays/ will run only TypedArray "
-                    "benchmarks from the JSTests suite.",
-                    default="")
-  parser.add_option("--run-count-multiplier", default=1, type="int",
-                    help="Multipled used to increase number of times each test "
-                    "is retried.")
-  parser.add_option("--dump-logcats-to",
-                    help="Writes logcat output from each test into specified "
-                    "directory. Only supported for android targets.")
+  parser.add_option('--noaslr',
+                    help='Disable ASLR for the duration of the benchmarked '
+                    'process. Requires Linux and sudo privileges.',
+                    default=False, action='store_true')
+  parser.add_option('--cpu-governor',
+                    help='Set cpu governor to specified policy for the '
+                    'duration of the benchmarked process. Typical options: '
+                    '"powersave" for more stable results, or "performance" '
+                    'for shorter completion time of suite, with potentially '
+                    'more noise in results.')
+  parser.add_option('--filter',
+                    help='Only run the benchmarks beginning with this string. '
+                    'For example: '
+                    '--filter=JSTests/TypedArrays/ will run only TypedArray '
+                    'benchmarks from the JSTests suite.',
+                    default='')
+  parser.add_option('--run-count-multiplier', default=1, type='int',
+                    help='Multipled used to increase number of times each test '
+                    'is retried.')
+  parser.add_option('--dump-logcats-to',
+                    help='Writes logcat output from each test into specified '
+                    'directory. Only supported for android targets.')
 
   (options, args) = parser.parse_args(args)
 
-  logging.basicConfig(level=logging.INFO, format="%(levelname)-8s  %(message)s")
+  logging.basicConfig(
+      level=logging.INFO, format='%(asctime)s %(levelname)-8s  %(message)s')
 
   if len(args) == 0:  # pragma: no cover
     parser.print_help()
     return INFRA_FAILURE_RETCODE
 
-  if options.arch in ["auto", "native"]:  # pragma: no cover
+  if options.arch in ['auto', 'native']:  # pragma: no cover
     options.arch = ARCH_GUESS
 
   if not options.arch in SUPPORTED_ARCHS:  # pragma: no cover
-    logging.error("Unknown architecture %s", options.arch)
+    logging.error('Unknown architecture %s', options.arch)
     return INFRA_FAILURE_RETCODE
 
   if (options.json_test_results_secondary and
       not options.outdir_secondary):  # pragma: no cover
-    logging.error("For writing secondary json test results, a secondary outdir "
-                  "patch must be specified.")
+    logging.error('For writing secondary json test results, a secondary outdir '
+                  'patch must be specified.')
     return INFRA_FAILURE_RETCODE
 
-  workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+  workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
   if options.buildbot:
-    build_config = "Release"
+    build_config = 'Release'
   else:
-    build_config = "%s.release" % options.arch
+    build_config = '%s.release' % options.arch
 
   if options.binary_override_path == None:
     options.shell_dir = os.path.join(workspace, options.outdir, build_config)
-    default_binary_name = "d8"
+    default_binary_name = 'd8'
   else:
     if not os.path.isfile(options.binary_override_path):
-      logging.error("binary-override-path must be a file name")
+      logging.error('binary-override-path must be a file name')
       return INFRA_FAILURE_RETCODE
     if options.outdir_secondary:
-      logging.error("specify either binary-override-path or outdir-secondary")
+      logging.error('specify either binary-override-path or outdir-secondary')
       return INFRA_FAILURE_RETCODE
     options.shell_dir = os.path.abspath(
         os.path.dirname(options.binary_override_path))
@@ -1052,14 +1085,14 @@ def Main(args):
                                   disable_aslr = options.noaslr) as conf:
     for path in args:
       if not os.path.exists(path):  # pragma: no cover
-        results.errors.append("Configuration file %s does not exist." % path)
+        results.errors.append('Configuration file %s does not exist.' % path)
         continue
 
       with open(path) as f:
         suite = json.loads(f.read())
 
       # If no name is given, default to the file name without .json.
-      suite.setdefault("name", os.path.splitext(os.path.basename(path))[0])
+      suite.setdefault('name', os.path.splitext(os.path.basename(path))[0])
 
       # Setup things common to one test suite.
       platform.PreExecution()
@@ -1074,28 +1107,38 @@ def Main(args):
 
       # Traverse graph/trace tree and iterate over all runnables.
       for runnable in FlattenRunnables(root, NodeCB):
-        runnable_name = "/".join(runnable.graphs)
+        runnable_name = '/'.join(runnable.graphs)
         if (not runnable_name.startswith(options.filter) and
-            runnable_name + "/" != options.filter):
+            runnable_name + '/' != options.filter):
           continue
-        logging.info(">>> Running suite: %s", runnable_name)
+        logging.info('>>> Running suite: %s', runnable_name)
 
         def Runner():
           """Output generator that reruns several times."""
           total_runs = runnable.run_count * options.run_count_multiplier
           for i in range(0, max(1, total_runs)):
-            # TODO(machenbach): Allow timeout per arch like with run_count per
-            # arch.
-            try:
-              yield platform.Run(runnable, i)
-            except TestFailedError:
-              have_failed_tests[0] = True
+            attempts_left = runnable.retry_count + 1
+            while attempts_left:
+              try:
+                yield platform.Run(runnable, i)
+              except TestFailedError:
+                attempts_left -= 1
+                if not attempts_left:  # ignore failures until last attempt
+                  have_failed_tests[0] = True
+                else:
+                  logging.info('>>> Retrying suite: %s', runnable_name)
+              else:
+                break
 
         # Let runnable iterate over all runs and handle output.
         result, result_secondary = runnable.Run(
           Runner, trybot=options.shell_dir_secondary)
         results += result
         results_secondary += result_secondary
+        if runnable.has_timeouts:
+          results.timeouts.append(runnable_name)
+        if runnable.has_near_timeouts:
+          results.near_timeouts.append(runnable_name)
       platform.PostExecution()
 
     if options.json_test_results:
@@ -1123,5 +1166,5 @@ def MainWrapper():
     return INFRA_FAILURE_RETCODE
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == '__main__':  # pragma: no cover
   sys.exit(MainWrapper())

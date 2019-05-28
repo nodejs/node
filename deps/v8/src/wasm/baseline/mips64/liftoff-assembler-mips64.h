@@ -500,6 +500,10 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
   UNREACHABLE();
 }
 
+void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
+  Addu(dst, lhs, Operand(imm));
+}
+
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
   TurboAssembler::Mul(dst, lhs, rhs);
 }
@@ -589,6 +593,11 @@ I32_SHIFTOP_I(shr, srl)
 
 #undef I32_SHIFTOP
 #undef I32_SHIFTOP_I
+
+void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  Daddu(dst.gp(), lhs.gp(), Operand(imm));
+}
 
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {

@@ -24,8 +24,8 @@ namespace base {
 template <typename T, typename S = int>
 class Flags final {
  public:
-  typedef T flag_type;
-  typedef S mask_type;
+  using flag_type = T;
+  using mask_type = S;
 
   constexpr Flags() : mask_(0) {}
   constexpr Flags(flag_type flag)  // NOLINT(runtime/explicit)

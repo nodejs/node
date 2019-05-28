@@ -897,10 +897,11 @@ class StringToBigIntHelper : public StringToIntHelper {
     int charcount = length() - cursor();
     // For literals, we pretenure the allocated BigInt, since it's about
     // to be stored in the interpreter's constants array.
-    PretenureFlag pretenure =
-        behavior_ == Behavior::kLiteral ? TENURED : NOT_TENURED;
+    AllocationType allocation = behavior_ == Behavior::kLiteral
+                                    ? AllocationType::kOld
+                                    : AllocationType::kYoung;
     MaybeHandle<FreshlyAllocatedBigInt> maybe = BigInt::AllocateFor(
-        isolate(), radix(), charcount, should_throw(), pretenure);
+        isolate(), radix(), charcount, should_throw(), allocation);
     if (!maybe.ToHandle(&result_)) {
       set_state(kError);
     }

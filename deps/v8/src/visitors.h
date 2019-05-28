@@ -119,6 +119,12 @@ class ObjectVisitor {
     VisitCustomWeakPointers(host, p, p + 1);
   }
 
+  virtual void VisitEphemeron(HeapObject host, int index, ObjectSlot key,
+                              ObjectSlot value) {
+    VisitPointer(host, key);
+    VisitPointer(host, value);
+  }
+
   // To allow lazy clearing of inline caches the visitor has
   // a rich interface for iterating over Code objects ...
 

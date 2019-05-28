@@ -59,6 +59,7 @@ function listener(event, exec_state, event_data, data) {
     success(true, `Object.prototype.isPrototypeOf({})`);
     success(true, `({a:1}).propertyIsEnumerable("a")`);
     success("[object Object]", `({a:1}).toString()`);
+    success("[object Object]", `({a:1}).toLocaleString()`);
     success("string", `(object_with_callbacks).toString()`);
     success(3, `(object_with_callbacks).valueOf()`);
 
@@ -73,8 +74,8 @@ function listener(event, exec_state, event_data, data) {
       "flatMap", "forEach", "every", "some", "reduce", "reduceRight", "find",
       "filter", "map", "findIndex"
     ];
-    var fails = ["toLocaleString", "pop", "push", "reverse", "shift", "unshift",
-      "splice", "sort", "copyWithin", "fill"];
+    var fails = ["pop", "push", "reverse", "shift", "unshift", "splice",
+      "sort", "copyWithin", "fill"];
     for (f of Object.getOwnPropertyNames(Array.prototype)) {
       if (typeof Array.prototype[f] === "function") {
         if (fails.includes(f)) {
@@ -123,8 +124,7 @@ function listener(event, exec_state, event_data, data) {
       "forEach", "every", "some", "reduce", "reduceRight", "find", "filter",
       "map", "findIndex"
     ];
-    fails = ["toString", "join", "toLocaleString", "reverse", "sort",
-      "copyWithin", "fill", "set"];
+    fails = ["reverse", "sort", "copyWithin", "fill", "set"];
     var typed_proto_proto = Object.getPrototypeOf(Object.getPrototypeOf(new Uint8Array()));
     for (f of Object.getOwnPropertyNames(typed_proto_proto)) {
       if (typeof typed_array[f] === "function" && f !== "constructor") {
@@ -160,7 +160,7 @@ function listener(event, exec_state, event_data, data) {
     }
     for (f of Object.getOwnPropertyNames(Number.prototype)) {
       if (typeof Number.prototype[f] === "function") {
-        if (f == "toLocaleString") continue;
+        if (f == "toLocaleString" && typeof Intl === "undefined") continue;
         success(Number(0.5)[f](5), `Number(0.5).${f}(5);`);
       }
     }

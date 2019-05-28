@@ -73,5 +73,25 @@ TimezoneCache* OS::CreateTimezoneCache() {
   return new PosixDefaultTimezoneCache();
 }
 
+void OS::AdjustSchedulingParams() {
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+  {
+    // Check availability of scheduling params.
+    uint32_t val = 0;
+    size_t valSize = sizeof(val);
+    int rc = sysctlbyname("kern.tcsm_available", &val, &valSize, NULL, 0);
+    if (rc < 0 || !val) return;
+  }
+
+  {
+    // Adjust scheduling params.
+    uint32_t val = 1;
+    int rc = sysctlbyname("kern.tcsm_enable", NULL, NULL, &val, sizeof(val));
+    DCHECK_GE(rc, 0);
+    USE(rc);
+  }
+#endif
+}
+
 }  // namespace base
 }  // namespace v8

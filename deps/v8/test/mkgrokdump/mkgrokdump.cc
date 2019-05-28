@@ -52,7 +52,7 @@ static void DumpMaps(i::PagedSpace* space) {
     if (!o->IsMap()) continue;
     i::Map m = i::Map::cast(o);
     const char* n = nullptr;
-    intptr_t p = static_cast<intptr_t>(m.ptr()) & 0x7FFFF;
+    intptr_t p = static_cast<intptr_t>(m.ptr()) & (i::Page::kPageSize - 1);
     int t = m->instance_type();
     READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
     MUTABLE_ROOT_LIST(MUTABLE_ROOT_LIST_CASE)
@@ -118,7 +118,7 @@ static int DumpHeapConstants(const char* argv0) {
         if (o->IsMap()) continue;
         const char* n = nullptr;
         i::RootIndex i = i::RootIndex::kFirstSmiRoot;
-        intptr_t p = o.ptr() & 0x7FFFF;
+        intptr_t p = o.ptr() & (i::Page::kPageSize - 1);
         STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
         MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
         if (n == nullptr) continue;

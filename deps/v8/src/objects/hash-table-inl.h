@@ -49,6 +49,27 @@ CAST_ACCESSOR(ObjectHashTable)
 CAST_ACCESSOR(EphemeronHashTable)
 CAST_ACCESSOR(ObjectHashSet)
 
+void EphemeronHashTable::set_key(int index, Object value) {
+  DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
+  DCHECK(IsEphemeronHashTable());
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kHeaderSize + index * kTaggedSize;
+  RELAXED_WRITE_FIELD(*this, offset, value);
+  EPHEMERON_KEY_WRITE_BARRIER(*this, offset, value);
+}
+
+void EphemeronHashTable::set_key(int index, Object value,
+                                 WriteBarrierMode mode) {
+  DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
+  DCHECK(IsEphemeronHashTable());
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kHeaderSize + index * kTaggedSize;
+  RELAXED_WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(*this, offset, value, mode);
+}
+
 int HashTableBase::NumberOfElements() const {
   return Smi::ToInt(get(kNumberOfElementsIndex));
 }
@@ -141,6 +162,19 @@ bool HashTable<Derived, Shape>::ToKey(ReadOnlyRoots roots, int entry,
   if (!IsKey(roots, k)) return false;
   *out_k = Shape::Unwrap(k);
   return true;
+}
+
+template <typename Derived, typename Shape>
+void HashTable<Derived, Shape>::set_key(int index, Object value) {
+  DCHECK(!IsEphemeronHashTable());
+  FixedArray::set(index, value);
+}
+
+template <typename Derived, typename Shape>
+void HashTable<Derived, Shape>::set_key(int index, Object value,
+                                        WriteBarrierMode mode) {
+  DCHECK(!IsEphemeronHashTable());
+  FixedArray::set(index, value, mode);
 }
 
 template <typename KeyT>

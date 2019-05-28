@@ -55,7 +55,7 @@ function assertConversionError(bytes, imports, msg) {
 
 (function TestValidationError() {
   print(arguments.callee.name);
-  let f_error = msg => 'Compiling wasm function "f" failed: ' + msg;
+  let f_error = msg => 'Compiling function #0:"f" failed: ' + msg;
   assertCompileError(
       builder().addFunction('f', kSig_i_v).end().toBuffer(),
       f_error('function body must end with "end" opcode @+24'));
@@ -176,7 +176,6 @@ function import_error(index, module, func, msg) {
   assertConversionError(buffer, {}, kTrapMsgs[kTrapTypeError]);
 })();
 
-
 (function InternalDebugTrace() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
@@ -191,4 +190,19 @@ function import_error(index, module, func, msg) {
     }
   }).exports.main;
   main();
+})();
+
+(function TestMultipleCorruptFunctions() {
+  print(arguments.callee.name);
+  // Generate a module with multiple corrupt functions. The error message must
+  // be deterministic.
+  var builder = new WasmModuleBuilder();
+  var sig = builder.addType(kSig_v_v);
+  for (let i = 0; i < 10; ++i) {
+    builder.addFunction('f' + i, sig).addBody([kExprEnd]);
+  }
+  assertCompileError(
+      builder.toBuffer(),
+      'Compiling function #0:"f0" failed: ' +
+          'trailing code after function end @+33');
 })();

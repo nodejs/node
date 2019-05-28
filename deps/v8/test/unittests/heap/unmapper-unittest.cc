@@ -161,8 +161,8 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
   }
 
  private:
-  typedef std::map<Address, PageAllocator::Permission> PagePermissionsMap;
-  typedef std::function<void(PagePermissionsMap::value_type*)> ForEachFn;
+  using PagePermissionsMap = std::map<Address, PageAllocator::Permission>;
+  using ForEachFn = std::function<void(PagePermissionsMap::value_type*)>;
 
   static void PrintRegion(std::ostream& os, Address start, Address end,
                           PageAllocator::Permission access) {

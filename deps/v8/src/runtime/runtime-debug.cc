@@ -839,5 +839,35 @@ RUNTIME_FUNCTION(Runtime_PerformSideEffectCheckForObject) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  // Used only by the test/memory/Memory.json benchmark. This creates a snapshot
+  // blob and outputs various statistics around it.
+
+  DCHECK(FLAG_profile_deserialization);
+
+  DisableEmbeddedBlobRefcounting();
+
+  v8::StartupData blob = CreateSnapshotDataBlobInternal(
+      v8::SnapshotCreator::FunctionCodeHandling::kClear, nullptr);
+  delete[] blob.data;
+
+  // Track the embedded blob size as well.
+  {
+    int embedded_blob_size = 0;
+    if (FLAG_embedded_builtins) {
+      i::EmbeddedData d = i::EmbeddedData::FromBlob();
+      embedded_blob_size = static_cast<int>(d.size());
+    }
+    PrintF("Embedded blob is %d bytes\n", embedded_blob_size);
+  }
+
+  FreeCurrentEmbeddedBlob();
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

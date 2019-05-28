@@ -10,7 +10,6 @@
 #include <new>
 #include "src/profiler/circular-queue-inl.h"
 #include "src/profiler/profile-generator-inl.h"
-#include "src/profiler/unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {

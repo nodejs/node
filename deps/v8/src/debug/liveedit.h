@@ -54,7 +54,7 @@ struct SourceChangeRange {
   9. swap scripts.
  */
 
-class LiveEdit : AllStatic {
+class V8_EXPORT_PRIVATE LiveEdit : AllStatic {
  public:
   static void InitializeThreadLocal(Debug* debug);
 

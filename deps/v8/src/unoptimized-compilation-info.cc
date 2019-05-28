@@ -30,7 +30,6 @@ UnoptimizedCompilationInfo::UnoptimizedCompilationInfo(Zone* zone,
   source_range_map_ = parse_info->source_range_map();
 
   if (parse_info->is_eval()) MarkAsEval();
-  if (parse_info->is_native()) MarkAsNative();
   if (parse_info->collect_type_profile()) MarkAsCollectTypeProfile();
   if (parse_info->might_always_opt()) MarkAsMightAlwaysOpt();
   if (parse_info->collect_source_positions()) {
@@ -53,11 +52,6 @@ int UnoptimizedCompilationInfo::num_parameters_including_this() const {
 
 SourcePositionTableBuilder::RecordingMode
 UnoptimizedCompilationInfo::SourcePositionRecordingMode() const {
-  if (is_native()) {
-    DCHECK(!collect_source_positions());
-    return SourcePositionTableBuilder::OMIT_SOURCE_POSITIONS;
-  }
-
   if (collect_source_positions()) {
     return SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS;
   }
@@ -66,7 +60,7 @@ UnoptimizedCompilationInfo::SourcePositionRecordingMode() const {
   // compiled, e.g. class member initializer functions.
   return !literal_->AllowsLazyCompilation()
              ? SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS
-             : SourcePositionTableBuilder::OMIT_SOURCE_POSITIONS;
+             : SourcePositionTableBuilder::LAZY_SOURCE_POSITIONS;
 }
 
 }  // namespace internal

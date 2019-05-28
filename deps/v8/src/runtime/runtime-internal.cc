@@ -13,6 +13,7 @@
 #include "src/conversions.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
+#include "src/feedback-vector-inl.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
@@ -260,6 +261,7 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
 RUNTIME_FUNCTION(Runtime_StackGuard) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
+  TRACE_EVENT0("v8.execute", "V8.StackGuard");
 
   // First check if this is a real stack overflow.
   StackLimitCheck check(isolate);
@@ -270,23 +272,46 @@ RUNTIME_FUNCTION(Runtime_StackGuard) {
   return isolate->stack_guard()->HandleInterrupts();
 }
 
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  function->raw_feedback_cell()->set_interrupt_budget(FLAG_interrupt_budget);
+  if (!function->has_feedback_vector()) {
+    JSFunction::EnsureFeedbackVector(function);
+    // Also initialize the invocation count here. This is only really needed for
+    // OSR. When we OSR functions with lazy feedback allocation we want to have
+    // a non zero invocation count so we can inline functions.
+    function->feedback_vector()->set_invocation_count(1);
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  // Handle interrupts.
+  {
+    SealHandleScope shs(isolate);
+    return isolate->stack_guard()->HandleInterrupts();
+  }
+}
+
 RUNTIME_FUNCTION(Runtime_Interrupt) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
+  TRACE_EVENT0("v8.execute", "V8.Interrupt");
   return isolate->stack_guard()->HandleInterrupts();
 }
 
-RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
+RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
-  CHECK_LE(size, kMaxRegularHeapObjectSize);
-  return *isolate->factory()->NewFillerObject(size, false, NEW_SPACE);
+  CHECK(FLAG_young_generation_large_objects ||
+        size <= kMaxRegularHeapObjectSize);
+  return *isolate->factory()->NewFillerObject(size, false,
+                                              AllocationType::kYoung);
 }
 
-RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
+RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
@@ -294,12 +319,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
-  AllocationSpace space = AllocateTargetSpace::decode(flags);
-  CHECK(size <= kMaxRegularHeapObjectSize || space == LO_SPACE);
-  if (FLAG_young_generation_large_objects && space == LO_SPACE) {
-    space = NEW_LO_SPACE;
-  }
-  return *isolate->factory()->NewFillerObject(size, double_align, space);
+  return *isolate->factory()->NewFillerObject(size, double_align,
+                                              AllocationType::kOld);
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateSeqOneByteString) {
@@ -337,6 +358,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     auto& summary = frames.back().AsJavaScript();
     Handle<SharedFunctionInfo> shared(summary.function()->shared(), isolate);
     Handle<Object> script(shared->script(), isolate);
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
     int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
     if (script->IsScript() &&
         !(Handle<Script>::cast(script)->source()->IsUndefined(isolate))) {

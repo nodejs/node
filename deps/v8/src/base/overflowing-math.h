@@ -24,7 +24,7 @@ namespace base {
   template <typename signed_type>                                         \
   inline signed_type Name##WithWraparound(signed_type a, signed_type b) { \
     ASSERT_SIGNED_INTEGER_TYPE(signed_type);                              \
-    typedef typename std::make_unsigned<signed_type>::type unsigned_type; \
+    using unsigned_type = typename std::make_unsigned<signed_type>::type; \
     unsigned_type a_unsigned = static_cast<unsigned_type>(a);             \
     unsigned_type b_unsigned = static_cast<unsigned_type>(b);             \
     unsigned_type result = a_unsigned OP b_unsigned;                      \
@@ -57,7 +57,7 @@ inline signed_type NegateWithWraparound(signed_type a) {
 template <typename signed_type>
 inline signed_type ShlWithWraparound(signed_type a, signed_type b) {
   ASSERT_SIGNED_INTEGER_TYPE(signed_type);
-  typedef typename std::make_unsigned<signed_type>::type unsigned_type;
+  using unsigned_type = typename std::make_unsigned<signed_type>::type;
   const unsigned_type kMask = (sizeof(a) * 8) - 1;
   return static_cast<signed_type>(static_cast<unsigned_type>(a) << (b & kMask));
 }

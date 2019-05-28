@@ -549,7 +549,6 @@ void Assembler::Reset() {
   memset(buffer_start_, 0, pc_ - buffer_start_);
 #endif
   pc_ = buffer_start_;
-  ReserveCodeTargetSpace(64);
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   constpool_.Clear();
   next_constant_pool_check_ = 0;
@@ -563,8 +562,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
-        Handle<HeapObject> object =
-            isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
+        Handle<HeapObject> object = isolate->factory()->NewHeapNumber(
+            request.heap_number(), AllocationType::kOld);
         set_target_address_at(pc, 0 /* unused */, object.address());
         break;
       }

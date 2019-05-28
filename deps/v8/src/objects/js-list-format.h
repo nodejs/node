@@ -49,7 +49,7 @@ class JSListFormat : public JSObject {
       Isolate* isolate, Handle<JSListFormat> format_holder,
       Handle<JSArray> list);
 
-  static const std::set<std::string>& GetAvailableLocales();
+  V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
   Handle<String> StyleAsString() const;
   Handle<String> TypeAsString() const;
@@ -106,7 +106,6 @@ class JSListFormat : public JSObject {
 
   // Layout description.
 #define JS_LIST_FORMAT_FIELDS(V)      \
-  V(kJSListFormatOffset, kTaggedSize) \
   V(kLocaleOffset, kTaggedSize)       \
   V(kICUFormatterOffset, kTaggedSize) \
   V(kFlagsOffset, kTaggedSize)        \

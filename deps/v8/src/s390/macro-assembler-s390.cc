@@ -478,6 +478,32 @@ void TurboAssembler::RestoreRegisters(RegList registers) {
   MultiPop(regs);
 }
 
+void TurboAssembler::CallEphemeronKeyBarrier(Register object, Register address,
+                                             SaveFPRegsMode fp_mode) {
+  EphemeronKeyBarrierDescriptor descriptor;
+  RegList registers = descriptor.allocatable_registers();
+
+  SaveRegisters(registers);
+
+  Register object_parameter(
+      descriptor.GetRegisterParameter(EphemeronKeyBarrierDescriptor::kObject));
+  Register slot_parameter(descriptor.GetRegisterParameter(
+      EphemeronKeyBarrierDescriptor::kSlotAddress));
+  Register fp_mode_parameter(
+      descriptor.GetRegisterParameter(EphemeronKeyBarrierDescriptor::kFPMode));
+
+  Push(object);
+  Push(address);
+
+  Pop(slot_parameter);
+  Pop(object_parameter);
+
+  Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
+  Call(isolate()->builtins()->builtin_handle(Builtins::kEphemeronKeyBarrier),
+       RelocInfo::CODE_TARGET);
+  RestoreRegisters(registers);
+}
+
 void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode) {
@@ -578,11 +604,6 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   }
 
   bind(&done);
-
-  // Count number of write barriers in generated code.
-  isolate()->counters()->write_barriers_static()->Increment();
-  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1, ip,
-                   value);
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
@@ -1049,7 +1070,6 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
 //
 //  SP -> previousSP
 //        LK reserved
-//        code
 //        sp_on_exit (for debug?)
 // oldSP->prev SP
 //        LK
@@ -1064,7 +1084,6 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
 // r14
 // oldFP <- newFP
 // SP
-// Code
 // Floats
 // gaps
 // Args
@@ -1085,14 +1104,12 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   CleanseP(r14);
   Load(r1, Operand(StackFrame::TypeToMarker(frame_type)));
   PushCommonFrame(r1);
-  // Reserve room for saved entry sp and code object.
+  // Reserve room for saved entry sp.
   lay(sp, MemOperand(fp, -ExitFrameConstants::kFixedFrameSizeFromFp));
 
   if (emit_debug_code()) {
     StoreP(MemOperand(fp, ExitFrameConstants::kSPOffset), Operand::Zero(), r1);
   }
-  Move(r1, CodeObject());
-  StoreP(r1, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
   Move(r1, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
@@ -4366,30 +4383,29 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
 
   if (options().isolate_independent_code) {
     DCHECK(root_array_available());
-    Label if_code_is_builtin, out;
+    Label if_code_is_off_heap, out;
 
     Register scratch = r1;
 
     DCHECK(!AreAliased(destination, scratch));
     DCHECK(!AreAliased(code_object, scratch));
 
-    // Check whether the Code object is a builtin. If so, call its (off-heap)
-    // entry point directly without going through the (on-heap) trampoline.
-    // Otherwise, just call the Code object as always.
+    // Check whether the Code object is an off-heap trampoline. If so, call its
+    // (off-heap) entry point directly without going through the (on-heap)
+    // trampoline.  Otherwise, just call the Code object as always.
+    LoadW(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
+    tmlh(scratch, Operand(Code::IsOffHeapTrampoline::kMask >> 16));
+    bne(&if_code_is_off_heap);
 
-    LoadW(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
-    CmpP(scratch, Operand(Builtins::kNoBuiltinId));
-    bne(&if_code_is_builtin);
-
-    // A non-builtin Code object, the entry point is at
+    // Not an off-heap trampoline, the entry point is at
     // Code::raw_instruction_start().
     AddP(destination, code_object, Operand(Code::kHeaderSize - kHeapObjectTag));
     b(&out);
 
-    // A builtin Code object, the entry point is loaded from the builtin entry
+    // An off-heap trampoline, the entry point is loaded from the builtin entry
     // table.
-    // The builtin index is loaded in scratch.
-    bind(&if_code_is_builtin);
+    bind(&if_code_is_off_heap);
+    LoadW(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
     ShiftLeftP(destination, scratch, Operand(kSystemPointerSizeLog2));
     AddP(destination, destination, kRootRegister);
     LoadP(destination,

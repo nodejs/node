@@ -144,12 +144,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Load and untag constant at |index| in the constant pool.
   compiler::Node* LoadAndUntagConstantPoolEntry(compiler::Node* index);
 
-  // Load the FeedbackVector for the current function.
-  compiler::TNode<FeedbackVector> LoadFeedbackVector();
-
-  // Load the FeedbackVector for the current function. The returned node
-  // could be undefined.
-  compiler::Node* LoadFeedbackVectorUnchecked();
+  // Load the FeedbackVector for the current function. The retuned node could be
+  // undefined.
+  compiler::TNode<HeapObject> LoadFeedbackVector();
 
   // Increment the call count for a CALL_IC or construct call.
   // The call count is located at feedback_vector[slot_id + 1].

@@ -185,3 +185,33 @@
   %OptimizeFunctionOnNextCall(foo);
   assertFalse(foo());
 })();
+
+(function() {
+  function foo(a, b) { return Object.is(+a, +b); }
+  %PrepareFunctionForOptimization(foo);
+  assertFalse(foo(1, 2));
+  assertFalse(foo(0, -0));
+  assertFalse(foo(-0, 0));
+  assertFalse(foo(-0, 1));
+  assertFalse(foo(-0, 1));
+  assertFalse(foo(-Infinity, Infinity));
+  assertTrue(foo(0, 0));
+  assertTrue(foo(0.1, 0.1));
+  assertTrue(foo(Infinity, Infinity));
+  assertTrue(foo(-0, -0));
+  assertTrue(foo(NaN, NaN));
+  assertFalse(foo(Infinity, NaN));
+  %OptimizeFunctionOnNextCall(foo);
+  assertFalse(foo(1, 2));
+  assertFalse(foo(0, -0));
+  assertFalse(foo(-0, 0));
+  assertFalse(foo(-0, 1));
+  assertFalse(foo(-0, 1));
+  assertFalse(foo(-Infinity, Infinity));
+  assertTrue(foo(0, 0));
+  assertTrue(foo(0.1, 0.1));
+  assertTrue(foo(Infinity, Infinity));
+  assertTrue(foo(-0, -0));
+  assertTrue(foo(NaN, NaN));
+  assertFalse(foo(Infinity, NaN));
+})();

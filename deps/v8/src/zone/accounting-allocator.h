@@ -7,15 +7,13 @@
 
 #include <atomic>
 
-#include "include/v8-platform.h"
-#include "include/v8.h"
 #include "src/base/macros.h"
-#include "src/base/platform/time.h"
-#include "src/zone/zone-segment.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {
+
+class Segment;
+class Zone;
 
 class V8_EXPORT_PRIVATE AccountingAllocator {
  public:

@@ -2,6 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+struct Arguments {
+  const frame: FrameWithArguments;
+  const base: RawPtr;
+  const length: intptr;
+}
+
+extern operator '[]' macro GetArgumentValue(Arguments, intptr): Object;
+
+extern macro GetFrameArguments(FrameWithArguments, intptr): Arguments;
+
 namespace arguments {
 
   struct ArgumentsInfo {
@@ -33,12 +43,16 @@ namespace arguments {
 
     const adaptor: ArgumentsAdaptorFrame =
         Cast<ArgumentsAdaptorFrame>(frame.caller)
-        otherwise return ArgumentsInfo{frame, argumentCount, formalParameterCount};
+        otherwise return ArgumentsInfo{
+      frame,
+      argument_count: argumentCount,
+      formal_parameter_count: formalParameterCount
+    };
 
     return ArgumentsInfo{
-      adaptor,
-      Convert<bint>(adaptor.length),
-      formalParameterCount
+      frame: adaptor,
+      argument_count: Convert<bint>(adaptor.length),
+      formal_parameter_count: formalParameterCount
     };
   }
 }

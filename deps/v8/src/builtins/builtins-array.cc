@@ -817,6 +817,8 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
     case PACKED_SMI_ELEMENTS:
     case HOLEY_SMI_ELEMENTS:
     case PACKED_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
     case HOLEY_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
@@ -881,6 +883,8 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
   switch (kind) {
     case PACKED_SMI_ELEMENTS:
     case PACKED_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_ELEMENTS: {
       DisallowHeapAllocation no_gc;
@@ -1050,6 +1054,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
   switch (array->GetElementsKind()) {
     case PACKED_SMI_ELEMENTS:
     case PACKED_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_ELEMENTS: {
       // Run through the elements FixedArray and use HasElement and GetElement
@@ -1205,6 +1211,9 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
       if (length_estimate != 0) {
         ElementsKind array_kind =
             GetPackedElementsKind(array->GetElementsKind());
+        if (IsPackedFrozenOrSealedElementsKind(array_kind)) {
+          array_kind = PACKED_ELEMENTS;
+        }
         kind = GetMoreGeneralElementsKind(kind, array_kind);
       }
       element_estimate = EstimateElementCount(isolate, array);
@@ -1297,6 +1306,8 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
             }
             case HOLEY_ELEMENTS:
             case PACKED_ELEMENTS:
+            case PACKED_FROZEN_ELEMENTS:
+            case PACKED_SEALED_ELEMENTS:
             case DICTIONARY_ELEMENTS:
             case NO_ELEMENTS:
               DCHECK_EQ(0u, length);

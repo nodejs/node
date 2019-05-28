@@ -173,7 +173,12 @@ namespace array_map {
         AllocateFixedArrayWithHoles(
             SmiUntag(length), kAllowLargeObjectAllocation) :
         kEmptyFixedArray;
-    return Vector{fixedArray, true, true, false};
+    return Vector{
+      fixedArray,
+      onlySmis: true,
+      onlyNumbers: true,
+      skippedElements: false
+    };
   }
 
   transitioning macro FastArrayMap(implicit context: Context)(

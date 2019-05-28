@@ -61,9 +61,9 @@ class V8_BASE_EXPORT ConditionVariable final {
 
   // The implementation-defined native handle type.
 #if V8_OS_POSIX
-  typedef pthread_cond_t NativeHandle;
+  using NativeHandle = pthread_cond_t;
 #elif V8_OS_WIN
-  typedef CONDITION_VARIABLE NativeHandle;
+  using NativeHandle = CONDITION_VARIABLE;
 #endif
 
   NativeHandle& native_handle() {
@@ -89,9 +89,10 @@ class V8_BASE_EXPORT ConditionVariable final {
 //     MutexGuard lock_guard(&my_mutex);
 //     my_condvar.Pointer()->Wait(&my_mutex);
 //   }
-typedef LazyStaticInstance<
-    ConditionVariable, DefaultConstructTrait<ConditionVariable>,
-    ThreadSafeInitOnceTrait>::type LazyConditionVariable;
+using LazyConditionVariable =
+    LazyStaticInstance<ConditionVariable,
+                       DefaultConstructTrait<ConditionVariable>,
+                       ThreadSafeInitOnceTrait>::type;
 
 #define LAZY_CONDITION_VARIABLE_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 

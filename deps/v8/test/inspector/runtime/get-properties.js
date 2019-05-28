@@ -1,6 +1,8 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//
+// Flags: --harmony-private-fields
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks Runtime.getProperties method');
 
@@ -31,6 +33,12 @@ InspectorTest.runAsyncTestSuite([
 
   function testTypedArrayWithoutLength() {
     return logExpressionProperties('({__proto__: Uint8Array.prototype})');
+  },
+
+  function testClassWithPrivateFields() {
+    return logExpressionProperties('new class { #foo = 2; #bar = 3; baz = 4; }')
+      .then(() => logExpressionProperties('new class extends class { #baz = 1 } { #foo = 2; #bar = 3; baz = 4; }'))
+      .then(() => logExpressionProperties('new class extends class { #hidden = 1; constructor() { return new Proxy({}, {}); } } { #foo = 2; #bar = 3; baz = 4; }'));
   },
 
   async function testArrayBuffer() {
@@ -87,16 +95,20 @@ async function logGetPropertiesResult(objectId, flags = { ownProperties: true })
       InspectorTest.log("  " + p.name + " " + own + " no value" +
         (hasGetterSetter(p, "get") ? ", getter" : "") + (hasGetterSetter(p, "set") ? ", setter" : ""));
   }
-  var internalPropertyArray = props.result.internalProperties;
-  if (internalPropertyArray) {
-    InspectorTest.log("Internal properties");
-    internalPropertyArray.sort(NamedThingComparator);
-    for (var i = 0; i < internalPropertyArray.length; i++) {
-      var p = internalPropertyArray[i];
+
+  function printFields(type, array) {
+    if (!array) { return; }
+    InspectorTest.log(type);
+    array.sort(NamedThingComparator);
+    for (var i = 0; i < array.length; i++) {
+      var p = array[i];
       var v = p.value;
       InspectorTest.log('  ' + p.name + ' ' + v.type + ' ' + v.value);
     }
   }
+
+  printFields("Internal properties", props.result.internalProperties);
+  printFields("Private properties", props.result.privateProperties);
 
   function NamedThingComparator(o1, o2) {
     return o1.name === o2.name ? 0 : (o1.name < o2.name ? -1 : 1);

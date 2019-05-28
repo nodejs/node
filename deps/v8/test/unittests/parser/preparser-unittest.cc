@@ -26,7 +26,7 @@ TEST_F(PreParserTest, LazyFunctionLength) {
 
   Handle<SharedFunctionInfo> shared(lazy_function->shared(),
                                     lazy_function->GetIsolate());
-  CHECK_EQ(shared->length(), SharedFunctionInfo::kInvalidLength);
+  CHECK_EQ(3, shared->length());
 
   Handle<Smi> length = RunJS<Smi>("lazy.length");
   int32_t value;

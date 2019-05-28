@@ -149,13 +149,14 @@ void PopulateJSONWriter(TraceWriter* writer) {
   TraceObject trace_object;
   trace_object.InitializeForTesting(
       'X', tracing_controller->GetCategoryGroupEnabled("v8-cat"), "Test0",
-      v8::internal::tracing::kGlobalScope, 42, 123, 0, nullptr, nullptr,
+      v8::internal::tracing::kGlobalScope, 42, 0x1234, 0, nullptr, nullptr,
       nullptr, nullptr, TRACE_EVENT_FLAG_HAS_ID, 11, 22, 100, 50, 33, 44);
   writer->AppendTraceEvent(&trace_object);
   trace_object.InitializeForTesting(
       'Y', tracing_controller->GetCategoryGroupEnabled("v8-cat"), "Test1",
-      v8::internal::tracing::kGlobalScope, 43, 456, 0, nullptr, nullptr,
-      nullptr, nullptr, 0, 55, 66, 110, 55, 77, 88);
+      v8::internal::tracing::kGlobalScope, 43, 0x5678, 0, nullptr, nullptr,
+      nullptr, nullptr, TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT,
+      55, 66, 110, 55, 77, 88);
   writer->AppendTraceEvent(&trace_object);
   tracing_controller->StopTracing();
   i::V8::SetPlatformForTesting(old_platform);
@@ -171,7 +172,8 @@ TEST(TestJSONTraceWriter) {
       "\"ph\":\"X\",\"cat\":\"v8-cat\",\"name\":\"Test0\",\"dur\":33,"
       "\"tdur\":44,\"id\":\"0x2a\",\"args\":{}},{\"pid\":55,\"tid\":66,"
       "\"ts\":110,\"tts\":55,\"ph\":\"Y\",\"cat\":\"v8-cat\",\"name\":"
-      "\"Test1\",\"dur\":77,\"tdur\":88,\"args\":{}}]}";
+      "\"Test1\",\"dur\":77,\"tdur\":88,\"bind_id\":\"0x5678\","
+      "\"flow_in\":true,\"flow_out\":true,\"args\":{}}]}";
 
   CHECK_EQ(expected_trace_str, trace_str);
 }
@@ -186,7 +188,8 @@ TEST(TestJSONTraceWriterWithCustomtag) {
       "\"ph\":\"X\",\"cat\":\"v8-cat\",\"name\":\"Test0\",\"dur\":33,"
       "\"tdur\":44,\"id\":\"0x2a\",\"args\":{}},{\"pid\":55,\"tid\":66,"
       "\"ts\":110,\"tts\":55,\"ph\":\"Y\",\"cat\":\"v8-cat\",\"name\":"
-      "\"Test1\",\"dur\":77,\"tdur\":88,\"args\":{}}]}";
+      "\"Test1\",\"dur\":77,\"tdur\":88,\"bind_id\":\"0x5678\","
+      "\"flow_in\":true,\"flow_out\":true,\"args\":{}}]}";
 
   CHECK_EQ(expected_trace_str, trace_str);
 }

@@ -21,8 +21,9 @@ void TestExternalReference_ConvertOp(
   Address buffer_addr = reinterpret_cast<Address>(buffer);
 
   Node* function = m->ExternalConstant(ref);
-  m->CallCFunction1(MachineType::Pointer(), MachineType::Pointer(), function,
-                    m->PointerConstant(buffer));
+  m->CallCFunction(
+      function, MachineType::Pointer(),
+      std::make_pair(MachineType::Pointer(), m->PointerConstant(buffer)));
   m->Return(m->Int32Constant(4356));
 
   for (InType input : inputs) {
@@ -48,8 +49,9 @@ void TestExternalReference_ConvertOpWithOutputAndReturn(
   Address buffer_addr = reinterpret_cast<Address>(buffer);
 
   Node* function = m->ExternalConstant(ref);
-  m->Return(m->CallCFunction1(MachineType::Int32(), MachineType::Pointer(),
-                              function, m->PointerConstant(buffer)));
+  m->Return(m->CallCFunction(
+      function, MachineType::Int32(),
+      std::make_pair(MachineType::Pointer(), m->PointerConstant(buffer))));
 
   for (InType input : inputs) {
     WriteUnalignedValue<InType>(buffer_addr, input);
@@ -75,8 +77,9 @@ void TestExternalReference_ConvertOpWithReturn(
   Address buffer_addr = reinterpret_cast<Address>(buffer);
 
   Node* function = m->ExternalConstant(ref);
-  m->Return(m->CallCFunction1(MachineType::Int32(), MachineType::Pointer(),
-                              function, m->PointerConstant(buffer)));
+  m->Return(m->CallCFunction(
+      function, MachineType::Int32(),
+      std::make_pair(MachineType::Pointer(), m->PointerConstant(buffer))));
 
   for (InType input : inputs) {
     WriteUnalignedValue<InType>(buffer_addr, input);
@@ -112,8 +115,9 @@ void TestExternalReference_UnOp(BufferedRawMachineAssemblerTester<int32_t>* m,
   Address buffer_addr = reinterpret_cast<Address>(buffer);
 
   Node* function = m->ExternalConstant(ref);
-  m->CallCFunction1(MachineType::Int32(), MachineType::Pointer(), function,
-                    m->PointerConstant(buffer));
+  m->CallCFunction(
+      function, MachineType::Int32(),
+      std::make_pair(MachineType::Pointer(), m->PointerConstant(buffer)));
   m->Return(m->Int32Constant(4356));
 
   for (Type input : inputs) {
@@ -139,8 +143,9 @@ void TestExternalReference_BinOp(BufferedRawMachineAssemblerTester<int32_t>* m,
   Address buffer_addr = reinterpret_cast<Address>(buffer);
 
   Node* function = m->ExternalConstant(ref);
-  m->CallCFunction1(MachineType::Int32(), MachineType::Pointer(), function,
-                    m->PointerConstant(buffer));
+  m->CallCFunction(
+      function, MachineType::Int32(),
+      std::make_pair(MachineType::Pointer(), m->PointerConstant(buffer)));
   m->Return(m->Int32Constant(4356));
 
   for (Type input1 : inputs) {
@@ -170,8 +175,9 @@ void TestExternalReference_BinOpWithReturn(
   Address buffer_addr = reinterpret_cast<Address>(buffer);
 
   Node* function = m->ExternalConstant(ref);
-  m->Return(m->CallCFunction1(MachineType::Int32(), MachineType::Pointer(),
-                              function, m->PointerConstant(buffer)));
+  m->Return(m->CallCFunction(
+      function, MachineType::Int32(),
+      std::make_pair(MachineType::Pointer(), m->PointerConstant(buffer))));
 
   for (Type input1 : inputs) {
     for (Type input2 : inputs) {

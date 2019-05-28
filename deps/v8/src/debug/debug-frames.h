@@ -9,6 +9,7 @@
 #include "src/frames.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/v8threads.h"
 #include "src/wasm/wasm-interpreter.h"
 
 namespace v8 {
@@ -64,6 +65,24 @@ class FrameInspector {
 
   DISALLOW_COPY_AND_ASSIGN(FrameInspector);
 };
+
+class RedirectActiveFunctions : public ThreadVisitor {
+ public:
+  enum class Mode {
+    kUseOriginalBytecode,
+    kUseDebugBytecode,
+  };
+
+  explicit RedirectActiveFunctions(SharedFunctionInfo shared, Mode mode);
+
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) override;
+
+ private:
+  SharedFunctionInfo shared_;
+  Mode mode_;
+  DisallowHeapAllocation no_gc_;
+};
+
 }  // namespace internal
 }  // namespace v8
 

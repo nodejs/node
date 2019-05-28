@@ -33,6 +33,10 @@ class NumFuzzer(base_runner.BaseTestRunner):
   def __init__(self, *args, **kwargs):
     super(NumFuzzer, self).__init__(*args, **kwargs)
 
+  @property
+  def framework_name(self):
+    return 'num_fuzzer'
+
   def _add_parser_options(self, parser):
     parser.add_option("--fuzzer-random-seed", default=0,
                       help="Default seed for initializing fuzzer random "

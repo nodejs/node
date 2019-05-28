@@ -126,9 +126,7 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 
 class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
-  template <typename... Args>
-  explicit TurboAssembler(Args&&... args)
-      : TurboAssemblerBase(std::forward<Args>(args)...) {}
+  using TurboAssemblerBase::TurboAssemblerBase;
 
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
@@ -205,6 +203,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
                            SaveFPRegsMode fp_mode, Address wasm_target);
+  void CallEphemeronKeyBarrier(Register object, Register address,
+                               SaveFPRegsMode fp_mode);
 
   void MultiPush(RegList regs, Register location = sp);
   void MultiPop(RegList regs, Register location = sp);
@@ -1001,9 +1001,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 // MacroAssembler implements a collection of frequently used macros.
 class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
-  template <typename... Args>
-  explicit MacroAssembler(Args&&... args)
-      : TurboAssembler(std::forward<Args>(args)...) {}
+  using TurboAssembler::TurboAssembler;
 
   void CallRuntime(const Runtime::Function* f, int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);

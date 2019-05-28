@@ -94,10 +94,9 @@ Handle<JSGlobalObject> Isolate::global_object() {
   return handle(context()->global_object(), this);
 }
 
-Handle<JSObject> Isolate::global_proxy() {
+Handle<JSGlobalProxy> Isolate::global_proxy() {
   return handle(context()->global_proxy(), this);
 }
-
 
 Isolate::ExceptionScope::ExceptionScope(Isolate* isolate)
     : isolate_(isolate),

@@ -1101,11 +1101,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ PushStandardFrame(closure);
 
-  // Reset code age.
-  __ mov(r8, Operand(BytecodeArray::kNoAgeBytecodeAge));
-  __ StoreByte(r8, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                   BytecodeArray::kBytecodeAgeOffset),
-               r0);
+  // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset are
+  // 8-bit fields next to each other, so we could just optimize by writing a
+  // 16-bit. These static asserts guard our assumption is valid.
+  STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
+                BytecodeArray::kOSRNestingLevelOffset + kCharSize);
+  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
+  __ li(r8, Operand(0));
+  __ StoreHalfWord(r8,
+                   FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                                   BytecodeArray::kOSRNestingLevelOffset),
+                   r0);
 
   // Load initial bytecode offset.
   __ mov(kInterpreterBytecodeOffsetRegister,
@@ -3272,8 +3278,21 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
-  // Unused.
-  __ stop(0);
+  // Place the return address on the stack, making the call
+  // GC safe. The RegExp backend also relies on this.
+  __ mflr(r0);
+  __ StoreP(r0, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
+
+  if (ABI_USES_FUNCTION_DESCRIPTORS && FLAG_embedded_builtins) {
+    // AIX/PPC64BE Linux use a function descriptor;
+    __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(ip, kPointerSize));
+    __ LoadP(ip, MemOperand(ip, 0));  // Instruction address
+  }
+
+  __ Call(ip);  // Call the C++ function.
+  __ LoadP(r0, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
+  __ mtlr(r0);
+  __ blr();
 }
 
 #undef __

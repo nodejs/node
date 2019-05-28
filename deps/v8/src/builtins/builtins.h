@@ -81,7 +81,7 @@ class Builtins {
   // Used by CreateOffHeapTrampolines in isolate.cc.
   void set_builtin(int index, Code builtin);
 
-  Code builtin(int index);
+  V8_EXPORT_PRIVATE Code builtin(int index);
   V8_EXPORT_PRIVATE Handle<Code> builtin_handle(int index);
 
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);

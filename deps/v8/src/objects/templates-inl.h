@@ -26,7 +26,7 @@ NEVER_READ_ONLY_SPACE_IMPL(TemplateInfo)
 
 ACCESSORS(TemplateInfo, tag, Object, kTagOffset)
 ACCESSORS(TemplateInfo, serial_number, Object, kSerialNumberOffset)
-SMI_ACCESSORS(TemplateInfo, number_of_properties, kNumberOfProperties)
+SMI_ACCESSORS(TemplateInfo, number_of_properties, kNumberOfPropertiesOffset)
 ACCESSORS(TemplateInfo, property_list, Object, kPropertyListOffset)
 ACCESSORS(TemplateInfo, property_accessors, Object, kPropertyAccessorsOffset)
 

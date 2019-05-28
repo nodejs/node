@@ -228,7 +228,6 @@ TEST(Run_Wasm_returnCallIndirectFactorial) {
 
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
-  r.builder().PopulateIndirectFunctionTable();
 
   BUILD(r, WASM_RETURN_CALL_INDIRECT(0, WASM_I32V(0), WASM_GET_LOCAL(0),
                                      WASM_I32V(1)));
@@ -429,6 +428,27 @@ TEST(MemoryGrowInvalidSize) {
   r.builder().AddMemory(kWasmPageSize);
   BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
   CHECK_EQ(-1, r.Call(1048575));
+}
+
+TEST(ReferenceTypeLocals) {
+  {
+    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    BUILD(r, WASM_REF_IS_NULL(WASM_REF_NULL));
+    CHECK_EQ(1, r.Call());
+  }
+  {
+    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    r.AllocateLocal(kWasmAnyRef);
+    BUILD(r, WASM_REF_IS_NULL(WASM_GET_LOCAL(0)));
+    CHECK_EQ(1, r.Call());
+  }
+  {
+    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    r.AllocateLocal(kWasmAnyRef);
+    BUILD(r, WASM_REF_IS_NULL(WASM_TEE_LOCAL(0, WASM_REF_NULL)));
+    CHECK_EQ(1, r.Call());
+  }
+  // TODO(mstarzinger): Test and support global anyref variables.
 }
 
 TEST(TestPossibleNondeterminism) {

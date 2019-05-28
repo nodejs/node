@@ -186,7 +186,7 @@ AstStringConstants::AstStringConstants(Isolate* isolate, uint64_t hash_seed)
     : zone_(isolate->allocator(), ZONE_NAME),
       string_table_(AstRawString::Compare),
       hash_seed_(hash_seed) {
-  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 #define F(name, str)                                                       \
   {                                                                        \
     const char* data = str;                                                \

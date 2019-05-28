@@ -12,6 +12,7 @@
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
+#include "unicode/unistr.h"
 #endif  // V8_INTL_SUPPORT
 
 namespace v8 {
@@ -33,37 +34,17 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
   // A GC might move the calling generated code and invalidate the
   // return address on the stack.
   DCHECK_EQ(0, byte_length % 2);
+
+#ifdef V8_INTL_SUPPORT
+  int32_t length = (int32_t)(byte_length >> 1);
+  icu::UnicodeString uni_str_1(reinterpret_cast<const char16_t*>(byte_offset1),
+                               length);
+  return uni_str_1.caseCompare(reinterpret_cast<const char16_t*>(byte_offset2),
+                               length, U_FOLD_CASE_DEFAULT) == 0;
+#else
   uc16* substring1 = reinterpret_cast<uc16*>(byte_offset1);
   uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
   size_t length = byte_length >> 1;
-
-#ifdef V8_INTL_SUPPORT
-  if (isolate == nullptr) {
-    for (size_t i = 0; i < length; i++) {
-      uc32 c1 = substring1[i];
-      uc32 c2 = substring2[i];
-      if (unibrow::Utf16::IsLeadSurrogate(c1)) {
-        // Non-BMP characters do not have case-equivalents in the BMP.
-        // Both have to be non-BMP for them to be able to match.
-        if (!unibrow::Utf16::IsLeadSurrogate(c2)) return 0;
-        if (i + 1 < length) {
-          uc16 c1t = substring1[i + 1];
-          uc16 c2t = substring2[i + 1];
-          if (unibrow::Utf16::IsTrailSurrogate(c1t) &&
-              unibrow::Utf16::IsTrailSurrogate(c2t)) {
-            c1 = unibrow::Utf16::CombineSurrogatePair(c1, c1t);
-            c2 = unibrow::Utf16::CombineSurrogatePair(c2, c2t);
-            i++;
-          }
-        }
-      }
-      c1 = u_foldCase(c1, U_FOLD_CASE_DEFAULT);
-      c2 = u_foldCase(c2, U_FOLD_CASE_DEFAULT);
-      if (c1 != c2) return 0;
-    }
-    return 1;
-  }
-#endif  // V8_INTL_SUPPORT
   DCHECK_NOT_NULL(isolate);
   unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
       isolate->regexp_macro_assembler_canonicalize();
@@ -83,6 +64,7 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
     }
   }
   return 1;
+#endif  // V8_INTL_SUPPORT
 }
 
 

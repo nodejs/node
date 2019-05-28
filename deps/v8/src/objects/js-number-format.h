@@ -64,7 +64,7 @@ class JSNumberFormat : public JSObject {
       Isolate* isolate, const icu::NumberFormat& number_format,
       Handle<Object> numeric_obj);
 
-  static const std::set<std::string>& GetAvailableLocales();
+  V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
   Handle<String> StyleAsString() const;
   Handle<String> CurrencyDisplayAsString() const;
@@ -143,7 +143,7 @@ struct NumberFormatSpan {
       : field_id(field_id), begin_pos(begin_pos), end_pos(end_pos) {}
 };
 
-std::vector<NumberFormatSpan> FlattenRegionsToParts(
+V8_EXPORT_PRIVATE std::vector<NumberFormatSpan> FlattenRegionsToParts(
     std::vector<NumberFormatSpan>* regions);
 
 }  // namespace internal

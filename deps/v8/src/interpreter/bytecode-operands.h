@@ -6,6 +6,7 @@
 #define V8_INTERPRETER_BYTECODE_OPERANDS_H_
 
 #include "src/globals.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -115,14 +116,16 @@ enum class AccumulatorUse : uint8_t {
   kReadWrite = kRead | kWrite
 };
 
-inline AccumulatorUse operator&(AccumulatorUse lhs, AccumulatorUse rhs) {
-  int result = static_cast<int>(lhs) & static_cast<int>(rhs);
-  return static_cast<AccumulatorUse>(result);
+constexpr inline AccumulatorUse operator&(AccumulatorUse lhs,
+                                          AccumulatorUse rhs) {
+  return static_cast<AccumulatorUse>(static_cast<int>(lhs) &
+                                     static_cast<int>(rhs));
 }
 
-inline AccumulatorUse operator|(AccumulatorUse lhs, AccumulatorUse rhs) {
-  int result = static_cast<int>(lhs) | static_cast<int>(rhs);
-  return static_cast<AccumulatorUse>(result);
+constexpr inline AccumulatorUse operator|(AccumulatorUse lhs,
+                                          AccumulatorUse rhs) {
+  return static_cast<AccumulatorUse>(static_cast<int>(lhs) |
+                                     static_cast<int>(rhs));
 }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -145,41 +148,47 @@ class BytecodeOperands : public AllStatic {
       0 OPERAND_SCALE_LIST(OPERAND_SCALE_COUNT);
 #undef OPERAND_SCALE_COUNT
 
-  static int OperandScaleAsIndex(OperandScale operand_scale) {
+  static constexpr int OperandScaleAsIndex(OperandScale operand_scale) {
+#ifdef V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
+#ifdef DEBUG
+    int result = static_cast<int>(operand_scale) >> 1;
     switch (operand_scale) {
       case OperandScale::kSingle:
-        return 0;
+        DCHECK_EQ(0, result);
+        break;
       case OperandScale::kDouble:
-        return 1;
+        DCHECK_EQ(1, result);
+        break;
       case OperandScale::kQuadruple:
-        return 2;
+        DCHECK_EQ(2, result);
+        break;
       default:
         UNREACHABLE();
     }
+#endif
+#endif
+    return static_cast<int>(operand_scale) >> 1;
   }
 
   // Returns true if |accumulator_use| reads the accumulator.
   static constexpr bool ReadsAccumulator(AccumulatorUse accumulator_use) {
-    return accumulator_use == AccumulatorUse::kRead ||
-           accumulator_use == AccumulatorUse::kReadWrite;
+    return (accumulator_use & AccumulatorUse::kRead) == AccumulatorUse::kRead;
   }
 
   // Returns true if |accumulator_use| writes the accumulator.
   static constexpr bool WritesAccumulator(AccumulatorUse accumulator_use) {
-    return accumulator_use == AccumulatorUse::kWrite ||
-           accumulator_use == AccumulatorUse::kReadWrite;
+    return (accumulator_use & AccumulatorUse::kWrite) == AccumulatorUse::kWrite;
   }
 
   // Returns true if |operand_type| is a scalable signed byte.
   static constexpr bool IsScalableSignedByte(OperandType operand_type) {
-    return operand_type >= OperandType::kImm &&
-           operand_type <= OperandType::kRegOutTriple;
+    return IsInRange(operand_type, OperandType::kImm,
+                     OperandType::kRegOutTriple);
   }
 
   // Returns true if |operand_type| is a scalable unsigned byte.
   static constexpr bool IsScalableUnsignedByte(OperandType operand_type) {
-    return operand_type >= OperandType::kIdx &&
-           operand_type <= OperandType::kRegCount;
+    return IsInRange(operand_type, OperandType::kIdx, OperandType::kRegCount);
   }
 };
 

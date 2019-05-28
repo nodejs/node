@@ -23,7 +23,7 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
                                                                 int remainder);
 
 std::vector<Handle<FixedArray>> CreatePadding(
-    Heap* heap, int padding_size, PretenureFlag tenure,
+    Heap* heap, int padding_size, AllocationType allocation,
     int object_size = kMaxRegularHeapObjectSize);
 
 void AllocateAllButNBytes(

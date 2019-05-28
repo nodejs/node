@@ -6,6 +6,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
@@ -281,15 +282,17 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     Branch(ShouldSkipFPRegs(mode), &dont_save_fp, &save_fp);
     BIND(&dont_save_fp);
     {
-      CallCFunction1WithCallerSavedRegisters(return_type, arg0_type, function,
-                                             arg0, kDontSaveFPRegs);
+      CallCFunctionWithCallerSavedRegisters(function, return_type,
+                                            kDontSaveFPRegs,
+                                            std::make_pair(arg0_type, arg0));
       Goto(next);
     }
 
     BIND(&save_fp);
     {
-      CallCFunction1WithCallerSavedRegisters(return_type, arg0_type, function,
-                                             arg0, kSaveFPRegs);
+      CallCFunctionWithCallerSavedRegisters(function, return_type,
+                                            kSaveFPRegs,
+                                            std::make_pair(arg0_type, arg0));
       Goto(next);
     }
   }
@@ -302,17 +305,18 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     Branch(ShouldSkipFPRegs(mode), &dont_save_fp, &save_fp);
     BIND(&dont_save_fp);
     {
-      CallCFunction3WithCallerSavedRegisters(return_type, arg0_type, arg1_type,
-                                             arg2_type, function, arg0, arg1,
-                                             arg2, kDontSaveFPRegs);
+      CallCFunctionWithCallerSavedRegisters(
+          function, return_type, kDontSaveFPRegs,
+          std::make_pair(arg0_type, arg0), std::make_pair(arg1_type, arg1),
+          std::make_pair(arg2_type, arg2));
       Goto(next);
     }
 
     BIND(&save_fp);
     {
-      CallCFunction3WithCallerSavedRegisters(return_type, arg0_type, arg1_type,
-                                             arg2_type, function, arg0, arg1,
-                                             arg2, kSaveFPRegs);
+      CallCFunctionWithCallerSavedRegisters(
+          function, return_type, kSaveFPRegs, std::make_pair(arg0_type, arg0),
+          std::make_pair(arg1_type, arg1), std::make_pair(arg2_type, arg2));
       Goto(next);
     }
   }
@@ -446,6 +450,27 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   }
 
   BIND(&exit);
+  IncrementCounter(isolate()->counters()->write_barriers(), 1);
+  Return(TrueConstant());
+}
+
+TF_BUILTIN(EphemeronKeyBarrier, RecordWriteCodeStubAssembler) {
+  Label exit(this);
+
+  Node* function = ExternalConstant(
+      ExternalReference::ephemeron_key_write_barrier_function());
+  Node* isolate_constant =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+  Node* address = Parameter(Descriptor::kSlotAddress);
+  Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
+  Node* fp_mode = Parameter(Descriptor::kFPMode);
+  CallCFunction3WithCallerSavedRegistersMode(
+      MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
+      MachineType::Pointer(), function, object, address, isolate_constant,
+      fp_mode, &exit);
+
+  BIND(&exit);
+  IncrementCounter(isolate()->counters()->write_barriers(), 1);
   Return(TrueConstant());
 }
 
@@ -680,21 +705,20 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, InternalBuiltinsAssembler) {
   GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::BUILTIN_EXIT);
 }
 
-TF_BUILTIN(AllocateInNewSpace, CodeStubAssembler) {
+TF_BUILTIN(AllocateInYoungGeneration, CodeStubAssembler) {
   TNode<IntPtrT> requested_size =
       UncheckedCast<IntPtrT>(Parameter(Descriptor::kRequestedSize));
 
-  TailCallRuntime(Runtime::kAllocateInNewSpace, NoContextConstant(),
+  TailCallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
                   SmiFromIntPtr(requested_size));
 }
 
-TF_BUILTIN(AllocateInOldSpace, CodeStubAssembler) {
+TF_BUILTIN(AllocateInOldGeneration, CodeStubAssembler) {
   TNode<IntPtrT> requested_size =
       UncheckedCast<IntPtrT>(Parameter(Descriptor::kRequestedSize));
 
-  int flags = AllocateTargetSpace::encode(OLD_SPACE);
-  TailCallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
-                  SmiFromIntPtr(requested_size), SmiConstant(flags));
+  TailCallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
+                  SmiFromIntPtr(requested_size), SmiConstant(0));
 }
 
 TF_BUILTIN(Abort, CodeStubAssembler) {

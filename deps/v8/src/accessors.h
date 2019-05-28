@@ -114,7 +114,7 @@ class Accessors : public AllStatic {
       Local<v8::Name> property, Local<v8::Value> value,
       const PropertyCallbackInfo<v8::Boolean>& info);
 
-  static Handle<AccessorInfo> MakeAccessor(
+  V8_EXPORT_PRIVATE static Handle<AccessorInfo> MakeAccessor(
       Isolate* isolate, Handle<Name> name, AccessorNameGetterCallback getter,
       AccessorNameBooleanSetterCallback setter);
 

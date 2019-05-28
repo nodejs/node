@@ -24,6 +24,8 @@
 #include "src/roots.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
+#include "src/tracing/trace-event.h"
+#include "src/tracing/traced-value.h"
 
 namespace v8 {
 namespace internal {
@@ -48,14 +50,18 @@ void Deserializer::Initialize(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
   isolate_ = isolate;
   allocator()->Initialize(isolate->heap());
-  DCHECK_NULL(external_reference_table_);
-  external_reference_table_ = isolate->external_reference_table();
+
 #ifdef DEBUG
-  // Count the number of external references registered through the API.
-  num_api_references_ = 0;
-  if (isolate_->api_external_references() != nullptr) {
-    while (isolate_->api_external_references()[num_api_references_] != 0) {
-      num_api_references_++;
+  // The read-only deserializer is run by read-only heap set-up before the heap
+  // is fully set up. External reference table relies on a few parts of this
+  // set-up (like old-space), so it may be uninitialized at this point.
+  if (isolate->isolate_data()->external_reference_table()->is_initialized()) {
+    // Count the number of external references registered through the API.
+    num_api_references_ = 0;
+    if (isolate_->api_external_references() != nullptr) {
+      while (isolate_->api_external_references()[num_api_references_] != 0) {
+        num_api_references_++;
+      }
     }
   }
 #endif  // DEBUG
@@ -64,8 +70,9 @@ void Deserializer::Initialize(Isolate* isolate) {
 
 void Deserializer::Rehash() {
   DCHECK(can_rehash() || deserializing_user_code());
-  for (HeapObject item : to_rehash_)
-    item->RehashBasedOnMap(ReadOnlyRoots(isolate()));
+  for (HeapObject item : to_rehash_) {
+    item->RehashBasedOnMap(ReadOnlyRoots(isolate_));
+  }
 }
 
 Deserializer::~Deserializer() {
@@ -149,6 +156,13 @@ void Deserializer::LogScriptEvents(Script script) {
   LOG(isolate_,
       ScriptEvent(Logger::ScriptEventType::kDeserialize, script->id()));
   LOG(isolate_, ScriptDetails(script));
+  TRACE_EVENT_OBJECT_CREATED_WITH_ID(
+      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "Script",
+      TRACE_ID_WITH_SCOPE("v8::internal::Script", script->id()));
+  TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
+      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "Script",
+      TRACE_ID_WITH_SCOPE("v8::internal::Script", script->id()),
+      script->ToTracedValue());
 }
 
 StringTableInsertionKey::StringTableInsertionKey(String string)
@@ -180,6 +194,11 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
       // Uninitialize hash field as we need to recompute the hash.
       String string = String::cast(obj);
       string->set_hash_field(String::kEmptyHashField);
+      // Rehash strings before read-only space is sealed. Strings outside
+      // read-only space are rehashed lazily. (e.g. when rehashing dictionaries)
+      if (space == RO_SPACE) {
+        to_rehash_.push_back(obj);
+      }
     } else if (obj->NeedsRehashing()) {
       to_rehash_.push_back(obj);
     }
@@ -287,8 +306,6 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
     // TODO(mythria): Remove these once we store the default values for these
     // fields in the serializer.
     BytecodeArray bytecode_array = BytecodeArray::cast(obj);
-    bytecode_array->set_interrupt_budget(
-        interpreter::Interpreter::InterruptBudget());
     bytecode_array->set_osr_loop_nesting_level(0);
   }
 #ifdef DEBUG
@@ -765,7 +782,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit, int source_space,
 
 Address Deserializer::ReadExternalReferenceCase() {
   uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
-  return external_reference_table_->address(reference_id);
+  return isolate_->external_reference_table()->address(reference_id);
 }
 
 template <typename TSlot, SerializerDeserializer::Bytecode bytecode,

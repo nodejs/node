@@ -498,30 +498,18 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
   CodeStubArguments args(this, argc);
   Label throw_illegal_invocation(this, Label::kDeferred);
 
-  // For API callbacks we need to call ToObject on the receiver.
-  // And in case the receiver is a JSObject already, we might
-  // need to perform access checks in the current {context},
-  // depending on whether the "needs access check" bit is
-  // set on the receiver _and_ the {function_template_info}
-  // doesn't have the "accepts any receiver" bit set.
-  TVARIABLE(Object, var_receiver, args.GetReceiver());
-  if (mode == CallFunctionTemplateMode::kCheckCompatibleReceiver) {
-    // We are only interested to see that receiver is compatible
-    // for the {function_template_info}, and don't need to bother
-    // doing any access checks. So ensure that the receiver is
-    // actually a JSReceiver.
-    var_receiver = ToObject_Inline(context, var_receiver.value());
-  } else {
-    Label receiver_is_primitive(this, Label::kDeferred),
-        receiver_needs_access_check(this, &var_receiver, Label::kDeferred),
+  // For API callbacks the receiver is always a JSReceiver (since
+  // they are treated like sloppy mode functions). We might need
+  // to perform access checks in the current {context}, depending
+  // on whether the "needs access check" bit is set on the receiver
+  // _and_ the {function_template_info} doesn't have the "accepts
+  // any receiver" bit set.
+  TNode<JSReceiver> receiver = CAST(args.GetReceiver());
+  if (mode == CallFunctionTemplateMode::kCheckAccess ||
+      mode == CallFunctionTemplateMode::kCheckAccessAndCompatibleReceiver) {
+    TNode<Map> receiver_map = LoadMap(receiver);
+    Label receiver_needs_access_check(this, Label::kDeferred),
         receiver_done(this);
-
-    // Check if the receiver needs to be converted, or if it's already
-    // a JSReceiver, see if the "needs access check" bit is set _and_
-    // the {function_template_info} doesn't just accept any receiver.
-    GotoIf(TaggedIsSmi(var_receiver.value()), &receiver_is_primitive);
-    TNode<Map> receiver_map = LoadMap(CAST(var_receiver.value()));
-    GotoIfNot(IsJSReceiverMap(receiver_map), &receiver_is_primitive);
     GotoIfNot(
         IsSetWord32<Map::IsAccessCheckNeededBit>(LoadMapBitField(receiver_map)),
         &receiver_done);
@@ -531,32 +519,14 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
                      1 << FunctionTemplateInfo::kAcceptAnyReceiver),
            &receiver_done, &receiver_needs_access_check);
 
-    BIND(&receiver_is_primitive);
-    {
-      // Convert primitives to wrapper objects as necessary. In case
-      // null or undefined were passed, we need to do the access check
-      // on the global proxy here.
-      var_receiver = ToObject(context, var_receiver.value());
-      args.SetReceiver(var_receiver.value());
-      GotoIfNot(IsSetWord32<Map::IsAccessCheckNeededBit>(
-                    LoadMapBitField(LoadMap(CAST(var_receiver.value())))),
-                &receiver_done);
-      TNode<WordT> function_template_info_flags = LoadAndUntagObjectField(
-          function_template_info, FunctionTemplateInfo::kFlagOffset);
-      Branch(IsSetWord(function_template_info_flags,
-                       1 << FunctionTemplateInfo::kAcceptAnyReceiver),
-             &receiver_done, &receiver_needs_access_check);
-    }
-
     BIND(&receiver_needs_access_check);
     {
-      CallRuntime(Runtime::kAccessCheck, context, var_receiver.value());
+      CallRuntime(Runtime::kAccessCheck, context, receiver);
       Goto(&receiver_done);
     }
 
     BIND(&receiver_done);
   }
-  TNode<JSReceiver> receiver = CAST(var_receiver.value());
 
   // Figure out the API holder for the {receiver} depending on the
   // {mode} and the signature on the {function_template_info}.

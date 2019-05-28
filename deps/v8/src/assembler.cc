@@ -273,10 +273,6 @@ void AssemblerBase::UpdateCodeTarget(intptr_t code_target_index,
   code_targets_[code_target_index] = code;
 }
 
-void AssemblerBase::ReserveCodeTargetSpace(size_t num_of_code_targets) {
-  code_targets_.reserve(num_of_code_targets);
-}
-
 int Assembler::WriteCodeComments() {
   if (!FLAG_code_comments || code_comments_writer_.entry_count() == 0) return 0;
   int offset = pc_offset();

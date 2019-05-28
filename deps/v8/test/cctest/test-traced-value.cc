@@ -75,6 +75,19 @@ TEST(Hierarchy) {
       json);
 }
 
+TEST(Nesting) {
+  auto value = TracedValue::Create();
+  auto v0 = TracedValue::Create();
+  auto v2 = TracedValue::Create();
+  v0->SetString("s1", std::string("Hello World!"));
+  v2->SetValue("v0", v0.get());
+  value->SetValue("v2", v2.get());
+
+  std::string json;
+  value->AppendAsTraceFormat(&json);
+  CHECK_EQ("{\"v2\":{\"v0\":{\"s1\":\"Hello World!\"}}}", json);
+}
+
 TEST(LongStrings) {
   std::string long_string = "supercalifragilisticexpialidocious";
   std::string long_string2 = "0123456789012345678901234567890123456789";

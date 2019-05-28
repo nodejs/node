@@ -163,5 +163,7 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   return 0;
 }
 
+void OS::AdjustSchedulingParams() {}
+
 }  // namespace base
 }  // namespace v8

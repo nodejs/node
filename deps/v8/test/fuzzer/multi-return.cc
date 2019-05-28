@@ -134,7 +134,7 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
   return compiler::GetWasmCallDescriptor(zone, builder.Build());
 }
 
-std::unique_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
+std::shared_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
                                                          size_t code_size) {
   std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule);
   module->num_declared_functions = 1;
@@ -243,8 +243,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                           AssemblerOptions::Default(i_isolate), callee.Export())
                           .ToHandleChecked();
 
-  std::unique_ptr<wasm::NativeModule> module =
+  std::shared_ptr<wasm::NativeModule> module =
       AllocateNativeModule(i_isolate, code->raw_instruction_size());
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
   byte* code_start = module->AddCodeForTesting(code)->instructions().start();
   // Generate wrapper.
   int expect = 0;

@@ -31,6 +31,9 @@ You can run from any place:
   ../../somewhere-strange/csuite.py sunspider compare ./d8-better
 '''
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import os
 from optparse import OptionParser
 import subprocess
@@ -47,48 +50,48 @@ if __name__ == '__main__':
   (opts, args) = parser.parse_args()
 
   if len(args) < 3:
-    print 'not enough arguments'
+    print('not enough arguments')
     sys.exit(1)
 
   suite = args[0]
   mode = args[1]
 
   if suite not in ['octane', 'sunspider', 'kraken']:
-    print 'Suite must be octane, sunspider or kraken. Aborting.'
+    print('Suite must be octane, sunspider or kraken. Aborting.')
     sys.exit(1)
 
   if mode != 'baseline' and mode != 'compare':
-    print 'mode must be baseline or compare. Aborting.'
+    print('mode must be baseline or compare. Aborting.')
     sys.exit(1)
 
   # Set up paths.
   d8_path = os.path.abspath(args[2])
   if not os.path.exists(d8_path):
-    print d8_path + " is not valid."
+    print(d8_path + " is not valid.")
     sys.exit(1)
 
   csuite_path = os.path.dirname(os.path.abspath(__file__))
   if not os.path.exists(csuite_path):
-    print "The csuite directory is invalid."
+    print("The csuite directory is invalid.")
     sys.exit(1)
 
   benchmark_py_path = os.path.join(csuite_path, "benchmark.py")
   if not os.path.exists(benchmark_py_path):
-    print "Unable to find benchmark.py in " + output_path_base \
-        + ". Aborting."
+    print("Unable to find benchmark.py in " + csuite_path \
+        + ". Aborting.")
     sys.exit(1)
 
   compare_baseline_py_path = os.path.join(csuite_path,
       "compare-baseline.py")
 
   if not os.path.exists(compare_baseline_py_path):
-    print "Unable to find compare-baseline.py in " + output_path_base \
-        + ". Aborting."
+    print("Unable to find compare-baseline.py in " + csuite_path \
+        + ". Aborting.")
     sys.exit(1)
 
   benchmark_path = os.path.abspath(os.path.join(csuite_path, "../data"))
   if not os.path.exists(benchmark_path):
-    print "I can't find the benchmark data directory. Aborting."
+    print("I can't find the benchmark data directory. Aborting.")
     sys.exit(1)
 
   # Gather the remaining arguments into a string of extra args for d8.
@@ -111,12 +114,12 @@ if __name__ == '__main__':
 
   if opts.runs:
     if (float(opts.runs) / runs) < 0.6:
-      print "Normally, %s requires %d runs to get stable results." \
-          % (suite, runs)
+      print("Normally, %s requires %d runs to get stable results." \
+          % (suite, runs))
     runs = int(opts.runs)
 
   if opts.verbose:
-    print "Running and averaging %s %d times." % (suite, runs)
+    print("Running and averaging %s %d times." % (suite, runs))
 
   # Ensure output directory is setup
   output_path_base = os.path.abspath(os.getcwd())
@@ -124,16 +127,16 @@ if __name__ == '__main__':
   output_file = os.path.join(output_path, "master")
   if not os.path.exists(output_path):
     if opts.verbose:
-      print "Creating directory %s." % output_path
+      print("Creating directory %s." % output_path)
     os.mkdir(output_path)
 
   if opts.verbose:
-    print "Working directory for runs is %s." % suite_path
+    print("Working directory for runs is %s." % suite_path)
 
   inner_command = " -c \"%s --expose-gc %s %s \"" \
       % (d8_path, extra_args, cmd)
   if opts.verbose:
-    print "calling d8 like so: %s." % inner_command
+    print("calling d8 like so: %s." % inner_command)
 
   cmdline_base = "python %s %s -fv -r %d -d %s" \
       % (benchmark_py_path, inner_command, runs, output_path_base)
@@ -145,10 +148,10 @@ if __name__ == '__main__':
         % (cmdline_base, compare_baseline_py_path, output_file)
 
   if opts.verbose:
-    print "Spawning subprocess: %s." % cmdline
+    print("Spawning subprocess: %s." % cmdline)
   return_code = subprocess.call(cmdline, shell=True, cwd=suite_path)
   if return_code < 0:
-    print "Error return code: %d." % return_code
+    print("Error return code: %d." % return_code)
   if mode == "baseline":
-    print "Wrote %s." % output_file
-    print "Run %s again with compare mode to see results." % suite
+    print("Wrote %s." % output_file)
+    print("Run %s again with compare mode to see results." % suite)

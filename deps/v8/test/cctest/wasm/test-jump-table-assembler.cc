@@ -32,7 +32,7 @@ constexpr int kJumpTableSlotCount = 128;
 constexpr uint32_t kJumpTableSize =
     JumpTableAssembler::SizeForNumberOfSlots(kJumpTableSlotCount);
 
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 constexpr uint32_t kAvailableBufferSlots =
     (kMaxWasmCodeMemory - kJumpTableSize) / AssemblerBase::kMinimalBufferSize;
 constexpr uint32_t kBufferSlotStartOffset =
@@ -45,7 +45,7 @@ Address GenerateJumpTableThunk(
     Address jump_target, byte* thunk_slot_buffer,
     std::bitset<kAvailableBufferSlots>* used_slots,
     std::vector<std::unique_ptr<TestingAssemblerBuffer>>* thunk_buffers) {
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
   // To guarantee that the branch range lies within the near-call range,
   // generate the thunk in the same (kMaxWasmCodeMemory-sized) buffer as the
   // jump_target itself.
@@ -64,9 +64,6 @@ Address GenerateJumpTableThunk(
   used_slots->set(buffer_index);
   byte* buffer =
       thunk_slot_buffer + buffer_index * AssemblerBase::kMinimalBufferSize;
-
-  DCHECK(TurboAssembler::IsNearCallOffset(
-      (reinterpret_cast<byte*>(jump_target) - buffer) / kInstrSize));
 
 #else
   USE(thunk_slot_buffer);
@@ -202,7 +199,7 @@ class JumpTablePatcher : public v8::base::Thread {
 TEST(JumpTablePatchingStress) {
   constexpr int kNumberOfRunnerThreads = 5;
 
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
   // We need the branches (from GenerateJumpTableThunk) to be within near-call
   // range of the jump table slots. The address hint to AllocateAssemblerBuffer
   // is not reliable enough to guarantee that we can always achieve this with
@@ -218,6 +215,7 @@ TEST(JumpTablePatchingStress) {
   auto buffer = AllocateAssemblerBuffer(kJumpTableSize);
   byte* thunk_slot_buffer = nullptr;
 #endif
+
   std::bitset<kAvailableBufferSlots> used_thunk_slots;
   buffer->MakeWritableAndExecutable();
 

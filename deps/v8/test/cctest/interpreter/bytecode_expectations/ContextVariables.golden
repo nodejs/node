@@ -87,7 +87,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   41 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(1),
-  /*   64 E> */ B(CallUndefinedReceiver0), R(1), U8(1),
+  /*   64 E> */ B(CallUndefinedReceiver0), R(1), U8(0),
   /*   68 S> */ B(LdaCurrentContextSlot), U8(4),
   /*   77 S> */ B(Return),
 ]

@@ -33,7 +33,7 @@ class DebugInfo : public Struct {
     kDebugExecutionMode = 1 << 5
   };
 
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
 
   // A bitfield that lists uses of the current instance.
   DECL_INT_ACCESSORS(flags)

@@ -32,12 +32,14 @@ Page* HeapTester::AllocateByteArraysOnPage(
     AlwaysAllocateScope always_allocate(isolate);
     heap::SimulateFullSpace(old_space);
     ByteArray byte_array;
-    CHECK(AllocateByteArrayForTest(heap, kLength, TENURED).To(&byte_array));
+    CHECK(AllocateByteArrayForTest(heap, kLength, AllocationType::kOld)
+              .To(&byte_array));
     byte_arrays->push_back(byte_array);
     page = Page::FromHeapObject(byte_array);
     size_t n = page->area_size() / kSize;
     for (size_t i = 1; i < n; i++) {
-      CHECK(AllocateByteArrayForTest(heap, kLength, TENURED).To(&byte_array));
+      CHECK(AllocateByteArrayForTest(heap, kLength, AllocationType::kOld)
+                .To(&byte_array));
       byte_arrays->push_back(byte_array);
       CHECK_EQ(page, Page::FromHeapObject(byte_array));
     }
@@ -186,7 +188,7 @@ Handle<FixedArray> AllocateArrayOnFreshPage(Isolate* isolate,
                                             PagedSpace* old_space, int length) {
   AlwaysAllocateScope always_allocate(isolate);
   heap::SimulateFullSpace(old_space);
-  return isolate->factory()->NewFixedArray(length, TENURED);
+  return isolate->factory()->NewFixedArray(length, AllocationType::kOld);
 }
 
 Handle<FixedArray> AllocateArrayOnEvacuationCandidate(Isolate* isolate,
@@ -247,7 +249,7 @@ HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
   {
     AlwaysAllocateScope always_allocate(isolate);
     trimmed = factory->NewFixedArray(
-        kMaxRegularHeapObjectSize / kTaggedSize + 100, TENURED);
+        kMaxRegularHeapObjectSize / kTaggedSize + 100, AllocationType::kOld);
     DCHECK(MemoryChunk::FromHeapObject(*trimmed)->InLargeObjectSpace());
   }
   heap::SimulateIncrementalMarking(heap);
@@ -325,7 +327,7 @@ HEAP_TEST(InvalidatedSlotsFastToSlow) {
     AlwaysAllocateScope always_allocate(isolate);
     Handle<JSFunction> function = factory->NewFunctionForTest(name);
     function->shared()->set_expected_nof_properties(3);
-    obj = factory->NewJSObject(function, TENURED);
+    obj = factory->NewJSObject(function, AllocationType::kOld);
   }
   // Start incremental marking.
   heap::SimulateIncrementalMarking(heap);

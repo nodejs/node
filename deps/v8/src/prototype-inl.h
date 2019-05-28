@@ -95,7 +95,7 @@ void PrototypeIterator::AdvanceIgnoringProxies() {
   Object object = handle_.is_null() ? object_ : *handle_;
   Map map = HeapObject::cast(object)->map();
 
-  Object prototype = map->prototype();
+  HeapObject prototype = map->prototype();
   is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN ? !map->has_hidden_prototype()
                                                   : prototype->IsNull(isolate_);
 
@@ -131,7 +131,7 @@ PrototypeIterator::AdvanceFollowingProxiesIgnoringAccessChecks() {
     isolate_->StackOverflow();
     return false;
   }
-  MaybeHandle<Object> proto =
+  MaybeHandle<HeapObject> proto =
       JSProxy::GetPrototype(Handle<JSProxy>::cast(handle_));
   if (!proto.ToHandle(&handle_)) return false;
   is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN || handle_->IsNull(isolate_);

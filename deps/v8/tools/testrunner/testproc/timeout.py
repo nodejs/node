@@ -25,4 +25,5 @@ class TimeoutProc(base.TestProcObserver):
   def _on_event(self):
     if not self.is_stopped:
       if time.time() - self._start > self._duration_sec:
+        print('>>> Total timeout reached.')
         self.stop()

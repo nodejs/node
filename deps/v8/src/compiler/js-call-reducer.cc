@@ -18,6 +18,7 @@
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
+#include "src/counters.h"
 #include "src/feedback-vector-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/objects-inl.h"
@@ -25,6 +26,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/ordered-hash-table.h"
 #include "src/vector-slot-pair.h"
 
 namespace v8 {
@@ -464,12 +466,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
                    : native_context().bound_function_without_constructor_map();
   if (!map.prototype().equals(prototype)) return NoChange();
 
-  // Make sure we can rely on the {receiver_maps}.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect = graph()->NewNode(
-        simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
-        effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, VectorSlotPair(), receiver, effect, control);
 
   // Replace the {node} with a JSCreateBoundFunction.
   int const arity = std::max(0, node->op()->ValueInputCount() - 3);
@@ -1073,13 +1071,8 @@ Reduction JSCallReducer::ReduceArrayForEach(
 
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
-  // If we have unreliable maps, we need a map check.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   Node* k = jsgraph()->ZeroConstant();
 
@@ -1213,6 +1206,18 @@ Reduction JSCallReducer::ReduceArrayForEach(
   return Replace(jsgraph()->UndefinedConstant());
 }
 
+Node* JSCallReducer::InsertMapChecksIfUnreliableReceiverMaps(
+    NodeProperties::InferReceiverMapsResult result,
+    ZoneHandleSet<Map> const& receiver_maps, VectorSlotPair const& feedback,
+    Node* receiver, Node* effect, Node* control) {
+  if (result == NodeProperties::kUnreliableReceiverMaps) {
+    effect = graph()->NewNode(
+        simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps, feedback),
+        receiver, effect, control);
+  }
+  return effect;
+}
+
 Reduction JSCallReducer::ReduceArrayReduce(
     Node* node, ArrayReduceDirection direction,
     const SharedFunctionInfoRef& shared) {
@@ -1257,13 +1262,8 @@ Reduction JSCallReducer::ReduceArrayReduce(
 
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
-  // If we have unreliable maps, we need a map check.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
@@ -1472,8 +1472,8 @@ Reduction JSCallReducer::ReduceArrayReduce(
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
-  // return a successful completion. Therefore, we simply connect the successful
-  // completion to the graph end.
+  // return a successful completion. Therefore, we simply connect the
+  // successful completion to the graph end.
   Node* throw_node =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
@@ -1510,31 +1510,23 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // Ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
     return NoChange();
   }
 
+  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   Node* array_constructor = jsgraph()->Constant(
       native_context().GetInitialJSArrayMap(kind).GetConstructor());
 
   Node* k = jsgraph()->ZeroConstant();
 
-  // If we have unreliable maps, we need a map check.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
@@ -1548,7 +1540,8 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
       jsgraph()->Constant(JSArray::kMaxFastArrayLength), effect, control);
 
   // Even though {JSCreateArray} is not marked as {kNoThrow}, we can elide the
-  // exceptional projections because it cannot throw with the given parameters.
+  // exceptional projections because it cannot throw with the given
+  // parameters.
   Node* a = control = effect = graph()->NewNode(
       javascript()->CreateArray(1, MaybeHandle<AllocationSite>()),
       array_constructor, array_constructor, original_length, context,
@@ -1648,9 +1641,9 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
                                      &check_fail, &control);
   }
 
-  // The array {a} should be HOLEY_SMI_ELEMENTS because we'd only come into this
-  // loop if the input array length is non-zero, and "new Array({x > 0})" always
-  // produces a HOLEY array.
+  // The array {a} should be HOLEY_SMI_ELEMENTS because we'd only come into
+  // this loop if the input array length is non-zero, and "new Array({x > 0})"
+  // always produces a HOLEY array.
   MapRef holey_double_map =
       native_context().GetInitialJSArrayMap(HOLEY_DOUBLE_ELEMENTS);
   MapRef holey_map = native_context().GetInitialJSArrayMap(HOLEY_ELEMENTS);
@@ -1677,8 +1670,8 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
-  // return a successful completion. Therefore, we simply connect the successful
-  // completion to the graph end.
+  // return a successful completion. Therefore, we simply connect the
+  // successful completion to the graph end.
   Node* throw_node =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
@@ -1714,9 +1707,6 @@ Reduction JSCallReducer::ReduceArrayFilter(
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
     return NoChange();
@@ -1725,28 +1715,24 @@ Reduction JSCallReducer::ReduceArrayFilter(
   // The output array is packed (filter doesn't visit holes).
   const ElementsKind packed_kind = GetPackedElementsKind(kind);
 
+  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   MapRef initial_map = native_context().GetInitialJSArrayMap(packed_kind);
 
   Node* k = jsgraph()->ZeroConstant();
   Node* to = jsgraph()->ZeroConstant();
 
-  // If we have unreliable maps, we need a map check.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   Node* a;  // Construct the output array.
   {
     AllocationBuilder ab(jsgraph(), effect, control);
-    ab.Allocate(initial_map.instance_size(), NOT_TENURED, Type::Array());
+    ab.Allocate(initial_map.instance_size(), AllocationType::kYoung,
+                Type::Array());
     ab.Store(AccessBuilder::ForMap(), initial_map);
     Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
     ab.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), empty_fixed_array);
@@ -1902,8 +1888,8 @@ Reduction JSCallReducer::ReduceArrayFilter(
         graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
   }
 
-  // We have to coerce callback_value to boolean, and only store the element in
-  // a if it's true. The checkpoint above protects against the case that
+  // We have to coerce callback_value to boolean, and only store the element
+  // in a if it's true. The checkpoint above protects against the case that
   // growing {a} fails.
   to = DoFilterPostCallbackWork(packed_kind, &control, &effect, a, to, element,
                                 callback_value);
@@ -1930,8 +1916,8 @@ Reduction JSCallReducer::ReduceArrayFilter(
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
-  // return a successful completion. Therefore, we simply connect the successful
-  // completion to the graph end.
+  // return a successful completion. Therefore, we simply connect the
+  // successful completion to the graph end.
   Node* throw_node =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
@@ -1993,13 +1979,8 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
 
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
-  // If we have unreliable maps, we need a map check.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   Node* k = jsgraph()->ZeroConstant();
 
@@ -2137,8 +2118,8 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
-  // return a successful completion. Therefore, we simply connect the successful
-  // completion to the graph end.
+  // return a successful completion. Therefore, we simply connect the
+  // successful completion to the graph end.
   Node* throw_node =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
@@ -2249,17 +2230,17 @@ void JSCallReducer::RewirePostCallbackExceptionEdges(Node* check_throw,
 Node* JSCallReducer::SafeLoadElement(ElementsKind kind, Node* receiver,
                                      Node* control, Node** effect, Node** k,
                                      const VectorSlotPair& feedback) {
-  // Make sure that the access is still in bounds, since the callback could have
-  // changed the array's size.
+  // Make sure that the access is still in bounds, since the callback could
+  // have changed the array's size.
   Node* length = *effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
       *effect, control);
   *k = *effect = graph()->NewNode(simplified()->CheckBounds(feedback), *k,
                                   length, *effect, control);
 
-  // Reload the elements pointer before calling the callback, since the previous
-  // callback might have resized the array causing the elements buffer to be
-  // re-allocated.
+  // Reload the elements pointer before calling the callback, since the
+  // previous callback might have resized the array causing the elements
+  // buffer to be re-allocated.
   Node* elements = *effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
       *effect, control);
@@ -2298,33 +2279,20 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
     return NoChange();
   }
 
+  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
-  // If we have unreliable maps, we need a map check.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   Node* k = jsgraph()->ZeroConstant();
-
-  // Make sure the map hasn't changed before we construct the output array.
-  effect = graph()->NewNode(
-      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
-      effect, control);
 
   Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
@@ -2484,8 +2452,8 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
-  // return a successful completion. Therefore, we simply connect the successful
-  // completion to the graph end.
+  // return a successful completion. Therefore, we simply connect the
+  // successful completion to the graph end.
   Node* throw_node =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
@@ -2571,13 +2539,8 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
 
-  // If we have unreliable maps, we need a map check.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   Callable const callable = search_variant == SearchVariant::kIndexOf
                                 ? GetCallableForArrayIndexOf(kind, isolate())
@@ -2586,9 +2549,9 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
       Operator::kEliminatable);
-  // The stub expects the following arguments: the receiver array, its elements,
-  // the search_element, the array length, and the index to start searching
-  // from.
+  // The stub expects the following arguments: the receiver array, its
+  // elements, the search_element, the array length, and the index to start
+  // searching from.
   Node* elements = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
       effect, control);
@@ -2603,9 +2566,9 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
     Node* from_index = NodeProperties::GetValueInput(node, 3);
     from_index = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
                                            from_index, effect, control);
-    // If the index is negative, it means the offset from the end and therefore
-    // needs to be added to the length. If the result is still negative, it
-    // needs to be clamped to 0.
+    // If the index is negative, it means the offset from the end and
+    // therefore needs to be added to the length. If the result is still
+    // negative, it needs to be clamped to 0.
     new_from_index = graph()->NewNode(
         common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
         graph()->NewNode(simplified()->NumberLessThan(), from_index,
@@ -2652,33 +2615,20 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
     return NoChange();
   }
 
+  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   Node* k = jsgraph()->ZeroConstant();
 
-  // If we have unreliable maps, we need a map check.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
-
-  // Make sure the map hasn't changed before we construct the output array.
-  effect = graph()->NewNode(
-      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
-      effect, control);
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
@@ -2845,8 +2795,8 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
-  // return a successful completion. Therefore, we simply connect the successful
-  // completion to the graph end.
+  // return a successful completion. Therefore, we simply connect the
+  // successful completion to the graph end.
   Node* throw_node =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
@@ -2958,6 +2908,14 @@ Reduction JSCallReducer::ReduceCallApiFunction(
                    : Builtins::
                          kCallFunctionTemplate_CheckAccessAndCompatibleReceiver)
             : Builtins::kCallFunctionTemplate_CheckCompatibleReceiver;
+
+    // The CallFunctionTemplate builtin requires the {receiver} to be
+    // an actual JSReceiver, so make sure we do the proper conversion
+    // first if necessary.
+    receiver = holder = effect =
+        graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
+                         receiver, global_proxy, effect, control);
+
     Callable callable = Builtins::CallableFor(isolate(), builtin_name);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),
@@ -2966,6 +2924,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
                       jsgraph()->HeapConstant(callable.code()));
     node->ReplaceInput(1, jsgraph()->HeapConstant(function_template_info));
     node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(argc));
+    node->ReplaceInput(3, receiver);       // Update receiver input.
+    node->ReplaceInput(6 + argc, effect);  // Update effect input.
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     return Changed(node);
   }
@@ -2999,7 +2959,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
 namespace {
 
 // Check whether elements aren't mutated; we play it extremely safe here by
-// explicitly checking that {node} is only used by {LoadField} or {LoadElement}.
+// explicitly checking that {node} is only used by {LoadField} or
+// {LoadElement}.
 bool IsSafeArgumentsElements(Node* node) {
   for (Edge const edge : node->use_edges()) {
     if (!NodeProperties::IsValueEdge(edge)) continue;
@@ -3020,14 +2981,6 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
          node->opcode() == IrOpcode::kJSCallWithSpread ||
          node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
          node->opcode() == IrOpcode::kJSConstructWithSpread);
-
-  // In case of a call/construct with spread, we need to
-  // ensure that it's safe to avoid the actual iteration.
-  if ((node->opcode() == IrOpcode::kJSCallWithSpread ||
-       node->opcode() == IrOpcode::kJSConstructWithSpread) &&
-      !isolate()->IsArrayIteratorLookupChainIntact()) {
-    return NoChange();
-  }
 
   // Check if {arguments_list} is an arguments object, and {node} is the only
   // value user of {arguments_list} (except for value uses in frame states).
@@ -3129,7 +3082,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // that no one messed with the %ArrayIteratorPrototype%.next method.
   if (node->opcode() == IrOpcode::kJSCallWithSpread ||
       node->opcode() == IrOpcode::kJSConstructWithSpread) {
-    if (!dependencies()->DependOnArrayIteratorProtector()) UNREACHABLE();
+    if (!dependencies()->DependOnArrayIteratorProtector()) return NoChange();
   }
 
   // Remove the {arguments_list} input from the {node}.
@@ -3213,9 +3166,9 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
       phi->ReplaceInput(1, on_exception);
     }
 
-    // The above %ThrowTypeError runtime call is an unconditional throw, making
-    // it impossible to return a successful completion in this case. We simply
-    // connect the successful completion to the graph end.
+    // The above %ThrowTypeError runtime call is an unconditional throw,
+    // making it impossible to return a successful completion in this case. We
+    // simply connect the successful completion to the graph end.
     Node* throw_node =
         graph()->NewNode(common()->Throw(), check_throw, check_fail);
     NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
@@ -3743,7 +3696,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       break;
   }
 
-  if (!FLAG_runtime_stats && shared.object()->IsApiFunction()) {
+  if (!TracingFlags::is_runtime_stats_enabled() &&
+      shared.object()->IsApiFunction()) {
     return ReduceCallApiFunction(node, shared);
   }
   return NoChange();
@@ -3843,7 +3797,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   // Try to specialize JSConstruct {node}s with constant {target}s.
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
-    HeapObjectRef target_ref = m.Ref(broker()).AsHeapObject();
+    HeapObjectRef target_ref = m.Ref(broker());
 
     // Raise a TypeError if the {target} is not a constructor.
     if (!target_ref.map().is_constructor()) {
@@ -4373,14 +4327,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
 
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
-  // If the {receiver_maps} information is not reliable, we need
-  // to check that the {receiver} still has one of these maps.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   // Collect the value inputs to push.
   std::vector<Node*> values(num_values);
@@ -4477,14 +4425,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
 
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
-  // If the {receiver_maps} information is not reliable, we need
-  // to check that the {receiver} still has one of these maps.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   // Load the "length" property of the {receiver}.
   Node* length = effect = graph()->NewNode(
@@ -4586,14 +4528,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
-  // If the {receiver_maps} information is not reliable, we need
-  // to check that the {receiver} still has one of these maps.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   // Load length of the {receiver}.
   Node* length = effect = graph()->NewNode(
@@ -4779,9 +4715,6 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // We cannot optimize unless the Array[@@species] lookup chain is intact.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
   // Check that the maps are of JSArray (and more).
   // TODO(turbofan): Consider adding special case for the common pattern
   // `slice.call(arguments)`, for example jQuery makes heavy use of that.
@@ -4795,19 +4728,13 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
     }
   }
 
+  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
   if (can_be_holey) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
-  // If we have unreliable maps, we need a map check, as there might be
-  // side-effects caused by the evaluation of the {node}s parameters.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   // TODO(turbofan): We can do even better here, either adding a CloneArray
   // simplified operator, whose output type indicates that it's an Array,
@@ -5755,14 +5682,8 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   // when looking up "then".
   if (!dependencies()->DependOnPromiseThenProtector()) return NoChange();
 
-  // If the {receiver_maps} aren't reliable, we need to repeat the
-  // map check here, guarded by the CALL_IC.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   // Massage the {node} to call "then" instead by first removing all inputs
   // following the onRejected parameter, and then filling up the parameters
@@ -5831,14 +5752,8 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   // %PromisePrototype%.
   if (!dependencies()->DependOnPromiseSpeciesProtector()) return NoChange();
 
-  // If the {receiver_maps} aren't reliable, we need to repeat the
-  // map check here, guarded by the CALL_IC.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   // Check if {on_finally} is callable, and if so wrap it into appropriate
   // closures that perform the finalization.
@@ -5952,12 +5867,10 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
 
   // Check if we know something about {receiver} already.
   ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult infer_receiver_maps_result =
+  NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(broker(), receiver, effect,
                                         &receiver_maps);
-  if (infer_receiver_maps_result == NodeProperties::kNoReceiverMaps) {
-    return NoChange();
-  }
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
   DCHECK_NE(0, receiver_maps.size());
 
   // Check whether all {receiver_maps} are JSPromise maps and
@@ -5981,14 +5894,8 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   // the Promise constructor.
   if (!dependencies()->DependOnPromiseSpeciesProtector()) return NoChange();
 
-  // If the {receiver_maps} aren't reliable, we need to repeat the
-  // map check here, guarded by the CALL_IC.
-  if (infer_receiver_maps_result == NodeProperties::kUnreliableReceiverMaps) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   // Check that {on_fulfilled} is callable.
   on_fulfilled = graph()->NewNode(
@@ -6003,27 +5910,27 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
       on_rejected, jsgraph()->UndefinedConstant());
 
   // Create the resulting JSPromise.
-  Node* result = effect =
+  Node* promise = effect =
       graph()->NewNode(javascript()->CreatePromise(), context, effect);
 
   // Chain {result} onto {receiver}.
-  result = effect = graph()->NewNode(
+  promise = effect = graph()->NewNode(
       javascript()->PerformPromiseThen(), receiver, on_fulfilled, on_rejected,
-      result, context, frame_state, effect, control);
+      promise, context, frame_state, effect, control);
 
-  // At this point we know that {result} is going to have the
+  // At this point we know that {promise} is going to have the
   // initial Promise map, since even if {PerformPromiseThen}
-  // above called into the host rejection tracker, the {result}
+  // above called into the host rejection tracker, the {promise}
   // doesn't escape to user JavaScript. So bake this information
   // into the graph such that subsequent passes can use the
   // information for further optimizations.
-  MapRef result_map = native_context().promise_function().initial_map();
+  MapRef promise_map = native_context().promise_function().initial_map();
   effect = graph()->NewNode(
-      simplified()->MapGuard(ZoneHandleSet<Map>(result_map.object())), result,
+      simplified()->MapGuard(ZoneHandleSet<Map>(promise_map.object())), promise,
       effect, control);
 
-  ReplaceWithValue(node, result, effect, control);
-  return Replace(result);
+  ReplaceWithValue(node, promise, effect, control);
+  return Replace(promise);
 }
 
 // ES section #sec-promise.resolve
@@ -6982,17 +6889,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   ZoneHandleSet<Map> regexp_maps;
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(broker(), regexp, effect, &regexp_maps);
-
-  bool need_map_check = false;
-  switch (result) {
-    case NodeProperties::kNoReceiverMaps:
-      return NoChange();
-    case NodeProperties::kUnreliableReceiverMaps:
-      need_map_check = true;
-      break;
-    case NodeProperties::kReliableReceiverMaps:
-      break;
-  }
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
   for (auto map : regexp_maps) {
     MapRef receiver_map(broker(), map);
@@ -7000,14 +6897,13 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   }
 
   // Compute property access info for "exec" on {resolution}.
-  PropertyAccessInfo ai_exec;
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (!access_info_factory.ComputePropertyAccessInfo(
-          MapHandles(regexp_maps.begin(), regexp_maps.end()),
-          factory()->exec_string(), AccessMode::kLoad, &ai_exec)) {
-    return NoChange();
-  }
+  PropertyAccessInfo ai_exec = access_info_factory.ComputePropertyAccessInfo(
+      MapHandles(regexp_maps.begin(), regexp_maps.end()),
+      factory()->exec_string(), AccessMode::kLoad);
+  if (ai_exec.IsInvalid()) return NoChange();
+
   // If "exec" has been modified on {regexp}, we can't do anything.
   if (ai_exec.IsDataConstant()) {
     if (!ai_exec.constant().is_identical_to(
@@ -7025,10 +6921,6 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
     if (!constant.is_identical_to(isolate()->regexp_exec_function())) {
       return NoChange();
     }
-
-    // Protect the prototype chain from changes.
-    dependencies()->DependOnStablePrototypeChains(
-        ai_exec.receiver_maps(), JSObjectRef(broker(), holder));
 
     // Protect the exec method change in the holder.
     Handle<Object> exec_on_proto;
@@ -7050,15 +6942,12 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   Handle<JSObject> holder;
   if (ai_exec.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        ai_exec.receiver_maps(), JSObjectRef(broker(), holder));
+        ai_exec.receiver_maps(), kStartAtPrototype,
+        JSObjectRef(broker(), holder));
   }
 
-  if (need_map_check) {
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 regexp_maps, p.feedback()),
-                         regexp, effect, control);
-  }
+  effect = InsertMapChecksIfUnreliableReceiverMaps(
+      result, regexp_maps, p.feedback(), regexp, effect, control);
 
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);

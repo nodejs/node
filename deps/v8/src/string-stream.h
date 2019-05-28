@@ -187,7 +187,7 @@ class StringStream final {
 
   // Mentioned object cache support.
   void PrintMentionedObjectCache(Isolate* isolate);
-  static void ClearMentionedObjectCache(Isolate* isolate);
+  V8_EXPORT_PRIVATE static void ClearMentionedObjectCache(Isolate* isolate);
 #ifdef DEBUG
   bool IsMentionedObjectCacheClear(Isolate* isolate);
 #endif

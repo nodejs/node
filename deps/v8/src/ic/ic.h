@@ -27,7 +27,7 @@ enum class NamedPropertyType : bool { kNotOwn, kOwn };
 class IC {
  public:
   // Alias the inline cache state type to make the IC code more readable.
-  typedef InlineCacheState State;
+  using State = InlineCacheState;
 
   static constexpr int kMaxKeyedPolymorphism = 4;
 

@@ -154,6 +154,10 @@ bool CheckSubsumes(Node const* a, Node const* b) {
         case IrOpcode::kCheckedTaggedSignedToInt32:
         case IrOpcode::kCheckedTaggedToTaggedPointer:
         case IrOpcode::kCheckedTaggedToTaggedSigned:
+        case IrOpcode::kCheckedCompressedToTaggedPointer:
+        case IrOpcode::kCheckedCompressedToTaggedSigned:
+        case IrOpcode::kCheckedTaggedToCompressedPointer:
+        case IrOpcode::kCheckedTaggedToCompressedSigned:
         case IrOpcode::kCheckedUint32Bounds:
         case IrOpcode::kCheckedUint32ToInt32:
         case IrOpcode::kCheckedUint32ToTaggedSigned:

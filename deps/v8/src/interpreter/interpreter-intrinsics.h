@@ -50,7 +50,7 @@ class IntrinsicsHelper {
   };
   STATIC_ASSERT(static_cast<uint32_t>(IntrinsicId::kIdCount) <= kMaxUInt8);
 
-  static bool IsSupported(Runtime::FunctionId function_id);
+  V8_EXPORT_PRIVATE static bool IsSupported(Runtime::FunctionId function_id);
   static IntrinsicId FromRuntimeId(Runtime::FunctionId function_id);
   static Runtime::FunctionId ToRuntimeId(IntrinsicId intrinsic_id);
 

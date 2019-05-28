@@ -36,7 +36,7 @@ namespace internal {
 // the target map's descriptor array.  Stored transitions are weak in the GC
 // sense: both single transitions stored inline and TransitionArray fields are
 // cleared when the map they refer to is not otherwise reachable.
-class TransitionsAccessor {
+class V8_EXPORT_PRIVATE TransitionsAccessor {
  public:
   TransitionsAccessor(Isolate* isolate, Map map, DisallowHeapAllocation* no_gc)
       : isolate_(isolate), map_(map) {
@@ -238,7 +238,7 @@ class TransitionArray : public WeakFixedArray {
   int GetSortedKeyIndex(int transition_number) { return transition_number; }
   inline int number_of_entries() const;
 #ifdef DEBUG
-  bool IsSortedNoDuplicates(int valid_entries = -1);
+  V8_EXPORT_PRIVATE bool IsSortedNoDuplicates(int valid_entries = -1);
 #endif
 
   void Sort();

@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class TypeCache final {
+class V8_EXPORT_PRIVATE TypeCache final {
  private:
   // This has to be first for the initialization magic to work.
   AccountingAllocator allocator;

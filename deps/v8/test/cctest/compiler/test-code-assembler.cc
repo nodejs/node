@@ -594,7 +594,7 @@ TEST(TestCodeAssemblerCodeComment) {
 
   Handle<Code> code = asm_tester.GenerateCode();
   CHECK_NE(code->code_comments(), kNullAddress);
-  CodeCommentsIterator it(code->code_comments());
+  CodeCommentsIterator it(code->code_comments(), code->code_comments_size());
   CHECK(it.HasCurrent());
   bool found_comment = false;
   while (it.HasCurrent()) {

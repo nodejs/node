@@ -135,7 +135,7 @@ class V8_EXPORT_PRIVATE InstructionOperand {
   uint64_t value_;
 };
 
-typedef ZoneVector<InstructionOperand> InstructionOperandVector;
+using InstructionOperandVector = ZoneVector<InstructionOperand>;
 
 std::ostream& operator<<(std::ostream&, const InstructionOperand&);
 
@@ -477,6 +477,9 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
+      case MachineRepresentation::kCompressedSigned:
+      case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kCompressed:
         return true;
       case MachineRepresentation::kBit:
       case MachineRepresentation::kWord8:
@@ -702,7 +705,7 @@ class V8_EXPORT_PRIVATE MoveOperands final
   DISALLOW_COPY_AND_ASSIGN(MoveOperands);
 };
 
-std::ostream& operator<<(std::ostream&, const MoveOperands&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, const MoveOperands&);
 
 class V8_EXPORT_PRIVATE ParallelMove final
     : public NON_EXPORTED_BASE(ZoneVector<MoveOperands*>),
@@ -926,9 +929,9 @@ class V8_EXPORT_PRIVATE Instruction final {
   // APIs to aid debugging. For general-stream APIs, use operator<<.
   void Print() const;
 
-  typedef BitField<size_t, 0, 8> OutputCountField;
-  typedef BitField<size_t, 8, 16> InputCountField;
-  typedef BitField<size_t, 24, 6> TempCountField;
+  using OutputCountField = BitField<size_t, 0, 8>;
+  using InputCountField = BitField<size_t, 8, 16>;
+  using TempCountField = BitField<size_t, 24, 6>;
 
   static const size_t kMaxOutputCount = OutputCountField::kMax;
   static const size_t kMaxInputCount = InputCountField::kMax;
@@ -942,7 +945,7 @@ class V8_EXPORT_PRIVATE Instruction final {
               InstructionOperand* inputs, size_t temp_count,
               InstructionOperand* temps);
 
-  typedef BitField<bool, 30, 1> IsCallField;
+  using IsCallField = BitField<bool, 30, 1>;
 
   InstructionCode opcode_;
   uint32_t bit_field_;
@@ -1310,12 +1313,12 @@ class DeoptimizationEntry final {
   VectorSlotPair feedback_ = VectorSlotPair();
 };
 
-typedef ZoneVector<DeoptimizationEntry> DeoptimizationVector;
+using DeoptimizationVector = ZoneVector<DeoptimizationEntry>;
 
 class V8_EXPORT_PRIVATE PhiInstruction final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  typedef ZoneVector<InstructionOperand> Inputs;
+  using Inputs = ZoneVector<InstructionOperand>;
 
   PhiInstruction(Zone* zone, int virtual_register, size_t input_count);
 
@@ -1377,18 +1380,18 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   inline bool IsSwitchTarget() const { return switch_target_; }
   inline bool ShouldAlign() const { return alignment_; }
 
-  typedef ZoneVector<RpoNumber> Predecessors;
+  using Predecessors = ZoneVector<RpoNumber>;
   Predecessors& predecessors() { return predecessors_; }
   const Predecessors& predecessors() const { return predecessors_; }
   size_t PredecessorCount() const { return predecessors_.size(); }
   size_t PredecessorIndexOf(RpoNumber rpo_number) const;
 
-  typedef ZoneVector<RpoNumber> Successors;
+  using Successors = ZoneVector<RpoNumber>;
   Successors& successors() { return successors_; }
   const Successors& successors() const { return successors_; }
   size_t SuccessorCount() const { return successors_.size(); }
 
-  typedef ZoneVector<PhiInstruction*> PhiInstructions;
+  using PhiInstructions = ZoneVector<PhiInstruction*>;
   const PhiInstructions& phis() const { return phis_; }
   PhiInstruction* PhiAt(size_t i) const { return phis_[i]; }
   void AddPhi(PhiInstruction* phi) { phis_.push_back(phi); }
@@ -1436,14 +1439,13 @@ struct PrintableInstructionBlock {
 
 std::ostream& operator<<(std::ostream&, const PrintableInstructionBlock&);
 
-typedef ZoneDeque<Constant> ConstantDeque;
-typedef std::map<int, Constant, std::less<int>,
-                 ZoneAllocator<std::pair<const int, Constant> > >
-    ConstantMap;
+using ConstantDeque = ZoneDeque<Constant>;
+using ConstantMap = std::map<int, Constant, std::less<int>,
+                             ZoneAllocator<std::pair<const int, Constant> > >;
 
-typedef ZoneDeque<Instruction*> InstructionDeque;
-typedef ZoneDeque<ReferenceMap*> ReferenceMapDeque;
-typedef ZoneVector<InstructionBlock*> InstructionBlocks;
+using InstructionDeque = ZoneDeque<Instruction*>;
+using ReferenceMapDeque = ZoneDeque<ReferenceMap*>;
+using InstructionBlocks = ZoneVector<InstructionBlock*>;
 
 // Represents architecture-specific generated code before, during, and after
 // register allocation.
@@ -1490,7 +1492,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   void MarkAsRepresentation(MachineRepresentation rep, int virtual_register);
 
   bool IsReference(int virtual_register) const {
-    return CanBeTaggedPointer(GetRepresentation(virtual_register));
+    return CanBeTaggedOrCompressedPointer(GetRepresentation(virtual_register));
   }
   bool IsFP(int virtual_register) const {
     return IsFloatingPoint(GetRepresentation(virtual_register));
@@ -1506,7 +1508,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   Instruction* GetBlockStart(RpoNumber rpo) const;
 
-  typedef InstructionDeque::const_iterator const_iterator;
+  using const_iterator = InstructionDeque::const_iterator;
   const_iterator begin() const { return instructions_.begin(); }
   const_iterator end() const { return instructions_.end(); }
   const InstructionDeque& instructions() const { return instructions_; }
@@ -1544,7 +1546,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
     return it->second;
   }
 
-  typedef ZoneVector<Constant> Immediates;
+  using Immediates = ZoneVector<Constant>;
   Immediates& immediates() { return immediates_; }
 
   ImmediateOperand AddImmediate(const Constant& constant) {
@@ -1612,7 +1614,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   friend V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                                     const InstructionSequence&);
 
-  typedef ZoneMap<const Instruction*, SourcePosition> SourcePositionMap;
+  using SourcePositionMap = ZoneMap<const Instruction*, SourcePosition>;
 
   static const RegisterConfiguration* RegisterConfigurationForTesting();
   static const RegisterConfiguration* registerConfigurationForTesting_;

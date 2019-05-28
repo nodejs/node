@@ -363,7 +363,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(functions_.size());
     for (auto function : functions_) {
       function->WriteSignature(buffer);
-      if (!function->name_.is_empty()) ++num_function_names;
+      if (!function->name_.empty()) ++num_function_names;
     }
     FixupSection(buffer, start);
   }
@@ -544,7 +544,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     uint32_t function_index = 0;
     for (; function_index < num_imports; ++function_index) {
       const WasmFunctionImport* import = &function_imports_[function_index];
-      DCHECK(!import->name.is_empty());
+      DCHECK(!import->name.empty());
       buffer.write_u32v(function_index);
       buffer.write_string(import->name);
     }
@@ -552,7 +552,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
       for (auto function : functions_) {
         DCHECK_EQ(function_index,
                   function->func_index() + function_imports_.size());
-        if (!function->name_.is_empty()) {
+        if (!function->name_.empty()) {
           buffer.write_u32v(function_index);
           buffer.write_string(function->name_);
         }

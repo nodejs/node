@@ -207,7 +207,7 @@ class OutSet: public ZoneObject {
  public:
   OutSet() : first_(0), remaining_(nullptr), successors_(nullptr) {}
   OutSet* Extend(unsigned value, Zone* zone);
-  bool Get(unsigned value) const;
+  V8_EXPORT_PRIVATE bool Get(unsigned value) const;
   static const unsigned kFirstLimit = 32;
 
  private:
@@ -258,8 +258,8 @@ class DispatchTable : public ZoneObject {
 
   class Config {
    public:
-    typedef uc32 Key;
-    typedef Entry Value;
+    using Key = uc32;
+    using Value = Entry;
     static const uc32 kNoKey;
     static const Entry NoValue() { return Value(); }
     static inline int Compare(uc32 a, uc32 b) {
@@ -272,8 +272,8 @@ class DispatchTable : public ZoneObject {
     }
   };
 
-  void AddRange(CharacterRange range, int value, Zone* zone);
-  OutSet* Get(uc32 value);
+  V8_EXPORT_PRIVATE void AddRange(CharacterRange range, int value, Zone* zone);
+  V8_EXPORT_PRIVATE OutSet* Get(uc32 value);
   void Dump();
 
   template <typename Callback>
@@ -294,7 +294,8 @@ class DispatchTable : public ZoneObject {
 // Categorizes character ranges into BMP, non-BMP, lead, and trail surrogates.
 class UnicodeRangeSplitter {
  public:
-  UnicodeRangeSplitter(Zone* zone, ZoneList<CharacterRange>* base);
+  V8_EXPORT_PRIVATE UnicodeRangeSplitter(Zone* zone,
+                                         ZoneList<CharacterRange>* base);
   void Call(uc32 from, DispatchTable::Entry entry);
 
   ZoneList<CharacterRange>* bmp() { return bmp_; }
@@ -317,7 +318,6 @@ class UnicodeRangeSplitter {
   ZoneList<CharacterRange>* trail_surrogates_;
   ZoneList<CharacterRange>* non_bmp_;
 };
-
 
 #define FOR_EACH_NODE_TYPE(VISIT)                                    \
   VISIT(End)                                                         \
@@ -1403,7 +1403,7 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 
 // Node visitor used to add the start set of the alternatives to the
 // dispatch table of a choice node.
-class DispatchTableConstructor: public NodeVisitor {
+class V8_EXPORT_PRIVATE DispatchTableConstructor : public NodeVisitor {
  public:
   DispatchTableConstructor(DispatchTable* table, bool ignore_case,
                            Zone* zone)
@@ -1434,7 +1434,6 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
   bool ignore_case_;
   Zone* zone_;
 };
-
 
 // Assertion propagation moves information about assertions such as
 // \b to the affected nodes.  For instance, in /.\b./ information must
@@ -1507,16 +1506,15 @@ class RegExpEngine: public AllStatic {
     int const num_registers = 0;
   };
 
-  static CompilationResult Compile(Isolate* isolate, Zone* zone,
-                                   RegExpCompileData* input,
-                                   JSRegExp::Flags flags,
-                                   Handle<String> pattern,
-                                   Handle<String> sample_subject,
-                                   bool is_one_byte);
+  V8_EXPORT_PRIVATE static CompilationResult Compile(
+      Isolate* isolate, Zone* zone, RegExpCompileData* input,
+      JSRegExp::Flags flags, Handle<String> pattern,
+      Handle<String> sample_subject, bool is_one_byte);
 
   static bool TooMuchRegExpCode(Isolate* isolate, Handle<String> pattern);
 
-  static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
+  V8_EXPORT_PRIVATE static void DotPrint(const char* label, RegExpNode* node,
+                                         bool ignore_case);
 };
 
 

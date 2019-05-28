@@ -11,6 +11,7 @@
 
 namespace unibrow {
 
+#ifndef V8_INTL_SUPPORT
 template <class T, int s> bool Predicate<T, s>::get(uchar code_point) {
   CacheEntry entry = entries_[code_point & kMask];
   if (entry.code_point() == code_point) return entry.value();
@@ -55,6 +56,7 @@ template <class T, int s> int Mapping<T, s>::CalculateValue(uchar c, uchar n,
     return length;
   }
 }
+#endif  // !V8_INTL_SUPPORT
 
 // Decodes UTF-8 bytes incrementally, allowing the decoding of bytes as they
 // stream in. This **must** be followed by a call to ValueOfIncrementalFinish

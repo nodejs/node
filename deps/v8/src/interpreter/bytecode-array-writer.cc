@@ -50,11 +50,11 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
       bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
       constant_pool);
   bytecode_array->set_handler_table(*handler_table);
-  // TODO(v8:8510): Need to support native functions that should always have
-  // source positions suppressed and should write empty_byte_array here.
-  if (!source_position_table_builder_.Omit()) {
+  if (!source_position_table_builder_.Lazy()) {
     Handle<ByteArray> source_position_table =
-        source_position_table_builder()->ToSourcePositionTable(isolate);
+        source_position_table_builder_.Omit()
+            ? ReadOnlyRoots(isolate).empty_byte_array_handle()
+            : source_position_table_builder()->ToSourcePositionTable(isolate);
     bytecode_array->set_source_position_table(*source_position_table);
     LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(
                                 bytecode_array->GetFirstBytecodeAddress(),

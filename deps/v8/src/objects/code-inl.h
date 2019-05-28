@@ -233,8 +233,17 @@ void Code::clear_padding() {
          CodeSize() - (data_end - address()));
 }
 
+ByteArray Code::SourcePositionTableIfCollected() const {
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+  Object maybe_table = source_position_table();
+  if (maybe_table->IsUndefined(roots) || maybe_table->IsException(roots))
+    return roots.empty_byte_array();
+  return SourcePositionTable();
+}
+
 ByteArray Code::SourcePositionTable() const {
   Object maybe_table = source_position_table();
+  DCHECK(!maybe_table->IsUndefined() && !maybe_table->IsException());
   if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
   return SourcePositionTableWithFrameCache::cast(maybe_table)
@@ -548,7 +557,6 @@ Address Code::constant_pool() const {
 }
 
 Address Code::code_comments() const {
-  if (!has_code_comments()) return kNullAddress;
   return InstructionStart() + code_comments_offset();
 }
 
@@ -661,15 +669,6 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
   }
 }
 
-int BytecodeArray::interrupt_budget() const {
-  return READ_INT_FIELD(*this, kInterruptBudgetOffset);
-}
-
-void BytecodeArray::set_interrupt_budget(int interrupt_budget) {
-  DCHECK_GE(interrupt_budget, 0);
-  WRITE_INT_FIELD(*this, kInterruptBudgetOffset, interrupt_budget);
-}
-
 int BytecodeArray::osr_loop_nesting_level() const {
   return READ_INT8_FIELD(*this, kOSRNestingLevelOffset);
 }
@@ -714,20 +713,35 @@ Address BytecodeArray::GetFirstBytecodeAddress() {
   return ptr() - kHeapObjectTag + kHeaderSize;
 }
 
-bool BytecodeArray::HasSourcePositionTable() {
+bool BytecodeArray::HasSourcePositionTable() const {
   Object maybe_table = source_position_table();
-  return !maybe_table->IsUndefined();
+  return !(maybe_table->IsUndefined() || DidSourcePositionGenerationFail());
 }
 
-ByteArray BytecodeArray::SourcePositionTable() {
+bool BytecodeArray::DidSourcePositionGenerationFail() const {
+  return source_position_table()->IsException();
+}
+
+void BytecodeArray::SetSourcePositionsFailedToCollect() {
+  set_source_position_table(GetReadOnlyRoots().exception());
+}
+
+ByteArray BytecodeArray::SourcePositionTable() const {
   Object maybe_table = source_position_table();
   if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  if (maybe_table->IsUndefined(roots)) return roots.empty_byte_array();
+  if (maybe_table->IsException(roots)) return roots.empty_byte_array();
 
+  DCHECK(!maybe_table->IsUndefined(roots));
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
   return SourcePositionTableWithFrameCache::cast(maybe_table)
       ->source_position_table();
+}
+
+ByteArray BytecodeArray::SourcePositionTableIfCollected() const {
+  if (!HasSourcePositionTable()) return GetReadOnlyRoots().empty_byte_array();
+
+  return SourcePositionTable();
 }
 
 void BytecodeArray::ClearFrameCacheFromSourcePositionTable() {
@@ -744,7 +758,9 @@ int BytecodeArray::SizeIncludingMetadata() {
   int size = BytecodeArraySize();
   size += constant_pool()->Size();
   size += handler_table()->Size();
-  size += SourcePositionTable()->Size();
+  if (HasSourcePositionTable()) {
+    size += SourcePositionTable()->Size();
+  }
   return size;
 }
 

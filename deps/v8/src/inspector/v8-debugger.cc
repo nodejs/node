@@ -120,26 +120,24 @@ bool V8Debugger::isPausedInContextGroup(int contextGroupId) const {
 
 bool V8Debugger::enabled() const { return m_enableCount > 0; }
 
-void V8Debugger::getCompiledScripts(
-    int contextGroupId,
-    std::vector<std::unique_ptr<V8DebuggerScript>>& result) {
+std::vector<std::unique_ptr<V8DebuggerScript>> V8Debugger::getCompiledScripts(
+    int contextGroupId, V8DebuggerAgentImpl* agent) {
+  std::vector<std::unique_ptr<V8DebuggerScript>> result;
   v8::HandleScope scope(m_isolate);
   v8::PersistentValueVector<v8::debug::Script> scripts(m_isolate);
   v8::debug::GetLoadedScripts(m_isolate, scripts);
   for (size_t i = 0; i < scripts.Size(); ++i) {
     v8::Local<v8::debug::Script> script = scripts.Get(i);
     if (!script->WasCompiled()) continue;
-    if (script->IsEmbedded()) {
-      result.push_back(V8DebuggerScript::Create(m_isolate, script, false,
-                                                m_inspector->client()));
-      continue;
+    if (!script->IsEmbedded()) {
+      int contextId;
+      if (!script->ContextId().To(&contextId)) continue;
+      if (m_inspector->contextGroupId(contextId) != contextGroupId) continue;
     }
-    int contextId;
-    if (!script->ContextId().To(&contextId)) continue;
-    if (m_inspector->contextGroupId(contextId) != contextGroupId) continue;
-    result.push_back(V8DebuggerScript::Create(m_isolate, script, false,
+    result.push_back(V8DebuggerScript::Create(m_isolate, script, false, agent,
                                               m_inspector->client()));
   }
+  return result;
 }
 
 void V8Debugger::setBreakpointsActive(bool active) {
@@ -490,7 +488,8 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
          &client](V8InspectorSessionImpl* session) {
           if (!session->debuggerAgent()->enabled()) return;
           session->debuggerAgent()->didParseSource(
-              V8DebuggerScript::Create(isolate, script, is_live_edited, client),
+              V8DebuggerScript::Create(isolate, script, is_live_edited,
+                                       session->debuggerAgent(), client),
               !has_compile_error);
         });
   }

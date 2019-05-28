@@ -304,7 +304,7 @@ struct CopyConstructible {};
 template <>
 struct CopyConstructible<false> {
   constexpr CopyConstructible() = default;
-  constexpr CopyConstructible(const CopyConstructible&) = delete;
+  constexpr CopyConstructible(const CopyConstructible&) V8_NOEXCEPT = delete;
   constexpr CopyConstructible(CopyConstructible&&) V8_NOEXCEPT = default;
   CopyConstructible& operator=(const CopyConstructible&) V8_NOEXCEPT = default;
   CopyConstructible& operator=(CopyConstructible&&) V8_NOEXCEPT = default;
@@ -317,7 +317,7 @@ template <>
 struct MoveConstructible<false> {
   constexpr MoveConstructible() = default;
   constexpr MoveConstructible(const MoveConstructible&) V8_NOEXCEPT = default;
-  constexpr MoveConstructible(MoveConstructible&&) = delete;
+  constexpr MoveConstructible(MoveConstructible&&) V8_NOEXCEPT = delete;
   MoveConstructible& operator=(const MoveConstructible&) V8_NOEXCEPT = default;
   MoveConstructible& operator=(MoveConstructible&&) V8_NOEXCEPT = default;
 };
@@ -330,7 +330,7 @@ struct CopyAssignable<false> {
   constexpr CopyAssignable() = default;
   constexpr CopyAssignable(const CopyAssignable&) V8_NOEXCEPT = default;
   constexpr CopyAssignable(CopyAssignable&&) V8_NOEXCEPT = default;
-  CopyAssignable& operator=(const CopyAssignable&) = delete;
+  CopyAssignable& operator=(const CopyAssignable&) V8_NOEXCEPT = delete;
   CopyAssignable& operator=(CopyAssignable&&) V8_NOEXCEPT = default;
 };
 
@@ -343,7 +343,7 @@ struct MoveAssignable<false> {
   constexpr MoveAssignable(const MoveAssignable&) V8_NOEXCEPT = default;
   constexpr MoveAssignable(MoveAssignable&&) V8_NOEXCEPT = default;
   MoveAssignable& operator=(const MoveAssignable&) V8_NOEXCEPT = default;
-  MoveAssignable& operator=(MoveAssignable&&) = delete;
+  MoveAssignable& operator=(MoveAssignable&&) V8_NOEXCEPT = delete;
 };
 
 // Helper to conditionally enable converting constructors and assign operators.

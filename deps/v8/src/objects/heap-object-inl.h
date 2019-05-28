@@ -27,15 +27,18 @@ HeapObject::HeapObject(Address ptr, AllowInlineSmiStorage allow_smi)
       IsHeapObject());
 }
 
+// static
 HeapObject HeapObject::FromAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
   return HeapObject(address + kHeapObjectTag);
 }
 
+// static
 Heap* NeverReadOnlySpaceObject::GetHeap(const HeapObject object) {
   return GetHeapFromWritableObject(object);
 }
 
+// static
 Isolate* NeverReadOnlySpaceObject::GetIsolate(const HeapObject object) {
   return Isolate::FromHeap(GetHeap(object));
 }

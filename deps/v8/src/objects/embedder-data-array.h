@@ -8,6 +8,7 @@
 #include "src/globals.h"
 #include "src/maybe-handles.h"
 #include "src/objects/heap-object.h"
+#include "torque-generated/class-definitions-from-dsl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -27,14 +28,10 @@ class EmbedderDataArray : public HeapObject {
 
   DECL_CAST(EmbedderDataArray)
 
-// Layout description.
-#define EMBEDDER_DATA_ARRAY_FIELDS(V) \
-  V(kLengthOffset, kTaggedSize)       \
-  V(kHeaderSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                EMBEDDER_DATA_ARRAY_FIELDS)
-#undef EMBEDDER_DATA_ARRAY_FIELDS
+                                TORQUE_GENERATED_EMBEDDER_DATA_ARRAY_FIELDS)
+  // TODO(v8:8989): [torque] Support marker constants.
+  static const int kHeaderSize = kSize;
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {

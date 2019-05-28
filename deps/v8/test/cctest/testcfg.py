@@ -25,6 +25,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import os
 import shutil
 
@@ -48,9 +51,9 @@ class TestLoader(testsuite.TestLoader):
     output = cmd.execute()
     # TODO make errors visible (see duplicated code in 'unittests')
     if output.exit_code != 0:
-      print cmd
-      print output.stdout
-      print output.stderr
+      print(cmd)
+      print(output.stdout)
+      print(output.stderr)
       return []
 
     return sorted(output.stdout.strip().split())

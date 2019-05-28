@@ -26,7 +26,7 @@ struct MoveKeyCompare {
   }
 };
 
-typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
+using MoveMap = ZoneMap<MoveKey, unsigned, MoveKeyCompare>;
 
 class OperandSet {
  public:

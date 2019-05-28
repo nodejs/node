@@ -38,7 +38,7 @@ class BasicBlockProfiler {
     explicit Data(size_t n_blocks);
     ~Data() = default;
 
-    void ResetCounts();
+    V8_EXPORT_PRIVATE void ResetCounts();
 
     const size_t n_blocks_;
     std::vector<int32_t> block_rpo_numbers_;
@@ -56,7 +56,7 @@ class BasicBlockProfiler {
 
   V8_EXPORT_PRIVATE static BasicBlockProfiler* Get();
   Data* NewData(size_t n_blocks);
-  void ResetCounts();
+  V8_EXPORT_PRIVATE void ResetCounts();
 
   const DataList* data_list() { return &data_list_; }
 

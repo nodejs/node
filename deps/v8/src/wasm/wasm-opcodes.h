@@ -423,7 +423,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(TableCopy, 0xfc0e, v_iii)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
-  V(AtomicWake, 0xfe00, i_ii)                   \
+  V(AtomicNotify, 0xfe00, i_ii)                 \
   V(I32AtomicWait, 0xfe01, i_iil)               \
   V(I64AtomicWait, 0xfe02, i_ill)               \
   V(I32AtomicLoad, 0xfe10, i_i)                 \
@@ -609,7 +609,7 @@ struct WasmInitExpr {
     kI64Const,
     kF32Const,
     kF64Const,
-    kAnyRefConst,
+    kRefNullConst,
   } kind;
 
   union {

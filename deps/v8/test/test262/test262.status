@@ -73,6 +73,10 @@
   'intl402/DateTimeFormat/prototype/format/format-function-name': [FAIL],
   'intl402/Collator/prototype/compare/compare-function-name': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9084
+  'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
+  'intl402/fallback-locales-are-supported': [FAIL],
+
   # https://code.google.com/p/v8/issues/detail?id=4251
   'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
   'language/expressions/postfix-increment/S11.3.1_A5_T2': [FAIL],
@@ -142,6 +146,17 @@
   'built-ins/DataView/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
+
+  # https://crbug.com/v8/9131
+  'built-ins/RegExp/property-escapes/generated/Assigned': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_NFKC_Casefolded': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Symbol': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Symbol': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Unassigned': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Grapheme_Base': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Common': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Han': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
@@ -433,53 +448,6 @@
   'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-out-of-bounds': [FAIL],
 
-  # SharedArrayBuffer tests that require flags
-  'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],
-  'built-ins/Atomics/*': ['--harmony-sharedarraybuffer'],
-  'built-ins/ArrayBuffer/prototype/byteLength/this-is-sharedarraybuffer': ['--harmony-sharedarraybuffer'],
-  'built-ins/ArrayBuffer/prototype/slice/this-is-sharedarraybuffer': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/buffer-does-not-have-arraybuffer-data-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/buffer-reference-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/byteoffset-is-negative-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/custom-proto-if-not-object-fallbacks-to-default-prototype-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/custom-proto-if-object-is-used-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/defined-bytelength-and-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/defined-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/defined-byteoffset-undefined-bytelength-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/excessive-bytelength-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/excessive-byteoffset-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/instance-extensibility-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/negative-bytelength-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/negative-byteoffset-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/newtarget-undefined-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/proto-from-ctor-realm-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/buffer/return-buffer-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/buffer/this-has-no-dataview-internal-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/byteLength/return-bytelength-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/byteLength/this-has-no-dataview-internal-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/byteOffset/return-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/byteOffset/this-has-no-dataview-internal-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/index-is-out-of-range-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/negative-byteoffset-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/return-abrupt-from-tonumber-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/return-abrupt-from-tonumber-byteoffset-symbol-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/return-value-clean-arraybuffer-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/return-values-custom-offset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/return-values-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/this-has-no-dataview-internal-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/to-boolean-littleendian-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/return-abrupt-tonumber-bytelength-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/return-abrupt-tonumber-bytelength-symbol-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/return-abrupt-tonumber-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/return-abrupt-tonumber-byteoffset-symbol-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/return-instance-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/toindex-bytelength-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/toindex-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-other-type-conversions-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-other-type-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-same-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=8100
   'built-ins/Atomics/notify/bigint/*': [SKIP],
   'built-ins/Atomics/wait/bigint/*': [SKIP],
@@ -503,12 +471,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8849
-  'intl402/Intl/getCanonicalLocales/non-iana-canon': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7483
-  'annexB/built-ins/Function/createdynfn-html-close-comment-params': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
@@ -554,30 +516,20 @@
   'language/expressions/prefix-increment/eval': [SKIP],
   'language/expressions/prefix-increment/eval-nostrict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8850
-  'language/comments/hashbang/escaped-bang-041': [SKIP],
-  'language/comments/hashbang/escaped-bang-u0021': [SKIP],
-  'language/comments/hashbang/escaped-bang-u21': [SKIP],
-  'language/comments/hashbang/escaped-bang-x21': [SKIP],
-  'language/comments/hashbang/escaped-hash-043': [SKIP],
-  'language/comments/hashbang/escaped-hash-u0023': [SKIP],
-  'language/comments/hashbang/escaped-hash-u23': [SKIP],
-  'language/comments/hashbang/escaped-hash-x23': [SKIP],
-  'language/comments/hashbang/escaped-hashbang': [SKIP],
-  'language/comments/hashbang/eval': [SKIP],
-  'language/comments/hashbang/eval-indirect': [SKIP],
-  'language/comments/hashbang/module': [SKIP],
-  'language/comments/hashbang/multi-line-comment': [SKIP],
-  'language/comments/hashbang/no-line-separator': [SKIP],
-  'language/comments/hashbang/not-empty': [SKIP],
-  'language/comments/hashbang/preceding-directive-prologue': [SKIP],
-  'language/comments/hashbang/preceding-directive-prologue-sc': [SKIP],
-  'language/comments/hashbang/preceding-empty-statement': [SKIP],
-  'language/comments/hashbang/preceding-hashbang': [SKIP],
-  'language/comments/hashbang/preceding-line-comment': [SKIP],
-  'language/comments/hashbang/preceding-multi-line-comment': [SKIP],
-  'language/comments/hashbang/preceding-whitespace': [SKIP],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9047
+  'annexB/built-ins/Function/createdynfn-no-line-terminator-html-close-comment-body': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9048
+  'built-ins/JSON/stringify/bigint-tojson-receiver': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9050
+  'language/statements/async-generator/return-undefined-implicit-and-explicit': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9051
+  'language/statements/async-generator/yield-star-return-then-getter-ticks': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 

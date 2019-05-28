@@ -168,6 +168,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       EmbedderDataArray::cast(*this)->EmbedderDataArrayVerify(isolate);
       break;
     // FixedArray types
+    case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
@@ -253,14 +254,22 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case WASM_EXCEPTION_TYPE:
-    case WASM_GLOBAL_TYPE:
-    case WASM_MEMORY_TYPE:
-    case WASM_TABLE_TYPE:
       JSObject::cast(*this)->JSObjectVerify(isolate);
       break;
     case WASM_MODULE_TYPE:
       WasmModuleObject::cast(*this)->WasmModuleObjectVerify(isolate);
+      break;
+    case WASM_TABLE_TYPE:
+      WasmTableObject::cast(*this)->WasmTableObjectVerify(isolate);
+      break;
+    case WASM_MEMORY_TYPE:
+      WasmMemoryObject::cast(*this)->WasmMemoryObjectVerify(isolate);
+      break;
+    case WASM_GLOBAL_TYPE:
+      WasmGlobalObject::cast(*this)->WasmGlobalObjectVerify(isolate);
+      break;
+    case WASM_EXCEPTION_TYPE:
+      WasmExceptionObject::cast(*this)->WasmExceptionObjectVerify(isolate);
       break;
     case WASM_INSTANCE_TYPE:
       WasmInstanceObject::cast(*this)->WasmInstanceObjectVerify(isolate);
@@ -463,6 +472,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
   }
 }
 
+// static
 void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
   CHECK(p->IsHeapObject());
   HeapObject ho = HeapObject::cast(p);
@@ -490,17 +500,22 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   VerifyHeapPointer(isolate, constant_pool());
 }
 
-void FreeSpace::FreeSpaceVerify(Isolate* isolate) { CHECK(IsFreeSpace()); }
+void FreeSpace::FreeSpaceVerify(Isolate* isolate) {
+  CHECK(IsFreeSpace());
+  VerifySmiField(kSizeOffset);
+}
 
 void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   CHECK(IsFeedbackCell());
 
   VerifyHeapPointer(isolate, value());
-  CHECK(value()->IsUndefined(isolate) || value()->IsFeedbackVector());
+  CHECK(value()->IsUndefined(isolate) || value()->IsFeedbackVector() ||
+        value()->IsFixedArray());
 }
 
 void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
   CHECK(IsFeedbackVector());
+  CHECK(closure_feedback_cell_array()->IsFixedArray());
   MaybeObject code = optimized_code_weak_or_smi();
   MaybeObject::VerifyMaybeObjectPointer(isolate, code);
   CHECK(code->IsSmi() || code->IsWeakOrCleared());
@@ -629,6 +644,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine()) {
     CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
+              map()->has_frozen_or_sealed_elements() ||
               (elements() == GetReadOnlyRoots().empty_fixed_array()) ||
               HasFastStringWrapperElements()),
              (elements()->map() == GetReadOnlyRoots().fixed_array_map() ||
@@ -702,6 +718,7 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
     Object e = slot.load_tagged();
     Object::VerifyPointer(isolate, e);
   }
+  VerifySmiField(kLengthOffset);
 }
 
 void FixedArray::FixedArrayVerify(Isolate* isolate) {
@@ -712,6 +729,7 @@ void FixedArray::FixedArrayVerify(Isolate* isolate) {
 }
 
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
+  VerifySmiField(kLengthOffset);
   for (int i = 0; i < length(); i++) {
     MaybeObject::VerifyMaybeObjectPointer(isolate, Get(i));
   }
@@ -734,6 +752,7 @@ void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
     Object e = get(i);
     Object::VerifyPointer(isolate, e);
   }
+  VerifySmiField(kLengthAndHashOffset);
 }
 
 void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
@@ -769,7 +788,7 @@ void NativeContext::NativeContextVerify(Isolate* isolate) {
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
-  if (slot_count() == 0) {
+  if (slot_count() == 0 && closure_feedback_cell_count() == 0) {
     CHECK_EQ(ReadOnlyRoots(isolate).empty_feedback_metadata(), *this);
   } else {
     FeedbackMetadataIterator iter(*this);
@@ -989,6 +1008,10 @@ void JSMessageObject::JSMessageObjectVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kArgumentsOffset);
   VerifyObjectField(isolate, kScriptOffset);
   VerifyObjectField(isolate, kStackFramesOffset);
+  VerifySmiField(kMessageTypeOffset);
+  VerifySmiField(kStartPositionOffset);
+  VerifySmiField(kEndPositionOffset);
+  VerifySmiField(kErrorLevelOffset);
 }
 
 void String::StringVerify(Isolate* isolate) {
@@ -1194,6 +1217,8 @@ void Oddball::OddballVerify(Isolate* isolate) {
   } else {
     UNREACHABLE();
   }
+  CHECK(to_string()->IsString());
+  CHECK(type_of()->IsString());
 }
 
 void Cell::CellVerify(Isolate* isolate) {
@@ -1203,7 +1228,12 @@ void Cell::CellVerify(Isolate* isolate) {
 
 void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   CHECK(IsPropertyCell());
+  VerifyObjectField(isolate, kNameOffset);
+  CHECK(name()->IsName());
+  VerifySmiField(kPropertyDetailsRawOffset);
   VerifyObjectField(isolate, kValueOffset);
+  VerifyObjectField(isolate, kDependentCodeOffset);
+  CHECK(dependent_code()->IsDependentCode());
 }
 
 void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
@@ -1249,10 +1279,11 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
   }
   if (!length()->IsNumber()) return;
   // Verify that the length and the elements backing store are in sync.
-  if (length()->IsSmi() && HasFastElements()) {
+  if (length()->IsSmi() && (HasFastElements() || HasFrozenOrSealedElements())) {
     if (elements()->length() > 0) {
       CHECK_IMPLIES(HasDoubleElements(), elements()->IsFixedDoubleArray());
-      CHECK_IMPLIES(HasSmiOrObjectElements(), elements()->IsFixedArray());
+      CHECK_IMPLIES(HasSmiOrObjectElements() || HasFrozenOrSealedElements(),
+                    elements()->IsFixedArray());
     }
     int size = Smi::ToInt(length());
     // Holey / Packed backing stores might have slack or might have not been
@@ -1598,6 +1629,8 @@ void SmallOrderedNameDictionary::SmallOrderedNameDictionaryVerify(
 void JSRegExp::JSRegExpVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(data()->IsUndefined(isolate) || data()->IsFixedArray());
+  CHECK(source()->IsUndefined(isolate) || source()->IsString());
+  CHECK(flags()->IsUndefined() || flags()->IsSmi());
   switch (TypeTag()) {
     case JSRegExp::ATOM: {
       FixedArray arr = FixedArray::cast(data());
@@ -1806,15 +1839,21 @@ void PrototypeUsers::Verify(WeakArrayList array) {
 
 void Tuple2::Tuple2Verify(Isolate* isolate) {
   CHECK(IsTuple2());
+  VerifyObjectField(isolate, kValue1Offset);
+  VerifyObjectField(isolate, kValue2Offset);
+}
+
+void EnumCache::EnumCacheVerify(Isolate* isolate) {
+  CHECK(IsEnumCache());
   Heap* heap = isolate->heap();
   if (*this == ReadOnlyRoots(heap).empty_enum_cache()) {
-    CHECK_EQ(ReadOnlyRoots(heap).empty_fixed_array(),
-             EnumCache::cast(*this)->keys());
-    CHECK_EQ(ReadOnlyRoots(heap).empty_fixed_array(),
-             EnumCache::cast(*this)->indices());
+    CHECK_EQ(ReadOnlyRoots(heap).empty_fixed_array(), keys());
+    CHECK_EQ(ReadOnlyRoots(heap).empty_fixed_array(), indices());
   } else {
-    VerifyObjectField(isolate, kValue1Offset);
-    VerifyObjectField(isolate, kValue2Offset);
+    VerifyObjectField(isolate, kKeysOffset);
+    VerifyObjectField(isolate, kIndicesOffset);
+    CHECK(keys()->IsFixedArray());
+    CHECK(indices()->IsFixedArray());
   }
 }
 
@@ -1848,8 +1887,11 @@ void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionVerify(
 
 void AsmWasmData::AsmWasmDataVerify(Isolate* isolate) {
   CHECK(IsAsmWasmData());
+  CHECK(managed_native_module()->IsForeign());
   VerifyObjectField(isolate, kManagedNativeModuleOffset);
+  CHECK(export_wrappers()->IsFixedArray());
   VerifyObjectField(isolate, kExportWrappersOffset);
+  CHECK(asm_js_offset_table()->IsByteArray());
   VerifyObjectField(isolate, kAsmJsOffsetTableOffset);
   CHECK(uses_bitset()->IsHeapNumber());
   VerifyObjectField(isolate, kUsesBitsetOffset);
@@ -1863,6 +1905,7 @@ void WasmDebugInfo::WasmDebugInfoVerify(Isolate* isolate) {
   CHECK(interpreter_handle()->IsUndefined(isolate) ||
         interpreter_handle()->IsForeign());
   VerifyObjectField(isolate, kInterpretedFunctionsOffset);
+  CHECK(interpreted_functions()->IsFixedArray());
   VerifyObjectField(isolate, kLocalsNamesOffset);
   VerifyObjectField(isolate, kCWasmEntriesOffset);
   VerifyObjectField(isolate, kCWasmEntryMapOffset);
@@ -1893,6 +1936,7 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
   CHECK(wrapper_code()->kind() == Code::JS_TO_WASM_FUNCTION ||
         wrapper_code()->kind() == Code::C_WASM_ENTRY);
   VerifyObjectField(isolate, kInstanceOffset);
+  CHECK(instance()->IsWasmInstanceObject());
   VerifySmiField(kJumpTableOffsetOffset);
   VerifySmiField(kFunctionIndexOffset);
 }
@@ -1904,8 +1948,45 @@ void WasmModuleObject::WasmModuleObjectVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kExportWrappersOffset);
   CHECK(export_wrappers()->IsFixedArray());
   VerifyObjectField(isolate, kScriptOffset);
+  CHECK(script()->IsScript());
+  VerifyObjectField(isolate, kWeakInstanceListOffset);
   VerifyObjectField(isolate, kAsmJsOffsetTableOffset);
   VerifyObjectField(isolate, kBreakPointInfosOffset);
+}
+
+void WasmTableObject::WasmTableObjectVerify(Isolate* isolate) {
+  CHECK(IsWasmTableObject());
+  VerifyObjectField(isolate, kElementsOffset);
+  CHECK(elements()->IsFixedArray());
+  VerifyObjectField(isolate, kMaximumLengthOffset);
+  CHECK(maximum_length()->IsSmi() || maximum_length()->IsHeapNumber() ||
+        maximum_length()->IsUndefined(isolate));
+  VerifyObjectField(isolate, kDispatchTablesOffset);
+  VerifySmiField(kRawTypeOffset);
+}
+
+void WasmMemoryObject::WasmMemoryObjectVerify(Isolate* isolate) {
+  CHECK(IsWasmMemoryObject());
+  VerifyObjectField(isolate, kArrayBufferOffset);
+  CHECK(array_buffer()->IsJSArrayBuffer());
+  VerifySmiField(kMaximumPagesOffset);
+  VerifyObjectField(isolate, kInstancesOffset);
+}
+
+void WasmGlobalObject::WasmGlobalObjectVerify(Isolate* isolate) {
+  CHECK(IsWasmGlobalObject());
+  VerifyObjectField(isolate, kUntaggedBufferOffset);
+  VerifyObjectField(isolate, kTaggedBufferOffset);
+  VerifyObjectField(isolate, kOffsetOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
+}
+
+void WasmExceptionObject::WasmExceptionObjectVerify(Isolate* isolate) {
+  CHECK(IsWasmExceptionObject());
+  VerifyObjectField(isolate, kSerializedSignatureOffset);
+  CHECK(serialized_signature()->IsByteArray());
+  VerifyObjectField(isolate, kExceptionTagOffset);
+  CHECK(exception_tag()->IsHeapObject());
 }
 
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
@@ -2038,6 +2119,12 @@ void Script::ScriptVerify(Isolate* isolate) {
           (maybe_object->GetHeapObjectIfStrong(&heap_object) &&
            heap_object->IsUndefined(isolate)));
   }
+  VerifySmiField(kIdOffset);
+  VerifySmiField(kLineOffsetOffset);
+  VerifySmiField(kColumnOffsetOffset);
+  VerifySmiField(kScriptTypeOffset);
+  VerifySmiField(kEvalFromPositionOffset);
+  VerifySmiField(kFlagsOffset);
 }
 
 void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
@@ -2106,7 +2193,9 @@ void UncompiledDataWithoutPreparseData::UncompiledDataWithoutPreparseDataVerify(
 
 void InterpreterData::InterpreterDataVerify(Isolate* isolate) {
   CHECK(IsInterpreterData());
+  VerifyObjectField(isolate, kBytecodeArrayOffset);
   CHECK(bytecode_array()->IsBytecodeArray());
+  VerifyObjectField(isolate, kInterpreterTrampolineOffset);
   CHECK(interpreter_trampoline()->IsCode());
 }
 
@@ -2135,6 +2224,7 @@ void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kICULocaleOffset);
   VerifyObjectField(isolate, kICUSimpleDateFormatOffset);
+  VerifyObjectField(isolate, kICUDateIntervalFormatOffset);
   VerifyObjectField(isolate, kBoundFormatOffset);
   VerifyObjectField(isolate, kFlagsOffset);
 }
@@ -2222,6 +2312,8 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     case PACKED_DOUBLE_ELEMENTS:
     case HOLEY_ELEMENTS:
     case PACKED_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;
