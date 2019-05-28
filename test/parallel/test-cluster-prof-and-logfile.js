@@ -7,7 +7,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 
 const waitForEvent = (eventEmiter, event) =>
-  new Promise((resolve) => eventEmiter.on(event, resolve));
+  new Promise((resolve) => eventEmiter.once(event, resolve));
 
 function findLogFileWithName(name, dir) {
   const data = fs.readdirSync(dir, 'utf8');
@@ -25,20 +25,14 @@ async function shouldFillLogfileArg() {
 
   cluster.fork();
 
-  const handler = common.mustCall((worker) => {
+  cluster.once('exit', common.mustCall((worker) => {
     const EXPECTED_FILENAME = 'v8-' + worker.process.pid;
     const reports = findLogFileWithName(EXPECTED_FILENAME, tmpdir.path);
-    assert.strictEqual(reports.length, 1);
-  });
-
-  cluster.on('exit', handler);
-
-  try {
-    await waitForEvent(cluster, 'exit');
-  } finally {
-    cluster.removeListener('exit', handler);
     tmpdir.refresh();
-  }
+    assert.strictEqual(reports.length, 1);
+  }));
+
+  await waitForEvent(cluster, 'exit');
 }
 
 async function shouldCreateLogWithArgName() {
@@ -54,19 +48,13 @@ async function shouldCreateLogWithArgName() {
 
   cluster.fork();
 
-  const handler = common.mustCall((worker) => {
+  cluster.once('exit', common.mustCall((worker) => {
     const reports = findLogFileWithName(EXPECTED_FILENAME, tmpdir.path);
-    assert.strictEqual(reports.length, 1);
-  });
-
-  cluster.on('exit', handler);
-
-  try {
-    await waitForEvent(cluster, 'exit');
-  } finally {
-    cluster.removeListener('exit', handler);
     tmpdir.refresh();
-  }
+    assert.strictEqual(reports.length, 1);
+  }));
+
+  await waitForEvent(cluster, 'exit');
 }
 
 if (cluster.isMaster) {
