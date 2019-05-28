@@ -37,15 +37,11 @@ The stability indices are as follows:
 > Stability: 2 - Stable. Compatibility with the npm ecosystem is a high
 > priority.
 
-Use caution when making use of `Experimental` features, particularly
-within modules that are dependencies (or dependencies of
-dependencies) within a Node.js application. End users may not be aware that
-experimental features are being used, and may experience unexpected
-failures or behavior changes when API modifications occur. To help avoid such
-surprises, `Experimental` features may require a command-line flag to
-enable them, or may emit a process warning.
-By default, such warnings are printed to [`stderr`][] and may be handled by
-attaching a listener to the [`'warning'`][] event.
+Use caution when making use of Experimental features, particularly within
+modules. End users may not be aware that experimental features are being used.
+Bugs or behavior changes may surprise end users when Experimental API
+modifications occur. To avoid surprises, use of an Experimental feature may need
+a command-line flag. Experimental features may also emit a [warning][].
 
 ## JSON Output
 <!-- YAML
@@ -68,9 +64,8 @@ relative to Linux and macOS. For an example of the subtle ways in which it's
 sometimes impossible to replace Unix syscall semantics on Windows, see [Node.js
 issue 4760](https://github.com/nodejs/node/issues/4760).
 
-[`'warning'`]: process.html#process_event_warning
 [`fs.open()`]: fs.html#fs_fs_open_path_flags_mode_callback
-[`stderr`]: process.html#process_process_stderr
+[warning]: process.html#process_event_warning
 [the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 [the issue tracker]: https://github.com/nodejs/node/issues/new
 [V8 JavaScript engine]: https://v8.dev/
