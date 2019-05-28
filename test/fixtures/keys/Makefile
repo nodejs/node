@@ -43,6 +43,8 @@ all: \
   rsa_pss_public_2048.pem \
   rsa_pss_public_2048_sha256_sha256_16.pem \
   rsa_pss_public_2048_sha512_sha256_20.pem \
+  ed25519_private.pem \
+  ed25519_public.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -597,6 +599,12 @@ rsa_pss_public_2048_sha256_sha256_16.pem: rsa_pss_private_2048_sha256_sha256_16.
 
 rsa_pss_public_2048_sha512_sha256_20.pem: rsa_pss_private_2048_sha512_sha256_20.pem
 	openssl pkey -in rsa_pss_private_2048_sha512_sha256_20.pem -pubout -out rsa_pss_public_2048_sha512_sha256_20.pem
+
+ed25519_private.pem:
+	openssl genpkey -algorithm ED25519 -out ed25519_private.pem
+
+ed25519_public.pem: ed25519_private.pem
+	openssl pkey -in ed25519_private.pem -pubout -out ed25519_public.pem
 
 clean:
 	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
