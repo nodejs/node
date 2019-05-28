@@ -8,6 +8,8 @@ const keys = [
   'does_zap_garbage',
   'heap_size_limit',
   'malloced_memory',
+  'number_of_detached_contexts',
+  'number_of_native_contexts',
   'peak_malloced_memory',
   'total_available_size',
   'total_heap_size',
