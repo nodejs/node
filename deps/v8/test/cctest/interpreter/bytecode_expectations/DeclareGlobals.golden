@@ -105,7 +105,7 @@ bytecodes: [
   /*    0 E> */ B(StackCheck),
   /*   16 S> */ B(LdaGlobal), U8(1), U8(0),
                 B(Star), R(1),
-  /*   16 E> */ B(CallUndefinedReceiver0), R(1), U8(3),
+  /*   16 E> */ B(CallUndefinedReceiver0), R(1), U8(2),
                 B(Star), R(0),
   /*   21 S> */ B(Return),
 ]

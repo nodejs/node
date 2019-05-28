@@ -17,8 +17,8 @@ class JSObject;
 
 class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
  public:
-  typedef std::pair<void*, void*> WrapperInfo;
-  typedef std::vector<WrapperInfo> WrapperCache;
+  using WrapperInfo = std::pair<void*, void*>;
+  using WrapperCache = std::vector<WrapperInfo>;
 
   class V8_EXPORT_PRIVATE ProcessingScope {
    public:

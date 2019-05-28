@@ -97,8 +97,8 @@ OPTIONAL_ACCESSORS(WasmModuleObject, breakpoint_infos, FixedArray,
 wasm::NativeModule* WasmModuleObject::native_module() const {
   return managed_native_module()->raw();
 }
-std::shared_ptr<wasm::NativeModule> WasmModuleObject::shared_native_module()
-    const {
+const std::shared_ptr<wasm::NativeModule>&
+WasmModuleObject::shared_native_module() const {
   return managed_native_module()->get();
 }
 const wasm::WasmModule* WasmModuleObject::module() const {
@@ -120,6 +120,7 @@ bool WasmModuleObject::is_asm_js() {
 ACCESSORS(WasmTableObject, elements, FixedArray, kElementsOffset)
 ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)
 ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
+SMI_ACCESSORS(WasmTableObject, raw_type, kRawTypeOffset)
 
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
@@ -162,8 +163,9 @@ double WasmGlobalObject::GetF64() {
   return ReadLittleEndianValue<double>(address());
 }
 
-Handle<Object> WasmGlobalObject::GetAnyRef() {
-  DCHECK_EQ(type(), wasm::kWasmAnyRef);
+Handle<Object> WasmGlobalObject::GetRef() {
+  // We use this getter for anyref, anyfunc, and except_ref.
+  DCHECK(wasm::ValueTypes::IsReferenceType(type()));
   return handle(tagged_buffer()->get(offset()), GetIsolate());
 }
 
@@ -184,8 +186,19 @@ void WasmGlobalObject::SetF64(double value) {
 }
 
 void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
-  DCHECK_EQ(type(), wasm::kWasmAnyRef);
+  // We use this getter anyref and except_ref.
+  DCHECK(type() == wasm::kWasmAnyRef || type() == wasm::kWasmExceptRef);
   tagged_buffer()->set(offset(), *value);
+}
+
+bool WasmGlobalObject::SetAnyFunc(Isolate* isolate, Handle<Object> value) {
+  DCHECK_EQ(type(), wasm::kWasmAnyFunc);
+  if (!value->IsNull(isolate) &&
+      !WasmExportedFunction::IsWasmExportedFunction(*value)) {
+    return false;
+  }
+  tagged_buffer()->set(offset(), *value);
+  return true;
 }
 
 // WasmInstanceObject
@@ -235,8 +248,6 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, imported_mutable_globals_buffers,
                    FixedArray, kImportedMutableGlobalsBuffersOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, table_object, WasmTableObject,
-                   kTableObjectOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, tables, FixedArray, kTablesOffset)
 ACCESSORS(WasmInstanceObject, imported_function_refs, FixedArray,
           kImportedFunctionRefsOffset)
@@ -314,6 +325,10 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 #undef PRIMITIVE_ACCESSORS
 
 uint32_t WasmTableObject::current_length() { return elements()->length(); }
+
+wasm::ValueType WasmTableObject::type() {
+  return static_cast<wasm::ValueType>(raw_type());
+}
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 

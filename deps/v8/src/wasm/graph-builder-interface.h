@@ -23,11 +23,11 @@ struct FunctionBody;
 struct WasmModule;
 struct WasmFeatures;
 
-DecodeResult BuildTFGraph(AccountingAllocator* allocator,
-                          const WasmFeatures& enabled, const WasmModule* module,
-                          compiler::WasmGraphBuilder* builder,
-                          WasmFeatures* detected, const FunctionBody& body,
-                          compiler::NodeOriginTable* node_origins);
+V8_EXPORT_PRIVATE DecodeResult
+BuildTFGraph(AccountingAllocator* allocator, const WasmFeatures& enabled,
+             const WasmModule* module, compiler::WasmGraphBuilder* builder,
+             WasmFeatures* detected, const FunctionBody& body,
+             compiler::NodeOriginTable* node_origins);
 
 }  // namespace wasm
 }  // namespace internal

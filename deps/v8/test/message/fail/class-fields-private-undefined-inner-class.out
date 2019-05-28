@@ -1,0 +1,4 @@
+*%(basename)s:10: SyntaxError: Undefined private field #b: must be declared in an enclosing class
+      getA() { return this.#b; }
+                          ^
+SyntaxError: Undefined private field #b: must be declared in an enclosing class

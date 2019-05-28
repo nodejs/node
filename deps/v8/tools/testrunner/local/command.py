@@ -155,6 +155,25 @@ class BaseCommand(object):
 
 
 class PosixCommand(BaseCommand):
+  # TODO(machenbach): Use base process start without shell once
+  # https://crbug.com/v8/8889 is resolved.
+  def _start_process(self):
+    def wrapped(arg):
+      if set('() \'"') & set(arg):
+        return "'%s'" % arg.replace("'", "'\"'\"'")
+      return arg
+    try:
+      return subprocess.Popen(
+        args=' '.join(map(wrapped, self._get_popen_args())),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=self._get_env(),
+        shell=True,
+      )
+    except Exception as e:
+      sys.stderr.write('Error executing: %s\n' % self)
+      raise e
+
   def _kill_process(self, process):
     process.kill()
 

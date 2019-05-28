@@ -214,7 +214,7 @@ class SafepointTableBuilder {
 
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.
-  void Emit(Assembler* assembler, int bits_per_entry);
+  V8_EXPORT_PRIVATE void Emit(Assembler* assembler, int bits_per_entry);
 
   // Find the Deoptimization Info with pc offset {pc} and update its
   // trampoline field. Calling this function ensures that the safepoint

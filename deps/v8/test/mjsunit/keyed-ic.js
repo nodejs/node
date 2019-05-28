@@ -150,24 +150,39 @@ runTest();
 runTest = function() {
   var o = [ 42, 43 ];
 
-  var initial_X = 0;
-  var X = initial_X;
-  var Y = 1;
+  function test(o) {
+    var initial_X = 0;
+    var X = initial_X;
+    var Y = 1;
 
-  function fieldTest(change_index) {
-    for (var i = 0; i < 10; i++) {
-      var property = o[X];
-      if (i <= change_index) {
-        assertEquals(42, property);
-      } else {
-        assertEquals(43, property);
+    function fieldTest(change_index) {
+      for (var i = 0; i < 10; i++) {
+        var property = o[X];
+        if (i <= change_index) {
+          assertEquals(42, property);
+        } else {
+          assertEquals(43, property);
+        }
+        if (i == change_index) X = Y;
       }
-      if (i == change_index) X = Y;
-    }
-    X = initial_X;
-  };
+      X = initial_X;
+    };
 
-  for (var i = 0; i < 10; i++) fieldTest(i);
+    for (var i = 0; i < 10; i++) fieldTest(i);
+  }
+  test(o);
+
+  // Non-extensible
+  var b =  Object.preventExtensions(o);
+  test(b);
+
+  // Sealed
+  var c =  Object.seal(o);
+  test(c);
+
+  // Frozen
+  var d =  Object.freeze(o);
+  test(d);
 }
 
 runTest();

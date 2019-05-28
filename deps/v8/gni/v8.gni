@@ -31,11 +31,18 @@ declare_args() {
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
 
+  # Enables raw heap snapshots containing internals. Used for debugging memory
+  # on platform and embedder level.
+  v8_enable_raw_heap_snapshots = false
+
   # Enable the snapshot feature, for fast context creation.
   # https://v8.dev/blog/custom-startup-snapshots
   # TODO(thakis): Make snapshots work in 64-bit win/cross builds,
   # https://803591
-  v8_use_snapshot = !(is_win && host_os != "win" && target_cpu == "x64")
+  # On Mac hosts, 32-bit builds targeting Windows can't use snapshots, see
+  # https://crbug.com/794838
+  v8_use_snapshot = !(is_win && host_os != "win" && target_cpu == "x64") &&
+                    !(is_win && host_os == "mac" && target_cpu == "x86")
 
   # Enable several snapshots side-by-side (e.g. default and for trusted code).
   v8_use_multi_snapshots = false
@@ -94,8 +101,20 @@ v8_add_configs = [
   v8_path_prefix + ":toolchain",
 ]
 
-v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
-v8_add_configs += [ v8_path_prefix + ":default_optimization" ]
+if (is_debug && !v8_optimized_debug) {
+  v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
+  v8_add_configs += [ "//build/config/compiler:no_optimize" ]
+} else {
+  v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
+
+  # TODO(crbug.com/621335) Rework this so that we don't have the confusion
+  # between "optimize_speed" and "optimize_max".
+  if (((is_posix && !is_android) || is_fuchsia) && !using_sanitizer) {
+    v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
+  } else {
+    v8_add_configs += [ "//build/config/compiler:optimize_max" ]
+  }
+}
 
 if (v8_code_coverage && !is_clang) {
   v8_add_configs += [

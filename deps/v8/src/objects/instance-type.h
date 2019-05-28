@@ -15,26 +15,14 @@ namespace v8 {
 namespace internal {
 
 // We use the full 16 bits of the instance_type field to encode heap object
-// instance types. All the high-order bits (bit 6-15) are cleared if the object
+// instance types. All the high-order bits (bits 6-15) are cleared if the object
 // is a string, and contain set bits if it is not a string.
-const uint32_t kIsNotStringMask = 0xffc0;
+const uint32_t kIsNotStringMask = ~((1 << 6) - 1);
 const uint32_t kStringTag = 0x0;
 
-// Bit 5 indicates that the object is an internalized string (if not set) or
-// not (if set). Bit 7 has to be clear as well.
-const uint32_t kIsNotInternalizedMask = 0x20;
-const uint32_t kNotInternalizedTag = 0x20;
-const uint32_t kInternalizedTag = 0x0;
-
-// If bit 7 is clear then bit 3 indicates whether the string consists of
-// two-byte characters or one-byte characters.
-const uint32_t kStringEncodingMask = 0x8;
-const uint32_t kTwoByteStringTag = 0x0;
-const uint32_t kOneByteStringTag = 0x8;
-
-// If bit 7 is clear, the low-order 3 bits indicate the representation
-// of the string.
-const uint32_t kStringRepresentationMask = 0x07;
+// For strings, bits 0-2 indicate the representation of the string. In
+// particular, bit 0 indicates whether the string is direct or indirect.
+const uint32_t kStringRepresentationMask = (1 << 3) - 1;
 enum StringRepresentationTag {
   kSeqStringTag = 0x0,
   kConsStringTag = 0x1,
@@ -42,20 +30,32 @@ enum StringRepresentationTag {
   kSlicedStringTag = 0x3,
   kThinStringTag = 0x5
 };
-const uint32_t kIsIndirectStringMask = 0x1;
-const uint32_t kIsIndirectStringTag = 0x1;
-STATIC_ASSERT((kSeqStringTag & kIsIndirectStringMask) == 0);       // NOLINT
-STATIC_ASSERT((kExternalStringTag & kIsIndirectStringMask) == 0);  // NOLINT
-STATIC_ASSERT((kConsStringTag & kIsIndirectStringMask) ==
-              kIsIndirectStringTag);  // NOLINT
+const uint32_t kIsIndirectStringMask = 1 << 0;
+const uint32_t kIsIndirectStringTag = 1 << 0;
+STATIC_ASSERT((kSeqStringTag & kIsIndirectStringMask) == 0);
+STATIC_ASSERT((kExternalStringTag & kIsIndirectStringMask) == 0);
+STATIC_ASSERT((kConsStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
 STATIC_ASSERT((kSlicedStringTag & kIsIndirectStringMask) ==
-              kIsIndirectStringTag);  // NOLINT
+              kIsIndirectStringTag);
 STATIC_ASSERT((kThinStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
 
-// If bit 6 is clear and string representation indicates an external string,
-// then bit 5 indicates whether the data pointer is cached.
-const uint32_t kUncachedExternalStringMask = 0x10;
-const uint32_t kUncachedExternalStringTag = 0x10;
+// For strings, bit 3 indicates whether the string consists of two-byte
+// characters or one-byte characters.
+const uint32_t kStringEncodingMask = 1 << 3;
+const uint32_t kTwoByteStringTag = 0;
+const uint32_t kOneByteStringTag = 1 << 3;
+
+// For strings, bit 4 indicates whether the data pointer of an external string
+// is cached. Note that the string representation is expected to be
+// kExternalStringTag.
+const uint32_t kUncachedExternalStringMask = 1 << 4;
+const uint32_t kUncachedExternalStringTag = 1 << 4;
+
+// For strings, bit 5 indicates that the string is internalized (if not set) or
+// isn't (if set).
+const uint32_t kIsNotInternalizedMask = 1 << 5;
+const uint32_t kNotInternalizedTag = 1 << 5;
+const uint32_t kInternalizedTag = 0;
 
 // A ConsString with an empty string as the right side is a candidate
 // for being shortcut by the garbage collector. We don't allocate any
@@ -156,6 +156,7 @@ enum InstanceType : uint16_t {
   ASYNC_GENERATOR_REQUEST_TYPE,
   CLASS_POSITIONS_TYPE,
   DEBUG_INFO_TYPE,
+  ENUM_CACHE_TYPE,
   FUNCTION_TEMPLATE_INFO_TYPE,
   FUNCTION_TEMPLATE_RARE_DATA_TYPE,
   INTERCEPTOR_INFO_TYPE,
@@ -188,6 +189,7 @@ enum InstanceType : uint16_t {
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
+  CLOSURE_FEEDBACK_CELL_ARRAY_TYPE,
   HASH_TABLE_TYPE,        // FIRST_HASH_TABLE_TYPE
   ORDERED_HASH_MAP_TYPE,  // FIRST_DICTIONARY_TYPE
   ORDERED_HASH_SET_TYPE,
@@ -401,6 +403,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(CachedTemplateObject, TUPLE3_TYPE)                                       \
   V(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)                             \
   V(CoverageInfo, FIXED_ARRAY_TYPE)                                          \
+  V(ClosureFeedbackCellArray, CLOSURE_FEEDBACK_CELL_ARRAY_TYPE)              \
   V(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)                                  \
   V(EmbedderDataArray, EMBEDDER_DATA_ARRAY_TYPE)                             \
   V(EphemeronHashTable, EPHEMERON_HASH_TABLE_TYPE)                           \

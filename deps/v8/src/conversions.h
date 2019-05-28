@@ -93,7 +93,8 @@ double StringToDouble(Vector<const uint8_t> str, int flags,
 double StringToDouble(Vector<const uc16> str, int flags,
                       double empty_string_val = 0);
 // This version expects a zero-terminated character array.
-double StringToDouble(const char* str, int flags, double empty_string_val = 0);
+double V8_EXPORT_PRIVATE StringToDouble(const char* str, int flags,
+                                        double empty_string_val = 0);
 
 double StringToInt(Isolate* isolate, Handle<String> string, int radix);
 
@@ -171,7 +172,7 @@ inline bool TryNumberToSize(Object number, size_t* result);
 inline size_t NumberToSize(Object number);
 
 // returns DoubleToString(StringToDouble(string)) == string
-bool IsSpecialIndex(String string);
+V8_EXPORT_PRIVATE bool IsSpecialIndex(String string);
 
 }  // namespace internal
 }  // namespace v8

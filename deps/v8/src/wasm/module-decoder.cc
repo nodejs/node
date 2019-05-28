@@ -30,6 +30,7 @@ namespace {
 
 constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
+constexpr char kCompilationHintsString[] = "compilationHints";
 
 template <size_t N>
 constexpr size_t num_chars(const char (&)[N]) {
@@ -88,6 +89,8 @@ const char* SectionName(SectionCode code) {
       return kNameString;
     case kSourceMappingURLSectionCode:
       return kSourceMappingURLString;
+    case kCompilationHintsSectionCode:
+      return kCompilationHintsString;
     default:
       return "<unknown>";
   }
@@ -117,8 +120,8 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
       return kWasmF32;
     case WasmInitExpr::kF64Const:
       return kWasmF64;
-    case WasmInitExpr::kAnyRefConst:
-      return kWasmAnyRef;
+    case WasmInitExpr::kRefNullConst:
+      return kWasmNullRef;
     default:
       UNREACHABLE();
   }
@@ -223,7 +226,8 @@ class WasmSectionIterator {
     }
 
     if (section_code == kUnknownSectionCode) {
-      // Check for the known "name" or "sourceMappingURL" section.
+      // Check for the known "name", "sourceMappingURL", or "compilationHints"
+      // section.
       section_code =
           ModuleDecoder::IdentifyUnknownSection(decoder_, section_end_);
       // As a side effect, the above function will forward the decoder to after
@@ -386,14 +390,20 @@ class ModuleDecoderImpl : public Decoder {
                                kExportSectionCode))
           return;
         break;
-      case kSourceMappingURLSectionCode:
-        // sourceMappingURL is a custom section and currently can occur anywhere
-        // in the module. In case of multiple sourceMappingURL sections, all
-        // except the first occurrence are ignored.
       case kNameSectionCode:
         // TODO(titzer): report out of place name section as a warning.
         // Be lenient with placement of name section. All except first
         // occurrence are ignored.
+      case kSourceMappingURLSectionCode:
+        // sourceMappingURL is a custom section and currently can occur anywhere
+        // in the module. In case of multiple sourceMappingURL sections, all
+        // except the first occurrence are ignored.
+      case kCompilationHintsSectionCode:
+        // TODO(frgossen): report out of place compilation hints section as a
+        // warning.
+        // Be lenient with placement of compilation hints section. All except
+        // first occurrence after function section and before code section are
+        // ignored.
         break;
       default:
         next_ordered_section_ = section_code + 1;
@@ -441,6 +451,15 @@ class ModuleDecoderImpl : public Decoder {
         break;
       case kSourceMappingURLSectionCode:
         DecodeSourceMappingURLSection();
+        break;
+      case kCompilationHintsSectionCode:
+        if (enabled_features_.compilation_hints) {
+          DecodeCompilationHintsSection();
+        } else {
+          // Ignore this section when feature was disabled. It is an optional
+          // custom section anyways.
+          consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+        }
         break;
       case kDataCountSectionCode:
         if (enabled_features_.bulk_memory) {
@@ -506,7 +525,7 @@ class ModuleDecoderImpl : public Decoder {
           static_cast<ImportExportKindCode>(consume_u8("import kind"));
       switch (import->kind) {
         case kExternalFunction: {
-          // ===== Imported function =======================================
+          // ===== Imported function ===========================================
           import->index = static_cast<uint32_t>(module_->functions.size());
           module_->num_imported_functions++;
           module_->functions.push_back({nullptr,        // sig
@@ -521,7 +540,7 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kExternalTable: {
-          // ===== Imported table ==========================================
+          // ===== Imported table ==============================================
           if (!AddTable(module_.get())) break;
           import->index = static_cast<uint32_t>(module_->tables.size());
           module_->num_imported_tables++;
@@ -544,7 +563,7 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kExternalMemory: {
-          // ===== Imported memory =========================================
+          // ===== Imported memory =============================================
           if (!AddMemory(module_.get())) break;
           uint8_t flags = validate_memory_flags(&module_->has_shared_memory);
           consume_resizable_limits(
@@ -554,7 +573,7 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kExternalGlobal: {
-          // ===== Imported global =========================================
+          // ===== Imported global =============================================
           import->index = static_cast<uint32_t>(module_->globals.size());
           module_->globals.push_back(
               {kWasmStmt, false, WasmInitExpr(), {0}, true, false});
@@ -567,7 +586,7 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kExternalException: {
-          // ===== Imported exception ======================================
+          // ===== Imported exception ==========================================
           if (!enabled_features_.eh) {
             errorf(pos, "unknown import kind 0x%02x", import->kind);
             break;
@@ -919,7 +938,7 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeNameSection() {
     // TODO(titzer): find a way to report name errors as warnings.
-    // ignore all but the first occurrence of name section.
+    // Ignore all but the first occurrence of name section.
     if (!has_seen_unordered_section(kNameSectionCode)) {
       set_seen_unordered_section(kNameSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
@@ -959,6 +978,97 @@ class ModuleDecoderImpl : public Decoder {
       set_seen_unordered_section(kSourceMappingURLSectionCode);
     }
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeCompilationHintsSection() {
+    TRACE("DecodeCompilationHints module+%d\n", static_cast<int>(pc_ - start_));
+
+    // TODO(frgossen): Find a way to report compilation hint errors as warnings.
+    // All except first occurrence after function section and before code
+    // section are ignored.
+    const bool before_function_section =
+        next_ordered_section_ <= kFunctionSectionCode;
+    const bool after_code_section = next_ordered_section_ > kCodeSectionCode;
+    if (before_function_section || after_code_section ||
+        has_seen_unordered_section(kCompilationHintsSectionCode)) {
+      return;
+    }
+    set_seen_unordered_section(kCompilationHintsSectionCode);
+
+    // TODO(frgossen) Propagate errors to outer decoder in experimental phase.
+    // We should use an inner decoder later and propagate its errors as
+    // warnings.
+    Decoder& decoder = *this;
+    // Decoder decoder(start_, pc_, end_, buffer_offset_);
+
+    // Ensure exactly one compilation hint per function.
+    uint32_t hint_count = decoder.consume_u32v("compilation hint count");
+    if (hint_count != module_->num_declared_functions) {
+      decoder.errorf(decoder.pc(), "Expected %u compilation hints (%u found)",
+                     module_->num_declared_functions, hint_count);
+    }
+
+    // Decode sequence of compilation hints.
+    if (decoder.ok()) {
+      module_->compilation_hints.reserve(hint_count);
+      module_->num_lazy_compilation_hints = 0;
+    }
+    for (uint32_t i = 0; decoder.ok() && i < hint_count; i++) {
+      TRACE("DecodeCompilationHints[%d] module+%d\n", i,
+            static_cast<int>(pc_ - start_));
+
+      // Compilation hints are encoded in one byte each.
+      // +-------+----------+---------------+------------------+
+      // | 2 bit | 2 bit    | 2 bit         | 2 bit            |
+      // | ...   | Top tier | Baseline tier | Lazy compilation |
+      // +-------+----------+---------------+------------------+
+      uint8_t hint_byte = decoder.consume_u8("compilation hint");
+      if (!decoder.ok()) break;
+
+      // Decode compilation hint.
+      WasmCompilationHint hint;
+      hint.strategy =
+          static_cast<WasmCompilationHintStrategy>(hint_byte & 0x03);
+      hint.baseline_tier =
+          static_cast<WasmCompilationHintTier>(hint_byte >> 2 & 0x3);
+      hint.top_tier =
+          static_cast<WasmCompilationHintTier>(hint_byte >> 4 & 0x3);
+
+      // Check strategy.
+      if (hint.strategy > WasmCompilationHintStrategy::kEager) {
+        decoder.errorf(decoder.pc(),
+                       "Invalid compilation hint %#x (unknown strategy)",
+                       hint_byte);
+      }
+
+      // Ensure that the top tier never downgrades a compilation result.
+      // If baseline and top tier are the same compilation will be invoked only
+      // once.
+      if (hint.top_tier < hint.baseline_tier &&
+          hint.top_tier != WasmCompilationHintTier::kDefault) {
+        decoder.errorf(decoder.pc(),
+                       "Invalid compilation hint %#x (forbidden downgrade)",
+                       hint_byte);
+      }
+
+      // Happily accept compilation hint.
+      if (decoder.ok()) {
+        if (hint.strategy == WasmCompilationHintStrategy::kLazy) {
+          module_->num_lazy_compilation_hints++;
+        }
+        module_->compilation_hints.push_back(std::move(hint));
+      }
+    }
+
+    // If section was invalid reset compilation hints.
+    if (decoder.failed()) {
+      module_->compilation_hints.clear();
+      module_->num_lazy_compilation_hints = 0;
+    }
+
+    // @TODO(frgossen) Skip the whole compilation hints section in the outer
+    // decoder if inner decoder was used.
+    // consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 
   void DecodeDataCountSection() {
@@ -1101,9 +1211,9 @@ class ModuleDecoderImpl : public Decoder {
   Counters* counters_ = nullptr;
   // The type section is the first section in a module.
   uint8_t next_ordered_section_ = kFirstSectionInModule;
-  // We store next_ordered_section_ as uint8_t instead of SectionCode so that we
-  // can increment it. This static_assert should make sure that SectionCode does
-  // not get bigger than uint8_t accidentially.
+  // We store next_ordered_section_ as uint8_t instead of SectionCode so that
+  // we can increment it. This static_assert should make sure that SectionCode
+  // does not get bigger than uint8_t accidentially.
   static_assert(sizeof(ModuleDecoderImpl::next_ordered_section_) ==
                     sizeof(SectionCode),
                 "type mismatch");
@@ -1169,7 +1279,7 @@ class ModuleDecoderImpl : public Decoder {
                ValueTypes::TypeName(module->globals[other_index].type));
       }
     } else {
-      if (global->type != TypeOf(module, global->init)) {
+      if (!ValueTypes::IsSubType(global->type, TypeOf(module, global->init))) {
         errorf(pos, "type error in global initialization, expected %s, got %s",
                ValueTypes::TypeName(global->type),
                ValueTypes::TypeName(TypeOf(module, global->init)));
@@ -1185,7 +1295,7 @@ class ModuleDecoderImpl : public Decoder {
     for (WasmGlobal& global : module->globals) {
       if (global.mutability && global.imported) {
         global.index = num_imported_mutable_globals++;
-      } else if (global.type == ValueType::kWasmAnyRef) {
+      } else if (ValueTypes::IsReferenceType(global.type)) {
         global.offset = tagged_offset;
         // All entries in the tagged_globals_buffer have size 1.
         tagged_offset++;
@@ -1434,8 +1544,8 @@ class ModuleDecoderImpl : public Decoder {
         break;
       }
       case kExprRefNull: {
-        if (enabled_features_.anyref) {
-          expr.kind = WasmInitExpr::kAnyRefConst;
+        if (enabled_features_.anyref || enabled_features_.eh) {
+          expr.kind = WasmInitExpr::kRefNullConst;
           len = 0;
           break;
         }
@@ -1490,6 +1600,9 @@ class ModuleDecoderImpl : public Decoder {
               break;
             case kLocalAnyRef:
               if (enabled_features_.anyref) return kWasmAnyRef;
+              break;
+            case kLocalExceptRef:
+              if (enabled_features_.eh) return kWasmExceptRef;
               break;
             default:
               break;
@@ -1575,9 +1688,9 @@ class ModuleDecoderImpl : public Decoder {
       flags = consume_u32v("flags");
       if (failed()) return;
     } else {
-      // Without the bulk memory proposal, we should still read the table index.
-      // This is the same as reading the `ActiveWithIndex` flag with the bulk
-      // memory proposal.
+      // Without the bulk memory proposal, we should still read the table
+      // index. This is the same as reading the `ActiveWithIndex` flag with
+      // the bulk memory proposal.
       flags = SegmentFlags::kActiveWithIndex;
     }
 
@@ -1743,6 +1856,11 @@ SectionCode ModuleDecoder::IdentifyUnknownSection(Decoder& decoder,
                      kSourceMappingURLString,
                      num_chars(kSourceMappingURLString)) == 0) {
     return kSourceMappingURLSectionCode;
+  } else if (string.length() == num_chars(kCompilationHintsString) &&
+             strncmp(reinterpret_cast<const char*>(section_name_start),
+                     kCompilationHintsString,
+                     num_chars(kCompilationHintsString)) == 0) {
+    return kCompilationHintsSectionCode;
   }
   return kUnknownSectionCode;
 }

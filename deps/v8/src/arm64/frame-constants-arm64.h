@@ -44,10 +44,8 @@ class EntryFrameConstants : public AllStatic {
 class ExitFrameConstants : public TypedFrameConstants {
  public:
   static constexpr int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  static constexpr int kCodeOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  static constexpr int kPaddingOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
-  DEFINE_TYPED_FRAME_SIZES(3);
-  static constexpr int kLastExitFrameField = kPaddingOffset;
+  DEFINE_TYPED_FRAME_SIZES(1);
+  static constexpr int kLastExitFrameField = kSPOffset;
 
   static constexpr int kConstantPoolOffset = 0;  // Not used
 };

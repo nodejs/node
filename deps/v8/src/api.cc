@@ -116,10 +116,14 @@
 #endif
 
 #if V8_OS_WIN
+#include <versionhelpers.h>
 #include <windows.h>
 #include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
-#endif
+#if V8_TARGET_ARCH_X64
+#include "src/unwinding-info-win64.h"
+#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_OS_WIN
 
 namespace v8 {
 
@@ -727,7 +731,8 @@ StartupData SnapshotCreator::CreateBlob(
     // We need to store the global proxy size upfront in case we need the
     // bootstrapper to create a global proxy before we deserialize the context.
     i::Handle<i::FixedArray> global_proxy_sizes =
-        isolate->factory()->NewFixedArray(num_additional_contexts, i::TENURED);
+        isolate->factory()->NewFixedArray(num_additional_contexts,
+                                          i::AllocationType::kOld);
     for (int i = 0; i < num_additional_contexts; i++) {
       i::Handle<i::Context> context =
           v8::Utils::OpenHandle(*data->contexts_.Get(i));
@@ -746,7 +751,7 @@ StartupData SnapshotCreator::CreateBlob(
       i::GarbageCollectionReason::kSnapshotCreator);
   {
     i::HandleScope scope(isolate);
-    isolate->heap()->CompactWeakArrayLists(internal::TENURED);
+    isolate->heap()->CompactWeakArrayLists(internal::AllocationType::kOld);
   }
 
   isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
@@ -1434,8 +1439,8 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     v8::Local<Signature> signature, int length, bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
-  i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE, i::TENURED);
+  i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
+      i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::FunctionTemplateInfo> obj =
       i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
   InitializeFunctionTemplate(obj);
@@ -1672,8 +1677,8 @@ static Local<ObjectTemplate> ObjectTemplateNew(
     bool do_not_cache) {
   LOG_API(isolate, ObjectTemplate, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::OBJECT_TEMPLATE_INFO_TYPE, i::TENURED);
+  i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
+      i::OBJECT_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::ObjectTemplateInfo> obj =
       i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
   InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
@@ -1825,8 +1830,8 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
     Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
-  auto obj = i::Handle<i::InterceptorInfo>::cast(
-      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE, i::TENURED));
+  auto obj = i::Handle<i::InterceptorInfo>::cast(isolate->factory()->NewStruct(
+      i::INTERCEPTOR_INFO_TYPE, i::AllocationType::kOld));
   obj->set_flags(0);
 
   if (getter != nullptr) SET_FIELD_WRAPPED(isolate, obj, set_getter, getter);
@@ -1926,8 +1931,8 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   auto cons = EnsureConstructor(isolate, this);
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetAccessCheckCallback");
 
-  i::Handle<i::Struct> struct_info =
-      isolate->factory()->NewStruct(i::ACCESS_CHECK_INFO_TYPE, i::TENURED);
+  i::Handle<i::Struct> struct_info = isolate->factory()->NewStruct(
+      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
@@ -1956,8 +1961,8 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   EnsureNotInstantiated(
       cons, "v8::ObjectTemplate::SetAccessCheckCallbackWithHandler");
 
-  i::Handle<i::Struct> struct_info =
-      isolate->factory()->NewStruct(i::ACCESS_CHECK_INFO_TYPE, i::TENURED);
+  i::Handle<i::Struct> struct_info = isolate->factory()->NewStruct(
+      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
@@ -5786,6 +5791,18 @@ bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
   return v8::internal::trap_handler::EnableTrapHandler(use_v8_signal_handler);
 }
 
+#if defined(V8_OS_WIN)
+void V8::SetUnhandledExceptionCallback(
+    UnhandledExceptionCallback unhandled_exception_callback) {
+#if defined(V8_TARGET_ARCH_X64)
+  v8::internal::win64_unwindinfo::SetUnhandledExceptionCallback(
+      unhandled_exception_callback);
+#else
+  // Not implemented on ARM64.
+#endif
+}
+#endif
+
 void v8::V8::SetEntropySource(EntropySource entropy_source) {
   base::RandomNumberGenerator::SetEntropySource(entropy_source);
 }
@@ -6069,16 +6086,14 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
   Utils::ApiCheck(access_check_info->named_interceptor() != i::Object(),
                   "v8::Context::NewRemoteContext",
                   "Global template needs to have access check handlers.");
-  i::Handle<i::JSGlobalProxy> global_proxy =
-      CreateEnvironment<i::JSGlobalProxy>(
-          isolate, nullptr, global_template, global_object, 0,
-          DeserializeInternalFieldsCallback(), nullptr);
+  i::Handle<i::JSObject> global_proxy = CreateEnvironment<i::JSGlobalProxy>(
+      isolate, nullptr, global_template, global_object, 0,
+      DeserializeInternalFieldsCallback(), nullptr);
   if (global_proxy.is_null()) {
     if (isolate->has_pending_exception()) isolate->clear_pending_exception();
     return MaybeLocal<Object>();
   }
-  return Utils::ToLocal(
-      scope.CloseAndEscape(i::Handle<i::JSObject>::cast(global_proxy)));
+  return Utils::ToLocal(scope.CloseAndEscape(global_proxy));
 }
 
 void v8::Context::SetSecurityToken(Local<Value> token) {
@@ -6628,7 +6643,7 @@ Local<v8::Object> v8::Object::New(Isolate* isolate,
   }
   i::Handle<i::JSObject> obj =
       i_isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
-          proto, properties, elements);
+          i::Handle<i::HeapObject>::cast(proto), properties, elements);
   return Utils::ToLocal(obj);
 }
 
@@ -7359,16 +7374,22 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(Isolate* isolate,
                                                        const uint8_t* start,
                                                        size_t length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
     return MaybeLocal<WasmModuleObject>();
   }
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
-  i::MaybeHandle<i::JSObject> maybe_compiled =
-      i_isolate->wasm_engine()->SyncCompile(
-          i_isolate, enabled_features, &thrower,
-          i::wasm::ModuleWireBytes(start, start + length));
-  if (maybe_compiled.is_null()) return MaybeLocal<WasmModuleObject>();
+  i::MaybeHandle<i::JSObject> maybe_compiled;
+  {
+    i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
+    auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+    maybe_compiled = i_isolate->wasm_engine()->SyncCompile(
+        i_isolate, enabled_features, &thrower,
+        i::wasm::ModuleWireBytes(start, start + length));
+  }
+  CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_pending_exception());
+  if (maybe_compiled.is_null()) {
+    i_isolate->OptionalRescheduleException(false);
+    return MaybeLocal<WasmModuleObject>();
+  }
   return Local<WasmModuleObject>::Cast(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
 }
@@ -7720,15 +7741,14 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
 v8::SharedArrayBuffer::Contents::Contents(
     void* data, size_t byte_length, void* allocation_base,
     size_t allocation_length, Allocator::AllocationMode allocation_mode,
-    DeleterCallback deleter, void* deleter_data, bool is_growable)
+    DeleterCallback deleter, void* deleter_data)
     : data_(data),
       byte_length_(byte_length),
       allocation_base_(allocation_base),
       allocation_length_(allocation_length),
       allocation_mode_(allocation_mode),
       deleter_(deleter),
-      deleter_data_(deleter_data),
-      is_growable_(is_growable) {
+      deleter_data_(deleter_data) {
   DCHECK_LE(allocation_base_, data_);
   DCHECK_LE(byte_length_, allocation_length_);
 }
@@ -7746,8 +7766,7 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
           : reinterpret_cast<Contents::DeleterCallback>(ArrayBufferDeleter),
       self->is_wasm_memory()
           ? static_cast<void*>(self->GetIsolate()->wasm_engine())
-          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()),
-      self->is_growable());
+          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()));
   return contents;
 }
 
@@ -7787,7 +7806,6 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
     ArrayBufferCreationMode mode) {
   i::Handle<i::JSArrayBuffer> buffer = SetupSharedArrayBuffer(
       isolate, contents.Data(), contents.ByteLength(), mode);
-  buffer->set_is_growable(contents.IsGrowable());
   return Utils::ToLocalShared(buffer);
 }
 
@@ -8395,7 +8413,8 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
   i::Heap* heap = isolate->heap();
   i::Space* space = heap->space(static_cast<int>(index));
 
-  space_statistics->space_name_ = heap->GetSpaceName(static_cast<int>(index));
+  space_statistics->space_name_ =
+      i::Heap::GetSpaceName(static_cast<i::AllocationSpace>(index));
   space_statistics->space_size_ = space->CommittedMemory();
   space_statistics->space_used_size_ = space->SizeOfObjects();
   space_statistics->space_available_size_ = space->Available();
@@ -8414,7 +8433,7 @@ size_t Isolate::NumberOfTrackedHeapObjectTypes() {
 bool Isolate::GetHeapObjectStatisticsAtLastGC(
     HeapObjectStatistics* object_statistics, size_t type_index) {
   if (!object_statistics) return false;
-  if (V8_LIKELY(!i::FLAG_gc_stats)) return false;
+  if (V8_LIKELY(!i::TracingFlags::is_gc_stats_enabled())) return false;
 
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = isolate->heap();
@@ -8685,7 +8704,7 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
   bool on_isolate_thread =
       v8::Locker::IsActive()
           ? isolate->thread_manager()->IsLockedByCurrentThread()
-          : i::ThreadId::Current().Equals(isolate->thread_id());
+          : i::ThreadId::Current() == isolate->thread_id();
   isolate->heap()->MemoryPressureNotification(level, on_isolate_thread);
 }
 
@@ -8916,21 +8935,24 @@ void v8::Isolate::LocaleConfigurationChangeNotification() {
 }
 
 // static
-std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate) {
-  return i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(isolate));
+std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate,
+                                                    MicrotasksPolicy policy) {
+  auto microtask_queue =
+      i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(isolate));
+  microtask_queue->set_microtasks_policy(policy);
+  return microtask_queue;
 }
 
 MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)
-    : MicrotasksScope(
-          isolate,
-          reinterpret_cast<i::Isolate*>(isolate)->default_microtask_queue(),
-          type) {}
+    : MicrotasksScope(isolate, nullptr, type) {}
 
 MicrotasksScope::MicrotasksScope(Isolate* isolate,
                                  MicrotaskQueue* microtask_queue,
                                  MicrotasksScope::Type type)
     : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
-      microtask_queue_(static_cast<i::MicrotaskQueue*>(microtask_queue)),
+      microtask_queue_(microtask_queue
+                           ? static_cast<i::MicrotaskQueue*>(microtask_queue)
+                           : isolate_->default_microtask_queue()),
       run_(type == MicrotasksScope::kRunMicrotasks) {
   if (run_) microtask_queue_->IncrementMicrotasksScopeDepth();
 #ifdef DEBUG
@@ -8942,7 +8964,7 @@ MicrotasksScope::~MicrotasksScope() {
   if (run_) {
     microtask_queue_->DecrementMicrotasksScopeDepth();
     if (MicrotasksPolicy::kScoped == microtask_queue_->microtasks_policy()) {
-      PerformCheckpoint(reinterpret_cast<Isolate*>(isolate_));
+      microtask_queue_->PerformCheckpoint(reinterpret_cast<Isolate*>(isolate_));
     }
   }
 #ifdef DEBUG
@@ -9972,6 +9994,11 @@ const char* CpuProfileNode::GetScriptResourceNameStr() const {
   return node->entry()->resource_name();
 }
 
+bool CpuProfileNode::IsScriptSharedCrossOrigin() const {
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  return node->entry()->is_shared_cross_origin();
+}
+
 int CpuProfileNode::GetLineNumber() const {
   return reinterpret_cast<const i::ProfileNode*>(this)->line_number();
 }
@@ -10016,6 +10043,9 @@ unsigned CpuProfileNode::GetNodeId() const {
   return reinterpret_cast<const i::ProfileNode*>(this)->id();
 }
 
+CpuProfileNode::SourceType CpuProfileNode::GetSourceType() const {
+  return reinterpret_cast<const i::ProfileNode*>(this)->source_type();
+}
 
 int CpuProfileNode::GetChildrenCount() const {
   return static_cast<int>(
@@ -10029,6 +10059,11 @@ const CpuProfileNode* CpuProfileNode::GetChild(int index) const {
   return reinterpret_cast<const CpuProfileNode*>(child);
 }
 
+const CpuProfileNode* CpuProfileNode::GetParent() const {
+  const i::ProfileNode* parent =
+      reinterpret_cast<const i::ProfileNode*>(this)->parent();
+  return reinterpret_cast<const CpuProfileNode*>(parent);
+}
 
 const std::vector<CpuProfileDeoptInfo>& CpuProfileNode::GetDeoptInfos() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
@@ -10103,6 +10138,11 @@ void CpuProfiler::SetSamplingInterval(int us) {
   DCHECK_GE(us, 0);
   return reinterpret_cast<i::CpuProfiler*>(this)->set_sampling_interval(
       base::TimeDelta::FromMicroseconds(us));
+}
+
+void CpuProfiler::SetUsePreciseSampling(bool use_precise_sampling) {
+  reinterpret_cast<i::CpuProfiler*>(this)->set_use_precise_sampling(
+      use_precise_sampling);
 }
 
 void CpuProfiler::CollectSample() {

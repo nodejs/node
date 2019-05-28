@@ -1,0 +1,53 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-typed-array-gen.h'
+
+namespace typed_array_every {
+  const kBuiltinName: constexpr string = '%TypedArray%.prototype.every';
+
+  transitioning macro EveryAllElements(implicit context: Context)(
+      array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
+      thisArg: Object): Boolean {
+    let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
+    const length: Smi = Convert<Smi>(witness.Get().length);
+    for (let k: Smi = 0; k < length; k++) {
+      // BUG(4895): We should throw on detached buffers rather than simply exit.
+      witness.Recheck() otherwise break;
+      const value: Object = witness.Load(k);
+      const result =
+          Call(context, callbackfn, thisArg, value, k, witness.GetStable());
+      if (!ToBoolean(result)) {
+        return False;
+      }
+    }
+    return True;
+  }
+
+  // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.every
+  transitioning javascript builtin
+  TypedArrayPrototypeEvery(implicit context: Context)(
+      receiver: Object, ...arguments): Object {
+    // arguments[0] = callback
+    // arguments[1] = thisArg
+    try {
+      const array: JSTypedArray = Cast<JSTypedArray>(receiver)
+          otherwise NotTypedArray;
+      const uarray = typed_array::EnsureAttached(array) otherwise IsDetached;
+
+      const callbackfn = Cast<Callable>(arguments[0]) otherwise NotCallable;
+      const thisArg = arguments[1];
+      return EveryAllElements(uarray, callbackfn, thisArg);
+    }
+    label NotCallable deferred {
+      ThrowTypeError(kCalledNonCallable, arguments[0]);
+    }
+    label NotTypedArray deferred {
+      ThrowTypeError(kNotTypedArray, kBuiltinName);
+    }
+    label IsDetached deferred {
+      ThrowTypeError(kDetachedOperation, kBuiltinName);
+    }
+  }
+}

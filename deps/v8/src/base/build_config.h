@@ -201,8 +201,12 @@
 #define V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK false
 #endif
 
-// Number of bits to represent the page size for paged spaces. The value of 19
-// gives 512Kb bytes per page.
+// Number of bits to represent the page size for paged spaces.
+#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
+// PPC has large (64KB) physical pages.
 const int kPageSizeBits = 19;
+#else
+const int kPageSizeBits = 18;
+#endif
 
 #endif  // V8_BASE_BUILD_CONFIG_H_

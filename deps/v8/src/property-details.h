@@ -116,6 +116,12 @@ class Representation {
     return Equals(other);
   }
 
+  bool CanBeInPlaceChangedTo(const Representation& other) const {
+    if (IsNone()) return true;
+    if (!FLAG_modify_field_representation_inplace) return false;
+    return (IsSmi() || IsHeapObject()) && other.IsTagged();
+  }
+
   bool is_more_general_than(const Representation& other) const {
     if (IsHeapObject()) return other.IsNone();
     return kind_ > other.kind_;
@@ -402,8 +408,8 @@ inline PropertyConstness GeneralizeConstness(PropertyConstness a,
   return a == PropertyConstness::kMutable ? PropertyConstness::kMutable : b;
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         const PropertyAttributes& attributes);
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, const PropertyAttributes& attributes);
 }  // namespace internal
 }  // namespace v8
 

@@ -132,15 +132,6 @@
 }], # lite_mode or variant == jitless
 
 ##############################################################################
-['variant == jitless', {
-  # https://crbug.com/v8/7777
-  'debug/debug-compile-optimized': [SKIP],
-  'debug/debug-optimize': [SKIP],
-  'debug/lazy-deopt-then-flush-bytecode': [SKIP],
-  'debug/regress/regress-crbug-633999': [SKIP],
-}], # variant == jitless
-
-##############################################################################
 ['variant == jitless and not embedded_builtins', {
   '*': [SKIP],
 }], # variant == jitless and not embedded_builtins

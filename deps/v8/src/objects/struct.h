@@ -93,15 +93,9 @@ class AccessorPair : public Struct {
   DECL_PRINTER(AccessorPair)
   DECL_VERIFIER(AccessorPair)
 
-// Layout description.
-#define ACCESSOR_PAIR_FIELDS(V) \
-  V(kGetterOffset, kTaggedSize) \
-  V(kSetterOffset, kTaggedSize) \
-  /* Total size. */             \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ACCESSOR_PAIR_FIELDS)
-#undef ACCESSOR_PAIR_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_ACCESSOR_PAIR_FIELDS)
 
   OBJECT_CONSTRUCTORS(AccessorPair, Struct);
 };

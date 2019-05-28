@@ -77,11 +77,11 @@ static void WriteLine(std::ostream& os, bool machine_format, const char* name,
                        stats.total_allocated_bytes_);
     os << buffer;
   } else {
-    base::OS::SNPrintF(buffer, kBufferSize, "%28s %10.3f (%5.1f%%)  %10" PRIuS
-                                            " (%5.1f%%) %10" PRIuS " %10" PRIuS,
-                       name, ms, percent, stats.total_allocated_bytes_,
-                       size_percent, stats.max_allocated_bytes_,
-                       stats.absolute_max_allocated_bytes_);
+    base::OS::SNPrintF(
+        buffer, kBufferSize,
+        "%34s %10.3f (%5.1f%%)  %10" PRIuS " (%5.1f%%) %10" PRIuS " %10" PRIuS,
+        name, ms, percent, stats.total_allocated_bytes_, size_percent,
+        stats.max_allocated_bytes_, stats.absolute_max_allocated_bytes_);
 
     os << buffer;
     if (stats.function_name_.size() > 0) {
@@ -93,24 +93,24 @@ static void WriteLine(std::ostream& os, bool machine_format, const char* name,
 
 
 static void WriteFullLine(std::ostream& os) {
-  os << "--------------------------------------------------------"
-        "--------------------------------------------------------\n";
+  os << "-----------------------------------------------------------"
+        "-----------------------------------------------------------\n";
 }
 
 
 static void WriteHeader(std::ostream& os) {
   WriteFullLine(os);
-  os << "             Turbofan phase         Time (ms)             "
-     << "          Space (bytes)             Function\n"
-     << "                                                         "
-     << "  Total          Max.     Abs. max.\n";
+  os << "                Turbofan phase            Time (ms)    "
+     << "                   Space (bytes)             Function\n"
+     << "                                                       "
+     << "          Total          Max.     Abs. max.\n";
   WriteFullLine(os);
 }
 
 
 static void WritePhaseKindBreak(std::ostream& os) {
-  os << "                             ---------------------------"
-        "--------------------------------------------------------\n";
+  os << "                                   ------------------------"
+        "-----------------------------------------------------------\n";
 }
 
 std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& ps) {

@@ -82,7 +82,8 @@ TEST(StartStop) {
   ProfileGenerator generator(&profiles);
   std::unique_ptr<ProfilerEventsProcessor> processor(
       new SamplingEventsProcessor(isolate, &generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100)));
+                                  v8::base::TimeDelta::FromMicroseconds(100),
+                                  true));
   processor->Start();
   processor->StopSynchronously();
 }
@@ -164,7 +165,7 @@ TEST(CodeEvents) {
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
-      isolate, generator, v8::base::TimeDelta::FromMicroseconds(100));
+      isolate, generator, v8::base::TimeDelta::FromMicroseconds(100), true);
   processor->Start();
   ProfilerListener profiler_listener(isolate, processor);
   isolate->logger()->AddCodeEventListener(&profiler_listener);
@@ -222,9 +223,9 @@ TEST(TickEvents) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new SamplingEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      CcTest::i_isolate(), generator,
+      v8::base::TimeDelta::FromMicroseconds(100), true);
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
@@ -291,9 +292,9 @@ TEST(Issue1398) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new SamplingEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      CcTest::i_isolate(), generator,
+      v8::base::TimeDelta::FromMicroseconds(100), true);
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
@@ -1149,11 +1150,16 @@ static void TickLines(bool optimize) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new SamplingEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      CcTest::i_isolate(), generator,
+      v8::base::TimeDelta::FromMicroseconds(100), true);
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
+  // TODO(delphick): Stop using the CpuProfiler internals here: This forces
+  // LogCompiledFunctions so that source positions are collected everywhere.
+  // This would normally happen automatically with CpuProfiler::StartProfiling
+  // but doesn't because it's constructed with a generator and a processor.
+  isolate->logger()->LogCompiledFunctions();
   processor->Start();
   ProfilerListener profiler_listener(isolate, processor);
 
@@ -1879,7 +1885,9 @@ TEST(IdleTime) {
 static void CheckFunctionDetails(v8::Isolate* isolate,
                                  const v8::CpuProfileNode* node,
                                  const char* name, const char* script_name,
-                                 int script_id, int line, int column) {
+                                 bool is_shared_cross_origin, int script_id,
+                                 int line, int column,
+                                 const v8::CpuProfileNode* parent) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   CHECK(v8_str(name)->Equals(context, node->GetFunctionName()).FromJust());
   CHECK_EQ(0, strcmp(name, node->GetFunctionNameStr()));
@@ -1890,8 +1898,9 @@ static void CheckFunctionDetails(v8::Isolate* isolate,
   CHECK_EQ(script_id, node->GetScriptId());
   CHECK_EQ(line, node->GetLineNumber());
   CHECK_EQ(column, node->GetColumnNumber());
+  CHECK_EQ(parent, node->GetParent());
+  CHECK_EQ(v8::CpuProfileNode::kScript, node->GetSourceType());
 }
-
 
 TEST(FunctionDetails) {
   i::FLAG_allow_natives_syntax = true;
@@ -1905,14 +1914,14 @@ TEST(FunctionDetails) {
       "%NeverOptimizeFunction(bar);\n"
       "    function foo\n() { bar(); }\n"
       " function bar() { startProfiling(); }\n",
-      "script_a");
+      "script_a", false);
   script_a->Run(env).ToLocalChecked();
   v8::Local<v8::Script> script_b = CompileWithOrigin(
       "%NeverOptimizeFunction(baz);"
       "\n\n   function baz() { foo(); }\n"
       "\n\nbaz();\n"
       "stopProfiling();\n",
-      "script_b");
+      "script_b", true);
   script_b->Run(env).ToLocalChecked();
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
@@ -1925,18 +1934,19 @@ TEST(FunctionDetails) {
   //  0        foo 18 #4 TryCatchStatement script_a:2
   //  1          bar 18 #5 no reason script_a:3
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  CHECK_EQ(root->GetParent(), nullptr);
   const v8::CpuProfileNode* script = GetChild(env, root, "");
-  CheckFunctionDetails(env->GetIsolate(), script, "", "script_b",
-                       script_b->GetUnboundScript()->GetId(), 1, 1);
+  CheckFunctionDetails(env->GetIsolate(), script, "", "script_b", true,
+                       script_b->GetUnboundScript()->GetId(), 1, 1, root);
   const v8::CpuProfileNode* baz = GetChild(env, script, "baz");
-  CheckFunctionDetails(env->GetIsolate(), baz, "baz", "script_b",
-                       script_b->GetUnboundScript()->GetId(), 3, 16);
+  CheckFunctionDetails(env->GetIsolate(), baz, "baz", "script_b", true,
+                       script_b->GetUnboundScript()->GetId(), 3, 16, script);
   const v8::CpuProfileNode* foo = GetChild(env, baz, "foo");
-  CheckFunctionDetails(env->GetIsolate(), foo, "foo", "script_a",
-                       script_a->GetUnboundScript()->GetId(), 4, 1);
+  CheckFunctionDetails(env->GetIsolate(), foo, "foo", "script_a", false,
+                       script_a->GetUnboundScript()->GetId(), 4, 1, baz);
   const v8::CpuProfileNode* bar = GetChild(env, foo, "bar");
-  CheckFunctionDetails(env->GetIsolate(), bar, "bar", "script_a",
-                       script_a->GetUnboundScript()->GetId(), 5, 14);
+  CheckFunctionDetails(env->GetIsolate(), bar, "bar", "script_a", false,
+                       script_a->GetUnboundScript()->GetId(), 5, 14, foo);
 }
 
 TEST(FunctionDetailsInlining) {
@@ -1960,7 +1970,7 @@ TEST(FunctionDetailsInlining) {
       "  return sum;\n"
       "}\n"
       "\n",
-      "script_b");
+      "script_b", true);
 
   v8::Local<v8::Script> script_a = CompileWithOrigin(
       "function alpha(p) {\n"
@@ -1985,7 +1995,7 @@ TEST(FunctionDetailsInlining) {
       "stopProfiling();\n"
       "\n"
       "\n",
-      "script_a");
+      "script_a", false);
 
   script_b->Run(env).ToLocalChecked();
   script_a->Run(env).ToLocalChecked();
@@ -2005,18 +2015,19 @@ TEST(FunctionDetailsInlining) {
   //  0      startProfiling 0 #3
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  CHECK_EQ(root->GetParent(), nullptr);
   const v8::CpuProfileNode* script = GetChild(env, root, "");
-  CheckFunctionDetails(env->GetIsolate(), script, "", "script_a",
-                       script_a->GetUnboundScript()->GetId(), 1, 1);
+  CheckFunctionDetails(env->GetIsolate(), script, "", "script_a", false,
+                       script_a->GetUnboundScript()->GetId(), 1, 1, root);
   const v8::CpuProfileNode* alpha = FindChild(env, script, "alpha");
   // Return early if profiling didn't sample alpha.
   if (!alpha) return;
-  CheckFunctionDetails(env->GetIsolate(), alpha, "alpha", "script_a",
-                       script_a->GetUnboundScript()->GetId(), 1, 15);
+  CheckFunctionDetails(env->GetIsolate(), alpha, "alpha", "script_a", false,
+                       script_a->GetUnboundScript()->GetId(), 1, 15, script);
   const v8::CpuProfileNode* beta = FindChild(env, alpha, "beta");
   if (!beta) return;
-  CheckFunctionDetails(env->GetIsolate(), beta, "beta", "script_b",
-                       script_b->GetUnboundScript()->GetId(), 1, 14);
+  CheckFunctionDetails(env->GetIsolate(), beta, "beta", "script_b", true,
+                       script_b->GetUnboundScript()->GetId(), 1, 14, alpha);
 }
 
 TEST(DontStopOnFinishedProfileDelete) {
@@ -2821,6 +2832,29 @@ TEST(FastStopProfiling) {
   double duration = platform->CurrentClockTimeMillis() - start;
 
   CHECK_LT(duration, kWaitThreshold.InMillisecondsF());
+}
+
+TEST(LowPrecisionSamplingStartStopInternal) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  ProfileGenerator generator(&profiles);
+  std::unique_ptr<ProfilerEventsProcessor> processor(
+      new SamplingEventsProcessor(isolate, &generator,
+                                  v8::base::TimeDelta::FromMicroseconds(100),
+                                  false));
+  processor->Start();
+  processor->StopSynchronously();
+}
+
+TEST(LowPrecisionSamplingStartStopPublic) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::CpuProfiler* cpu_profiler = v8::CpuProfiler::New(env->GetIsolate());
+  cpu_profiler->SetUsePreciseSampling(false);
+  v8::Local<v8::String> profile_name = v8_str("");
+  cpu_profiler->StartProfiling(profile_name, true);
+  cpu_profiler->StopProfiling(profile_name);
+  cpu_profiler->Dispose();
 }
 
 enum class EntryCountMode { kAll, kOnlyInlined };

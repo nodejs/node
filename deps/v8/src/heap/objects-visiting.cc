@@ -51,7 +51,7 @@ Object VisitWeakList(Heap* heap, Object list, WeakObjectRetainer* retainer) {
         if (record_slots) {
           HeapObject slot_holder = WeakListVisitor<T>::WeakNextHolder(tail);
           int slot_offset = WeakListVisitor<T>::WeakNextOffset();
-          ObjectSlot slot = HeapObject::RawField(slot_holder, slot_offset);
+          ObjectSlot slot = slot_holder.RawField(slot_offset);
           MarkCompactCollector::RecordSlot(slot_holder, slot,
                                            HeapObject::cast(retained));
         }

@@ -26,6 +26,7 @@ class SmallVector {
   static constexpr size_t kInlineSize = kSize;
 
   SmallVector() = default;
+  explicit SmallVector(size_t size) { resize_no_init(size); }
   SmallVector(const SmallVector& other) V8_NOEXCEPT { *this = other; }
   SmallVector(SmallVector&& other) V8_NOEXCEPT { *this = std::move(other); }
 

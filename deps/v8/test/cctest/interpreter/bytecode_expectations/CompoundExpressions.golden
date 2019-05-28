@@ -111,7 +111,7 @@ bytecodes: [
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
   /*   45 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
   /*   75 S> */ B(LdaCurrentContextSlot), U8(4),
-                B(BitwiseOrSmi), I8(24), U8(1),
+                B(BitwiseOrSmi), I8(24), U8(0),
   /*   77 E> */ B(StaCurrentContextSlot), U8(4),
                 B(LdaUndefined),
   /*   84 S> */ B(Return),

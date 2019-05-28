@@ -125,14 +125,8 @@ class ConsoleHelper {
     }
     v8::Local<v8::String> titleValue;
     v8::TryCatch tryCatch(m_context->GetIsolate());
-    if (m_info[0]->IsObject()) {
-      if (!m_info[0].As<v8::Object>()->ObjectProtoToString(m_context).ToLocal(
-              &titleValue))
-        return defaultValue;
-    } else {
-      if (!m_info[0]->ToString(m_context).ToLocal(&titleValue))
-        return defaultValue;
-    }
+    if (!m_info[0]->ToString(m_context).ToLocal(&titleValue))
+      return defaultValue;
     return toProtocolString(m_context->GetIsolate(), titleValue);
   }
 

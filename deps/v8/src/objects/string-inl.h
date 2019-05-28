@@ -303,13 +303,13 @@ bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
 }
 
 Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
-                               PretenureFlag pretenure) {
+                               AllocationType allocation) {
   if (string->IsConsString()) {
     Handle<ConsString> cons = Handle<ConsString>::cast(string);
     if (cons->IsFlat()) {
       string = handle(cons->first(), isolate);
     } else {
-      return SlowFlatten(isolate, cons, pretenure);
+      return SlowFlatten(isolate, cons, allocation);
     }
   }
   if (string->IsThinString()) {
@@ -750,11 +750,11 @@ SubStringRange::SubStringRange(String string,
 
 class SubStringRange::iterator final {
  public:
-  typedef std::forward_iterator_tag iterator_category;
-  typedef int difference_type;
-  typedef uc16 value_type;
-  typedef uc16* pointer;
-  typedef uc16& reference;
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = int;
+  using value_type = uc16;
+  using pointer = uc16*;
+  using reference = uc16&;
 
   iterator(const iterator& other) = default;
 

@@ -353,13 +353,25 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
     }
     Maybe<String16> consoleContext;
     if (!m_consoleContext.isEmpty()) consoleContext = m_consoleContext;
+    std::unique_ptr<protocol::Runtime::StackTrace> stackTrace;
+    if (m_stackTrace) {
+      switch (m_type) {
+        case ConsoleAPIType::kAssert:
+        case ConsoleAPIType::kError:
+        case ConsoleAPIType::kTrace:
+        case ConsoleAPIType::kWarning:
+          stackTrace =
+              m_stackTrace->buildInspectorObjectImpl(inspector->debugger());
+          break;
+        default:
+          stackTrace =
+              m_stackTrace->buildInspectorObjectImpl(inspector->debugger(), 0);
+          break;
+      }
+    }
     frontend->consoleAPICalled(
         consoleAPITypeValue(m_type), std::move(arguments), m_contextId,
-        m_timestamp,
-        m_stackTrace
-            ? m_stackTrace->buildInspectorObjectImpl(inspector->debugger())
-            : nullptr,
-        std::move(consoleContext));
+        m_timestamp, std::move(stackTrace), std::move(consoleContext));
     return;
   }
   UNREACHABLE();

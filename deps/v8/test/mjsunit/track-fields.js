@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --track-fields --track-double-fields --allow-natives-syntax
+// Flags: --modify-field-representation-inplace
 
 // Test transitions caused by changes to field representations.
 
@@ -95,7 +96,7 @@ o6.b = 1.5;
 assertFalse(%HaveSameMap(o6, o7));
 // Smi, double, object.
 o7.c = {};
-assertFalse(%HaveSameMap(o6, o7));
+assertTrue(%HaveSameMap(o6, o7));
 // Smi, double, object.
 o6.c = {};
 assertTrue(%HaveSameMap(o6, o7));

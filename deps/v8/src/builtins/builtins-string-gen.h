@@ -68,7 +68,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       StringAtAccessor;
 
   void GenerateStringAt(const char* method_name, TNode<Context> context,
-                        Node* receiver, TNode<Object> maybe_position,
+                        TNode<Object> receiver, TNode<Object> maybe_position,
                         TNode<Object> default_return,
                         const StringAtAccessor& accessor);
 
@@ -134,8 +134,8 @@ class StringTrimAssembler : public StringBuiltinsAssembler {
   explicit StringTrimAssembler(compiler::CodeAssemblerState* state)
       : StringBuiltinsAssembler(state) {}
 
-  void GotoIfNotWhiteSpaceOrLineTerminator(Node* const char_code,
-                                           Label* const if_not_whitespace);
+  V8_EXPORT_PRIVATE void GotoIfNotWhiteSpaceOrLineTerminator(
+      Node* const char_code, Label* const if_not_whitespace);
 
  protected:
   void Generate(String::TrimMode mode, const char* method, TNode<IntPtrT> argc,

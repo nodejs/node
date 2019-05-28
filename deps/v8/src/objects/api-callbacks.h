@@ -76,19 +76,9 @@ class AccessorInfo : public Struct {
   static int AppendUnique(Isolate* isolate, Handle<Object> descriptors,
                           Handle<FixedArray> array, int valid_descriptors);
 
-// Layout description.
-#define ACCESSOR_INFO_FIELDS(V)               \
-  V(kNameOffset, kTaggedSize)                 \
-  V(kFlagsOffset, kTaggedSize)                \
-  V(kExpectedReceiverTypeOffset, kTaggedSize) \
-  V(kSetterOffset, kTaggedSize)               \
-  V(kGetterOffset, kTaggedSize)               \
-  V(kJsGetterOffset, kTaggedSize)             \
-  V(kDataOffset, kTaggedSize)                 \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ACCESSOR_INFO_FIELDS)
-#undef ACCESSOR_INFO_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_ACCESSOR_INFO_FIELDS)
 
  private:
   inline bool HasExpectedReceiverType();

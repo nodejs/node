@@ -66,8 +66,16 @@
 #define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value) \
   if (FLAG_##whenflag) FLAG_##thenflag = value;
 
+#define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
+  if (FLAG_##whenflag) statement;
+
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
   if (!FLAG_##whenflag) FLAG_##thenflag = value;
+
+// We apply a generic macro to the flags.
+#elif defined(FLAG_MODE_APPLY)
+
+#define FLAG_FULL FLAG_MODE_APPLY
 
 #else
 #error No mode supplied when including flags.defs
@@ -90,6 +98,10 @@
 #define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)
 #endif
 
+#ifndef DEFINE_GENERIC_IMPLICATION
+#define DEFINE_GENERIC_IMPLICATION(whenflag, statement)
+#endif
+
 #ifndef DEFINE_NEG_VALUE_IMPLICATION
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)
 #endif
@@ -107,6 +119,10 @@ struct MaybeBoolFlag {
   }
   bool has_value;
   bool value;
+
+  bool operator!=(const MaybeBoolFlag& other) const {
+    return has_value != other.has_value || value != other.value;
+  }
 };
 #endif
 
@@ -201,24 +217,25 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_class_fields, "harmony fields in class literals")             \
   V(harmony_private_methods, "harmony private methods in class literals") \
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")        \
-  V(harmony_weak_refs, "harmony weak references")                         \
+  V(harmony_weak_refs, "harmony weak references")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)                               \
-  HARMONY_INPROGRESS_BASE(V)                                \
-  V(harmony_intl_bigint, "BigInt.prototype.toLocaleString") \
-  V(harmony_intl_datetime_style, "dateStyle timeStyle for DateTimeFormat")
+#define HARMONY_INPROGRESS(V)                                              \
+  HARMONY_INPROGRESS_BASE(V)                                               \
+  V(harmony_intl_date_format_range, "DateTimeFormat formatRange")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V) \
-  V(harmony_numeric_separator, "harmony numeric separator between digits")
+  V(harmony_promise_all_settled, "harmony Promise.allSettled")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V)          \
-  HARMONY_STAGED_BASE(V)           \
+#define HARMONY_STAGED(V)                                                  \
+  HARMONY_STAGED_BASE(V)                                                   \
+  V(harmony_intl_bigint, "BigInt.prototype.toLocaleString")                \
+  V(harmony_intl_datetime_style, "dateStyle timeStyle for DateTimeFormat") \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -239,7 +256,8 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_object_from_entries, "harmony Object.fromEntries()")               \
   V(harmony_await_optimization, "harmony await taking 1 tick")                 \
   V(harmony_private_fields, "harmony private fields in class literals")        \
-  V(harmony_hashbang, "harmony hashbang syntax")
+  V(harmony_hashbang, "harmony hashbang syntax")                               \
+  V(harmony_numeric_separator, "harmony numeric separator between digits")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) \
@@ -275,6 +293,12 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #ifdef V8_INTL_SUPPORT
 DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 #endif
+
+#ifdef V8_ENABLE_RAW_HEAP_SNAPSHOTS
+#define V8_ENABLE_RAW_HEAP_SNAPSHOTS_BOOL true
+#else
+#define V8_ENABLE_RAW_HEAP_SNAPSHOTS_BOOL false
+#endif  // V8_ENABLE_RAW_HEAP_SNAPSHOTS
 
 #ifdef V8_LITE_MODE
 #define V8_LITE_BOOL true
@@ -330,22 +354,21 @@ DEFINE_BOOL(enable_one_shot_optimization, true,
             "Enable size optimizations for the code that will "
             "only be executed once")
 
+// Flag for sealed, frozen elements kind instead of dictionary elements kind
+DEFINE_BOOL(enable_sealed_frozen_elements_kind, true,
+            "Enable sealed, frozen elements kind")
 
 // Flags for data representation optimizations
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
 
-// Flags for Ignition for no-snapshot builds.
-#undef FLAG
-#ifndef V8_USE_SNAPSHOT
-#define FLAG FLAG_FULL
-#else
-#define FLAG FLAG_READONLY
-#endif
 DEFINE_INT(interrupt_budget, 144 * KB,
            "interrupt budget which should be used for the profiler counter")
-#undef FLAG
-#define FLAG FLAG_FULL
+
+DEFINE_INT(budget_for_feedback_vector_allocation, 1 * KB,
+           "The budget in amount of bytecode executed by a function before we "
+           "decide to allocate feedback vectors")
+DEFINE_BOOL(lazy_feedback_allocation, false, "Allocate feedback vectors lazily")
 
 // Flags for Ignition.
 DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
@@ -401,7 +424,11 @@ DEFINE_BOOL(block_concurrent_recompilation, false,
 DEFINE_BOOL(concurrent_inlining, false,
             "run optimizing compiler's inlining phase on a separate thread")
 DEFINE_IMPLICATION(future, concurrent_inlining)
-DEFINE_BOOL(trace_heap_broker, false, "trace the heap broker")
+DEFINE_BOOL(trace_heap_broker_verbose, false,
+            "trace the heap broker verbosely (all reports)")
+DEFINE_BOOL(trace_heap_broker, false,
+            "trace the heap broker (reports on missing data only)")
+DEFINE_IMPLICATION(trace_heap_broker_verbose, trace_heap_broker)
 
 // Flags for stress-testing the compiler.
 DEFINE_INT(stress_runs, 0, "number of stress runs")
@@ -477,6 +504,10 @@ DEFINE_FLOAT(reserve_inline_budget_scale_factor, 1.2,
              "maximum cumulative size of bytecode considered for inlining")
 DEFINE_INT(max_inlined_bytecode_size_small, 30,
            "maximum size of bytecode considered for small function inlining")
+DEFINE_INT(max_optimized_bytecode_size, 60 * KB,
+           "maximum bytecode size to "
+           "be considered for optimization; too high values may cause "
+           "the compiler to hit (release) assertions")
 DEFINE_FLOAT(min_inlining_frequency, 0.15, "minimum frequency for inlining")
 DEFINE_BOOL(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_BOOL(stress_inline, false,
@@ -641,8 +672,6 @@ DEFINE_IMPLICATION(future, wasm_shared_code)
 DEFINE_BOOL(wasm_trap_handler, true,
             "use signal handlers to catch out of bounds memory access in wasm"
             " (currently Linux x86_64 only)")
-DEFINE_BOOL(wasm_trap_handler_fallback, false,
-            "Use bounds checks if guarded memory is not available")
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,
             "Generate a test case when running a wasm fuzzer")
 DEFINE_IMPLICATION(wasm_fuzzer_gen_test, single_threaded)
@@ -657,14 +686,17 @@ DEFINE_BOOL(wasm_lazy_compilation, false,
             "enable lazy compilation for all wasm modules")
 DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
                   "trace lazy compilation of wasm functions")
+DEFINE_BOOL(wasm_grow_shared_memory, false,
+            "Allow growing shared WebAssembly memory objects")
 // wasm-interpret-all resets {asm-,}wasm-lazy-compilation.
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, asm_wasm_lazy_compilation)
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_lazy_compilation)
+DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_tier_up)
+DEFINE_BOOL(wasm_code_gc, false, "enable garbage collection of wasm code")
+DEFINE_IMPLICATION(future, wasm_code_gc)
 
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
-DEFINE_INT(type_info_threshold, 25,
-           "percentage of ICs that must have type info to allow optimization")
 
 DEFINE_INT(stress_sampling_allocation_profiler, 0,
            "Enables sampling allocation profiler with X as a sample interval")
@@ -757,8 +789,14 @@ DEFINE_BOOL(concurrent_array_buffer_freeing, true,
             "free array buffer allocations on a background thread")
 DEFINE_INT(gc_stats, 0, "Used by tracing internally to enable gc statistics")
 DEFINE_IMPLICATION(trace_gc_object_stats, track_gc_object_stats)
-DEFINE_VALUE_IMPLICATION(track_gc_object_stats, gc_stats, 1)
-DEFINE_VALUE_IMPLICATION(trace_gc_object_stats, gc_stats, 1)
+DEFINE_GENERIC_IMPLICATION(
+    track_gc_object_stats,
+    TracingFlags::gc_stats.store(
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
+DEFINE_GENERIC_IMPLICATION(
+    trace_gc_object_stats,
+    TracingFlags::gc_stats.store(
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 DEFINE_NEG_IMPLICATION(trace_gc_object_stats, incremental_marking)
 DEFINE_NEG_IMPLICATION(track_retaining_path, incremental_marking)
 DEFINE_NEG_IMPLICATION(track_retaining_path, parallel_marking)
@@ -922,7 +960,6 @@ DEFINE_BOOL(trace_opt_stats, false, "trace lazy optimization statistics")
 DEFINE_BOOL(trace_deopt, false, "trace optimize function deoptimization")
 DEFINE_BOOL(trace_file_names, false,
             "include file names in trace-opt/trace-deopt output")
-DEFINE_BOOL(trace_interrupts, false, "trace interrupts when they are handled")
 DEFINE_BOOL(always_opt, false, "always try to optimize functions")
 DEFINE_BOOL(always_osr, false, "always try to OSR functions")
 DEFINE_BOOL(prepare_always_opt, false, "prepare for turning on always opt")
@@ -1004,18 +1041,19 @@ DEFINE_BOOL(use_idle_notification, true,
 DEFINE_BOOL(trace_ic, false,
             "trace inline cache state transitions for tools/ic-processor")
 DEFINE_IMPLICATION(trace_ic, log_code)
-DEFINE_INT(ic_stats, 0, "inline cache state transitions statistics")
-DEFINE_VALUE_IMPLICATION(trace_ic, ic_stats, 1)
+DEFINE_GENERIC_IMPLICATION(
+    trace_ic, TracingFlags::ic_stats.store(
+                  v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 DEFINE_BOOL_READONLY(track_constant_fields, true,
                      "enable constant field tracking")
-DEFINE_BOOL_READONLY(modify_map_inplace, true, "enable in-place map updates")
 DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
+DEFINE_BOOL(modify_field_representation_inplace, false,
+            "enable in-place field representation updates")
 DEFINE_INT(max_polymorphic_map_count, 4,
            "maximum number of maps to track in POLYMORPHIC state")
 
-// macro-assembler-ia32.cc
-DEFINE_BOOL(native_code_counters, false,
+DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
             "generate extra code for manipulating stats counters")
 
 // objects.cc
@@ -1094,9 +1132,10 @@ DEFINE_BOOL(
 
 // runtime.cc
 DEFINE_BOOL(runtime_call_stats, false, "report runtime call counts and times")
-DEFINE_INT(runtime_stats, 0,
-           "internal usage only for controlling runtime statistics")
-DEFINE_VALUE_IMPLICATION(runtime_call_stats, runtime_stats, 1)
+DEFINE_GENERIC_IMPLICATION(
+    runtime_call_stats,
+    TracingFlags::runtime_stats.store(
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 
 // snapshot-common.cc
 #ifdef V8_EMBEDDED_BUILTINS
@@ -1136,6 +1175,7 @@ DEFINE_STRING(startup_src, nullptr,
               "Write V8 startup as C++ src. (mksnapshot only)")
 DEFINE_STRING(startup_blob, nullptr,
               "Write V8 startup blob file. (mksnapshot only)")
+DEFINE_STRING(target_os, nullptr, "The mksnapshot target os. (mksnapshot only)")
 
 //
 // Minor mark compact collector flags.
@@ -1201,7 +1241,7 @@ DEFINE_NEG_IMPLICATION(jitless, wasm_lazy_compilation)
 DEFINE_BOOL(opt, !V8_LITE_BOOL, "use adaptive optimizations")
 
 // Enable use of inline caches to optimize object access operations.
-DEFINE_BOOL(use_ic, !V8_LITE_BOOL, "use inline caching")
+DEFINE_BOOL(use_ic, true, "use inline caching")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, V8_LITE_BOOL,
@@ -1252,7 +1292,6 @@ DEFINE_BOOL(print_ast, false, "print source AST")
 DEFINE_BOOL(trap_on_abort, false, "replace aborts by breakpoints")
 
 // compiler.cc
-DEFINE_BOOL(print_builtin_scopes, false, "print scopes for builtins")
 DEFINE_BOOL(print_scopes, false, "print scopes")
 
 // contexts.cc
@@ -1378,6 +1417,9 @@ DEFINE_STRING(redirect_code_traces_to, nullptr,
 
 DEFINE_BOOL(print_opt_source, false,
             "print source code of optimized and inlined functions")
+
+DEFINE_BOOL(win64_unwinding_info, false,
+            "Enable unwinding info for Windows/x64 (experimental).")
 
 #ifdef V8_TARGET_ARCH_ARM
 // Unsupported on arm. See https://crbug.com/v8/8713.
@@ -1508,9 +1550,13 @@ DEFINE_BOOL(unbox_double_fields, V8_DOUBLE_FIELDS_UNBOXING,
             "enable in-object double fields unboxing (64-bit only)")
 DEFINE_IMPLICATION(unbox_double_fields, track_double_fields)
 
+DEFINE_BOOL(raw_heap_snapshots, V8_ENABLE_RAW_HEAP_SNAPSHOTS_BOOL,
+            "enable raw heap snapshots contain garbage collection internals")
+
 DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
             "enables trade-off of performance for memory savings "
             "(Lite mode only)")
+DEFINE_IMPLICATION(lite_mode, lazy_feedback_allocation)
 
 // Cleanup...
 #undef FLAG_FULL
@@ -1528,6 +1574,7 @@ DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
 #undef DEFINE_NEG_IMPLICATION
 #undef DEFINE_NEG_VALUE_IMPLICATION
 #undef DEFINE_VALUE_IMPLICATION
+#undef DEFINE_GENERIC_IMPLICATION
 #undef DEFINE_ALIAS_BOOL
 #undef DEFINE_ALIAS_INT
 #undef DEFINE_ALIAS_STRING
@@ -1538,5 +1585,6 @@ DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
 #undef FLAG_MODE_DEFINE_DEFAULTS
 #undef FLAG_MODE_META
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
+#undef FLAG_MODE_APPLY
 
 #undef COMMA

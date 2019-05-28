@@ -105,10 +105,10 @@ Node* GraphAssembler::Projection(int index, Node* value) {
   return graph()->NewNode(common()->Projection(index), value, current_control_);
 }
 
-Node* GraphAssembler::Allocate(PretenureFlag pretenure, Node* size) {
-  return current_control_ = current_effect_ =
-             graph()->NewNode(simplified()->AllocateRaw(Type::Any(), pretenure),
-                              size, current_effect_, current_control_);
+Node* GraphAssembler::Allocate(AllocationType allocation, Node* size) {
+  return current_control_ = current_effect_ = graph()->NewNode(
+             simplified()->AllocateRaw(Type::Any(), allocation), size,
+             current_effect_, current_control_);
 }
 
 Node* GraphAssembler::LoadField(FieldAccess const& access, Node* object) {

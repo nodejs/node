@@ -23,10 +23,10 @@ bytecodes: [
   /*    0 E> */ B(StackCheck),
   /*    8 S> */ B(CreateObjectLiteral), U8(1), U8(2), U8(41),
                 B(Star), R(1),
-  /*   16 E> */ B(CreateClosure), U8(2), U8(3), U8(0),
-                B(StaNamedOwnProperty), R(1), U8(3), U8(4),
+  /*   16 E> */ B(CreateClosure), U8(2), U8(0), U8(0),
+                B(StaNamedOwnProperty), R(1), U8(3), U8(3),
                 B(Ldar), R(1),
-  /*    8 E> */ B(StaGlobal), U8(4), U8(6),
+  /*    8 E> */ B(StaGlobal), U8(4), U8(5),
                 B(LdaUndefined),
   /*   34 S> */ B(Return),
 ]

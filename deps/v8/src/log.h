@@ -127,15 +127,15 @@ class Logger : public CodeEventListener {
 
   sampler::Sampler* sampler();
 
-  void StopProfilerThread();
+  V8_EXPORT_PRIVATE void StopProfilerThread();
 
   // Frees resources acquired in SetUp.
   // When a temporary file is used for the log, returns its stream descriptor,
   // leaving the file open.
-  FILE* TearDown();
+  V8_EXPORT_PRIVATE FILE* TearDown();
 
   // Emits an event with a string value -> (name, value).
-  void StringEvent(const char* name, const char* value);
+  V8_EXPORT_PRIVATE void StringEvent(const char* name, const char* value);
 
   // Emits an event with an int value -> (name, value).
   void IntPtrTEvent(const char* name, intptr_t value);
@@ -180,8 +180,8 @@ class Logger : public CodeEventListener {
   void ApiEntryCall(const char* name);
 
   // ==== Events logged by --log-code. ====
-  void AddCodeEventListener(CodeEventListener* listener);
-  void RemoveCodeEventListener(CodeEventListener* listener);
+  V8_EXPORT_PRIVATE void AddCodeEventListener(CodeEventListener* listener);
+  V8_EXPORT_PRIVATE void RemoveCodeEventListener(CodeEventListener* listener);
 
   // Emits a code event for a callback function.
   void CallbackEvent(Name name, Address entry_point) override;
@@ -261,11 +261,11 @@ class Logger : public CodeEventListener {
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
                            Handle<AbstractCode> code);
   // Logs all compiled functions found in the heap.
-  void LogCompiledFunctions();
+  V8_EXPORT_PRIVATE void LogCompiledFunctions();
   // Logs all accessor callbacks found in the heap.
-  void LogAccessorCallbacks();
+  V8_EXPORT_PRIVATE void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
-  void LogCodeObjects();
+  V8_EXPORT_PRIVATE void LogCodeObjects();
   // Logs all Maps found on the heap.
   void LogAllMaps();
 
@@ -386,7 +386,7 @@ class TimerEventScope {
   Isolate* isolate_;
 };
 
-class CodeEventLogger : public CodeEventListener {
+class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
  public:
   explicit CodeEventLogger(Isolate* isolate);
   ~CodeEventLogger() override;

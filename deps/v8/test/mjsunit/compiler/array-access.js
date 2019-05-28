@@ -130,3 +130,32 @@ for (var i = 0; i < 1000; i++) {
 }
 
 RunArrayBoundsCheckTest();
+
+// Non-extensible
+a = Object.seal([0,0,0]);
+o = Object.seal({0: 0, 1: 0, 2: 0});
+for (var i = 0; i < 1000; i++) {
+  RunGetTests();
+  RunSetTests(a);
+  RunSetTests(o);
+}
+
+RunArrayBoundsCheckTest();
+
+// Sealed
+a = Object.seal([0,0,0]);
+o = Object.seal({0: 0, 1: 0, 2: 0});
+for (var i = 0; i < 1000; i++) {
+  RunGetTests();
+  RunSetTests(a);
+  RunSetTests(o);
+}
+
+RunArrayBoundsCheckTest();
+
+// Frozen
+a = Object.seal([0,0,0]);
+o = Object.seal({0: 0, 1: 0, 2: 0});
+for (var i = 0; i < 1000; i++) {
+  RunGetTests();
+}

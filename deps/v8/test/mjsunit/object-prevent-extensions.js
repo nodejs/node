@@ -172,8 +172,10 @@ assertTrue(Array.isArray(obj));
 
 // Verify that the length can't be written by builtins.
 assertThrows(function() { obj.push(1); }, TypeError);
+assertDoesNotThrow(function() { obj.shift(); });
 assertThrows(function() { obj.unshift(1); }, TypeError);
 assertThrows(function() { obj.splice(0, 0, 1); }, TypeError);
+assertDoesNotThrow(function() {obj.splice(0, 0)});
 
 // Verify search, filter, iterator
 obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
@@ -185,7 +187,11 @@ assertFalse(Object.isExtensible(obj));
 assertTrue(Array.isArray(obj));
 assertEquals(obj.lastIndexOf(1), 2);
 assertEquals(obj.indexOf('a'), 4);
+assertEquals(obj.indexOf(undefined), 0);
 assertFalse(obj.includes(Symbol("test")));
+assertTrue(obj.includes(undefined));
+assertFalse(obj.includes(NaN));
+assertTrue(obj.includes());
 assertEquals(obj.find(x => x==0), undefined);
 assertEquals(obj.findIndex(x => x=='a'), 4);
 assertTrue(obj.some(x => typeof x == 'symbol'));
@@ -247,3 +253,30 @@ arr.fill('d');
 assertEquals(arr.join(''), "ddd");
 arr.pop();
 assertEquals(arr.join(''), "dd");
+
+// Regression test with simple array
+var arr = ['a'];
+Object.preventExtensions(arr);
+arr[0] = 'b';
+assertEquals(arr[0], 'b');
+
+// Test regression Array.concat with double
+var arr = ['a'];
+Object.preventExtensions(arr);
+arr = arr.concat(0.5);
+assertEquals(arr, ['a', 0.5]);
+Object.preventExtensions(arr);
+arr = arr.concat([1.5, 'b']);
+assertEquals(arr, ['a', 0.5, 1.5, 'b']);
+
+// Regression test with change length
+var arr = ['a', 'b'];
+Object.preventExtensions(arr);
+assertEquals(arr.length, 2);
+arr.length = 3;
+assertEquals(arr.length, 3);
+arr[2] = 'c';
+assertEquals(arr[2], undefined);
+arr.length = 1;
+assertEquals(arr.length, 1);
+assertEquals(arr[1], undefined);

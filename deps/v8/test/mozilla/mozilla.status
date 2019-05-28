@@ -137,7 +137,7 @@
   # messing up ability to see other failures on the waterfall.
   'js1_5/extensions/regress-342960': [SKIP],
 
-  # This test uses a unitialized variable. A Bug has been filed:
+  # This test uses an uninitialized variable. A Bug has been filed:
   # https://bugzilla.mozilla.org/show_bug.cgi?id=575575
   'js1_5/Array/regress-465980-02': [SKIP],
 

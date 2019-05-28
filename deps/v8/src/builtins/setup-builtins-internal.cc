@@ -41,6 +41,7 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
   AssemblerOptions options = AssemblerOptions::Default(isolate);
   CHECK(!options.isolate_independent_code);
   CHECK(!options.use_pc_relative_calls_and_jumps);
+  CHECK(!options.collect_win64_unwind_info);
 
   if (!isolate->IsGeneratingEmbeddedBuiltins() ||
       !Builtins::IsIsolateIndependent(builtin_index)) {
@@ -56,6 +57,7 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
 
   options.isolate_independent_code = true;
   options.use_pc_relative_calls_and_jumps = pc_relative_calls_fit_in_code_range;
+  options.collect_win64_unwind_info = true;
 
   return options;
 }
@@ -126,6 +128,9 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
       desc, Code::BUILTIN, masm.CodeObject(), builtin_index,
       MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate), kMovable,
       kIsNotTurbofanned, kStackSlots);
+#if defined(V8_OS_WIN_X64)
+  isolate->SetBuiltinUnwindData(builtin_index, masm.GetUnwindInfo());
+#endif
   PostBuildProfileAndTracing(isolate, *code, s_name);
   return *code;
 }

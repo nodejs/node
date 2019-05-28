@@ -11,7 +11,6 @@ import sys
 import time
 
 from . import base
-from ..local import junit_output
 
 
 def print_failure_header(test):
@@ -259,47 +258,8 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
     print(("\r" + (" " * last_length) + "\r"), end='')
 
 
-class JUnitTestProgressIndicator(ProgressIndicator):
-  def __init__(self, junitout, junittestsuite):
-    super(JUnitTestProgressIndicator, self).__init__()
-    self._requirement = base.DROP_PASS_STDOUT
-
-    self.outputter = junit_output.JUnitTestOutput(junittestsuite)
-    if junitout:
-      self.outfile = open(junitout, "w")
-    else:
-      self.outfile = sys.stdout
-
-  def _on_result_for(self, test, result):
-    # TODO(majeski): Support for dummy/grouped results
-    fail_text = ""
-    output = result.output
-    if result.has_unexpected_output:
-      stdout = output.stdout.strip()
-      if len(stdout):
-        fail_text += "stdout:\n%s\n" % stdout
-      stderr = output.stderr.strip()
-      if len(stderr):
-        fail_text += "stderr:\n%s\n" % stderr
-      fail_text += "Command: %s" % result.cmd.to_string()
-      if output.HasCrashed():
-        fail_text += "exit code: %d\n--- CRASHED ---" % output.exit_code
-      if output.HasTimedOut():
-        fail_text += "--- TIMEOUT ---"
-    self.outputter.HasRunTest(
-        test_name=str(test),
-        test_cmd=result.cmd.to_string(relative=True),
-        test_duration=output.duration,
-        test_failure=fail_text)
-
-  def finished(self):
-    self.outputter.FinishAndWrite(self.outfile)
-    if self.outfile != sys.stdout:
-      self.outfile.close()
-
-
 class JsonTestProgressIndicator(ProgressIndicator):
-  def __init__(self, json_test_results, arch, mode):
+  def __init__(self, framework_name, json_test_results, arch, mode):
     super(JsonTestProgressIndicator, self).__init__()
     # We want to drop stdout/err for all passed tests on the first try, but we
     # need to get outputs for all runs after the first one. To accommodate that,
@@ -307,6 +267,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
     # keep_output set to True in the RerunProc.
     self._requirement = base.DROP_PASS_STDOUT
 
+    self.framework_name = framework_name
     self.json_test_results = json_test_results
     self.arch = arch
     self.mode = mode
@@ -347,6 +308,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
         "random_seed": test.random_seed,
         "target_name": test.get_shell(),
         "variant": test.variant,
+        "variant_flags": test.variant_flags,
+        "framework_name": self.framework_name,
       })
 
   def finished(self):

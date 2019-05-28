@@ -350,8 +350,8 @@ Handle<WeakFixedArray> TransitionArray::GrowPrototypeTransitionArray(
   new_capacity = Min(kMaxCachedPrototypeTransitions, new_capacity);
   DCHECK_GT(new_capacity, capacity);
   int grow_by = new_capacity - capacity;
-  array =
-      isolate->factory()->CopyWeakFixedArrayAndGrow(array, grow_by, TENURED);
+  array = isolate->factory()->CopyWeakFixedArrayAndGrow(array, grow_by,
+                                                        AllocationType::kOld);
   if (capacity < 0) {
     // There was no prototype transitions array before, so the size
     // couldn't be copied. Initialize it explicitly.

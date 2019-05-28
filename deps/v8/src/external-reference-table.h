@@ -9,6 +9,7 @@
 
 #include "src/accessors.h"
 #include "src/builtins/builtins.h"
+#include "src/counters-definitions.h"
 #include "src/external-reference.h"
 
 namespace v8 {
@@ -37,11 +38,15 @@ class ExternalReferenceTable {
       Accessors::kAccessorInfoCount + Accessors::kAccessorSetterCount;
   // The number of stub cache external references, see AddStubCache.
   static constexpr int kStubCacheReferenceCount = 12;
+  static constexpr int kStatsCountersReferenceCount =
+#define SC(...) +1
+      STATS_COUNTER_NATIVE_CODE_LIST(SC);
+#undef SC
   static constexpr int kSize =
       kSpecialReferenceCount + kExternalReferenceCount +
       kBuiltinsReferenceCount + kRuntimeReferenceCount +
       kIsolateAddressReferenceCount + kAccessorReferenceCount +
-      kStubCacheReferenceCount;
+      kStubCacheReferenceCount + kStatsCountersReferenceCount;
   static constexpr uint32_t kEntrySize =
       static_cast<uint32_t>(kSystemPointerSize);
   static constexpr uint32_t kSizeInBytes = kSize * kEntrySize + 2 * kUInt32Size;
@@ -78,12 +83,22 @@ class ExternalReferenceTable {
   void AddAccessors(int* index);
   void AddStubCache(Isolate* isolate, int* index);
 
+  Address GetStatsCounterAddress(StatsCounter* counter);
+  void AddNativeCodeStatsCounters(Isolate* isolate, int* index);
+
   STATIC_ASSERT(sizeof(Address) == kEntrySize);
   Address ref_addr_[kSize];
   static const char* const ref_name_[kSize];
 
-  uint32_t is_initialized_ = 0;  // Not bool to guarantee deterministic size.
-  uint32_t unused_padding_ = 0;  // For alignment.
+  // Not bool to guarantee deterministic size.
+  uint32_t is_initialized_ = 0;
+
+  // Redirect disabled stats counters to this field. This is done to make sure
+  // we can have a snapshot that includes native counters even when the embedder
+  // isn't collecting them.
+  // This field is uint32_t since the MacroAssembler and CodeStubAssembler
+  // accesses this field as a uint32_t.
+  uint32_t dummy_stats_counter_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);
 };

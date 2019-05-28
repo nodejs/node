@@ -268,5 +268,7 @@ void OS::SignalCodeMovingGC() {
   // Nothing to do on Cygwin.
 }
 
+void OS::AdjustSchedulingParams() {}
+
 }  // namespace base
 }  // namespace v8

@@ -148,9 +148,7 @@ v8_header_set("common_test_headers") {
   configs = []
 
   public_deps = [
-    # We can't depend on this here, because if the "cctest" target depends on it
-    # we will get duplicate symbols.
-    #"../:v8_for_testing",
+    "../:v8_for_testing",
     "../:v8_libbase",
   ]
 

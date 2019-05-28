@@ -146,7 +146,7 @@ class JsonParser {
   int source_length_;
   Handle<SeqOneByteString> seq_source_;
 
-  PretenureFlag pretenure_;
+  AllocationType allocation_;
   Isolate* isolate_;
   Zone zone_;
   Handle<JSFunction> object_constructor_;

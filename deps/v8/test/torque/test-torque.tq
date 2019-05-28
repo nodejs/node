@@ -278,22 +278,29 @@ namespace test {
   }
 
   macro TestStruct2(implicit context: Context)(): TestStructA {
-    return TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 27, 31};
+    return TestStructA{
+      indexes: UnsafeCast<FixedArray>(kEmptyFixedArray),
+      i: 27,
+      k: 31
+    };
   }
 
   macro TestStruct3(implicit context: Context)(): TestStructA {
     let a: TestStructA =
-    TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 13, 5};
+    TestStructA{indexes: UnsafeCast<FixedArray>(kEmptyFixedArray), i: 13, k: 5};
     let b: TestStructA = a;
     let c: TestStructA = TestStruct2();
     a.i = TestStruct1(c);
     a.k = a.i;
     let d: TestStructB;
     d.x = a;
-    d = TestStructB{a, 7};
+    d = TestStructB{x: a, y: 7};
     let e: TestStructA = d.x;
-    let f: Smi =
-    TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 27, 31}.i;
+    let f: Smi = TestStructA{
+      indexes: UnsafeCast<FixedArray>(kEmptyFixedArray),
+      i: 27,
+      k: 31
+    }.i;
     f = TestStruct2().i;
     return a;
   }
@@ -304,7 +311,7 @@ namespace test {
   }
 
   macro TestStruct4(implicit context: Context)(): TestStructC {
-    return TestStructC{TestStruct2(), TestStruct2()};
+    return TestStructC{x: TestStruct2(), y: TestStruct2()};
   }
 
   macro TestStructInLabel(implicit context: Context)(): never
@@ -751,7 +758,7 @@ namespace test {
 
   macro TestStructConstructor(implicit context: Context)() {
     // Test default constructor
-    let a: TestOuter = TestOuter{5, TestInner{6, 7}, 8};
+    let a: TestOuter = TestOuter{a: 5, b: TestInner{x: 6, y: 7}, c: 8};
     assert(a.a == 5);
     assert(a.b.x == 6);
     assert(a.b.y == 7);
@@ -811,7 +818,7 @@ namespace test {
   }
 
   macro NewInternalClass(x: Smi): InternalClass {
-    return new InternalClass{x, x + 1};
+    return new InternalClass{a: x, b: x + 1};
   }
 
   macro TestInternalClass(implicit context: Context)() {
@@ -819,5 +826,60 @@ namespace test {
     o.Flip() otherwise unreachable;
     check(o.a == 6);
     check(o.b == 5);
+  }
+
+  struct StructWithConst {
+    TestMethod1(): int32 {
+      return this.b;
+    }
+    TestMethod2(): Object {
+      return this.a;
+    }
+    a: Object;
+    const b: int32;
+  }
+
+  macro TestConstInStructs() {
+    const x = StructWithConst{a: Null, b: 1};
+    let y = StructWithConst{a: Null, b: 1};
+    y.a = Undefined;
+    const copy = x;
+  }
+
+  struct TestIterator {
+    Next(): Object labels NoMore {
+      if (this.count-- == 0) goto NoMore;
+      return Hole;
+    }
+    count: Smi;
+  }
+
+  macro TestNewFixedArrayFromSpread(implicit context: Context)(): Object {
+    const i = TestIterator{count: 5};
+    return new FixedArray{map: kFixedArrayMap, length: 5, objects: ...i};
+  }
+
+  class SmiPair {
+    GetA():&Smi {
+      return & this.a;
+    }
+    a: Smi;
+    b: Smi;
+  }
+
+  macro Swap<T: type>(a:&T, b:&T) {
+    const tmp = * a;
+    * a = * b;
+    * b = tmp;
+  }
+
+  macro TestReferences() {
+    const array = new SmiPair{a: 7, b: 2};
+    const ref:&Smi = & array.a;
+    * ref = 3 + * ref;
+    -- * ref;
+    Swap(& array.b, array.GetA());
+    check(array.a == 2);
+    check(array.b == 9);
   }
 }

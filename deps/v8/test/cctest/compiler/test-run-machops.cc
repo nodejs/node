@@ -397,6 +397,53 @@ TEST(RunWord64Popcnt) {
   CHECK_EQ(22, m.Call(uint64_t(0xE00DC103E00DC103)));
   CHECK_EQ(18, m.Call(uint64_t(0x000DC107000DC107)));
 }
+
+#ifdef V8_COMPRESS_POINTERS
+TEST(CompressDecompressTaggedAnyPointer) {
+  RawMachineAssemblerTester<void*> m;
+
+  Handle<HeapNumber> value = m.isolate()->factory()->NewHeapNumber(11.2);
+  Node* node = m.HeapConstant(value);
+  m.Return(m.ChangeCompressedToTagged(m.ChangeTaggedToCompressed(node)));
+
+  HeapObject result =
+      HeapObject::cast(Object(reinterpret_cast<Address>(m.Call())));
+  CHECK_EQ(result, *value);
+}
+
+TEST(CompressDecompressTaggedAnySigned) {
+  RawMachineAssemblerTester<int64_t> m;
+  Smi smi = Smi::FromInt(123);
+  int64_t smiPointer = static_cast<int64_t>(smi.ptr());
+  Node* node = m.Int64Constant(smiPointer);
+  m.Return(m.ChangeCompressedToTagged(m.ChangeTaggedToCompressed(node)));
+  CHECK_EQ(smiPointer, m.Call());
+}
+
+TEST(CompressDecompressTaggedPointer) {
+  RawMachineAssemblerTester<void*> m;
+
+  Handle<HeapNumber> value = m.isolate()->factory()->NewHeapNumber(11.2);
+  Node* node = m.HeapConstant(value);
+  m.Return(m.ChangeCompressedPointerToTaggedPointer(
+      m.ChangeTaggedPointerToCompressedPointer(node)));
+
+  HeapObject result =
+      HeapObject::cast(Object(reinterpret_cast<Address>(m.Call())));
+  CHECK_EQ(result, *value);
+}
+
+TEST(CompressDecompressTaggedSigned) {
+  RawMachineAssemblerTester<int64_t> m;
+  Smi smi = Smi::FromInt(123);
+  int64_t smiPointer = static_cast<int64_t>(smi.ptr());
+  Node* node = m.Int64Constant(smiPointer);
+  m.Return(m.ChangeCompressedSignedToTaggedSigned(
+      m.ChangeTaggedSignedToCompressedSigned(node)));
+  CHECK_EQ(smiPointer, m.Call());
+}
+#endif  // V8_COMPRESS_POINTERS
+
 #endif  // V8_TARGET_ARCH_64_BIT
 
 
@@ -6219,7 +6266,7 @@ TEST(RunCallCFunction0) {
   auto* foo0_ptr = &foo0;
   RawMachineAssemblerTester<int32_t> m;
   Node* function = m.LoadFromPointer(&foo0_ptr, MachineType::Pointer());
-  m.Return(m.CallCFunction0(MachineType::Int32(), function));
+  m.Return(m.CallCFunction(function, MachineType::Int32()));
   CHECK_EQ(kMagicFoo0, m.Call());
 }
 
@@ -6228,8 +6275,9 @@ TEST(RunCallCFunction1) {
   auto* foo1_ptr = &foo1;
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   Node* function = m.LoadFromPointer(&foo1_ptr, MachineType::Pointer());
-  m.Return(m.CallCFunction1(MachineType::Int32(), MachineType::Int32(),
-                            function, m.Parameter(0)));
+  m.Return(
+      m.CallCFunction(function, MachineType::Int32(),
+                      std::make_pair(MachineType::Int32(), m.Parameter(0))));
   FOR_INT32_INPUTS(i) {
     int32_t const expected = i;
     CHECK_EQ(expected, m.Call(expected));
@@ -6242,9 +6290,10 @@ TEST(RunCallCFunction2) {
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
   Node* function = m.LoadFromPointer(&foo2_ptr, MachineType::Pointer());
-  m.Return(m.CallCFunction2(MachineType::Int32(), MachineType::Int32(),
-                            MachineType::Int32(), function, m.Parameter(0),
-                            m.Parameter(1)));
+  m.Return(
+      m.CallCFunction(function, MachineType::Int32(),
+                      std::make_pair(MachineType::Int32(), m.Parameter(0)),
+                      std::make_pair(MachineType::Int32(), m.Parameter(1))));
   FOR_INT32_INPUTS(i) {
     int32_t const x = i;
     FOR_INT32_INPUTS(j) {
@@ -6260,11 +6309,15 @@ TEST(RunCallCFunction8) {
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   Node* function = m.LoadFromPointer(&foo8_ptr, MachineType::Pointer());
   Node* param = m.Parameter(0);
-  m.Return(m.CallCFunction8(
-      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
-      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
-      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
-      function, param, param, param, param, param, param, param, param));
+  m.Return(m.CallCFunction(function, MachineType::Int32(),
+      std::make_pair(MachineType::Int32(), param),
+      std::make_pair(MachineType::Int32(), param),
+      std::make_pair(MachineType::Int32(), param),
+      std::make_pair(MachineType::Int32(), param),
+      std::make_pair(MachineType::Int32(), param),
+      std::make_pair(MachineType::Int32(), param),
+      std::make_pair(MachineType::Int32(), param),
+      std::make_pair(MachineType::Int32(), param)));
   FOR_INT32_INPUTS(i) {
     int32_t const x = i;
     CHECK_EQ(base::MulWithWraparound(x, 8), m.Call(x));
@@ -6276,19 +6329,25 @@ TEST(RunCallCFunction9) {
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   Node* function = m.LoadFromPointer(&foo9_ptr, MachineType::Pointer());
   Node* param = m.Parameter(0);
-  m.Return(m.CallCFunction9(
-      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
-      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
-      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
-      MachineType::Int32(), function, param,
-      m.Int32Add(param, m.Int32Constant(1)),
-      m.Int32Add(param, m.Int32Constant(2)),
-      m.Int32Add(param, m.Int32Constant(3)),
-      m.Int32Add(param, m.Int32Constant(4)),
-      m.Int32Add(param, m.Int32Constant(5)),
-      m.Int32Add(param, m.Int32Constant(6)),
-      m.Int32Add(param, m.Int32Constant(7)),
-      m.Int32Add(param, m.Int32Constant(8))));
+  m.Return(
+      m.CallCFunction(function, MachineType::Int32(),
+                      std::make_pair(MachineType::Int32(), param),
+                      std::make_pair(MachineType::Int32(),
+                                     m.Int32Add(param, m.Int32Constant(1))),
+                      std::make_pair(MachineType::Int32(),
+                                     m.Int32Add(param, m.Int32Constant(2))),
+                      std::make_pair(MachineType::Int32(),
+                                     m.Int32Add(param, m.Int32Constant(3))),
+                      std::make_pair(MachineType::Int32(),
+                                     m.Int32Add(param, m.Int32Constant(4))),
+                      std::make_pair(MachineType::Int32(),
+                                     m.Int32Add(param, m.Int32Constant(5))),
+                      std::make_pair(MachineType::Int32(),
+                                     m.Int32Add(param, m.Int32Constant(6))),
+                      std::make_pair(MachineType::Int32(),
+                                     m.Int32Add(param, m.Int32Constant(7))),
+                      std::make_pair(MachineType::Int32(),
+                                     m.Int32Add(param, m.Int32Constant(8)))));
   FOR_INT32_INPUTS(i) {
     int32_t const x = i;
     CHECK_EQ(base::AddWithWraparound(base::MulWithWraparound(x, 9), 36),

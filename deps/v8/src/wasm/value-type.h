@@ -178,6 +178,27 @@ class StoreType {
 // A collection of ValueType-related static methods.
 class V8_EXPORT_PRIVATE ValueTypes {
  public:
+  static inline bool IsSubType(ValueType expected, ValueType actual) {
+    return (expected == actual) ||
+           (expected == kWasmAnyRef && actual == kWasmNullRef) ||
+           (expected == kWasmAnyRef && actual == kWasmAnyFunc) ||
+           (expected == kWasmAnyRef && actual == kWasmExceptRef) ||
+           (expected == kWasmAnyFunc && actual == kWasmNullRef) ||
+           // TODO(mstarzinger): For now we treat "null_ref" as a sub-type of
+           // "except_ref", which is correct but might change. See here:
+           // https://github.com/WebAssembly/exception-handling/issues/55
+           (expected == kWasmExceptRef && actual == kWasmNullRef);
+  }
+
+  static inline bool IsReferenceType(ValueType type) {
+    // This function assumes at the moment that it is never called with
+    // {kWasmNullRef}. If this assumption is wrong, it should be added to the
+    // result calculation below.
+    DCHECK_NE(type, kWasmNullRef);
+    return type == kWasmAnyRef || type == kWasmAnyFunc ||
+           type == kWasmExceptRef;
+  }
+
   static byte MemSize(MachineType type) {
     return 1 << i::ElementSizeLog2Of(type.representation());
   }
@@ -192,6 +213,10 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 8;
       case kWasmS128:
         return 16;
+      case kWasmAnyRef:
+      case kWasmAnyFunc:
+      case kWasmExceptRef:
+        return kSystemPointerSize;
       default:
         UNREACHABLE();
     }
@@ -228,6 +253,8 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return kLocalS128;
       case kWasmAnyRef:
         return kLocalAnyRef;
+      case kWasmAnyFunc:
+        return kLocalAnyFunc;
       case kWasmExceptRef:
         return kLocalExceptRef;
       case kWasmStmt:
@@ -247,8 +274,9 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return MachineType::Float32();
       case kWasmF64:
         return MachineType::Float64();
-      case kWasmAnyFunc:
       case kWasmAnyRef:
+      case kWasmAnyFunc:
+      case kWasmExceptRef:
         return MachineType::TaggedPointer();
       case kWasmS128:
         return MachineType::Simd128();

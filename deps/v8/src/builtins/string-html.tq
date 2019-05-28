@@ -1,0 +1,125 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace string_html {
+  extern runtime StringEscapeQuotes(Context, String): String;
+
+  // https://tc39.github.io/ecma262/#sec-createhtml
+  transitioning builtin CreateHTML(implicit context: Context)(
+      receiver: Object, methodName: String, tagName: String, attr: String,
+      attrValue: Object): String {
+    const tagContents: String = ToThisString(receiver, methodName);
+    let result = '<' + tagName;
+    if (attr != kEmptyString) {
+      const attrStringValue: String =
+          StringEscapeQuotes(context, ToString_Inline(context, attrValue));
+      result = result + ' ' + attr + '=\"' + attrStringValue + '\"';
+    }
+
+    return result + '>' + tagContents + '</' + tagName + '>';
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.anchor
+  transitioning javascript builtin StringPrototypeAnchor(
+      context: Context, receiver: Object, ...arguments): String {
+    return CreateHTML(
+        receiver, 'String.prototype.anchor', 'a', 'name', arguments[0]);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.big
+  transitioning javascript builtin
+  StringPrototypeBig(context: Context, receiver: Object, ...arguments): String {
+    return CreateHTML(
+        receiver, 'String.prototype.big', 'big', kEmptyString, kEmptyString);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.blink
+  transitioning javascript builtin
+  StringPrototypeBlink(context: Context, receiver: Object, ...arguments):
+      String {
+    return CreateHTML(
+        receiver, 'String.prototype.blink', 'blink', kEmptyString,
+        kEmptyString);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.bold
+  transitioning javascript builtin
+  StringPrototypeBold(context: Context, receiver: Object, ...arguments):
+      String {
+    return CreateHTML(
+        receiver, 'String.prototype.bold', 'b', kEmptyString, kEmptyString);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.fontcolor
+  transitioning javascript builtin
+  StringPrototypeFontcolor(context: Context, receiver: Object, ...arguments):
+      String {
+    return CreateHTML(
+        receiver, 'String.prototype.fontcolor', 'font', 'color', arguments[0]);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.fontsize
+  transitioning javascript builtin
+  StringPrototypeFontsize(context: Context, receiver: Object, ...arguments):
+      String {
+    return CreateHTML(
+        receiver, 'String.prototype.fontsize', 'font', 'size', arguments[0]);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.fixed
+  transitioning javascript builtin
+  StringPrototypeFixed(context: Context, receiver: Object, ...arguments):
+      String {
+    return CreateHTML(
+        receiver, 'String.prototype.fixed', 'tt', kEmptyString, kEmptyString);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.italics
+  transitioning javascript builtin
+  StringPrototypeItalics(context: Context, receiver: Object, ...arguments):
+      String {
+    return CreateHTML(
+        receiver, 'String.prototype.italics', 'i', kEmptyString, kEmptyString);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.link
+  transitioning javascript builtin
+  StringPrototypeLink(context: Context, receiver: Object, ...arguments):
+      String {
+    return CreateHTML(
+        receiver, 'String.prototype.link', 'a', 'href', arguments[0]);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.small
+  transitioning javascript builtin
+  StringPrototypeSmall(context: Context, receiver: Object, ...arguments):
+      String {
+    return CreateHTML(
+        receiver, 'String.prototype.small', 'small', kEmptyString,
+        kEmptyString);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.strike
+  transitioning javascript builtin
+  StringPrototypeStrike(context: Context, receiver: Object, ...arguments):
+      String {
+    return CreateHTML(
+        receiver, 'String.prototype.strike', 'strike', kEmptyString,
+        kEmptyString);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.sub
+  transitioning javascript builtin
+  StringPrototypeSub(context: Context, receiver: Object, ...arguments): String {
+    return CreateHTML(
+        receiver, 'String.prototype.sub', 'sub', kEmptyString, kEmptyString);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.sup
+  transitioning javascript builtin
+  StringPrototypeSup(context: Context, receiver: Object, ...arguments): String {
+    return CreateHTML(
+        receiver, 'String.prototype.sup', 'sup', kEmptyString, kEmptyString);
+  }
+}

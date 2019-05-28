@@ -316,7 +316,13 @@ std::string GenerateSourceString(FuzzerArgs* args, const std::string& test) {
      << "const slow = test();\n"
      << "%SetForceSlowPath(false);\n";
   // clang-format on
-  return ss.str();
+
+  std::string source = ss.str();
+  if (kVerbose) {
+    fprintf(stderr, "Generated source:\n```\n%s\n```\n", source.c_str());
+  }
+
+  return source;
 }
 
 void PrintExceptionMessage(v8::Isolate* isolate, v8::TryCatch* try_catch) {

@@ -68,19 +68,8 @@ class JSGeneratorObject : public JSObject {
   static const int kGeneratorClosed = -1;
 
   // Layout description.
-#define JS_GENERATOR_FIELDS(V)                  \
-  V(kFunctionOffset, kTaggedSize)               \
-  V(kContextOffset, kTaggedSize)                \
-  V(kReceiverOffset, kTaggedSize)               \
-  V(kInputOrDebugPosOffset, kTaggedSize)        \
-  V(kResumeModeOffset, kTaggedSize)             \
-  V(kContinuationOffset, kTaggedSize)           \
-  V(kParametersAndRegistersOffset, kTaggedSize) \
-  /* Header size. */                            \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GENERATOR_FIELDS)
-#undef JS_GENERATOR_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSGENERATOR_OBJECT_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSGeneratorObject, JSObject);
 };
@@ -96,14 +85,8 @@ class JSAsyncFunctionObject : public JSGeneratorObject {
   DECL_ACCESSORS(promise, JSPromise)
 
   // Layout description.
-#define JS_ASYNC_FUNCTION_FIELDS(V) \
-  V(kPromiseOffset, kTaggedSize)    \
-  /* Header size. */                \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(JSGeneratorObject::kSize,
-                                JS_ASYNC_FUNCTION_FIELDS)
-#undef JS_ASYNC_FUNCTION_FIELDS
+                                TORQUE_GENERATED_JSASYNC_FUNCTION_OBJECT_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSAsyncFunctionObject, JSGeneratorObject);
 };
@@ -125,14 +108,9 @@ class JSAsyncGeneratorObject : public JSGeneratorObject {
   DECL_INT_ACCESSORS(is_awaiting)
 
   // Layout description.
-#define JS_ASYNC_GENERATOR_FIELDS(V) \
-  V(kQueueOffset, kTaggedSize)       \
-  V(kIsAwaitingOffset, kTaggedSize)  \
-  /* Header size. */                 \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSGeneratorObject::kSize,
-                                JS_ASYNC_GENERATOR_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      JSGeneratorObject::kSize,
+      TORQUE_GENERATED_JSASYNC_GENERATOR_OBJECT_FIELDS)
 #undef JS_ASYNC_GENERATOR_FIELDS
 
   OBJECT_CONSTRUCTORS(JSAsyncGeneratorObject, JSGeneratorObject);

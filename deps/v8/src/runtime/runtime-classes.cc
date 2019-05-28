@@ -494,7 +494,7 @@ Handle<JSObject> CreateClassPrototype(Isolate* isolate) {
 bool InitClassPrototype(Isolate* isolate,
                         Handle<ClassBoilerplate> class_boilerplate,
                         Handle<JSObject> prototype,
-                        Handle<Object> prototype_parent,
+                        Handle<HeapObject> prototype_parent,
                         Handle<JSFunction> constructor, Arguments& args) {
   Handle<Map> map(prototype->map(), isolate);
   map = Map::CopyDropDescriptors(isolate, map);
@@ -541,7 +541,7 @@ bool InitClassPrototype(Isolate* isolate,
 
 bool InitClassConstructor(Isolate* isolate,
                           Handle<ClassBoilerplate> class_boilerplate,
-                          Handle<Object> constructor_parent,
+                          Handle<HeapObject> constructor_parent,
                           Handle<JSFunction> constructor, Arguments& args) {
   Handle<Map> map(constructor->map(), isolate);
   map = Map::CopyDropDescriptors(isolate, map);
@@ -597,7 +597,7 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
                                 Handle<JSFunction> constructor,
                                 Arguments& args) {
   Handle<Object> prototype_parent;
-  Handle<Object> constructor_parent;
+  Handle<HeapObject> constructor_parent;
 
   if (super_class->IsTheHole(isolate)) {
     prototype_parent = isolate->initial_object_prototype();
@@ -623,7 +623,7 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
       // Create new handle to avoid |constructor_parent| corruption because of
       // |super_class| handle value overwriting via storing to
       // args[ClassBoilerplate::kPrototypeArgumentIndex] below.
-      constructor_parent = handle(*super_class, isolate);
+      constructor_parent = handle(HeapObject::cast(*super_class), isolate);
     } else {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kExtendsValueNotConstructor,
@@ -639,7 +639,8 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
   if (!InitClassConstructor(isolate, class_boilerplate, constructor_parent,
                             constructor, args) ||
       !InitClassPrototype(isolate, class_boilerplate, prototype,
-                          prototype_parent, constructor, args)) {
+                          Handle<HeapObject>::cast(prototype_parent),
+                          constructor, args)) {
     DCHECK(isolate->has_pending_exception());
     return MaybeHandle<Object>();
   }

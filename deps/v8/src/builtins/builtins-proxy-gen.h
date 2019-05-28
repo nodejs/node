@@ -7,6 +7,7 @@
 
 #include "src/code-stub-assembler.h"
 #include "src/objects/js-proxy.h"
+#include "torque-generated/builtins-proxy-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -27,18 +28,22 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
   Node* ProxySetProperty(Node* context, Node* proxy, Node* name, Node* value,
                          Node* receiver);
 
+  Node* AllocateProxy(Node* target, Node* handler, Node* context);
+  Node* AllocateProxyRevokeFunction(Node* proxy, Node* context);
+
+  // Get JSNewTarget parameter for ProxyConstructor builtin (Torque).
+  // TODO(v8:9120): Remove this once torque support exists
+  Node* GetProxyConstructorJSNewTarget();
+
  protected:
   enum ProxyRevokeFunctionContextSlot {
     kProxySlot = Context::MIN_CONTEXT_SLOTS,
     kProxyContextLength,
   };
 
-  void GotoIfRevokedProxy(Node* object, Label* if_proxy_revoked);
-  Node* AllocateProxy(Node* target, Node* handler, Node* context);
   Node* AllocateJSArrayForCodeStubArguments(Node* context,
                                             CodeStubArguments& args, Node* argc,
                                             ParameterMode mode);
-  Node* AllocateProxyRevokeFunction(Node* proxy, Node* context);
   void CheckHasTrapResult(Node* context, Node* target, Node* proxy, Node* name,
                           Label* check_passed, Label* if_bailout);
 

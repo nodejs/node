@@ -1190,7 +1190,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::Any());
       CheckTypeIs(node, Type::Boolean());
       break;
-
+    case IrOpcode::kNumberSameValue:
+      // (Number, Number) -> Boolean
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckValueInputIs(node, 1, Type::Number());
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kObjectIsArrayBufferView:
     case IrOpcode::kObjectIsBigInt:
     case IrOpcode::kObjectIsCallable:
@@ -1341,7 +1346,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, to));
       break;
     }
-    case IrOpcode::kChangeTaggedToTaggedSigned:
+    case IrOpcode::kChangeTaggedToTaggedSigned:      // Fall through.
+    case IrOpcode::kChangeCompressedToTaggedSigned:  // Fall through.
+    case IrOpcode::kChangeTaggedToCompressedSigned:
       break;
     case IrOpcode::kTruncateTaggedToFloat64: {
       // NumberOrUndefined /\ Tagged -> Number /\ UntaggedFloat64
@@ -1508,6 +1515,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedTaggedToFloat64:
     case IrOpcode::kCheckedTaggedToTaggedSigned:
     case IrOpcode::kCheckedTaggedToTaggedPointer:
+    case IrOpcode::kCheckedCompressedToTaggedSigned:
+    case IrOpcode::kCheckedCompressedToTaggedPointer:
+    case IrOpcode::kCheckedTaggedToCompressedSigned:
+    case IrOpcode::kCheckedTaggedToCompressedPointer:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
       break;
 
@@ -1745,6 +1756,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kBitcastWordToTaggedSigned:
     case IrOpcode::kChangeInt32ToInt64:
     case IrOpcode::kChangeUint32ToUint64:
+    case IrOpcode::kChangeTaggedToCompressed:
+    case IrOpcode::kChangeTaggedPointerToCompressedPointer:
+    case IrOpcode::kChangeTaggedSignedToCompressedSigned:
+    case IrOpcode::kChangeCompressedToTagged:
+    case IrOpcode::kChangeCompressedPointerToTaggedPointer:
+    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
     case IrOpcode::kChangeInt32ToFloat64:
     case IrOpcode::kChangeInt64ToFloat64:
     case IrOpcode::kChangeUint32ToFloat64:
@@ -1807,7 +1824,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord32AtomicPairXor:
     case IrOpcode::kWord32AtomicPairExchange:
     case IrOpcode::kWord32AtomicPairCompareExchange:
-    case IrOpcode::kSpeculationFence:
     case IrOpcode::kSignExtendWord8ToInt32:
     case IrOpcode::kSignExtendWord16ToInt32:
     case IrOpcode::kSignExtendWord8ToInt64:

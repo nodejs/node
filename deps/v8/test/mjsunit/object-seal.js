@@ -389,7 +389,7 @@ assertDoesNotThrow(function() { return new Sealed(); });
 Sealed.prototype.prototypeExists = true;
 assertTrue((new Sealed()).prototypeExists);
 
-obj = new Int32Array(10)
+obj = new Int32Array(10);
 Object.seal(obj);
 assertTrue(Object.isSealed(obj));
 
@@ -402,8 +402,10 @@ function testPackedSealedArray1(obj) {
   // Verify that the length can't be written by builtins.
   assertThrows(function() { obj.pop(); }, TypeError);
   assertThrows(function() { obj.push(1); }, TypeError);
+  assertThrows(function() { obj.shift(); }, TypeError);
   assertThrows(function() { obj.unshift(1); }, TypeError);
   assertThrows(function() { obj.splice(0); }, TypeError);
+  assertDoesNotThrow(function() { obj.splice(0, 0); });
 
   // Verify search, filter, iterator
   obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
@@ -414,7 +416,11 @@ function testPackedSealedArray1(obj) {
   assertTrue(Array.isArray(obj));
   assertEquals(obj.lastIndexOf(1), 2);
   assertEquals(obj.indexOf('a'), 4);
+  assertEquals(obj.indexOf(undefined), 0);
   assertFalse(obj.includes(Symbol("test")));
+  assertTrue(obj.includes(undefined));
+  assertFalse(obj.includes(NaN));
+  assertTrue(obj.includes());
   assertEquals(obj.find(x => x==0), undefined);
   assertEquals(obj.findIndex(x => x=='a'), 4);
   assertTrue(obj.some(x => typeof x == 'symbol'));
@@ -493,3 +499,54 @@ assertTrue(%HasPackedElements(arr2));
 Object.preventExtensions(arr2);
 Object.seal(arr2);
 testPackedSealedArray2(arr2);
+
+// Test regression with Object.defineProperty
+var obj = [];
+obj.propertyA = 42;
+obj[0] = true;
+Object.seal(obj);
+assertDoesNotThrow(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+  });
+});
+assertEquals(obj, obj.propertyA);
+assertDoesNotThrow(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+    writable: false,
+  });
+});
+obj.propertyA = 42;
+assertEquals(obj.propertyA, 42);
+assertThrows(function() {
+  Object.defineProperty(obj, 'abc', {
+    value: obj,
+  });
+}, TypeError);
+
+// Regression test with simple array
+var arr = ['a'];
+Object.seal(arr);
+arr[0] = 'b';
+assertEquals(arr[0], 'b');
+
+// Test regression Array.concat with double
+var arr = ['a'];
+Object.seal(arr);
+arr = arr.concat(0.5);
+assertEquals(arr, ['a', 0.5]);
+Object.seal(arr);
+arr = arr.concat([1.5, 'b']);
+assertEquals(arr, ['a', 0.5, 1.5, 'b']);
+
+// Regression test with change length
+var arr = ['a', 'b'];
+Object.seal(arr);
+assertEquals(arr.length, 2);
+arr.length = 3;
+assertEquals(arr.length, 3);
+arr[2] = 'c';
+assertEquals(arr[2], undefined);
+arr.length = 1;
+assertEquals(arr.length, 2);

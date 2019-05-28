@@ -231,7 +231,7 @@ class UnionType;
 
 class V8_EXPORT_PRIVATE BitsetType {
  public:
-  typedef uint32_t bitset;  // Internal
+  using bitset = uint32_t;  // Internal
 
   enum : uint32_t {
 #define DECLARE_TYPE(type, value) k##type = (value),
@@ -355,7 +355,7 @@ class RangeType : public TypeBase {
 
 class V8_EXPORT_PRIVATE Type {
  public:
-  typedef BitsetType::bitset bitset;  // Internal
+  using bitset = BitsetType::bitset;  // Internal
 
 // Constructors.
 #define DEFINE_TYPE_CONSTRUCTOR(type, value) \

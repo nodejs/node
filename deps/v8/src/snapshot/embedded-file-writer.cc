@@ -41,7 +41,7 @@ namespace internal {
 
 // Name mangling.
 // Symbols are prefixed with an underscore on 32-bit architectures.
-#if defined(V8_OS_WIN) && !defined(V8_TARGET_ARCH_X64) && \
+#if defined(V8_TARGET_OS_WIN) && !defined(V8_TARGET_ARCH_X64) && \
     !defined(V8_TARGET_ARCH_ARM64)
 #define SYMBOL_PREFIX "_"
 #else
@@ -65,7 +65,7 @@ DataDirective PointerSizeDirective() {
 }  // namespace
 
 const char* DirectiveAsString(DataDirective directive) {
-#if defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MASM)
+#if defined(V8_TARGET_OS_WIN) && defined(V8_ASSEMBLER_IS_MASM)
   switch (directive) {
     case kByte:
       return "BYTE";
@@ -76,7 +76,7 @@ const char* DirectiveAsString(DataDirective directive) {
     default:
       UNREACHABLE();
   }
-#elif defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MARMASM)
+#elif defined(V8_TARGET_OS_WIN) && defined(V8_ASSEMBLER_IS_MARMASM)
   switch (directive) {
     case kByte:
       return "DCB";
@@ -126,6 +126,119 @@ void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
     source_positions_[i] = data;
   }
 }
+
+#if defined(V8_OS_WIN_X64)
+std::string EmbeddedFileWriter::BuiltinsUnwindInfoLabel() const {
+  char embedded_blob_data_symbol[kTemporaryStringLength];
+  i::SNPrintF(i::Vector<char>(embedded_blob_data_symbol),
+              "%s_Builtins_UnwindInfo", embedded_variant_);
+  return embedded_blob_data_symbol;
+}
+
+void EmbeddedFileWriter::SetBuiltinUnwindData(
+    int builtin_index, const win64_unwindinfo::BuiltinUnwindInfo& unwind_info) {
+  DCHECK_LT(builtin_index, Builtins::builtin_count);
+  unwind_infos_[builtin_index] = unwind_info;
+}
+
+void EmbeddedFileWriter::WriteUnwindInfoEntry(
+    PlatformDependentEmbeddedFileWriter* w, uint64_t rva_start,
+    uint64_t rva_end) const {
+  w->DeclareRvaToSymbol(EmbeddedBlobDataSymbol().c_str(), rva_start);
+  w->DeclareRvaToSymbol(EmbeddedBlobDataSymbol().c_str(), rva_end);
+  w->DeclareRvaToSymbol(BuiltinsUnwindInfoLabel().c_str());
+}
+
+void EmbeddedFileWriter::WriteUnwindInfo(PlatformDependentEmbeddedFileWriter* w,
+                                         const i::EmbeddedData* blob) const {
+  // Emit an UNWIND_INFO (XDATA) struct, which contains the unwinding
+  // information that is used for all builtin functions.
+  DCHECK(win64_unwindinfo::CanEmitUnwindInfoForBuiltins());
+  w->Comment("xdata for all the code in the embedded blob.");
+  w->DeclareExternalFunction(CRASH_HANDLER_FUNCTION_NAME_STRING);
+
+  w->StartXdataSection();
+  {
+    w->DeclareLabel(BuiltinsUnwindInfoLabel().c_str());
+    std::vector<uint8_t> xdata =
+        win64_unwindinfo::GetUnwindInfoForBuiltinFunctions();
+    WriteBinaryContentsAsInlineAssembly(w, xdata.data(),
+                                        static_cast<uint32_t>(xdata.size()));
+    w->Comment("    ExceptionHandler");
+    w->DeclareRvaToSymbol(CRASH_HANDLER_FUNCTION_NAME_STRING);
+  }
+  w->EndXdataSection();
+  w->Newline();
+
+  // Emit a RUNTIME_FUNCTION (PDATA) entry for each builtin function, as
+  // documented here:
+  // https://docs.microsoft.com/en-us/cpp/build/exception-handling-x64.
+  w->Comment(
+      "pdata for all the code in the embedded blob (structs of type "
+      "RUNTIME_FUNCTION).");
+  w->Comment("    BeginAddress");
+  w->Comment("    EndAddress");
+  w->Comment("    UnwindInfoAddress");
+  w->StartPdataSection();
+  {
+    Address prev_builtin_end_offset = 0;
+    for (int i = 0; i < Builtins::builtin_count; i++) {
+      // Some builtins are leaf functions from the point of view of Win64 stack
+      // walking: they do not move the stack pointer and do not require a PDATA
+      // entry because the return address can be retrieved from [rsp].
+      if (!blob->ContainsBuiltin(i)) continue;
+      if (unwind_infos_[i].is_leaf_function()) continue;
+
+      uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(i) -
+                                      reinterpret_cast<Address>(blob->data());
+      uint32_t builtin_size = blob->InstructionSizeOfBuiltin(i);
+
+      const std::vector<int>& xdata_desc = unwind_infos_[i].fp_offsets();
+      if (xdata_desc.empty()) {
+        // Some builtins do not have any "push rbp - mov rbp, rsp" instructions
+        // to start a stack frame. We still emit a PDATA entry as if they had,
+        // relying on the fact that we can find the previous frame address from
+        // rbp in most cases. Note that since the function does not really start
+        // with a 'push rbp' we need to specify the start RVA in the PDATA entry
+        // a few bytes before the beginning of the function, if it does not
+        // overlap the end of the previous builtin.
+        WriteUnwindInfoEntry(
+            w,
+            std::max(prev_builtin_end_offset,
+                     builtin_start_offset - win64_unwindinfo::kRbpPrefixLength),
+            builtin_start_offset + builtin_size);
+      } else {
+        // Some builtins have one or more "push rbp - mov rbp, rsp" sequences,
+        // but not necessarily at the beginning of the function. In this case
+        // we want to yield a PDATA entry for each block of instructions that
+        // emit an rbp frame. If the function does not start with 'push rbp'
+        // we also emit a PDATA entry for the initial block of code up to the
+        // first 'push rbp', like in the case above.
+        if (xdata_desc[0] > 0) {
+          WriteUnwindInfoEntry(w,
+                               std::max(prev_builtin_end_offset,
+                                        builtin_start_offset -
+                                            win64_unwindinfo::kRbpPrefixLength),
+                               builtin_start_offset + xdata_desc[0]);
+        }
+
+        for (size_t j = 0; j < xdata_desc.size(); j++) {
+          int chunk_start = xdata_desc[j];
+          int chunk_end =
+              (j < xdata_desc.size() - 1) ? xdata_desc[j + 1] : builtin_size;
+          WriteUnwindInfoEntry(w, builtin_start_offset + chunk_start,
+                               builtin_start_offset + chunk_end);
+        }
+      }
+
+      prev_builtin_end_offset = builtin_start_offset + builtin_size;
+      w->Newline();
+    }
+  }
+  w->EndPdataSection();
+  w->Newline();
+}
+#endif
 
 // V8_OS_MACOSX
 // Fuchsia target is explicitly excluded here for Mac hosts. This is to avoid
@@ -319,10 +432,10 @@ int PlatformDependentEmbeddedFileWriter::IndentedDataDirective(
   return fprintf(fp_, "  %s ", DirectiveAsString(directive));
 }
 
-// V8_OS_WIN (MSVC)
+// V8_TARGET_OS_WIN (MSVC)
 // -----------------------------------------------------------------------------
 
-#elif defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MASM)
+#elif defined(V8_TARGET_OS_WIN) && defined(V8_ASSEMBLER_IS_MASM)
 
 // For MSVC builds we emit assembly in MASM syntax.
 // See https://docs.microsoft.com/en-us/cpp/assembler/masm/directives-reference.
@@ -352,6 +465,42 @@ void PlatformDependentEmbeddedFileWriter::DeclarePointerToSymbol(
   fprintf(fp_, "%s%s %s %s%s\n", SYMBOL_PREFIX, name,
           DirectiveAsString(PointerSizeDirective()), SYMBOL_PREFIX, target);
 }
+
+#if defined(V8_OS_WIN_X64)
+
+void PlatformDependentEmbeddedFileWriter::StartPdataSection() {
+  fprintf(fp_, "OPTION DOTNAME\n");
+  fprintf(fp_, ".pdata SEGMENT DWORD READ ''\n");
+}
+
+void PlatformDependentEmbeddedFileWriter::EndPdataSection() {
+  fprintf(fp_, ".pdata ENDS\n");
+}
+
+void PlatformDependentEmbeddedFileWriter::StartXdataSection() {
+  fprintf(fp_, "OPTION DOTNAME\n");
+  fprintf(fp_, ".xdata SEGMENT DWORD READ ''\n");
+}
+
+void PlatformDependentEmbeddedFileWriter::EndXdataSection() {
+  fprintf(fp_, ".xdata ENDS\n");
+}
+
+void PlatformDependentEmbeddedFileWriter::DeclareExternalFunction(
+    const char* name) {
+  fprintf(fp_, "EXTERN %s : PROC\n", name);
+}
+
+void PlatformDependentEmbeddedFileWriter::DeclareRvaToSymbol(const char* name,
+                                                             uint64_t offset) {
+  if (offset > 0) {
+    fprintf(fp_, "DD IMAGEREL %s+%llu\n", name, offset);
+  } else {
+    fprintf(fp_, "DD IMAGEREL %s\n", name);
+  }
+}
+
+#endif  // defined(V8_OS_WIN_X64)
 
 void PlatformDependentEmbeddedFileWriter::DeclareSymbolGlobal(
     const char* name) {
@@ -417,7 +566,7 @@ int PlatformDependentEmbeddedFileWriter::IndentedDataDirective(
 
 #undef V8_ASSEMBLER_IS_MASM
 
-#elif defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MARMASM)
+#elif defined(V8_TARGET_OS_WIN) && defined(V8_ASSEMBLER_IS_MARMASM)
 
 // The the AARCH64 ABI requires instructions be 4-byte-aligned and Windows does
 // not have a stricter alignment requirement (see the TEXTAREA macro of
@@ -543,11 +692,10 @@ void PlatformDependentEmbeddedFileWriter::SectionData() {
 }
 
 void PlatformDependentEmbeddedFileWriter::SectionRoData() {
-#if defined(V8_OS_WIN)
-  fprintf(fp_, ".section .rdata\n");
-#else
-  fprintf(fp_, ".section .rodata\n");
-#endif
+  if (i::FLAG_target_os == std::string("win"))
+    fprintf(fp_, ".section .rdata\n");
+  else
+    fprintf(fp_, ".section .rodata\n");
 }
 
 void PlatformDependentEmbeddedFileWriter::DeclareUint32(const char* name,
@@ -566,6 +714,34 @@ void PlatformDependentEmbeddedFileWriter::DeclarePointerToSymbol(
   fprintf(fp_, "  %s %s%s\n", DirectiveAsString(PointerSizeDirective()),
           SYMBOL_PREFIX, target);
 }
+
+#if defined(V8_OS_WIN_X64)
+
+void PlatformDependentEmbeddedFileWriter::StartPdataSection() {
+  fprintf(fp_, ".section .pdata\n");
+}
+
+void PlatformDependentEmbeddedFileWriter::EndPdataSection() {}
+
+void PlatformDependentEmbeddedFileWriter::StartXdataSection() {
+  fprintf(fp_, ".section .xdata\n");
+}
+
+void PlatformDependentEmbeddedFileWriter::EndXdataSection() {}
+
+void PlatformDependentEmbeddedFileWriter::DeclareExternalFunction(
+    const char* name) {}
+
+void PlatformDependentEmbeddedFileWriter::DeclareRvaToSymbol(const char* name,
+                                                             uint64_t offset) {
+  if (offset > 0) {
+    fprintf(fp_, ".rva %s + %llu\n", name, offset);
+  } else {
+    fprintf(fp_, ".rva %s\n", name);
+  }
+}
+
+#endif  // defined(V8_OS_WIN_X64)
 
 void PlatformDependentEmbeddedFileWriter::DeclareSymbolGlobal(
     const char* name) {
@@ -602,29 +778,31 @@ void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
     const char* name) {
   DeclareLabel(name);
 
-#if defined(V8_OS_WIN)
+  if (i::FLAG_target_os == std::string("win")) {
 #if defined(V8_TARGET_ARCH_ARM64)
-  // Windows ARM64 assembly is in GAS syntax, but ".type" is invalid directive
-  // in PE/COFF for Windows.
+    // Windows ARM64 assembly is in GAS syntax, but ".type" is invalid directive
+    // in PE/COFF for Windows.
 #else
-  // The directives for inserting debugging information on Windows come
-  // from the PE (Portable Executable) and COFF (Common Object File Format)
-  // standards. Documented here:
-  // https://docs.microsoft.com/en-us/windows/desktop/debug/pe-format
-  //
-  // .scl 2 means StorageClass external.
-  // .type 32 means Type Representation Function.
-  fprintf(fp_, ".def %s%s; .scl 2; .type 32; .endef;\n", SYMBOL_PREFIX, name);
+    // The directives for inserting debugging information on Windows come
+    // from the PE (Portable Executable) and COFF (Common Object File Format)
+    // standards. Documented here:
+    // https://docs.microsoft.com/en-us/windows/desktop/debug/pe-format
+    //
+    // .scl 2 means StorageClass external.
+    // .type 32 means Type Representation Function.
+    fprintf(fp_, ".def %s%s; .scl 2; .type 32; .endef;\n", SYMBOL_PREFIX, name);
 #endif
-#elif defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
-  // ELF format binaries on ARM use ".type <function name>, %function"
-  // to create a DWARF subprogram entry.
-  fprintf(fp_, ".type %s, %%function\n", name);
+  } else {
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
+    // ELF format binaries on ARM use ".type <function name>, %function"
+    // to create a DWARF subprogram entry.
+    fprintf(fp_, ".type %s, %%function\n", name);
 #else
-  // Other ELF Format binaries use ".type <function name>, @function"
-  // to create a DWARF subprogram entry.
-  fprintf(fp_, ".type %s, @function\n", name);
+    // Other ELF Format binaries use ".type <function name>, @function"
+    // to create a DWARF subprogram entry.
+    fprintf(fp_, ".type %s, @function\n", name);
 #endif
+  }
 }
 
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionEnd(const char* name) {

@@ -52,7 +52,7 @@ class AstRawString final : public ZoneObject {
                          : literal_bytes_.length() / 2;
   }
   bool AsArrayIndex(uint32_t* index) const;
-  bool IsOneByteEqualTo(const char* data) const;
+  V8_EXPORT_PRIVATE bool IsOneByteEqualTo(const char* data) const;
   uint16_t FirstCharacter() const;
 
   void Internalize(Isolate* isolate);

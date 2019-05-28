@@ -44,13 +44,16 @@ class JSRelativeTimeFormat : public JSObject {
   Handle<String> NumericAsString() const;
 
   // ecma402/#sec-Intl.RelativeTimeFormat.prototype.format
-  // ecma402/#sec-Intl.RelativeTimeFormat.prototype.formatToParts
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Format(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> Format(
       Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
-      Handle<JSRelativeTimeFormat> format_holder, const char* func_name,
-      bool to_parts);
+      Handle<JSRelativeTimeFormat> format);
 
-  static const std::set<std::string>& GetAvailableLocales();
+  // ecma402/#sec-Intl.RelativeTimeFormat.prototype.formatToParts
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
+      Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
+      Handle<JSRelativeTimeFormat> format);
+
+  V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
   DECL_CAST(JSRelativeTimeFormat)
 
@@ -107,7 +110,6 @@ class JSRelativeTimeFormat : public JSObject {
 
   // Layout description.
 #define JS_RELATIVE_TIME_FORMAT_FIELDS(V)     \
-  V(kJSRelativeTimeFormatOffset, kTaggedSize) \
   V(kLocaleOffset, kTaggedSize)               \
   V(kICUFormatterOffset, kTaggedSize)         \
   V(kFlagsOffset, kTaggedSize)                \

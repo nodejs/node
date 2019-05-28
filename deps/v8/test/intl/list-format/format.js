@@ -46,19 +46,16 @@ testFormatter(new Intl.ListFormat());
 testFormatter(new Intl.ListFormat(["en"]));
 testFormatter(new Intl.ListFormat(["en"], {style: 'long'}));
 testFormatter(new Intl.ListFormat(["en"], {style: 'short'}));
-assertThrows(() => new Intl.ListFormat(
-    ["en"], {style: 'narrow'}), RangeError);
+testFormatter(new Intl.ListFormat(["en"], {style: 'narrow'}));
 testFormatter(new Intl.ListFormat(["en"], {type: 'conjunction'}));
 testFormatter(new Intl.ListFormat(["en"], {type: 'disjunction'}));
 testFormatter(new Intl.ListFormat(["en"], {type: 'unit'}));
 testFormatter(new Intl.ListFormat(["en"], {style: 'long', type: 'conjunction'}));
 testFormatter(new Intl.ListFormat(["en"], {style: 'short', type: 'conjunction'}));
-assertThrows(() => new Intl.ListFormat(
-    ["en"], {style: 'narrow', type: 'conjunction'}), RangeError);
+testFormatter(new Intl.ListFormat(["en"], {style: 'narrow', type: 'conjunction'}));
 testFormatter(new Intl.ListFormat(["en"], {style: 'long', type: 'disjunction'}));
 testFormatter(new Intl.ListFormat(["en"], {style: 'short', type: 'disjunction'}));
-assertThrows(() => new Intl.ListFormat(
-    ["en"], {style: 'narrow', type: 'disjunction'}), RangeError);
+testFormatter(new Intl.ListFormat(["en"], {style: 'narrow', type: 'disjunction'}));
 testFormatter(new Intl.ListFormat(["en"], {style: 'long', type: 'unit'}));
 testFormatter(new Intl.ListFormat(["en"], {style: 'short', type: 'unit'}));
 testFormatter(new Intl.ListFormat(["en"], {style: 'narrow', type: 'unit'}));

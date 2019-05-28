@@ -107,3 +107,42 @@
   assertEquals([], foo(0));
   assertInstanceof(foo(-1), RangeError);
 })();
+
+// Test non-extensible Array call with multiple parameters.
+(() => {
+  function foo(x, y, z) { return Object.preventExtensions(new Array(x, y, z)); }
+
+  %PrepareFunctionForOptimization(foo);
+  assertEquals([1, 2, 3], foo(1, 2, 3));
+  assertEquals([1, 2, 3], foo(1, 2, 3));
+  assertFalse(Object.isExtensible(foo(1,2,3)));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals([1, 2, 3], foo(1, 2, 3));
+  assertFalse(Object.isExtensible(foo(1,2,3)));
+})();
+
+// Test sealed Array call with multiple parameters.
+(() => {
+  function foo(x, y, z) { return Object.seal(new Array(x, y, z)); }
+
+  %PrepareFunctionForOptimization(foo);
+  assertEquals([1, 2, 3], foo(1, 2, 3));
+  assertEquals([1, 2, 3], foo(1, 2, 3));
+  assertTrue(Object.isSealed(foo(1,2,3)));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals([1, 2, 3], foo(1, 2, 3));
+  assertTrue(Object.isSealed(foo(1,2,3)));
+})();
+
+// Test frozen Array call with multiple parameters.
+(() => {
+  function foo(x, y, z) { return Object.freeze(new Array(x, y, z)); }
+
+  %PrepareFunctionForOptimization(foo);
+  assertEquals([1, 2, 3], foo(1, 2, 3));
+  assertEquals([1, 2, 3], foo(1, 2, 3));
+  assertTrue(Object.isFrozen(foo(1,2,3)));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals([1, 2, 3], foo(1, 2, 3));
+  assertTrue(Object.isFrozen(foo(1,2,3)));
+})();

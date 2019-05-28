@@ -97,12 +97,12 @@ class HeapTester {
 
   // test-heap.cc
   static AllocationResult AllocateByteArrayForTest(Heap* heap, int length,
-                                                   PretenureFlag pretenure);
+                                                   AllocationType allocation);
 
   // test-mark-compact.cc
   static AllocationResult AllocateMapForTest(v8::internal::Isolate* isolate);
   static AllocationResult AllocateFixedArrayForTest(Heap* heap, int length,
-                                                    PretenureFlag pretenure);
+                                                    AllocationType allocation);
 
   static void UncommitFromSpace(Heap* heap);
 };

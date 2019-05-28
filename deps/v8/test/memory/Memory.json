@@ -3,9 +3,10 @@
   "name": "Memory",
   "run_count": 5,
   "units": "bytes",
-  "path" : ["."],
-  "binary": "cctest",
-  "main": "test-serialize/SerializationStats",
+  "resources": ["run.js"],
+  "main": "run.js",
+  "path": ["."],
+  "flags": ["--allow-natives-syntax", "--profile-deserialization"],
   "tests": [
     {
       "name": "ReservedMemoryIsolate",

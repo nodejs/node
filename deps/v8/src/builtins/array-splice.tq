@@ -53,7 +53,7 @@ namespace array_splice {
 
   macro FastSplice<FixedArrayType: type, ElementType: type>(implicit context:
                                                                   Context)(
-      args: constexpr Arguments, a: JSArray, length: Smi, newLength: Smi,
+      args: Arguments, a: JSArray, length: Smi, newLength: Smi,
       lengthDelta: Smi, actualStart: Smi, insertCount: Smi,
       actualDeleteCount: Smi): void labels Bailout {
     // Make sure elements are writable.
@@ -95,7 +95,8 @@ namespace array_splice {
     if (insertCount > 0) {
       const typedNewElements: FixedArrayType =
           UnsafeCast<FixedArrayType>(a.elements);
-      for (let e: Object of args [2: ]) {
+      for (let i: intptr = 2; i < args.length; ++i) {
+        const e: Object = args[i];
         // The argument elements were already validated to be an appropriate
         // {ElementType} to store in {FixedArrayType}.
         typedNewElements[k++] = UnsafeCast<ElementType>(e);
@@ -107,7 +108,7 @@ namespace array_splice {
   }
 
   transitioning macro FastArraySplice(
-      context: Context, args: constexpr Arguments, o: JSReceiver,
+      context: Context, args: Arguments, o: JSReceiver,
       originalLengthNumber: Number, actualStartNumber: Number, insertCount: Smi,
       actualDeleteCountNumber: Number): Object
       labels Bailout {
@@ -131,7 +132,8 @@ namespace array_splice {
     if (!IsFastElementsKind(elementsKind)) goto Bailout;
 
     const oldElementsKind: ElementsKind = elementsKind;
-    for (let e: Object of args [2: ]) {
+    for (let i: intptr = 2; i < args.length; ++i) {
+      const e: Object = args[i];
       if (IsFastSmiElementsKind(elementsKind)) {
         if (TaggedIsNotSmi(e)) {
           const heapObject: HeapObject = UnsafeCast<HeapObject>(e);
@@ -296,8 +298,8 @@ namespace array_splice {
   }
 
   transitioning macro SlowSplice(
-      context: Context, arguments: constexpr Arguments, o: JSReceiver,
-      len: Number, actualStart: Number, insertCount: Smi,
+      context: Context, arguments: Arguments, o: JSReceiver, len: Number,
+      actualStart: Number, insertCount: Smi,
       actualDeleteCount: Number): Object {
     const affected: Number = len - actualStart - actualDeleteCount;
 
@@ -332,7 +334,8 @@ namespace array_splice {
     //   a. Remove the first element from items and let E be the value of that
     //   element.
     if (arguments.length > 2) {
-      for (let e: Object of arguments [2: ]) {
+      for (let i: intptr = 2; i < arguments.length; ++i) {
+        const e: Object = arguments[i];
         // b. Perform ? Set(O, ! ToString(k), E, true).
         SetProperty(o, k, e);
 

@@ -80,8 +80,11 @@ bool Unwinder::TryUnwindV8Frames(const UnwindState& unwind_state,
     if (!AddressIsInStack(final_sp, stack_base, stack_top)) return false;
     register_state->sp = final_sp;
 
+    // We don't check that the final FP value is within the stack bounds because
+    // this is just the rbp value that JSEntryStub pushed. On platforms like
+    // Win64 this is not used as a dedicated FP register, and could contain
+    // anything.
     void* final_fp = GetCallerFPFromFP(current_fp);
-    if (!AddressIsInStack(final_fp, stack_base, stack_top)) return false;
     register_state->fp = final_fp;
 
     register_state->pc = next_pc;

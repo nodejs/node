@@ -13,5 +13,7 @@
  */
 
 #include <cstdint>
+#include "src/base/macros.h"
 
-uint32_t halfsiphash(const uint32_t value, const uint64_t seed);
+V8_EXPORT_PRIVATE uint32_t halfsiphash(const uint32_t value,
+                                       const uint64_t seed);

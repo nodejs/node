@@ -15,8 +15,11 @@
 
 namespace unibrow {
 
+#ifndef V8_INTL_SUPPORT
 static const int kStartBit = (1 << 30);
 static const int kChunkBits = (1 << 13);
+#endif  // !V8_INTL_SUPPORT
+
 static const uchar kSentinel = static_cast<uchar>(-1);
 
 /**
@@ -28,7 +31,7 @@ typedef signed short int16_t;  // NOLINT
 typedef unsigned short uint16_t;  // NOLINT
 typedef int int32_t;  // NOLINT
 
-
+#ifndef V8_INTL_SUPPORT
 // All access to the character table should go through this function.
 template <int D>
 static inline uchar TableGet(const int32_t* table, int index) {
@@ -44,7 +47,6 @@ static inline bool IsStart(int32_t entry) {
   return (entry & kStartBit) != 0;
 }
 
-#ifndef V8_INTL_SUPPORT
 /**
  * Look up a character in the Unicode table using a mix of binary and
  * interpolation search.  For a uniformly distributed array
@@ -92,6 +94,7 @@ struct MultiCharacterSpecialCase {
   uchar chars[kW];
 };
 
+#ifndef V8_INTL_SUPPORT
 // Look up the mapping for the given character in the specified table,
 // which is of the specified length and uses the specified special case
 // mapping for multi-char mappings.  The next parameter is the character
@@ -192,6 +195,7 @@ static int LookupMapping(const int32_t* table,
     return 0;
   }
 }
+#endif  // !V8_INTL_SUPPORT
 
 // This method decodes an UTF-8 value according to RFC 3629 and
 // https://encoding.spec.whatwg.org/#utf-8-decoder .
@@ -1596,7 +1600,6 @@ int ToUppercase::Convert(uchar c,
     default: return 0;
   }
 }
-#endif  // !V8_INTL_SUPPORT
 
 static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings0[1] = {  // NOLINT
   {{kSentinel}} }; // NOLINT
@@ -3072,98 +3075,75 @@ int CanonicalizationRange::Convert(uchar c,
   }
 }
 
-
 const uchar UnicodeData::kMaxCodePoint = 0xFFFD;
 
 int UnicodeData::GetByteCount() {
-#ifndef V8_INTL_SUPPORT                                 // NOLINT
-  return kUppercaseTable0Size * sizeof(int32_t)         // NOLINT
-         + kUppercaseTable1Size * sizeof(int32_t)       // NOLINT
-         + kUppercaseTable5Size * sizeof(int32_t)       // NOLINT
-         + kUppercaseTable7Size * sizeof(int32_t)       // NOLINT
-         + kLetterTable0Size * sizeof(int32_t)          // NOLINT
-         + kLetterTable1Size * sizeof(int32_t)          // NOLINT
-         + kLetterTable2Size * sizeof(int32_t)          // NOLINT
-         + kLetterTable3Size * sizeof(int32_t)          // NOLINT
-         + kLetterTable4Size * sizeof(int32_t)          // NOLINT
-         + kLetterTable5Size * sizeof(int32_t)          // NOLINT
-         + kLetterTable6Size * sizeof(int32_t)          // NOLINT
-         + kLetterTable7Size * sizeof(int32_t)          // NOLINT
-         + kID_StartTable0Size * sizeof(int32_t)        // NOLINT
-         + kID_StartTable1Size * sizeof(int32_t)        // NOLINT
-         + kID_StartTable2Size * sizeof(int32_t)        // NOLINT
-         + kID_StartTable3Size * sizeof(int32_t)        // NOLINT
-         + kID_StartTable4Size * sizeof(int32_t)        // NOLINT
-         + kID_StartTable5Size * sizeof(int32_t)        // NOLINT
-         + kID_StartTable6Size * sizeof(int32_t)        // NOLINT
-         + kID_StartTable7Size * sizeof(int32_t)        // NOLINT
-         + kID_ContinueTable0Size * sizeof(int32_t)     // NOLINT
-         + kID_ContinueTable1Size * sizeof(int32_t)     // NOLINT
-         + kID_ContinueTable5Size * sizeof(int32_t)     // NOLINT
-         + kID_ContinueTable7Size * sizeof(int32_t)     // NOLINT
-         + kWhiteSpaceTable0Size * sizeof(int32_t)      // NOLINT
-         + kWhiteSpaceTable1Size * sizeof(int32_t)      // NOLINT
-         + kWhiteSpaceTable7Size * sizeof(int32_t)      // NOLINT
-         +
-         kToLowercaseMultiStrings0Size *
-             sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
-         +
-         kToLowercaseMultiStrings1Size *
-             sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
-         +
-         kToLowercaseMultiStrings5Size *
-             sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
-         +
-         kToLowercaseMultiStrings7Size *
-             sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
-         +
-         kToUppercaseMultiStrings0Size *
-             sizeof(MultiCharacterSpecialCase<3>)  // NOLINT
-         +
-         kToUppercaseMultiStrings1Size *
-             sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
-         +
-         kToUppercaseMultiStrings5Size *
-             sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
-         +
-         kToUppercaseMultiStrings7Size *
-             sizeof(MultiCharacterSpecialCase<3>)  // NOLINT
-#else
-  return
-#endif  // !V8_INTL_SUPPORT
-         +
-         kEcma262CanonicalizeMultiStrings0Size *
-             sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
-         +
-         kEcma262CanonicalizeMultiStrings1Size *
-             sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
-         +
-         kEcma262CanonicalizeMultiStrings5Size *
-             sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
-         +
-         kEcma262CanonicalizeMultiStrings7Size *
-             sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
-         +
-         kEcma262UnCanonicalizeMultiStrings0Size *
-             sizeof(MultiCharacterSpecialCase<4>)  // NOLINT
-         +
-         kEcma262UnCanonicalizeMultiStrings1Size *
-             sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
-         +
-         kEcma262UnCanonicalizeMultiStrings5Size *
-             sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
-         +
-         kEcma262UnCanonicalizeMultiStrings7Size *
-             sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
-         +
-         kCanonicalizationRangeMultiStrings0Size *
-             sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
-         +
-         kCanonicalizationRangeMultiStrings1Size *
-             sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
-         +
-         kCanonicalizationRangeMultiStrings7Size *
-             sizeof(MultiCharacterSpecialCase<1>);  // NOLINT
+  return kUppercaseTable0Size * sizeof(int32_t)      // NOLINT
+         + kUppercaseTable1Size * sizeof(int32_t)    // NOLINT
+         + kUppercaseTable5Size * sizeof(int32_t)    // NOLINT
+         + kUppercaseTable7Size * sizeof(int32_t)    // NOLINT
+         + kLetterTable0Size * sizeof(int32_t)       // NOLINT
+         + kLetterTable1Size * sizeof(int32_t)       // NOLINT
+         + kLetterTable2Size * sizeof(int32_t)       // NOLINT
+         + kLetterTable3Size * sizeof(int32_t)       // NOLINT
+         + kLetterTable4Size * sizeof(int32_t)       // NOLINT
+         + kLetterTable5Size * sizeof(int32_t)       // NOLINT
+         + kLetterTable6Size * sizeof(int32_t)       // NOLINT
+         + kLetterTable7Size * sizeof(int32_t)       // NOLINT
+         + kID_StartTable0Size * sizeof(int32_t)     // NOLINT
+         + kID_StartTable1Size * sizeof(int32_t)     // NOLINT
+         + kID_StartTable2Size * sizeof(int32_t)     // NOLINT
+         + kID_StartTable3Size * sizeof(int32_t)     // NOLINT
+         + kID_StartTable4Size * sizeof(int32_t)     // NOLINT
+         + kID_StartTable5Size * sizeof(int32_t)     // NOLINT
+         + kID_StartTable6Size * sizeof(int32_t)     // NOLINT
+         + kID_StartTable7Size * sizeof(int32_t)     // NOLINT
+         + kID_ContinueTable0Size * sizeof(int32_t)  // NOLINT
+         + kID_ContinueTable1Size * sizeof(int32_t)  // NOLINT
+         + kID_ContinueTable5Size * sizeof(int32_t)  // NOLINT
+         + kID_ContinueTable7Size * sizeof(int32_t)  // NOLINT
+         + kWhiteSpaceTable0Size * sizeof(int32_t)   // NOLINT
+         + kWhiteSpaceTable1Size * sizeof(int32_t)   // NOLINT
+         + kWhiteSpaceTable7Size * sizeof(int32_t)   // NOLINT
+         + kToLowercaseMultiStrings0Size *
+               sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
+         + kToLowercaseMultiStrings1Size *
+               sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+         + kToLowercaseMultiStrings5Size *
+               sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+         + kToLowercaseMultiStrings7Size *
+               sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+         + kToUppercaseMultiStrings0Size *
+               sizeof(MultiCharacterSpecialCase<3>)  // NOLINT
+         + kToUppercaseMultiStrings1Size *
+               sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+         + kToUppercaseMultiStrings5Size *
+               sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+         + kToUppercaseMultiStrings7Size *
+               sizeof(MultiCharacterSpecialCase<3>)  // NOLINT
+         + kEcma262CanonicalizeMultiStrings0Size *
+               sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+         + kEcma262CanonicalizeMultiStrings1Size *
+               sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+         + kEcma262CanonicalizeMultiStrings5Size *
+               sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+         + kEcma262CanonicalizeMultiStrings7Size *
+               sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+         + kEcma262UnCanonicalizeMultiStrings0Size *
+               sizeof(MultiCharacterSpecialCase<4>)  // NOLINT
+         + kEcma262UnCanonicalizeMultiStrings1Size *
+               sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
+         + kEcma262UnCanonicalizeMultiStrings5Size *
+               sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
+         + kEcma262UnCanonicalizeMultiStrings7Size *
+               sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
+         + kCanonicalizationRangeMultiStrings0Size *
+               sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+         + kCanonicalizationRangeMultiStrings1Size *
+               sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+         + kCanonicalizationRangeMultiStrings7Size *
+               sizeof(MultiCharacterSpecialCase<1>);  // NOLINT
 }
+#endif  // !V8_INTL_SUPPORT
 
 }  // namespace unibrow

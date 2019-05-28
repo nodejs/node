@@ -23,7 +23,7 @@ class CodeEventObserver {
   virtual ~CodeEventObserver() = default;
 };
 
-class ProfilerListener : public CodeEventListener {
+class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
  public:
   ProfilerListener(Isolate*, CodeEventObserver*);
   ~ProfilerListener() override;
@@ -53,14 +53,6 @@ class ProfilerListener : public CodeEventListener {
   void RegExpCodeCreateEvent(AbstractCode code, String source) override;
   void SetterCallbackEvent(Name name, Address entry_point) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
-
-  CodeEntry* NewCodeEntry(
-      CodeEventListener::LogEventsAndTags tag, const char* name,
-      const char* resource_name = CodeEntry::kEmptyResourceName,
-      int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
-      int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
-      std::unique_ptr<SourcePositionTable> line_info = nullptr,
-      Address instruction_start = kNullAddress);
 
   const char* GetName(Name name) {
     return function_and_resource_names_.GetName(name);

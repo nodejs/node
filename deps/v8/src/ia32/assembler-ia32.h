@@ -856,8 +856,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void ucomiss(XMMRegister dst, XMMRegister src) { ucomiss(dst, Operand(src)); }
   void ucomiss(XMMRegister dst, Operand src);
-  void movaps(XMMRegister dst, XMMRegister src);
-  void movups(XMMRegister dst, XMMRegister src);
+  void movaps(XMMRegister dst, XMMRegister src) { movaps(dst, Operand(src)); }
+  void movaps(XMMRegister dst, Operand src);
+  void movups(XMMRegister dst, XMMRegister src) { movups(dst, Operand(src)); }
   void movups(XMMRegister dst, Operand src);
   void movups(Operand dst, XMMRegister src);
   void shufps(XMMRegister dst, XMMRegister src, byte imm8);
@@ -869,6 +870,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void andps(XMMRegister dst, Operand src);
   void andps(XMMRegister dst, XMMRegister src) { andps(dst, Operand(src)); }
+  void andnps(XMMRegister dst, Operand src);
+  void andnps(XMMRegister dst, XMMRegister src) { andnps(dst, Operand(src)); }
   void xorps(XMMRegister dst, Operand src);
   void xorps(XMMRegister dst, XMMRegister src) { xorps(dst, Operand(src)); }
   void orps(XMMRegister dst, Operand src);
@@ -895,6 +898,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void maxps(XMMRegister dst, XMMRegister src) { maxps(dst, Operand(src)); }
 
   void cmpps(XMMRegister dst, Operand src, uint8_t cmp);
+  void cmpps(XMMRegister dst, XMMRegister src, uint8_t cmp) {
+    cmpps(dst, Operand(src), cmp);
+  }
 #define SSE_CMP_P(instr, imm8)                       \
   void instr##ps(XMMRegister dst, XMMRegister src) { \
     cmpps(dst, Operand(src), imm8);                  \
@@ -1317,9 +1323,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vhaddps(XMMRegister dst, XMMRegister src1, Operand src2) {
     vinstr(0x7C, dst, src1, src2, kF2, k0F, kWIG);
   }
-  void vmovaps(XMMRegister dst, XMMRegister src) {
-    vps(0x28, dst, xmm0, Operand(src));
-  }
+  void vmovaps(XMMRegister dst, XMMRegister src) { vmovaps(dst, Operand(src)); }
+  void vmovaps(XMMRegister dst, Operand src) { vps(0x28, dst, xmm0, src); }
+  void vmovups(XMMRegister dst, XMMRegister src) { vmovups(dst, Operand(src)); }
+  void vmovups(XMMRegister dst, Operand src) { vps(0x10, dst, xmm0, src); }
   void vshufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8) {
     vshufps(dst, src1, Operand(src2), imm8);
   }
@@ -1497,6 +1504,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 #define PACKED_OP_LIST(V) \
   V(and, 0x54)            \
+  V(andn, 0x55)           \
+  V(or, 0x56)             \
   V(xor, 0x57)            \
   V(add, 0x58)            \
   V(mul, 0x59)            \

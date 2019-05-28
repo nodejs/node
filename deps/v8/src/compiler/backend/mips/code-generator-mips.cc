@@ -482,6 +482,8 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ Ll(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));                \
     __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1),  \
                    size, sign_extend);                                         \
+    __ ExtractBits(i.InputRegister(2), i.InputRegister(2), i.TempRegister(1),  \
+                   size, sign_extend);                                         \
     __ BranchShort(&exit, ne, i.InputRegister(2),                              \
                    Operand(i.OutputRegister(0)));                              \
     __ InsertBits(i.TempRegister(2), i.InputRegister(3), i.TempRegister(1),    \

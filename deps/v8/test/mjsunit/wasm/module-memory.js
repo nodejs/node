@@ -178,7 +178,7 @@ function testAddressSpaceLimit() {
   // 1TiB + 4 GiB, see wasm-memory.h
   const kMaxAddressSpace = 1 * 1024 * 1024 * 1024 * 1024
                          + 4 * 1024 * 1024 * 1024;
-  const kAddressSpacePerMemory = 8 * 1024 * 1024 * 1024;
+  const kAddressSpacePerMemory = 10 * 1024 * 1024 * 1024;
 
   let last_memory;
   try {
@@ -193,10 +193,7 @@ function testAddressSpaceLimit() {
     assertTrue(e instanceof RangeError);
     return;
   }
-  // If we get here it's because our fallback behavior is working. We may not
-  // be using the fallback, in which case we would have thrown a RangeError in
-  // the previous block.
-  assertTrue(!%WasmMemoryHasFullGuardRegion(last_memory));
+  assertUnreachable("should have reached the address space limit");
 }
 
 if(%IsWasmTrapHandlerEnabled()) {

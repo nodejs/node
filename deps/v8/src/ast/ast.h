@@ -228,7 +228,7 @@ class Expression : public AstNode {
   bool IsSmiLiteral() const;
 
   // True iff the expression is a literal represented as a number.
-  bool IsNumberLiteral() const;
+  V8_EXPORT_PRIVATE bool IsNumberLiteral() const;
 
   // True iff the expression is a string literal.
   bool IsStringLiteral() const;
@@ -2233,15 +2233,14 @@ class FunctionLiteral final : public Expression {
     return function_literal_id() == kFunctionLiteralIdTopLevel;
   }
   bool is_wrapped() const { return function_type() == kWrapped; }
-  LanguageMode language_mode() const;
+  V8_EXPORT_PRIVATE LanguageMode language_mode() const;
 
   static bool NeedsHomeObject(Expression* expr);
 
-  int expected_property_count() {
-    // Not valid for lazy functions.
-    DCHECK(ShouldEagerCompile());
-    return expected_property_count_;
+  void add_expected_properties(int number_properties) {
+    expected_property_count_ += number_properties;
   }
+  int expected_property_count() { return expected_property_count_; }
   int parameter_count() { return parameter_count_; }
   int function_length() { return function_length_; }
 
@@ -2300,7 +2299,7 @@ class FunctionLiteral final : public Expression {
   // function will be called immediately:
   // - (function() { ... })();
   // - var x = function() { ... }();
-  bool ShouldEagerCompile() const;
+  V8_EXPORT_PRIVATE bool ShouldEagerCompile() const;
   V8_EXPORT_PRIVATE void SetShouldEagerCompile();
 
   FunctionType function_type() const {
@@ -2394,6 +2393,8 @@ class FunctionLiteral final : public Expression {
       : public BitField<bool, RequiresInstanceMembersInitializer::kNext, 1> {};
   class OneshotIIFEBit : public BitField<bool, HasBracesField::kNext, 1> {};
 
+  // expected_property_count_ is the sum of instance fields and properties.
+  // It can vary depending on whether a function is lazily or eagerly parsed.
   int expected_property_count_;
   int parameter_count_;
   int function_length_;

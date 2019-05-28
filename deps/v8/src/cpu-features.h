@@ -68,7 +68,7 @@ enum CpuFeature {
 //   } else {
 //     // Generate alternative code.
 //   }
-class CpuFeatures : public AllStatic {
+class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
  public:
   static void Probe(bool cross_compile) {
     STATIC_ASSERT(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);

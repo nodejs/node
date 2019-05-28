@@ -175,7 +175,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     // not to call into arbitrary JavaScript, not to throw, and not to lazily
     // deoptimize are whitelisted here and can be called without a FrameState.
     case Runtime::kAbort:
-    case Runtime::kAllocateInTargetSpace:
+    case Runtime::kAllocateInOldGeneration:
     case Runtime::kCreateIterResultObject:
     case Runtime::kIncBlockCounter:
     case Runtime::kIsFunction:

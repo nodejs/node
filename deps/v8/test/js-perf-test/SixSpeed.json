@@ -1,5 +1,5 @@
 {
-  "owners": ["jarin@chromium.org", "mvstanston@chromium.org"],
+  "owners": ["jarin@chromium.org", "mvstanton@chromium.org"],
   "name": "SixSpeed",
   "run_count": 3,
   "run_count_arm": 1,

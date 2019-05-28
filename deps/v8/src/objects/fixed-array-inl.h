@@ -208,6 +208,12 @@ void FixedArray::MoveElements(Heap* heap, int dst_index, int src_index, int len,
   heap->MoveElements(*this, dst_index, src_index, len, mode);
 }
 
+void FixedArray::CopyElements(Heap* heap, int dst_index, FixedArray src,
+                              int src_index, int len, WriteBarrierMode mode) {
+  DisallowHeapAllocation no_gc;
+  heap->CopyElements(*this, src, dst_index, src_index, len, mode);
+}
+
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
 int BinarySearch(T* array, Name name, int valid_entries,
@@ -543,9 +549,9 @@ PodArray<T> PodArray<T>::cast(Object object) {
 // static
 template <class T>
 Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
-                                     PretenureFlag pretenure) {
+                                     AllocationType allocation) {
   return Handle<PodArray<T>>::cast(
-      isolate->factory()->NewByteArray(length * sizeof(T), pretenure));
+      isolate->factory()->NewByteArray(length * sizeof(T), allocation));
 }
 
 template <class T>

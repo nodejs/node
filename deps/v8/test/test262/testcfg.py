@@ -25,6 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
 
 import imp
 import itertools
@@ -49,6 +51,7 @@ FEATURE_FLAGS = {
   'String.prototype.matchAll': '--harmony-string-matchall',
   'Symbol.matchAll': '--harmony-string-matchall',
   'numeric-separator-literal': '--harmony-numeric-separator',
+  'Intl.DateTimeFormat-datetimestyle': '--harmony-intl-datetime-style',
   'Intl.Locale': '--harmony-locale',
   'Intl.Segmenter': '--harmony-intl-segmenter',
   'Symbol.prototype.description': '--harmony-symbol-description',
@@ -57,6 +60,7 @@ FEATURE_FLAGS = {
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
   'Object.fromEntries': '--harmony-object-from-entries',
   'hashbang': '--harmony-hashbang',
+  'BigInt': '--harmony-intl-bigint',
 }
 
 SKIPPED_FEATURES = set(['class-methods-private',

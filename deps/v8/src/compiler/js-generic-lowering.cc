@@ -31,7 +31,8 @@ CallDescriptor::Flags FrameStateFlagForCall(Node* node) {
 
 }  // namespace
 
-JSGenericLowering::JSGenericLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
+JSGenericLowering::JSGenericLowering(JSGraph* jsgraph, Editor* editor)
+    : AdvancedReducer(editor), jsgraph_(jsgraph) {}
 
 JSGenericLowering::~JSGenericLowering() = default;
 
@@ -308,6 +309,7 @@ void JSGenericLowering::LowerJSStoreInArrayLiteral(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kStoreInArrayLiteralIC);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
+  RelaxControls(node);
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
   node->InsertInput(zone(), 4, jsgraph()->HeapConstant(p.feedback().vector()));
   ReplaceWithStubCall(node, callable, flags);
@@ -446,7 +448,7 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   node->RemoveInput(4);  // control
 
   // Use the FastNewClosure builtin only for functions allocated in new space.
-  if (p.pretenure() == NOT_TENURED) {
+  if (p.allocation() == AllocationType::kYoung) {
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kFastNewClosure);
     CallDescriptor::Flags flags = FrameStateFlagForCall(node);

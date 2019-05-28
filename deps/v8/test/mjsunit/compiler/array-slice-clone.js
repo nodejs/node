@@ -398,3 +398,43 @@
   assertNotEquals(Object.getOwnPropertyDescriptor(narr, 1), undefined);
   assertEquals(narr, [6,6,6]);
 })();
+
+// Trigger JSCallReducer on slice() and slice(0)
+(function() {
+  // Non-extensible:
+  var arr = Object.preventExtensions([1,2,3,4,5]);
+
+  function slice() {
+    return arr.slice();
+  }
+
+  function slice0() {
+    return arr.slice(0);
+  }
+
+  function test() {
+    %PrepareFunctionForOptimization(slice0);
+
+    assertEquals(arr, slice());
+    assertFalse(arr === slice());
+    assertEquals(slice(), slice0());
+    assertEquals(slice0(), slice());
+
+    %OptimizeFunctionOnNextCall(slice0);
+    assertEquals(slice(), slice0());
+    %PrepareFunctionForOptimization(slice);
+    %OptimizeFunctionOnNextCall(slice);
+
+    assertEquals(slice(), slice0());
+    assertOptimized(slice); assertOptimized(slice0);
+  }
+  test();
+
+  // Sealed
+  arr = Object.seal([1,2,3,4,5]);
+  test();
+
+  // Frozen
+  arr = Object.freeze([1,2,3,4,5]);
+  test();
+})();

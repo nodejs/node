@@ -57,7 +57,7 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
 
 class FunctionBodyDecoderTest : public TestWithZone {
  public:
-  typedef std::pair<uint32_t, ValueType> LocalsDecl;
+  using LocalsDecl = std::pair<uint32_t, ValueType>;
   // All features are disabled by default and must be activated with
   // a WASM_FEATURE_SCOPE in individual tests.
   WasmFeatures enabled_features_;
@@ -1626,7 +1626,7 @@ TEST_F(FunctionBodyDecoderTest, SimpleIndirectReturnCalls) {
 
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.AddTable(kWasmAnyFunc, 20, true, 30);
   module = builder.module();
 
   byte f0 = builder.AddSignature(sigs.i_v());
@@ -1645,7 +1645,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsOutOfBounds) {
 
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.AddTable(kWasmAnyFunc, 20, false, 20);
   module = builder.module();
 
   ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT0(0, WASM_ZERO)});
@@ -1768,7 +1768,7 @@ TEST_F(FunctionBodyDecoderTest, MultiReturnType) {
 TEST_F(FunctionBodyDecoderTest, SimpleIndirectCalls) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.AddTable(kWasmAnyFunc, 20, false, 20);
   module = builder.module();
 
   byte f0 = builder.AddSignature(sigs.i_v());
@@ -1784,7 +1784,7 @@ TEST_F(FunctionBodyDecoderTest, SimpleIndirectCalls) {
 TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.AddTable(kWasmAnyFunc, 20, false, 20);
   module = builder.module();
 
   ExpectFailure(sig, {WASM_CALL_INDIRECT0(0, WASM_ZERO)});
@@ -2111,6 +2111,25 @@ TEST_F(FunctionBodyDecoderTest, GetTable) {
       &sig, {WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(oob_tab, WASM_I32V(9)))});
   ExpectFailure(&sig, {WASM_SET_LOCAL(local_func,
                                       WASM_GET_TABLE(oob_tab, WASM_I32V(3)))});
+}
+
+TEST_F(FunctionBodyDecoderTest, MultiTableCallIndirect) {
+  WASM_FEATURE_SCOPE(anyref);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte tab_ref = builder.AddTable(kWasmAnyRef, 10, true, 20);
+  byte tab_func = builder.AddTable(kWasmAnyFunc, 20, true, 30);
+
+  ValueType sig_types[]{kWasmAnyRef, kWasmAnyFunc, kWasmI32};
+  FunctionSig sig(0, 3, sig_types);
+  byte sig_index = builder.AddSignature(sigs.i_v());
+
+  // We can store anyfunc values as anyref, but not the other way around.
+  ExpectValidates(sigs.i_v(),
+                  {kExprI32Const, 0, kExprCallIndirect, sig_index, tab_func});
+
+  ExpectFailure(sigs.i_v(),
+                {kExprI32Const, 0, kExprCallIndirect, sig_index, tab_ref});
 }
 
 TEST_F(FunctionBodyDecoderTest, WasmMemoryGrow) {
@@ -3365,7 +3384,7 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
   ExpectLength(2, kSimdPrefix, 0xFF);
 }
 
-typedef ZoneVector<ValueType> TypesOfLocals;
+using TypesOfLocals = ZoneVector<ValueType>;
 
 class LocalDeclDecoderTest : public TestWithZone {
  public:

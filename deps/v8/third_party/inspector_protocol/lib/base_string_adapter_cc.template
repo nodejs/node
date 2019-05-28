@@ -256,34 +256,34 @@ bool AppendStringValueToMapBinary(base::StringPiece in,
   if (in.size() < 1 + 1 + 4 + 1 + 1)
     return false;
   const uint8_t* envelope = reinterpret_cast<const uint8_t*>(in.data());
-  if (cbor::kInitialByteForEnvelope != envelope[0])
+  if (cbor::InitialByteForEnvelope() != envelope[0])
     return false;
-  if (cbor::kInitialByteFor32BitLengthByteString != envelope[1])
+  if (cbor::InitialByteFor32BitLengthByteString() != envelope[1])
     return false;
-  if (cbor::kInitialByteIndefiniteLengthMap != envelope[6])
+  if (cbor::EncodeIndefiniteLengthMapStart() != envelope[6])
     return false;
 
   uint32_t envelope_size = ReadEnvelopeSize(envelope + 2);
   if (envelope_size + 2 + 4 != in.size())
     return false;
-  if (cbor::kStopByte != static_cast<uint8_t>(*in.rbegin()))
+  if (cbor::EncodeStop() != static_cast<uint8_t>(*in.rbegin()))
     return false;
 
   std::vector<uint8_t> encoded_entry;
   encoded_entry.reserve(1 + 4 + key.size() + 1 + 4 + value.size());
   span<uint8_t> key_span(
       reinterpret_cast<const uint8_t*>(key.data()), key.size());
-  EncodeString8(key_span, &encoded_entry);
+  cbor::EncodeString8(key_span, &encoded_entry);
   span<uint8_t> value_span(
       reinterpret_cast<const uint8_t*>(value.data()), value.size());
-  EncodeString8(value_span, &encoded_entry);
+  cbor::EncodeString8(value_span, &encoded_entry);
 
   out->clear();
   out->reserve(in.size() + encoded_entry.size());
   out->append(in.begin(), in.end() - 1);
   out->append(reinterpret_cast<const char*>(encoded_entry.data()),
       encoded_entry.size());
-  out->append(1, static_cast<char>(cbor::kStopByte));
+  out->append(1, static_cast<char>(cbor::EncodeStop()));
   std::size_t new_size = envelope_size + out->size() - in.size();
   if (new_size > static_cast<std::size_t>(
       std::numeric_limits<uint32_t>::max())) {

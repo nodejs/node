@@ -109,10 +109,10 @@
 }],  # arch == arm64 and msan
 
 ##############################################################################
-['variant in [no_liftoff, nooptimization, stress, stress_background_compile] and (arch == arm or arch == arm64) and simulator_run', {
+['variant in [nooptimization, stress, stress_background_compile] and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'dfg-double-vote-fuzz': [SKIP],
-}],  # variant in [no_liftoff, nooptimization, stress, stress_background_compile] and (arch == arm or arch == arm64) and simulator_run
+}],  # variant in [nooptimization, stress, stress_background_compile] and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
 ['gcov_coverage', {

@@ -1,0 +1,57 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-proxy-gen.h'
+
+namespace proxy {
+
+  extern macro ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
+      Object, Object): JSFunction;
+  macro AllocateProxyRevokeFunction(implicit context: Context)(proxy: JSProxy):
+      JSFunction {
+    return AllocateProxyRevokeFunction(proxy, context);
+  }
+
+  // Proxy.revocable(target, handler)
+  // https://tc39.github.io/ecma262/#sec-proxy.revocable
+  transitioning javascript builtin
+  ProxyRevocable(
+      context: Context, receiver: Object, target: Object,
+      handler: Object): JSProxyRevocableResult {
+    try {
+      const targetJSReceiver =
+          Cast<JSReceiver>(target) otherwise ThrowProxyNonObject;
+      if (IsRevokedProxy(targetJSReceiver)) {
+        goto ThrowProxyHandlerOrTargetRevoked;
+      }
+
+      const handlerJSReceiver =
+          Cast<JSReceiver>(handler) otherwise ThrowProxyNonObject;
+      if (IsRevokedProxy(handlerJSReceiver)) {
+        goto ThrowProxyHandlerOrTargetRevoked;
+      }
+
+      // 1. Let p be ? ProxyCreate(target, handler).
+      const proxy: JSProxy = AllocateProxy(targetJSReceiver, handlerJSReceiver);
+
+      // 2. Let steps be the algorithm steps defined in Proxy Revocation
+      // Functions.
+      // 3. Let revoker be CreateBuiltinFunction(steps, « [[RevocableProxy]] »).
+      // 4. Set revoker.[[RevocableProxy]] to p.
+      const revoke: JSFunction = AllocateProxyRevokeFunction(proxy);
+
+      // 5. Let result be ObjectCreate(%ObjectPrototype%).
+      // 6. Perform CreateDataProperty(result, "proxy", p).
+      // 7. Perform CreateDataProperty(result, "revoke", revoker).
+      // 8. Return result.
+      return NewJSProxyRevocableResult(proxy, revoke);
+    }
+    label ThrowProxyNonObject deferred {
+      ThrowTypeError(kProxyNonObject, 'Proxy.revocable');
+    }
+    label ThrowProxyHandlerOrTargetRevoked deferred {
+      ThrowTypeError(kProxyHandlerOrTargetRevoked, 'Proxy.revocable');
+    }
+  }
+}

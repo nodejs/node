@@ -23,13 +23,11 @@ class Graph;
 // Marks are used during traversal of the graph to distinguish states of nodes.
 // Each node has a mark which is a monotonically increasing integer, and a
 // {NodeMarker} has a range of values that indicate states of a node.
-typedef uint32_t Mark;
-
+using Mark = uint32_t;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef uint32_t NodeId;
-
+using NodeId = uint32_t;
 
 // A Node is the basic primitive of graphs. Nodes are chained together by
 // input/use chains but by default otherwise contain only an identifying number
@@ -117,7 +115,7 @@ class V8_EXPORT_PRIVATE Node final {
 
   class UseEdges final {
    public:
-    typedef Edge value_type;
+    using value_type = Edge;
 
     class iterator;
     inline iterator begin() const;
@@ -135,7 +133,7 @@ class V8_EXPORT_PRIVATE Node final {
 
   class V8_EXPORT_PRIVATE Uses final {
    public:
-    typedef Node* value_type;
+    using value_type = Node*;
 
     class const_iterator;
     inline const_iterator begin() const;
@@ -202,8 +200,8 @@ class V8_EXPORT_PRIVATE Node final {
                              : reinterpret_cast<OutOfLineInputs*>(start)->node_;
     }
 
-    typedef BitField<bool, 0, 1> InlineField;
-    typedef BitField<unsigned, 1, 17> InputIndexField;
+    using InlineField = BitField<bool, 0, 1>;
+    using InputIndexField = BitField<unsigned, 1, 17>;
     // Leaving some space in the bitset in case we ever decide to record
     // the output index.
   };
@@ -289,9 +287,9 @@ class V8_EXPORT_PRIVATE Node final {
 
   void ClearInputs(int start, int count);
 
-  typedef BitField<NodeId, 0, 24> IdField;
-  typedef BitField<unsigned, 24, 4> InlineCountField;
-  typedef BitField<unsigned, 28, 4> InlineCapacityField;
+  using IdField = BitField<NodeId, 0, 24>;
+  using InlineCountField = BitField<unsigned, 24, 4>;
+  using InlineCapacityField = BitField<unsigned, 28, 4>;
   static const int kOutlineMarker = InlineCountField::kMax;
   static const int kMaxInlineCount = InlineCountField::kMax - 1;
   static const int kMaxInlineCapacity = InlineCapacityField::kMax - 1;
@@ -322,15 +320,14 @@ std::ostream& operator<<(std::ostream& os, const Node& n);
 
 
 // Typedefs to shorten commonly used Node containers.
-typedef ZoneDeque<Node*> NodeDeque;
-typedef ZoneSet<Node*> NodeSet;
-typedef ZoneVector<Node*> NodeVector;
-typedef ZoneVector<NodeVector> NodeVectorVector;
-
+using NodeDeque = ZoneDeque<Node*>;
+using NodeSet = ZoneSet<Node*>;
+using NodeVector = ZoneVector<Node*>;
+using NodeVectorVector = ZoneVector<NodeVector>;
 
 class Node::InputEdges final {
  public:
-  typedef Edge value_type;
+  using value_type = Edge;
 
   class iterator;
   inline iterator begin() const;
@@ -352,7 +349,7 @@ class Node::InputEdges final {
 
 class V8_EXPORT_PRIVATE Node::Inputs final {
  public:
-  typedef Node* value_type;
+  using value_type = Node*;
 
   class const_iterator;
   inline const_iterator begin() const;
@@ -440,11 +437,11 @@ Node::Inputs Node::inputs() const {
 // A forward iterator to visit the edges for the input dependencies of a node.
 class Node::InputEdges::iterator final {
  public:
-  typedef std::forward_iterator_tag iterator_category;
-  typedef std::ptrdiff_t difference_type;
-  typedef Edge value_type;
-  typedef Edge* pointer;
-  typedef Edge& reference;
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = std::ptrdiff_t;
+  using value_type = Edge;
+  using pointer = Edge*;
+  using reference = Edge&;
 
   iterator() : use_(nullptr), input_ptr_(nullptr) {}
   iterator(const iterator& other) = default;
@@ -499,11 +496,11 @@ Edge Node::InputEdges::operator[](int index) const {
 // A forward iterator to visit the inputs of a node.
 class Node::Inputs::const_iterator final {
  public:
-  typedef std::forward_iterator_tag iterator_category;
-  typedef std::ptrdiff_t difference_type;
-  typedef Node* value_type;
-  typedef const value_type* pointer;
-  typedef value_type& reference;
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = std::ptrdiff_t;
+  using value_type = Node*;
+  using pointer = const value_type*;
+  using reference = value_type&;
 
   const_iterator(const const_iterator& other) = default;
 
@@ -594,11 +591,11 @@ Node::UseEdges::iterator Node::UseEdges::end() const {
 // A forward iterator to visit the uses of a node.
 class Node::Uses::const_iterator final {
  public:
-  typedef std::forward_iterator_tag iterator_category;
-  typedef int difference_type;
-  typedef Node* value_type;
-  typedef Node** pointer;
-  typedef Node*& reference;
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = int;
+  using value_type = Node*;
+  using pointer = Node**;
+  using reference = Node*&;
 
   Node* operator*() const { return current_->from(); }
   bool operator==(const const_iterator& other) const {

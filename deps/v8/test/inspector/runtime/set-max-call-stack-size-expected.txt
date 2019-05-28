@@ -9,7 +9,7 @@ Test with max size 0.
     ]
     executionContextId : <executionContextId>
     timestamp : <timestamp>
-    type : log
+    type : trace
 }
 Test with max size 1.
 {
@@ -44,7 +44,7 @@ Test with max size 1.
         }
     }
     timestamp : <timestamp>
-    type : log
+    type : trace
 }
 Test with max size 2.
 {
@@ -93,5 +93,5 @@ Test with max size 2.
         }
     }
     timestamp : <timestamp>
-    type : log
+    type : trace
 }

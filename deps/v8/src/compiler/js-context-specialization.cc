@@ -144,7 +144,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
 
   // Now walk up the concrete context chain for the remaining depth.
   ContextRef concrete = maybe_concrete.value();
-  concrete.Serialize();  // TODO(neis): Remove later.
+  concrete.SerializeContextChain();  // TODO(neis): Remove later.
   for (; depth > 0; --depth) {
     concrete = concrete.previous();
   }
@@ -158,6 +158,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   // This will hold the final value, if we can figure it out.
   base::Optional<ObjectRef> maybe_value;
 
+  concrete.SerializeSlot(static_cast<int>(access.index()));
   maybe_value = concrete.get(static_cast<int>(access.index()));
   if (maybe_value.has_value() && !maybe_value->IsSmi()) {
     // Even though the context slot is immutable, the context might have escaped
@@ -206,7 +207,7 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
 
   // Now walk up the concrete context chain for the remaining depth.
   ContextRef concrete = maybe_concrete.value();
-  concrete.Serialize();  // TODO(neis): Remove later.
+  concrete.SerializeContextChain();  // TODO(neis): Remove later.
   for (; depth > 0; --depth) {
     concrete = concrete.previous();
   }

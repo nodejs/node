@@ -32,7 +32,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
         kExprCallIndirect, 0, kTableZero
       ])
       .exportFunc();
-    builder.addElementSegment(0, false, [0, 1, 1, 0]);
+    builder.addElementSegment(0, 0, false, [0, 1, 1, 0]);
 
     return builder.instantiate({q: {f2: i1.exports.f2, f1: i1.exports.f1}});
   })();

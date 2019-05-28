@@ -46,6 +46,13 @@ bool Type::IsSubtypeOf(const Type* supertype) const {
   return false;
 }
 
+base::Optional<const ClassType*> Type::ClassSupertype() const {
+  for (const Type* t = this; t != nullptr; t = t->parent()) {
+    if (auto* class_type = ClassType::DynamicCast(t)) return class_type;
+  }
+  return base::nullopt;
+}
+
 // static
 const Type* Type::CommonSupertype(const Type* a, const Type* b) {
   int diff = a->Depth() - b->Depth();
@@ -156,19 +163,6 @@ std::string UnionType::GetGeneratedTNodeTypeNameImpl() const {
     }
   }
   return parent()->GetGeneratedTNodeTypeName();
-}
-
-const Type* UnionType::NonConstexprVersion() const {
-  if (IsConstexpr()) {
-    auto it = types_.begin();
-    UnionType result((*it)->NonConstexprVersion());
-    ++it;
-    for (; it != types_.end(); ++it) {
-      result.Extend((*it)->NonConstexprVersion());
-    }
-    return TypeOracle::GetUnionType(std::move(result));
-  }
-  return this;
 }
 
 void UnionType::RecomputeParent() {
@@ -288,10 +282,12 @@ std::string StructType::ToExplicitString() const {
 }
 
 ClassType::ClassType(const Type* parent, Namespace* nspace,
-                     const std::string& name, bool is_extern, bool transient,
+                     const std::string& name, bool is_extern,
+                     bool generate_print, bool transient,
                      const std::string& generates)
     : AggregateType(Kind::kClassType, parent, nspace, name),
       is_extern_(is_extern),
+      generate_print_(generate_print),
       transient_(transient),
       size_(0),
       has_indexed_field_(false),
@@ -468,6 +464,9 @@ void AppendLoweredTypes(const Type* type, std::vector<const Type*>* result) {
     for (const Field& field : s->fields()) {
       AppendLoweredTypes(field.name_and_type.type, result);
     }
+  } else if (type->IsReferenceType()) {
+    result->push_back(TypeOracle::GetHeapObjectType());
+    result->push_back(TypeOracle::GetIntPtrType());
   } else {
     result->push_back(type);
   }

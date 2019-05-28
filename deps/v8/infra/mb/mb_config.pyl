@@ -89,11 +89,8 @@
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
-      'V8 Linux gcc': 'release_x86_gcc_no_goma',
-      'V8 Linux64 gcc - debug': 'debug_x64_gcc_no_goma',
-      # TODO(machenbach): Remove after switching.
-      'V8 Linux gcc 4.8': 'release_x86_gcc',
-      'V8 Linux64 gcc 4.8 - debug': 'debug_x64_gcc',
+      'V8 Linux gcc': 'release_x86_gcc',
+      'V8 Linux64 gcc - debug': 'debug_x64_gcc',
       # FYI.
       'V8 Linux64 - pointer compression': 'release_x64_pointer_compression',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
@@ -212,7 +209,7 @@
       'v8_linux64_compile_rel_xg': 'release_x64_test_features_trybot',
       'v8_linux64_dbg_ng': 'debug_x64_trybot',
       'v8_linux64_gc_stress_custom_snapshot_dbg_ng': 'debug_x64_trybot_custom',
-      'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc_no_goma',
+      'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_pointer_compression_rel_ng': 'release_x64_pointer_compression',
@@ -434,7 +431,8 @@
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc_coverage': [
-      'release_bot', 'x64', 'coverage', 'gcc', 'no_custom_libcxx', 'no_sysroot'],
+      'release_bot', 'x64', 'coverage', 'gcc', 'no_custom_libcxx',
+      'no_sysroot'],
     'release_x64_internal': [
       'release_bot', 'x64', 'v8_snapshot_internal'],
     'release_x64_jumbo': [
@@ -484,9 +482,6 @@
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
       'debug_bot', 'x64', 'gcc'],
-    'debug_x64_gcc_no_goma': [
-      'debug', 'shared', 'v8_enable_slow_dchecks', 'v8_optimized_debug', 'x64',
-      'gcc', 'no_goma'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_jumbo': [
@@ -518,8 +513,7 @@
     'debug_x86_vtunejit': [
       'debug_bot', 'x86', 'v8_enable_vtunejit'],
     'full_debug_x86': [
-      'debug', 'x86', 'goma', 'static', 'v8_enable_slow_dchecks',
-      'v8_full_debug'],
+      'debug', 'x86', 'goma', 'v8_enable_slow_dchecks', 'v8_full_debug'],
 
     # Release configs for x86.
     'release_x86': [
@@ -530,11 +524,8 @@
       'release_trybot', 'x86', 'v8_no_enable_embedded_builtins'],
     'release_x86_gcc': [
       'release_bot', 'x86', 'gcc'],
-    # TODO(machenbach): Enable back goma once supported.
     'release_x86_gcc_minimal_symbols': [
-      'release', 'static', 'x86', 'gcc', 'minimal_symbols', 'no_goma'],
-    'release_x86_gcc_no_goma': [
-      'release', 'static', 'x86', 'gcc', 'no_goma'],
+      'release_bot', 'x86', 'gcc', 'minimal_symbols'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
@@ -704,10 +695,6 @@
       'gn_args': 'use_custom_libcxx=false',
     },
 
-    'no_goma': {
-      'gn_args': 'use_goma=false',
-    },
-
     'no_sysroot': {
       'gn_args': 'use_sysroot=false',
     },
@@ -772,13 +759,13 @@
       # TODO(krasin): Remove is_ubsan_no_recover=true when
       # https://llvm.org/bugs/show_bug.cgi?id=25569 is fixed and just use
       # ubsan instead.
-      'gn_args': 'is_ubsan=true is_ubsan_no_recover=true',
+      'gn_args': 'is_ubsan=true is_ubsan_no_recover=true is_ubsan_vptr=true',
     },
 
     'ubsan_recover': {
       'mixins': ['v8_enable_test_features'],
       # Ubsan with recovery.
-      'gn_args': 'is_ubsan=true is_ubsan_no_recover=false',
+      'gn_args': 'is_ubsan=true is_ubsan_no_recover=false is_ubsan_vptr=true',
     },
 
     'v8_check_header_includes': {

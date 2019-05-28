@@ -76,9 +76,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function DeserializeInvalidObject() {
   print(arguments.callee.name);
-  var invalid_buffer = new ArrayBuffer(10);
+  const invalid_buffer = new ArrayBuffer(10);
+  const invalid_buffer_view = new Uint8Array(10);
 
-  module = %DeserializeWasmModule(invalid_buffer, invalid_buffer);
+  module = %DeserializeWasmModule(invalid_buffer, invalid_buffer_view);
   assertEquals(module, undefined);
 })();
 
@@ -217,7 +218,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .exportAs("main");
 
     builder.setTableBounds(kTableSize, kTableSize);
-    builder.addElementSegment(0, false, [f1.index]);
+    builder.addElementSegment(0, 0, false, [f1.index]);
     builder.addExportOfKind("table", kExternalTable, 0);
 
     return new WebAssembly.Module(builder.toBuffer());
@@ -238,7 +239,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   builder.addImportedTable("z", "table", kTableSize, kTableSize);
-  builder.addElementSegment(1, false, [f2.index], true);
+  builder.addElementSegment(0, 1, false, [f2.index], true);
   var m2_bytes = builder.toBuffer();
   var m2 = new WebAssembly.Module(m2_bytes);
 

@@ -5086,13 +5086,123 @@ TEST(InterpreterCollectSourcePositions) {
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
       handle(sfi->GetBytecodeArray(), isolate);
-  ByteArray source_position_table = bytecode_array->SourcePositionTable();
-  CHECK_EQ(source_position_table->length(), 0);
+  CHECK(!bytecode_array->HasSourcePositionTable());
 
   Compiler::CollectSourcePositions(isolate, sfi);
 
-  source_position_table = bytecode_array->SourcePositionTable();
+  ByteArray source_position_table = bytecode_array->SourcePositionTable();
+  CHECK(bytecode_array->HasSourcePositionTable());
   CHECK_GT(source_position_table->length(), 0);
+}
+
+TEST(InterpreterCollectSourcePositions_StackOverflow) {
+  FLAG_enable_lazy_source_positions = true;
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  const char* source =
+      "(function () {\n"
+      "  return 1;\n"
+      "})";
+
+  Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast(CompileRun(source))));
+
+  Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
+  Handle<BytecodeArray> bytecode_array =
+      handle(sfi->GetBytecodeArray(), isolate);
+  CHECK(!bytecode_array->HasSourcePositionTable());
+
+  // Make the stack limit the same as the current position so recompilation
+  // overflows.
+  uint64_t previous_limit = isolate->stack_guard()->real_climit();
+  isolate->stack_guard()->SetStackLimit(GetCurrentStackPosition());
+  Compiler::CollectSourcePositions(isolate, sfi);
+  // Stack overflowed so source position table can be returned but is empty.
+  ByteArray source_position_table = bytecode_array->SourcePositionTable();
+  CHECK(!bytecode_array->HasSourcePositionTable());
+  CHECK_EQ(source_position_table->length(), 0);
+
+  // Reset the stack limit and try again.
+  isolate->stack_guard()->SetStackLimit(previous_limit);
+  Compiler::CollectSourcePositions(isolate, sfi);
+  source_position_table = bytecode_array->SourcePositionTable();
+  CHECK(bytecode_array->HasSourcePositionTable());
+  CHECK_GT(source_position_table->length(), 0);
+}
+
+// TODO(v8:8510): When an exception is thrown, the top frame still has its
+// source positions collected. Re-enable this test when that is fixed.
+DISABLED_TEST(InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
+  FLAG_enable_lazy_source_positions = true;
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  const char* source =
+      R"javascript(
+      (function () {
+        throw new Error();
+      });
+      )javascript";
+
+  Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast(CompileRun(source))));
+
+  Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
+  // This is the bytecode for the top-level iife.
+  Handle<BytecodeArray> bytecode_array =
+      handle(sfi->GetBytecodeArray(), isolate);
+  CHECK(!bytecode_array->HasSourcePositionTable());
+
+  {
+    v8::TryCatch try_catch(CcTest::isolate());
+    MaybeHandle<Object> result = Execution::Call(
+        isolate, function, ReadOnlyRoots(isolate).undefined_value_handle(), 0,
+        nullptr);
+    CHECK(result.is_null());
+    CHECK(try_catch.HasCaught());
+  }
+
+  // The exception was caught but source positions were not retrieved from it so
+  // there should be no source position table.
+  CHECK(!bytecode_array->HasSourcePositionTable());
+}
+
+TEST(InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
+  FLAG_enable_lazy_source_positions = true;
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  const char* source =
+      R"javascript(
+      (function () {
+        (function () {
+          throw new Error();
+        })();
+      });
+      )javascript";
+
+  Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast(CompileRun(source))));
+
+  Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
+  // This is the bytecode for the top-level iife.
+  Handle<BytecodeArray> bytecode_array =
+      handle(sfi->GetBytecodeArray(), isolate);
+  CHECK(!bytecode_array->HasSourcePositionTable());
+
+  {
+    v8::TryCatch try_catch(CcTest::isolate());
+    MaybeHandle<Object> result = Execution::Call(
+        isolate, function, ReadOnlyRoots(isolate).undefined_value_handle(), 0,
+        nullptr);
+    CHECK(result.is_null());
+    CHECK(try_catch.HasCaught());
+  }
+
+  // The exception was caught but source positions were not retrieved from it so
+  // there should be no source position table.
+  CHECK(!bytecode_array->HasSourcePositionTable());
 }
 
 namespace {
@@ -5130,8 +5240,7 @@ TEST(InterpreterCollectSourcePositions_GenerateStackTrace) {
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
       handle(sfi->GetBytecodeArray(), isolate);
-  ByteArray source_position_table = bytecode_array->SourcePositionTable();
-  CHECK_EQ(source_position_table->length(), 0);
+  CHECK(!bytecode_array->HasSourcePositionTable());
 
   {
     Handle<Object> result =
@@ -5142,7 +5251,8 @@ TEST(InterpreterCollectSourcePositions_GenerateStackTrace) {
     CheckStringEqual("Error\n    at <anonymous>:4:17", result);
   }
 
-  source_position_table = bytecode_array->SourcePositionTable();
+  CHECK(bytecode_array->HasSourcePositionTable());
+  ByteArray source_position_table = bytecode_array->SourcePositionTable();
   CHECK_GT(source_position_table->length(), 0);
 }
 

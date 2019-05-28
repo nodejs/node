@@ -33,7 +33,8 @@ type FrameBase extends RawPtr constexpr 'void*';
 type StandardFrame extends FrameBase constexpr 'void*';
 type ArgumentsAdaptorFrame extends FrameBase constexpr 'void*';
 type StubFrame extends FrameBase constexpr 'void*';
-type Frame = ArgumentsAdaptorFrame | StandardFrame | StubFrame;
+type FrameWithArguments = StandardFrame | ArgumentsAdaptorFrame;
+type Frame = FrameWithArguments | StubFrame;
 
 extern macro LoadFramePointer(): Frame;
 extern macro LoadParentFramePointer(): Frame;

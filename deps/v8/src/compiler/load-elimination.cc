@@ -890,6 +890,10 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
   switch (access.machine_type.representation()) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kBit:
+      // TODO(solanes): Create the code for the compressed values
+    case MachineRepresentation::kCompressedSigned:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
       UNREACHABLE();
       break;
     case MachineRepresentation::kWord8:
@@ -944,6 +948,10 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
   switch (access.machine_type.representation()) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kBit:
+      // TODO(solanes): Create the code for the compressed values
+    case MachineRepresentation::kCompressedSigned:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
       UNREACHABLE();
       break;
     case MachineRepresentation::kWord8:
@@ -1262,6 +1270,9 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
+    case MachineRepresentation::kCompressedSigned:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
       // TODO(bmeurer): Check that we never do overlapping load/stores of
       // individual parts of Float64 values.
       break;

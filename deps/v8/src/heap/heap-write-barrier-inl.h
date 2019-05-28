@@ -115,6 +115,23 @@ inline void GenerationalBarrierInternal(HeapObject object, Address slot,
   Heap_GenerationalBarrierSlow(object, slot, value);
 }
 
+inline void GenerationalEphemeronKeyBarrierInternal(EphemeronHashTable table,
+                                                    Address slot,
+                                                    HeapObject value) {
+  DCHECK(Heap::PageFlagsAreConsistent(table));
+  heap_internals::MemoryChunk* value_chunk =
+      heap_internals::MemoryChunk::FromHeapObject(value);
+  heap_internals::MemoryChunk* table_chunk =
+      heap_internals::MemoryChunk::FromHeapObject(table);
+
+  if (!value_chunk->InYoungGeneration() || table_chunk->InYoungGeneration()) {
+    return;
+  }
+
+  Heap* heap = GetHeapFromWritableObject(table);
+  heap->RecordEphemeronKeyWrite(table, slot);
+}
+
 inline void MarkingBarrierInternal(HeapObject object, Address slot,
                                    HeapObject value) {
   DCHECK(Heap_PageFlagsAreConsistent(object));
@@ -147,6 +164,15 @@ inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
   if (!value->IsHeapObject()) return;
   heap_internals::GenerationalBarrierInternal(object, slot.address(),
                                               HeapObject::cast(value));
+}
+
+inline void GenerationalEphemeronKeyBarrier(EphemeronHashTable table,
+                                            ObjectSlot slot, Object value) {
+  DCHECK(!HasWeakHeapObjectTag(*slot));
+  DCHECK(!HasWeakHeapObjectTag(value));
+  DCHECK(value->IsHeapObject());
+  heap_internals::GenerationalEphemeronKeyBarrierInternal(
+      table, slot.address(), HeapObject::cast(value));
 }
 
 inline void GenerationalBarrier(HeapObject object, MaybeObjectSlot slot,

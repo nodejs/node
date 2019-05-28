@@ -35,8 +35,7 @@ class JSInliner final : public AdvancedReducer {
 
   const char* reducer_name() const override { return "JSInliner"; }
 
-  // Reducer interface, eagerly inlines everything.
-  Reduction Reduce(Node* node) final;
+  Reduction Reduce(Node* node) final { UNREACHABLE(); }
 
   // Can be used by inlining heuristics or by testing code directly, without
   // using the above generic reducer interface of the inlining machinery.

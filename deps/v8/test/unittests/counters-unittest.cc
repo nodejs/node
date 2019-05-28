@@ -57,9 +57,9 @@ static base::TimeTicks RuntimeCallStatsTestNow() {
 class RuntimeCallStatsTest : public TestWithNativeContext {
  public:
   RuntimeCallStatsTest() {
-    base::AsAtomic32::Relaxed_Store(
-        &FLAG_runtime_stats,
-        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE);
+    TracingFlags::runtime_stats.store(
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE,
+        std::memory_order_relaxed);
     // We need to set {time_} to a non-zero value since it would otherwise
     // cause runtime call timers to think they are uninitialized.
     Sleep(1);
@@ -70,7 +70,7 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
     // Disable RuntimeCallStats before tearing down the isolate to prevent
     // printing the tests table. Comment the following line for debugging
     // purposes.
-    base::AsAtomic32::Relaxed_Store(&FLAG_runtime_stats, 0);
+    TracingFlags::runtime_stats.store(0, std::memory_order_relaxed);
   }
 
   static void SetUpTestCase() {
@@ -145,6 +145,38 @@ class NativeTimeScope {
   ~NativeTimeScope() {
     CHECK_EQ(RuntimeCallTimer::Now, &base::TimeTicks::HighResolutionNow);
     RuntimeCallTimer::Now = &RuntimeCallStatsTestNow;
+  }
+};
+
+class SnapshotNativeCounterTest : public TestWithNativeContextAndCounters {
+ public:
+  SnapshotNativeCounterTest() {}
+
+  bool SupportsNativeCounters() const {
+#ifdef V8_USE_SNAPSHOT
+#ifdef V8_SNAPSHOT_NATIVE_CODE_COUNTERS
+    return true;
+#else
+    return false;
+#endif  // V8_SNAPSHOT_NATIVE_CODE_COUNTERS
+#else
+    // If we do not have a snapshot then we rely on the runtime option.
+    return internal::FLAG_native_code_counters;
+#endif  // V8_USE_SNAPSHOT
+  }
+
+#define SC(name, caption)                                        \
+  int name() {                                                   \
+    CHECK(isolate()->counters()->name()->Enabled());             \
+    return *isolate()->counters()->name()->GetInternalPointer(); \
+  }
+  STATS_COUNTER_NATIVE_CODE_LIST(SC)
+#undef SC
+
+  void PrintAll() {
+#define SC(name, caption) PrintF(#caption " = %d\n", name());
+    STATS_COUNTER_NATIVE_CODE_LIST(SC)
+#undef SC
   }
 };
 
@@ -763,6 +795,42 @@ TEST_F(RuntimeCallStatsTest, ApiGetter) {
   EXPECT_EQ(kCustomCallbackTime * 4010, counter2()->time().InMicroseconds());
 
   PrintStats();
+}
+
+TEST_F(SnapshotNativeCounterTest, StringAddNative) {
+  RunJS("let s = 'hello, ' + 'world!'");
+
+  if (SupportsNativeCounters()) {
+    EXPECT_NE(0, string_add_native());
+  } else {
+    EXPECT_EQ(0, string_add_native());
+  }
+
+  PrintAll();
+}
+
+TEST_F(SnapshotNativeCounterTest, SubStringNative) {
+  RunJS("'hello, world!'.substring(6);");
+
+  if (SupportsNativeCounters()) {
+    EXPECT_NE(0, sub_string_native());
+  } else {
+    EXPECT_EQ(0, sub_string_native());
+  }
+
+  PrintAll();
+}
+
+TEST_F(SnapshotNativeCounterTest, WriteBarrier) {
+  RunJS("let o = {a: 42};");
+
+  if (SupportsNativeCounters()) {
+    EXPECT_NE(0, write_barriers());
+  } else {
+    EXPECT_EQ(0, write_barriers());
+  }
+
+  PrintAll();
 }
 
 }  // namespace internal

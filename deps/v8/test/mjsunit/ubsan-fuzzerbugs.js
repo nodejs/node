@@ -54,3 +54,39 @@ float_array[0] = 1e51;
   %OptimizeFunctionOnNextCall(__f_14159);
   __f_14159(buffer);
 })();
+
+// crbug.com/937652
+(function() {
+  function f() {
+    for (var i = 0; i < 1; i++) {
+      var shift = 1;
+      for (var j = 0; j < 2; ++j) {
+        if (shift == shift) shift = 0;
+        var x = 1;
+        print((x << shift | x >>> 32 - shift));
+      }
+    }
+  }
+  f();
+  f();
+  %OptimizeFunctionOnNextCall(f);
+  f();
+})();
+
+// crbug.com/935133
+(function() {
+  var called_has = false;
+  var proxy = new Proxy({}, {
+    has: function(x, p) {
+      called_has = true;
+      throw "The test may finish now";
+    },
+  });
+  proxy.length = 2147483648;
+  try {
+    Array.prototype.sort.call(proxy);
+  } catch(e) {
+    assertTrue(e === "The test may finish now");
+  }
+  assertTrue(called_has);
+})();

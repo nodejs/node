@@ -8,7 +8,7 @@
 #include "src/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/wasm/graph-builder-interface.h"
-#include "src/wasm/wasm-import-wrapper-cache-inl.h"
+#include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -40,6 +40,8 @@ TestingModuleBuilder::TestingModuleBuilder(
   }
 
   instance_object_ = InitInstanceObject();
+  Handle<FixedArray> tables(isolate_->factory()->NewFixedArray(0));
+  instance_object_->set_tables(*tables);
 
   if (maybe_import) {
     // Manually compile an import wrapper and insert it into the instance.
@@ -120,6 +122,16 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
   }
   if (interpreter_) {
     interpreter_->AddFunctionForTesting(&test_module_->functions.back());
+    // Patch the jump table to call the interpreter for this function.
+    wasm::WasmCompilationResult result = compiler::CompileWasmInterpreterEntry(
+        isolate_->wasm_engine(), native_module_->enabled_features(), index,
+        sig);
+    std::unique_ptr<wasm::WasmCode> code = native_module_->AddCode(
+        index, result.code_desc, result.frame_slot_count,
+        result.tagged_parameter_slots, std::move(result.protected_instructions),
+        std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
+        wasm::ExecutionTier::kInterpreter);
+    native_module_->PublishCode(std::move(code));
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
   return index;
@@ -145,46 +157,44 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   old_arr->CopyTo(0, *new_arr, 0, old_arr->length());
   new_arr->set(old_arr->length(), *ret_code);
   module_object->set_export_wrappers(*new_arr);
-
-  if (interpreter_) {
-    // Patch the jump table to call the interpreter for this function. This is
-    // only needed for functions with a wrapper. Other functions never get
-    // called through the jump table.
-    wasm::WasmCode* wasm_new_code = compiler::CompileWasmInterpreterEntry(
-        isolate_->wasm_engine(), native_module_, index, sig);
-    native_module_->PublishInterpreterEntry(wasm_new_code, index);
-  }
   return ret;
 }
 
 void TestingModuleBuilder::AddIndirectFunctionTable(
     const uint16_t* function_indexes, uint32_t table_size) {
+  auto instance = instance_object();
+  uint32_t table_index = static_cast<uint32_t>(test_module_->tables.size());
   test_module_->tables.emplace_back();
   WasmTable& table = test_module_->tables.back();
   table.initial_size = table_size;
   table.maximum_size = table_size;
   table.has_maximum_size = true;
-  for (uint32_t i = 0; i < table_size; ++i) {
-    table.values.push_back(function_indexes[i]);
-  }
+  table.type = kWasmAnyFunc;
   WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
       instance_object(), table_size);
-}
+  Handle<WasmTableObject> table_obj =
+      WasmTableObject::New(isolate_, table.type, table.initial_size,
+                           table.has_maximum_size, table.maximum_size, nullptr);
 
-void TestingModuleBuilder::PopulateIndirectFunctionTable() {
-  if (interpret()) return;
-  auto instance = instance_object();
-  uint32_t num_tables = 1;  // TODO(titzer): multiple tables.
-  for (uint32_t i = 0; i < num_tables; i++) {
-    WasmTable& table = test_module_->tables[i];
-    int table_size = static_cast<int>(instance->indirect_function_table_size());
-    for (int j = 0; j < table_size; j++) {
-      WasmFunction& function = test_module_->functions[table.values[j]];
+  WasmTableObject::AddDispatchTable(isolate_, table_obj, instance_object_,
+                                    table_index);
+
+  if (function_indexes) {
+    for (uint32_t i = 0; i < table_size; ++i) {
+      WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id = test_module_->signature_map.Find(*function.sig);
-      IndirectFunctionTableEntry(instance, j)
+      IndirectFunctionTableEntry(instance, i)
           .Set(sig_id, instance, function.func_index);
+      WasmTableObject::SetFunctionTablePlaceholder(
+          isolate_, table_obj, i, instance_object_, function_indexes[i]);
     }
   }
+
+  Handle<FixedArray> old_tables(instance_object_->tables(), isolate_);
+  Handle<FixedArray> new_tables = isolate_->factory()->CopyFixedArrayAndGrow(
+      old_tables, old_tables->length() + 1);
+  new_tables->set(old_tables->length(), *table_obj);
+  instance_object_->set_tables(*new_tables);
 }
 
 uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
@@ -215,11 +225,70 @@ uint32_t TestingModuleBuilder::AddException(FunctionSig* sig) {
   return index;
 }
 
+uint32_t TestingModuleBuilder::AddPassiveDataSegment(Vector<const byte> bytes) {
+  uint32_t index = static_cast<uint32_t>(test_module_->data_segments.size());
+  DCHECK_EQ(index, test_module_->data_segments.size());
+  DCHECK_EQ(index, data_segment_starts_.size());
+  DCHECK_EQ(index, data_segment_sizes_.size());
+  DCHECK_EQ(index, dropped_data_segments_.size());
+
+  // Add a passive data segment. This isn't used by function compilation, but
+  // but it keeps the index in sync. The data segment's source will not be
+  // correct, since we don't store data in the module wire bytes.
+  test_module_->data_segments.emplace_back();
+
+  // The num_declared_data_segments (from the DataCount section) is used
+  // to validate the segment index, during function compilation.
+  test_module_->num_declared_data_segments = index + 1;
+
+  Address old_data_address =
+      reinterpret_cast<Address>(data_segment_data_.data());
+  size_t old_data_size = data_segment_data_.size();
+  data_segment_data_.resize(old_data_size + bytes.length());
+  Address new_data_address =
+      reinterpret_cast<Address>(data_segment_data_.data());
+
+  memcpy(data_segment_data_.data() + old_data_size, bytes.start(),
+         bytes.length());
+
+  // The data_segment_data_ offset may have moved, so update all the starts.
+  for (Address& start : data_segment_starts_) {
+    start += new_data_address - old_data_address;
+  }
+  data_segment_starts_.push_back(new_data_address + old_data_size);
+  data_segment_sizes_.push_back(bytes.length());
+  dropped_data_segments_.push_back(0);
+
+  // The vector pointers may have moved, so update the instance object.
+  instance_object_->set_data_segment_starts(data_segment_starts_.data());
+  instance_object_->set_data_segment_sizes(data_segment_sizes_.data());
+  instance_object_->set_dropped_data_segments(dropped_data_segments_.data());
+  return index;
+}
+
+uint32_t TestingModuleBuilder::AddPassiveElementSegment(
+    const std::vector<uint32_t>& entries) {
+  uint32_t index = static_cast<uint32_t>(test_module_->elem_segments.size());
+  DCHECK_EQ(index, dropped_elem_segments_.size());
+
+  test_module_->elem_segments.emplace_back();
+  auto& elem_segment = test_module_->elem_segments.back();
+  elem_segment.entries = entries;
+
+  // The vector pointers may have moved, so update the instance object.
+  dropped_elem_segments_.push_back(0);
+  instance_object_->set_dropped_elem_segments(dropped_elem_segments_.data());
+  return index;
+}
+
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
-  return {
-      test_module_ptr_,
-      trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler,
-      runtime_exception_support_, enabled_features_, lower_simd()};
+  // This is a hack so we don't need to call
+  // trap_handler::IsTrapHandlerEnabled().
+  const bool is_trap_handler_enabled =
+      V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler;
+  return {test_module_ptr_,
+          is_trap_handler_enabled ? kUseTrapHandler : kNoTrapHandler,
+          runtime_exception_support_, enabled_features_, lower_simd()};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -441,13 +510,13 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                          func_wire_bytes.start(), func_wire_bytes.end()};
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
-  WasmCompilationUnit unit(isolate()->wasm_engine(), function_->func_index,
-                           builder_->execution_tier());
+  WasmCompilationUnit unit(function_->func_index, builder_->execution_tier());
   WasmFeatures unused_detected_features;
   WasmCompilationResult result = unit.ExecuteCompilation(
-      &env, native_module->compilation_state()->GetWireBytesStorage(),
+      isolate()->wasm_engine(), &env,
+      native_module->compilation_state()->GetWireBytesStorage(),
       isolate()->counters(), &unused_detected_features);
-  WasmCode* code = unit.Publish(std::move(result), native_module);
+  WasmCode* code = native_module->AddCompiledCode(std::move(result));
   DCHECK_NOT_NULL(code);
   if (WasmCode::ShouldBeLogged(isolate())) code->LogCode(isolate());
 }

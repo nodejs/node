@@ -38,7 +38,7 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
     : tracer_(tracer), scope_(scope) {
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   runtime_stats_ = tracer_->heap_->isolate()->counters()->runtime_call_stats();
   runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
 }
@@ -55,7 +55,7 @@ GCTracer::BackgroundScope::BackgroundScope(GCTracer* tracer, ScopeId scope)
     : tracer_(tracer), scope_(scope), runtime_stats_enabled_(false) {
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_LIKELY(!base::AsAtomic32::Relaxed_Load(&FLAG_runtime_stats))) return;
+  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   timer_.Start(&counter_, nullptr);
   runtime_stats_enabled_ = true;
 }
@@ -266,10 +266,6 @@ void GCTracer::Start(GarbageCollector collector,
 }
 
 void GCTracer::ResetIncrementalMarkingCounters() {
-  if (incremental_marking_duration_ > 0) {
-    heap_->isolate()->counters()->incremental_marking_sum()->AddSample(
-        static_cast<int>(incremental_marking_duration_));
-  }
   incremental_marking_bytes_ = 0;
   incremental_marking_duration_ = 0;
   for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
@@ -1083,7 +1079,7 @@ void GCTracer::FetchBackgroundCounters(int first_global_scope,
         background_counter_[first_background_scope + i].total_duration_ms;
     background_counter_[first_background_scope + i].total_duration_ms = 0;
   }
-  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   RuntimeCallStats* runtime_stats =
       heap_->isolate()->counters()->runtime_call_stats();
   if (!runtime_stats) return;
@@ -1127,6 +1123,36 @@ void GCTracer::RecordGCPhasesHistograms(TimedHistogram* gc_timer) {
         static_cast<int>(current_.scopes[Scope::MC_PROLOGUE]));
     counters->gc_finalize_sweep()->AddSample(
         static_cast<int>(current_.scopes[Scope::MC_SWEEP]));
+    if (incremental_marking_duration_ > 0) {
+      heap_->isolate()->counters()->incremental_marking_sum()->AddSample(
+          static_cast<int>(incremental_marking_duration_));
+    }
+    const double overall_marking_time =
+        incremental_marking_duration_ + current_.scopes[Scope::MC_MARK];
+    heap_->isolate()->counters()->gc_marking_sum()->AddSample(
+        static_cast<int>(overall_marking_time));
+
+    constexpr size_t kMinObjectSizeForReportingThroughput = 1024 * 1024;
+    if (base::TimeTicks::IsHighResolution() &&
+        heap_->SizeOfObjects() > kMinObjectSizeForReportingThroughput) {
+      DCHECK_GT(overall_marking_time, 0.0);
+      const double overall_v8_marking_time =
+          overall_marking_time -
+          current_.scopes[Scope::MC_MARK_EMBEDDER_PROLOGUE] -
+          current_.scopes[Scope::MC_MARK_EMBEDDER_TRACING] -
+          current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE] -
+          current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_TRACING];
+      DCHECK_GT(overall_v8_marking_time, 0.0);
+      const int main_thread_marking_throughput_mb_per_s =
+          static_cast<int>(static_cast<double>(heap_->SizeOfObjects()) /
+                           overall_v8_marking_time * 1000 / 1024 / 1024);
+      heap_->isolate()
+          ->counters()
+          ->gc_main_thread_marking_throughput()
+          ->AddSample(
+              static_cast<int>(main_thread_marking_throughput_mb_per_s));
+    }
+
     DCHECK_EQ(Scope::LAST_TOP_MC_SCOPE, Scope::MC_SWEEP);
   } else if (gc_timer == counters->gc_scavenger()) {
     counters->gc_scavenger_scavenge_main()->AddSample(

@@ -30,7 +30,7 @@ class V8_EXPORT_PRIVATE Scheduler {
  public:
   // Flags that control the mode of operation.
   enum Flag { kNoFlags = 0u, kSplitNodes = 1u << 1, kTempSchedule = 1u << 2 };
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
 
   // The complete scheduling algorithm. Creates a new schedule and places all
   // nodes from the graph into it.

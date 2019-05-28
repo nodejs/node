@@ -10,6 +10,7 @@
 
 #include "src/allocation.h"
 #include "src/bailout-reason.h"
+#include "src/base/platform/elapsed-timer.h"
 #include "src/code-events.h"
 #include "src/contexts.h"
 #include "src/isolate.h"
@@ -85,7 +86,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
   // offer this chance, optimized closure instantiation will not call this.
-  static void PostInstantiation(Handle<JSFunction> function, PretenureFlag);
+  static void PostInstantiation(Handle<JSFunction> function, AllocationType);
 
   // Parser::Parse, then Compiler::Analyze.
   static bool ParseAndAnalyze(ParseInfo* parse_info,
@@ -196,7 +197,9 @@ class V8_EXPORT_PRIVATE CompilationJob {
   };
 
   CompilationJob(uintptr_t stack_limit, State initial_state)
-      : state_(initial_state), stack_limit_(stack_limit) {}
+      : state_(initial_state), stack_limit_(stack_limit) {
+    timer_.Start();
+  }
   virtual ~CompilationJob() = default;
 
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
@@ -205,6 +208,10 @@ class V8_EXPORT_PRIVATE CompilationJob {
   State state() const { return state_; }
 
  protected:
+  V8_WARN_UNUSED_RESULT base::TimeDelta ElapsedTime() const {
+    return timer_.Elapsed();
+  }
+
   V8_WARN_UNUSED_RESULT Status UpdateState(Status status, State next_state) {
     if (status == SUCCEEDED) {
       state_ = next_state;
@@ -217,6 +224,7 @@ class V8_EXPORT_PRIVATE CompilationJob {
  private:
   State state_;
   uintptr_t stack_limit_;
+  base::ElapsedTimer timer_;
 };
 
 // A base class for unoptimized compilation jobs.
@@ -302,7 +310,8 @@ class OptimizedCompilationJob : public CompilationJob {
   // Should only be called on optimization compilation jobs.
   Status AbortOptimization(BailoutReason reason);
 
-  void RecordCompilationStats() const;
+  enum CompilationMode { kConcurrent, kSynchronous };
+  void RecordCompilationStats(CompilationMode mode, Isolate* isolate) const;
   void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                  Isolate* isolate) const;
 

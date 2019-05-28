@@ -25,6 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from functools import reduce
 
 import os
 
@@ -91,7 +93,7 @@ class TestCase(testcase.D8TestCase):
     files = [os.path.join(self.suite.root, "mozilla-shell-emulation.js")]
     testfilename = self.path + ".js"
     testfilepath = testfilename.split(os.path.sep)
-    for i in xrange(len(testfilepath)):
+    for i in range(len(testfilepath)):
       script = os.path.join(self.suite.test_root,
                             reduce(os.path.join, testfilepath[:i], ""),
                             "shell.js")

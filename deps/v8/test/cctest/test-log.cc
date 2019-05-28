@@ -314,7 +314,8 @@ TEST(Issue23768) {
       v8::String::NewFromUtf8(CcTest::isolate(), "issue-23768-test",
                               v8::NewStringType::kNormal)
           .ToLocalChecked();
-  v8::Local<v8::Script> evil_script = CompileWithOrigin(source, origin);
+  v8::Local<v8::Script> evil_script =
+      CompileWithOrigin(source, origin, v8_bool(false));
   CHECK(!evil_script.IsEmpty());
   CHECK(!evil_script->Run(env).IsEmpty());
   i::Handle<i::ExternalTwoByteString> i_source(
@@ -331,7 +332,7 @@ TEST(Issue23768) {
 static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
-TEST(LogCallbacks) {
+UNINITIALIZED_TEST(LogCallbacks) {
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -384,7 +385,7 @@ static void Prop2Getter(v8::Local<v8::String> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
 }
 
-TEST(LogAccessorCallbacks) {
+UNINITIALIZED_TEST(LogAccessorCallbacks) {
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -438,7 +439,7 @@ TEST(LogAccessorCallbacks) {
 
 // Test that logging of code create / move events is equivalent to traversal of
 // a resulting heap.
-TEST(EquivalenceOfLoggingAndTraversal) {
+UNINITIALIZED_TEST(EquivalenceOfLoggingAndTraversal) {
   // This test needs to be run on a "clean" V8 to ensure that snapshot log
   // is loaded. This is always true when running using tools/test.py because
   // it launches a new cctest instance for every test. To be sure that launching
@@ -483,7 +484,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
                                 v8::NewStringType::kNormal, source.length())
             .ToLocalChecked();
     v8::TryCatch try_catch(isolate);
-    v8::Local<v8::Script> script = CompileWithOrigin(source_str, "");
+    v8::Local<v8::Script> script = CompileWithOrigin(source_str, "", false);
     if (script.IsEmpty()) {
       v8::String::Utf8Value exception(isolate, try_catch.Exception());
       FATAL("compile: %s\n", *exception);
@@ -505,8 +506,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   isolate->Dispose();
 }
 
-
-TEST(LogVersion) {
+UNINITIALIZED_TEST(LogVersion) {
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -525,10 +525,9 @@ TEST(LogVersion) {
   isolate->Dispose();
 }
 
-
 // https://crbug.com/539892
 // CodeCreateEvents with really large names should not crash.
-TEST(Issue539892) {
+UNINITIALIZED_TEST(Issue539892) {
   class FakeCodeEventLogger : public i::CodeEventLogger {
    public:
     explicit FakeCodeEventLogger(i::Isolate* isolate)
@@ -543,11 +542,13 @@ TEST(Issue539892) {
                            const char* name, int length) override {}
     void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                            int length) override {}
-  } code_event_logger(CcTest::i_isolate());
+  };
+
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
+  FakeCodeEventLogger code_event_logger(reinterpret_cast<i::Isolate*>(isolate));
 
   {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
@@ -583,7 +584,7 @@ TEST(Issue539892) {
   isolate->Dispose();
 }
 
-TEST(LogAll) {
+UNINITIALIZED_TEST(LogAll) {
   SETUP_FLAGS();
   i::FLAG_log_all = true;
   i::FLAG_turbo_inlining = false;
@@ -638,7 +639,7 @@ TEST(LogAll) {
 }
 
 #ifndef V8_TARGET_ARCH_ARM
-TEST(LogInterpretedFramesNativeStack) {
+UNINITIALIZED_TEST(LogInterpretedFramesNativeStack) {
   SETUP_FLAGS();
   i::FLAG_interpreted_frames_native_stack = true;
   v8::Isolate::CreateParams create_params;
@@ -661,7 +662,7 @@ TEST(LogInterpretedFramesNativeStack) {
   isolate->Dispose();
 }
 
-TEST(LogInterpretedFramesNativeStackWithSerialization) {
+UNINITIALIZED_TEST(LogInterpretedFramesNativeStackWithSerialization) {
   SETUP_FLAGS();
   i::FLAG_interpreted_frames_native_stack = true;
   i::FLAG_always_opt = false;
@@ -724,7 +725,7 @@ TEST(LogInterpretedFramesNativeStackWithSerialization) {
 }
 #endif  // V8_TARGET_ARCH_ARM
 
-TEST(ExternalCodeEventListener) {
+UNINITIALIZED_TEST(ExternalCodeEventListener) {
   i::FLAG_log = false;
   i::FLAG_prof = false;
 
@@ -767,7 +768,7 @@ TEST(ExternalCodeEventListener) {
   isolate->Dispose();
 }
 
-TEST(ExternalCodeEventListenerInnerFunctions) {
+UNINITIALIZED_TEST(ExternalCodeEventListenerInnerFunctions) {
   i::FLAG_log = false;
   i::FLAG_prof = false;
 
@@ -826,7 +827,7 @@ TEST(ExternalCodeEventListenerInnerFunctions) {
 }
 
 #ifndef V8_TARGET_ARCH_ARM
-TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
+UNINITIALIZED_TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
   i::FLAG_log = false;
   i::FLAG_prof = false;
   i::FLAG_interpreted_frames_native_stack = true;
@@ -877,7 +878,7 @@ TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
 }
 #endif  // V8_TARGET_ARCH_ARM
 
-TEST(TraceMaps) {
+UNINITIALIZED_TEST(TraceMaps) {
   SETUP_FLAGS();
   i::FLAG_trace_maps = true;
   v8::Isolate::CreateParams create_params;
@@ -964,7 +965,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
 
 }  // namespace
 
-TEST(LogMapsDetailsStartup) {
+UNINITIALIZED_TEST(LogMapsDetailsStartup) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
       i::FLAG_stress_incremental_marking) {
@@ -986,7 +987,7 @@ TEST(LogMapsDetailsStartup) {
   isolate->Dispose();
 }
 
-TEST(LogMapsDetailsCode) {
+UNINITIALIZED_TEST(LogMapsDetailsCode) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
       i::FLAG_stress_incremental_marking) {
@@ -1083,7 +1084,7 @@ TEST(LogMapsDetailsCode) {
   isolate->Dispose();
 }
 
-TEST(LogMapsDetailsContexts) {
+UNINITIALIZED_TEST(LogMapsDetailsContexts) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
       i::FLAG_stress_incremental_marking) {
@@ -1119,7 +1120,7 @@ TEST(LogMapsDetailsContexts) {
   isolate->Dispose();
 }
 
-TEST(ConsoleTimeEvents) {
+UNINITIALIZED_TEST(ConsoleTimeEvents) {
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -1150,7 +1151,7 @@ TEST(ConsoleTimeEvents) {
   isolate->Dispose();
 }
 
-TEST(LogFunctionEvents) {
+UNINITIALIZED_TEST(LogFunctionEvents) {
   // Always opt and stress opt will break the fine-grained log order.
   if (i::FLAG_always_opt) return;
 
@@ -1239,7 +1240,7 @@ TEST(LogFunctionEvents) {
   isolate->Dispose();
 }
 
-TEST(BuiltinsNotLoggedAsLazyCompile) {
+UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

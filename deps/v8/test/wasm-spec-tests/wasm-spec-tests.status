@@ -6,6 +6,10 @@
 [ALWAYS, {
   #TODO(ahaas): Add additional stack checks on mips.
   'tests/skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el or ((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
+  # TODO(v8:9144): The MVP behavior when bounds-checking segments changed in
+  # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
+  # need to update to use its testsuite.
+  'tests/linking': [FAIL],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {

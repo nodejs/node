@@ -211,6 +211,10 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
   }
 }
 
+int MicrotaskQueue::GetMicrotasksScopeDepth() const {
+  return microtasks_depth_;
+}
+
 void MicrotaskQueue::AddMicrotasksCompletedCallback(
     MicrotasksCompletedCallbackWithData callback, void* data) {
   CallbackWithData callback_with_data(callback, data);

@@ -172,7 +172,7 @@ namespace typed_array_createtypedarray {
 
   // 22.2.4.5 TypedArray ( buffer, byteOffset, length )
   // ES #sec-typedarray-buffer-byteoffset-length
-  macro ConstructByArrayBuffer(implicit context: Context)(
+  transitioning macro ConstructByArrayBuffer(implicit context: Context)(
       typedArray: JSTypedArray, buffer: JSArrayBuffer, byteOffset: Object,
       length: Object, elementsInfo: typed_array::TypedArrayElementsInfo): void {
     try {

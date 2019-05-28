@@ -127,10 +127,17 @@ BUILTIN(BigIntPrototypeToLocaleString) {
   HandleScope scope(isolate);
 #ifdef V8_INTL_SUPPORT
   if (FLAG_harmony_intl_bigint) {
+    // 1. Let x be ? thisBigIntValue(this value).
+    Handle<BigInt> x;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, x,
+        ThisBigIntValue(isolate, args.receiver(),
+                        "BigInt.prototype.toLocaleString"));
+
     RETURN_RESULT_OR_FAILURE(
-        isolate, Intl::NumberToLocaleString(isolate, args.receiver(),
-                                            args.atOrUndefined(isolate, 1),
-                                            args.atOrUndefined(isolate, 2)));
+        isolate,
+        Intl::NumberToLocaleString(isolate, x, args.atOrUndefined(isolate, 1),
+                                   args.atOrUndefined(isolate, 2)));
   }
   // Fallbacks to old toString implemention if flag is off or no
   // V8_INTL_SUPPORT

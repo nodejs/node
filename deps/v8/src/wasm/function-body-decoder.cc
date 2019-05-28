@@ -234,7 +234,8 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         break;
       }
       case kExprCallIndirect: {
-        CallIndirectImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        CallIndirectImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+                                                        i.pc());
         os << "   // sig #" << imm.sig_index;
         if (decoder.Complete(i.pc(), imm)) {
           os << ": " << *imm.sig;

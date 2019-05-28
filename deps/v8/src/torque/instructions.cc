@@ -21,6 +21,19 @@ namespace torque {
 TORQUE_INSTRUCTION_LIST(TORQUE_INSTRUCTION_BOILERPLATE_DEFINITIONS)
 #undef TORQUE_INSTRUCTION_BOILERPLATE_DEFINITIONS
 
+namespace {
+void ExpectType(const Type* expected, const Type* actual) {
+  if (expected != actual) {
+    ReportError("expected type ", *expected, " but found ", *actual);
+  }
+}
+void ExpectSubtype(const Type* subtype, const Type* supertype) {
+  if (!subtype->IsSubtypeOf(supertype)) {
+    ReportError("type ", *subtype, " is not a subtype of ", *supertype);
+  }
+}
+}  // namespace
+
 void PeekInstruction::TypeInstruction(Stack<const Type*>* stack,
                                       ControlFlowGraph* cfg) const {
   const Type* type = stack->Peek(slot);
@@ -29,9 +42,7 @@ void PeekInstruction::TypeInstruction(Stack<const Type*>* stack,
       const TopType* top_type = TopType::cast(type);
       ReportError("use of " + top_type->reason());
     }
-    if (!type->IsSubtypeOf(*widened_type)) {
-      ReportError("type ", *type, " is not a subtype of ", **widened_type);
-    }
+    ExpectSubtype(type, *widened_type);
     type = *widened_type;
   }
   stack->Push(type);
@@ -41,9 +52,7 @@ void PokeInstruction::TypeInstruction(Stack<const Type*>* stack,
                                       ControlFlowGraph* cfg) const {
   const Type* type = stack->Top();
   if (widened_type) {
-    if (!type->IsSubtypeOf(*widened_type)) {
-      ReportError("type ", type, " is not a subtype of ", *widened_type);
-    }
+    ExpectSubtype(type, *widened_type);
     type = *widened_type;
   }
   stack->Poke(slot, type);
@@ -281,39 +290,26 @@ void UnsafeCastInstruction::TypeInstruction(Stack<const Type*>* stack,
   stack->Poke(stack->AboveTop() - 1, destination_type);
 }
 
-void LoadObjectFieldInstruction::TypeInstruction(Stack<const Type*>* stack,
-                                                 ControlFlowGraph* cfg) const {
-  const ClassType* stack_class_type = ClassType::DynamicCast(stack->Top());
-  if (!stack_class_type) {
-    ReportError(
-        "first argument to a LoadObjectFieldInstruction instruction isn't a "
-        "class");
-  }
-  if (stack_class_type != class_type) {
-    ReportError(
-        "first argument to a LoadObjectFieldInstruction doesn't match "
-        "instruction's type");
-  }
-  const Field& field = class_type->LookupField(field_name);
-  stack->Poke(stack->AboveTop() - 1, field.name_and_type.type);
+void CreateFieldReferenceInstruction::TypeInstruction(
+    Stack<const Type*>* stack, ControlFlowGraph* cfg) const {
+  ExpectSubtype(stack->Pop(), class_type);
+  stack->Push(TypeOracle::GetHeapObjectType());
+  stack->Push(TypeOracle::GetIntPtrType());
 }
 
-void StoreObjectFieldInstruction::TypeInstruction(Stack<const Type*>* stack,
-                                                  ControlFlowGraph* cfg) const {
-  auto value = stack->Pop();
-  const ClassType* stack_class_type = ClassType::DynamicCast(stack->Top());
-  if (!stack_class_type) {
-    ReportError(
-        "first argument to a StoreObjectFieldInstruction instruction isn't a "
-        "class");
-  }
-  if (stack_class_type != class_type) {
-    ReportError(
-        "first argument to a StoreObjectFieldInstruction doesn't match "
-        "instruction's type");
-  }
-  stack->Pop();
-  stack->Push(value);
+void LoadReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                               ControlFlowGraph* cfg) const {
+  ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
+  ExpectType(TypeOracle::GetHeapObjectType(), stack->Pop());
+  DCHECK_EQ(std::vector<const Type*>{type}, LowerType(type));
+  stack->Push(type);
+}
+
+void StoreReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                                ControlFlowGraph* cfg) const {
+  ExpectSubtype(stack->Pop(), type);
+  ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
+  ExpectType(TypeOracle::GetHeapObjectType(), stack->Pop());
 }
 
 bool CallRuntimeInstruction::IsBlockTerminator() const {

@@ -758,6 +758,65 @@ TEST(BailoutReason) {
 #endif  // V8_LITE_MODE
 }
 
+TEST(NodeSourceTypes) {
+  ProfileTree tree(CcTest::i_isolate());
+  CodeEntry function_entry(CodeEventListener::FUNCTION_TAG, "function");
+  tree.AddPathFromEnd({&function_entry});
+  CodeEntry builtin_entry(CodeEventListener::BUILTIN_TAG, "builtin");
+  tree.AddPathFromEnd({&builtin_entry});
+  CodeEntry callback_entry(CodeEventListener::CALLBACK_TAG, "callback");
+  tree.AddPathFromEnd({&callback_entry});
+  CodeEntry regex_entry(CodeEventListener::REG_EXP_TAG, "regex");
+  tree.AddPathFromEnd({&regex_entry});
+  CodeEntry stub_entry(CodeEventListener::STUB_TAG, "stub");
+  tree.AddPathFromEnd({&stub_entry});
+
+  tree.AddPathFromEnd({CodeEntry::gc_entry()});
+  tree.AddPathFromEnd({CodeEntry::idle_entry()});
+  tree.AddPathFromEnd({CodeEntry::program_entry()});
+  tree.AddPathFromEnd({CodeEntry::unresolved_entry()});
+
+  auto* root = tree.root();
+  CHECK(root);
+  CHECK_EQ(root->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* function_node = PickChild(root, "function");
+  CHECK(function_node);
+  CHECK_EQ(function_node->source_type(), v8::CpuProfileNode::kScript);
+
+  auto* builtin_node = PickChild(root, "builtin");
+  CHECK(builtin_node);
+  CHECK_EQ(builtin_node->source_type(), v8::CpuProfileNode::kBuiltin);
+
+  auto* callback_node = PickChild(root, "callback");
+  CHECK(callback_node);
+  CHECK_EQ(callback_node->source_type(), v8::CpuProfileNode::kCallback);
+
+  auto* regex_node = PickChild(root, "regex");
+  CHECK(regex_node);
+  CHECK_EQ(regex_node->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* stub_node = PickChild(root, "stub");
+  CHECK(stub_node);
+  CHECK_EQ(stub_node->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* gc_node = PickChild(root, "(garbage collector)");
+  CHECK(gc_node);
+  CHECK_EQ(gc_node->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* idle_node = PickChild(root, "(idle)");
+  CHECK(idle_node);
+  CHECK_EQ(idle_node->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* program_node = PickChild(root, "(program)");
+  CHECK(program_node);
+  CHECK_EQ(program_node->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* unresolved_node = PickChild(root, "(unresolved function)");
+  CHECK(unresolved_node);
+  CHECK_EQ(unresolved_node->source_type(), v8::CpuProfileNode::kUnresolved);
+}
+
 }  // namespace test_profile_generator
 }  // namespace internal
 }  // namespace v8

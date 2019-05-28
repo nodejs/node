@@ -183,24 +183,10 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
     }
   }
 
-  if (function->IsFunctionTemplateInfo()) {
-    Handle<FunctionTemplateInfo> info =
-        Handle<FunctionTemplateInfo>::cast(function);
-    // If we need to break at function entry, go the long way. Instantiate the
-    // function, use the DebugBreakTrampoline, and call it through JS.
-    if (info->BreakAtEntry()) {
-      DCHECK(!is_construct);
-      DCHECK(new_target->IsUndefined(isolate));
-      Handle<JSFunction> function;
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, function,
-                                 ApiNatives::InstantiateFunction(
-                                     info, MaybeHandle<v8::internal::Name>()),
-                                 Object);
-      Handle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
-      function->set_code(*trampoline);
-      return Execution::Call(isolate, function, receiver, argc, args);
-    }
-  }
+  // We assume that all lazy accessor pairs have been instantiated when setting
+  // a break point on any API function.
+  DCHECK_IMPLIES(function->IsFunctionTemplateInfo(),
+                 !Handle<FunctionTemplateInfo>::cast(function)->BreakAtEntry());
 
   Handle<FunctionTemplateInfo> fun_data =
       function->IsFunctionTemplateInfo()

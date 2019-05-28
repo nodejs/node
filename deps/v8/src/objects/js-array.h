@@ -36,7 +36,8 @@ class JSArray : public JSObject {
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested
   // capacity is non-zero.
-  static void Initialize(Handle<JSArray> array, int capacity, int length = 0);
+  V8_EXPORT_PRIVATE static void Initialize(Handle<JSArray> array, int capacity,
+                                           int length = 0);
 
   // If the JSArray has fast elements, and new_length would result in
   // normalization, returns true.
@@ -46,7 +47,8 @@ class JSArray : public JSObject {
   // Initializes the array to a certain length.
   inline bool AllowsSetLength();
 
-  static void SetLength(Handle<JSArray> array, uint32_t length);
+  V8_EXPORT_PRIVATE static void SetLength(Handle<JSArray> array,
+                                          uint32_t length);
 
   // Set the content of the array to the content of storage.
   static inline void SetContent(Handle<JSArray> array,
@@ -174,16 +176,8 @@ class JSArrayIterator : public JSObject {
   inline IterationKind kind() const;
   inline void set_kind(IterationKind kind);
 
-  // Layout description.
-#define JS_ARRAY_ITERATOR_FIELDS(V)     \
-  V(kIteratedObjectOffset, kTaggedSize) \
-  V(kNextIndexOffset, kTaggedSize)      \
-  V(kKindOffset, kTaggedSize)           \
-  /* Header size. */                    \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_ARRAY_ITERATOR_FIELDS)
-#undef JS_ARRAY_ITERATOR_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSARRAY_ITERATOR_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSArrayIterator, JSObject);
 };

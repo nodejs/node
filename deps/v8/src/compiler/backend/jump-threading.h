@@ -13,7 +13,7 @@ namespace compiler {
 
 // Forwards jumps to empty basic blocks that end with a second jump to the
 // destination of the second jump, transitively.
-class JumpThreading {
+class V8_EXPORT_PRIVATE JumpThreading {
  public:
   // Compute the forwarding map of basic blocks to their ultimate destination.
   // Returns {true} if there is at least one block that is forwarded.

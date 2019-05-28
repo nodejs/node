@@ -77,7 +77,7 @@ class Declarations {
   static const AbstractType* DeclareAbstractType(
       const Identifier* name, bool transient, std::string generated,
       base::Optional<const AbstractType*> non_constexpr_version,
-      const base::Optional<std::string>& parent = {});
+      const base::Optional<Identifier*>& parent = {});
 
   static void DeclareType(const Identifier* name, const Type* type,
                           bool redeclaration);
@@ -85,8 +85,8 @@ class Declarations {
   static StructType* DeclareStruct(const Identifier* name);
 
   static ClassType* DeclareClass(const Type* super, const Identifier* name,
-                                 bool is_extern, bool transient,
-                                 const std::string& generates);
+                                 bool is_extern, bool generate_print,
+                                 bool transient, const std::string& generates);
 
   static Macro* CreateMacro(std::string external_name,
                             std::string readable_name,

@@ -49,7 +49,7 @@ class EmbedderDataSlot
   static constexpr int kRequiredPtrAlignment = kSmiTagSize;
 
   // Opaque type used for storing raw embedder data.
-  typedef Address RawData;
+  using RawData = Address;
 
   V8_INLINE Object load_tagged() const;
   V8_INLINE void store_smi(Smi value);

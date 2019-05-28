@@ -20,7 +20,7 @@ class Handle;
 #define FRAME_ARRAY_FIELD_LIST(V)     \
   V(WasmInstance, WasmInstanceObject) \
   V(WasmFunctionIndex, Smi)           \
-  V(WasmCodeObject, Foreign)          \
+  V(WasmCodeObject, Object)           \
   V(Receiver, Object)                 \
   V(Function, JSFunction)             \
   V(Code, AbstractCode)               \

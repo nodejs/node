@@ -297,7 +297,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                                              : OMIT_REMEMBERED_SET;
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
-    if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
+    if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
+      __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+    } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
@@ -1952,25 +1954,73 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEF32x4Min: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ minps(i.OutputSimd128Register(), i.InputOperand(1));
+      XMMRegister src1 = i.InputSimd128Register(1),
+                  dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      // The minps instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform minps in both orders, merge the resuls, and adjust.
+      __ movaps(kScratchDoubleReg, src1);
+      __ minps(kScratchDoubleReg, dst);
+      __ minps(dst, src1);
+      // propagate -0's and NaNs, which may be non-canonical.
+      __ orps(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by quieting and clearing the payload.
+      __ cmpps(dst, kScratchDoubleReg, 3);
+      __ orps(kScratchDoubleReg, dst);
+      __ psrld(dst, 10);
+      __ andnps(dst, kScratchDoubleReg);
       break;
     }
     case kAVXF32x4Min: {
       CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vminps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputOperand(1));
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src1 = i.InputOperand(1);
+      // See comment above for correction of minps.
+      __ movups(kScratchDoubleReg, src1);
+      __ vminps(kScratchDoubleReg, kScratchDoubleReg, dst);
+      __ vminps(dst, dst, src1);
+      __ vorps(dst, dst, kScratchDoubleReg);
+      __ vcmpneqps(kScratchDoubleReg, dst, dst);
+      __ vorps(dst, dst, kScratchDoubleReg);
+      __ vpsrld(kScratchDoubleReg, kScratchDoubleReg, 10);
+      __ vandnps(dst, kScratchDoubleReg, dst);
       break;
     }
     case kSSEF32x4Max: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ maxps(i.OutputSimd128Register(), i.InputOperand(1));
+      XMMRegister src1 = i.InputSimd128Register(1),
+                  dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      // The maxps instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform maxps in both orders, merge the resuls, and adjust.
+      __ movaps(kScratchDoubleReg, src1);
+      __ maxps(kScratchDoubleReg, dst);
+      __ maxps(dst, src1);
+      // Find discrepancies.
+      __ xorps(dst, kScratchDoubleReg);
+      // Propagate NaNs, which may be non-canonical.
+      __ orps(kScratchDoubleReg, dst);
+      // Propagate sign discrepancy and (subtle) quiet NaNs.
+      __ subps(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by clearing the payload.
+      __ cmpps(dst, kScratchDoubleReg, 3);
+      __ psrld(dst, 10);
+      __ andnps(dst, kScratchDoubleReg);
       break;
     }
     case kAVXF32x4Max: {
       CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vmaxps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputOperand(1));
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src1 = i.InputOperand(1);
+      // See comment above for correction of maxps.
+      __ movaps(kScratchDoubleReg, src1);
+      __ vmaxps(kScratchDoubleReg, kScratchDoubleReg, dst);
+      __ vmaxps(dst, dst, src1);
+      __ vxorps(dst, dst, kScratchDoubleReg);
+      __ vorps(kScratchDoubleReg, kScratchDoubleReg, dst);
+      __ vsubps(kScratchDoubleReg, kScratchDoubleReg, dst);
+      __ vcmpneqps(dst, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpsrld(dst, dst, 10);
+      __ vandnps(dst, dst, kScratchDoubleReg);
       break;
     }
     case kSSEF32x4Eq: {

@@ -294,7 +294,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ Push(lr, padreg);
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(), sp);
     }
-    if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
+    if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
+      __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+    } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
@@ -567,10 +569,10 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
   __ LoadTaggedPointerField(
       scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ Ldr(scratch,
+  __ Ldr(scratch.W(),
          FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
   Label not_deoptimized;
-  __ Tbz(scratch, Code::kMarkedForDeoptimizationBit, &not_deoptimized);
+  __ Tbz(scratch.W(), Code::kMarkedForDeoptimizationBit, &not_deoptimized);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET);
   __ Bind(&not_deoptimized);
@@ -1572,6 +1574,45 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Str:
       __ Str(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
+    case kArm64DecompressSigned: {
+      __ Sxtw(i.OutputRegister(), i.InputRegister(0));
+      break;
+    }
+    case kArm64DecompressPointer: {
+      __ Add(i.OutputRegister(), kRootRegister,
+             Operand(i.InputRegister(0), SXTW));
+      break;
+    }
+    case kArm64DecompressAny: {
+      // TODO(solanes): Do branchful compute?
+      // Branchlessly compute |masked_root|:
+      STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
+      UseScratchRegisterScope temps(tasm());
+      Register masked_root = temps.AcquireX();
+      // Sign extend tag bit to entire register.
+      __ Sbfx(masked_root, i.InputRegister(0), 0, kSmiTagSize);
+      __ And(masked_root, masked_root, kRootRegister);
+      // Now this add operation will either leave the value unchanged if it is a
+      // smi or add the isolate root if it is a heap object.
+      __ Add(i.OutputRegister(), masked_root,
+             Operand(i.InputRegister(0), SXTW));
+      break;
+    }
+    // TODO(solanes): Combine into one Compress? They seem to be identical.
+    // TODO(solanes): We might get away with doing a no-op in these three cases.
+    // The Uxtw instruction is the conservative way for the moment.
+    case kArm64CompressSigned: {
+      __ Uxtw(i.OutputRegister(), i.InputRegister(0));
+      break;
+    }
+    case kArm64CompressPointer: {
+      __ Uxtw(i.OutputRegister(), i.InputRegister(0));
+      break;
+    }
+    case kArm64CompressAny: {
+      __ Uxtw(i.OutputRegister(), i.InputRegister(0));
+      break;
+    }
     case kArm64LdrS:
       __ Ldr(i.OutputDoubleRegister().S(), i.MemoryOperand());
       break;

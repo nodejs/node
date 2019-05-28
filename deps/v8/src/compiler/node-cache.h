@@ -62,20 +62,20 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) NodeCache final {
 };
 
 // Various default cache types.
-typedef NodeCache<int32_t> Int32NodeCache;
-typedef NodeCache<int64_t> Int64NodeCache;
+using Int32NodeCache = NodeCache<int32_t>;
+using Int64NodeCache = NodeCache<int64_t>;
 
 // All we want is the numeric value of the RelocInfo::Mode enum. We typedef
 // below to avoid pulling in assembler.h
-typedef char RelocInfoMode;
-typedef std::pair<int32_t, RelocInfoMode> RelocInt32Key;
-typedef std::pair<int64_t, RelocInfoMode> RelocInt64Key;
-typedef NodeCache<RelocInt32Key> RelocInt32NodeCache;
-typedef NodeCache<RelocInt64Key> RelocInt64NodeCache;
+using RelocInfoMode = char;
+using RelocInt32Key = std::pair<int32_t, RelocInfoMode>;
+using RelocInt64Key = std::pair<int64_t, RelocInfoMode>;
+using RelocInt32NodeCache = NodeCache<RelocInt32Key>;
+using RelocInt64NodeCache = NodeCache<RelocInt64Key>;
 #if V8_HOST_ARCH_32_BIT
-typedef Int32NodeCache IntPtrNodeCache;
+using IntPtrNodeCache = Int32NodeCache;
 #else
-typedef Int64NodeCache IntPtrNodeCache;
+using IntPtrNodeCache = Int64NodeCache;
 #endif
 
 // Explicit instantiation declarations.

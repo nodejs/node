@@ -49,7 +49,7 @@ class Immediate {
   RelocInfo::Mode rmode() const { return rmode_; }
 
  private:
-  void InitializeHandle(Handle<HeapObject> value);
+  V8_EXPORT_PRIVATE void InitializeHandle(Handle<HeapObject> value);
 
   int64_t value_;
   RelocInfo::Mode rmode_;

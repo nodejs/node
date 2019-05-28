@@ -375,8 +375,9 @@ class HandleScopeImplementer {
   void FreeThreadResources();
 
   // Garbage collection support.
-  void Iterate(v8::internal::RootVisitor* v);
-  static char* Iterate(v8::internal::RootVisitor* v, char* data);
+  V8_EXPORT_PRIVATE void Iterate(v8::internal::RootVisitor* v);
+  V8_EXPORT_PRIVATE static char* Iterate(v8::internal::RootVisitor* v,
+                                         char* data);
 
   inline internal::Address* GetSpareOrNewBlock();
   inline void DeleteExtensions(internal::Address* prev_limit);

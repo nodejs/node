@@ -370,10 +370,7 @@ void Accessors::FunctionLengthGetter(
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  int length = 0;
-  if (!JSFunction::GetLength(isolate, function).To(&length)) {
-    isolate->OptionalRescheduleException(false);
-  }
+  int length = function->length();
   Handle<Object> result(Smi::FromInt(length), isolate);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
@@ -789,35 +786,6 @@ Handle<AccessorInfo> Accessors::MakeBoundFunctionNameInfo(Isolate* isolate) {
 // Accessors::ErrorStack
 //
 
-namespace {
-
-MaybeHandle<JSReceiver> ClearInternalStackTrace(Isolate* isolate,
-                                                Handle<JSObject> error) {
-  RETURN_ON_EXCEPTION(
-      isolate,
-      Object::SetProperty(
-          isolate, error, isolate->factory()->stack_trace_symbol(),
-          isolate->factory()->undefined_value(), StoreOrigin::kMaybeKeyed,
-          Just(ShouldThrow::kThrowOnError)),
-      JSReceiver);
-  return error;
-}
-
-bool IsAccessor(Handle<Object> receiver, Handle<Name> name,
-                Handle<JSObject> holder) {
-  LookupIterator it(receiver, name, holder,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  // Skip any access checks we might hit. This accessor should never hit in a
-  // situation where the caller does not have access.
-  if (it.state() == LookupIterator::ACCESS_CHECK) {
-    CHECK(it.HasAccess());
-    it.Next();
-  }
-  return (it.state() == LookupIterator::ACCESSOR);
-}
-
-}  // namespace
-
 void Accessors::ErrorStackGetter(
     v8::Local<v8::Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
@@ -825,7 +793,9 @@ void Accessors::ErrorStackGetter(
   Handle<JSObject> holder =
       Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
 
-  // Retrieve the structured stack trace.
+  // Retrieve the stack trace. It can either be structured data in the form of
+  // a FrameArray, an already formatted stack trace (string) or whatever the
+  // "prepareStackTrace" callback produced.
 
   Handle<Object> stack_trace;
   Handle<Symbol> stack_trace_symbol = isolate->factory()->stack_trace_symbol();
@@ -838,8 +808,15 @@ void Accessors::ErrorStackGetter(
     return;
   }
 
-  // Format it, clear the internal structured trace and reconfigure as a data
-  // property.
+  // Only format the stack-trace the first time around. The check for a
+  // FixedArray is sufficient as the user callback can not create plain
+  // FixedArrays and the result is a String in case we format the stack
+  // trace ourselves.
+
+  if (!stack_trace->IsFixedArray()) {
+    info.GetReturnValue().Set(Utils::ToLocal(stack_trace));
+    return;
+  }
 
   Handle<Object> formatted_stack_trace;
   if (!ErrorUtils::FormatStackTrace(isolate, holder, stack_trace)
@@ -848,32 +825,14 @@ void Accessors::ErrorStackGetter(
     return;
   }
 
-  MaybeHandle<Object> result = ClearInternalStackTrace(isolate, holder);
+  // Replace the structured stack-trace with the formatting result.
+  MaybeHandle<Object> result = Object::SetProperty(
+      isolate, holder, isolate->factory()->stack_trace_symbol(),
+      formatted_stack_trace, StoreOrigin::kMaybeKeyed,
+      Just(ShouldThrow::kThrowOnError));
   if (result.is_null()) {
     isolate->OptionalRescheduleException(false);
     return;
-  }
-
-  // If stack is still an accessor (this could have changed in the meantime
-  // since FormatStackTrace can execute arbitrary JS), replace it with a data
-  // property.
-  Handle<Object> receiver =
-      Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
-  Handle<Name> name = Utils::OpenHandle(*key);
-  if (IsAccessor(receiver, name, holder)) {
-    result = Accessors::ReplaceAccessorWithDataProperty(receiver, holder, name,
-                                                        formatted_stack_trace);
-    if (result.is_null()) {
-      isolate->OptionalRescheduleException(false);
-      return;
-    }
-  } else {
-    // The stack property has been modified in the meantime.
-    if (!JSObject::GetProperty(isolate, holder, name)
-             .ToHandle(&formatted_stack_trace)) {
-      isolate->OptionalRescheduleException(false);
-      return;
-    }
   }
 
   v8::Local<v8::Value> value = Utils::ToLocal(formatted_stack_trace);
@@ -887,14 +846,17 @@ void Accessors::ErrorStackSetter(
   HandleScope scope(isolate);
   Handle<JSObject> obj = Handle<JSObject>::cast(
       Utils::OpenHandle(*v8::Local<v8::Value>(info.This())));
+  Handle<Object> value = Handle<Object>::cast(Utils::OpenHandle(*val));
 
-  // Clear internal properties to avoid memory leaks.
-  Handle<Symbol> stack_trace_symbol = isolate->factory()->stack_trace_symbol();
-  if (JSReceiver::HasOwnProperty(obj, stack_trace_symbol).FromMaybe(false)) {
-    ClearInternalStackTrace(isolate, obj);
+  // Store the value in the internal symbol to avoid reconfiguration to
+  // a data property.
+  MaybeHandle<Object> result = Object::SetProperty(
+      isolate, obj, isolate->factory()->stack_trace_symbol(), value,
+      StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError));
+  if (result.is_null()) {
+    isolate->OptionalRescheduleException(false);
+    return;
   }
-
-  Accessors::ReconfigureToDataProperty(name, val, info);
 }
 
 Handle<AccessorInfo> Accessors::MakeErrorStackInfo(Isolate* isolate) {

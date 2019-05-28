@@ -118,7 +118,7 @@ Node* ToInt32(RawMachineAssembler& m, MachineType type, Node* a) {
   }
 }
 
-std::unique_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
+std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
                                                          size_t code_size) {
   std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule());
   module->num_declared_functions = 1;
@@ -183,8 +183,9 @@ void TestReturnMultipleValues(MachineType type) {
         if (i % 4 == 0) sign = -sign;
       }
 
-      std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
+      std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
           handles.main_isolate(), code->raw_instruction_size());
+      wasm::WasmCodeRefScope wasm_code_ref_scope;
       byte* code_start =
           module->AddCodeForTesting(code)->instructions().start();
 
@@ -272,8 +273,9 @@ void ReturnLastValue(MachineType type) {
             AssemblerOptions::Default(handles.main_isolate()), m.Export())
             .ToHandleChecked();
 
-    std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
+    std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
+    wasm::WasmCodeRefScope wasm_code_ref_scope;
     byte* code_start = module->AddCodeForTesting(code)->instructions().start();
 
     // Generate caller.
@@ -333,8 +335,9 @@ void ReturnSumOfReturns(MachineType type) {
             AssemblerOptions::Default(handles.main_isolate()), m.Export())
             .ToHandleChecked();
 
-    std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
+    std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
+    wasm::WasmCodeRefScope wasm_code_ref_scope;
     byte* code_start = module->AddCodeForTesting(code)->instructions().start();
 
     // Generate caller.

@@ -20,8 +20,8 @@ class BasicBlock;
 class BasicBlockInstrumentor;
 class Node;
 
-typedef ZoneVector<BasicBlock*> BasicBlockVector;
-typedef ZoneVector<Node*> NodeVector;
+using BasicBlockVector = ZoneVector<BasicBlock*>;
+using NodeVector = ZoneVector<Node*>;
 
 // A basic block contains an ordered list of nodes and ends with a control
 // node. Note that if a basic block has phis, then all phis must appear as the
@@ -84,7 +84,7 @@ class V8_EXPORT_PRIVATE BasicBlock final
   void AddSuccessor(BasicBlock* successor);
 
   // Nodes in the basic block.
-  typedef Node* value_type;
+  using value_type = Node*;
   bool empty() const { return nodes_.empty(); }
   size_t size() const { return nodes_.size(); }
   Node* NodeAt(size_t index) { return nodes_[index]; }
@@ -93,17 +93,17 @@ class V8_EXPORT_PRIVATE BasicBlock final
   value_type& front() { return nodes_.front(); }
   value_type const& front() const { return nodes_.front(); }
 
-  typedef NodeVector::iterator iterator;
+  using iterator = NodeVector::iterator;
   iterator begin() { return nodes_.begin(); }
   iterator end() { return nodes_.end(); }
 
   void RemoveNode(iterator it) { nodes_.erase(it); }
 
-  typedef NodeVector::const_iterator const_iterator;
+  using const_iterator = NodeVector::const_iterator;
   const_iterator begin() const { return nodes_.begin(); }
   const_iterator end() const { return nodes_.end(); }
 
-  typedef NodeVector::reverse_iterator reverse_iterator;
+  using reverse_iterator = NodeVector::reverse_iterator;
   reverse_iterator rbegin() { return nodes_.rbegin(); }
   reverse_iterator rend() { return nodes_.rend(); }
 

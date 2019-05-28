@@ -46,7 +46,7 @@ std::shared_ptr<WasmModule> DecodeWasmModuleForTesting(
   auto enabled_features = WasmFeaturesFromIsolate(isolate);
   ModuleResult decoding_result = DecodeWasmModule(
       enabled_features, module_start, module_end, verify_functions, origin,
-      isolate->counters(), isolate->allocator());
+      isolate->counters(), isolate->wasm_engine()->allocator());
 
   if (decoding_result.failed()) {
     // Module verification failed. throw.
@@ -61,6 +61,8 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance,
                                    const char* name, size_t argc,
                                    WasmValue* args) {
+  HandleScope handle_scope(isolate);  // Avoid leaking handles.
+  WasmCodeRefScope code_ref_scope;
   MaybeHandle<WasmExportedFunction> maybe_function =
       GetExportedFunction(isolate, instance, "main");
   Handle<WasmExportedFunction> function;

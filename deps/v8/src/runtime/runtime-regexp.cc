@@ -1279,8 +1279,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
     Handle<Object> match_indices_obj(ReadOnlyRoots(isolate).null_value(),
                                      isolate);
 
-    // A lastIndex exceeding the string length always always returns null
-    // (signalling failure) in RegExpBuiltinExec, thus we can skip the call.
+    // A lastIndex exceeding the string length always returns null (signalling
+    // failure) in RegExpBuiltinExec, thus we can skip the call.
     if (last_index <= static_cast<uint32_t>(string->length())) {
       ASSIGN_RETURN_ON_EXCEPTION(isolate, match_indices_obj,
                                  RegExpImpl::Exec(isolate, regexp, string,
@@ -1298,8 +1298,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
     const int start_index = match_indices->Capture(0);
     const int end_index = match_indices->Capture(1);
 
-    if (sticky)
+    if (sticky) {
       regexp->set_last_index(Smi::FromInt(end_index), SKIP_WRITE_BARRIER);
+    }
 
     IncrementalStringBuilder builder(isolate);
     builder.AppendString(factory->NewSubString(string, 0, start_index));
@@ -1403,14 +1404,19 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, last_index_obj, Object::ToLength(isolate, last_index_obj));
     last_index = PositiveNumberToUint32(*last_index_obj);
-
-    if (last_index > static_cast<uint32_t>(subject->length())) last_index = 0;
   }
 
-  Handle<Object> match_indices_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, match_indices_obj,
-      RegExpImpl::Exec(isolate, regexp, subject, last_index, last_match_info));
+  Handle<Object> match_indices_obj(ReadOnlyRoots(isolate).null_value(),
+                                   isolate);
+
+  // A lastIndex exceeding the string length always returns null (signalling
+  // failure) in RegExpBuiltinExec, thus we can skip the call.
+  if (last_index <= static_cast<uint32_t>(subject->length())) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, match_indices_obj,
+        RegExpImpl::Exec(isolate, regexp, subject, last_index,
+                         last_match_info));
+  }
 
   if (match_indices_obj->IsNull(isolate)) {
     if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
@@ -1423,8 +1429,9 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   const int index = match_indices->Capture(0);
   const int end_of_match = match_indices->Capture(1);
 
-  if (sticky)
+  if (sticky) {
     regexp->set_last_index(Smi::FromInt(end_of_match), SKIP_WRITE_BARRIER);
+  }
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(factory->NewSubString(subject, 0, index));
@@ -1678,7 +1685,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 // Slow path for:
 // ES#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
-RUNTIME_FUNCTION(Runtime_RegExpReplace) {
+RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 

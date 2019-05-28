@@ -37,7 +37,8 @@ class TestSuiteTest(unittest.TestCase):
         verbose=False,
     )
 
-    self.suite = TestSuite.Load(self.test_root, self.test_config)
+    self.suite = TestSuite.Load(
+        self.test_root, self.test_config, "standard_runner")
 
   def testLoadingTestSuites(self):
     self.assertEquals(self.suite.name, "fake_testsuite")

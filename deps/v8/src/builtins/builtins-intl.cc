@@ -157,6 +157,72 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
       isolate, JSDateTimeFormat::FormatToParts(isolate, dtf, date_value));
 }
 
+// Common code for DateTimeFormatPrototypeFormtRange(|ToParts)
+template <class T>
+V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
+    BuiltinArguments args, Isolate* isolate, const char* const method,
+    MaybeHandle<T> (*format)(Isolate*, Handle<JSDateTimeFormat>, double,
+                             double)) {
+  // 1. Let dtf be this value.
+  // 2. If Type(dtf) is not Object, throw a TypeError exception.
+  CHECK_RECEIVER(JSObject, date_format_holder, method);
+
+  Factory* factory = isolate->factory();
+
+  // 3. If dtf does not have an [[InitializedDateTimeFormat]] internal slot,
+  //    throw a TypeError exception.
+  if (!date_format_holder->IsJSDateTimeFormat()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              factory->NewStringFromAsciiChecked(method),
+                              date_format_holder));
+  }
+  Handle<JSDateTimeFormat> dtf =
+      Handle<JSDateTimeFormat>::cast(date_format_holder);
+
+  // 4. If startDate is undefined or endDate is undefined, throw a RangeError
+  // exception.
+  Handle<Object> start_date = args.atOrUndefined(isolate, 1);
+  Handle<Object> end_date = args.atOrUndefined(isolate, 2);
+  if (start_date->IsUndefined(isolate) || end_date->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
+  }
+  // 5. Let x be ? ToNumber(startDate).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, start_date,
+                                     Object::ToNumber(isolate, start_date));
+  double x = start_date->Number();
+
+  // 6. Let y be ? ToNumber(endDate).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, end_date,
+                                     Object::ToNumber(isolate, end_date));
+  double y = end_date->Number();
+  // 7. If x is greater than y, throw a RangeError exception.
+  if (x > y) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
+  }
+
+  // 8. Return ? FormatDateTimeRange(dtf, x, y)
+  // OR
+  // 8. Return ? FormatDateTimeRangeToParts(dtf, x, y).
+  RETURN_RESULT_OR_FAILURE(isolate, format(isolate, dtf, x, y));
+}
+
+BUILTIN(DateTimeFormatPrototypeFormatRange) {
+  const char* const method = "Intl.DateTimeFormat.prototype.formatRange";
+  HandleScope handle_scope(isolate);
+  return DateTimeFormatRange<String>(args, isolate, method,
+                                     JSDateTimeFormat::FormatRange);
+}
+
+BUILTIN(DateTimeFormatPrototypeFormatRangeToParts) {
+  const char* const method = "Intl.DateTimeFormat.prototype.formatRangeToParts";
+  HandleScope handle_scope(isolate);
+  return DateTimeFormatRange<JSArray>(args, isolate, method,
+                                      JSDateTimeFormat::FormatRangeToParts);
+}
+
 namespace {
 Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
                                        Handle<JSObject> object,
@@ -639,7 +705,7 @@ BUILTIN(RelativeTimeFormatPrototypeFormat) {
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSRelativeTimeFormat::Format(isolate, value_obj, unit_obj,
-                                            format_holder, "format", false));
+                                            format_holder));
 }
 
 BUILTIN(RelativeTimeFormatPrototypeFormatToParts) {
@@ -652,9 +718,9 @@ BUILTIN(RelativeTimeFormatPrototypeFormatToParts) {
                  "Intl.RelativeTimeFormat.prototype.formatToParts");
   Handle<Object> value_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> unit_obj = args.atOrUndefined(isolate, 2);
-  RETURN_RESULT_OR_FAILURE(isolate, JSRelativeTimeFormat::Format(
-                                        isolate, value_obj, unit_obj,
-                                        format_holder, "formatToParts", true));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSRelativeTimeFormat::FormatToParts(isolate, value_obj, unit_obj,
+                                                   format_holder));
 }
 
 // Locale getters.

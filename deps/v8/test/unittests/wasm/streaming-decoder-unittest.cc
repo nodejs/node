@@ -110,7 +110,8 @@ class WasmStreamingDecoderTest : public ::testing::Test {
     }
   }
 
-  void ExpectFailure(Vector<const uint8_t> data, const char* message) {
+  void ExpectFailure(Vector<const uint8_t> data, uint32_t error_offset,
+                     const char* message) {
     for (int split = 0; split <= data.length(); ++split) {
       MockStreamingResult result;
       StreamingDecoder stream(
@@ -119,6 +120,7 @@ class WasmStreamingDecoderTest : public ::testing::Test {
       stream.OnBytesReceived(data.SubVector(split, data.length()));
       stream.Finish();
       EXPECT_FALSE(result.ok());
+      EXPECT_EQ(error_offset, result.error.offset());
       EXPECT_EQ(message, result.error.message());
     }
   }
@@ -136,12 +138,12 @@ TEST_F(WasmStreamingDecoderTest, IncompleteModuleHeader) {
   {
     MockStreamingResult result;
     StreamingDecoder stream(base::make_unique<MockStreamingProcessor>(&result));
-    stream.OnBytesReceived(Vector<const uint8_t>(data, 1));
+    stream.OnBytesReceived(VectorOf(data, 1));
     stream.Finish();
     EXPECT_FALSE(result.ok());
   }
-  for (int length = 1; length < static_cast<int>(arraysize(data)); ++length) {
-    ExpectFailure(Vector<const uint8_t>(data, length),
+  for (uint32_t length = 1; length < sizeof(data); ++length) {
+    ExpectFailure(VectorOf(data, length), length - 1,
                   "unexpected end of stream");
   }
 }
@@ -154,14 +156,14 @@ TEST_F(WasmStreamingDecoderTest, MagicAndVersion) {
 TEST_F(WasmStreamingDecoderTest, BadMagic) {
   for (uint32_t x = 1; x; x <<= 1) {
     const uint8_t data[] = {U32_LE(kWasmMagic ^ x), U32_LE(kWasmVersion)};
-    ExpectFailure(ArrayVector(data), "expected wasm magic");
+    ExpectFailure(ArrayVector(data), 0, "expected wasm magic");
   }
 }
 
 TEST_F(WasmStreamingDecoderTest, BadVersion) {
   for (uint32_t x = 1; x; x <<= 1) {
     const uint8_t data[] = {U32_LE(kWasmMagic), U32_LE(kWasmVersion ^ x)};
-    ExpectFailure(ArrayVector(data), "expected wasm version");
+    ExpectFailure(ArrayVector(data), 4, "expected wasm version");
   }
 }
 
@@ -248,7 +250,8 @@ TEST_F(WasmStreamingDecoderTest, OneSectionNotEnoughPayload1) {
       0x0,                   // 4
       0x0                    // 5
   };
-  ExpectFailure(ArrayVector(data), "unexpected end of stream");
+  ExpectFailure(ArrayVector(data), sizeof(data) - 1,
+                "unexpected end of stream");
 }
 
 TEST_F(WasmStreamingDecoderTest, OneSectionNotEnoughPayload2) {
@@ -259,7 +262,8 @@ TEST_F(WasmStreamingDecoderTest, OneSectionNotEnoughPayload2) {
       0x6,                   // Section Length
       0x0                    // Payload
   };
-  ExpectFailure(ArrayVector(data), "unexpected end of stream");
+  ExpectFailure(ArrayVector(data), sizeof(data) - 1,
+                "unexpected end of stream");
 }
 
 TEST_F(WasmStreamingDecoderTest, OneSectionInvalidLength) {
@@ -273,7 +277,7 @@ TEST_F(WasmStreamingDecoderTest, OneSectionInvalidLength) {
       0x80,                  // --
       0x80,                  // --
   };
-  ExpectFailure(ArrayVector(data), "expected section length");
+  ExpectFailure(ArrayVector(data), sizeof(data) - 1, "expected section length");
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoLongSections) {
@@ -386,9 +390,10 @@ TEST_F(WasmStreamingDecoderTest, EmptyFunction) {
       kCodeSectionCode,      // Section ID
       0x2,                   // Section Length
       0x1,                   // Number of Functions
-      0x0,                   // Function Length
+      0x0,                   // Function Length  -- ERROR
   };
-  ExpectFailure(ArrayVector(data), "invalid function length (0)");
+  ExpectFailure(ArrayVector(data), sizeof(data) - 1,
+                "invalid function length (0)");
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoFunctions) {
@@ -445,7 +450,8 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthZero) {
       kCodeSectionCode,      // Section ID
       0x0,                   // Section Length
   };
-  ExpectFailure(ArrayVector(data), "code section cannot have size 0");
+  ExpectFailure(ArrayVector(data), sizeof(data) - 1,
+                "code section cannot have size 0");
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHigh) {
@@ -466,7 +472,8 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHigh) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(ArrayVector(data), "not all code section bytes were used");
+  ExpectFailure(ArrayVector(data), sizeof(data) - 1,
+                "not all code section bytes were used");
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHighZeroFunctions) {
@@ -477,7 +484,8 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHighZeroFunctions) {
       0xD,                   // Section Length
       0x0,                   // Number of Functions
   };
-  ExpectFailure(ArrayVector(data), "not all code section bytes were used");
+  ExpectFailure(ArrayVector(data), sizeof(data) - 1,
+                "not all code section bytes were used");
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLow) {
@@ -486,19 +494,20 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLow) {
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
       0x9,                   // Section Length
-      0x2,                   // Number of Functions
-      0x7,                   // Function Length
-      0x0,                   // Function
-      0x0,                   // 2
-      0x0,                   // 3
-      0x0,                   // 4
-      0x0,                   // 5
-      0x0,                   // 6
-      0x0,                   // 7
-      0x1,                   // Function Length
+      0x2,                   // Number of Functions  <0>
+      0x7,                   // Function Length      <1>
+      0x0,                   // Function             <2>
+      0x0,                   // 2                    <3>
+      0x0,                   // 3                    <3>
+      0x0,                   // 4                    <4>
+      0x0,                   // 5                    <5>
+      0x0,                   // 6                    <6>
+      0x0,                   // 7                    <7>
+      0x1,                   // Function Length      <8> -- ERROR
       0x0,                   // Function
   };
-  ExpectFailure(ArrayVector(data), "read past code section end");
+  ExpectFailure(ArrayVector(data), sizeof(data) - 2,
+                "read past code section end");
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInNumFunctions) {
@@ -507,8 +516,8 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInNumFunctions) {
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
       0x1,                   // Section Length
-      0x82,                  // Number of Functions
-      0x80,                  // --
+      0x82,                  // Number of Functions  <0>
+      0x80,                  // --                   <1> -- ERROR
       0x00,                  // --
       0x7,                   // Function Length
       0x0,                   // Function
@@ -521,7 +530,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInNumFunctions) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(ArrayVector(data), "invalid code section length");
+  ExpectFailure(ArrayVector(data), 12, "invalid code section length");
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInFunctionLength) {
@@ -530,12 +539,12 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInFunctionLength) {
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
       0x5,                   // Section Length
-      0x82,                  // Number of Functions
-      0x80,                  // --
-      0x00,                  // --
-      0x87,                  // Function Length
-      0x80,                  // --
-      0x00,                  // --
+      0x82,                  // Number of Functions  <0>
+      0x80,                  // --                   <1>
+      0x00,                  // --                   <2>
+      0x87,                  // Function Length      <3>
+      0x80,                  // --                   <4>
+      0x00,                  // --                   <5> -- ERROR
       0x0,                   // Function
       0x0,                   // 2
       0x0,                   // 3
@@ -546,7 +555,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInFunctionLength) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(ArrayVector(data), "read past code section end");
+  ExpectFailure(ArrayVector(data), 15, "read past code section end");
 }
 
 TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooHigh) {
@@ -567,7 +576,8 @@ TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooHigh) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(ArrayVector(data), "unexpected end of stream");
+  ExpectFailure(ArrayVector(data), sizeof(data) - 1,
+                "unexpected end of stream");
 }
 
 TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooLow) {
@@ -575,23 +585,18 @@ TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooLow) {
       U32_LE(kWasmMagic),    // --
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
-      0xE,                   // Section Length
+      0x8,                   // Section Length
       0x2,                   // Number of Functions
       0x1,                   // Function Length
       0x0,                   // Function
       0x2,                   // Function Length
-      0x0,                   // Function
-      0x0,                   // 2
-      0x7,                   // Function Length
-      0x0,                   // Function
-      0x0,                   // 2
-      0x0,                   // 3
-      0x0,                   // 4
-      0x0,                   // 5
-      0x0,                   // 6
-      0x0,                   // 7
+      0x0,                   // Function byte#0
+      0x0,                   // Function byte#1   -- ERROR
+      0x1,                   // Function Length
+      0x0                    // Function
   };
-  ExpectFailure(ArrayVector(data), "not all code section bytes were used");
+  ExpectFailure(ArrayVector(data), sizeof(data) - 3,
+                "not all code section bytes were used");
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoCodeSections) {
@@ -603,13 +608,15 @@ TEST_F(WasmStreamingDecoderTest, TwoCodeSections) {
       0x1,                   // Number of Functions
       0x1,                   // Function Length
       0x0,                   // Function
-      kCodeSectionCode,      // Section ID
-      0x3,                   // Section Length
+      kCodeSectionCode,      // Section ID      -- ERROR (where it should be)
+      0x3,                   // Section Length  -- ERROR (where it is reported)
       0x1,                   // Number of Functions
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(ArrayVector(data), "code section can only appear once");
+  // TODO(wasm): This should report at the second kCodeSectionCode.
+  ExpectFailure(ArrayVector(data), sizeof(data) - 4,
+                "code section can only appear once");
 }
 
 TEST_F(WasmStreamingDecoderTest, UnknownSection) {
@@ -644,13 +651,15 @@ TEST_F(WasmStreamingDecoderTest, UnknownSectionSandwich) {
       0x1,                   // Name Length
       0x1,                   // Name
       0x0,                   // Content
-      kCodeSectionCode,      // Section ID
-      0x3,                   // Section Length
+      kCodeSectionCode,      // Section ID     -- ERROR (where it should be)
+      0x3,                   // Section Length -- ERROR (where it is reported)
       0x1,                   // Number of Functions
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(ArrayVector(data), "code section can only appear once");
+  // TODO(wasm): This should report at the second kCodeSectionCode.
+  ExpectFailure(ArrayVector(data), sizeof(data) - 4,
+                "code section can only appear once");
 }
 
 }  // namespace wasm

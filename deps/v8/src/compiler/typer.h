@@ -23,7 +23,7 @@ class V8_EXPORT_PRIVATE Typer {
     kThisIsReceiver = 1u << 0,       // Parameter this is an Object.
     kNewTargetIsReceiver = 1u << 1,  // Parameter new.target is an Object.
   };
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
 
   Typer(JSHeapBroker* broker, Flags flags, Graph* graph);
   ~Typer();

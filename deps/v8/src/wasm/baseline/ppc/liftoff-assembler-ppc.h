@@ -231,6 +231,15 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
   BAILOUT("i32_remu");
 }
 
+void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  BAILOUT("i64_add");
+}
+
+void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
+  BAILOUT("i32_add");
+}
+
 void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, int amount) {
   BAILOUT("i32_shr");
 }

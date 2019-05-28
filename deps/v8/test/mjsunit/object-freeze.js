@@ -414,18 +414,24 @@ function testPackedFrozenArray1(obj) {
   assertTrue(Array.isArray(obj));
   assertThrows(function() { obj.pop(); }, TypeError);
   assertThrows(function() { obj.push(); }, TypeError);
+  assertThrows(function() { obj.shift(); }, TypeError);
   assertThrows(function() { obj.unshift(); }, TypeError);
   assertThrows(function() { obj.copyWithin(0,0); }, TypeError);
   assertThrows(function() { obj.fill(0); }, TypeError);
   assertThrows(function() { obj.reverse(); }, TypeError);
   assertThrows(function() { obj.sort(); }, TypeError);
   assertThrows(function() { obj.splice(0); }, TypeError);
+  assertThrows(function() { obj.splice(0, 0); }, TypeError);
   assertTrue(Object.isFrozen(obj));
 
   // Verify search, filter, iterator
   assertEquals(obj.lastIndexOf(1), 2);
   assertEquals(obj.indexOf('a'), 4);
+  assertEquals(obj.indexOf(undefined), 0);
   assertFalse(obj.includes(Symbol("test")));
+  assertTrue(obj.includes(undefined));
+  assertFalse(obj.includes(NaN));
+  assertTrue(obj.includes());
   assertEquals(obj.find(x => x==0), undefined);
   assertEquals(obj.findIndex(x => x=='a'), 4);
   assertTrue(obj.some(x => typeof x == 'symbol'));
@@ -505,3 +511,66 @@ assertTrue(%HasPackedElements(arr2));
 Object.preventExtensions(arr2);
 Object.freeze(arr2);
 testPackedFrozenArray2(arr2);
+
+// Verify that repeatedly attemping to freeze a typed array fails
+var typedArray = new Uint8Array(10);
+assertThrows(() => { Object.freeze(typedArray); }, TypeError);
+assertFalse(Object.isFrozen(typedArray));
+assertThrows(() => { Object.freeze(typedArray); }, TypeError);
+assertFalse(Object.isFrozen(typedArray));
+
+// Verify that freezing an empty typed array works
+var typedArray = new Uint8Array(0);
+Object.freeze(typedArray);
+assertTrue(Object.isFrozen(typedArray));
+
+// Test regression with Object.defineProperty
+var obj = [];
+obj.propertyA = 42;
+obj[0] = true;
+Object.freeze(obj);
+assertThrows(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+  });
+}, TypeError);
+assertEquals(42, obj.propertyA);
+assertThrows(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+    writable: false,
+  });
+}, TypeError);
+assertDoesNotThrow(function() {obj.propertyA = 2;});
+assertEquals(obj.propertyA, 42);
+assertThrows(function() {
+  Object.defineProperty(obj, 'abc', {
+    value: obj,
+  });
+}, TypeError);
+
+// Regression test with simple array
+var arr = ['a'];
+Object.freeze(arr);
+arr[0] = 'b';
+assertEquals(arr[0], 'a');
+
+// Test regression Array.concat with double
+var arr = ['a'];
+Object.freeze(arr);
+arr = arr.concat(0.5);
+assertEquals(arr, ['a', 0.5]);
+Object.freeze(arr);
+arr = arr.concat([1.5, 'b']);
+assertEquals(arr, ['a', 0.5, 1.5, 'b']);
+
+// Regression test with change length
+var arr = ['a', 'b'];
+Object.freeze(arr);
+assertEquals(arr.length, 2);
+arr.length = 3;
+assertEquals(arr.length, 2);
+arr[2] = 'c';
+assertEquals(arr[2], undefined);
+arr.length = 1;
+assertEquals(arr.length, 2);

@@ -14,7 +14,7 @@ namespace wasm {
 // Support for serializing WebAssembly {NativeModule} objects. This class takes
 // a snapshot of the module state at instantiation, and other code that modifies
 // the module after that won't affect the serialized result.
-class WasmSerializer {
+class V8_EXPORT_PRIVATE WasmSerializer {
  public:
   explicit WasmSerializer(NativeModule* native_module);
 

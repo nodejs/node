@@ -179,7 +179,7 @@ MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
 
 Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate) {
   Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArrayWithHoles(
-      static_cast<int>(size()), PretenureFlag::TENURED);
+      static_cast<int>(size()), AllocationType::kOld);
   int array_index = 0;
   for (const ConstantArraySlice* slice : idx_slice_) {
     DCHECK_EQ(slice->reserved(), 0);
@@ -379,7 +379,7 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
     case Tag::kRawString:
       return raw_string_->string();
     case Tag::kHeapNumber:
-      return isolate->factory()->NewNumber(heap_number_, TENURED);
+      return isolate->factory()->NewNumber(heap_number_, AllocationType::kOld);
     case Tag::kBigInt:
       // This should never fail: the parser will never create a BigInt
       // literal that cannot be allocated.

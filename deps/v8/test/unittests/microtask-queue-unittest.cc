@@ -515,6 +515,33 @@ TEST_F(MicrotaskQueueTest, DetachGlobal_HandlerContext) {
           .FromJust());
 }
 
+TEST_F(MicrotaskQueueTest, DetachGlobal_Chain) {
+  Handle<JSPromise> stale_rejected_promise;
+
+  Local<v8::Context> sub_context = v8::Context::New(v8_isolate());
+  {
+    v8::Context::Scope scope(sub_context);
+    stale_rejected_promise = RunJS<JSPromise>("Promise.reject()");
+  }
+  sub_context->DetachGlobal();
+  sub_context.Clear();
+
+  SetGlobalProperty(
+      "stale_rejected_promise",
+      Utils::ToLocal(Handle<JSReceiver>::cast(stale_rejected_promise)));
+  Handle<JSArray> result = RunJS<JSArray>(
+      "let result = [false];"
+      "stale_rejected_promise"
+      "  .then(() => {})"
+      "  .catch(() => {"
+      "    result[0] = true;"
+      "  });"
+      "result");
+  microtask_queue()->RunMicrotasks(isolate());
+  EXPECT_TRUE(
+      Object::GetElement(isolate(), result, 0).ToHandleChecked()->IsTrue());
+}
+
 TEST_F(MicrotaskQueueTest, DetachGlobal_InactiveHandler) {
   Local<v8::Context> sub_context = v8::Context::New(v8_isolate());
   Utils::OpenHandle(*sub_context)
@@ -555,6 +582,22 @@ TEST_F(MicrotaskQueueTest, DetachGlobal_InactiveHandler) {
       Object::GetElement(isolate(), result, 0).ToHandleChecked()->IsFalse());
   EXPECT_TRUE(
       Object::GetElement(isolate(), result, 1).ToHandleChecked()->IsFalse());
+}
+
+TEST_F(MicrotaskQueueTest, MicrotasksScope) {
+  ASSERT_NE(isolate()->default_microtask_queue(), microtask_queue());
+  microtask_queue()->set_microtasks_policy(MicrotasksPolicy::kScoped);
+
+  bool ran = false;
+  {
+    MicrotasksScope scope(v8_isolate(), microtask_queue(),
+                          MicrotasksScope::kRunMicrotasks);
+    microtask_queue()->EnqueueMicrotask(*NewMicrotask([&ran]() {
+      EXPECT_FALSE(ran);
+      ran = true;
+    }));
+  }
+  EXPECT_TRUE(ran);
 }
 
 }  // namespace internal

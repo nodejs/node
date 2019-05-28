@@ -36,10 +36,6 @@ var expectedProperties = [
   'timeZone',
   'hourCycle',
   'hour12',
-  'hour',
-  'minute',
-  'second',
-  'timeZoneName',
   'timeStyle',
 ];
 

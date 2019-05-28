@@ -36,13 +36,6 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
       const char* operation_name,
       Label::Type reject_label_type = Label::kDeferred,
       Node* const initial_exception_value = nullptr);
-  void Generate_AsyncFromSyncIteratorMethodOptimized(
-      Node* const context, Node* const iterator, Node* const sent_value,
-      const SyncIteratorNodeGenerator& get_method,
-      const UndefinedMethodHandler& if_method_undefined,
-      const char* operation_name,
-      Label::Type reject_label_type = Label::kDeferred,
-      Node* const initial_exception_value = nullptr);
 
   void Generate_AsyncFromSyncIteratorMethod(
       Node* const context, Node* const iterator, Node* const sent_value,
@@ -54,19 +47,6 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
       return GetProperty(context, sync_iterator, name);
     };
     return Generate_AsyncFromSyncIteratorMethod(
-        context, iterator, sent_value, get_method, if_method_undefined,
-        operation_name, reject_label_type, initial_exception_value);
-  }
-  void Generate_AsyncFromSyncIteratorMethodOptimized(
-      Node* const context, Node* const iterator, Node* const sent_value,
-      Handle<String> name, const UndefinedMethodHandler& if_method_undefined,
-      const char* operation_name,
-      Label::Type reject_label_type = Label::kDeferred,
-      Node* const initial_exception_value = nullptr) {
-    auto get_method = [=](Node* const sync_iterator) {
-      return GetProperty(context, sync_iterator, name);
-    };
-    return Generate_AsyncFromSyncIteratorMethodOptimized(
         context, iterator, sent_value, get_method, if_method_undefined,
         operation_name, reject_label_type, initial_exception_value);
   }
@@ -152,79 +132,16 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   Node* done;
   std::tie(value, done) = LoadIteratorResult(
       context, native_context, iter_result, &reject_promise, &var_exception);
-  Node* const wrapper = AllocateAndInitJSPromise(context);
-
-  // Perform ! Call(valueWrapperCapability.[[Resolve]], undefined, «
-  // throwValue »).
-  CallBuiltin(Builtins::kResolvePromise, context, wrapper, value);
-
-  // Let onFulfilled be a new built-in function object as defined in
-  // Async Iterator Value Unwrap Functions.
-  // Set onFulfilled.[[Done]] to throwDone.
-  Node* const on_fulfilled = CreateUnwrapClosure(native_context, done);
-
-  // Perform ! PerformPromiseThen(valueWrapperCapability.[[Promise]],
-  //     onFulfilled, undefined, promiseCapability).
-  Return(CallBuiltin(Builtins::kPerformPromiseThen, context, wrapper,
-                     on_fulfilled, UndefinedConstant(), promise));
-
-  BIND(&reject_promise);
-  {
-    Node* const exception = var_exception.value();
-    CallBuiltin(Builtins::kRejectPromise, context, promise, exception,
-                TrueConstant());
-    Return(promise);
-  }
-}
-
-void AsyncFromSyncBuiltinsAssembler::
-    Generate_AsyncFromSyncIteratorMethodOptimized(
-        Node* const context, Node* const iterator, Node* const sent_value,
-        const SyncIteratorNodeGenerator& get_method,
-        const UndefinedMethodHandler& if_method_undefined,
-        const char* operation_name, Label::Type reject_label_type,
-        Node* const initial_exception_value) {
-  Node* const native_context = LoadNativeContext(context);
-  Node* const promise = AllocateAndInitJSPromise(context);
-
-  VARIABLE(var_exception, MachineRepresentation::kTagged,
-           initial_exception_value == nullptr ? UndefinedConstant()
-                                              : initial_exception_value);
-  Label reject_promise(this, reject_label_type);
-
-  ThrowIfNotAsyncFromSyncIterator(context, iterator, &reject_promise,
-                                  &var_exception, operation_name);
-
-  Node* const sync_iterator =
-      LoadObjectField(iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset);
-
-  Node* const method = get_method(sync_iterator);
-
-  if (if_method_undefined) {
-    Label if_isnotundefined(this);
-
-    GotoIfNot(IsUndefined(method), &if_isnotundefined);
-    if_method_undefined(native_context, promise, &reject_promise);
-
-    BIND(&if_isnotundefined);
-  }
-
-  Node* const iter_result = CallJS(CodeFactory::Call(isolate()), context,
-                                   method, sync_iterator, sent_value);
-  GotoIfException(iter_result, &reject_promise, &var_exception);
-
-  Node* value;
-  Node* done;
-  std::tie(value, done) = LoadIteratorResult(
-      context, native_context, iter_result, &reject_promise, &var_exception);
 
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
   CSA_ASSERT(this, IsConstructor(promise_fun));
 
-  // Let valueWrapper be ? PromiseResolve(« value »).
-  Node* const valueWrapper = CallBuiltin(Builtins::kPromiseResolve,
-                                         native_context, promise_fun, value);
+  // Let valueWrapper be PromiseResolve(%Promise%, « value »).
+  Node* const value_wrapper = CallBuiltin(Builtins::kPromiseResolve,
+                                          native_context, promise_fun, value);
+  // IfAbruptRejectPromise(valueWrapper, promiseCapability).
+  GotoIfException(value_wrapper, &reject_promise, &var_exception);
 
   // Let onFulfilled be a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions.
@@ -233,7 +150,7 @@ void AsyncFromSyncBuiltinsAssembler::
 
   // Perform ! PerformPromiseThen(valueWrapper,
   //     onFulfilled, undefined, promiseCapability).
-  Return(CallBuiltin(Builtins::kPerformPromiseThen, context, valueWrapper,
+  Return(CallBuiltin(Builtins::kPerformPromiseThen, context, value_wrapper,
                      on_fulfilled, UndefinedConstant(), promise));
 
   BIND(&reject_promise);

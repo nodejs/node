@@ -1,0 +1,13 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-regexp-gen.h'
+
+namespace regexp {
+
+  extern macro RegExpBuiltinsAssembler::BranchIfFastRegExp(
+      implicit context: Context)(HeapObject): never labels IsFast,
+      IsSlow;
+
+}

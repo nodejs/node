@@ -32,6 +32,18 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
     // Reset function's bytecode array field to point to the original bytecode
     // array.
     shared()->SetDebugBytecodeArray(OriginalBytecodeArray());
+
+    // If the function is currently running on the stack, we need to update the
+    // bytecode pointers on the stack so they point to the original
+    // BytecodeArray before releasing that BytecodeArray from this DebugInfo.
+    // Otherwise, it could be flushed and cause problems on resume. See v8:9067.
+    {
+      RedirectActiveFunctions redirect_visitor(
+          shared(), RedirectActiveFunctions::Mode::kUseOriginalBytecode);
+      redirect_visitor.VisitThread(isolate, isolate->thread_local_top());
+      isolate->thread_manager()->IterateArchivedThreads(&redirect_visitor);
+    }
+
     set_original_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
     set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
   }

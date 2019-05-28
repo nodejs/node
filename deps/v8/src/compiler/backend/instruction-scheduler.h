@@ -28,13 +28,14 @@ enum ArchOpcodeFlags {
 
 class InstructionScheduler final : public ZoneObject {
  public:
-  InstructionScheduler(Zone* zone, InstructionSequence* sequence);
+  V8_EXPORT_PRIVATE InstructionScheduler(Zone* zone,
+                                         InstructionSequence* sequence);
 
-  void StartBlock(RpoNumber rpo);
-  void EndBlock(RpoNumber rpo);
+  V8_EXPORT_PRIVATE void StartBlock(RpoNumber rpo);
+  V8_EXPORT_PRIVATE void EndBlock(RpoNumber rpo);
 
-  void AddInstruction(Instruction* instr);
-  void AddTerminator(Instruction* instr);
+  V8_EXPORT_PRIVATE void AddInstruction(Instruction* instr);
+  V8_EXPORT_PRIVATE void AddTerminator(Instruction* instr);
 
   static bool SchedulerSupported();
 
@@ -143,7 +144,7 @@ class InstructionScheduler final : public ZoneObject {
   void ScheduleBlock();
 
   // Return the scheduling properties of the given instruction.
-  int GetInstructionFlags(const Instruction* instr) const;
+  V8_EXPORT_PRIVATE int GetInstructionFlags(const Instruction* instr) const;
   int GetTargetInstructionFlags(const Instruction* instr) const;
 
   // Check whether the given instruction has side effects (e.g. function call,

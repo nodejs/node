@@ -13,6 +13,11 @@
 #include "src/objects/object-macros.h"
 
 namespace v8 {
+
+namespace tracing {
+class TracedValue;
+}
+
 namespace internal {
 
 // Script describes a script which has been added to the VM.
@@ -128,13 +133,13 @@ class Script : public Struct {
   Object GetNameOrSourceURL();
 
   // Retrieve source position from where eval was called.
-  int GetEvalPosition();
+  static int GetEvalPosition(Isolate* isolate, Handle<Script> script);
 
   // Check if the script contains any Asm modules.
   bool ContainsAsmModule();
 
   // Init line_ends array with source code positions of line ends.
-  static void InitLineEnds(Handle<Script> script);
+  V8_EXPORT_PRIVATE static void InitLineEnds(Handle<Script> script);
 
   // Carries information about a source position.
   struct PositionInfo {
@@ -158,15 +163,16 @@ class Script : public Struct {
   // callsites.
   static bool GetPositionInfo(Handle<Script> script, int position,
                               PositionInfo* info, OffsetFlag offset_flag);
-  bool GetPositionInfo(int position, PositionInfo* info,
-                       OffsetFlag offset_flag) const;
+  V8_EXPORT_PRIVATE bool GetPositionInfo(int position, PositionInfo* info,
+                                         OffsetFlag offset_flag) const;
 
   bool IsUserJavaScript();
 
   // Wrappers for GetPositionInfo
   static int GetColumnNumber(Handle<Script> script, int code_offset);
   int GetColumnNumber(int code_pos) const;
-  static int GetLineNumber(Handle<Script> script, int code_offset);
+  V8_EXPORT_PRIVATE static int GetLineNumber(Handle<Script> script,
+                                             int code_offset);
   int GetLineNumber(int code_pos) const;
 
   // Look through the list of existing shared function infos to find one
@@ -174,8 +180,20 @@ class Script : public Struct {
   MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(
       Isolate* isolate, const FunctionLiteral* fun);
 
+  // Returns the Script in a format tracing can support.
+  std::unique_ptr<v8::tracing::TracedValue> ToTracedValue();
+
+  // The tracing scope for Script objects.
+  static const char* kTraceScope;
+
+  // Returns the unique TraceID for this Script (within the kTraceScope).
+  uint64_t TraceID() const;
+
+  // Returns the unique trace ID reference for this Script.
+  std::unique_ptr<v8::tracing::TracedValue> TraceIDRef() const;
+
   // Iterate over all script objects on the heap.
-  class Iterator {
+  class V8_EXPORT_PRIVATE Iterator {
    public:
     explicit Iterator(Isolate* isolate);
     Script Next();
@@ -189,28 +207,8 @@ class Script : public Struct {
   DECL_PRINTER(Script)
   DECL_VERIFIER(Script)
 
-// Layout description.
-#define SCRIPTS_FIELDS(V)                                 \
-  V(kSourceOffset, kTaggedSize)                           \
-  V(kNameOffset, kTaggedSize)                             \
-  V(kLineOffsetOffset, kTaggedSize)                       \
-  V(kColumnOffsetOffset, kTaggedSize)                     \
-  V(kContextOffset, kTaggedSize)                          \
-  V(kTypeOffset, kTaggedSize)                             \
-  V(kLineEndsOffset, kTaggedSize)                         \
-  V(kIdOffset, kTaggedSize)                               \
-  V(kEvalFromSharedOrWrappedArgumentsOffset, kTaggedSize) \
-  V(kEvalFromPositionOffset, kTaggedSize)                 \
-  V(kSharedFunctionInfosOffset, kTaggedSize)              \
-  V(kFlagsOffset, kTaggedSize)                            \
-  V(kSourceUrlOffset, kTaggedSize)                        \
-  V(kSourceMappingUrlOffset, kTaggedSize)                 \
-  V(kHostDefinedOptionsOffset, kTaggedSize)               \
-  /* Total size. */                                       \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, SCRIPTS_FIELDS)
-#undef SCRIPTS_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_SCRIPT_FIELDS)
 
  private:
   // Bit positions in the flags field.

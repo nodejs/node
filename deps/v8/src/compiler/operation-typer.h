@@ -76,7 +76,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type singleton_the_hole() const { return singleton_the_hole_; }
 
  private:
-  typedef base::Flags<ComparisonOutcomeFlags> ComparisonOutcome;
+  using ComparisonOutcome = base::Flags<ComparisonOutcomeFlags>;
 
   ComparisonOutcome Invert(ComparisonOutcome);
   Type Invert(Type);

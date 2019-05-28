@@ -16,7 +16,7 @@ class WasmInstanceObject;
 
 namespace wasm {
 
-// forward declarations.
+// Forward declarations.
 struct ModuleWireBytes;
 struct WasmFunction;
 struct WasmModule;
@@ -56,7 +56,7 @@ using ControlTransferMap = ZoneMap<pc_t, ControlTransferEntry>;
 // param #0       _/·  _/·
 // -----------------
 //
-class InterpretedFrame {
+class V8_EXPORT_PRIVATE InterpretedFrame {
  public:
   const WasmFunction* function() const;
   int pc() const;
@@ -77,7 +77,7 @@ class InterpretedFrame {
 
 // Deleter struct to delete the underlying InterpretedFrameImpl without
 // violating language specifications.
-struct InterpretedFrameDeleter {
+struct V8_EXPORT_PRIVATE InterpretedFrameDeleter {
   void operator()(InterpretedFrame* ptr);
 };
 
@@ -203,7 +203,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   // Manually adds code to the interpreter for the given function.
   void SetFunctionCodeForTesting(const WasmFunction* function,
                                  const byte* start, const byte* end);
-  void SetCallIndirectTestMode();
 
   // Computes the control transfers for the given bytecode. Used internally in
   // the interpreter, but exposed for testing.

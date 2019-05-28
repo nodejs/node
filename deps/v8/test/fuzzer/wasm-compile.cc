@@ -21,8 +21,6 @@
 #include "test/fuzzer/fuzzer-support.h"
 #include "test/fuzzer/wasm-fuzzer-common.h"
 
-typedef uint8_t byte;
-
 namespace v8 {
 namespace internal {
 namespace wasm {

@@ -116,7 +116,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   auto enabled_features = i::wasm::WasmFeaturesFromIsolate(isolate);
   ModuleResult module_res = DecodeWasmModule(
       enabled_features, wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
-      ModuleOrigin::kWasmOrigin, isolate->counters(), isolate->allocator());
+      ModuleOrigin::kWasmOrigin, isolate->counters(),
+      isolate->wasm_engine()->allocator());
   CHECK(module_res.ok());
   WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
@@ -275,8 +276,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   std::unique_ptr<Handle<Object>[]> compiler_args;
   // The first byte builds the bitmask to control which function will be
   // compiled with Turbofan and which one with Liftoff.
-  uint8_t tier_mask = data.is_empty() ? 0 : data[0];
-  if (!data.is_empty()) data += 1;
+  uint8_t tier_mask = data.empty() ? 0 : data[0];
+  if (!data.empty()) data += 1;
   if (!GenerateModule(i_isolate, &zone, data, buffer, num_args,
                       interpreter_args, compiler_args)) {
     return;

@@ -98,15 +98,12 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
     }
     DCHECK_NOT_NULL(value_str.get());
 
-    // Convert bcp47 key and value into legacy ICU format so we can use
-    // uloc_setKeywordValue.
-    const char* key = uloc_toLegacyKey(option_to_bcp47.key);
-    DCHECK_NOT_NULL(key);
-
     // Overwrite existing, or insert new key-value to the locale string.
-    const char* value = uloc_toLegacyType(key, value_str.get());
-    if (value) {
-      icu_locale->setKeywordValue(key, value, status);
+    if (uloc_toLegacyType(uloc_toLegacyKey(option_to_bcp47.key),
+                          value_str.get())) {
+      // Only call setUnicodeKeywordValue if that value is a valid one.
+      icu_locale->setUnicodeKeywordValue(option_to_bcp47.key, value_str.get(),
+                                         status);
       if (U_FAILURE(status)) {
         return Just(false);
       }

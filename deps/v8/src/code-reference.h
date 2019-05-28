@@ -35,6 +35,7 @@ class CodeReference {
   const byte* relocation_end() const;
   int relocation_size() const;
   Address code_comments() const;
+  int code_comments_size() const;
 
   bool is_null() const { return kind_ == NONE; }
   bool is_js() const { return kind_ == JS; }

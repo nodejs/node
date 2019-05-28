@@ -23,9 +23,9 @@ enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
 
 class Sweeper {
  public:
-  typedef std::vector<Page*> IterabilityList;
-  typedef std::deque<Page*> SweepingList;
-  typedef std::vector<Page*> SweptList;
+  using IterabilityList = std::vector<Page*>;
+  using SweepingList = std::deque<Page*>;
+  using SweptList = std::vector<Page*>;
 
   // Pauses the sweeper tasks or completes sweeping.
   class PauseOrCompleteScope final {
@@ -96,7 +96,7 @@ class Sweeper {
   // and the main thread can sweep lazily, but the background sweeper tasks
   // are not running yet.
   void StartSweeping();
-  void StartSweeperTasks();
+  V8_EXPORT_PRIVATE void StartSweeperTasks();
   void EnsureCompleted();
   bool AreSweeperTasksRunning();
 

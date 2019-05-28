@@ -273,10 +273,10 @@ class MarkCompactCollectorBase {
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) = 0;
 
   template <class Evacuator, class Collector>
-  void CreateAndExecuteEvacuationTasks(
-      Collector* collector, ItemParallelJob* job,
-      RecordMigratedSlotVisitor* record_visitor,
-      MigrationObserver* migration_observer, const intptr_t live_bytes);
+  void CreateAndExecuteEvacuationTasks(Collector* collector,
+                                       ItemParallelJob* job,
+                                       MigrationObserver* migration_observer,
+                                       const intptr_t live_bytes);
 
   // Returns whether this page should be moved according to heuristics.
   bool ShouldMovePage(Page* p, intptr_t live_bytes);
@@ -414,7 +414,7 @@ struct Ephemeron {
   HeapObject value;
 };
 
-typedef Worklist<Ephemeron, 64> EphemeronWorklist;
+using EphemeronWorklist = Worklist<Ephemeron, 64>;
 
 // Weak objects encountered during marking.
 struct WeakObjects {
@@ -629,7 +629,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Ensures that sweeping is finished.
   //
   // Note: Can only be called safely from main thread.
-  void EnsureSweepingCompleted();
+  V8_EXPORT_PRIVATE void EnsureSweepingCompleted();
 
   // Checks if sweeping is in progress right now on any space.
   bool sweeping_in_progress() const { return sweeper_->sweeping_in_progress(); }
@@ -765,7 +765,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
-  bool VisitEphemeron(HeapObject key, HeapObject value);
+  bool ProcessEphemeron(HeapObject key, HeapObject value);
 
   // Marks ephemerons and drains marking worklist iteratively
   // until a fixpoint is reached.
@@ -923,9 +923,8 @@ class MarkingVisitor final
           int,
           MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>> {
  public:
-  typedef HeapVisitor<
-      int, MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>>
-      Parent;
+  using Parent = HeapVisitor<
+      int, MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>>;
 
   V8_INLINE MarkingVisitor(MarkCompactCollector* collector,
                            MarkingState* marking_state);

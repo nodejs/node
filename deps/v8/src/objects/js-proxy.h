@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_PROXY_H_
 
 #include "src/objects/js-objects.h"
+#include "torque-generated/builtin-definitions-from-dsl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -33,7 +34,7 @@ class JSProxy : public JSReceiver {
   static void Revoke(Handle<JSProxy> proxy);
 
   // ES6 9.5.1
-  static MaybeHandle<Object> GetPrototype(Handle<JSProxy> receiver);
+  static MaybeHandle<HeapObject> GetPrototype(Handle<JSProxy> receiver);
 
   // ES6 9.5.2
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
@@ -116,8 +117,8 @@ class JSProxy : public JSReceiver {
   STATIC_ASSERT(static_cast<int>(JSObject::kElementsOffset) ==
                 static_cast<int>(JSProxy::kTargetOffset));
 
-  typedef FixedBodyDescriptor<JSReceiver::kPropertiesOrHashOffset, kSize, kSize>
-      BodyDescriptor;
+  using BodyDescriptor =
+      FixedBodyDescriptor<JSReceiver::kPropertiesOrHashOffset, kSize, kSize>;
 
   static Maybe<bool> SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
                                       Handle<Symbol> private_name,

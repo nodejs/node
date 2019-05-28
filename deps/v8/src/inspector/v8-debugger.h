@@ -73,8 +73,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
   // compiled.
   // Only scripts whose debug data matches |contextGroupId| will be reported.
   // Passing 0 will result in reporting all scripts.
-  void getCompiledScripts(int contextGroupId,
-                          std::vector<std::unique_ptr<V8DebuggerScript>>&);
+  std::vector<std::unique_ptr<V8DebuggerScript>> getCompiledScripts(
+      int contextGroupId, V8DebuggerAgentImpl* agent);
   void enable();
   void disable();
 

@@ -5,8 +5,6 @@
 #ifndef V8_THREAD_ID_H_
 #define V8_THREAD_ID_H_
 
-#include <atomic>
-
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -16,16 +14,16 @@ namespace internal {
 class ThreadId {
  public:
   // Creates an invalid ThreadId.
-  ThreadId() : ThreadId(kInvalidId) {}
+  constexpr ThreadId() noexcept : ThreadId(kInvalidId) {}
 
-  ThreadId(const ThreadId& other) V8_NOEXCEPT : ThreadId(other.ToInteger()) {}
+  bool operator==(const ThreadId& other) const { return id_ == other.id_; }
+  bool operator!=(const ThreadId& other) const { return id_ != other.id_; }
 
-  ThreadId& operator=(const ThreadId& other) V8_NOEXCEPT {
-    id_.store(other.ToInteger(), std::memory_order_relaxed);
-    return *this;
-  }
+  // Checks whether this ThreadId refers to any thread.
+  bool IsValid() const { return id_ != kInvalidId; }
 
-  bool operator==(const ThreadId& other) const { return Equals(other); }
+  // Converts ThreadId to an integer representation.
+  constexpr int ToInteger() const { return id_; }
 
   // Returns ThreadId for current thread if it exists or invalid id.
   static ThreadId TryGetCurrent();
@@ -34,32 +32,20 @@ class ThreadId {
   static ThreadId Current() { return ThreadId(GetCurrentThreadId()); }
 
   // Returns invalid ThreadId (guaranteed not to be equal to any thread).
-  static ThreadId Invalid() { return ThreadId(kInvalidId); }
-
-  // Compares ThreadIds for equality.
-  V8_INLINE bool Equals(const ThreadId& other) const {
-    return ToInteger() == other.ToInteger();
-  }
-
-  // Checks whether this ThreadId refers to any thread.
-  V8_INLINE bool IsValid() const { return ToInteger() != kInvalidId; }
-
-  // Converts ThreadId to an integer representation
-  // (required for public API: V8::V8::GetCurrentThreadId).
-  int ToInteger() const { return id_.load(std::memory_order_relaxed); }
+  static constexpr ThreadId Invalid() { return ThreadId(kInvalidId); }
 
   // Converts ThreadId to an integer representation
   // (required for public API: V8::V8::TerminateExecution).
-  static ThreadId FromInteger(int id) { return ThreadId(id); }
+  static constexpr ThreadId FromInteger(int id) { return ThreadId(id); }
 
  private:
   static constexpr int kInvalidId = -1;
 
-  explicit ThreadId(int id) { id_.store(id, std::memory_order_relaxed); }
+  explicit constexpr ThreadId(int id) noexcept : id_(id) {}
 
-  static int GetCurrentThreadId();
+  V8_EXPORT_PRIVATE static int GetCurrentThreadId();
 
-  std::atomic<int> id_;
+  int id_;
 };
 
 }  // namespace internal

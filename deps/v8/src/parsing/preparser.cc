@@ -345,7 +345,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     }
     if (skippable_function) {
       preparse_data_builder_scope.SetSkippableFunction(
-          function_scope, GetLastFunctionLiteralId() - func_id);
+          function_scope, formals.function_length,
+          GetLastFunctionLiteralId() - func_id);
     }
   }
 
@@ -379,7 +380,7 @@ void PreParser::ParseStatementListAndLogFunction(
   int body_end = scanner()->peek_location().end_pos;
   DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
   log_.LogFunction(body_end, formals->num_parameters(),
-                   GetLastFunctionLiteralId());
+                   formals->function_length, GetLastFunctionLiteralId());
 }
 
 PreParserBlock PreParser::BuildParameterInitializationBlock(

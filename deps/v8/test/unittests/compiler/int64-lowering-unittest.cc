@@ -322,6 +322,40 @@ TEST_F(Int64LoweringTest, Parameter2) {
   EXPECT_THAT(start()->op()->ValueOutputCount(), start_parameter + 2);
 }
 
+TEST_F(Int64LoweringTest, ParameterWithJSContextParam) {
+  Signature<MachineRepresentation>::Builder sig_builder(zone(), 0, 2);
+  sig_builder.AddParam(MachineRepresentation::kWord64);
+  sig_builder.AddParam(MachineRepresentation::kWord64);
+
+  auto sig = sig_builder.Build();
+
+  Node* js_context = graph()->NewNode(
+      common()->Parameter(Linkage::GetJSCallContextParamIndex(
+                              static_cast<int>(sig->parameter_count()) + 1),
+                          "%context"),
+      start());
+  LowerGraph(js_context, sig);
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn(js_context, start(), start()));
+}
+
+TEST_F(Int64LoweringTest, ParameterWithJSClosureParam) {
+  Signature<MachineRepresentation>::Builder sig_builder(zone(), 0, 2);
+  sig_builder.AddParam(MachineRepresentation::kWord64);
+  sig_builder.AddParam(MachineRepresentation::kWord64);
+
+  auto sig = sig_builder.Build();
+
+  Node* js_closure = graph()->NewNode(
+      common()->Parameter(Linkage::kJSCallClosureParamIndex, "%closure"),
+      start());
+  LowerGraph(js_closure, sig);
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn(js_closure, start(), start()));
+}
+
 // The following tests assume that pointers are 32 bit and therefore pointers do
 // not get lowered. This assumption does not hold on 64 bit platforms, which
 // invalidates these tests.

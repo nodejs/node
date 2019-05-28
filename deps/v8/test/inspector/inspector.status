@@ -5,8 +5,6 @@
 [
 ##############################################################################
 [ALWAYS, {
-  # https://crbug.com/v8/7767
-  'debugger/wasm-imports': [SKIP],
   # https://crbug.com/v8/7932
   'runtime/command-line-api-without-side-effects': [SKIP],
 

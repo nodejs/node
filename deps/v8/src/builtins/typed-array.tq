@@ -111,9 +111,9 @@ namespace typed_array {
       AttachedJSTypedArrayWitness {
     const kind = array.elements_kind;
     return AttachedJSTypedArrayWitness{
-      array,
-      array,
-      GetLoadFnForElementsKind(kind)
+      stable: array,
+      unstable: array,
+      loadfn: GetLoadFnForElementsKind(kind)
     };
   }
 

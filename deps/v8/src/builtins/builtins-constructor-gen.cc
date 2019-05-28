@@ -71,7 +71,6 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     Node* const feedback_cell_map = LoadMap(feedback_cell);
     Label no_closures(this), one_closure(this), cell_done(this);
 
-    GotoIf(IsNoFeedbackCellMap(feedback_cell_map), &cell_done);
     GotoIf(IsNoClosuresCellMap(feedback_cell_map), &no_closures);
     GotoIf(IsOneClosureCellMap(feedback_cell_map), &one_closure);
     CSA_ASSERT(this, IsManyClosuresCellMap(feedback_cell_map),

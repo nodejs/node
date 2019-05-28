@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/compiler/js-heap-broker.h"
 #include "src/handles.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-containers.h"
@@ -32,11 +33,11 @@ class PropertyAccessBuilder {
 
   // Builds the appropriate string check if the maps are only string
   // maps.
-  bool TryBuildStringCheck(MapHandles const& maps, Node** receiver,
-                           Node** effect, Node* control);
+  bool TryBuildStringCheck(JSHeapBroker* broker, MapHandles const& maps,
+                           Node** receiver, Node** effect, Node* control);
   // Builds a number check if all maps are number maps.
-  bool TryBuildNumberCheck(MapHandles const& maps, Node** receiver,
-                           Node** effect, Node* control);
+  bool TryBuildNumberCheck(JSHeapBroker* broker, MapHandles const& maps,
+                           Node** receiver, Node** effect, Node* control);
 
   Node* BuildCheckHeapObject(Node* receiver, Node** effect, Node* control);
   void BuildCheckMaps(Node* receiver, Node** effect, Node* control,
@@ -46,7 +47,7 @@ class PropertyAccessBuilder {
 
   // Builds the actual load for data-field and data-constant-field
   // properties (without heap-object or map checks).
-  Node* BuildLoadDataField(Handle<Name> name,
+  Node* BuildLoadDataField(NameRef const& name,
                            PropertyAccessInfo const& access_info,
                            Node* receiver, Node** effect, Node** control);
 
@@ -59,7 +60,7 @@ class PropertyAccessBuilder {
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
 
-  Node* TryBuildLoadConstantDataField(Handle<Name> name,
+  Node* TryBuildLoadConstantDataField(NameRef const& name,
                                       PropertyAccessInfo const& access_info,
                                       Node* receiver);
   // Returns a node with the holder for the property access described by
@@ -71,7 +72,7 @@ class PropertyAccessBuilder {
   CompilationDependencies* dependencies_;
 };
 
-bool HasOnlyStringMaps(MapHandles const& maps);
+bool HasOnlyStringMaps(JSHeapBroker* broker, MapHandles const& maps);
 
 }  // namespace compiler
 }  // namespace internal

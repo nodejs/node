@@ -40,6 +40,6 @@ namespace growable_fixed_array {
   }
 
   macro NewGrowableFixedArray(): GrowableFixedArray {
-    return GrowableFixedArray{kEmptyFixedArray, 0, 0};
+    return GrowableFixedArray{array: kEmptyFixedArray, capacity: 0, length: 0};
   }
 }

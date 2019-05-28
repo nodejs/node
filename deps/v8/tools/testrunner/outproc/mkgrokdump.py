@@ -20,7 +20,7 @@ class OutProc(base.OutProc):
     diff = difflib.unified_diff(expected_lines, actual_lines, lineterm="",
                                 fromfile="expected_path")
     diffstring = '\n'.join(diff)
-    if diffstring is not "":
+    if diffstring != "":
       if "generated from a non-shipping build" in output.stdout:
         return False
       if not "generated from a shipping build" in output.stdout:

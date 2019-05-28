@@ -82,12 +82,13 @@ v8_header_set("inspector_test_headers") {
 
 v8_source_set("inspector") {
   deps = [
-    ":protocol_generated_sources",
     "../..:v8_version",
   ]
 
   public_deps = [
     ":inspector_test_headers",
+    ":protocol_generated_sources",
+    "../../:v8_libbase",
   ]
 
   configs = [ ":inspector_config" ]

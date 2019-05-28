@@ -169,7 +169,7 @@ function AddFunctions(builder) {
       .exportAs("main");
 
     builder.setTableBounds(length, length);
-    builder.addElementSegment(base, false, [f.add.index, f.sub.index, f.mul.index]);
+    builder.addElementSegment(0, base, false, [f.add.index, f.sub.index, f.mul.index]);
 
     return builder.instantiate();
   }
@@ -207,7 +207,7 @@ function AddFunctions(builder) {
 
   builder.setTableBounds(10, 10);
   var g = builder.addImportedGlobal("fff", "base", kWasmI32);
-  builder.addElementSegment(g, true, [f.mul.index, f.add.index, f.sub.index]);
+  builder.addElementSegment(0, g, true, [f.mul.index, f.add.index, f.sub.index]);
 
   var module = new WebAssembly.Module(builder.toBuffer());
 

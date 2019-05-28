@@ -4,6 +4,9 @@
 
 // Flags: --harmony-regexp-sequence
 
+// TODO(mathias): Update these tests once a Unicode 12-friendly ICU
+// version rolls into V8.
+
 const re = /\p{Emoji_Modifier_Sequence}/u;
 
 assertTrue(re.test('\u261D\u{1F3FB}'));

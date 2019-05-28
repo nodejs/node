@@ -211,6 +211,9 @@ MapUpdater::State MapUpdater::CopyGeneralizeAllFields(const char* reason) {
 }
 
 MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
+  // Updating deprecated maps in-place doesn't make sense.
+  if (old_map_->is_deprecated()) return state_;
+
   // If it's just a representation generalization case (i.e. property kind and
   // attributes stays unchanged) it's fine to transition from None to anything
   // but double without any modification to the object, because the default
@@ -223,7 +226,7 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);
   Representation old_representation = old_details.representation();
-  if (!old_representation.IsNone()) {
+  if (!old_representation.CanBeInPlaceChangedTo(new_representation_)) {
     return state_;  // Not done yet.
   }
 
@@ -328,7 +331,8 @@ MapUpdater::State MapUpdater::FindRootMap() {
     // the seal transitions), so change {to_kind} accordingly.
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
-           IsFixedTypedArrayElementsKind(to_kind));
+           IsFixedTypedArrayElementsKind(to_kind) ||
+           IsPackedFrozenOrSealedElementsKind(to_kind));
     to_kind = integrity_source_map_->elements_kind();
   }
 
@@ -352,9 +356,6 @@ MapUpdater::State MapUpdater::FindRootMap() {
     if (old_details.location() != kField) {
       return CopyGeneralizeAllFields("GenAll_RootModification2");
     }
-    if (new_constness_ != old_details.constness() && !FLAG_modify_map_inplace) {
-      return CopyGeneralizeAllFields("GenAll_RootModification3");
-    }
     if (!new_representation_.fits_into(old_details.representation())) {
       return CopyGeneralizeAllFields("GenAll_RootModification4");
     }
@@ -362,19 +363,12 @@ MapUpdater::State MapUpdater::FindRootMap() {
     DCHECK_EQ(kData, old_details.kind());
     DCHECK_EQ(kData, new_kind_);
     DCHECK_EQ(kField, new_location_);
-    FieldType old_field_type =
-        old_descriptors_->GetFieldType(modified_descriptor_);
-    if (!new_field_type_->NowIs(old_field_type)) {
-      return CopyGeneralizeAllFields("GenAll_RootModification5");
-    }
 
-    // Modify root map in-place.
-    if (FLAG_modify_map_inplace && new_constness_ != old_details.constness()) {
-      DCHECK(IsGeneralizableTo(old_details.constness(), new_constness_));
-      GeneralizeField(old_map_, modified_descriptor_, new_constness_,
-                      old_details.representation(),
-                      handle(old_field_type, isolate_));
-    }
+    // Modify root map in-place. The GeneralizeField method is a no-op
+    // if the {old_map_} is already general enough to hold the requested
+    // {new_constness_} and {new_field_type_}.
+    GeneralizeField(old_map_, modified_descriptor_, new_constness_,
+                    old_details.representation(), new_field_type_);
   }
 
   // From here on, use the map with correct elements kind as root map.
@@ -409,11 +403,6 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       // TODO(ishell): mutable accessors are not implemented yet.
       return CopyGeneralizeAllFields("GenAll_Incompatible");
     }
-    PropertyConstness tmp_constness = tmp_details.constness();
-    if (!FLAG_modify_map_inplace &&
-        !IsGeneralizableTo(old_details.constness(), tmp_constness)) {
-      break;
-    }
     if (!IsGeneralizableTo(old_details.location(), tmp_details.location())) {
       break;
     }
@@ -425,9 +414,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     if (tmp_details.location() == kField) {
       Handle<FieldType> old_field_type =
           GetOrComputeFieldType(i, old_details.location(), tmp_representation);
-      PropertyConstness constness =
-          FLAG_modify_map_inplace ? old_details.constness() : tmp_constness;
-      GeneralizeField(tmp_map, i, constness, tmp_representation,
+      GeneralizeField(tmp_map, i, old_details.constness(), tmp_representation,
                       old_field_type);
     } else {
       // kDescriptor: Check that the value matches.

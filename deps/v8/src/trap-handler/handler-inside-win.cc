@@ -34,7 +34,48 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
+// The below struct needed to access the offset in the Thread Environment Block
+// to see if the thread local storage for the thread has been allocated yet.
+//
+// The ThreadLocalStorage pointer is located 12 pointers into the TEB (i.e. at
+// offset 0x58 for 64-bit platforms, and 0x2c for 32-bit platforms). This is
+// true for x64, x86, ARM, and ARM64 platforms (see the header files in the SDK
+// named ksamd64.inc, ks386.inc, ksarm.h, and ksarm64.h respectively).
+//
+// These offsets are baked into compiled binaries, so can never be changed for
+// backwards compatibility reasons.
+struct TEB {
+  PVOID reserved[11];
+  PVOID thread_local_storage_pointer;
+};
+
 bool TryHandleWasmTrap(EXCEPTION_POINTERS* exception) {
+  // VectoredExceptionHandlers need extreme caution. Do as little as possible
+  // to determine if the exception should be handled or not. Exceptions can be
+  // thrown very early in a threads life, before the thread has even completed
+  // initializing. As a demonstrative example, there was a bug (#8966) where an
+  // exception would be raised before the thread local copy of the
+  // "__declspec(thread)" variables had been allocated, the handler tried to
+  // access the thread-local "g_thread_in_wasm_code", which would then raise
+  // another exception, and an infinite loop ensued.
+
+  // First ensure this is an exception type of interest
+  if (exception->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION) {
+    return false;
+  }
+
+  // See if thread-local storage for __declspec(thread) variables has been
+  // allocated yet. This pointer is initially null in the TEB until the
+  // loader has completed allocating the memory for thread_local variables
+  // and copy constructed their initial values. (Note: Any functions that
+  // need to run to initialize values may not have run yet, but that is not
+  // the case for any thread_locals used here).
+  TEB* pteb = reinterpret_cast<TEB*>(NtCurrentTeb());
+  if (!pteb->thread_local_storage_pointer) {
+    return false;
+  }
+
+  // Now safe to run more advanced logic, which may access thread_locals
   // Ensure the faulting thread was actually running Wasm code.
   if (!IsThreadInWasm()) {
     return false;
@@ -44,10 +85,6 @@ bool TryHandleWasmTrap(EXCEPTION_POINTERS* exception) {
   g_thread_in_wasm_code = false;
 
   const EXCEPTION_RECORD* record = exception->ExceptionRecord;
-
-  if (record->ExceptionCode != EXCEPTION_ACCESS_VIOLATION) {
-    return false;
-  }
 
   uintptr_t fault_addr = reinterpret_cast<uintptr_t>(record->ExceptionAddress);
   uintptr_t landing_pad = 0;

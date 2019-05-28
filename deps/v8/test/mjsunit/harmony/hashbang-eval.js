@@ -4,8 +4,8 @@
 
 // Flags: --harmony-hashbang
 
-// Hashbang syntax is not allowed in eval.
-assertThrows("#!", SyntaxError);
-assertThrows("#!\n", SyntaxError);
-assertThrows("#!---IGNORED---", SyntaxError);
-assertThrows("#!---IGNORED---\n", SyntaxError);
+// Hashbang syntax is allowed in eval.
+assertEquals(eval("#!"), undefined);
+assertEquals(eval("#!\n"), undefined);
+assertEquals(eval("#!---IGNORED---"), undefined);
+assertEquals(eval("#!---IGNORED---\n"), undefined);

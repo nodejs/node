@@ -12,6 +12,7 @@
 #include "src/allocation.h"
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/cpu-features.h"
 #include "src/memcopy.h"
 #include "src/ostreams.h"
@@ -307,11 +308,7 @@ static void SplitArgument(const char* arg, char* buffer, int buffer_size,
     arg++;  // remove 1st '-'
     if (*arg == '-') {
       arg++;  // remove 2nd '-'
-      if (arg[0] == '\0') {
-        const char* kJSArgumentsFlagName = "js_arguments";
-        *name = kJSArgumentsFlagName;
-        return;
-      }
+      DCHECK_NE('\0', arg[0]);  // '--' arguments are handled in the caller.
     }
     if (arg[0] == 'n' && arg[1] == 'o') {
       arg += 2;  // remove "no"
@@ -583,6 +580,13 @@ void FlagList::PrintHelp() {
         "  --shell   run an interactive JavaScript shell\n"
         "  --module  execute a file as a JavaScript module\n\n"
         "Note: the --module option is implicitly enabled for *.mjs files.\n\n"
+        "The following syntax for options is accepted (both '-' and '--' are "
+        "ok):\n"
+        "  --flag        (bool flags only)\n"
+        "  --no-flag     (bool flags only)\n"
+        "  --flag=value  (non-bool flags only, no spaces around '=')\n"
+        "  --flag value  (non-bool flags only)\n"
+        "  --            (captures all remaining args in JavaScript)\n\n"
         "Options:\n";
 
   for (const Flag& f : flags) {

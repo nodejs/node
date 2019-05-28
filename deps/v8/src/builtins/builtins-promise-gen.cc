@@ -288,8 +288,9 @@ Node* PromiseBuiltinsAssembler::CreatePromiseAllResolveElementContext(
   return context;
 }
 
-Node* PromiseBuiltinsAssembler::CreatePromiseAllResolveElementFunction(
-    Node* context, TNode<Smi> index, Node* native_context) {
+TNode<JSFunction>
+PromiseBuiltinsAssembler::CreatePromiseAllResolveElementFunction(
+    Node* context, TNode<Smi> index, Node* native_context, int slot_index) {
   CSA_ASSERT(this, SmiGreaterThan(index, SmiConstant(0)));
   CSA_ASSERT(this, SmiLessThanOrEqual(
                        index, SmiConstant(PropertyArray::HashField::kMax)));
@@ -297,10 +298,9 @@ Node* PromiseBuiltinsAssembler::CreatePromiseAllResolveElementFunction(
 
   Node* const map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  Node* const resolve_info = LoadContextElement(
-      native_context, Context::PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN);
-  Node* const resolve =
-      AllocateFunctionWithMapAndContext(map, resolve_info, context);
+  Node* const resolve_info = LoadContextElement(native_context, slot_index);
+  TNode<JSFunction> resolve =
+      Cast(AllocateFunctionWithMapAndContext(map, resolve_info, context));
 
   STATIC_ASSERT(PropertyArray::kNoHashSentinel == 0);
   StoreObjectFieldNoWriteBarrier(resolve, JSFunction::kPropertiesOrHashOffset,
@@ -417,6 +417,8 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
   {
     VARIABLE(var_map, MachineRepresentation::kTagged);
     VARIABLE(var_handler, MachineRepresentation::kTagged);
+    VARIABLE(var_handler_context, MachineRepresentation::kTagged,
+             UndefinedConstant());
     Label if_fulfilled(this), if_rejected(this, Label::kDeferred),
         enqueue(this);
     Branch(IsPromiseStatus(status, v8::Promise::kFulfilled), &if_fulfilled,
@@ -426,6 +428,17 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
     {
       var_map.Bind(LoadRoot(RootIndex::kPromiseFulfillReactionJobTaskMap));
       var_handler.Bind(on_fulfilled);
+
+      Label use_fallback(this, Label::kDeferred), done(this);
+      ExtractHandlerContext(on_fulfilled, &var_handler_context);
+      Branch(IsUndefined(var_handler_context.value()), &use_fallback, &done);
+
+      BIND(&use_fallback);
+      var_handler_context.Bind(context);
+      ExtractHandlerContext(on_rejected, &var_handler_context);
+      Goto(&done);
+
+      BIND(&done);
       Goto(&enqueue);
     }
 
@@ -434,6 +447,17 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
       CSA_ASSERT(this, IsPromiseStatus(status, v8::Promise::kRejected));
       var_map.Bind(LoadRoot(RootIndex::kPromiseRejectReactionJobTaskMap));
       var_handler.Bind(on_rejected);
+
+      Label use_fallback(this, Label::kDeferred), done(this);
+      ExtractHandlerContext(on_rejected, &var_handler_context);
+      Branch(IsUndefined(var_handler_context.value()), &use_fallback, &done);
+
+      BIND(&use_fallback);
+      var_handler_context.Bind(context);
+      ExtractHandlerContext(on_fulfilled, &var_handler_context);
+      Goto(&done);
+      BIND(&done);
+
       GotoIf(PromiseHasHandler(promise), &enqueue);
       CallRuntime(Runtime::kPromiseRevokeReject, context, promise);
       Goto(&enqueue);
@@ -441,9 +465,6 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
 
     BIND(&enqueue);
     {
-      VARIABLE(var_handler_context, MachineRepresentation::kTagged, context);
-      ExtractHandlerContext(var_handler.value(), &var_handler_context);
-
       Node* argument =
           LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
       Node* microtask = AllocatePromiseReactionJobTask(
@@ -585,7 +606,36 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
       GotoIf(TaggedIsSmi(current), &done_loop);
       var_current.Bind(LoadObjectField(current, PromiseReaction::kNextOffset));
 
-      VARIABLE(var_context, MachineRepresentation::kTagged, context);
+      VARIABLE(var_context, MachineRepresentation::kTagged,
+               UndefinedConstant());
+
+      Node* primary_handler;
+      Node* secondary_handler;
+      if (type == PromiseReaction::kFulfill) {
+        primary_handler =
+            LoadObjectField(current, PromiseReaction::kFulfillHandlerOffset);
+        secondary_handler =
+            LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
+      } else {
+        primary_handler =
+            LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
+        secondary_handler =
+            LoadObjectField(current, PromiseReaction::kFulfillHandlerOffset);
+      }
+
+      {
+        Label use_fallback(this, Label::kDeferred), done(this);
+        ExtractHandlerContext(primary_handler, &var_context);
+        Branch(IsUndefined(var_context.value()), &use_fallback, &done);
+
+        BIND(&use_fallback);
+        var_context.Bind(context);
+        ExtractHandlerContext(secondary_handler, &var_context);
+        CSA_ASSERT(this, IsNotUndefined(var_context.value()));
+        Goto(&done);
+
+        BIND(&done);
+      }
 
       // Morph {current} from a PromiseReaction into a PromiseReactionJobTask
       // and schedule that on the microtask queue. We try to minimize the number
@@ -593,9 +643,6 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
       STATIC_ASSERT(static_cast<int>(PromiseReaction::kSize) ==
                     static_cast<int>(PromiseReactionJobTask::kSize));
       if (type == PromiseReaction::kFulfill) {
-        Node* handler =
-            LoadObjectField(current, PromiseReaction::kFulfillHandlerOffset);
-        ExtractHandlerContext(handler, &var_context);
         StoreMapNoWriteBarrier(current,
                                RootIndex::kPromiseFulfillReactionJobTaskMap);
         StoreObjectField(current, PromiseReactionJobTask::kArgumentOffset,
@@ -610,9 +657,6 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
             static_cast<int>(
                 PromiseReactionJobTask::kPromiseOrCapabilityOffset));
       } else {
-        Node* handler =
-            LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
-        ExtractHandlerContext(handler, &var_context);
         StoreMapNoWriteBarrier(current,
                                RootIndex::kPromiseRejectReactionJobTaskMap);
         StoreObjectField(current, PromiseReactionJobTask::kArgumentOffset,
@@ -620,7 +664,7 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
         StoreObjectField(current, PromiseReactionJobTask::kContextOffset,
                          var_context.value());
         StoreObjectField(current, PromiseReactionJobTask::kHandlerOffset,
-                         handler);
+                         primary_handler);
         STATIC_ASSERT(
             static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
             static_cast<int>(
@@ -1983,11 +2027,13 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
 
 Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     Node* context, Node* constructor, Node* capability,
-    const IteratorRecord& iterator, Label* if_exception,
-    Variable* var_exception) {
+    const IteratorRecord& iterator,
+    const PromiseAllResolvingElementFunction& create_resolve_element_function,
+    const PromiseAllResolvingElementFunction& create_reject_element_function,
+    Label* if_exception, Variable* var_exception) {
   IteratorBuiltinsAssembler iter_assembler(state());
 
-  Node* const native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = Cast(LoadNativeContext(context));
 
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
@@ -1995,8 +2041,8 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
       native_context, IsDebugActive(),
       LoadObjectField(capability, PromiseCapability::kRejectOffset));
 
-  Node* const resolve_element_context =
-      CreatePromiseAllResolveElementContext(capability, native_context);
+  TNode<Context> resolve_element_context =
+      Cast(CreatePromiseAllResolveElementContext(capability, native_context));
 
   TVARIABLE(Smi, var_index, SmiConstant(1));
   Label loop(this, &var_index), done_loop(this),
@@ -2051,8 +2097,10 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     // Set resolveElement.[[Values]] to values.
     // Set resolveElement.[[Capability]] to resultCapability.
     // Set resolveElement.[[RemainingElements]] to remainingElementsCount.
-    Node* const resolve_element_fun = CreatePromiseAllResolveElementFunction(
-        resolve_element_context, index, native_context);
+    Node* const resolve_element_fun = create_resolve_element_function(
+        resolve_element_context, index, native_context, Cast(capability));
+    Node* const reject_element_fun = create_reject_element_function(
+        resolve_element_context, index, native_context, Cast(capability));
 
     // We can skip the "resolve" lookup on the {constructor} as well as the
     // "then" lookup on the result of the "resolve" call, and immediately
@@ -2087,10 +2135,8 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
       // Register the PromiseReaction immediately on the {next_value}, not
       // passing any chained promise since neither async_hooks nor DevTools
       // are enabled, so there's no use of the resulting promise.
-      PerformPromiseThen(
-          native_context, next_value, resolve_element_fun,
-          LoadObjectField(capability, PromiseCapability::kRejectOffset),
-          UndefinedConstant());
+      PerformPromiseThen(native_context, next_value, resolve_element_fun,
+                         reject_element_fun, UndefinedConstant());
       Goto(&loop);
     }
 
@@ -2111,7 +2157,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
           CallJS(CodeFactory::Call(isolate(),
                                    ConvertReceiverMode::kNotNullOrUndefined),
                  native_context, then, next_promise, resolve_element_fun,
-                 LoadObjectField(capability, PromiseCapability::kRejectOffset));
+                 reject_element_fun);
       GotoIfException(then_call, &close_iterator, var_exception);
 
       // For catch prediction, mark that rejections here are semantically
@@ -2215,15 +2261,14 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
   return promise;
 }
 
-// ES#sec-promise.all
-// Promise.all ( iterable )
-TF_BUILTIN(PromiseAll, PromiseBuiltinsAssembler) {
+void PromiseBuiltinsAssembler::Generate_PromiseAll(
+    TNode<Context> context, TNode<Object> receiver, TNode<Object> iterable,
+    const PromiseAllResolvingElementFunction& create_resolve_element_function,
+    const PromiseAllResolvingElementFunction& create_reject_element_function) {
   IteratorBuiltinsAssembler iter_assembler(state());
 
   // Let C be the this value.
   // If Type(C) is not Object, throw a TypeError exception.
-  Node* const receiver = Parameter(Descriptor::kReceiver);
-  Node* const context = Parameter(Descriptor::kContext);
   ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
                        "Promise.all");
 
@@ -2239,7 +2284,6 @@ TF_BUILTIN(PromiseAll, PromiseBuiltinsAssembler) {
 
   // Let iterator be GetIterator(iterable).
   // IfAbruptRejectPromise(iterator, promiseCapability).
-  Node* const iterable = Parameter(Descriptor::kIterable);
   IteratorRecord iterator = iter_assembler.GetIterator(
       context, iterable, &reject_promise, &var_exception);
 
@@ -2249,7 +2293,8 @@ TF_BUILTIN(PromiseAll, PromiseBuiltinsAssembler) {
   //       IteratorClose(iterator, result).
   //    IfAbruptRejectPromise(result, promiseCapability).
   Node* const result = PerformPromiseAll(
-      context, receiver, capability, iterator, &reject_promise, &var_exception);
+      context, receiver, capability, iterator, create_resolve_element_function,
+      create_reject_element_function, &reject_promise, &var_exception);
 
   Return(result);
 
@@ -2268,11 +2313,55 @@ TF_BUILTIN(PromiseAll, PromiseBuiltinsAssembler) {
   }
 }
 
-TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSFunction> function = CAST(Parameter(Descriptor::kJSTarget));
+// ES#sec-promise.all
+// Promise.all ( iterable )
+TF_BUILTIN(PromiseAll, PromiseBuiltinsAssembler) {
+  TNode<Object> receiver = Cast(Parameter(Descriptor::kReceiver));
+  TNode<Context> context = Cast(Parameter(Descriptor::kContext));
+  TNode<Object> iterable = Cast(Parameter(Descriptor::kIterable));
+  Generate_PromiseAll(
+      context, receiver, iterable,
+      [this](TNode<Context> context, TNode<Smi> index,
+             TNode<NativeContext> native_context,
+             TNode<PromiseCapability> capability) {
+        return CreatePromiseAllResolveElementFunction(
+            context, index, native_context,
+            Context::PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN);
+      },
+      [this](TNode<Context> context, TNode<Smi> index,
+             TNode<NativeContext> native_context,
+             TNode<PromiseCapability> capability) {
+        return LoadObjectField(capability, PromiseCapability::kRejectOffset);
+      });
+}
 
+// ES#sec-promise.allsettled
+// Promise.allSettled ( iterable )
+TF_BUILTIN(PromiseAllSettled, PromiseBuiltinsAssembler) {
+  TNode<Object> receiver = Cast(Parameter(Descriptor::kReceiver));
+  TNode<Context> context = Cast(Parameter(Descriptor::kContext));
+  TNode<Object> iterable = Cast(Parameter(Descriptor::kIterable));
+  Generate_PromiseAll(
+      context, receiver, iterable,
+      [this](TNode<Context> context, TNode<Smi> index,
+             TNode<NativeContext> native_context,
+             TNode<PromiseCapability> capability) {
+        return CreatePromiseAllResolveElementFunction(
+            context, index, native_context,
+            Context::PROMISE_ALL_SETTLED_RESOLVE_ELEMENT_SHARED_FUN);
+      },
+      [this](TNode<Context> context, TNode<Smi> index,
+             TNode<NativeContext> native_context,
+             TNode<PromiseCapability> capability) {
+        return CreatePromiseAllResolveElementFunction(
+            context, index, native_context,
+            Context::PROMISE_ALL_SETTLED_REJECT_ELEMENT_SHARED_FUN);
+      });
+}
+
+void PromiseBuiltinsAssembler::Generate_PromiseAllResolveElementClosure(
+    TNode<Context> context, TNode<Object> value, TNode<JSFunction> function,
+    const CreatePromiseAllResolveElementFunctionValue& callback) {
   Label already_called(this, Label::kDeferred), resolve_promise(this);
 
   // We use the {function}s context as the marker to remember whether this
@@ -2285,8 +2374,12 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
       this,
       SmiEqual(LoadObjectField<Smi>(context, Context::kLengthOffset),
                SmiConstant(PromiseBuiltins::kPromiseAllResolveElementLength)));
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = Cast(LoadNativeContext(context));
   StoreObjectField(function, JSFunction::kContextOffset, native_context);
+
+  // Update the value depending on whether Promise.all or
+  // Promise.allSettled is called.
+  value = callback(context, native_context, value);
 
   // Determine the index from the {function}.
   Label unreachable(this, Label::kDeferred);
@@ -2380,6 +2473,80 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
 
   BIND(&unreachable);
   Unreachable();
+}
+
+TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
+  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kJSTarget));
+
+  Generate_PromiseAllResolveElementClosure(
+      context, value, function,
+      [](TNode<Object>, TNode<NativeContext>, TNode<Object> value) {
+        return value;
+      });
+}
+
+TF_BUILTIN(PromiseAllSettledResolveElementClosure, PromiseBuiltinsAssembler) {
+  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kJSTarget));
+
+  Generate_PromiseAllResolveElementClosure(
+      context, value, function,
+      [this](TNode<Context> context, TNode<NativeContext> native_context,
+             TNode<Object> value) {
+        // TODO(gsathya): Optimize the creation using a cached map to
+        // prevent transitions here.
+        // 9. Let obj be ! ObjectCreate(%ObjectPrototype%).
+        TNode<HeapObject> object_function = Cast(
+            LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
+        TNode<Map> object_function_map = Cast(LoadObjectField(
+            object_function, JSFunction::kPrototypeOrInitialMapOffset));
+        TNode<JSObject> obj =
+            Cast(AllocateJSObjectFromMap(object_function_map));
+
+        // 10. Perform ! CreateDataProperty(obj, "status", "fulfilled").
+        CallBuiltin(Builtins::kFastCreateDataProperty, context, obj,
+                    StringConstant("status"), StringConstant("fulfilled"));
+
+        // 11. Perform ! CreateDataProperty(obj, "value", x).
+        CallBuiltin(Builtins::kFastCreateDataProperty, context, obj,
+                    StringConstant("value"), value);
+
+        return obj;
+      });
+}
+
+TF_BUILTIN(PromiseAllSettledRejectElementClosure, PromiseBuiltinsAssembler) {
+  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kJSTarget));
+
+  Generate_PromiseAllResolveElementClosure(
+      context, value, function,
+      [this](TNode<Context> context, TNode<NativeContext> native_context,
+             TNode<Object> value) {
+        // TODO(gsathya): Optimize the creation using a cached map to
+        // prevent transitions here.
+        // 9. Let obj be ! ObjectCreate(%ObjectPrototype%).
+        TNode<HeapObject> object_function = Cast(
+            LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
+        TNode<Map> object_function_map = Cast(LoadObjectField(
+            object_function, JSFunction::kPrototypeOrInitialMapOffset));
+        TNode<JSObject> obj =
+            Cast(AllocateJSObjectFromMap(object_function_map));
+
+        // 10. Perform ! CreateDataProperty(obj, "status", "rejected").
+        CallBuiltin(Builtins::kFastCreateDataProperty, context, obj,
+                    StringConstant("status"), StringConstant("rejected"));
+
+        // 11. Perform ! CreateDataProperty(obj, "reason", x).
+        CallBuiltin(Builtins::kFastCreateDataProperty, context, obj,
+                    StringConstant("reason"), value);
+
+        return obj;
+      });
 }
 
 // ES#sec-promise.race

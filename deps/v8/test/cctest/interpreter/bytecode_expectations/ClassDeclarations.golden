@@ -120,11 +120,11 @@ bytecodes: [
   /*  106 S> */ B(LdaImmutableContextSlot), R(3), U8(5), U8(0),
                 B(ToName), R(10),
                 B(LdaConstant), U8(7),
-                B(TestEqualStrict), R(10), U8(2),
+                B(TestEqualStrict), R(10), U8(0),
                 B(Mov), R(4), R(6),
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError), R(0), U8(0),
-                B(CreateClosure), U8(8), U8(3), U8(2),
+                B(CreateClosure), U8(8), U8(2), U8(2),
                 B(Star), R(11),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(7),
                 B(Star), R(5),
@@ -178,7 +178,7 @@ bytecodes: [
                 B(PopContext), R(3),
                 B(Mov), R(1), R(0),
   /*   87 S> */ B(Ldar), R(0),
-  /*   94 E> */ B(Construct), R(0), R(0), U8(0), U8(1),
+  /*   94 E> */ B(Construct), R(0), R(0), U8(0), U8(0),
   /*  102 S> */ B(Return),
 ]
 constant pool: [

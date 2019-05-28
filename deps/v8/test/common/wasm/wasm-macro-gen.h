@@ -346,6 +346,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
       static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 56)
 
 #define WASM_REF_NULL kExprRefNull
+#define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 
 #define WASM_GET_LOCAL(index) kExprGetLocal, static_cast<byte>(index)
 #define WASM_SET_LOCAL(index, val) val, kExprSetLocal, static_cast<byte>(index)
@@ -681,5 +682,20 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_I64_SIGN_EXT_I8(x) x, kExprI64SExtendI8
 #define WASM_I64_SIGN_EXT_I16(x) x, kExprI64SExtendI16
 #define WASM_I64_SIGN_EXT_I32(x) x, kExprI64SExtendI32
+
+//------------------------------------------------------------------------------
+// Compilation Hints.
+//------------------------------------------------------------------------------
+#define COMPILE_STRATEGY_DEFAULT (0x00)
+#define COMPILE_STRATEGY_LAZY (0x01)
+#define COMPILE_STRATEGY_EAGER (0x02)
+#define BASELINE_TIER_DEFAULT (0x00 << 2)
+#define BASELINE_TIER_INTERPRETER (0x01 << 2)
+#define BASELINE_TIER_BASELINE (0x02 << 2)
+#define BASELINE_TIER_OPTIMIZED (0x03 << 2)
+#define TOP_TIER_DEFAULT (0x00 << 4)
+#define TOP_TIER_INTERPRETER (0x01 << 4)
+#define TOP_TIER_BASELINE (0x02 << 4)
+#define TOP_TIER_OPTIMIZED (0x03 << 4)
 
 #endif  // V8_WASM_MACRO_GEN_H_

@@ -50,7 +50,6 @@ enum class FeedbackSlotKind {
   kCompareOp,
   kStoreDataPropertyInLiteral,
   kTypeProfile,
-  kCreateClosure,
   kLiteral,
   kForIn,
   kInstanceOf,
@@ -139,11 +138,35 @@ inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
                                                      : LanguageMode::kStrict;
 }
 
-std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           FeedbackSlotKind kind);
 
 typedef std::vector<MaybeObjectHandle> MaybeObjectHandles;
 
 class FeedbackMetadata;
+
+// ClosureFeedbackCellArray is a FixedArray that contains feedback cells used
+// when creating closures from a function. Along with the feedback
+// cells, the first slot (slot 0) is used to hold a budget to measure the
+// hotness of the function. This is created once the function is compiled and is
+// either held by the feedback vector (if allocated) or by the FeedbackCell of
+// the closure.
+class ClosureFeedbackCellArray : public FixedArray {
+ public:
+  NEVER_READ_ONLY_SPACE
+
+  DECL_CAST(ClosureFeedbackCellArray)
+
+  V8_EXPORT_PRIVATE static Handle<ClosureFeedbackCellArray> New(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared);
+  inline Handle<FeedbackCell> GetFeedbackCell(int index);
+
+  DECL_VERIFIER(ClosureFeedbackCellArray)
+  DECL_PRINTER(ClosureFeedbackCellArray)
+
+ private:
+  OBJECT_CONSTRUCTORS(ClosureFeedbackCellArray, FixedArray);
+};
 
 // A FeedbackVector has a fixed header with:
 //  - shared function info (which includes feedback metadata)
@@ -158,9 +181,6 @@ class FeedbackVector : public HeapObject {
 
   DECL_CAST(FeedbackVector)
 
-  inline void ComputeCounts(int* with_type_info, int* generic,
-                            int* vector_ic_count);
-
   inline bool is_empty() const;
 
   inline FeedbackMetadata metadata() const;
@@ -172,6 +192,10 @@ class FeedbackVector : public HeapObject {
   // [optimized_code_weak_or_smi]: weak reference to optimized code or a Smi
   // marker defining optimization behaviour.
   DECL_ACCESSORS(optimized_code_weak_or_smi, MaybeObject)
+
+  // [feedback_cell_array]: The FixedArray to hold the feedback cells for any
+  // closures created by this function.
+  DECL_ACCESSORS(closure_feedback_cell_array, ClosureFeedbackCellArray)
 
   // [length]: The length of the feedback vector (not including the header, i.e.
   // the number of feedback slots).
@@ -220,16 +244,21 @@ class FeedbackVector : public HeapObject {
   inline void set(int index, Object value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  // Returns the feedback cell at |index| that is used to create the
+  // closure.
+  inline Handle<FeedbackCell> GetClosureFeedbackCell(int index) const;
+
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot slots_start();
 
   // Returns slot kind for given slot.
-  FeedbackSlotKind GetKind(FeedbackSlot slot) const;
+  V8_EXPORT_PRIVATE FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
   FeedbackSlot GetTypeProfileSlot() const;
 
   V8_EXPORT_PRIVATE static Handle<FeedbackVector> New(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared);
+      Isolate* isolate, Handle<SharedFunctionInfo> shared,
+      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array);
 
 #define DEFINE_SLOT_KIND_PREDICATE(Name) \
   bool Name(FeedbackSlot slot) const { return Name##Kind(GetKind(slot)); }
@@ -256,7 +285,7 @@ class FeedbackVector : public HeapObject {
     return GetLanguageModeFromSlotKind(GetKind(slot));
   }
 
-  static void AssertNoLegacyTypes(MaybeObject object);
+  V8_EXPORT_PRIVATE static void AssertNoLegacyTypes(MaybeObject object);
 
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
@@ -283,14 +312,15 @@ class FeedbackVector : public HeapObject {
   static inline Symbol RawUninitializedSentinel(Isolate* isolate);
 
 // Layout description.
-#define FEEDBACK_VECTOR_FIELDS(V)           \
-  /* Header fields. */                      \
-  V(kSharedFunctionInfoOffset, kTaggedSize) \
-  V(kOptimizedCodeOffset, kTaggedSize)      \
-  V(kLengthOffset, kInt32Size)              \
-  V(kInvocationCountOffset, kInt32Size)     \
-  V(kProfilerTicksOffset, kInt32Size)       \
-  V(kDeoptCountOffset, kInt32Size)          \
+#define FEEDBACK_VECTOR_FIELDS(V)                 \
+  /* Header fields. */                            \
+  V(kSharedFunctionInfoOffset, kTaggedSize)       \
+  V(kOptimizedCodeOffset, kTaggedSize)            \
+  V(kClosureFeedbackCellArrayOffset, kTaggedSize) \
+  V(kLengthOffset, kInt32Size)                    \
+  V(kInvocationCountOffset, kInt32Size)           \
+  V(kProfilerTicksOffset, kInt32Size)             \
+  V(kDeoptCountOffset, kInt32Size)                \
   V(kUnalignedHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FEEDBACK_VECTOR_FIELDS)
@@ -316,11 +346,17 @@ class FeedbackVector : public HeapObject {
 
 class V8_EXPORT_PRIVATE FeedbackVectorSpec {
  public:
-  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone) {
+  explicit FeedbackVectorSpec(Zone* zone)
+      : slot_kinds_(zone), num_closure_feedback_cells_(0) {
     slot_kinds_.reserve(16);
   }
 
   int slots() const { return static_cast<int>(slot_kinds_.size()); }
+  int closure_feedback_cells() const { return num_closure_feedback_cells_; }
+
+  int AddFeedbackCellForCreateClosure() {
+    return num_closure_feedback_cells_++;
+  }
 
   FeedbackSlotKind GetKind(FeedbackSlot slot) const {
     return static_cast<FeedbackSlotKind>(slot_kinds_.at(slot.ToInt()));
@@ -343,10 +379,6 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
     return AddSlot(typeof_mode == INSIDE_TYPEOF
                        ? FeedbackSlotKind::kLoadGlobalInsideTypeof
                        : FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-  }
-
-  FeedbackSlot AddCreateClosureSlot() {
-    return AddSlot(FeedbackSlotKind::kCreateClosure);
   }
 
   FeedbackSlot AddKeyedLoadICSlot() {
@@ -433,6 +465,7 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
   }
 
   ZoneVector<unsigned char> slot_kinds_;
+  unsigned int num_closure_feedback_cells_;
 
   friend class SharedFeedbackSlot;
 };
@@ -467,6 +500,12 @@ class FeedbackMetadata : public HeapObject {
   // The number of slots that this metadata contains. Stored as an int32.
   DECL_INT32_ACCESSORS(slot_count)
 
+  // The number of feedback cells required for create closures. Stored as an
+  // int32.
+  // TODO(mythria): Consider using 16 bits for this and slot_count so that we
+  // can save 4 bytes.
+  DECL_INT32_ACCESSORS(closure_feedback_cell_count)
+
   // Get slot_count using an acquire load.
   inline int32_t synchronized_slot_count() const;
 
@@ -478,7 +517,7 @@ class FeedbackMetadata : public HeapObject {
   inline bool is_empty() const;
 
   // Returns slot kind for given slot.
-  FeedbackSlotKind GetKind(FeedbackSlot slot) const;
+  V8_EXPORT_PRIVATE FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
   // If {spec} is null, then it is considered empty.
   V8_EXPORT_PRIVATE static Handle<FeedbackMetadata> New(
@@ -498,7 +537,8 @@ class FeedbackMetadata : public HeapObject {
   }
 
   static const int kSlotCountOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kSlotCountOffset + kInt32Size;
+  static const int kFeedbackCellCountOffset = kSlotCountOffset + kInt32Size;
+  static const int kHeaderSize = kFeedbackCellCountOffset + kInt32Size;
 
   class BodyDescriptor;
 
@@ -578,7 +618,7 @@ class FeedbackMetadataIterator {
 };
 
 // A FeedbackNexus is the combination of a FeedbackVector and a slot.
-class FeedbackNexus final {
+class V8_EXPORT_PRIVATE FeedbackNexus final {
  public:
   FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : vector_handle_(vector), slot_(slot) {
@@ -669,9 +709,6 @@ class FeedbackNexus final {
 
   typedef BitField<SpeculationMode, 0, 1> SpeculationModeField;
   typedef BitField<uint32_t, 1, 31> CallCountField;
-
-  // For CreateClosure ICs.
-  Handle<FeedbackCell> GetFeedbackCell() const;
 
   // For InstanceOf ICs.
   MaybeHandle<JSObject> GetConstructorFeedback() const;

@@ -51,6 +51,26 @@ Running test: testObjectThrowsLength
 Running test: testTypedArrayWithoutLength
   __proto__ own object undefined
 
+Running test: testClassWithPrivateFields
+  __proto__ own object undefined
+  baz own number 4
+Private properties
+  #bar number 3
+  #foo number 2
+  __proto__ own object undefined
+  baz own number 4
+Private properties
+  #bar number 3
+  #baz number 1
+  #foo number 2
+Internal properties
+  [[Handler]] object undefined
+  [[IsRevoked]] boolean false
+  [[Target]] object undefined
+Private properties
+  #bar number 3
+  #foo number 2
+
 Running test: testArrayBuffer
 [[Int8Array]]
   0 own number 1

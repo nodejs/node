@@ -15,7 +15,7 @@ namespace internal {
 template <typename T>
 class Vector;
 
-class Version {
+class V8_EXPORT Version {
  public:
   // Return the various version components.
   static int GetMajor() { return major_; }

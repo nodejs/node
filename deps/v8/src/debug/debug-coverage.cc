@@ -21,7 +21,7 @@ class SharedToCounterMap
                                        base::KeyEqualityMatcher<Object>,
                                        base::DefaultAllocationPolicy> {
  public:
-  typedef base::TemplateHashMapEntry<SharedFunctionInfo, uint32_t> Entry;
+  using Entry = base::TemplateHashMapEntry<SharedFunctionInfo, uint32_t>;
   inline void Add(SharedFunctionInfo key, uint32_t count) {
     Entry* entry = LookupOrInsert(key, Hash(key), []() { return 0; });
     uint32_t old_count = entry->value;

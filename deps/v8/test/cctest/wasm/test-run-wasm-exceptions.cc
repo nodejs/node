@@ -79,7 +79,6 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
       static_cast<uint16_t>(throw_func.function_index())};
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
-  r.builder().PopulateIndirectFunctionTable();
 
   // Build the main test function.
   BUILD(r, WASM_TRY_CATCH_T(

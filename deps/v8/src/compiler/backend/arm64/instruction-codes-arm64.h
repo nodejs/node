@@ -163,6 +163,12 @@ namespace compiler {
   V(Arm64LdrDecompressAnyTagged)            \
   V(Arm64Str)                               \
   V(Arm64StrCompressTagged)                 \
+  V(Arm64DecompressSigned)                  \
+  V(Arm64DecompressPointer)                 \
+  V(Arm64DecompressAny)                     \
+  V(Arm64CompressSigned)                    \
+  V(Arm64CompressPointer)                   \
+  V(Arm64CompressAny)                       \
   V(Arm64DsbIsb)                            \
   V(Arm64F32x4Splat)                        \
   V(Arm64F32x4ExtractLane)                  \

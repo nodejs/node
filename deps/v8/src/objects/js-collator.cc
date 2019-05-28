@@ -134,22 +134,13 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
   const char* collation = "default";
   const char* usage = "sort";
   const char* collation_key = "co";
-  const char* legacy_collation_key = uloc_toLegacyKey(collation_key);
-  DCHECK_NOT_NULL(legacy_collation_key);
-
-  char legacy_collation_value[ULOC_FULLNAME_CAPACITY];
   status = U_ZERO_ERROR;
-  int32_t length =
-      icu_locale.getKeywordValue(legacy_collation_key, legacy_collation_value,
-                                 ULOC_FULLNAME_CAPACITY, status);
+  std::string collation_value =
+      icu_locale.getUnicodeKeywordValue<std::string>(collation_key, status);
 
   std::string locale;
-  if (length > 0 && U_SUCCESS(status)) {
-    const char* collation_value =
-        uloc_toUnicodeLocaleType(collation_key, legacy_collation_value);
-    CHECK_NOT_NULL(collation_value);
-
-    if (strcmp(collation_value, "search") == 0) {
+  if (U_SUCCESS(status)) {
+    if (collation_value == "search") {
       usage = "search";
 
       // Search is disallowed as a collation value per spec. Let's
@@ -166,12 +157,12 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
       // The spec forbids the search as a collation value in the
       // locale tag, so let's filter it out.
       status = U_ZERO_ERROR;
-      new_icu_locale.setKeywordValue(legacy_collation_key, nullptr, status);
+      new_icu_locale.setUnicodeKeywordValue(collation_key, nullptr, status);
       CHECK(U_SUCCESS(status));
 
       locale = Intl::ToLanguageTag(new_icu_locale).FromJust();
     } else {
-      collation = collation_value;
+      collation = collation_value.c_str();
       locale = Intl::ToLanguageTag(icu_locale).FromJust();
     }
   } else {
@@ -348,12 +339,8 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
   // This will need to be filtered out when creating the
   // resolvedOptions object.
   if (usage == Usage::SEARCH) {
-    const char* key = uloc_toLegacyKey("co");
-    CHECK_NOT_NULL(key);
-    const char* value = uloc_toLegacyType(key, "search");
-    CHECK_NOT_NULL(value);
     UErrorCode status = U_ZERO_ERROR;
-    icu_locale.setKeywordValue(key, value, status);
+    icu_locale.setUnicodeKeywordValue("co", "search", status);
     CHECK(U_SUCCESS(status));
   }
 

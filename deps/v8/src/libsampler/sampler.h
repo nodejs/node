@@ -26,7 +26,7 @@ namespace sampler {
 // (if used for profiling) the program counter and stack pointer for
 // the thread that created it.
 
-class Sampler {
+class V8_EXPORT_PRIVATE Sampler {
  public:
   static const int kMaxFramesCountLog2 = 8;
   static const unsigned kMaxFramesCount = (1u << kMaxFramesCountLog2) - 1;
@@ -96,7 +96,7 @@ typedef std::atomic_bool AtomicMutex;
 
 // A helper that uses an std::atomic_bool to create a lock that is obtained on
 // construction and released on destruction.
-class AtomicGuard {
+class V8_EXPORT_PRIVATE AtomicGuard {
  public:
   // Attempt to obtain the lock represented by |atomic|. |is_blocking|
   // determines whether we will block to obtain the lock, or only make one
@@ -118,7 +118,7 @@ class AtomicGuard {
 
 // SamplerManager keeps a list of Samplers per thread, and allows the caller to
 // take a sample for every Sampler on the current thread.
-class SamplerManager {
+class V8_EXPORT_PRIVATE SamplerManager {
  public:
   typedef std::vector<Sampler*> SamplerList;
 

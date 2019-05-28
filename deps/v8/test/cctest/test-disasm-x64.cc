@@ -395,6 +395,8 @@ TEST(DisasmX64) {
     // logic operation
     __ andps(xmm0, xmm1);
     __ andps(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ andnps(xmm0, xmm1);
+    __ andnps(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ orps(xmm0, xmm1);
     __ orps(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ xorps(xmm0, xmm1);
@@ -684,6 +686,8 @@ TEST(DisasmX64) {
 
       __ vandps(xmm0, xmm9, xmm2);
       __ vandps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vandnps(xmm0, xmm9, xmm2);
+      __ vandnps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vxorps(xmm0, xmm1, xmm9);
       __ vxorps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vhaddps(xmm0, xmm1, xmm9);

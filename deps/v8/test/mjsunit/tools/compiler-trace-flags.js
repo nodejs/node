@@ -6,10 +6,11 @@
 // Flags: --trace-turbo-cfg-file=test/mjsunit/tools/turbo.cfg
 // Flags: --trace-turbo-path=test/mjsunit/tools
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+// Only trace the "add" function:
+// Flags: --trace-turbo-filter=add
 
 // The idea behind this test is to make sure we do not crash when using the
-// --trace-turbo flag given different sort of inputs, JS or WASM.
+// --trace-turbo flag given different sort of inputs.
 
 (function testOptimizedJS() {
   function add(a, b) {
@@ -19,17 +20,4 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   add(21, 21);
   %OptimizeFunctionOnNextCall(add);
   add(20, 22);
-})();
-
-(function testWASM() {
-  let builder = new WasmModuleBuilder();
-
-  builder.addFunction("add", kSig_i_ii)
-    .addBody([kExprGetLocal, 0,
-              kExprGetLocal, 1,
-              kExprI32Add])
-    .exportFunc();
-
-  let instance = builder.instantiate();
-  instance.exports.add(21, 21);
 })();

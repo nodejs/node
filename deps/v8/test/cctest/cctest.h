@@ -339,6 +339,10 @@ static inline i::Handle<T> GetGlobal(const char* name) {
   return i::Handle<T>::cast(value);
 }
 
+static inline v8::Local<v8::Boolean> v8_bool(bool val) {
+  return v8::Boolean::New(v8::Isolate::GetCurrent(), val);
+}
+
 static inline v8::Local<v8::Value> v8_num(double x) {
   return v8::Number::New(v8::Isolate::GetCurrent(), x);
 }
@@ -386,28 +390,29 @@ static inline int32_t v8_run_int32value(v8::Local<v8::Script> script) {
   return script->Run(context).ToLocalChecked()->Int32Value(context).FromJust();
 }
 
-
 static inline v8::Local<v8::Script> CompileWithOrigin(
-    v8::Local<v8::String> source, v8::Local<v8::String> origin_url) {
-  v8::ScriptOrigin origin(origin_url);
+    v8::Local<v8::String> source, v8::Local<v8::String> origin_url,
+    v8::Local<v8::Boolean> is_shared_cross_origin) {
+  v8::ScriptOrigin origin(origin_url, v8::Local<v8::Integer>(),
+                          v8::Local<v8::Integer>(), is_shared_cross_origin);
   v8::ScriptCompiler::Source script_source(source, origin);
   return v8::ScriptCompiler::Compile(
              v8::Isolate::GetCurrent()->GetCurrentContext(), &script_source)
       .ToLocalChecked();
 }
 
+static inline v8::Local<v8::Script> CompileWithOrigin(
+    v8::Local<v8::String> source, const char* origin_url,
+    bool is_shared_cross_origin) {
+  return CompileWithOrigin(source, v8_str(origin_url),
+                           v8_bool(is_shared_cross_origin));
+}
 
 static inline v8::Local<v8::Script> CompileWithOrigin(
-    v8::Local<v8::String> source, const char* origin_url) {
-  return CompileWithOrigin(source, v8_str(origin_url));
+    const char* source, const char* origin_url, bool is_shared_cross_origin) {
+  return CompileWithOrigin(v8_str(source), v8_str(origin_url),
+                           v8_bool(is_shared_cross_origin));
 }
-
-
-static inline v8::Local<v8::Script> CompileWithOrigin(const char* source,
-                                                      const char* origin_url) {
-  return CompileWithOrigin(v8_str(source), v8_str(origin_url));
-}
-
 
 // Helper functions that compile and run the source.
 static inline v8::MaybeLocal<v8::Value> CompileRun(

@@ -14,7 +14,7 @@
 
 namespace {
 
-typedef i::LocalArrayBufferTracker LocalTracker;
+using LocalTracker = i::LocalArrayBufferTracker;
 
 bool IsTracked(i::JSArrayBuffer buf) {
   return i::ArrayBufferTracker::IsTracked(buf);
@@ -212,7 +212,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
   {
     v8::HandleScope handle_scope(isolate);
     Handle<FixedArray> root =
-        heap->isolate()->factory()->NewFixedArray(1, TENURED);
+        heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
       v8::HandleScope handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
@@ -249,7 +249,7 @@ TEST(ArrayBuffer_LivePromotion) {
   {
     v8::HandleScope handle_scope(isolate);
     Handle<FixedArray> root =
-        heap->isolate()->factory()->NewFixedArray(1, TENURED);
+        heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
       v8::HandleScope handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
@@ -285,7 +285,7 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   {
     v8::HandleScope handle_scope(isolate);
     Handle<FixedArray> root =
-        heap->isolate()->factory()->NewFixedArray(1, TENURED);
+        heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
       v8::HandleScope handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);

@@ -4,16 +4,11 @@
 
 #include "src/profiler/profile-generator.h"
 
-#include "src/base/adapters.h"
-#include "src/debug/debug.h"
-#include "src/deoptimizer.h"
-#include "src/global-handles.h"
-#include "src/objects-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
-#include "src/unicode.h"
 
 namespace v8 {
 namespace internal {
@@ -73,6 +68,7 @@ const char* const CodeEntry::kProgramEntryName = "(program)";
 const char* const CodeEntry::kIdleEntryName = "(idle)";
 const char* const CodeEntry::kGarbageCollectorEntryName = "(garbage collector)";
 const char* const CodeEntry::kUnresolvedFunctionName = "(unresolved function)";
+const char* const CodeEntry::kRootEntryName = "(root)";
 
 base::LazyDynamicInstance<CodeEntry, CodeEntry::ProgramEntryCreateTrait>::type
     CodeEntry::kProgramEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
@@ -86,6 +82,9 @@ base::LazyDynamicInstance<CodeEntry, CodeEntry::GCEntryCreateTrait>::type
 base::LazyDynamicInstance<CodeEntry,
                           CodeEntry::UnresolvedEntryCreateTrait>::type
     CodeEntry::kUnresolvedEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
+
+base::LazyDynamicInstance<CodeEntry, CodeEntry::RootEntryCreateTrait>::type
+    CodeEntry::kRootEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
 
 CodeEntry* CodeEntry::ProgramEntryCreateTrait::Create() {
   return new CodeEntry(CodeEventListener::FUNCTION_TAG,
@@ -105,6 +104,11 @@ CodeEntry* CodeEntry::GCEntryCreateTrait::Create() {
 CodeEntry* CodeEntry::UnresolvedEntryCreateTrait::Create() {
   return new CodeEntry(CodeEventListener::FUNCTION_TAG,
                        CodeEntry::kUnresolvedFunctionName);
+}
+
+CodeEntry* CodeEntry::RootEntryCreateTrait::Create() {
+  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
+                       CodeEntry::kRootEntryName);
 }
 
 uint32_t CodeEntry::GetHash() const {
@@ -313,8 +317,9 @@ bool ProfileNode::GetLineTicks(v8::CpuProfileNode::LineTick* entries,
 
 void ProfileNode::Print(int indent) {
   int line_number = line_number_ != 0 ? line_number_ : entry_->line_number();
-  base::OS::Print("%5u %*s %s:%d %d #%d", self_ticks_, indent, "",
-                  entry_->name(), line_number, entry_->script_id(), id());
+  base::OS::Print("%5u %*s %s:%d %d %d #%d", self_ticks_, indent, "",
+                  entry_->name(), line_number, source_type(),
+                  entry_->script_id(), id());
   if (entry_->resource_name()[0] != '\0')
     base::OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
   base::OS::Print("\n");
@@ -355,9 +360,8 @@ class DeleteNodesCallback {
 };
 
 ProfileTree::ProfileTree(Isolate* isolate)
-    : root_entry_(CodeEventListener::FUNCTION_TAG, "(root)"),
-      next_node_id_(1),
-      root_(new ProfileNode(this, &root_entry_, nullptr)),
+    : next_node_id_(1),
+      root_(new ProfileNode(this, CodeEntry::root_entry(), nullptr)),
       isolate_(isolate),
       next_function_id_(1) {}
 

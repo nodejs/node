@@ -18,7 +18,7 @@ namespace heap {
 
 Handle<FeedbackVector> CreateFeedbackVectorForTest(
     v8::Isolate* isolate, Factory* factory,
-    PretenureFlag pretenure_flag = NOT_TENURED) {
+    AllocationType allocation = AllocationType::kYoung) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::Local<v8::Script> script =
       v8::Script::Compile(isolate->GetCurrentContext(),
@@ -29,8 +29,10 @@ Handle<FeedbackVector> CreateFeedbackVectorForTest(
   Handle<Object> obj = v8::Utils::OpenHandle(*script);
   Handle<SharedFunctionInfo> shared_function =
       Handle<SharedFunctionInfo>(JSFunction::cast(*obj)->shared(), i_isolate);
-  Handle<FeedbackVector> fv =
-      factory->NewFeedbackVector(shared_function, pretenure_flag);
+  Handle<ClosureFeedbackCellArray> closure_cell_array =
+      ClosureFeedbackCellArray::New(i_isolate, shared_function);
+  Handle<FeedbackVector> fv = factory->NewFeedbackVector(
+      shared_function, closure_cell_array, allocation);
   return fv;
 }
 
@@ -90,12 +92,13 @@ TEST(WeakReferencesOldToOld) {
   Heap* heap = isolate->heap();
 
   HandleScope outer_scope(isolate);
-  Handle<FeedbackVector> fv =
-      CreateFeedbackVectorForTest(CcTest::isolate(), factory, TENURED);
+  Handle<FeedbackVector> fv = CreateFeedbackVectorForTest(
+      CcTest::isolate(), factory, AllocationType::kOld);
   CHECK(heap->InOldSpace(*fv));
 
   // Create a new FixedArray which the FeedbackVector will point to.
-  Handle<FixedArray> fixed_array = factory->NewFixedArray(1, TENURED);
+  Handle<FixedArray> fixed_array =
+      factory->NewFixedArray(1, AllocationType::kOld);
   CHECK(heap->InOldSpace(*fixed_array));
   fv->set_optimized_code_weak_or_smi(HeapObjectReference::Weak(*fixed_array));
 
@@ -118,8 +121,8 @@ TEST(WeakReferencesOldToNew) {
   Heap* heap = isolate->heap();
 
   HandleScope outer_scope(isolate);
-  Handle<FeedbackVector> fv =
-      CreateFeedbackVectorForTest(CcTest::isolate(), factory, TENURED);
+  Handle<FeedbackVector> fv = CreateFeedbackVectorForTest(
+      CcTest::isolate(), factory, AllocationType::kOld);
   CHECK(heap->InOldSpace(*fv));
 
   // Create a new FixedArray which the FeedbackVector will point to.
@@ -143,8 +146,8 @@ TEST(WeakReferencesOldToNewScavenged) {
   Heap* heap = isolate->heap();
 
   HandleScope outer_scope(isolate);
-  Handle<FeedbackVector> fv =
-      CreateFeedbackVectorForTest(CcTest::isolate(), factory, TENURED);
+  Handle<FeedbackVector> fv = CreateFeedbackVectorForTest(
+      CcTest::isolate(), factory, AllocationType::kOld);
   CHECK(heap->InOldSpace(*fv));
 
   // Create a new FixedArray which the FeedbackVector will point to.
@@ -170,8 +173,8 @@ TEST(WeakReferencesOldToCleared) {
   Heap* heap = isolate->heap();
 
   HandleScope outer_scope(isolate);
-  Handle<FeedbackVector> fv =
-      CreateFeedbackVectorForTest(CcTest::isolate(), factory, TENURED);
+  Handle<FeedbackVector> fv = CreateFeedbackVectorForTest(
+      CcTest::isolate(), factory, AllocationType::kOld);
   CHECK(heap->InOldSpace(*fv));
   fv->set_optimized_code_weak_or_smi(
       HeapObjectReference::ClearedValue(isolate));

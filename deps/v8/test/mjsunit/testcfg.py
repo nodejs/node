@@ -35,6 +35,11 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 from testrunner.outproc import base as outproc
 
+try:
+  basestring       # Python 2
+except NameError:  # Python 3
+  basestring = str
+
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
 SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
@@ -62,7 +67,7 @@ class TestLoader(testsuite.JSTestLoader):
   def excluded_files(self):
     return {
       "mjsunit.js",
-      "mjsunit_suppressions.js",
+      "mjsunit_numfuzz.js",
     }
 
 
@@ -105,6 +110,9 @@ class TestCase(testcase.D8TestCase):
       mjsunit_files = []
     else:
       mjsunit_files = [os.path.join(self.suite.root, "mjsunit.js")]
+
+    if self.suite.framework_name == 'num_fuzzer':
+      mjsunit_files.append(os.path.join(self.suite.root, "mjsunit_numfuzz.js"))
 
     files_suffix = []
     if MODULE_PATTERN.search(source):

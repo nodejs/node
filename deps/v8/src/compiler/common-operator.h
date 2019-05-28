@@ -244,7 +244,7 @@ size_t hash_value(RelocatablePtrConstantInfo const& p);
 // value.
 class SparseInputMask final {
  public:
-  typedef uint32_t BitMaskType;
+  using BitMaskType = uint32_t;
 
   // The mask representing a dense input set.
   static const BitMaskType kDenseBitMask = 0x0;
@@ -399,7 +399,7 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
 //
 // Also note that it is possible for an arguments object of {kMappedArguments}
 // type to carry a backing store of {kUnappedArguments} type when {K == 0}.
-typedef CreateArgumentsType ArgumentsStateType;
+using ArgumentsStateType = CreateArgumentsType;
 
 ArgumentsStateType ArgumentsStateTypeOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
@@ -438,7 +438,8 @@ V8_EXPORT_PRIVATE IfValueParameters const& IfValueParametersOf(
 const FrameStateInfo& FrameStateInfoOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
-Handle<HeapObject> HeapConstantOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE Handle<HeapObject> HeapConstantOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
 
 const StringConstantBase* StringConstantBaseOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;

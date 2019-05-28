@@ -15,11 +15,13 @@
 
 namespace v8 {
 
-IsolateWrapper::IsolateWrapper(bool enforce_pointer_compression)
+IsolateWrapper::IsolateWrapper(CounterLookupCallback counter_lookup_callback,
+                               bool enforce_pointer_compression)
     : array_buffer_allocator_(
           v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = array_buffer_allocator_;
+  create_params.counter_lookup_callback = counter_lookup_callback;
   if (enforce_pointer_compression) {
     isolate_ = reinterpret_cast<v8::Isolate*>(
         i::Isolate::New(i::IsolateAllocationMode::kInV8Heap));
@@ -41,21 +43,40 @@ IsolateWrapper::~IsolateWrapper() {
 // static
 v8::IsolateWrapper* SharedIsolateHolder::isolate_wrapper_ = nullptr;
 
+// static
+int* SharedIsolateAndCountersHolder::LookupCounter(const char* name) {
+  DCHECK_NOT_NULL(counter_map_);
+  auto map_entry = counter_map_->find(name);
+  if (map_entry == counter_map_->end()) {
+    counter_map_->emplace(name, 0);
+  }
+  return &counter_map_->at(name);
+}
+
+// static
+v8::IsolateWrapper* SharedIsolateAndCountersHolder::isolate_wrapper_ = nullptr;
+
+// static
+CounterMap* SharedIsolateAndCountersHolder::counter_map_ = nullptr;
+
 namespace internal {
 
-SaveFlags::SaveFlags() { non_default_flags_ = FlagList::argv(); }
+SaveFlags::SaveFlags() {
+  // For each flag, save the current flag value.
+#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) SAVED_##nam = FLAG_##nam;
+#include "src/flag-definitions.h"  // NOLINT
+#undef FLAG_MODE_APPLY
+}
 
 SaveFlags::~SaveFlags() {
-  FlagList::ResetAllFlags();
-  int argc = static_cast<int>(non_default_flags_->size());
-  FlagList::SetFlagsFromCommandLine(
-      &argc, const_cast<char**>(non_default_flags_->data()),
-      false /* remove_flags */);
-  for (auto flag = non_default_flags_->begin();
-       flag != non_default_flags_->end(); ++flag) {
-    delete[] * flag;
+  // For each flag, set back the old flag value if it changed (don't write the
+  // flag if it didn't change, to keep TSAN happy).
+#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) \
+  if (SAVED_##nam != FLAG_##nam) {                   \
+    FLAG_##nam = SAVED_##nam;                        \
   }
-  delete non_default_flags_;
+#include "src/flag-definitions.h"  // NOLINT
+#undef FLAG_MODE_APPLY
 }
 
 }  // namespace internal

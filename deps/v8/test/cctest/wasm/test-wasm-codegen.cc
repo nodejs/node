@@ -47,7 +47,7 @@ bool TrueCallback(Local<v8::Context>, Local<v8::String>) { return true; }
 
 bool FalseCallback(Local<v8::Context>, Local<v8::String>) { return false; }
 
-typedef bool (*CallbackFn)(Local<v8::Context>, Local<v8::String>);
+using CallbackFn = bool (*)(Local<v8::Context>, Local<v8::String>);
 
 // Defines the Callback to use for the corresponding TestValue.
 CallbackFn Callback[kNumTestValues] = {nullptr, FalseCallback, TrueCallback};

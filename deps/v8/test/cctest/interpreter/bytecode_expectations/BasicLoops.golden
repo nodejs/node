@@ -714,7 +714,7 @@ bytecodes: [
   /*  113 S> */ B(PopContext), R(3),
                 B(Jump), U8(10),
   /*  126 S> */ B(LdaCurrentContextSlot), U8(4),
-                B(Inc), U8(1),
+                B(Inc), U8(0),
   /*  127 E> */ B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(3),
                 B(JumpLoop), U8(41), I8(0),

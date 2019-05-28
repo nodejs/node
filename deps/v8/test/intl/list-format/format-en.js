@@ -53,10 +53,10 @@ assertEquals('', enShortConjunction.format());
 assertEquals('', enShortConjunction.format([]));
 assertEquals('a', enShortConjunction.format(['a']));
 assertEquals('b', enShortConjunction.format(['b']));
-assertEquals('a and b', enShortConjunction.format(['a', 'b']));
-assertEquals('a, b, and c', enShortConjunction.format(['a', 'b', 'c']));
-assertEquals('a, b, c, and d', enShortConjunction.format(['a', 'b', 'c', 'd']));
-assertEquals('a, b, c, d, and and',
+assertEquals('a & b', enShortConjunction.format(['a', 'b']));
+assertEquals('a, b, & c', enShortConjunction.format(['a', 'b', 'c']));
+assertEquals('a, b, c, & d', enShortConjunction.format(['a', 'b', 'c', 'd']));
+assertEquals('a, b, c, d, & and',
    enShortConjunction.format(['a', 'b', 'c', 'd', 'and']));
 
 let enShortDisjunction = new Intl.ListFormat(

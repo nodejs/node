@@ -22,7 +22,7 @@ class RegisterConfiguration;
 namespace wasm {
 struct FunctionBody;
 class NativeModule;
-class WasmCode;
+struct WasmCompilationResult;
 class WasmEngine;
 struct WasmModule;
 }  // namespace wasm
@@ -54,11 +54,10 @@ class Pipeline : public AllStatic {
       int function_index);
 
   // Run the pipeline on a machine graph and generate code.
-  static wasm::WasmCode* GenerateCodeForWasmNativeStub(
+  static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(
       wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
       MachineGraph* mcgraph, Code::Kind kind, int wasm_kind,
       const char* debug_name, const AssemblerOptions& assembler_options,
-      wasm::NativeModule* native_module,
       SourcePositionTable* source_positions = nullptr);
 
   // Run the pipeline on a machine graph and generate code.
@@ -83,7 +82,7 @@ class Pipeline : public AllStatic {
   // Run the pipeline on JavaScript bytecode and generate code.
   // If requested, hands out the heap broker, which is allocated
   // in {info}'s zone.
-  static MaybeHandle<Code> GenerateCodeForTesting(
+  V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate,
       JSHeapBroker** out_broker = nullptr);
 

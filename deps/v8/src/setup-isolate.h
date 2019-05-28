@@ -5,6 +5,8 @@
 #ifndef V8_SETUP_ISOLATE_H_
 #define V8_SETUP_ISOLATE_H_
 
+#include "src/base/macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -30,7 +32,7 @@ class Interpreter;
 // The actual implementations of generation of builtins and handlers is in
 // setup-builtins-internal.cc and setup-interpreter-internal.cc, and is
 // linked in by the latter two Delegate implementations.
-class SetupIsolateDelegate {
+class V8_EXPORT_PRIVATE SetupIsolateDelegate {
  public:
   explicit SetupIsolateDelegate(bool create_heap_objects)
       : create_heap_objects_(create_heap_objects) {}

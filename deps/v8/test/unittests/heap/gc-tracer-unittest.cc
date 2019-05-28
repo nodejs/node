@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-typedef TestWithContext GCTracerTest;
+using GCTracerTest = TestWithContext;
 
 TEST(GCTracer, AverageSpeed) {
   base::RingBuffer<BytesAndDuration> buffer;

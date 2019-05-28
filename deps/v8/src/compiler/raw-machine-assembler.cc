@@ -4,6 +4,7 @@
 
 #include "src/compiler/raw-machine-assembler.h"
 
+#include "src/base/small-vector.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
@@ -69,8 +70,8 @@ Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
 }
 
 Node* RawMachineAssembler::OptimizedAllocate(Node* size,
-                                             PretenureFlag pretenure) {
-  return AddNode(simplified()->AllocateRaw(Type::Any(), pretenure), size);
+                                             AllocationType allocation) {
+  return AddNode(simplified()->AllocateRaw(Type::Any(), allocation), size);
 }
 
 Schedule* RawMachineAssembler::Export() {
@@ -512,7 +513,7 @@ void RawMachineAssembler::Return(Node* v1, Node* v2, Node* v3, Node* v4) {
 }
 
 void RawMachineAssembler::Return(int count, Node* vs[]) {
-  typedef Node* Node_ptr;
+  using Node_ptr = Node*;
   Node** values = new Node_ptr[count + 1];
   values[0] = Int32Constant(0);
   for (int i = 0; i < count; ++i) values[i + 1] = vs[i];
@@ -599,192 +600,49 @@ Node* RawMachineAssembler::TailCallN(CallDescriptor* call_descriptor,
   return tail_call;
 }
 
-Node* RawMachineAssembler::CallCFunction0(MachineType return_type,
-                                          Node* function) {
-  MachineSignature::Builder builder(zone(), 1, 0);
-  builder.AddReturn(return_type);
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+namespace {
 
-  return AddNode(common()->Call(call_descriptor), function);
+Node* CallCFunctionImpl(
+    RawMachineAssembler* rasm, Node* function, MachineType return_type,
+    std::initializer_list<RawMachineAssembler::CFunctionArg> args,
+    bool caller_saved_regs, SaveFPRegsMode mode) {
+  static constexpr std::size_t kNumCArgs = 10;
+
+  MachineSignature::Builder builder(rasm->zone(), 1, args.size());
+  builder.AddReturn(return_type);
+  for (const auto& arg : args) builder.AddParam(arg.first);
+
+  auto call_descriptor =
+      Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Build());
+
+  if (caller_saved_regs) call_descriptor->set_save_fp_mode(mode);
+
+  base::SmallVector<Node*, kNumCArgs> nodes(args.size() + 1);
+  nodes[0] = function;
+  std::transform(
+      args.begin(), args.end(), std::next(nodes.begin()),
+      [](const RawMachineAssembler::CFunctionArg& arg) { return arg.second; });
+
+  auto common = rasm->common();
+  return rasm->AddNode(
+      caller_saved_regs ? common->CallWithCallerSavedRegisters(call_descriptor)
+                        : common->Call(call_descriptor),
+      static_cast<int>(nodes.size()), nodes.begin());
 }
 
+}  // namespace
 
-Node* RawMachineAssembler::CallCFunction1(MachineType return_type,
-                                          MachineType arg0_type, Node* function,
-                                          Node* arg0) {
-  MachineSignature::Builder builder(zone(), 1, 1);
-  builder.AddReturn(return_type);
-  builder.AddParam(arg0_type);
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-
-  return AddNode(common()->Call(call_descriptor), function, arg0);
+Node* RawMachineAssembler::CallCFunction(
+    Node* function, MachineType return_type,
+    std::initializer_list<RawMachineAssembler::CFunctionArg> args) {
+  return CallCFunctionImpl(this, function, return_type, args, false,
+                           kDontSaveFPRegs);
 }
 
-Node* RawMachineAssembler::CallCFunction1WithCallerSavedRegisters(
-    MachineType return_type, MachineType arg0_type, Node* function, Node* arg0,
-    SaveFPRegsMode mode) {
-  MachineSignature::Builder builder(zone(), 1, 1);
-  builder.AddReturn(return_type);
-  builder.AddParam(arg0_type);
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-
-  call_descriptor->set_save_fp_mode(mode);
-
-  return AddNode(common()->CallWithCallerSavedRegisters(call_descriptor),
-                 function, arg0);
-}
-
-Node* RawMachineAssembler::CallCFunction2(MachineType return_type,
-                                          MachineType arg0_type,
-                                          MachineType arg1_type, Node* function,
-                                          Node* arg0, Node* arg1) {
-  MachineSignature::Builder builder(zone(), 1, 2);
-  builder.AddReturn(return_type);
-  builder.AddParam(arg0_type);
-  builder.AddParam(arg1_type);
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-
-  return AddNode(common()->Call(call_descriptor), function, arg0, arg1);
-}
-
-Node* RawMachineAssembler::CallCFunction3(MachineType return_type,
-                                          MachineType arg0_type,
-                                          MachineType arg1_type,
-                                          MachineType arg2_type, Node* function,
-                                          Node* arg0, Node* arg1, Node* arg2) {
-  MachineSignature::Builder builder(zone(), 1, 3);
-  builder.AddReturn(return_type);
-  builder.AddParam(arg0_type);
-  builder.AddParam(arg1_type);
-  builder.AddParam(arg2_type);
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-
-  return AddNode(common()->Call(call_descriptor), function, arg0, arg1, arg2);
-}
-
-Node* RawMachineAssembler::CallCFunction3WithCallerSavedRegisters(
-    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
-    SaveFPRegsMode mode) {
-  MachineSignature::Builder builder(zone(), 1, 3);
-  builder.AddReturn(return_type);
-  builder.AddParam(arg0_type);
-  builder.AddParam(arg1_type);
-  builder.AddParam(arg2_type);
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-
-  call_descriptor->set_save_fp_mode(mode);
-
-  return AddNode(common()->CallWithCallerSavedRegisters(call_descriptor),
-                 function, arg0, arg1, arg2);
-}
-
-Node* RawMachineAssembler::CallCFunction4(
-    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, MachineType arg3_type, Node* function, Node* arg0,
-    Node* arg1, Node* arg2, Node* arg3) {
-  MachineSignature::Builder builder(zone(), 1, 4);
-  builder.AddReturn(return_type);
-  builder.AddParam(arg0_type);
-  builder.AddParam(arg1_type);
-  builder.AddParam(arg2_type);
-  builder.AddParam(arg3_type);
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-
-  return AddNode(common()->Call(call_descriptor), function, arg0, arg1, arg2,
-                 arg3);
-}
-
-Node* RawMachineAssembler::CallCFunction5(
-    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
-    Node* function, Node* arg0, Node* arg1, Node* arg2, Node* arg3,
-    Node* arg4) {
-  MachineSignature::Builder builder(zone(), 1, 5);
-  builder.AddReturn(return_type);
-  builder.AddParam(arg0_type);
-  builder.AddParam(arg1_type);
-  builder.AddParam(arg2_type);
-  builder.AddParam(arg3_type);
-  builder.AddParam(arg4_type);
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-
-  return AddNode(common()->Call(call_descriptor), function, arg0, arg1, arg2,
-                 arg3, arg4);
-}
-
-Node* RawMachineAssembler::CallCFunction6(
-    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
-    MachineType arg5_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
-    Node* arg3, Node* arg4, Node* arg5) {
-  MachineSignature::Builder builder(zone(), 1, 6);
-  builder.AddReturn(return_type);
-  builder.AddParam(arg0_type);
-  builder.AddParam(arg1_type);
-  builder.AddParam(arg2_type);
-  builder.AddParam(arg3_type);
-  builder.AddParam(arg4_type);
-  builder.AddParam(arg5_type);
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-
-  return AddNode(common()->Call(call_descriptor), function, arg0, arg1, arg2,
-                 arg3, arg4, arg5);
-}
-
-Node* RawMachineAssembler::CallCFunction8(
-    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
-    MachineType arg5_type, MachineType arg6_type, MachineType arg7_type,
-    Node* function, Node* arg0, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-    Node* arg5, Node* arg6, Node* arg7) {
-  MachineSignature::Builder builder(zone(), 1, 8);
-  builder.AddReturn(return_type);
-  builder.AddParam(arg0_type);
-  builder.AddParam(arg1_type);
-  builder.AddParam(arg2_type);
-  builder.AddParam(arg3_type);
-  builder.AddParam(arg4_type);
-  builder.AddParam(arg5_type);
-  builder.AddParam(arg6_type);
-  builder.AddParam(arg7_type);
-  Node* args[] = {function, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7};
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-  return AddNode(common()->Call(call_descriptor), arraysize(args), args);
-}
-
-Node* RawMachineAssembler::CallCFunction9(
-    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
-    MachineType arg5_type, MachineType arg6_type, MachineType arg7_type,
-    MachineType arg8_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
-    Node* arg3, Node* arg4, Node* arg5, Node* arg6, Node* arg7, Node* arg8) {
-  MachineSignature::Builder builder(zone(), 1, 9);
-  builder.AddReturn(return_type);
-  builder.AddParam(arg0_type);
-  builder.AddParam(arg1_type);
-  builder.AddParam(arg2_type);
-  builder.AddParam(arg3_type);
-  builder.AddParam(arg4_type);
-  builder.AddParam(arg5_type);
-  builder.AddParam(arg6_type);
-  builder.AddParam(arg7_type);
-  builder.AddParam(arg8_type);
-  Node* args[] = {function, arg0, arg1, arg2, arg3,
-                  arg4,     arg5, arg6, arg7, arg8};
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-  return AddNode(common()->Call(call_descriptor), arraysize(args), args);
+Node* RawMachineAssembler::CallCFunctionWithCallerSavedRegisters(
+    Node* function, MachineType return_type, SaveFPRegsMode mode,
+    std::initializer_list<RawMachineAssembler::CFunctionArg> args) {
+  return CallCFunctionImpl(this, function, return_type, args, true, mode);
 }
 
 BasicBlock* RawMachineAssembler::Use(RawMachineLabel* label) {

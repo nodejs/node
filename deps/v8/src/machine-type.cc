@@ -11,10 +11,12 @@ namespace internal {
 bool IsSubtype(MachineRepresentation rep1, MachineRepresentation rep2) {
   if (rep1 == rep2) return true;
   switch (rep1) {
-    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedSigned:  // Fall through.
+    case MachineRepresentation::kTaggedPointer:
       return rep2 == MachineRepresentation::kTagged;
-    case MachineRepresentation ::kTaggedPointer:
-      return rep2 == MachineRepresentation ::kTagged;
+    case MachineRepresentation::kCompressedSigned:  // Fall through.
+    case MachineRepresentation::kCompressedPointer:
+      return rep2 == MachineRepresentation::kCompressed;
     default:
       return false;
   }
@@ -50,6 +52,12 @@ const char* MachineReprToString(MachineRepresentation rep) {
       return "kRepTaggedPointer";
     case MachineRepresentation::kTagged:
       return "kRepTagged";
+    case MachineRepresentation::kCompressedSigned:
+      return "kRepCompressedSigned";
+    case MachineRepresentation::kCompressedPointer:
+      return "kRepCompressedPointer";
+    case MachineRepresentation::kCompressed:
+      return "kRepCompressed";
   }
   UNREACHABLE();
 }

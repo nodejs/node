@@ -421,8 +421,6 @@ class Generic : public Declarable {
       : Declarable(Declarable::kGeneric),
         name_(name),
         declaration_(declaration) {}
-  base::Optional<const Type*> InferTypeArgument(size_t i,
-                                                const TypeVector& arguments);
 
   std::string name_;
   std::unordered_map<TypeVector, Callable*, base::hash<TypeVector>>

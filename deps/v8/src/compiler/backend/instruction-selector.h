@@ -539,6 +539,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void MarkAsReference(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kTagged, node);
   }
+  void MarkAsCompressed(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kCompressed, node);
+  }
 
   // Inform the register allocation of the representation of the unallocated
   // operand {op}.
@@ -552,7 +555,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     kCallFixedTargetRegister = 1u << 3,
     kAllowCallThroughSlot = 1u << 4
   };
-  typedef base::Flags<CallBufferFlag> CallBufferFlags;
+  using CallBufferFlags = base::Flags<CallBufferFlag>;
 
   // Initialize the call buffer with the InstructionOperands, nodes, etc,
   // corresponding

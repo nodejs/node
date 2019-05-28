@@ -523,6 +523,14 @@ void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
   }
 }
 
+void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
+  if (lhs != dst) {
+    lea(dst, Operand(lhs, imm));
+  } else {
+    add(dst, Immediate(imm));
+  }
+}
+
 void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
   if (dst != rhs) {
     // Default path.
@@ -793,11 +801,46 @@ inline void OpWithCarry(LiftoffAssembler* assm, LiftoffRegister dst,
   LiftoffRegister tmp_result = LiftoffRegister::ForPair(dst_low, dst_high);
   if (tmp_result != dst) assm->Move(dst, tmp_result, kWasmI64);
 }
+
+template <void (Assembler::*op)(Register, const Immediate&),
+          void (Assembler::*op_with_carry)(Register, int32_t)>
+inline void OpWithCarryI(LiftoffAssembler* assm, LiftoffRegister dst,
+                         LiftoffRegister lhs, int32_t imm) {
+  // First, compute the low half of the result, potentially into a temporary dst
+  // register if {dst.low_gp()} equals any register we need to
+  // keep alive for computing the upper half.
+  LiftoffRegList keep_alive = LiftoffRegList::ForRegs(lhs.high_gp());
+  Register dst_low = keep_alive.has(dst.low_gp())
+                         ? assm->GetUnusedRegister(kGpReg, keep_alive).gp()
+                         : dst.low_gp();
+
+  if (dst_low != lhs.low_gp()) assm->mov(dst_low, lhs.low_gp());
+  (assm->*op)(dst_low, Immediate(imm));
+
+  // Now compute the upper half, while keeping alive the previous result.
+  keep_alive = LiftoffRegList::ForRegs(dst_low);
+  Register dst_high = keep_alive.has(dst.high_gp())
+                          ? assm->GetUnusedRegister(kGpReg, keep_alive).gp()
+                          : dst.high_gp();
+
+  if (dst_high != lhs.high_gp()) assm->mov(dst_high, lhs.high_gp());
+  // Top half of the immediate sign extended, either 0 or -1.
+  (assm->*op_with_carry)(dst_high, imm < 0 ? -1 : 0);
+
+  // If necessary, move result into the right registers.
+  LiftoffRegister tmp_result = LiftoffRegister::ForPair(dst_low, dst_high);
+  if (tmp_result != dst) assm->Move(dst, tmp_result, kWasmI64);
+}
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   liftoff::OpWithCarry<&Assembler::add, &Assembler::adc>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  liftoff::OpWithCarryI<&Assembler::add, &Assembler::adc>(this, dst, lhs, imm);
 }
 
 void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,

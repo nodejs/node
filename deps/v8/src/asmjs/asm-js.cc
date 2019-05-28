@@ -355,11 +355,11 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   instantiate_timer.Start();
   Handle<HeapNumber> uses_bitset(wasm_data->uses_bitset(), isolate);
   Handle<Script> script(Script::cast(shared->script()), isolate);
+  const auto& wasm_engine = isolate->wasm_engine();
 
   // Allocate the WasmModuleObject.
   Handle<WasmModuleObject> module =
-      isolate->wasm_engine()->FinalizeTranslatedAsmJs(isolate, wasm_data,
-                                                      script);
+      wasm_engine->FinalizeTranslatedAsmJs(isolate, wasm_data, script);
 
   // TODO(mstarzinger): The position currently points to the module definition
   // but should instead point to the instantiation site (more intuitive).
@@ -387,7 +387,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       ReportInstantiationFailure(script, position, "Requires heap buffer");
       return MaybeHandle<Object>();
     }
-    memory->set_is_growable(false);
+    wasm_engine->memory_tracker()->MarkWasmMemoryNotGrowable(memory);
     size_t size = memory->byte_length();
     // Check the asm.js heap size against the valid limits.
     if (!IsValidAsmjsMemorySize(size)) {
@@ -400,8 +400,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
 
   wasm::ErrorThrower thrower(isolate, "AsmJs::Instantiate");
   MaybeHandle<Object> maybe_module_object =
-      isolate->wasm_engine()->SyncInstantiate(isolate, &thrower, module,
-                                              foreign, memory);
+      wasm_engine->SyncInstantiate(isolate, &thrower, module, foreign, memory);
   if (maybe_module_object.is_null()) {
     // An exception caused by the module start function will be set as pending
     // and bypass the {ErrorThrower}, this happens in case of a stack overflow.

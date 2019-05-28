@@ -64,7 +64,7 @@ V8_INLINE V8_EXPORT_PRIVATE NodeOriginAsJSON AsJSON(const NodeOrigin& no) {
 std::ostream& operator<<(std::ostream& out, const SourcePositionAsJSON& pos);
 
 // Small helper that deduplicates SharedFunctionInfos.
-class SourceIdAssigner {
+class V8_EXPORT_PRIVATE SourceIdAssigner {
  public:
   explicit SourceIdAssigner(size_t size) {
     printed_.reserve(size);

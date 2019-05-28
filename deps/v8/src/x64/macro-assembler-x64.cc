@@ -307,17 +307,24 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
   DCHECK(!AreAliased(destination, scratch));
   RecordComment("[ DecompressAnyTagged");
   movsxlq(destination, field_operand);
-  // Branchlessly compute |masked_root|:
-  // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
-  STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
-  Register masked_root = scratch;
-  movl(masked_root, destination);
-  andl(masked_root, Immediate(kSmiTagMask));
-  negq(masked_root);
-  andq(masked_root, kRootRegister);
-  // Now this add operation will either leave the value unchanged if it is a smi
-  // or add the isolate root if it is a heap object.
-  addq(destination, masked_root);
+  if (kUseBranchlessPtrDecompression) {
+    // Branchlessly compute |masked_root|:
+    // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
+    STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
+    Register masked_root = scratch;
+    movl(masked_root, destination);
+    andl(masked_root, Immediate(kSmiTagMask));
+    negq(masked_root);
+    andq(masked_root, kRootRegister);
+    // Now this add operation will either leave the value unchanged if it is
+    // a smi or add the isolate root if it is a heap object.
+    addq(destination, masked_root);
+  } else {
+    Label done;
+    JumpIfSmi(destination, &done);
+    addq(destination, kRootRegister);
+    bind(&done);
+  }
   RecordComment("]");
 }
 
@@ -379,6 +386,29 @@ void TurboAssembler::RestoreRegisters(RegList registers) {
   }
 }
 
+void TurboAssembler::CallEphemeronKeyBarrier(Register object, Register address,
+                                             SaveFPRegsMode fp_mode) {
+  EphemeronKeyBarrierDescriptor descriptor;
+  RegList registers = descriptor.allocatable_registers();
+
+  SaveRegisters(registers);
+
+  Register object_parameter(
+      descriptor.GetRegisterParameter(EphemeronKeyBarrierDescriptor::kObject));
+  Register slot_parameter(descriptor.GetRegisterParameter(
+      EphemeronKeyBarrierDescriptor::kSlotAddress));
+  Register fp_mode_parameter(
+      descriptor.GetRegisterParameter(EphemeronKeyBarrierDescriptor::kFPMode));
+
+  MovePair(slot_parameter, address, object_parameter, object);
+  Smi smi_fm = Smi::FromEnum(fp_mode);
+  Move(fp_mode_parameter, smi_fm);
+  Call(isolate()->builtins()->builtin_handle(Builtins::kEphemeronKeyBarrier),
+       RelocInfo::CODE_TARGET);
+
+  RestoreRegisters(registers);
+}
+
 void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode) {
@@ -419,21 +449,7 @@ void TurboAssembler::CallRecordWriteStub(
   // Prepare argument registers for calling RecordWrite
   // slot_parameter   <= address
   // object_parameter <= object
-  if (slot_parameter != object) {
-    // Normal case
-    Move(slot_parameter, address);
-    Move(object_parameter, object);
-  } else if (object_parameter != address) {
-    // Only slot_parameter and object are the same register
-    // object_parameter <= object
-    // slot_parameter   <= address
-    Move(object_parameter, object);
-    Move(slot_parameter, address);
-  } else {
-    // slot_parameter   \/ address
-    // object_parameter /\ object
-    xchgq(slot_parameter, object_parameter);
-  }
+  MovePair(slot_parameter, address, object_parameter, object);
 
   Smi smi_rsa = Smi::FromEnum(remembered_set_action);
   Smi smi_fm = Smi::FromEnum(fp_mode);
@@ -499,10 +515,6 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   CallRecordWriteStub(object, address, remembered_set_action, fp_mode);
 
   bind(&done);
-
-  // Count number of write barriers in generated code.
-  isolate()->counters()->write_barriers_static()->Increment();
-  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1);
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
@@ -1294,6 +1306,25 @@ void TurboAssembler::Push(Smi source) {
 void TurboAssembler::Move(Register dst, Register src) {
   if (dst != src) {
     movq(dst, src);
+  }
+}
+
+void TurboAssembler::MovePair(Register dst0, Register src0, Register dst1,
+                              Register src1) {
+  if (dst0 != src1) {
+    // Normal case: Writing to dst0 does not destroy src1.
+    Move(dst0, src0);
+    Move(dst1, src1);
+  } else if (dst1 != src0) {
+    // Only dst0 and src1 are the same register,
+    // but writing to dst1 does not destroy src0.
+    Move(dst1, src1);
+    Move(dst0, src0);
+  } else {
+    // dst0 == src1, and dst1 == src0, a swap is required:
+    // dst0 \/ src0
+    // dst1 /\ src1
+    xchgq(dst0, dst1);
   }
 }
 
@@ -2107,6 +2138,9 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     Operand counter_operand =
         ExternalReferenceAsOperand(ExternalReference::Create(counter));
+    // This operation has to be exactly 32-bit wide in case the external
+    // reference table redirects the counter to a uint32_t dummy_stats_counter_
+    // field.
     if (value == 1) {
       incl(counter_operand);
     } else {
@@ -2121,6 +2155,9 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     Operand counter_operand =
         ExternalReferenceAsOperand(ExternalReference::Create(counter));
+    // This operation has to be exactly 32-bit wide in case the external
+    // reference table redirects the counter to a uint32_t dummy_stats_counter_
+    // field.
     if (value == 1) {
       decl(counter_operand);
     } else {
@@ -2422,12 +2459,10 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax,
   pushq(rbp);
   movq(rbp, rsp);
 
-  // Reserve room for entry stack pointer and push the code object.
+  // Reserve room for entry stack pointer.
   Push(Immediate(StackFrame::TypeToMarker(frame_type)));
   DCHECK_EQ(-2 * kSystemPointerSize, ExitFrameConstants::kSPOffset);
   Push(Immediate(0));  // Saved entry sp, patched before call.
-  Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
-  Push(kScratchRegister);  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
   if (save_rax) {

@@ -307,7 +307,9 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
   std::string catch_name =
       PreCallableExceptionPreparation(instruction.catch_block);
   out_ << "    ";
-  if (return_type->IsStructType()) {
+  bool needs_flattening =
+      return_type->IsStructType() || return_type->IsReferenceType();
+  if (needs_flattening) {
     out_ << "std::tie(";
     PrintCommaSeparatedList(out_, results);
     out_ << ") = ";
@@ -315,12 +317,14 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
     if (results.size() == 1) {
       out_ << results[0] << " = ca_.UncheckedCast<"
            << return_type->GetGeneratedTNodeTypeName() << ">(";
+    } else {
+      DCHECK_EQ(0, results.size());
     }
   }
   out_ << instruction.macro->external_assembler_name() << "(state_)."
        << instruction.macro->ExternalName() << "(";
   PrintCommaSeparatedList(out_, args);
-  if (return_type->IsStructType()) {
+  if (needs_flattening) {
     out_ << ").Flatten();\n";
   } else {
     if (results.size() == 1) out_ << ")";
@@ -650,7 +654,7 @@ void CSAGenerator::EmitInstruction(const GotoExternalInstruction& instruction,
 void CSAGenerator::EmitInstruction(const ReturnInstruction& instruction,
                                    Stack<std::string>* stack) {
   if (*linkage_ == Builtin::kVarArgsJavaScript) {
-    out_ << "    " << ARGUMENTS_VARIABLE_STRING << "->PopAndReturn(";
+    out_ << "    " << ARGUMENTS_VARIABLE_STRING << ".PopAndReturn(";
   } else {
     out_ << "    CodeStubAssembler(state_).Return(";
   }
@@ -695,69 +699,49 @@ void CSAGenerator::EmitInstruction(const UnsafeCastInstruction& instruction,
 }
 
 void CSAGenerator::EmitInstruction(
-    const LoadObjectFieldInstruction& instruction, Stack<std::string>* stack) {
+    const CreateFieldReferenceInstruction& instruction,
+    Stack<std::string>* stack) {
   const Field& field =
       instruction.class_type->LookupField(instruction.field_name);
-  std::string result_name = FreshNodeName();
+  std::string offset_name = FreshNodeName();
+  stack->Push(offset_name);
 
-  size_t field_size;
-  std::string size_string;
-  std::string machine_type;
-  std::tie(field_size, size_string, machine_type) =
-      field.GetFieldSizeInformation();
-
+  out_ << "    compiler::TNode<IntPtrT> " << offset_name
+       << " = ca_.IntPtrConstant(";
   if (instruction.class_type->IsExtern()) {
-    out_ << field.name_and_type.type->GetGeneratedTypeName() << " "
-         << result_name << " = ca_.UncheckedCast<"
-         << field.name_and_type.type->GetGeneratedTNodeTypeName()
-         << ">(CodeStubAssembler(state_).LoadObjectField(" << stack->Top()
-         << ", " << field.aggregate->GetGeneratedTNodeTypeName() << "::k"
-         << CamelifyString(field.name_and_type.name) << "Offset, "
-         << machine_type + "));\n";
+    out_ << field.aggregate->GetGeneratedTNodeTypeName() << "::k"
+         << CamelifyString(field.name_and_type.name) << "Offset";
   } else {
-    out_ << field.name_and_type.type->GetGeneratedTypeName() << " "
-         << result_name << " = ca_.UncheckedCast<"
-         << field.name_and_type.type->GetGeneratedTNodeTypeName()
-         << ">(CodeStubAssembler(state_).UnsafeLoadFixedArrayElement("
-         << stack->Top() << ", " << (field.offset / kTaggedSize) << "));\n";
+    out_ << "FixedArray::kHeaderSize + " << field.offset;
   }
-  stack->Poke(stack->AboveTop() - 1, result_name);
+  out_ << ");\n"
+       << "    USE(" << stack->Top() << ");\n";
 }
 
-void CSAGenerator::EmitInstruction(
-    const StoreObjectFieldInstruction& instruction, Stack<std::string>* stack) {
-  auto value = stack->Pop();
-  auto object = stack->Pop();
-  stack->Push(value);
-  const Field& field =
-      instruction.class_type->LookupField(instruction.field_name);
-  if (instruction.class_type->IsExtern()) {
-    if (field.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-      if (field.offset == 0) {
-        out_ << "    CodeStubAssembler(state_).StoreMap(" << object << ", "
-             << value << ");\n";
-      } else {
-        out_ << "    CodeStubAssembler(state_).StoreObjectField(" << object
-             << ", " << field.offset << ", " << value << ");\n";
-      }
-    } else {
-      size_t field_size;
-      std::string size_string;
-      std::string machine_type;
-      std::tie(field_size, size_string, machine_type) =
-          field.GetFieldSizeInformation();
-      if (field.offset == 0) {
-        ReportError("the first field in a class object must be a map");
-      }
-      out_ << "    CodeStubAssembler(state_).StoreObjectFieldNoWriteBarrier("
-           << object << ", " << field.offset << ", " << value << ", "
-           << machine_type << ".representation());\n";
-    }
-  } else {
-    out_ << "    CodeStubAssembler(state_).UnsafeStoreFixedArrayElement("
-         << object << ", " << (field.offset / kTaggedSize) << ", " << value
-         << ");\n";
-  }
+void CSAGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
+                                   Stack<std::string>* stack) {
+  std::string result_name = FreshNodeName();
+
+  std::string offset = stack->Pop();
+  std::string object = stack->Pop();
+  stack->Push(result_name);
+
+  out_ << "    " << instruction.type->GetGeneratedTypeName() << result_name
+       << " = CodeStubAssembler(state_).LoadReference<"
+       << instruction.type->GetGeneratedTNodeTypeName()
+       << ">(CodeStubAssembler::Reference{" << object << ", " << offset
+       << "});\n";
+}
+
+void CSAGenerator::EmitInstruction(const StoreReferenceInstruction& instruction,
+                                   Stack<std::string>* stack) {
+  std::string value = stack->Pop();
+  std::string offset = stack->Pop();
+  std::string object = stack->Pop();
+
+  out_ << "    CodeStubAssembler(state_).StoreReference(CodeStubAssembler::"
+          "Reference{"
+       << object << ", " << offset << "}, " << value << ");\n";
 }
 
 // static
@@ -778,6 +762,11 @@ void CSAGenerator::EmitCSAValue(VisitResult result,
                    out);
     }
     out << "}";
+  } else if (result.type()->IsReferenceType()) {
+    DCHECK_EQ(2, result.stack_range().Size());
+    size_t offset = result.stack_range().begin().offset;
+    out << "CodeStubAssembler::Reference{" << values.Peek(BottomOffset{offset})
+        << ", " << values.Peek(BottomOffset{offset + 1}) << "}";
   } else {
     DCHECK_EQ(1, result.stack_range().Size());
     out << "compiler::TNode<" << result.type()->GetGeneratedTNodeTypeName()
