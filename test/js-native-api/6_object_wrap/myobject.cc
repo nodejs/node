@@ -17,13 +17,17 @@ void MyObject::Destructor(
 void MyObject::Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     { "value", nullptr, nullptr, GetValue, SetValue, 0, napi_default, 0 },
+    { "valueReadonly", nullptr, nullptr, GetValue, nullptr, 0, napi_default,
+      0 },
     DECLARE_NAPI_PROPERTY("plusOne", PlusOne),
     DECLARE_NAPI_PROPERTY("multiply", Multiply),
   };
 
   napi_value cons;
   NAPI_CALL_RETURN_VOID(env, napi_define_class(
-      env, "MyObject", -1, New, nullptr, 3, properties, &cons));
+      env, "MyObject", -1, New, nullptr,
+      sizeof(properties) / sizeof(napi_property_descriptor),
+      properties, &cons));
 
   NAPI_CALL_RETURN_VOID(env, napi_create_reference(env, cons, 1, &constructor));
 
