@@ -48,3 +48,14 @@ assert.throws(() => { test_object.readonlyAccessor2 = 3; },
 // to the instance
 assert.strictEqual(TestConstructor.staticReadonlyAccessor1, 10);
 assert.strictEqual(test_object.staticReadonlyAccessor1, undefined);
+
+// Verify that passing NULL to napi_define_class() results in the correct
+// error.
+assert.deepStrictEqual(TestConstructor.TestDefineClass(), {
+  envIsNull: 'pass',
+  nameIsNull: 'pass',
+  cbIsNull: 'pass',
+  cbDataIsNull: 'pass',
+  propertiesIsNull: 'pass',
+  resultIsNull: 'pass'
+});

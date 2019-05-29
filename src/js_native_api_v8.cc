@@ -23,6 +23,9 @@
     RETURN_STATUS_IF_FALSE((env),                                        \
         (len == NAPI_AUTO_LENGTH) || len <= INT_MAX,                     \
         napi_invalid_arg);                                               \
+    RETURN_STATUS_IF_FALSE((env),                                        \
+        (str) != nullptr,                                                \
+        napi_invalid_arg);                                               \
     auto str_maybe = v8::String::NewFromUtf8(                            \
         (env)->isolate, (str), v8::NewStringType::kInternalized,         \
         static_cast<int>(len));                                          \
@@ -766,6 +769,10 @@ napi_status napi_define_class(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
   CHECK_ARG(env, constructor);
+
+  if (property_count > 0) {
+    CHECK_ARG(env, properties);
+  }
 
   v8::Isolate* isolate = env->isolate;
 
