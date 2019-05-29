@@ -2461,7 +2461,8 @@ changes:
 
 Type: Runtime
 
-Module.createRequireFromPath() is deprecated. Please use [`module.createRequire()`][] instead.
+Module.createRequireFromPath() is deprecated. Please use
+[`module.createRequire()`][] instead.
 
 <a id="DEP0131"></a>
 ### DEP0131: Legacy HTTP parser
