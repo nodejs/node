@@ -30,9 +30,10 @@ const { Certificate } = crypto;
 const fixtures = require('../common/fixtures');
 
 // Test Certificates
-const spkacValid = fixtures.readSync('spkac.valid');
-const spkacFail = fixtures.readSync('spkac.fail');
-const spkacPem = fixtures.readSync('spkac.pem');
+const spkacValid = fixtures.readKey('rsa_spkac.spkac');
+const spkacChallenge = 'this-is-a-challenge';
+const spkacFail = fixtures.readKey('rsa_spkac_invalid.spkac');
+const spkacPublicPem = fixtures.readKey('rsa_public.pem');
 
 function checkMethods(certificate) {
 
@@ -41,13 +42,13 @@ function checkMethods(certificate) {
 
   assert.strictEqual(
     stripLineEndings(certificate.exportPublicKey(spkacValid).toString('utf8')),
-    stripLineEndings(spkacPem.toString('utf8'))
+    stripLineEndings(spkacPublicPem.toString('utf8'))
   );
   assert.strictEqual(certificate.exportPublicKey(spkacFail), '');
 
   assert.strictEqual(
     certificate.exportChallenge(spkacValid).toString('utf8'),
-    'fb9ab814-6677-42a4-a60c-f905d1a6924d'
+    spkacChallenge
   );
   assert.strictEqual(certificate.exportChallenge(spkacFail), '');
 }
