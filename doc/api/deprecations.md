@@ -2451,12 +2451,15 @@ instead.
 ### DEP0130: Module.createRequireFromPath()
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27951
+    description: Runtime deprecation.
   - version: v12.2.0
     pr-url: https://github.com/nodejs/node/pull/27405
     description: Documentation-only.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Module.createRequireFromPath() is deprecated. Please use [`module.createRequire()`][] instead.
 

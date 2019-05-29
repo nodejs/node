@@ -5,3 +5,4 @@ Error: test
     at async three (*fixtures*async-error.js:20:3)
     at async four (*fixtures*async-error.js:24:3)
     at async main (*message*async_error_sync_esm.mjs:7:5)
+(node:*) [DEP0130] DeprecationWarning: Module.createRequireFromPath() is deprecated. Use Module.createRequire() instead.
