@@ -29,8 +29,8 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
 const options = {
-  key: fixtures.readSync('agent.key'),
-  cert: fixtures.readSync('multi-alice.crt')
+  key: fixtures.readKey('rsa_private.pem'),
+  cert: fixtures.readKey('rsa_cert.crt')
 };
 
 const server = tls.createServer(options, function(cleartext) {
@@ -42,7 +42,7 @@ server.once('secureConnection', common.mustCall(function(socket) {
   // The server's local cert is the client's peer cert.
   assert.deepStrictEqual(
     cert.subject.OU,
-    ['Information Technology', 'Engineering', 'Marketing']
+    ['Test TLS Certificate', 'Engineering']
   );
 }));
 
@@ -54,7 +54,7 @@ server.listen(0, common.mustCall(function() {
     const peerCert = socket.getPeerCertificate();
     assert.deepStrictEqual(
       peerCert.subject.OU,
-      ['Information Technology', 'Engineering', 'Marketing']
+      ['Test TLS Certificate', 'Engineering']
     );
     server.close();
   }));
