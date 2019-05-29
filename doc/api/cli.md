@@ -183,6 +183,13 @@ added: v9.6.0
 
 Enable experimental ES Module support in the `vm` module.
 
+### `--experimental-wasm-modules`
+<!-- YAML
+added: v12.3.0
+-->
+
+Enable experimental WebAssembly module support.
+
 ### `--force-fips`
 <!-- YAML
 added: v6.0.0
@@ -976,6 +983,7 @@ Node.js options that are allowed are:
 - `--experimental-repl-await`
 - `--experimental-report`
 - `--experimental-vm-modules`
+- `--experimental-wasm-modules`
 - `--force-fips`
 - `--frozen-intrinsics`
 - `--heapsnapshot-signal`
