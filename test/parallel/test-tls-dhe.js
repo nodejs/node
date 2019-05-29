@@ -44,10 +44,8 @@ common.expectWarning('SecurityWarning',
                      'DH parameter is less than 2048 bits');
 
 function loadDHParam(n) {
-  const params = [`dh${n}.pem`];
-  if (n !== 'error')
-    params.unshift('keys');
-  return fixtures.readSync(params);
+  const keyname = `dh${n}.pem`;
+  return fixtures.readKey(keyname);
 }
 
 function test(keylen, expectedCipher, cb) {
