@@ -79,12 +79,10 @@ inline static v8::PropertyAttribute V8PropertyAttributesFromDescriptor(
     const napi_property_descriptor* descriptor) {
   unsigned int attribute_flags = v8::PropertyAttribute::None;
 
-  if (descriptor->getter != nullptr || descriptor->setter != nullptr) {
-    // The napi_writable attribute is ignored for accessor descriptors, but
-    // V8 requires the ReadOnly attribute to match nonexistence of a setter.
-    attribute_flags |= (descriptor->setter == nullptr ?
-      v8::PropertyAttribute::ReadOnly : v8::PropertyAttribute::None);
-  } else if ((descriptor->attributes & napi_writable) == 0) {
+  // The napi_writable attribute is ignored for accessor descriptors, but
+  // V8 would throw `TypeError`s on assignment with nonexistence of a setter.
+  if ((descriptor->getter == nullptr && descriptor->setter == nullptr) &&
+    (descriptor->attributes & napi_writable) == 0) {
     attribute_flags |= v8::PropertyAttribute::ReadOnly;
   }
 
@@ -598,24 +596,6 @@ v8::Local<v8::Value> CreateFunctionCallbackData(napi_env env,
   return cbdata;
 }
 
-// Creates an object to be made available to the static getter/setter
-// callback wrapper, used to retrieve the native getter/setter callback
-// function and data pointer.
-inline v8::Local<v8::Value> CreateAccessorCallbackData(napi_env env,
-                                                       napi_callback getter,
-                                                       napi_callback setter,
-                                                       void* data) {
-  CallbackBundle* bundle = new CallbackBundle();
-  bundle->function_or_getter = getter;
-  bundle->setter = setter;
-  bundle->cb_data = data;
-  bundle->env = env;
-  v8::Local<v8::Value> cbdata = v8::External::New(env->isolate, bundle);
-  bundle->BindLifecycleTo(env->isolate, cbdata);
-
-  return cbdata;
-}
-
 enum WrapType {
   retrievable,
   anonymous
@@ -812,18 +792,33 @@ napi_status napi_define_class(napi_env env,
         v8impl::V8PropertyAttributesFromDescriptor(p);
 
     // This code is similar to that in napi_define_properties(); the
-    // difference is it applies to a template instead of an object.
+    // difference is it applies to a template instead of an object,
+    // and preferred PropertyAttribute for lack of PropertyDescriptor
+    // support on ObjectTemplate.
     if (p->getter != nullptr || p->setter != nullptr) {
-      v8::Local<v8::Value> cbdata = v8impl::CreateAccessorCallbackData(
-        env, p->getter, p->setter, p->data);
+      v8::Local<v8::FunctionTemplate> getter_tpl;
+      v8::Local<v8::FunctionTemplate> setter_tpl;
+      if (p->getter != nullptr) {
+        v8::Local<v8::Value> getter_data =
+            v8impl::CreateFunctionCallbackData(env, p->getter, p->data);
 
-      tpl->PrototypeTemplate()->SetAccessor(
+        getter_tpl = v8::FunctionTemplate::New(
+            isolate, v8impl::FunctionCallbackWrapper::Invoke, getter_data);
+      }
+      if (p->setter != nullptr) {
+        v8::Local<v8::Value> setter_data =
+            v8impl::CreateFunctionCallbackData(env, p->setter, p->data);
+
+        setter_tpl = v8::FunctionTemplate::New(
+            isolate, v8impl::FunctionCallbackWrapper::Invoke, setter_data);
+      }
+
+      tpl->PrototypeTemplate()->SetAccessorProperty(
         property_name,
-        p->getter ? v8impl::GetterCallbackWrapper::Invoke : nullptr,
-        p->setter ? v8impl::SetterCallbackWrapper::Invoke : nullptr,
-        cbdata,
-        v8::AccessControl::DEFAULT,
-        attributes);
+        getter_tpl,
+        setter_tpl,
+        attributes,
+        v8::AccessControl::DEFAULT);
     } else if (p->method != nullptr) {
       v8::Local<v8::Value> cbdata =
           v8impl::CreateFunctionCallbackData(env, p->method, p->data);
