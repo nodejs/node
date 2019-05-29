@@ -30,7 +30,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const https = require('https');
 
-const pfx = fixtures.readSync('test_cert.pfx');
+const pfx = fixtures.readKey('rsa_cert.pfx');
 
 const options = {
   host: '127.0.0.1',

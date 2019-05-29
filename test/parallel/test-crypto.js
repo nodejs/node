@@ -37,7 +37,7 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
 // Test Certificates
-const certPfx = fixtures.readSync('test_cert.pfx');
+const certPfx = fixtures.readKey('rsa_cert.pfx');
 
 // 'this' safety
 // https://github.com/joyent/node/issues/6690

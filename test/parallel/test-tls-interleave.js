@@ -30,9 +30,9 @@ const tls = require('tls');
 
 const fixtures = require('../common/fixtures');
 
-const options = { key: fixtures.readSync('test_key.pem'),
-                  cert: fixtures.readSync('test_cert.pem'),
-                  ca: [ fixtures.readSync('test_ca.pem') ] };
+const options = { key: fixtures.readKey('rsa_private.pem'),
+                  cert: fixtures.readKey('rsa_cert.crt'),
+                  ca: [ fixtures.readKey('rsa_ca.crt') ] };
 
 const writes = [
   'some server data',

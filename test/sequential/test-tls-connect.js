@@ -33,8 +33,8 @@ const tls = require('tls');
 // https://github.com/joyent/node/issues/1218
 // uncatchable exception on TLS connection error
 {
-  const cert = fixtures.readSync('test_cert.pem');
-  const key = fixtures.readSync('test_key.pem');
+  const cert = fixtures.readKey('rsa_cert.crt');
+  const key = fixtures.readKey('rsa_private.pem');
 
   const options = { cert: cert, key: key, port: common.PORT };
   const conn = tls.connect(options, common.mustNotCall());
@@ -47,8 +47,8 @@ const tls = require('tls');
 
 // SSL_accept/SSL_connect error handling
 {
-  const cert = fixtures.readSync('test_cert.pem');
-  const key = fixtures.readSync('test_key.pem');
+  const cert = fixtures.readKey('rsa_cert.crt');
+  const key = fixtures.readKey('rsa_private.pem');
 
   assert.throws(() => {
     tls.connect({

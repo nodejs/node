@@ -35,8 +35,8 @@ const fixtures = require('../common/fixtures');
 // added using `once()`, i.e. can be gc'ed once that event has occurred.
 
 const server = tls.createServer({
-  cert: fixtures.readSync('test_cert.pem'),
-  key: fixtures.readSync('test_key.pem')
+  cert: fixtures.readKey('rsa_cert.crt'),
+  key: fixtures.readKey('rsa_private.pem')
 }).listen(0);
 
 let collected = false;
