@@ -2320,6 +2320,8 @@ changes:
     description: Runtime deprecation.
 -->
 
+Type: Runtime
+
 The undocumented `net._setSimultaneousAccepts()` function was originally
 intended for debugging and performance tuning when using the `child_process`
 and `cluster` modules on Windows. The function is not generally useful and
