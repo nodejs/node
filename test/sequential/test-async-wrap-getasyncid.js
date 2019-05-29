@@ -266,9 +266,9 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const { TCP, constants: TCPConstants } = internalBinding('tcp_wrap');
   const tcp = new TCP(TCPConstants.SOCKET);
 
-  const ca = fixtures.readSync('test_ca.pem', 'ascii');
-  const cert = fixtures.readSync('test_cert.pem', 'ascii');
-  const key = fixtures.readSync('test_key.pem', 'ascii');
+  const ca = fixtures.readKey('rsa_ca.crt');
+  const cert = fixtures.readKey('rsa_cert.crt');
+  const key = fixtures.readKey('rsa_private.pem');
 
   const credentials = require('tls').createSecureContext({ ca, cert, key });
 
