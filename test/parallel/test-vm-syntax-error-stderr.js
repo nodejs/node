@@ -4,7 +4,7 @@ const assert = require('assert');
 const child_process = require('child_process');
 const fixtures = require('../common/fixtures');
 
-const wrong_script = fixtures.path('cert.pem');
+const wrong_script = fixtures.path('keys/rsa_cert.crt');
 
 const p = child_process.spawn(process.execPath, [
   '-e',
