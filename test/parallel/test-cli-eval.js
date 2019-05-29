@@ -229,3 +229,36 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
     assert.strictEqual(err, null);
   }));
 });
+
+// ESModule eval tests
+
+
+// Assert that "42\n" is written to stdout on module eval.
+const execOptions = '--experimental-modules --input-type module';
+const esmWarning = 'ExperimentalWarning: ' +
+  'The ESM module loader is experimental.\n';
+child.exec(
+  `${nodejs} ${execOptions} --eval "console.log(42)"`,
+  common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '42\n');
+    assert.ok(stderr.endsWith(esmWarning));
+  }));
+
+// Assert that "42\n" is written to stdout with print option.
+child.exec(
+  `${nodejs} ${execOptions} --print --eval "42"`,
+  common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '42\n');
+    assert.ok(stderr.endsWith(esmWarning));
+  }));
+
+// Assert that error is written to stderr on invalid input.
+child.exec(
+  `${nodejs} ${execOptions} --eval "!!!!"`,
+  common.mustCall((err, stdout, stderr) => {
+    assert.ok(err);
+    assert.strictEqual(stdout, '');
+    assert.ok(stderr.indexOf('SyntaxError: Unexpected end of input') > 0);
+  }));
