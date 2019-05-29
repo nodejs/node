@@ -2,6 +2,9 @@
 const common = require('../../common');
 const assert = require('assert');
 
+const getterOnlyErrorRE =
+  /^TypeError: Cannot set property .* of #<.*> which has only a getter$/;
+
 // Testing api calls for a constructor that defines properties
 const TestConstructor = require(`./build/${common.buildType}/test_constructor`);
 const test_object = new TestConstructor();
@@ -36,13 +39,11 @@ assert.ok(!propertyNames.includes('readonlyAccessor2'));
 test_object.readwriteAccessor1 = 1;
 assert.strictEqual(test_object.readwriteAccessor1, 1);
 assert.strictEqual(test_object.readonlyAccessor1, 1);
-assert.throws(() => { test_object.readonlyAccessor1 = 3; },
-              /^TypeError: Cannot assign to read only property 'readonlyAccessor1' of object '#<MyObject>'$/);
+assert.throws(() => { test_object.readonlyAccessor1 = 3; }, getterOnlyErrorRE);
 test_object.readwriteAccessor2 = 2;
 assert.strictEqual(test_object.readwriteAccessor2, 2);
 assert.strictEqual(test_object.readonlyAccessor2, 2);
-assert.throws(() => { test_object.readonlyAccessor2 = 3; },
-              /^TypeError: Cannot assign to read only property 'readonlyAccessor2' of object '#<MyObject>'$/);
+assert.throws(() => { test_object.readonlyAccessor2 = 3; }, getterOnlyErrorRE);
 
 // Validate that static properties are on the class as opposed
 // to the instance
