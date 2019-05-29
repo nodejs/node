@@ -42,7 +42,7 @@ test1();
 
 // simple/test-tls-securepair-client
 function test1() {
-  test('agent.key', 'agent.crt', null, test2);
+  test('keys/rsa_private.pem', 'keys/rsa_cert.crt', null, test2);
 }
 
 // simple/test-tls-ext-key-usage

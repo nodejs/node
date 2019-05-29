@@ -41,8 +41,8 @@ doTest({ tickets: false }, function() {
 });
 
 function doTest(testOptions, callback) {
-  const key = fixtures.readSync('agent.key');
-  const cert = fixtures.readSync('agent.crt');
+  const key = fixtures.readKey('rsa_private.pem');
+  const cert = fixtures.readKey('rsa_cert.crt');
   const options = {
     key,
     cert,
@@ -101,8 +101,8 @@ function doTest(testOptions, callback) {
       '-tls1',
       '-connect', `localhost:${this.address().port}`,
       '-servername', 'ohgod',
-      '-key', fixtures.path('agent.key'),
-      '-cert', fixtures.path('agent.crt'),
+      '-key', fixtures.path('keys/rsa_private.pem'),
+      '-cert', fixtures.path('keys/rsa_cert.crt'),
       '-reconnect'
     ].concat(testOptions.tickets ? [] : '-no_ticket');
 

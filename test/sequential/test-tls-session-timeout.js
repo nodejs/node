@@ -51,8 +51,8 @@ function doTest() {
 
   const SESSION_TIMEOUT = 1;
 
-  const key = fixtures.readSync('agent.key');
-  const cert = fixtures.readSync('agent.crt');
+  const key = fixtures.readKey('rsa_private.pem');
+  const cert = fixtures.readKey('rsa_cert.crt');
   const options = {
     key: key,
     cert: cert,
