@@ -29,8 +29,8 @@ const https = require('https');
 const fixtures = require('../common/fixtures');
 
 const options = {
-  key: fixtures.readSync('test_key.pem'),
-  cert: fixtures.readSync('test_cert.pem')
+  key: fixtures.readKey('rsa_private.pem'),
+  cert: fixtures.readKey('rsa_cert.crt')
 };
 
 const buf = Buffer.allocUnsafe(1024 * 1024);

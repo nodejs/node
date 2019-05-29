@@ -18,9 +18,9 @@ tls.DEFAULT_MAX_VERSION = 'TLSv1.3';
 const CONTENT = 'Hello World';
 const tlsServer = tls.createServer(
   {
-    key: fixtures.readSync('test_key.pem'),
-    cert: fixtures.readSync('test_cert.pem'),
-    ca: [fixtures.readSync('test_ca.pem')],
+    key: fixtures.readKey('rsa_private.pem'),
+    cert: fixtures.readKey('rsa_cert.crt'),
+    ca: [fixtures.readKey('rsa_ca.crt')],
   },
   (socket) => {
     socket.on('close', common.mustCall());

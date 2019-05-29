@@ -6,9 +6,7 @@ const bench = common.createBenchmark(main, {
   size: [2, 1024, 1024 * 1024]
 });
 
-const path = require('path');
-const fs = require('fs');
-const cert_dir = path.resolve(__dirname, '../../test/fixtures');
+const fixtures = require('../../test/common/fixtures');
 var options;
 const tls = require('tls');
 
@@ -32,9 +30,9 @@ function main({ dur, type, size }) {
   }
 
   options = {
-    key: fs.readFileSync(`${cert_dir}/test_key.pem`),
-    cert: fs.readFileSync(`${cert_dir}/test_cert.pem`),
-    ca: [ fs.readFileSync(`${cert_dir}/test_ca.pem`) ],
+    key: fixtures.readKey('rsa_private.pem'),
+    cert: fixtures.readKey('rsa_cert.crt'),
+    ca: fixtures.readKey('rsa_ca.crt'),
     ciphers: 'AES256-GCM-SHA384'
   };
 

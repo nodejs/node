@@ -8,8 +8,8 @@ if (!common.hasCrypto)
 const tls = require('tls');
 const assert = require('assert');
 
-const cert = fixtures.readSync('test_cert.pem');
-const key = fixtures.readSync('test_key.pem');
+const cert = fixtures.readKey('rsa_cert.crt');
+const key = fixtures.readKey('rsa_private.pem');
 
 // https://github.com/nodejs/node/issues/1489
 // tls.connect(options) with no options.host should accept a cert with
