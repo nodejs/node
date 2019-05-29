@@ -46,6 +46,8 @@ all: \
 	rsa_private_b.pem \
 	I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256 \
 	rsa_public_b.pem \
+	rsa_spkac.spkac \
+	rsa_spkac_invalid.spkac \
   rsa_private_1024.pem \
   rsa_private_2048.pem \
   rsa_private_4096.pem \
@@ -629,6 +631,14 @@ I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256: rsa_private_b.pe
 
 rsa_public_b.pem: rsa_private_b.pem
 	openssl rsa -in rsa_private_b.pem -pubout -out rsa_public_b.pem
+
+# openssl outputs `SPKAC=[SPKAC]`. That prefix needs to be removed to work with node
+rsa_spkac.spkac: rsa_private.pem
+	openssl spkac -key rsa_private.pem -challenge this-is-a-challenge | cut -c 7- > rsa_spkac.spkac
+
+# cutting characters from the start to invalidate the spkac
+rsa_spkac_invalid.spkac: rsa_spkac.spkac
+	cat rsa_spkac.spkac | cut -c 5- > rsa_spkac_invalid.spkac
 
 rsa_private_1024.pem:
 	openssl genrsa -out rsa_private_1024.pem 1024
