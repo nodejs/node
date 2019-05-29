@@ -796,7 +796,9 @@ changes:
 
 Type: Deprecation revoked
 
-The [`fs.lchown(path, uid, gid, callback)`][] API is deprecated.
+The [`fs.lchown(path, uid, gid, callback)`][] API was deprecated. The
+deprecation was revoked because the requisite supporting APIs were added in
+libuv.
 
 <a id="DEP0038"></a>
 ### DEP0038: fs.lchownSync(path, uid, gid)
@@ -816,7 +818,8 @@ changes:
 
 Type: Deprecation revoked
 
-The [`fs.lchownSync(path, uid, gid)`][] API is deprecated.
+The [`fs.lchownSync(path, uid, gid)`][] API was deprecated. The deprecation was
+revoked because the requisite supporting APIs were added in libuv.
 
 <a id="DEP0039"></a>
 ### DEP0039: require.extensions
