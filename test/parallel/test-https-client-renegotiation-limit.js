@@ -50,8 +50,8 @@ const LIMITS = [0, 1, 2, 3, 5, 10, 16];
 
 function test(next) {
   const options = {
-    cert: fixtures.readSync('test_cert.pem'),
-    key: fixtures.readSync('test_key.pem'),
+    cert: fixtures.readKey('rsa_cert.crt'),
+    key: fixtures.readKey('rsa_private.pem'),
   };
 
   const server = https.createServer(options, (req, res) => {

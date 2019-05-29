@@ -28,8 +28,8 @@ if (!common.hasCrypto)
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
-const cert = fixtures.readSync('test_cert.pem');
-const key = fixtures.readSync('test_key.pem');
+const cert = fixtures.readKey('rsa_cert.crt');
+const key = fixtures.readKey('rsa_private.pem');
 
 const server = tls.createServer({
   cert,

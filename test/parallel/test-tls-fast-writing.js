@@ -28,9 +28,9 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');
 
-const options = { key: fixtures.readSync('test_key.pem'),
-                  cert: fixtures.readSync('test_cert.pem'),
-                  ca: [ fixtures.readSync('test_ca.pem') ] };
+const options = { key: fixtures.readKey('rsa_private.pem'),
+                  cert: fixtures.readKey('rsa_cert.crt'),
+                  ca: [ fixtures.readKey('rsa_ca.crt') ] };
 
 const server = tls.createServer(options, onconnection);
 let gotChunk = false;

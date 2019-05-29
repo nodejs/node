@@ -9,8 +9,8 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
 const sslcontext = tls.createSecureContext({
-  cert: fixtures.readSync('test_cert.pem'),
-  key: fixtures.readSync('test_key.pem')
+  cert: fixtures.readKey('rsa_cert.crt'),
+  key: fixtures.readKey('rsa_private.pem')
 });
 
 const pair = tls.createSecurePair(sslcontext, true, false, false, {
