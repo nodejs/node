@@ -51,20 +51,14 @@ added: v0.6.12
 Every `.html` document has a corresponding `.json` document. This is for IDEs
 and other utilities that consume the documentation.
 
-## Syscalls and man pages
+## System calls and man pages
 
-System calls like open(2) and read(2) define the interface between user programs
-and the underlying operating system. Node.js functions
-which wrap a syscall,
-like [`fs.open()`][], will document that. The docs link to the corresponding man
-pages (short for manual pages) which describe how the syscalls work.
+Node.js functions which wrap a system call will document that. The docs link
+to the corresponding man pages which describe how the system call works.
 
-Most Unix syscalls have Windows equivalents, but behavior may differ on Windows
-relative to Linux and macOS. For an example of the subtle ways in which it's
-sometimes impossible to replace Unix syscall semantics on Windows, see [Node.js
-issue 4760](https://github.com/nodejs/node/issues/4760).
+Most Unix system calls have Windows analogues. Still, behavior differences may
+be unavoidable.
 
-[`fs.open()`]: fs.html#fs_fs_open_path_flags_mode_callback
 [the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 [the issue tracker]: https://github.com/nodejs/node/issues/new
 [V8 JavaScript engine]: https://v8.dev/
