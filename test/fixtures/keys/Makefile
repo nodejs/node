@@ -24,12 +24,12 @@ all: \
   dh512.pem \
   dh1024.pem \
   dh2048.pem \
-	dherror.pem \
-	dsa_params.pem \
-	dsa_private.pem \
-	dsa_private_encrypted.pem \
-	dsa_private_pkcs8.pem \
-	dsa_public.pem \
+  dherror.pem \
+  dsa_params.pem \
+  dsa_private.pem \
+  dsa_private_encrypted.pem \
+  dsa_private_pkcs8.pem \
+  dsa_public.pem \
   dsa1025.pem \
   dsa_private_1025.pem \
   dsa_private_encrypted_1025.pem \
@@ -37,24 +37,24 @@ all: \
   ec-cert.pem \
   ec.pfx \
   fake-cnnic-root-cert.pem \
-	rsa_private.pem \
-	rsa_private_encrypted.pem \
-	rsa_private_pkcs8.pem \
-	rsa_private_pkcs8_bad.pem \
-	rsa_public.pem \
-	rsa_ca.crt \
-	rsa_cert.crt \
-	rsa_cert.pfx \
-	rsa_public_sha1_signature_signedby_rsa_private.sha1 \
-	rsa_public_sha1_signature_signedby_rsa_private_pkcs8.sha1 \
-	rsa_private_b.pem \
-	I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256 \
-	rsa_public_b.pem \
-	rsa_cert_foafssl_b.crt \
-	rsa_cert_foafssl_b.modulus \
-	rsa_cert_foafssl_b.exponent \
-	rsa_spkac.spkac \
-	rsa_spkac_invalid.spkac \
+  rsa_private.pem \
+  rsa_private_encrypted.pem \
+  rsa_private_pkcs8.pem \
+  rsa_private_pkcs8_bad.pem \
+  rsa_public.pem \
+  rsa_ca.crt \
+  rsa_cert.crt \
+  rsa_cert.pfx \
+  rsa_public_sha1_signature_signedby_rsa_private.sha1 \
+  rsa_public_sha1_signature_signedby_rsa_private_pkcs8.sha1 \
+  rsa_private_b.pem \
+  I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256 \
+  rsa_public_b.pem \
+  rsa_cert_foafssl_b.crt \
+  rsa_cert_foafssl_b.modulus \
+  rsa_cert_foafssl_b.exponent \
+  rsa_spkac.spkac \
+  rsa_spkac_invalid.spkac \
   rsa_private_1024.pem \
   rsa_private_2048.pem \
   rsa_private_4096.pem \
