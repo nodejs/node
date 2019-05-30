@@ -200,6 +200,12 @@ UnionBytes NativeModuleLoader::GetConfig() {{
 }}  // namespace node
 """
 
+ONE_BYTE_STRING = """
+static const uint8_t {0}[] = {{
+{1}
+}};
+"""
+
 TWO_BYTE_STRING = """
 static const uint16_t {0}[] = {{
 {1}
@@ -215,15 +221,22 @@ SLUGGER_RE =re.compile('[.\-/]')
 is_verbose = False
 
 def GetDefinition(var, source, step=30):
-  encoded_source = bytearray(source, 'utf-16le')
-  code_points = [encoded_source[i] + (encoded_source[i+1] * 256) for i in range(0, len(encoded_source), 2)]
+  template = ONE_BYTE_STRING
+  code_points = [ord(c) for c in source]
+  if any(c > 127 for c in code_points):
+    template = TWO_BYTE_STRING
+    # Treat non-ASCII as UTF-8 and encode as UTF-16 Little Endian.
+    encoded_source = bytearray(source, 'utf-16le')
+    code_points = [encoded_source[i] + (encoded_source[i + 1] * 256) for i in range(0, len(encoded_source), 2)]
+
   # For easier debugging, align to the common 3 char for code-points.
   elements_s = ['%3s' % x for x in code_points]
   # Put no more then `step` code-points in a line.
   slices = [elements_s[i:i + step] for i in range(0, len(elements_s), step)]
   lines = [','.join(s) for s in slices]
   array_content = ',\n'.join(lines)
-  definition = TWO_BYTE_STRING.format(var, array_content)
+  definition = template.format(var, array_content)
+
   return definition, len(code_points)
 
 
