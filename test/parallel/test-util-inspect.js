@@ -504,6 +504,13 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   assert.strictEqual(util.inspect(a), "[ 'foo', 'bar', 'baz' ]");
   delete a[1];
   assert.strictEqual(util.inspect(a), "[ 'foo', <1 empty item>, 'baz' ]");
+  a.push('qux');
+  a.splice(3, 0, undefined);
+  delete a[3];
+  assert.strictEqual(util.inspect(a, {
+    maxArrayLength: 2
+  }), "[ 'foo', <1 empty item>, ... 3 more items ]");
+  a.splice(3, 2);
   assert.strictEqual(
     util.inspect(a, true),
     "[ 'foo', <1 empty item>, 'baz', [length]: 3 ]"
