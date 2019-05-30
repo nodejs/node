@@ -45,10 +45,13 @@ parser = optparse.OptionParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
             'android', 'aix', 'cloudabi')
-valid_arch = ('arm', 'arm64', 'ia32', 'ppc',
+valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'mips64el', 'ppc',
               'ppc64', 'x32','x64', 'x86', 'x86_64', 's390', 's390x')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
+valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
+valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
+valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 with open ('tools/icu/icu_versions.json') as f:
   icu_versions = json.load(f)
@@ -364,6 +367,30 @@ parser.add_option('--with-arm-fpu',
     choices=valid_arm_fpu,
     help='ARM FPU mode ({0}) [default: %default]'.format(
         ', '.join(valid_arm_fpu)))
+
+parser.add_option('--with-mips-arch-variant',
+    action='store',
+    dest='mips_arch_variant',
+    default='r2',
+    choices=valid_mips_arch,
+    help='MIPS arch variant ({0}) [default: %default]'.format(
+        ', '.join(valid_mips_arch)))
+
+parser.add_option('--with-mips-fpu-mode',
+    action='store',
+    dest='mips_fpu_mode',
+    default='fp32',
+    choices=valid_mips_fpu,
+    help='MIPS FPU mode ({0}) [default: %default]'.format(
+        ', '.join(valid_mips_fpu)))
+
+parser.add_option('--with-mips-float-abi',
+    action='store',
+    dest='mips_float_abi',
+    default='hard',
+    choices=valid_mips_float_abi,
+    help='MIPS floating-point ABI ({0}) [default: %default]'.format(
+        ', '.join(valid_mips_float_abi)))
 
 parser.add_option('--with-dtrace',
     action='store_true',
@@ -846,6 +873,8 @@ def host_arch_cc():
     '__aarch64__' : 'arm64',
     '__arm__'     : 'arm',
     '__i386__'    : 'ia32',
+    '__MIPSEL__'  : 'mipsel',
+    '__mips__'    : 'mips',
     '__PPC64__'   : 'ppc64',
     '__PPC__'     : 'ppc64',
     '__x86_64__'  : 'x64',
@@ -861,6 +890,9 @@ def host_arch_cc():
       if rtn != 's390':
         break
 
+  if rtn == 'mipsel' and '_LP64' in k:
+    rtn = 'mips64el'
+
   return rtn
 
 
@@ -874,6 +906,7 @@ def host_arch_win():
     'AMD64'  : 'x64',
     'x86'    : 'ia32',
     'arm'    : 'arm',
+    'mips'   : 'mips',
   }
 
   return matchup.get(arch, 'ia32')
@@ -903,6 +936,14 @@ def configure_arm(o):
     o['variables']['arm_version'] = '7'
 
   o['variables']['arm_fpu'] = options.arm_fpu or arm_fpu
+
+
+def configure_mips(o):
+  can_use_fpu_instructions = (options.mips_float_abi != 'soft')
+  o['variables']['v8_can_use_fpu_instructions'] = b(can_use_fpu_instructions)
+  o['variables']['v8_use_mips_abi_hardfloat'] = b(can_use_fpu_instructions)
+  o['variables']['mips_arch_variant'] = options.mips_arch_variant
+  o['variables']['mips_fpu_mode'] = options.mips_fpu_mode
 
 
 def gcc_version_ge(version_checked):
@@ -949,6 +990,8 @@ def configure_node(o):
 
   if target_arch == 'arm':
     configure_arm(o)
+  elif target_arch in ('mips', 'mipsel', 'mips64el'):
+    configure_mips(o)
 
   if flavor == 'aix':
     o['variables']['node_target_type'] = 'static_library'
