@@ -3735,7 +3735,7 @@ A `FileHandle` object is a wrapper for a numeric file descriptor.
 Instances of `FileHandle` are distinct from numeric file descriptors
 in that they provide an object oriented API for working with files.
 
-If a `FileHandle` is not explicitly closed using the
+If a `FileHandle` is not closed using the
 `filehandle.close()` method, they might automatically close the file descriptor
 and will emit a process warning, thereby helping to prevent memory leaks.
 Please do not rely on this behavior in your code because it is unreliable and
