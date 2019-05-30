@@ -474,6 +474,15 @@ process.nextTick(() => {
 
 See also: [`writable.cork()`][].
 
+##### writable.bytesWritten
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+Number of bytes written through [`writable.write()`], or `null` in `objectMode`.
+
 ##### writable.writable
 <!-- YAML
 added: v11.4.0
@@ -1102,6 +1111,15 @@ added: v12.3.0
 -->
 
 Getter for the property `objectMode` of a given `Readable` stream.
+
+##### readable.bytesRead
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+Number of bytes read, or `null` in `objectMode`.
 
 ##### readable.resume()
 <!-- YAML
