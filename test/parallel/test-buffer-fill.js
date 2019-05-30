@@ -268,7 +268,6 @@ function writeToFill(string, offset, end, encoding) {
 
 function testBufs(string, offset, length, encoding) {
   bufReset();
-  buf1.fill.apply(buf1, arguments);
   // Swap bytes on BE archs for ucs2 encoding.
   assert.deepStrictEqual(buf1.fill.apply(buf1, arguments),
                          writeToFill.apply(null, arguments));
