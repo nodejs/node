@@ -108,9 +108,11 @@ class AsyncWrap : public BaseObject {
   AsyncWrap(Environment* env,
             v8::Local<v8::Object> object,
             ProviderType provider,
-            double execution_async_id = -1);
+            double execution_async_id = kInvalidAsyncId);
 
   virtual ~AsyncWrap();
+
+  static constexpr double kInvalidAsyncId = -1;
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
@@ -137,6 +139,8 @@ class AsyncWrap : public BaseObject {
   static void EmitAfter(Environment* env, double async_id);
   static void EmitPromiseResolve(Environment* env, double async_id);
 
+  void EmitDestroy();
+
   void EmitTraceEventBefore();
   static void EmitTraceEventAfter(ProviderType type, double async_id);
   void EmitTraceEventDestroy();
@@ -149,7 +153,8 @@ class AsyncWrap : public BaseObject {
 
   inline double get_trigger_async_id() const;
 
-  void AsyncReset(double execution_async_id = -1, bool silent = false);
+  void AsyncReset(double execution_async_id = kInvalidAsyncId,
+                  bool silent = false);
 
   // Only call these within a valid HandleScope.
   v8::MaybeLocal<v8::Value> MakeCallback(const v8::Local<v8::Function> cb,
@@ -202,7 +207,7 @@ class AsyncWrap : public BaseObject {
   inline AsyncWrap();
   const ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.
-  double async_id_ = -1;
+  double async_id_ = kInvalidAsyncId;
   double trigger_async_id_;
 };
 
