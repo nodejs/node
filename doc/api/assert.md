@@ -68,7 +68,7 @@ try {
 } catch (err) {
   assert(err instanceof assert.AssertionError);
   assert.strictEqual(err.message, message);
-  assert.strictEqual(err.name, 'AssertionError [ERR_ASSERTION]');
+  assert.strictEqual(err.name, 'AssertionError');
   assert.strictEqual(err.actual, 1);
   assert.strictEqual(err.expected, 2);
   assert.strictEqual(err.code, 'ERR_ASSERTION');
