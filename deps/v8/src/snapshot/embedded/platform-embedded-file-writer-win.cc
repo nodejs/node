@@ -11,6 +11,7 @@
 #if defined(V8_OS_WIN_X64)
 #include "src/builtins/builtins.h"
 #include "src/diagnostics/unwinding-info-win64.h"
+#include "src/objects/objects-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #endif
 
