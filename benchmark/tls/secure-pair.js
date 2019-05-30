@@ -2,8 +2,8 @@
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   dur: [5],
-  securing: ['SecurePair', 'TLSSocket'],
-  size: [2, 1024, 1024 * 1024]
+  securing: ['SecurePair', 'TLSSocket', 'clear'],
+  size: [2, 100, 1024, 1024 * 1024]
 });
 
 const fixtures = require('../../test/common/fixtures');
@@ -37,7 +37,8 @@ function main({ dur, size, securing }) {
         isServer: false,
         rejectUnauthorized: false,
       };
-      const conn = tls.connect(clientOptions, () => {
+      const network = securing === 'clear' ? net : tls;
+      const conn = network.connect(clientOptions, () => {
         setTimeout(() => {
           const mbits = (received * 8) / (1024 * 1024);
           bench.end(mbits);
@@ -68,6 +69,9 @@ function main({ dur, size, securing }) {
           break;
         case 'TLSSocket':
           secureTLSSocket(conn, client);
+          break;
+        case 'clear':
+          conn.pipe(client);
           break;
         default:
           throw new Error('Invalid securing method');
