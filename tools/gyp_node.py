@@ -11,7 +11,10 @@ import gyp
 
 # Directory within which we want all generated files (including Makefiles)
 # to be written.
-output_dir = os.path.join(os.path.abspath(node_root), 'out')
+if sys.platform == 'win32':
+  output_dir = '.'
+else:
+  output_dir = os.path.join(os.path.abspath(node_root), 'out')
 
 def run_gyp(args):
   # GYP bug.
