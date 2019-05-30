@@ -569,6 +569,16 @@ inline void Environment::set_heap_space_statistics_buffer(double* pointer) {
   heap_space_statistics_buffer_ = pointer;
 }
 
+inline double* Environment::heap_code_statistics_buffer() const {
+  CHECK_NOT_NULL(heap_code_statistics_buffer_);
+  return heap_code_statistics_buffer_;
+}
+
+inline void Environment::set_heap_code_statistics_buffer(double* pointer) {
+  CHECK_NULL(heap_code_statistics_buffer_);  // Should be set only once.
+  heap_code_statistics_buffer_ = pointer;
+}
+
 inline char* Environment::http_parser_buffer() const {
   return http_parser_buffer_;
 }
