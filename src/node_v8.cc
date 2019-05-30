@@ -30,6 +30,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::HeapCodeStatistics;
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
 using v8::Integer;
@@ -42,6 +43,7 @@ using v8::String;
 using v8::Uint32;
 using v8::V8;
 using v8::Value;
+
 
 #define HEAP_STATISTICS_PROPERTIES(V)                                         \
   V(0, total_heap_size, kTotalHeapSizeIndex)                                  \
@@ -61,6 +63,7 @@ static const size_t kHeapStatisticsPropertiesCount =
     HEAP_STATISTICS_PROPERTIES(V);
 #undef V
 
+
 #define HEAP_SPACE_STATISTICS_PROPERTIES(V)                                   \
   V(0, space_size, kSpaceSizeIndex)                                           \
   V(1, space_used_size, kSpaceUsedSizeIndex)                                  \
@@ -72,6 +75,16 @@ static const size_t kHeapSpaceStatisticsPropertiesCount =
     HEAP_SPACE_STATISTICS_PROPERTIES(V);
 #undef V
 
+
+#define HEAP_CODE_STATISTICS_PROPERTIES(V)                                    \
+  V(0, code_and_metadata_size, kCodeAndMetadataSizeIndex)                    \
+  V(1, bytecode_and_metadata_size, kBytecodeAndMetadataSizeIndex)             \
+  V(2, external_script_source_size, kExternalScriptSourceSizeIndex)
+
+#define V(a, b, c) +1
+static const size_t kHeapCodeStatisticsPropertiesCount =
+    HEAP_CODE_STATISTICS_PROPERTIES(V);
+#undef V
 
 void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -111,6 +124,18 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void UpdateHeapCodeStatisticsArrayBuffer(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  HeapCodeStatistics s;
+  env->isolate()->GetHeapCodeAndMetadataStatistics(&s);
+  double* const buffer = env->heap_code_statistics_buffer();
+#define V(index, name, _) buffer[index] = static_cast<double>(s.name());
+  HEAP_CODE_STATISTICS_PROPERTIES(V)
+#undef V
+}
+
+
 void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   String::Utf8Value flags(args.GetIsolate(), args[0]);
@@ -127,6 +152,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "cachedDataVersionTag",
                              CachedDataVersionTag);
 
+  // Export symbols used by v8.getHeapStatistics()
   env->SetMethod(target,
                  "updateHeapStatisticsArrayBuffer",
                  UpdateHeapStatisticsArrayBuffer);
@@ -151,6 +177,35 @@ void Initialize(Local<Object> target,
   HEAP_STATISTICS_PROPERTIES(V)
 #undef V
 
+  // Export symbols used by v8.getHeapCodeStatistics()
+  env->SetMethod(target,
+                 "updateHeapCodeStatisticsArrayBuffer",
+                 UpdateHeapCodeStatisticsArrayBuffer);
+
+  env->set_heap_code_statistics_buffer(
+    new double[kHeapCodeStatisticsPropertiesCount]);
+
+  const size_t heap_code_statistics_buffer_byte_length =
+      sizeof(*env->heap_code_statistics_buffer())
+      * kHeapCodeStatisticsPropertiesCount;
+
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(),
+                                    "heapCodeStatisticsArrayBuffer"),
+              ArrayBuffer::New(env->isolate(),
+                               env->heap_code_statistics_buffer(),
+                               heap_code_statistics_buffer_byte_length))
+  .Check();
+
+#define V(i, _, name)                                                         \
+  target->Set(env->context(),                                                 \
+              FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
+              Uint32::NewFromUnsigned(env->isolate(), i)).Check();
+
+  HEAP_CODE_STATISTICS_PROPERTIES(V)
+#undef V
+
+  // Export symbols used by v8.getHeapSpaceStatistics()
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(),
                                     "kHeapSpaceStatisticsPropertiesCount"),
@@ -205,6 +260,7 @@ void Initialize(Local<Object> target,
   HEAP_SPACE_STATISTICS_PROPERTIES(V)
 #undef V
 
+  // Export symbols used by v8.setFlagsFromString()
   env->SetMethod(target, "setFlagsFromString", SetFlagsFromString);
 }
 
