@@ -2898,7 +2898,7 @@ changes:
 
 Asynchronously rename file at `oldPath` to the pathname provided
 as `newPath`. In the case that `newPath` already exists, it will
-be overwritten, if there is a directory at `newPath` an error will 
+be overwritten. If there is a directory at `newPath`, an error will 
 be raised instead. No arguments other than a possible exception are
 given to the completion callback.
 
