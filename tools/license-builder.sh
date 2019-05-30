@@ -106,4 +106,6 @@ addlicense "HdrHistogram" "deps/histogram" "$(cat ${rootdir}/deps/histogram/LICE
 addlicense "node-heapdump" "src/heap_utils.cc" \
            "$(curl -sL https://raw.githubusercontent.com/bnoordhuis/node-heapdump/0ca52441e46241ffbea56a389e2856ec01c48c97/LICENSE)"
 
+addlicense "node-fetch" "deps/node-fetch" "$(cat ${rootdir}/deps/node-fetch/LICENSE.md)"
+
 mv $tmplicense $licensefile
