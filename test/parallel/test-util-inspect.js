@@ -504,13 +504,6 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   assert.strictEqual(util.inspect(a), "[ 'foo', 'bar', 'baz' ]");
   delete a[1];
   assert.strictEqual(util.inspect(a), "[ 'foo', <1 empty item>, 'baz' ]");
-  a.push('qux');
-  a.splice(3, 0, undefined);
-  delete a[3];
-  assert.strictEqual(util.inspect(a, {
-    maxArrayLength: 2
-  }), "[ 'foo', <1 empty item>, ... 3 more items ]");
-  a.splice(3, 2);
   assert.strictEqual(
     util.inspect(a, true),
     "[ 'foo', <1 empty item>, 'baz', [length]: 3 ]"
@@ -527,6 +520,10 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
     util.inspect(a, { maxArrayLength: 4 }),
     "[ 'foo', <1 empty item>, 'baz', <97 empty items>, ... 1 more item ]"
   );
+  // test 4 special case
+  assert.strictEqual(util.inspect(a, {
+    maxArrayLength: 2
+  }), "[ 'foo', <1 empty item>, ... 99 more items ]");
 }
 
 // Test for Array constructor in different context.
