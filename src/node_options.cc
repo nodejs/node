@@ -279,6 +279,10 @@ DebugOptionsParser::DebugOptionsParser() {
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
+  AddOption("--experimental-fetch",
+            "experimental WHATWG fetch support",
+            &EnvironmentOptions::experimental_fetch,
+            kAllowedInEnvironment);
   AddOption("--experimental-modules",
             "experimental ES Module support and caching modules",
             &EnvironmentOptions::experimental_modules,
