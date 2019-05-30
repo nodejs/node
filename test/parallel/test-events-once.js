@@ -84,10 +84,29 @@ async function onceError() {
   strictEqual(ee.listenerCount('myevent'), 0);
 }
 
+async function onceWithEventTarget() {
+  var emitter = new class EventTargetLike extends EventEmitter {
+    addEventListener(name, listener, options) {
+      if (options.once) {
+        this.once(name, listener);
+      } else {
+        this.on(name, listener);
+      }
+    }
+  };
+  process.nextTick(() => {
+    emitter.emit('myevent', 42);
+  });
+  const [value] = await once(emitter, 'myevent');
+  strictEqual(value, 42);
+  strictEqual(emitter.listenerCount('myevent'), 0);
+}
+
 Promise.all([
   onceAnEvent(),
   onceAnEventWithTwoArgs(),
   catchesErrors(),
   stopListeningAfterCatchingError(),
-  onceError()
+  onceError(),
+  onceWithEventTarget()
 ]).then(common.mustCall());
