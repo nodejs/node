@@ -2252,6 +2252,25 @@ In the case of a connection error, the following events will be emitted:
 * `'error'`
 * `'close'`
 
+In the case of a premature connection close before the response is received,
+the following events will be emitted in the following order:
+
+* `'socket'`
+* `'error'` with an error with message `'Error: socket hang up'` and code
+  `'ECONNRESET'`
+* `'close'`
+
+In the case of a premature connection close after the response is received,
+the following events will be emitted in the following order:
+
+* `'socket'`
+* `'response'`
+  * `'data'` any number of times, on the `res` object
+* (connection closed here)
+* `'aborted'` on the `res` object
+* `'close'`
+* `'close'` on the `res` object
+
 If `req.abort()` is called before the connection succeeds, the following events
 will be emitted in the following order:
 
@@ -2272,7 +2291,6 @@ will be emitted in the following order:
 * `'abort'`
 * `'aborted'` on the `res` object
 * `'close'`
-* `'end'` on the `res` object
 * `'close'` on the `res` object
 
 Setting the `timeout` option or using the `setTimeout()` function will

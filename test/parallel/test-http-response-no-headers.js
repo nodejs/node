@@ -51,6 +51,7 @@ function test(httpVersion, callback) {
         body += data;
       });
 
+      res.on('aborted', common.mustNotCall());
       res.on('end', common.mustCall(function() {
         assert.strictEqual(body, expected[httpVersion]);
         server.close();

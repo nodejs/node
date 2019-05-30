@@ -1,8 +1,12 @@
+// Flags: --expose-internals
+
 'use strict';
 const { expectsError, mustCall } = require('../common');
 const assert = require('assert');
 const { createServer, maxHeaderSize } = require('http');
 const { createConnection } = require('net');
+
+const { getOptionValue } = require('internal/options');
 
 const CRLF = '\r\n';
 const DUMMY_HEADER_NAME = 'Cookie: ';
@@ -17,11 +21,14 @@ const PAYLOAD = PAYLOAD_GET + CRLF +
 const server = createServer();
 
 server.on('connection', mustCall((socket) => {
+  // Legacy parser gives sligthly different response.
+  // This discripancy is not fixed on purpose.
+  const legacy = getOptionValue('--http-parser') === 'legacy';
   socket.on('error', expectsError({
     type: Error,
     message: 'Parse Error: Header overflow',
     code: 'HPE_HEADER_OVERFLOW',
-    bytesParsed: maxHeaderSize + PAYLOAD_GET.length,
+    bytesParsed: maxHeaderSize + PAYLOAD_GET.length - (legacy ? -1 : 0),
     rawPacket: Buffer.from(PAYLOAD)
   }));
 }));
