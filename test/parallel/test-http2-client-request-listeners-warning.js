@@ -12,7 +12,7 @@ const EventEmitter = require('events');
 process.on('warning', common.mustNotCall('A warning was emitted'));
 
 const server = http2.createServer();
-server.on('stream', stream => {
+server.on('stream', (stream) => {
   stream.respond();
   stream.end();
 });
@@ -23,7 +23,7 @@ server.listen(common.mustCall(() => {
   function request() {
     return new Promise((resolve, reject) => {
       const stream = client.request();
-      stream.on('error', reject)
+      stream.on('error', reject);
       stream.on('response', resolve);
       stream.end();
     });
