@@ -65,7 +65,7 @@ sometimes impossible to replace Unix syscall semantics on Windows, see [Node.js
 issue 4760](https://github.com/nodejs/node/issues/4760).
 
 [`fs.open()`]: fs.html#fs_fs_open_path_flags_mode_callback
-[warning]: process.html#process_event_warning
 [the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 [the issue tracker]: https://github.com/nodejs/node/issues/new
 [V8 JavaScript engine]: https://v8.dev/
+[warning]: process.html#process_event_warning
