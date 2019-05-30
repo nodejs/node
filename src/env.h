@@ -1001,6 +1001,9 @@ class Environment : public MemoryRetainer {
   inline double* heap_space_statistics_buffer() const;
   inline void set_heap_space_statistics_buffer(double* pointer);
 
+  inline double* heap_code_statistics_buffer() const;
+  inline void set_heap_code_statistics_buffer(double* pointer);
+
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
   inline bool http_parser_buffer_in_use() const;
@@ -1323,6 +1326,7 @@ class Environment : public MemoryRetainer {
 
   double* heap_statistics_buffer_ = nullptr;
   double* heap_space_statistics_buffer_ = nullptr;
+  double* heap_code_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_ = nullptr;
   bool http_parser_buffer_in_use_ = false;

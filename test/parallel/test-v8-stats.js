@@ -22,6 +22,18 @@ keys.forEach(function(key) {
 });
 
 
+const heapCodeStatistics = v8.getHeapCodeStatistics();
+const heapCodeStatisticsKeys = [
+  'bytecode_and_metadata_size',
+  'code_and_metadata_size',
+  'external_script_source_size'];
+assert.deepStrictEqual(Object.keys(heapCodeStatistics).sort(),
+                       heapCodeStatisticsKeys);
+heapCodeStatisticsKeys.forEach(function(key) {
+  assert.strictEqual(typeof heapCodeStatistics[key], 'number');
+});
+
+
 const expectedHeapSpaces = [
   'code_large_object_space',
   'code_space',

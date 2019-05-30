@@ -414,6 +414,7 @@ Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
+  delete[] heap_code_statistics_buffer_;
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
     TRACING_CATEGORY_NODE1(environment), "Environment", this);
