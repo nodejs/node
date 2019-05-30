@@ -520,6 +520,10 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
     util.inspect(a, { maxArrayLength: 4 }),
     "[ 'foo', <1 empty item>, 'baz', <97 empty items>, ... 1 more item ]"
   );
+  // test 4 special case
+  assert.strictEqual(util.inspect(a, {
+    maxArrayLength: 2
+  }), "[ 'foo', <1 empty item>, ... 99 more items ]");
 }
 
 // Test for Array constructor in different context.
