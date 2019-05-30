@@ -29,6 +29,7 @@ The available categories are:
     measurements.
 * `node.promises.rejections` - Enables capture of trace data tracking the number
   of unhandled Promise rejections and handled-after-rejections.
+* `node.telemetry` - Enables capture of targeted Node.js API usage data.
 * `node.vm.script` - Enables capture of trace data for the `vm` module's
   `runInNewContext()`, `runInContext()`, and `runInThisContext()` methods.
 * `v8` - The [V8] events are GC, compiling, and execution related.
