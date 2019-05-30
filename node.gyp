@@ -1090,6 +1090,7 @@
         'test/cctest/test_node_postmortem_metadata.cc',
         'test/cctest/test_environment.cc',
         'test/cctest/test_linked_binding.cc',
+        'test/cctest/test_per_process.cc',
         'test/cctest/test_platform.cc',
         'test/cctest/test_report_util.cc',
         'test/cctest/test_traced_value.cc',

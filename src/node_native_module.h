@@ -11,6 +11,9 @@
 #include "node_union_bytes.h"
 #include "v8.h"
 
+// Forward declare test fixture for `friend` declaration.
+class PerProcessTest;
+
 namespace node {
 namespace native_module {
 
@@ -82,6 +85,8 @@ class NativeModuleLoader {
 
   // Used to synchronize access to the code cache map
   Mutex code_cache_mutex_;
+
+  friend class ::PerProcessTest;
 };
 }  // namespace native_module
 
