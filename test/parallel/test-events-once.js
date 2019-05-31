@@ -85,7 +85,7 @@ async function onceError() {
 }
 
 async function onceWithEventTarget() {
-  var emitter = new class EventTargetLike extends EventEmitter {
+  const emitter = new class EventTargetLike extends EventEmitter {
     addEventListener(name, listener, options) {
       if (options.once) {
         this.once(name, listener);
