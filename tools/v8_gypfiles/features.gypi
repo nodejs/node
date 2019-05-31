@@ -253,6 +253,7 @@
         'defines': [
           'V8_ENABLE_ALLOCATION_TIMEOUT',
           'V8_ENABLE_FORCE_SLOW_PATH',
+          'V8_ENABLE_DOUBLE_CONST_STORE_CHECK',
         ],
       }],
       ['v8_enable_v8_checks==1', {

@@ -113,7 +113,7 @@
     {
       'action_name': 'concatenate_protocols',
       'inputs': [
-        '../../deps/v8/src/inspector/js_protocol.pdl',
+        '../../deps/v8/include/js_protocol.pdl',
         '<(SHARED_INTERMEDIATE_DIR)/src/node_protocol.json',
       ],
       'outputs': [
