@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const { mustCall } = common;
+const { expectsError, mustCall } = common;
 
 // This test ensures those errors caused by calling `net.Socket.write()`
 // after sockets ending will be emitted in the next tick.
@@ -18,7 +18,13 @@ const server = net.createServer(mustCall((socket) => {
       server.close();
     }));
     client.on('end', mustCall(() => {
-      client.write('hello', mustCall());
+      const ret = client.write('hello', expectsError({
+        code: 'EPIPE',
+        message: 'This socket has been ended by the other party',
+        type: Error
+      }));
+
+      assert.strictEqual(ret, false);
       assert(!hasError, 'The error should be emitted in the next tick.');
     }));
     client.end();
