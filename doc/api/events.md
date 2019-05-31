@@ -663,11 +663,12 @@ added: v11.13.0
 
 Creates a `Promise` that is resolved when the `EventEmitter` emits the given
 event or that is rejected when the `EventEmitter` emits `'error'`.
-The `Promise` will resolve with an array of all the arguments emitted to the
+The `Promise` will fulfill with an array of all the arguments emitted to the
 given event.
 
 Note: This method is intentionally generic and works with web platform
-[EventTarget](WHATWG-EventTarget) instances.
+[EventTarget](WHATWG-EventTarget) instances. `EventTarget`s have no special
+`'error'` event semantics and do not listen to the `'error'` event.
 
 ```js
 const { once, EventEmitter } = require('events');
