@@ -94,6 +94,8 @@ async function onceWithEventTarget() {
       }
     });
   };
+  // make sure we don't bind as EventEmitter
+  emitter.addListener = emitter.on = undefined;
   process.nextTick(() => {
     emitter.emit('myevent', 42);
   });
