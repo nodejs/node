@@ -666,6 +666,9 @@ event or that is rejected when the `EventEmitter` emits `'error'`.
 The `Promise` will resolve with an array of all the arguments emitted to the
 given event.
 
+Note: This method is intentionally generic and works with web platform
+[EventTarget](WHATWG-EventTarget) instances.
+
 ```js
 const { once, EventEmitter } = require('events');
 
@@ -703,4 +706,5 @@ run();
 [`fs.ReadStream`]: fs.html#fs_class_fs_readstream
 [`net.Server`]: net.html#net_class_net_server
 [`process.on('warning')`]: process.html#process_event_warning
+[WHATWG-EventTarget](https://dom.spec.whatwg.org/#interface-eventtarget)
 [stream]: stream.html

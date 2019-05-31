@@ -86,13 +86,13 @@ async function onceError() {
 
 async function onceWithEventTarget() {
   const emitter = new class EventTargetLike extends EventEmitter {
-    addEventListener(name, listener, options) {
+    addEventListener = common.mustCall(function (name, listener, options) {
       if (options.once) {
         this.once(name, listener);
       } else {
         this.on(name, listener);
       }
-    }
+    });
   };
   process.nextTick(() => {
     emitter.emit('myevent', 42);
