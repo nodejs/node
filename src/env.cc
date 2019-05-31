@@ -352,7 +352,7 @@ Environment::Environment(IsolateData* isolate_data,
     async_hooks_.no_force_checks();
   }
 
-  // TODO(joyeecheung): deserialize when the snapshot cover the environment
+  // TODO(joyeecheung): deserialize when the snapshot covers the environment
   // properties.
   CreateProperties();
 }
