@@ -502,6 +502,16 @@ This property contains the number of bytes (or objects) in the queue
 ready to be written. The value provides introspection data regarding
 the status of the `highWaterMark`.
 
+##### writable.writableFinished
+<!-- YAML
+added: v12.4.0
+-->
+
+* {boolean}
+
+Is `true` if all data has been flushed to the underlying system. After
+the [`'finish'`][] event has been emitted.
+
 ##### writable.writableObjectMode
 <!-- YAML
 added: v12.3.0
