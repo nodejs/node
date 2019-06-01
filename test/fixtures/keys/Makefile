@@ -651,6 +651,9 @@ I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256: rsa_private_b.pe
 rsa_public_b.pem: rsa_private_b.pem
 	openssl rsa -in rsa_private_b.pem -pubout -out rsa_public_b.pem
 
+# The following 'foafssl' cert is used in test/parallel/test-https-foafssl.js.
+# It requires a SAN like 'http://example.com/#me'. More info here:
+# https://www.w3.org/wiki/Foaf+ssl
 rsa_cert_foafssl_b.crt: rsa_private_b.pem
 	openssl req -new -x509 -config rsa_cert_foafssl_b.cnf -key rsa_private_b.pem -out rsa_cert_foafssl_b.crt
 
