@@ -227,7 +227,10 @@ def GetDefinition(var, source, step=30):
     template = TWO_BYTE_STRING
     # Treat non-ASCII as UTF-8 and encode as UTF-16 Little Endian.
     encoded_source = bytearray(source, 'utf-16le')
-    code_points = [encoded_source[i] + (encoded_source[i + 1] * 256) for i in range(0, len(encoded_source), 2)]
+    code_points = [
+      encoded_source[i] + (encoded_source[i + 1] * 256)
+      for i in range(0, len(encoded_source), 2)
+    ]
 
   # For easier debugging, align to the common 3 char for code-points.
   elements_s = ['%3s' % x for x in code_points]
