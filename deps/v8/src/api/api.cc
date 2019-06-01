@@ -7471,14 +7471,15 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
 v8::SharedArrayBuffer::Contents::Contents(
     void* data, size_t byte_length, void* allocation_base,
     size_t allocation_length, Allocator::AllocationMode allocation_mode,
-    DeleterCallback deleter, void* deleter_data)
+    DeleterCallback deleter, void* deleter_data, bool is_growable)
     : data_(data),
       byte_length_(byte_length),
       allocation_base_(allocation_base),
       allocation_length_(allocation_length),
       allocation_mode_(allocation_mode),
       deleter_(deleter),
-      deleter_data_(deleter_data) {
+      deleter_data_(deleter_data),
+      is_growable_(is_growable) {
   DCHECK_LE(allocation_base_, data_);
   DCHECK_LE(byte_length_, allocation_length_);
 }
@@ -7496,7 +7497,8 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
           : reinterpret_cast<Contents::DeleterCallback>(ArrayBufferDeleter),
       self->is_wasm_memory()
           ? static_cast<void*>(self->GetIsolate()->wasm_engine())
-          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()));
+          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()),
+      false);
   return contents;
 }
 
@@ -8673,13 +8675,8 @@ void v8::Isolate::LocaleConfigurationChangeNotification() {
 }
 
 // static
-std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate,
-                                                    MicrotasksPolicy policy) {
-  auto microtask_queue =
-      i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(isolate));
-  microtask_queue->set_microtasks_policy(policy);
-  std::unique_ptr<MicrotaskQueue> ret(std::move(microtask_queue));
-  return ret;
+std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate) {
+  return i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(isolate));
 }
 
 MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)
