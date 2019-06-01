@@ -249,6 +249,7 @@ int Environment::InitializeInspector(
   } else {
     inspector_path = argv_.size() > 1 ? argv_[1].c_str() : "";
   }
+
   CHECK(!inspector_agent_->IsListening());
   // Inspector agent can't fail to start, but if it was configured to listen
   // right away on the websocket port and fails to bind/etc, this will return

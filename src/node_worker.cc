@@ -58,7 +58,6 @@ Worker::Worker(Environment* env,
       per_isolate_opts_(per_isolate_opts),
       exec_argv_(exec_argv),
       platform_(env->isolate_data()->platform()),
-      // XXX(joyeecheung): should this be per_process::v8_is_profiling instead?
       start_profiler_idle_notifier_(env->profiler_idle_notifier_started()),
       thread_id_(Environment::AllocateThreadId()),
       env_vars_(env->env_vars()) {
@@ -263,11 +262,11 @@ void Worker::Run() {
       Debug(this, "Created Environment for worker with id %llu", thread_id_);
       if (is_stopped()) return;
       {
+        env_->InitializeDiagnostics();
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
         env_->InitializeInspector(inspector_parent_handle_.release());
         inspector_started = true;
 #endif
-        env_->InitializeDiagnostics();
         HandleScope handle_scope(isolate_);
         AsyncCallbackScope callback_scope(env_.get());
         env_->async_hooks()->push_async_ids(1, 0);

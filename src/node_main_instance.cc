@@ -194,6 +194,7 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
                                       Environment::kOwnsProcessState |
                                       Environment::kOwnsInspector));
   env->InitializeLibuv(per_process::v8_is_profiling);
+  env->InitializeDiagnostics();
 
   // TODO(joyeecheung): when we snapshot the bootstrapped context,
   // the inspector and diagnostics setup should after after deserialization.
@@ -204,7 +205,6 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
     return env;
   }
 
-  env->InitializeDiagnostics();
   if (env->RunBootstrapping().IsEmpty()) {
     *exit_code = 1;
   }
