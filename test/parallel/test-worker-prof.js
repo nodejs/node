@@ -50,7 +50,7 @@ if (process.argv[2] === 'child') {
   tmpdir.refresh();
   const spawnResult = spawnSync(
     process.execPath, ['--prof', __filename, 'child'],
-    { cwd: tmpdir.path, encoding: 'utf8' });
+    { cwd: tmpdir.path, encoding: 'utf8', timeout: 30_000 });
   assert.strictEqual(spawnResult.stderr.toString(), '',
                      `child exited with an error: \
                      ${util.inspect(spawnResult)}`);
