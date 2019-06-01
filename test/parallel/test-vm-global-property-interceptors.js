@@ -44,8 +44,7 @@ const result = {
 result;
 `, ctx);
 
-// eslint-disable-next-line no-restricted-properties
-assert.deepEqual(result, {
+assert.strictEqual(JSON.stringify(result), JSON.stringify({
   a: { value: 'a', writable: true, enumerable: true, configurable: true },
   b: { value: 'b', writable: false, enumerable: false, configurable: false },
   c: { value: 'c', writable: true, enumerable: true, configurable: false },
@@ -58,7 +57,7 @@ assert.deepEqual(result, {
     configurable: false
   },
   g: undefined
-});
+}));
 
 // Define new properties
 vm.runInContext(`

@@ -13,29 +13,6 @@ const defaultMsgStartFull = `${defaultMsgStart}+ actual - expected`;
 if (process.stdout.isTTY)
   process.env.NODE_DISABLE_COLORS = '1';
 
-// Template tag function turning an error message into a RegExp
-// for assert.throws()
-function re(literals, ...values) {
-  let result = 'Expected values to be loosely deep-equal:\n\n';
-  for (const [i, value] of values.entries()) {
-    const str = util.inspect(value, {
-      compact: false,
-      depth: 1000,
-      customInspect: false,
-      maxArrayLength: Infinity,
-      breakLength: Infinity,
-      sorted: true,
-      getters: true
-    });
-    // Need to escape special characters.
-    result += `${str}${literals[i + 1]}`;
-  }
-  return {
-    code: 'ERR_ASSERTION',
-    message: result
-  };
-}
-
 // The following deepEqual tests might seem very weird.
 // They just describe what it is now.
 // That is why we discourage using deepEqual in our own tests.
@@ -196,7 +173,7 @@ function assertDeepAndStrictEqual(a, b) {
 function assertNotDeepOrStrict(a, b, err) {
   assert.throws(
     () => assert.deepEqual(a, b),
-    err || re`${a}\n\nshould loosely deep-equal\n\n${b}`
+    err || { code: 'ERR_ASSERTION' }
   );
   assert.throws(
     () => assert.deepStrictEqual(a, b),
@@ -205,22 +182,8 @@ function assertNotDeepOrStrict(a, b, err) {
 
   assert.throws(
     () => assert.deepEqual(b, a),
-    err || re`${b}\n\nshould loosely deep-equal\n\n${a}`
-  );
-  assert.throws(
-    () => assert.deepStrictEqual(b, a),
     err || { code: 'ERR_ASSERTION' }
   );
-}
-
-function assertOnlyDeepEqual(a, b, err) {
-  assert.deepEqual(a, b);
-  assert.throws(
-    () => assert.deepStrictEqual(a, b),
-    err || { code: 'ERR_ASSERTION' }
-  );
-
-  assert.deepEqual(b, a);
   assert.throws(
     () => assert.deepStrictEqual(b, a),
     err || { code: 'ERR_ASSERTION' }
@@ -267,10 +230,10 @@ assertNotDeepOrStrict(new Map([['a', 1]]), { a: 1 });
 assertNotDeepOrStrict(new Map(), []);
 assertNotDeepOrStrict(new Map(), {});
 
-assertOnlyDeepEqual(new Set(['1']), new Set([1]));
+assertNotDeepOrStrict(new Set(['1']), new Set([1]));
 
-assertOnlyDeepEqual(new Map([['1', 'a']]), new Map([[1, 'a']]));
-assertOnlyDeepEqual(new Map([['a', '1']]), new Map([['a', 1]]));
+assertNotDeepOrStrict(new Map([['1', 'a']]), new Map([[1, 'a']]));
+assertNotDeepOrStrict(new Map([['a', '1']]), new Map([['a', 1]]));
 assertNotDeepOrStrict(new Map([['a', '1']]), new Map([['a', 2]]));
 
 assertDeepAndStrictEqual(new Set([{}]), new Set([{}]));
@@ -308,7 +271,7 @@ assertDeepAndStrictEqual(
 );
 
 // This is an awful case, where a map contains multiple equivalent keys:
-assertOnlyDeepEqual(
+assertNotDeepOrStrict(
   new Map([[1, 'a'], ['1', 'b']]),
   new Map([['1', 'a'], [true, 'b']])
 );
@@ -320,7 +283,7 @@ assertDeepAndStrictEqual(
   new Map([[{}, 'a'], [{}, 'b']]),
   new Map([[{}, 'b'], [{}, 'a']])
 );
-assertOnlyDeepEqual(
+assertNotDeepOrStrict(
   new Map([[true, 'a'], ['1', 'b'], [1, 'a']]),
   new Map([['1', 'a'], [1, 'b'], [true, 'a']])
 );
@@ -342,7 +305,7 @@ assertNotDeepOrStrict(
   new Map([[{}, 1], [{}, 1]]),
   new Map([[{}, 1], [1, 1]])
 );
-assertOnlyDeepEqual(
+assertNotDeepOrStrict(
   new Map([[{}, 1], [true, 1]]),
   new Map([[{}, 1], [1, 1]])
 );
@@ -362,7 +325,7 @@ assertDeepAndStrictEqual(
   new Map([[1, undefined]]),
   new Map([[1, undefined]])
 );
-assertOnlyDeepEqual(
+assertNotDeepOrStrict(
   new Map([[1, null], ['', '0']]),
   new Map([['1', undefined], [false, 0]])
 );
@@ -376,12 +339,12 @@ assertDeepAndStrictEqual(
   new Map([[null, 3]]),
   new Map([[null, 3]])
 );
-assertOnlyDeepEqual(
+assertNotDeepOrStrict(
   new Map([[undefined, null], ['+000', 2n]]),
   new Map([[null, undefined], [false, '2']]),
 );
 
-assertOnlyDeepEqual(
+assertNotDeepOrStrict(
   new Set([null, '', 1n, 5, 2n, false]),
   new Set([undefined, 0, 5n, true, '2', '-000'])
 );
@@ -389,11 +352,11 @@ assertNotDeepOrStrict(
   new Set(['']),
   new Set(['0'])
 );
-assertOnlyDeepEqual(
+assertNotDeepOrStrict(
   new Map([[1, {}]]),
   new Map([[true, {}]])
 );
-assertOnlyDeepEqual(
+assertNotDeepOrStrict(
   new Map([[undefined, true]]),
   new Map([[null, true]])
 );
@@ -523,7 +486,15 @@ assertNotDeepOrStrict(
 {
   const map1 = new Map([[1, 1]]);
   const map2 = new Map([[1, '1']]);
-  assert.deepEqual(map1, map2);
+  assert.throws(
+    () => assert.deepEqual(map1, map2),
+    {
+      code: 'ERR_ASSERTION',
+      message: 'Expected values to be deep-equal:\n+' +
+               ' actual - expected\n\n' +
+               "  Map {\n+   1 => 1\n-   1 => '1'\n  }"
+    }
+  );
   assert.throws(
     () => assert.deepStrictEqual(map1, map2),
     {
@@ -595,7 +566,7 @@ assertNotDeepOrStrict(
 }
 
 // Handle NaN
-assert.notDeepEqual(NaN, NaN);
+assert.deepEqual(NaN, NaN);
 assert.deepStrictEqual(NaN, NaN);
 assert.deepStrictEqual({ a: NaN }, { a: NaN });
 assert.deepStrictEqual([ 1, 2, NaN, 4 ], [ 1, 2, NaN, 4 ]);
@@ -631,7 +602,7 @@ assert.deepStrictEqual([ 1, 2, NaN, 4 ], [ 1, 2, NaN, 4 ]);
 }
 
 // Minus zero
-assertOnlyDeepEqual(0, -0);
+assertNotDeepOrStrict(0, -0);
 assertDeepAndStrictEqual(-0, -0);
 
 // Handle symbols (enumerable only)
@@ -642,45 +613,40 @@ assertDeepAndStrictEqual(-0, -0);
   const obj3 = { [Symbol()]: 1 };
   // Add a non enumerable symbol as well. It is going to be ignored!
   Object.defineProperty(obj2, Symbol(), { value: 1 });
-  assertOnlyDeepEqual(obj1, obj3);
+  assertNotDeepOrStrict(obj1, obj3);
   assertDeepAndStrictEqual(obj1, obj2);
   obj2[Symbol()] = true;
-  assertOnlyDeepEqual(obj1, obj2);
+  assertNotDeepOrStrict(obj1, obj2);
   // TypedArrays have a fast path. Test for this as well.
   const a = new Uint8Array(4);
   const b = new Uint8Array(4);
   a[symbol1] = true;
   b[symbol1] = false;
-  assertOnlyDeepEqual(a, b);
+  assertNotDeepOrStrict(a, b);
   b[symbol1] = true;
   assertDeepAndStrictEqual(a, b);
   // The same as TypedArrays is valid for boxed primitives
   const boxedStringA = new String('test');
   const boxedStringB = new String('test');
   boxedStringA[symbol1] = true;
-  assertOnlyDeepEqual(boxedStringA, boxedStringB);
+  assertNotDeepOrStrict(boxedStringA, boxedStringB);
   boxedStringA[symbol1] = true;
   assertDeepAndStrictEqual(a, b);
   // Loose equal arrays should not compare symbols.
   const arr = [1];
   const arr2 = [1];
   arr[symbol1] = true;
-  assertOnlyDeepEqual(arr, arr2);
+  assertNotDeepOrStrict(arr, arr2);
   arr2[symbol1] = false;
-  assertOnlyDeepEqual(arr, arr2);
+  assertNotDeepOrStrict(arr, arr2);
 }
 
-assert.throws(
-  () => assert.notDeepEqual(1, true),
-  {
-    message: /1\n\nshould not loosely deep-equal\n\ntrue/
-  }
-);
+assert.notDeepEqual(1, true);
 
 assert.throws(
   () => assert.notDeepEqual(1, 1),
   {
-    message: /Expected "actual" not to be loosely deep-equal to:\n\n1/
+    message: /Expected "actual" not to be deep-equal to: 1/
   }
 );
 
@@ -721,8 +687,8 @@ assertNotDeepOrStrict(/a/igm, /a/im);
   assert.deepEqual(re1, /a/g);
 }
 
-assert.deepEqual(4, '4');
-assert.deepEqual(true, 1);
+assertNotDeepOrStrict(4, '4');
+assertNotDeepOrStrict(true, 1);
 assert.throws(() => assert.deepEqual(4, '5'),
               AssertionError,
               'deepEqual( 4, \'5\')');
@@ -730,7 +696,7 @@ assert.throws(() => assert.deepEqual(4, '5'),
 // Having the same number of owned properties && the same set of keys.
 assert.deepEqual({ a: 4 }, { a: 4 });
 assert.deepEqual({ a: 4, b: '2' }, { a: 4, b: '2' });
-assert.deepEqual([4], ['4']);
+assertNotDeepOrStrict([4], ['4']);
 assert.throws(
   () => assert.deepEqual({ a: 4 }, { a: 4, b: true }), AssertionError);
 assert.notDeepEqual(['a'], { 0: 'a' });
@@ -783,8 +749,8 @@ assertNotDeepOrStrict(true, {});
 assertNotDeepOrStrict(Symbol(), {});
 assertNotDeepOrStrict(Symbol(), Symbol());
 
-assertOnlyDeepEqual(4, '4');
-assertOnlyDeepEqual(true, 1);
+assertNotDeepOrStrict(4, '4');
+assertNotDeepOrStrict(true, 1);
 
 {
   const s = Symbol();
@@ -897,6 +863,21 @@ assert.throws(
              "+ [\n+   'a'\n+ ]\n- {\n-   '0': 'a'\n- }"
   });
 
+// Nested null prototype vs. Object prototype should assert in strict only.
+{
+  const a = { fhqwhgads: { greeting: 'come on' } };
+  const b = Object.create(null);
+  b.fhqwhgads = Object.create(null);
+  b.fhqwhgads.greeting = 'come on';
+  assert.deepEqual(a, b);
+  assert.throws(
+    () => { assert.deepStrictEqual(a, b); },
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+    }
+  );
+}
 /* eslint-enable */
 
 assert.deepStrictEqual({ a: 4, b: '1' }, { b: '1', a: 4 });

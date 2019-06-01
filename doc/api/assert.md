@@ -8,6 +8,9 @@ The `assert` module provides a set of assertion functions for verifying
 invariants. The module provides a recommended [`strict` mode][] and a more
 lenient legacy mode.
 
+To deactivate colors in output, use the `NODE_DISABLE_COLORS` environment
+variable. This will also deactivate the colors in the REPL.
+
 ## Class: assert.AssertionError
 
 A subclass of `Error` that indicates the failure of an assertion. All errors
@@ -78,8 +81,8 @@ changes:
 -->
 
 In `strict` mode, `assert` functions use the comparison in the corresponding
-strict functions. For example, [`assert.deepEqual()`][] will behave like
-[`assert.deepStrictEqual()`][].
+strict functions. For example, [`assert.equal()`][] will behave like
+[`assert.strictEqual()`][].
 
 In `strict` mode, error messages for objects display a diff. In legacy mode,
 error messages for objects display the objects, often truncated.
@@ -111,17 +114,15 @@ assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
 //   ]
 ```
 
-To deactivate the colors, use the `NODE_DISABLE_COLORS` environment variable.
-This will also deactivate the colors in the REPL.
-
 ## Legacy mode
 
-Legacy mode uses the [Abstract Equality Comparison][] in:
+When accessing `assert` directly instead of using the `strict` property, the
+[Abstract Equality Comparison][] will be used for [`assert.equal()`][] and
+[`assert.notEqual()`][].
 
-* [`assert.deepEqual()`][]
-* [`assert.equal()`][]
-* [`assert.notDeepEqual()`][]
-* [`assert.notEqual()`][]
+In legacy mode, [`assert.deepEqual()`][] and [`assert.notDeepEqual()`][] work
+the same as in `strict` mode except that the prototypes of the objects are not
+compared.
 
 To use legacy mode:
 
@@ -130,14 +131,7 @@ const assert = require('assert');
 ```
 
 Whenever possible, use the [`strict` mode][] instead. Otherwise, the
-[Abstract Equality Comparison][] may cause surprising results. This is
-especially true for [`assert.deepEqual()`][], where the comparison rules are
-lax:
-
-```js
-// WARNING: This does not throw an AssertionError!
-assert.deepEqual(/a/gi, new Date());
-```
+[Abstract Equality Comparison][] may cause surprising results.
 
 ## assert(value[, message])
 <!-- YAML
@@ -152,6 +146,10 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28011
+    description: Now identical to `deepStrictEqual()` except that it will not
+                 check the prototype.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/25008
     description: The type tags are now properly compared and there are a couple
@@ -182,84 +180,8 @@ An alias of [`assert.deepStrictEqual()`][].
 
 **Legacy mode**
 
-> Stability: 0 - Deprecated: Use [`assert.deepStrictEqual()`][] instead.
-
-Tests for deep equality between the `actual` and `expected` parameters. Consider
-using [`assert.deepStrictEqual()`][] instead. [`assert.deepEqual()`][] can have
-potentially surprising results.
-
-"Deep" equality means that the enumerable "own" properties of child objects
-are also recursively evaluated by the following rules.
-
-### Comparison details
-
-* Primitive values are compared with the [Abstract Equality Comparison][]
-  ( `==` ).
-* [Type tags][Object.prototype.toString()] of objects should be the same.
-* Only [enumerable "own" properties][] are considered.
-* [`Error`][] names and messages are always compared, even if these are not
-  enumerable properties.
-* [Object wrappers][] are compared both as objects and unwrapped values.
-* `Object` properties are compared unordered.
-* [`Map`][] keys and [`Set`][] items are compared unordered.
-* Recursion stops when both sides differ or both sides encounter a circular
-  reference.
-* Implementation does not test the [`[[Prototype]]`][prototype-spec] of
-  objects.
-* [`Symbol`][] properties are not compared.
-* [`WeakMap`][] and [`WeakSet`][] comparison does not rely on their values.
-
-The following example does not throw an `AssertionError` because the primitives
-are considered equal by the [Abstract Equality Comparison][] ( `==` ).
-
-```js
-// WARNING: This does not throw an AssertionError!
-assert.deepEqual('+00000000', false);
-```
-
-"Deep" equality means that the enumerable "own" properties of child objects
-are evaluated also:
-
-```js
-const assert = require('assert');
-
-const obj1 = {
-  a: {
-    b: 1
-  }
-};
-const obj2 = {
-  a: {
-    b: 2
-  }
-};
-const obj3 = {
-  a: {
-    b: 1
-  }
-};
-const obj4 = Object.create(obj1);
-
-assert.deepEqual(obj1, obj1);
-// OK
-
-// Values of b are different:
-assert.deepEqual(obj1, obj2);
-// AssertionError: { a: { b: 1 } } deepEqual { a: { b: 2 } }
-
-assert.deepEqual(obj1, obj3);
-// OK
-
-// Prototypes are ignored:
-assert.deepEqual(obj1, obj4);
-// AssertionError: { a: { b: 1 } } deepEqual {}
-```
-
-If the values are not equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an [`Error`][] then it will be thrown instead of the
-`AssertionError`.
+Identical to [`assert.deepStrictEqual()`][] except that prototypes are not
+compared.
 
 ## assert.deepStrictEqual(actual, expected[, message])
 <!-- YAML
@@ -715,6 +637,10 @@ let err;
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28011
+    description: Now identical to `notDeepStrictEqual()` except that it will not
+                 check the prototype.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: The `Error` names and messages are now properly compared
@@ -741,48 +667,8 @@ An alias of [`assert.notDeepStrictEqual()`][].
 
 **Legacy mode**
 
-> Stability: 0 - Deprecated: Use [`assert.notDeepStrictEqual()`][] instead.
-
-Tests for any deep inequality. Opposite of [`assert.deepEqual()`][].
-
-```js
-const assert = require('assert');
-
-const obj1 = {
-  a: {
-    b: 1
-  }
-};
-const obj2 = {
-  a: {
-    b: 2
-  }
-};
-const obj3 = {
-  a: {
-    b: 1
-  }
-};
-const obj4 = Object.create(obj1);
-
-assert.notDeepEqual(obj1, obj1);
-// AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
-
-assert.notDeepEqual(obj1, obj2);
-// OK
-
-assert.notDeepEqual(obj1, obj3);
-// AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
-
-assert.notDeepEqual(obj1, obj4);
-// OK
-```
-
-If the values are deeply equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an [`Error`][] then it will be thrown instead of the
-`AssertionError`.
+Identical to [`assert.notDeepStrictEqual()`][] except that prototypes are not
+compared.
 
 ## assert.notDeepStrictEqual(actual, expected[, message])
 <!-- YAML
@@ -1277,10 +1163,11 @@ second argument. This might lead to difficult-to-spot errors.
 [`TypeError`]: errors.html#errors_class_typeerror
 [`WeakMap`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
 [`WeakSet`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
-[`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
 [`assert.doesNotThrow()`]: #assert_assert_doesnotthrow_fn_error_message
+[`assert.equal()`]: #assert_assert_equal_actual_expected_message
 [`assert.notDeepStrictEqual()`]: #assert_assert_notdeepstrictequal_actual_expected_message
+[`assert.notEqual()`]: #assert_assert_notequal_actual_expected_message
 [`assert.notStrictEqual()`]: #assert_assert_notstrictequal_actual_expected_message
 [`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message

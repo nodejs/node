@@ -64,14 +64,10 @@ const notEqualArrayPairs = [
 ];
 
 equalArrayPairs.forEach((arrayPair) => {
-  // eslint-disable-next-line no-restricted-properties
-  assert.deepEqual(arrayPair[0], arrayPair[1]);
   assert.deepStrictEqual(arrayPair[0], arrayPair[1]);
 });
 
 looseEqualArrayPairs.forEach((arrayPair) => {
-  // eslint-disable-next-line no-restricted-properties
-  assert.deepEqual(arrayPair[0], arrayPair[1]);
   assert.throws(
     makeBlock(assert.deepStrictEqual, arrayPair[0], arrayPair[1]),
     assert.AssertionError
@@ -79,11 +75,6 @@ looseEqualArrayPairs.forEach((arrayPair) => {
 });
 
 notEqualArrayPairs.forEach((arrayPair) => {
-  assert.throws(
-    // eslint-disable-next-line no-restricted-properties
-    makeBlock(assert.deepEqual, arrayPair[0], arrayPair[1]),
-    assert.AssertionError
-  );
   assert.throws(
     makeBlock(assert.deepStrictEqual, arrayPair[0], arrayPair[1]),
     assert.AssertionError
