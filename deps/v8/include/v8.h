@@ -5218,7 +5218,8 @@ class V8_EXPORT SharedArrayBuffer : public Object {
           allocation_length_(0),
           allocation_mode_(Allocator::AllocationMode::kNormal),
           deleter_(nullptr),
-          deleter_data_(nullptr) {}
+          deleter_data_(nullptr),
+          is_growable_(false) {}
 
     void* AllocationBase() const { return allocation_base_; }
     size_t AllocationLength() const { return allocation_length_; }
@@ -5230,12 +5231,13 @@ class V8_EXPORT SharedArrayBuffer : public Object {
     size_t ByteLength() const { return byte_length_; }
     DeleterCallback Deleter() const { return deleter_; }
     void* DeleterData() const { return deleter_data_; }
+    bool IsGrowable() const { return is_growable_; }
 
    private:
     Contents(void* data, size_t byte_length, void* allocation_base,
              size_t allocation_length,
              Allocator::AllocationMode allocation_mode, DeleterCallback deleter,
-             void* deleter_data);
+             void* deleter_data, bool is_growable);
 
     void* data_;
     size_t byte_length_;
@@ -5244,6 +5246,7 @@ class V8_EXPORT SharedArrayBuffer : public Object {
     Allocator::AllocationMode allocation_mode_;
     DeleterCallback deleter_;
     void* deleter_data_;
+    bool is_growable_;
 
     friend class SharedArrayBuffer;
   };
@@ -6900,8 +6903,7 @@ class V8_EXPORT MicrotaskQueue {
   /**
    * Creates an empty MicrotaskQueue instance.
    */
-  static std::unique_ptr<MicrotaskQueue> New(
-      Isolate* isolate, MicrotasksPolicy policy = MicrotasksPolicy::kAuto);
+  static std::unique_ptr<MicrotaskQueue> New(Isolate* isolate);
 
   virtual ~MicrotaskQueue() = default;
 
@@ -6948,15 +6950,6 @@ class V8_EXPORT MicrotaskQueue {
    * Returns true if a microtask is running on this MicrotaskQueue instance.
    */
   virtual bool IsRunningMicrotasks() const = 0;
-
-  /**
-   * Returns the current depth of nested MicrotasksScope that has
-   * kRunMicrotasks.
-   */
-  virtual int GetMicrotasksScopeDepth() const = 0;
-
-  MicrotaskQueue(const MicrotaskQueue&) = delete;
-  MicrotaskQueue& operator=(const MicrotaskQueue&) = delete;
 
  private:
   friend class internal::MicrotaskQueue;
