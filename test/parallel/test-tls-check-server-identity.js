@@ -70,6 +70,48 @@ const tests = [
     error: 'Host: a.com. is not cert\'s CN: .a.com'
   },
 
+  // IP address in CN. Technically allowed but so rare that we reject
+  // it anyway. If we ever do start allowing them, we should take care
+  // to only allow public (non-internal, non-reserved) IP addresses,
+  // because that's what the spec mandates.
+  {
+    host: '8.8.8.8',
+    cert: { subject: { CN: '8.8.8.8' } },
+    error: 'IP: 8.8.8.8 is not in the cert\'s list: '
+  },
+
+  // The spec suggests that a "DNS:" Subject Alternative Name containing an
+  // IP address is valid but it seems so suspect that we currently reject it.
+  {
+    host: '8.8.8.8',
+    cert: { subject: { CN: '8.8.8.8' }, subjectaltname: 'DNS:8.8.8.8' },
+    error: 'IP: 8.8.8.8 is not in the cert\'s list: '
+  },
+
+  // Likewise for "URI:" Subject Alternative Names.
+  // See also https://github.com/nodejs/node/issues/8108.
+  {
+    host: '8.8.8.8',
+    cert: { subject: { CN: '8.8.8.8' }, subjectaltname: 'URI:http://8.8.8.8/' },
+    error: 'IP: 8.8.8.8 is not in the cert\'s list: '
+  },
+
+  // An "IP Address:" Subject Alternative Name however is acceptable.
+  {
+    host: '8.8.8.8',
+    cert: { subject: { CN: '8.8.8.8' }, subjectaltname: 'IP Address:8.8.8.8' }
+  },
+
+  // But not when it's a CIDR.
+  {
+    host: '8.8.8.8',
+    cert: {
+      subject: { CN: '8.8.8.8' },
+      subjectaltname: 'IP Address:8.8.8.0/24'
+    },
+    error: 'IP: 8.8.8.8 is not in the cert\'s list: '
+  },
+
   // Wildcards in CN
   { host: 'b.a.com', cert: { subject: { CN: '*.a.com' } } },
   {
