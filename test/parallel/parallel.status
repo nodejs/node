@@ -9,8 +9,6 @@ prefix parallel
 test-net-connect-options-port: PASS,FLAKY
 # https://github.com/nodejs/node/issues/26401
 test-worker-prof: PASS,FLAKY
-# https://github.com/nodejs/node/issues/27553
-test-tls-enable-trace-cli: PASS,FLAKY
 
 [$system==win32]
 test-http2-pipe: PASS,FLAKY
