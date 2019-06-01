@@ -29,6 +29,16 @@ rl.question('What do you think of Node.js? ', (answer) => {
 });
 ```
 
+`rl.question` can also be used with `async`/`await` and `.then`
+
+```js
+async function askQuestion(question) {
+  const answer = await rl.question(question);
+  console.log(`Thank you for your valuable feedback: ${answer}`);
+  rl.close();
+}
+```
+
 Once this code is invoked, the Node.js application will not terminate until the
 `readline.Interface` is closed because the interface waits for data to be
 received on the `input` stream.
