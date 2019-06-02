@@ -5564,12 +5564,6 @@ void DiffieHellman::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
 }
 
 void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L && \
-    OPENSSL_VERSION_NUMBER < 0x10100070L
-// Older versions of OpenSSL 1.1.0 have a DH_set0_key which does not work for
-// Node. See https://github.com/openssl/openssl/pull/4384.
-#error "OpenSSL 1.1.0 revisions before 1.1.0g are not supported"
-#endif
   SetKey(args,
          [](DH* dh, BIGNUM* num) { return DH_set0_key(dh, nullptr, num); },
          "Private key");
