@@ -14,7 +14,10 @@ const { internalBinding } = require('internal/test/binding');
 
   assert.throws(() => {
     port1.postMessage(function foo() {});
-  }, /^DataCloneError: function foo\(\) \{\} could not be cloned\.$/);
+  }, {
+    name: 'DataCloneError',
+    message: /function foo\(\) \{\} could not be cloned\.$/
+  });
   port1.close();
 }
 
@@ -26,6 +29,9 @@ const { internalBinding } = require('internal/test/binding');
 
   assert.throws(() => {
     port1.postMessage(nativeObject);
-  }, /^DataCloneError: Cannot transfer object of unsupported type\.$/);
+  }, {
+    name: 'DataCloneError',
+    message: /Cannot transfer object of unsupported type\.$/
+  });
   port1.close();
 }
