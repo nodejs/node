@@ -352,11 +352,8 @@ void Worker::JoinThread() {
   thread_joined_ = true;
 
   env()->remove_sub_worker_context(this);
-  OnThreadStopped();
   on_thread_finished_.Uninstall();
-}
 
-void Worker::OnThreadStopped() {
   {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
@@ -370,7 +367,7 @@ void Worker::OnThreadStopped() {
     MakeCallback(env()->onexit_string(), 1, &code);
   }
 
-  // JoinThread() cleared all libuv handles bound to this Worker,
+  // We cleared all libuv handles bound to this Worker above,
   // the C++ object is no longer needed for anything now.
   MakeWeak();
 }
@@ -534,8 +531,6 @@ void Worker::StopThread(const FunctionCallbackInfo<Value>& args) {
 
   Debug(w, "Worker %llu is getting stopped by parent", w->thread_id_);
   w->Exit(1);
-  w->JoinThread();
-  delete w;
 }
 
 void Worker::Ref(const FunctionCallbackInfo<Value>& args) {

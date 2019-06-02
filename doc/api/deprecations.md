@@ -2484,6 +2484,20 @@ The legacy HTTP parser, used by default in versions of Node.js prior to 12.0.0,
 is deprecated. This deprecation applies to users of the
 [`--http-parser=legacy`][] command-line flag.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: worker.terminate() with callback
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28021
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
+`Promise` instead, or a listener to the worker’s `'exit'` event.
+
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2576,6 +2590,7 @@ is deprecated. This deprecation applies to users of the
 [`util.types`]: util.html#util_util_types
 [`util`]: util.html
 [`worker.exitedAfterDisconnect`]: cluster.html#cluster_worker_exitedafterdisconnect
+[`worker.terminate()`]: worker_threads.html#worker_threads_worker_terminate
 [`zlib.bytesWritten`]: zlib.html#zlib_zlib_byteswritten
 [Legacy URL API]: url.html#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf

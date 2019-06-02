@@ -52,7 +52,6 @@ class Worker : public AsyncWrap {
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
-  void OnThreadStopped();
   void CreateEnvMessagePort(Environment* env);
 
   std::shared_ptr<PerIsolateOptions> per_isolate_opts_;
