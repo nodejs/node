@@ -6,7 +6,7 @@
 Node.js may deprecate APIs for any of the following reasons:
 
 * Use of the API is considered to be unsafe.
-* An improved alternative API is available
+* An improved alternative API is available.
 * Breaking changes to the API are expected in a future major release.
 
 Node.js utilizes three kinds of Deprecations:
