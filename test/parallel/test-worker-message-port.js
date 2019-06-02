@@ -71,6 +71,27 @@ const { MessageChannel, MessagePort } = require('worker_threads');
 }
 
 {
+  const { port1, port2 } = new MessageChannel();
+  port2.on('message', common.mustCall(4));
+  port1.postMessage(1, null);
+  port1.postMessage(2, undefined);
+  port1.postMessage(3, []);
+  port1.postMessage(4, {});
+
+  const err = {
+    constructor: TypeError,
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'Optional transferList argument must be an array'
+  };
+
+  assert.throws(() => port1.postMessage(5, 0), err);
+  assert.throws(() => port1.postMessage(5, false), err);
+  assert.throws(() => port1.postMessage(5, 'X'), err);
+  assert.throws(() => port1.postMessage(5, Symbol('X')), err);
+  port1.close();
+}
+
+{
   assert.deepStrictEqual(
     Object.getOwnPropertyNames(MessagePort.prototype).sort(),
     [
