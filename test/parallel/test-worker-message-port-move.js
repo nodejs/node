@@ -53,13 +53,6 @@ vm.runInContext('(' + function() {
     }
     assert(threw);
   }
-
-  {
-    const newDummyPort = new (port.constructor)();
-    assert(!(newDummyPort instanceof MessagePort));
-    assert(newDummyPort.close instanceof Function);
-    newDummyPort.close();
-  }
 } + ')()', context);
 
 port2.on('message', common.mustCall((msg) => {
