@@ -714,6 +714,15 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_MISSING_ARGS(env, "Not enough arguments to "
                                        "MessagePort.postMessage");
   }
+  if (!args[1]->IsNullOrUndefined() && !args[1]->IsObject()) {
+    // Browsers ignore null or undefined, and otherwise accept an array or an
+    // options object.
+    // TODO(addaleax): Add support for an options object and generic sequence
+    // support.
+    // Refs: https://github.com/nodejs/node/pull/28033#discussion_r289964991
+    return THROW_ERR_INVALID_ARG_TYPE(env,
+        "Optional transferList argument must be an array");
+  }
 
   MessagePort* port = Unwrap<MessagePort>(args.This());
   // Even if the backing MessagePort object has already been deleted, we still
