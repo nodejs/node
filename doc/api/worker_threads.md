@@ -617,24 +617,23 @@ inside the worker thread. If `stdout: true` was not passed to the
 [`Worker`][] constructor, then data will be piped to the parent thread's
 [`process.stdout`][] stream.
 
-### worker.terminate([callback])
+### worker.terminate()
 <!-- YAML
 added: v10.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28021
+    description: This function now returns a Promise.
+                 Passing a callback is deprecated, and was useless up to this
+                 version, as the Worker was actually terminated synchronously.
+                 Terminating is now a fully asynchronous operation.
 -->
 
-* `callback` {Function}
-  * `err` {Error}
-  * `exitCode` {integer}
+* Returns: {Promise}
 
 Stop all JavaScript execution in the worker thread as soon as possible.
-`callback` is an optional function that is invoked once this operation is known
-to have completed.
-
-**Warning**: Currently, not all code in the internals of Node.js is prepared to
-expect termination at arbitrary points in time and may crash if it encounters
-that condition. Consequently, only call `.terminate()` if it is known that the
-Worker thread is not accessing Node.js core modules other than what is exposed
-in the `worker` module.
+Returns a Promise for the exit code that is fulfilled when the
+[`'exit'` event][] is emitted.
 
 ### worker.threadId
 <!-- YAML
@@ -657,6 +656,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 `unref()` again will have no effect.
 
 [`'close'` event]: #worker_threads_event_close
+[`'exit'` event]: #worker_threads_event_exit
 [`AsyncResource`]: async_hooks.html#async_hooks_class_asyncresource
 [`Buffer`]: buffer.html
 [`EventEmitter`]: events.html
@@ -690,7 +690,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`worker.on('message')`]: #worker_threads_event_message_1
 [`worker.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`worker.SHARE_ENV`]: #worker_threads_worker_share_env
-[`worker.terminate()`]: #worker_threads_worker_terminate_callback
+[`worker.terminate()`]: #worker_threads_worker_terminate
 [`worker.threadId`]: #worker_threads_worker_threadid_1
 [Addons worker support]: addons.html#addons_worker_support
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
