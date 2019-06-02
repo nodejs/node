@@ -1403,8 +1403,8 @@ changes:
     Revocation Lists).
   * `dhparam` {string|Buffer} Diffie Hellman parameters, required for
     [Perfect Forward Secrecy][]. Use `openssl dhparam` to create the parameters.
-    The key length must be greater than or equal to 1024 bits, otherwise an
-    error will be thrown. It is strongly recommended to use 2048 bits or larger
+    The key length must be greater than or equal to 1024 bits or else an error
+    will be thrown. Although 1024 bits is permissible, use 2048 bits or larger
     for stronger security. If omitted or invalid, the parameters are silently
     discarded and DHE ciphers will not be available.
   * `ecdhCurve` {string} A string describing a named curve or a colon separated
