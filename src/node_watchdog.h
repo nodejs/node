@@ -49,7 +49,7 @@ class Watchdog {
 
   v8::Isolate* isolate_;
   uv_thread_t thread_;
-  uv_loop_t* loop_;
+  uv_loop_t loop_;
   uv_async_t async_;
   uv_timer_t timer_;
   bool* timed_out_;
