@@ -12,8 +12,14 @@ process.nextTick(() => {
 });
 `, { eval: true });
 
+// Test deprecation of .terminate() with callback.
+common.expectWarning(
+  'DeprecationWarning',
+  'Passing a callback to worker.terminate() is deprecated. ' +
+  'It returns a Promise instead.', 'DEP0XXX');
+
 w.on('message', common.mustCall(() => {
   setTimeout(() => {
-    w.terminate(common.mustCall());
+    w.terminate(common.mustCall()).then(common.mustCall());
   }, 1);
 }));
