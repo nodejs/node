@@ -134,10 +134,10 @@ changes:
 Type: Runtime (supports [`--pending-deprecation`][])
 
 The `Buffer()` function and `new Buffer()` constructor are deprecated due to
-API usability issues that can potentially lead to accidental security issues.
+API usability issues that can lead to accidental security issues.
 
-As an alternative, use of the following methods of constructing `Buffer` objects
-is strongly recommended:
+As an alternative, use one of the following methods of constructing `Buffer`
+objects:
 
 * [`Buffer.alloc(size[, fill[, encoding]])`][alloc] - Create a `Buffer` with
   *initialized* memory.
