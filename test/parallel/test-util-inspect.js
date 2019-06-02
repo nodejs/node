@@ -93,7 +93,7 @@ assert.strictEqual(util.inspect(new Date('')), (new Date('')).toString());
 assert.strictEqual(util.inspect('\n\u0001'), "'\\n\\u0001'");
 assert.strictEqual(
   util.inspect(`${Array(75).fill(1)}'\n\u001d\n\u0003`),
-  `"${Array(75).fill(1)}'\\n" +\n  '\\u001d\\n\\u0003'`
+  `"${Array(75).fill(1)}'\\n" +\n  '\\u001d\\n' +\n  '\\u0003'`
 );
 assert.strictEqual(util.inspect([]), '[]');
 assert.strictEqual(util.inspect(Object.create([])), 'Array {}');
@@ -1487,10 +1487,9 @@ util.inspect(process);
     '    2,',
     '    [',
     '      [',
-    "        'Lorem ipsum dolor\\nsit amet,\\tconsectetur ' +",
-    "          'adipiscing elit, sed do eiusmod tempor ' +",
-    "          'incididunt ut labore et dolore magna ' +",
-    "          'aliqua.',",
+    "        'Lorem ipsum dolor\\n' +",
+    "          'sit amet,\\tconsectetur adipiscing elit, sed do eiusmod " +
+      "tempor incididunt ut labore et dolore magna aliqua.',",
     "        'test',",
     "        'foo'",
     '      ]',
@@ -1507,12 +1506,9 @@ util.inspect(process);
 
   out = util.inspect(o.a[2][0][0], { compact: false, breakLength: 30 });
   expect = [
-    "'Lorem ipsum dolor\\nsit ' +",
-    "  'amet,\\tconsectetur ' +",
-    "  'adipiscing elit, sed do ' +",
-    "  'eiusmod tempor incididunt ' +",
-    "  'ut labore et dolore magna ' +",
-    "  'aliqua.'"
+    "'Lorem ipsum dolor\\n' +",
+    "  'sit amet,\\tconsectetur adipiscing elit, sed do eiusmod tempor " +
+      "incididunt ut labore et dolore magna aliqua.'"
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1526,30 +1522,7 @@ util.inspect(process);
     '12 45 78 01 34 67 90 23 56 89 123456789012345678901234567890',
     { compact: false, breakLength: 3 });
   expect = [
-    "'12 45 78 01 34 ' +",
-    "  '67 90 23 56 89 ' +",
-    "  '123456789012345678901234567890'"
-  ].join('\n');
-  assert.strictEqual(out, expect);
-
-  out = util.inspect(
-    '12 45 78 01 34 67 90 23 56 89 1234567890123 0',
-    { compact: false, breakLength: 3 });
-  expect = [
-    "'12 45 78 01 34 ' +",
-    "  '67 90 23 56 89 ' +",
-    "  '1234567890123 0'"
-  ].join('\n');
-  assert.strictEqual(out, expect);
-
-  out = util.inspect(
-    '12 45 78 01 34 67 90 23 56 89 12345678901234567 0',
-    { compact: false, breakLength: 3 });
-  expect = [
-    "'12 45 78 01 34 ' +",
-    "  '67 90 23 56 89 ' +",
-    "  '12345678901234567 ' +",
-    "  '0'"
+    "'12 45 78 01 34 67 90 23 56 89 123456789012345678901234567890'"
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1588,7 +1561,7 @@ util.inspect(process);
 
   o[util.inspect.custom] = () => ({ a: '12 45 78 01 34 67 90 23' });
   out = util.inspect(o, { compact: false, breakLength: 3 });
-  expect = "{\n  a: '12 45 78 01 34 ' +\n    '67 90 23'\n}";
+  expect = "{\n  a: '12 45 78 01 34 67 90 23'\n}";
   assert.strictEqual(out, expect);
 }
 
@@ -2192,16 +2165,13 @@ assert.strictEqual(
     '    b: {',
     '      x: 5,',
     '      c: {',
-    "        x: '10000000000000000 00000000000000000 ' +",
-    "          '10000000000000000 00000000000000000 ' +",
-    "          '10000000000000000 00000000000000000 ' +",
-    "          '10000000000000000 00000000000000000 ' +",
-    "          '10000000000000000 00000000000000000 ' +",
-    "          '10000000000000000 00000000000000000 ' +",
-    "          '10000000000000000 00000000000000000 ' +",
-    "          '10000000000000000 00000000000000000 ' +",
-    "          '10000000000000000 00000000000000000 ' +",
-    "          '10000000000000000 00000000000000000 ',",
+    "        x: '10000000000000000 00000000000000000 10000000000000000 " +
+      '00000000000000000 10000000000000000 00000000000000000 ' +
+      '10000000000000000 00000000000000000 10000000000000000 ' +
+      '00000000000000000 10000000000000000 00000000000000000 ' +
+      '10000000000000000 00000000000000000 10000000000000000 ' +
+      '00000000000000000 10000000000000000 00000000000000000 ' +
+      "10000000000000000 00000000000000000 ',",
     '        d: 2,',
     '        e: 3',
     '      }',
