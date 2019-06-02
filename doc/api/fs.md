@@ -73,9 +73,9 @@ fs.rename('/tmp/hello', '/tmp/world', (err) => {
 });
 ```
 
-In busy processes, the programmer is _strongly encouraged_ to use the
-asynchronous versions of these calls. The synchronous versions will block
-the entire process until they complete — halting all connections.
+In busy processes, use the asynchronous versions of these calls. The synchronous
+versions will block the entire process until they complete, halting all
+connections.
 
 While it is not recommended, most fs functions allow the callback argument to
 be omitted, in which case a default callback is used that rethrows errors. To
