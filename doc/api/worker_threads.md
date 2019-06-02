@@ -48,9 +48,10 @@ if (isMainThread) {
 The above example spawns a Worker thread for each `parse()` call. In actual
 practice, use a pool of Workers instead for these kinds of tasks. Otherwise, the
 overhead of creating Workers would likely exceed their benefit.
-When implementing a worker pool, it is strongly recommended to use the
-[`AsyncResource`][] API to inform diagnostic tools (for e.g. asynchronous stack
-traces) about the correlation between tasks and their outcomes.
+
+When implementing a worker pool, use the [`AsyncResource`][] API to inform
+diagnostic tools (e.g. in order to provide asynchronous stack traces) about the
+correlation between tasks and their outcomes.
 
 ## worker.isMainThread
 <!-- YAML
