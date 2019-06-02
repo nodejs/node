@@ -108,20 +108,13 @@ class SecureContext : public BaseObject {
   static const int kTicketKeyNameIndex = 3;
   static const int kTicketKeyIVIndex = 4;
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
   unsigned char ticket_key_name_[16];
   unsigned char ticket_key_aes_[16];
   unsigned char ticket_key_hmac_[16];
-#endif
 
  protected:
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  static const int64_t kExternalSize = sizeof(SSL_CTX);
-#else
-  // OpenSSL 1.1.0 has opaque structures. This is an estimate based on the size
-  // as of OpenSSL 1.1.0f.
-  static const int64_t kExternalSize = 872;
-#endif
+  // OpenSSL structures are opaque. This is sizeof(SSL_CTX) for OpenSSL 1.1.1b:
+  static const int64_t kExternalSize = 1024;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -167,14 +160,12 @@ class SecureContext : public BaseObject {
                                HMAC_CTX* hctx,
                                int enc);
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
   static int TicketCompatibilityCallback(SSL* ssl,
                                          unsigned char* name,
                                          unsigned char* iv,
                                          EVP_CIPHER_CTX* ectx,
                                          HMAC_CTX* hctx,
                                          int enc);
-#endif
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap) {
@@ -229,32 +220,20 @@ class SSLWrap {
  protected:
   typedef void (*CertCb)(void* arg);
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  // Size allocated by OpenSSL: one for SSL structure, one for SSL3_STATE and
-  // some for buffers.
+  // OpenSSL structures are opaque. Estimate SSL memory size for OpenSSL 1.1.1b:
+  //   SSL: 6224
+  //   SSL->SSL3_STATE: 1040
+  //   ...some buffers: 42 * 1024
   // NOTE: Actually it is much more than this
-  static const int64_t kExternalSize =
-      sizeof(SSL) + sizeof(SSL3_STATE) + 42 * 1024;
-#else
-  // OpenSSL 1.1.0 has opaque structures. This is an estimate based on the size
-  // as of OpenSSL 1.1.0f.
-  static const int64_t kExternalSize = 4448 + 1024 + 42 * 1024;
-#endif
+  static const int64_t kExternalSize = 6224 + 1040 + 42 * 1024;
 
   static void ConfigureSecureContext(SecureContext* sc);
   static void AddMethods(Environment* env, v8::Local<v8::FunctionTemplate> t);
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  static SSL_SESSION* GetSessionCallback(SSL* s,
-                                         unsigned char* key,
-                                         int len,
-                                         int* copy);
-#else
   static SSL_SESSION* GetSessionCallback(SSL* s,
                                          const unsigned char* key,
                                          int len,
                                          int* copy);
-#endif
   static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
   static void KeylogCallback(const SSL* s, const char* line);
   static void OnClientHello(void* arg,

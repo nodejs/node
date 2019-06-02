@@ -30,16 +30,6 @@
 namespace node {
 namespace crypto {
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-#define BIO_set_data(bio, data) bio->ptr = data
-#define BIO_get_data(bio) bio->ptr
-#define BIO_set_shutdown(bio, shutdown_) bio->shutdown = shutdown_
-#define BIO_get_shutdown(bio) bio->shutdown
-#define BIO_set_init(bio, init_) bio->init = init_
-#define BIO_get_init(bio) bio->init
-#endif
-
-
 BIOPointer NodeBIO::New(Environment* env) {
   BIOPointer bio(BIO_new(GetMethod()));
   if (bio && env != nullptr)
@@ -231,22 +221,6 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
 
 
 const BIO_METHOD* NodeBIO::GetMethod() {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  static const BIO_METHOD method = {
-    BIO_TYPE_MEM,
-    "node.js SSL buffer",
-    Write,
-    Read,
-    Puts,
-    Gets,
-    Ctrl,
-    New,
-    Free,
-    nullptr
-  };
-
-  return &method;
-#else
   // This is called from InitCryptoOnce() to avoid race conditions during
   // initialization.
   static BIO_METHOD* method = nullptr;
@@ -263,7 +237,6 @@ const BIO_METHOD* NodeBIO::GetMethod() {
   }
 
   return method;
-#endif
 }
 
 
