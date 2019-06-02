@@ -29,6 +29,9 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const https = require('https');
 
+// Assert that the IP-as-servername deprecation warning does not occur.
+process.on('warning', common.mustNotCall());
+
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem')
