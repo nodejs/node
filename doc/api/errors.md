@@ -703,6 +703,14 @@ non-writable `stdout` or `stderr` stream.
 
 A constructor for a class was called without `new`.
 
+<a id="ERR_CONSTRUCT_CALL_INVALID"></a>
+### ERR_CONSTRUCT_CALL_INVALID
+<!--
+added: REPLACEME
+-->
+
+A class constructor was called that is not callable.
+
 <a id="ERR_CPU_USAGE"></a>
 ### ERR_CPU_USAGE
 
