@@ -48,6 +48,10 @@ assert.strictEqual(util.inspect(async () => {}), '[AsyncFunction (anonymous)]');
     util.inspect(fn),
     '[GeneratorFunction (anonymous)]'
   );
+  assert.strictEqual(
+    util.inspect(async function* abc() {}),
+    '[AsyncGeneratorFunction: abc]'
+  );
   Object.setPrototypeOf(fn, Object.getPrototypeOf(async () => {}));
   assert.strictEqual(
     util.inspect(fn),
