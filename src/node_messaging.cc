@@ -229,7 +229,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       return WriteMessagePort(Unwrap<MessagePort>(object));
     }
 
-    THROW_ERR_CANNOT_TRANSFER_OBJECT(env_);
+    ThrowDataCloneError(env_->clone_unsupported_type_str());
     return Nothing<bool>();
   }
 

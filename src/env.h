@@ -154,6 +154,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(change_string, "change")                                                   \
   V(channel_string, "channel")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
+  V(clone_unsupported_type_str, "Cannot transfer object of unsupported type.") \
   V(code_string, "code")                                                       \
   V(commonjs_string, "commonjs")                                               \
   V(config_string, "config")                                                   \
