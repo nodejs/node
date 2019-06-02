@@ -180,7 +180,8 @@ void PrintException(Isolate* isolate,
                     Local<Value> err,
                     Local<Message> message) {
   node::Utf8Value reason(isolate,
-                         err->ToDetailString(context).ToLocalChecked());
+                         err->ToDetailString(context)
+                             .FromMaybe(Local<String>()));
   bool added_exception_line = false;
   std::string source =
       GetErrorSource(isolate, context, message, &added_exception_line);
