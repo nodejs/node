@@ -48,6 +48,9 @@ if (isMainThread) {
 The above example spawns a Worker thread for each `parse()` call. In actual
 practice, use a pool of Workers instead for these kinds of tasks. Otherwise, the
 overhead of creating Workers would likely exceed their benefit.
+When implementing a worker pool, it is strongly recommended to use the
+[`AsyncResource`][] API to inform diagnostic tools (for e.g. asynchronous stack
+traces) about the correlation between tasks and their outcomes.
 
 ## worker.isMainThread
 <!-- YAML
@@ -653,6 +656,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 `unref()` again will have no effect.
 
 [`'close'` event]: #worker_threads_event_close
+[`AsyncResource`]: async_hooks.html#async_hooks_class_asyncresource
 [`Buffer`]: buffer.html
 [`EventEmitter`]: events.html
 [`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
