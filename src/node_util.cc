@@ -125,8 +125,10 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
 
 // Side effect-free stringification that will never throw exceptions.
 static void SafeToString(const FunctionCallbackInfo<Value>& args) {
-  auto context = args.GetIsolate()->GetCurrentContext();
-  args.GetReturnValue().Set(args[0]->ToDetailString(context).ToLocalChecked());
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  Local<String> detail_string;
+  if (args[0]->ToDetailString(context).ToLocal(&detail_string))
+    args.GetReturnValue().Set(detail_string);
 }
 
 inline Local<Private> IndexToPrivateSymbol(Environment* env, uint32_t index) {
