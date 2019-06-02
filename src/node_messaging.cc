@@ -609,11 +609,20 @@ void MessagePort::OnMessage() {
   HandleScope handle_scope(env()->isolate());
   Local<Context> context = object(env()->isolate())->CreationContext();
 
+  int count = 0;
+
   // data_ can only ever be modified by the owner thread, so no need to lock.
   // However, the message port may be transferred while it is processing
   // messages, so we need to check that this handle still owns its `data_` field
   // on every iteration.
   while (data_) {
+    if (count++ == 100) {
+      // Prevent event loop starvation by allowing a maximum of 100 messages
+      // to be processed without interruption.
+      TriggerAsync();
+      return;
+    }
+
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(context);
 
