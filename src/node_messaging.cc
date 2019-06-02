@@ -711,6 +711,13 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_MISSING_ARGS(env, "Not enough arguments to "
                                        "MessagePort.postMessage");
   }
+  if (!args[1]->IsNullOrUndefined() && !args[1]->IsObject()) {
+    // Browsers also do not throw on `null` or objects, although it really
+    // should be an array or undefined, thus the mismatch between the checks
+    // above and the actual error message.
+    return THROW_ERR_INVALID_ARG_TYPE(env,
+        "Transfer list argument must be array or missing");
+  }
 
   MessagePort* port = Unwrap<MessagePort>(args.This());
   // Even if the backing MessagePort object has already been deleted, we still
