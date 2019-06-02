@@ -5,11 +5,11 @@ const assert = require('assert');
 const tick = require('../common/tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
-
+const tmpdir = require('../common/tmpdir');
 const net = require('net');
 
-const tmpdir = require('../common/tmpdir');
-tmpdir.refresh();
+// Spawning messes up `async_hooks` state.
+tmpdir.refresh({ spawn: false });
 
 const hooks = initHooks();
 hooks.enable();
