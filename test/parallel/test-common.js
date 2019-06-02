@@ -23,8 +23,11 @@
 const common = require('../common');
 const hijackstdio = require('../common/hijackstdio');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const { execFile } = require('child_process');
+const { writeFileSync, existsSync } = require('fs');
+const { join } = require('path');
 
 // Test for leaked global detection
 {
@@ -124,25 +127,38 @@ const HIJACK_TEST_ARRAY = [ 'foo\n', 'bar\n', 'baz\n' ];
   assert.strictEqual(originalWrite, stream.write);
 });
 
-// hijackStderr and hijackStdout again
-// for console
-[[ 'err', 'error' ], [ 'out', 'log' ]].forEach(([ type, method ]) => {
-  hijackstdio[`hijackStd${type}`](common.mustCall(function(data) {
-    assert.strictEqual(data, 'test\n');
+// Test `tmpdir`.
+{
+  tmpdir.refresh();
+  assert.ok(/\.tmp\.\d+/.test(tmpdir.path));
+  const sentinelPath = join(tmpdir.path, 'gaga');
+  writeFileSync(sentinelPath, 'googoo');
+  tmpdir.refresh();
+  assert.strictEqual(existsSync(tmpdir.path), true);
+  assert.strictEqual(existsSync(sentinelPath), false);
+}
 
-    // throw an error
-    throw new Error(`console ${type} error`);
-  }));
+// hijackStderr and hijackStdout again for console
+// Must be last, since it uses `process.on('uncaughtException')`
+{
+  [['err', 'error'], ['out', 'log']].forEach(([type, method]) => {
+    hijackstdio[`hijackStd${type}`](common.mustCall(function(data) {
+      assert.strictEqual(data, 'test\n');
 
-  console[method]('test');
-  hijackstdio[`restoreStd${type}`]();
-});
+      // throw an error
+      throw new Error(`console ${type} error`);
+    }));
 
-let uncaughtTimes = 0;
-process.on('uncaughtException', common.mustCallAtLeast(function(e) {
-  assert.strictEqual(uncaughtTimes < 2, true);
-  assert.strictEqual(e instanceof Error, true);
-  assert.strictEqual(
-    e.message,
-    `console ${([ 'err', 'out' ])[uncaughtTimes++]} error`);
-}, 2));
+    console[method]('test');
+    hijackstdio[`restoreStd${type}`]();
+  });
+
+  let uncaughtTimes = 0;
+  process.on('uncaughtException', common.mustCallAtLeast(function(e) {
+    assert.strictEqual(uncaughtTimes < 2, true);
+    assert.strictEqual(e instanceof Error, true);
+    assert.strictEqual(
+      e.message,
+      `console ${(['err', 'out'])[uncaughtTimes++]} error`);
+  }, 2));
+}  // End of "Must be last".
