@@ -211,8 +211,8 @@ class MessagePort : public HandleWrap {
   friend class MessagePortData;
 };
 
-v8::MaybeLocal<v8::Function> GetMessagePortConstructor(
-    Environment* env, v8::Local<v8::Context> context);
+v8::Local<v8::FunctionTemplate> GetMessagePortConstructorTemplate(
+    Environment* env);
 
 }  // namespace worker
 }  // namespace node
