@@ -285,6 +285,38 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
       Array::New(env->isolate(), handle_v.data(), handle_v.size()));
 }
 
+static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  uv_rusage_t rusage;
+  int err = uv_getrusage(&rusage);
+  if (err)
+    return env->ThrowUVException(err, "uv_getrusage");
+
+  CHECK(args[0]->IsFloat64Array());
+  Local<Float64Array> array = args[0].As<Float64Array>();
+  CHECK_EQ(array->Length(), 16);
+  Local<ArrayBuffer> ab = array->Buffer();
+  double* fields = static_cast<double*>(ab->GetContents().Data());
+
+  fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
+  fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;
+  fields[2] = rusage.ru_maxrss;
+  fields[3] = rusage.ru_ixrss;
+  fields[4] = rusage.ru_idrss;
+  fields[5] = rusage.ru_isrss;
+  fields[6] = rusage.ru_minflt;
+  fields[7] = rusage.ru_majflt;
+  fields[8] = rusage.ru_nswap;
+  fields[9] = rusage.ru_inblock;
+  fields[10] = rusage.ru_oublock;
+  fields[11] = rusage.ru_msgsnd;
+  fields[12] = rusage.ru_msgrcv;
+  fields[13] = rusage.ru_nsignals;
+  fields[14] = rusage.ru_nvcsw;
+  fields[15] = rusage.ru_nivcsw;
+}
+
 #ifdef __POSIX__
 static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -426,6 +458,7 @@ static void InitializeProcessMethods(Local<Object> target,
   env->SetMethod(target, "cpuUsage", CPUUsage);
   env->SetMethod(target, "hrtime", Hrtime);
   env->SetMethod(target, "hrtimeBigInt", HrtimeBigInt);
+  env->SetMethod(target, "resourceUsage", ResourceUsage);
 
   env->SetMethod(target, "_getActiveRequests", GetActiveRequests);
   env->SetMethod(target, "_getActiveHandles", GetActiveHandles);
