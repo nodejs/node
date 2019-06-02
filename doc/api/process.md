@@ -1815,6 +1815,91 @@ process.report.writeReport();
 
 Additional documentation is available in the [report documentation][].
 
+## process.resourceUsage()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+    * `userCPUTime` {integer}
+    * `systemCPUTime` {integer}
+    * `maxRSS` {integer}
+    * `sharedMemorySize` {integer}
+    * `unsharedDataSize` {integer}
+    * `unsharedStackSize` {integer}
+    * `minorPageFault` {integer}
+    * `majorPageFault` {integer}
+    * `swapedOut` {integer}
+    * `fsRead` {integer}
+    * `fsWrite` {integer}
+    * `ipcSent` {integer}
+    * `ipcReceived` {integer}
+    * `signalsCount` {integer}
+    * `voluntaryContextSwitches` {integer}
+    * `involuntaryContextSwitches` {integer}
+
+The `process.resourceUsage()` method returns the resource usage
+for the current process.
+All of these values come from the `uv_getrusage` call which returns
+[this struct][uv_rusage_t], here the mapping between node and libuv:
+- `userCPUTime` maps to `ru_utime` computed in microseconds.
+It is the values as [`process.cpuUsage().user`][process.cpuUsage]
+- `systemCPUTime` maps to `ru_stime` computed in microseconds.
+It is the value as [`process.cpuUsage().system`][process.cpuUsage]
+- `maxRSS` maps to `ru_maxrss` which is the maximum resident set size
+used (in kilobytes).
+- `sharedMemorySize` maps to `ru_ixrss` but is not supported by any platform.
+- `unsharedDataSize` maps to `ru_idrss` but is not supported by any platform.
+- `unsharedStackSize` maps to `ru_isrss` but is not supported by any platform.
+- `minorPageFault` maps to `ru_minflt` which is the number of minor page fault
+for the process, see [this article for more details][wikipedia_minor_fault]
+- `majorPageFault` maps to `ru_majflt` which is the number of major page fault
+for the process, see [this article for more details][wikipedia_major_fault].
+This field is not supported on Windows platforms.
+- `swappedOut` maps to `ru_nswap` which is not supported by any platform.
+- `fsRead` maps to `ru_inblock` which is the number of times the file system
+had to perform input.
+- `fsWrite` maps to `ru_oublock` which is the number of times the file system
+had to perform output.
+- `ipcSent` maps to `ru_msgsnd` but is not supported by any platform.
+- `ipcReceived` maps to `ru_msgrcv` but is not supported by any platform.
+- `signalsCount` maps to `ru_nsignals` but is not supported by any platform.
+- `voluntaryContextSwitches` maps to `ru_nvcsw` which is the number of times
+a CPU context switch resulted due to a process voluntarily giving up the
+processor before its time slice was completed
+(usually to await availability of a resource).
+This field is not supported on Windows platforms.
+- `involuntaryContextSwitches` maps to `ru_nivcsw` which is the number of times
+a CPU context switch resulted due to a higher priority process becoming runnable
+ or because the current process exceeded its time slice.
+This field is not supported on Windows platforms.
+
+
+```js
+console.log(process.resourceUsage());
+/*
+  Will output:
+  {
+    userCPUTime: 82872,
+    systemCPUTime: 4143,
+    maxRSS: 33164,
+    sharedMemorySize: 0,
+    unsharedDataSize: 0,
+    unsharedStackSize: 0,
+    minorPageFault: 2469,
+    majorPageFault: 0,
+    swapedOut: 0,
+    fsRead: 0,
+    fsWrite: 8,
+    ipcSent: 0,
+    ipcReceived: 0,
+    signalsCount: 0,
+    voluntaryContextSwitches: 79,
+    involuntaryContextSwitches: 1
+  }
+*/
+```
+
 ## process.send(message[, sendHandle[, options]][, callback])
 <!-- YAML
 added: v0.5.9
@@ -2329,6 +2414,10 @@ cases:
 [Writable]: stream.html#stream_writable_streams
 [debugger]: debugger.html
 [note on process I/O]: process.html#process_a_note_on_process_i_o
+[process.cpuUsage]: #process_process_cpuusage_previousvalue
 [process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning
 [report documentation]: report.html
+[uv_rusage_t]: http://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
+[wikipedia_minor_fault]: https://en.wikipedia.org/wiki/Page_fault#Minor
+[wikipedia_major_fault]: https://en.wikipedia.org/wiki/Page_fault#Major
