@@ -7,8 +7,8 @@ namespace node {
 namespace inspector {
 namespace protocol {
 
-RuntimeAgent::RuntimeAgent(Environment* env)
-  : notify_when_waiting_for_disconnect_(false), env_(env) {}
+RuntimeAgent::RuntimeAgent()
+  : notify_when_waiting_for_disconnect_(false) {}
 
 void RuntimeAgent::Wire(UberDispatcher* dispatcher) {
   frontend_ = std::make_unique<NodeRuntime::Frontend>(dispatcher->channel());

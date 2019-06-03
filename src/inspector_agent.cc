@@ -239,7 +239,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     tracing_agent_->Wire(node_dispatcher_.get());
     worker_agent_ = std::make_unique<protocol::WorkerAgent>(worker_manager);
     worker_agent_->Wire(node_dispatcher_.get());
-    runtime_agent_ = std::make_unique<protocol::RuntimeAgent>(env);
+    runtime_agent_ = std::make_unique<protocol::RuntimeAgent>();
     runtime_agent_->Wire(node_dispatcher_.get());
   }
 
