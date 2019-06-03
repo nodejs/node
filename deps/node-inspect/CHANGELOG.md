@@ -1,3 +1,11 @@
+### 1.11.6
+
+* fix: replace the deprecated "repl.cli" with "repl" - **[@oyyd](https://github.com/oyyd)** [#66](https://github.com/nodejs/node-inspect/pull/66)
+  - [`5c1d771`](https://github.com/nodejs/node-inspect/commit/5c1d7716523b73e26f98f4f594ee34b7daa920a0) **fix:** replace the deprecated "repl.cli" with "repl" - see: [26260](Refs: https://github.com/nodejs/node/pull/26260)
+* Address regressions due to changes in node - **[@jkrems](https://github.com/jkrems)** [#67](https://github.com/nodejs/node-inspect/pull/67)
+  - [`5b3511e`](https://github.com/nodejs/node-inspect/commit/5b3511ef21d0eba8304d8b2fed33f33aae22f308) **fix:** Address regressions due to changes in node
+
+
 ### 1.11.5
 
 * Fix eslint issues - **[@jkrems](https://github.com/jkrems)** [#63](https://github.com/nodejs/node-inspect/pull/63)

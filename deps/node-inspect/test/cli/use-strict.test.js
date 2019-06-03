@@ -17,9 +17,10 @@ test('for whiles that starts with strict directive', (t) => {
   return cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())
     .then(() => {
+      const brk = cli.breakInfo;
       t.match(
-        cli.output,
-        /break in [^:]+:(?:1|2)[^\d]/,
+        `${brk.line}`,
+        /^(1|2)$/,
         'pauses either on strict directive or first "real" line');
     })
     .then(() => cli.quit())

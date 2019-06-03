@@ -198,7 +198,7 @@ class NodeInspector {
 
   suspendReplWhile(fn) {
     if (this.repl) {
-      this.repl.rli.pause();
+      this.repl.pause();
     }
     this.stdin.pause();
     this.paused = true;
@@ -207,7 +207,7 @@ class NodeInspector {
     }).then(() => {
       this.paused = false;
       if (this.repl) {
-        this.repl.rli.resume();
+        this.repl.resume();
         this.repl.displayPrompt();
       }
       this.stdin.resume();
