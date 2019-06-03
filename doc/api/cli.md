@@ -254,7 +254,7 @@ added: v12.0.0
 
 ### `--heap-prof`
 <!-- YAML
-added: REPLACEME
+added: v12.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -276,7 +276,7 @@ Heap.20190409.202950.15293.0.001.heapprofile
 
 ### `--heap-prof-dir`
 <!-- YAML
-added: REPLACEME
+added: v12.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -286,7 +286,7 @@ be placed.
 
 ### `--heap-prof-interval`
 <!-- YAML
-added: REPLACEME
+added: v12.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -296,7 +296,7 @@ by `--heap-prof`. The default is 512 * 1024 bytes.
 
 ### `--heap-prof-name`
 <!-- YAML
-added: REPLACEME
+added: v12.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -324,7 +324,7 @@ This flag is likely to become a no-op and removed at some point in the future.
 
 ### `--http-server-default-timeout=milliseconds`
 <!-- YAML
-added: REPLACEME
+added: v12.4.0
 -->
 
 Overrides the default value of `http`, `https` and `http2` server socket
