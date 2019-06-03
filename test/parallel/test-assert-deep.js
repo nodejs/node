@@ -68,7 +68,6 @@ assert.deepEqual(arr, buf);
       code: 'ERR_ASSERTION',
       message: `${defaultMsgStartFull} ... Lines skipped\n\n` +
                '  Buffer [Uint8Array] [\n' +
-               '    120,\n' +
                '...\n' +
                '    10,\n' +
                '+   prop: 1\n' +
@@ -87,7 +86,6 @@ assert.deepEqual(arr, buf);
       code: 'ERR_ASSERTION',
       message: `${defaultMsgStartFull} ... Lines skipped\n\n` +
                '  Uint8Array [\n' +
-               '    120,\n' +
                '...\n' +
                '    10,\n' +
                '-   prop: 5\n' +
@@ -921,13 +919,30 @@ assert.deepStrictEqual(obj1, obj2);
   const a = new TypeError('foo');
   const b = new TypeError('foo');
   a.foo = 'bar';
-  b.foo = 'baz';
+  b.foo = 'baz.';
 
   assert.throws(
-    () => assert.deepStrictEqual(a, b),
+    () => assert.throws(
+      () => assert.deepStrictEqual(a, b),
+      {
+        operator: 'throws',
+        message: `${defaultMsgStartFull}\n\n` +
+                '  [TypeError: foo] {\n+   foo: \'bar\'\n-   foo: \'baz\'\n  }',
+      }
+    ),
     {
-      message: `${defaultMsgStartFull}\n\n` +
-               '  [TypeError: foo] {\n+   foo: \'bar\'\n-   foo: \'baz\'\n  }'
+      message: 'Expected values to be strictly deep-equal:\n' +
+               '+ actual - expected ... Lines skipped\n' +
+               '\n' +
+               '  Comparison {\n' +
+               '...\n' +
+               "      \"+   foo: 'bar'\\n\" +\n" +
+               "+     \"-   foo: 'baz.'\\n\" +\n" +
+               "-     \"-   foo: 'baz'\\n\" +\n" +
+               "      '  }',\n" +
+               "+   operator: 'deepStrictEqual'\n" +
+               "-   operator: 'throws'\n" +
+               '  }'
     }
   );
 }
