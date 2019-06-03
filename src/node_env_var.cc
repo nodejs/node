@@ -28,6 +28,7 @@ using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyCallbackInfo;
+using v8::PropertyDescriptor;
 using v8::PropertyHandlerFlags;
 using v8::ReadOnly;
 using v8::String;
@@ -396,11 +397,39 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
       env->env_vars()->Enumerate(env->isolate()));
 }
 
+static void EnvDefiner(Local<Name> property,
+                       const PropertyDescriptor& desc,
+                       const PropertyCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  if (desc.has_value() && !desc.configurable() && !desc.enumerable() &&
+      !desc.writable()) {
+    THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                             "Must set all attributes with true to 'value'"
+                             " in 'process.env'");
+  } else if (desc.has_get() || desc.has_set() ||
+             (desc.has_configurable() && !desc.configurable()) ||
+             (desc.has_enumerable() && !desc.enumerable()) ||
+             (desc.has_writable() && !desc.writable())) {
+    THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                             "Cannot set attributes other than 'value'"
+                             " for properties in 'process.env'");
+  } else {
+    EnvSetter(property, desc.value(), info);
+  }
+}
+
 MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context, Isolate* isolate) {
   EscapableHandleScope scope(isolate);
   Local<ObjectTemplate> env_proxy_template = ObjectTemplate::New(isolate);
   env_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(
-      EnvGetter, EnvSetter, EnvQuery, EnvDeleter, EnvEnumerator, Local<Value>(),
+      EnvGetter,
+      EnvSetter,
+      EnvQuery,
+      EnvDeleter,
+      EnvEnumerator,
+      EnvDefiner,
+      nullptr,
+      Local<Value>(),
       PropertyHandlerFlags::kHasNoSideEffect));
   return scope.EscapeMaybe(env_proxy_template->NewInstance(context));
 }
@@ -411,6 +440,7 @@ void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EnvQuery);
   registry->Register(EnvDeleter);
   registry->Register(EnvEnumerator);
+  registry->Register(EnvDefiner);
 }
 }  // namespace node
 
