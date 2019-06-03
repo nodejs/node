@@ -53,7 +53,7 @@ assert.throws(
     code: 'ERR_ASSERTION',
     message: `${defaultMsgStartFull} ... Lines skipped\n\n` +
              '+ Uint8Array [\n' +
-             '- Buffer [Uint8Array] [\n    120,\n...\n    10\n  ]'
+             '- Buffer [Uint8Array] [\n    120,\n...\n    122,\n    10\n  ]'
   }
 );
 assert.deepEqual(arr, buf);
@@ -66,9 +66,11 @@ assert.deepEqual(arr, buf);
     () => assert.deepStrictEqual(buf2, buf),
     {
       code: 'ERR_ASSERTION',
-      message: `${defaultMsgStartFull} ... Lines skipped\n\n` +
+      message: `${defaultMsgStartFull}\n\n` +
                '  Buffer [Uint8Array] [\n' +
-               '...\n' +
+               '    120,\n' +
+               '    121,\n' +
+               '    122,\n' +
                '    10,\n' +
                '+   prop: 1\n' +
                '  ]'
@@ -84,9 +86,11 @@ assert.deepEqual(arr, buf);
     () => assert.deepStrictEqual(arr, arr2),
     {
       code: 'ERR_ASSERTION',
-      message: `${defaultMsgStartFull} ... Lines skipped\n\n` +
+      message: `${defaultMsgStartFull}\n\n` +
                '  Uint8Array [\n' +
-               '...\n' +
+               '    120,\n' +
+               '    121,\n' +
+               '    122,\n' +
                '    10,\n' +
                '-   prop: 5\n' +
                '  ]'
@@ -932,17 +936,19 @@ assert.deepStrictEqual(obj1, obj2);
     ),
     {
       message: 'Expected values to be strictly deep-equal:\n' +
-               '+ actual - expected ... Lines skipped\n' +
-               '\n' +
-               '  Comparison {\n' +
-               '...\n' +
-               "      \"+   foo: 'bar'\\n\" +\n" +
-               "+     \"-   foo: 'baz.'\\n\" +\n" +
-               "-     \"-   foo: 'baz'\\n\" +\n" +
-               "      '  }',\n" +
-               "+   operator: 'deepStrictEqual'\n" +
-               "-   operator: 'throws'\n" +
-               '  }'
+        '+ actual - expected ... Lines skipped\n' +
+        '\n' +
+        '  Comparison {\n' +
+        "    message: 'Expected values to be strictly deep-equal:\\n' +\n" +
+        '...\n' +
+        "      '  [TypeError: foo] {\\n' +\n" +
+        "      \"+   foo: 'bar'\\n\" +\n" +
+        "+     \"-   foo: 'baz.'\\n\" +\n" +
+        "-     \"-   foo: 'baz'\\n\" +\n" +
+        "      '  }',\n" +
+        "+   operator: 'deepStrictEqual'\n" +
+        "-   operator: 'throws'\n" +
+        '  }'
     }
   );
 }
