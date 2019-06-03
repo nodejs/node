@@ -12,7 +12,7 @@ namespace protocol {
 
 class RuntimeAgent : public NodeRuntime::Backend {
  public:
-  explicit RuntimeAgent(Environment* env);
+  RuntimeAgent();
 
   void Wire(UberDispatcher* dispatcher);
 
@@ -23,7 +23,6 @@ class RuntimeAgent : public NodeRuntime::Backend {
  private:
   std::shared_ptr<NodeRuntime::Frontend> frontend_;
   bool notify_when_waiting_for_disconnect_;
-  Environment* env_;
 };
 }  // namespace protocol
 }  // namespace inspector
