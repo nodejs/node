@@ -24,7 +24,7 @@ test('list scripts', (t) => {
         'lists the user script');
       t.notMatch(
         cli.output,
-        /\d+: module\.js <native>/,
+        /\d+: buffer\.js <native>/,
         'omits node-internal scripts');
     })
     .then(() => cli.command('scripts(true)'))
@@ -35,7 +35,7 @@ test('list scripts', (t) => {
         'lists the user script');
       t.match(
         cli.output,
-        /\d+: module\.js <native>/,
+        /\d+: buffer\.js <native>/,
         'includes node-internal scripts');
     })
     .then(() => cli.quit())

@@ -137,23 +137,23 @@ test('run after quit / restart', (t) => {
     .then(() => cli.waitForPrompt())
     .then(() => {
       t.match(
-        cli.output,
-        `break in ${script}:1`,
+        cli.breakInfo,
+        { filename: script, line: 1 },
         'is back at the beginning');
     })
     .then(() => cli.stepCommand('n'))
     .then(() => {
       t.match(
-        cli.output,
-        `break in ${script}:2`,
+        cli.breakInfo,
+        { filename: script, line: 2 },
         'steps to the 2nd line');
     })
     .then(() => cli.stepCommand('restart'))
     .then(() => cli.waitForInitialBreak())
     .then(() => {
       t.match(
-        cli.output,
-        `break in ${script}:1`,
+        cli.breakInfo,
+        { filename: script, line: 1 },
         'is back at the beginning');
     })
     .then(() => cli.command('kill'))
@@ -167,8 +167,8 @@ test('run after quit / restart', (t) => {
     .then(() => cli.waitForPrompt())
     .then(() => {
       t.match(
-        cli.output,
-        `break in ${script}:1`,
+        cli.breakInfo,
+        { filename: script, line: 1 },
         'is back at the beginning');
     })
     .then(() => cli.quit())

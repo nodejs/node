@@ -18,12 +18,12 @@ test('stepping through breakpoints', (t) => {
     .then(() => cli.waitForPrompt())
     .then(() => {
       t.match(
-        cli.output,
-        `break in ${script}:1`,
+        cli.breakInfo,
+        { filename: script, line: 1 },
         'pauses in the first line of the script');
       t.match(
         cli.output,
-        /> 1 \(function \([^)]+\) \{ const x = 10;/,
+        /> 1 (?:\(function \([^)]+\) \{ )?const x = 10;/,
         'shows the source and marks the current line');
     })
     .then(() => cli.stepCommand('n'))

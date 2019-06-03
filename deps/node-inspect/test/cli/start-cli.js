@@ -16,6 +16,10 @@ const BREAK_MESSAGE = new RegExp('(?:' + [
   'exception', 'other', 'promiseRejection',
 ].join('|') + ') in', 'i');
 
+function isPreBreak(output) {
+  return /Break on start/.test(output) && /1 \(function \(exports/.test(output);
+}
+
 function startCLI(args, flags = []) {
   const child = spawn(process.execPath, [...flags, CLI, ...args]);
   let isFirstStdoutChunk = true;
@@ -101,11 +105,23 @@ function startCLI(args, flags = []) {
     waitForInitialBreak(timeout = 2000) {
       return this.waitFor(/break (?:on start )?in/i, timeout)
         .then(() => {
-          if (/Break on start/.test(this.output)) {
+          if (isPreBreak(this.output)) {
             return this.command('next', false)
               .then(() => this.waitFor(/break in/, timeout));
           }
         });
+    },
+
+    get breakInfo() {
+      const output = this.output;
+      const breakMatch =
+        output.match(/break (?:on start )?in ([^\n]+):(\d+)\n/i);
+
+      if (breakMatch === null) {
+        throw new Error(
+          `Could not find breakpoint info in ${JSON.stringify(output)}`);
+      }
+      return { filename: breakMatch[1], line: +breakMatch[2] };
     },
 
     ctrlC() {
@@ -127,19 +143,24 @@ function startCLI(args, flags = []) {
         .map((match) => +match[1]);
     },
 
-    command(input, flush = true) {
+    writeLine(input, flush = true) {
       if (flush) {
         this.flushOutput();
       }
+      if (process.env.VERBOSE === '1') {
+        process.stderr.write(`< ${input}\n`);
+      }
       child.stdin.write(input);
       child.stdin.write('\n');
+    },
+
+    command(input, flush = true) {
+      this.writeLine(input, flush);
       return this.waitForPrompt();
     },
 
     stepCommand(input) {
-      this.flushOutput();
-      child.stdin.write(input);
-      child.stdin.write('\n');
+      this.writeLine(input, true);
       return this
         .waitFor(BREAK_MESSAGE)
         .then(() => this.waitForPrompt());

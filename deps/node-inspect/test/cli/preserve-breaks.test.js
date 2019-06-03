@@ -30,20 +30,20 @@ test('run after quit / restart', (t) => {
     .then(() => cli.stepCommand('c')) // hit line 2
     .then(() => cli.stepCommand('c')) // hit line 3
     .then(() => {
-      t.match(cli.output, `break in ${script}:3`);
+      t.match(cli.breakInfo, { filename: script, line: 3 });
     })
     .then(() => cli.command('restart'))
     .then(() => cli.waitForInitialBreak())
     .then(() => {
-      t.match(cli.output, `break in ${script}:1`);
+      t.match(cli.breakInfo, { filename: script, line: 1 });
     })
     .then(() => cli.stepCommand('c'))
     .then(() => {
-      t.match(cli.output, `break in ${script}:2`);
+      t.match(cli.breakInfo, { filename: script, line: 2 });
     })
     .then(() => cli.stepCommand('c'))
     .then(() => {
-      t.match(cli.output, `break in ${script}:3`);
+      t.match(cli.breakInfo, { filename: script, line: 3 });
     })
     .then(() => cli.command('breakpoints'))
     .then(() => {
