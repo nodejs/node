@@ -42,9 +42,11 @@ const server = tls.createServer(options, function(conn) {
 process.on('exit', function() {
   assert.deepStrictEqual(ciphers, [{
     name: 'ECDHE-ECDSA-AES256-GCM-SHA384',
+    standardName: 'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384',
     version: 'TLSv1.2'
   }, {
     name: 'ECDHE-RSA-AES256-GCM-SHA384',
+    standardName: 'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384',
     version: 'TLSv1.2'
   }]);
 });

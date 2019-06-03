@@ -352,6 +352,7 @@ constexpr size_t kFsStatsBufferLength =
   V(sni_context_string, "sni_context")                                         \
   V(source_string, "source")                                                   \
   V(stack_string, "stack")                                                     \
+  V(standard_name_string, "standardName")                                      \
   V(start_time_string, "startTime")                                            \
   V(status_string, "status")                                                   \
   V(stdio_string, "stdio")                                                     \
