@@ -1178,7 +1178,7 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: REPLACEME
+  - version: v12.4.0
     pr-url: https://github.com/nodejs/node/pull/27816
     description: The `hints` option is now supported.
   - version: v12.2.0
