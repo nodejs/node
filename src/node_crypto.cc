@@ -2685,6 +2685,9 @@ void SSLWrap<Base>::GetCipher(const FunctionCallbackInfo<Value>& args) {
   const char* cipher_name = SSL_CIPHER_get_name(c);
   info->Set(context, env->name_string(),
             OneByteString(args.GetIsolate(), cipher_name)).Check();
+  const char* cipher_standard_name = SSL_CIPHER_standard_name(c);
+  info->Set(context, env->standard_name_string(),
+            OneByteString(args.GetIsolate(), cipher_standard_name)).Check();
   const char* cipher_version = SSL_CIPHER_get_version(c);
   info->Set(context, env->version_string(),
             OneByteString(args.GetIsolate(), cipher_version)).Check();
