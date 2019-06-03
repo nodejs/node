@@ -2519,3 +2519,15 @@ assert.strictEqual(
     assert(i < 2 || line.startsWith('\u001b[90m'));
   });
 }
+
+{
+  // Tracing class respects inspect depth.
+  try {
+    const trace = require('trace_events').createTracing({ categories: ['fo'] });
+    const actual = util.inspect({ trace }, { depth: 0 });
+    assert.strictEqual(actual, '{ trace: [Tracing] }');
+  } catch (err) {
+    if (err.code !== 'ERR_TRACE_EVENTS_UNAVAILABLE')
+      throw err;
+  }
+}
