@@ -8,11 +8,11 @@ def get_napi_version():
     os.path.dirname(__file__),
     '..',
     'src',
-    'js_native_api.h')
+    'node_version.h')
 
   f = open(napi_version_h)
 
-  regex = '^#define NAPI_VERSION [0-9]+'
+  regex = '^#define NAPI_VERSION'
 
   for line in f:
     if re.match(regex, line):

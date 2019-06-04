@@ -47,4 +47,4 @@ for (let i = 0; i < expected_keys.length; i++) {
 }
 
 assert.strictEqual(process.config.variables.napi_build_version,
-  process.versions.napi);
+                   process.versions.napi);
