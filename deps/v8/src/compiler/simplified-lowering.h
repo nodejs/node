@@ -37,7 +37,6 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
       Node* node, RepresentationSelector* selector);
   void DoJSToNumberOrNumericTruncatesToWord32(Node* node,
                                               RepresentationSelector* selector);
-  void DoShift(Node* node, Operator const* op, Type rhs_type);
   void DoIntegral32ToBit(Node* node);
   void DoOrderedNumberToBit(Node* node);
   void DoNumberToBit(Node* node);
