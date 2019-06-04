@@ -41,6 +41,7 @@ const perfScriptArgs = [
 const options = {
   cwd: tmpdir.path,
   encoding: 'utf-8',
+  maxBuffer: Infinity
 };
 
 if (!common.isLinux)
@@ -57,8 +58,8 @@ if (perf.status !== 0) {
 
 const perfScript = spawnSync('perf', perfScriptArgs, options);
 
-if (perf.error)
-  common.skip(`perf script aborted: ${perf.error.errno}`);
+if (perfScript.error)
+  common.skip(`perf script aborted: ${perfScript.error.errno}`);
 
 if (perfScript.status !== 0) {
   common.skip(`Failed to execute perf script: ${perfScript.stderr}`);
