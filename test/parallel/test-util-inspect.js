@@ -2193,7 +2193,7 @@ assert.strictEqual(
       [ 1, 2, { a: 1, b: 2, c: 3 } ]
     ],
     c: ['foo', 4, 444444],
-    d: Array.from({ length: 100 }).map((e, i) => {
+    d: Array.from({ length: 101 }).map((e, i) => {
       return i % 2 === 0 ? i * i : i;
     }),
     e: Array(6).fill('foobar'),
@@ -2242,7 +2242,8 @@ assert.strictEqual(
     '      77, 6084,   79, 6400,   81, 6724,   83,',
     '    7056,   85, 7396,   87, 7744,   89, 8100,',
     '      91, 8464,   93, 8836,   95, 9216,   97,',
-    '    9604,   99',
+    '    9604,   99,',
+    '    ... 1 more item',
     '  ],',
     '  e: [',
     "    'foobar',",
