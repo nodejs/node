@@ -21,6 +21,7 @@ const stream = new ArrayStream();
 
   // Ensure that the repl console instance is not the global one.
   assert.notStrictEqual(r.context.console, console);
+  assert.notStrictEqual(r.context.Object, Object);
 
   const context = r.createContext();
   // Ensure that the repl context gets its own "console" instance.

@@ -496,7 +496,7 @@ const testNonGlobal = repl.start({
   useGlobal: false
 });
 
-const builtins = [['Infinity', 'Int16Array', 'Int32Array',
+const builtins = [['Infinity', '', 'Int16Array', 'Int32Array',
                    'Int8Array'], 'I'];
 
 if (common.hasIntl) {
