@@ -477,6 +477,18 @@
           '-Wl,--export-dynamic',
         ],
       }],
+      # if node is built as an executable, 
+      #      the openssl mechanism for keeping itself "dload"-ed to ensure proper 
+      #      atexit cleanup does not apply
+      ['node_shared_openssl!="true" and node_shared!="true"', {
+        'defines': [
+          # `OPENSSL_NO_PINSHARED` prevents openssl from dload 
+          #      current node executable, 
+          #      see https://github.com/nodejs/node/pull/21848 
+          #      or https://github.com/nodejs/node/issues/27925
+          'OPENSSL_NO_PINSHARED' 
+        ],
+      }],
       ['node_shared_openssl!="true"', {
         # `OPENSSL_THREADS` is defined via GYP for openSSL for all architectures.
         'defines': [
