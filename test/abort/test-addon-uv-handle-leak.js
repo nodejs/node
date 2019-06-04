@@ -79,7 +79,11 @@ if (process.argv[2] === 'child') {
         common.isAIX ||
         (common.isLinux && !isGlibc()) ||
         common.isWindows)) {
-    assert(stderr.includes('ExampleOwnerClass'), stderr);
+
+    // the vtable can get optimized away when LTO is enabled
+    if (common.isLinux && !process.config.variables.enable_lto)
+      assert(stderr.includes('ExampleOwnerClass'), stderr);
+
     assert(stderr.includes('CloseCallback'), stderr);
     assert(stderr.includes('example_instance'), stderr);
   }
