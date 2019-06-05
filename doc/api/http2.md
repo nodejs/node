@@ -1070,6 +1070,16 @@ Set the `true` if the `END_STREAM` flag was set in the request or response
 HEADERS frame received, indicating that no additional data should be received
 and the readable side of the `Http2Stream` will be closed.
 
+#### http2stream.id
+<!-- YAML
+added: v8.4.0
+-->
+
+* {number|undefined}
+
+The numeric stream identifier of this `Http2Stream` instance. Set to `undefined`
+if the stream identifier has not yet been assigned.
+
 #### http2stream.pending
 <!-- YAML
 added: v9.4.0
