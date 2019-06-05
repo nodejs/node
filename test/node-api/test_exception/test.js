@@ -9,7 +9,10 @@ const test_exception = require(`./build/${common.buildType}/test_exception`);
 function testFinalize(binding) {
   let x = test_exception[binding]();
   x = null;
-  assert.throws(() => { global.gc(); }, /Error during Finalize/);
+  global.gc();
+  process.on('uncaughtException', (err) => {
+    assert.strictEqual(err.message, 'Error during Finalize');
+  });
 
   // To assuage the linter's concerns.
   (function() {})(x);
