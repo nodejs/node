@@ -24,11 +24,6 @@ all: \
   dh512.pem \
   dh1024.pem \
   dh2048.pem \
-	dsa_params.pem \
-	dsa_private.pem \
-	dsa_private_encrypted.pem \
-	dsa_private_pkcs8.pem \
-	dsa_public.pem \
   dsa1025.pem \
   dsa_private_1025.pem \
   dsa_private_encrypted_1025.pem \
@@ -568,21 +563,6 @@ dh1024.pem:
 
 dh2048.pem:
 	openssl dhparam -out dh2048.pem 2048
-
-dsa_params.pem:
-	openssl dsaparam -out dsa_params.pem 2048
-
-dsa_private.pem: dsa_params.pem
-	openssl gendsa -out dsa_private.pem dsa_params.pem
-
-dsa_private_encrypted.pem: dsa_private.pem
-	openssl dsa -aes256 -in dsa_private.pem -passout 'pass:password' -out dsa_private_encrypted.pem
-
-dsa_private_pkcs8.pem: dsa_private.pem
-	openssl pkcs8 -topk8 -inform PEM -outform PEM -in dsa_private.pem -out dsa_private_pkcs8.pem -nocrypt
-
-dsa_public.pem: dsa_private.pem
-	openssl dsa -in dsa_private.pem -pubout -out dsa_public.pem
 
 dsa1025.pem:
 	openssl dsaparam -out dsa1025.pem 1025

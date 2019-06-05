@@ -667,8 +667,8 @@ common.expectsError(
 // Test DSA signing and verification
 //
 {
-  const privateKey = fixtures.readKey('dsa_private.pem');
-  const publicKey = fixtures.readKey('dsa_public.pem');
+  const privateKey = fixtures.readSync('test_dsa_privkey.pem');
+  const publicKey = fixtures.readSync('test_dsa_pubkey.pem');
 
   const input = 'I AM THE WALRUS';
 

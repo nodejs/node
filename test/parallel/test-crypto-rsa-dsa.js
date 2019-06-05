@@ -18,12 +18,12 @@ const rsaPubPem = fixtures.readKey('rsa_public.pem', 'ascii');
 const rsaKeyPem = fixtures.readKey('rsa_private.pem', 'ascii');
 const rsaKeyPemEncrypted = fixtures.readKey('rsa_private_encrypted.pem',
                                             'ascii');
-const dsaPubPem = fixtures.readKey('dsa_public.pem', 'ascii');
-const dsaKeyPem = fixtures.readKey('dsa_private.pem', 'ascii');
-const dsaKeyPemEncrypted = fixtures.readKey('dsa_private_encrypted.pem',
-                                            'ascii');
+const dsaPubPem = fixtures.readSync('test_dsa_pubkey.pem', 'ascii');
+const dsaKeyPem = fixtures.readSync('test_dsa_privkey.pem', 'ascii');
+const dsaKeyPemEncrypted = fixtures.readSync('test_dsa_privkey_encrypted.pem',
+                                             'ascii');
 const rsaPkcs8KeyPem = fixtures.readKey('rsa_private_pkcs8.pem');
-const dsaPkcs8KeyPem = fixtures.readKey('dsa_private_pkcs8.pem');
+const dsaPkcs8KeyPem = fixtures.readSync('test_dsa_pkcs8_privkey.pem');
 
 const decryptError = {
   message: 'error:06065064:digital envelope routines:EVP_DecryptFinal_ex:' +
