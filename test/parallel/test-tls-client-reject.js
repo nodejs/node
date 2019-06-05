@@ -29,8 +29,8 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
 const options = {
-  key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
 const server = tls.createServer(options, function(socket) {
@@ -80,7 +80,7 @@ function rejectUnauthorized() {
 function authorized() {
   console.log('connect authorized');
   const socket = tls.connect(server.address().port, {
-    ca: [fixtures.readKey('rsa_cert.crt')],
+    ca: [fixtures.readSync('test_cert.pem')],
     servername: 'localhost'
   }, common.mustCall(function() {
     console.log('... authorized');

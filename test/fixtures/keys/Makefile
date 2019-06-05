@@ -24,12 +24,6 @@ all: \
   dh512.pem \
   dh1024.pem \
   dh2048.pem \
-  dherror.pem \
-  dsa_params.pem \
-  dsa_private.pem \
-  dsa_private_encrypted.pem \
-  dsa_private_pkcs8.pem \
-  dsa_public.pem \
   dsa1025.pem \
   dsa_private_1025.pem \
   dsa_private_encrypted_1025.pem \
@@ -37,24 +31,6 @@ all: \
   ec-cert.pem \
   ec.pfx \
   fake-cnnic-root-cert.pem \
-  rsa_private.pem \
-  rsa_private_encrypted.pem \
-  rsa_private_pkcs8.pem \
-  rsa_private_pkcs8_bad.pem \
-  rsa_public.pem \
-  rsa_ca.crt \
-  rsa_cert.crt \
-  rsa_cert.pfx \
-  rsa_public_sha1_signature_signedby_rsa_private.sha1 \
-  rsa_public_sha1_signature_signedby_rsa_private_pkcs8.sha1 \
-  rsa_private_b.pem \
-  I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256 \
-  rsa_public_b.pem \
-  rsa_cert_foafssl_b.crt \
-  rsa_cert_foafssl_b.modulus \
-  rsa_cert_foafssl_b.exponent \
-  rsa_spkac.spkac \
-  rsa_spkac_invalid.spkac \
   rsa_private_1024.pem \
   rsa_private_2048.pem \
   rsa_private_4096.pem \
@@ -67,14 +43,6 @@ all: \
   rsa_pss_public_2048.pem \
   rsa_pss_public_2048_sha256_sha256_16.pem \
   rsa_pss_public_2048_sha512_sha256_20.pem \
-  ed25519_private.pem \
-  ed25519_public.pem \
-  x25519_private.pem \
-  x25519_public.pem \
-  ed448_private.pem \
-  ed448_public.pem \
-  x448_private.pem \
-  x448_public.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -582,24 +550,6 @@ dh1024.pem:
 dh2048.pem:
 	openssl dhparam -out dh2048.pem 2048
 
-dherror.pem: dh512.pem
-	sed 's/^[^-].*/AAAAAAAAAA/g' dh512.pem > dherror.pem
-
-dsa_params.pem:
-	openssl dsaparam -out dsa_params.pem 2048
-
-dsa_private.pem: dsa_params.pem
-	openssl gendsa -out dsa_private.pem dsa_params.pem
-
-dsa_private_encrypted.pem: dsa_private.pem
-	openssl dsa -aes256 -in dsa_private.pem -passout 'pass:password' -out dsa_private_encrypted.pem
-
-dsa_private_pkcs8.pem: dsa_private.pem
-	openssl pkcs8 -topk8 -inform PEM -outform PEM -in dsa_private.pem -out dsa_private_pkcs8.pem -nocrypt
-
-dsa_public.pem: dsa_private.pem
-	openssl dsa -in dsa_private.pem -pubout -out dsa_public.pem
-
 dsa1025.pem:
 	openssl dsaparam -out dsa1025.pem 1025
 
@@ -611,67 +561,6 @@ dsa_private_encrypted_1025.pem:
 
 dsa_public_1025.pem:
 	openssl dsa -in dsa_private_1025.pem -pubout -out dsa_public_1025.pem
-
-rsa_private.pem:
-	openssl genrsa -out rsa_private.pem 2048
-
-rsa_private_encrypted.pem: rsa_private.pem
-	openssl rsa -aes256 -in rsa_private.pem -passout 'pass:password' -out rsa_private_encrypted.pem
-
-rsa_private_pkcs8.pem: rsa_private.pem
-	openssl pkcs8 -topk8 -inform PEM -outform PEM -in rsa_private.pem -out rsa_private_pkcs8.pem -nocrypt
-
-rsa_private_pkcs8_bad.pem: rsa_private_pkcs8.pem
-	sed 's/PRIVATE/RSA PRIVATE/g' rsa_private_pkcs8.pem > rsa_private_pkcs8_bad.pem
-
-rsa_public.pem: rsa_private.pem
-	openssl rsa -in rsa_private.pem -pubout -out rsa_public.pem
-
-rsa_cert.crt: rsa_private.pem
-	openssl req -new -x509 -key rsa_private.pem -config rsa_cert.cnf -out rsa_cert.crt
-
-rsa_cert.pfx: rsa_cert.crt
-	openssl pkcs12 -export -passout 'pass:sample' -inkey rsa_private.pem -in rsa_cert.crt -out rsa_cert.pfx
-
-rsa_ca.crt: rsa_cert.crt
-	cp rsa_cert.crt rsa_ca.crt
-
-rsa_public_sha1_signature_signedby_rsa_private.sha1: rsa_public.pem rsa_private.pem
-	openssl dgst -sha1 -sign rsa_private.pem -out rsa_public_sha1_signature_signedby_rsa_private.sha1 rsa_public.pem
-
-rsa_public_sha1_signature_signedby_rsa_private_pkcs8.sha1: rsa_public.pem rsa_private_pkcs8.pem
-	openssl dgst -sha1 -sign rsa_private_pkcs8.pem -out rsa_public_sha1_signature_signedby_rsa_private_pkcs8.sha1 rsa_public.pem
-
-rsa_private_b.pem:
-	openssl genrsa -out rsa_private_b.pem 2048
-
-I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256: rsa_private_b.pem
-	echo -n "I AM THE WALRUS" | openssl dgst -sha256 -sign rsa_private_b.pem -out I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256
-
-rsa_public_b.pem: rsa_private_b.pem
-	openssl rsa -in rsa_private_b.pem -pubout -out rsa_public_b.pem
-
-# The following 'foafssl' cert is used in test/parallel/test-https-foafssl.js.
-# It requires a SAN like 'http://example.com/#me'. More info here:
-# https://www.w3.org/wiki/Foaf+ssl
-rsa_cert_foafssl_b.crt: rsa_private_b.pem
-	openssl req -new -x509 -config rsa_cert_foafssl_b.cnf -key rsa_private_b.pem -out rsa_cert_foafssl_b.crt
-
-# The 'modulus=' in the output must be stripped out
-rsa_cert_foafssl_b.modulus: rsa_cert_foafssl_b.crt
-	openssl x509 -modulus -in rsa_cert_foafssl_b.crt -noout | cut -c 9- > rsa_cert_foafssl_b.modulus
-
-# Have to parse out the hex exponent
-rsa_cert_foafssl_b.exponent: rsa_cert_foafssl_b.crt
-	openssl x509 -in  rsa_cert_foafssl_b.crt -text | grep -o 'Exponent:.*' | sed 's/\(.*(\|).*\)//g' > rsa_cert_foafssl_b.exponent
-
-# openssl outputs `SPKAC=[SPKAC]`. That prefix needs to be removed to work with node
-rsa_spkac.spkac: rsa_private.pem
-	openssl spkac -key rsa_private.pem -challenge this-is-a-challenge | cut -c 7- > rsa_spkac.spkac
-
-# cutting characters from the start to invalidate the spkac
-rsa_spkac_invalid.spkac: rsa_spkac.spkac
-	cat rsa_spkac.spkac | cut -c 5- > rsa_spkac_invalid.spkac
 
 rsa_private_1024.pem:
 	openssl genrsa -out rsa_private_1024.pem 1024
@@ -708,30 +597,6 @@ rsa_pss_public_2048_sha256_sha256_16.pem: rsa_pss_private_2048_sha256_sha256_16.
 
 rsa_pss_public_2048_sha512_sha256_20.pem: rsa_pss_private_2048_sha512_sha256_20.pem
 	openssl pkey -in rsa_pss_private_2048_sha512_sha256_20.pem -pubout -out rsa_pss_public_2048_sha512_sha256_20.pem
-
-ed25519_private.pem:
-	openssl genpkey -algorithm ED25519 -out ed25519_private.pem
-
-ed25519_public.pem: ed25519_private.pem
-	openssl pkey -in ed25519_private.pem -pubout -out ed25519_public.pem
-
-x25519_private.pem:
-	openssl genpkey -algorithm x25519 -out x25519_private.pem
-
-x25519_public.pem: x25519_private.pem
-	openssl pkey -in x25519_private.pem -pubout -out x25519_public.pem
-
-ed448_private.pem:
-	openssl genpkey -algorithm ed448 -out ed448_private.pem
-
-ed448_public.pem: ed448_private.pem
-	openssl pkey -in ed448_private.pem -pubout -out ed448_public.pem
-
-x448_private.pem:
-	openssl genpkey -algorithm x448 -out x448_private.pem
-
-x448_public.pem: x448_private.pem
-	openssl pkey -in x448_private.pem -pubout -out x448_public.pem
 
 clean:
 	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem

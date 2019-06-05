@@ -30,8 +30,8 @@ const assert = require('assert');
 const https = require('https');
 
 const options = {
-  key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
 const server = https.createServer(options, common.mustCall(function(req, res) {
@@ -72,7 +72,7 @@ function rejectUnauthorized() {
 function authorized() {
   const options = {
     port: server.address().port,
-    ca: [fixtures.readKey('rsa_cert.crt')]
+    ca: [fixtures.readSync('test_cert.pem')]
   };
   options.agent = new https.Agent(options);
   const req = https.request(options, function(res) {

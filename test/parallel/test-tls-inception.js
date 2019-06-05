@@ -32,8 +32,8 @@ const tls = require('tls');
 const net = require('net');
 
 const options = {
-  key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
 const body = 'A'.repeat(40000);

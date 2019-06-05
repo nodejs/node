@@ -29,8 +29,8 @@ const assert = require('assert');
 const https = require('https');
 
 const options = {
-  key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
 const bufSize = 1024 * 1024;
