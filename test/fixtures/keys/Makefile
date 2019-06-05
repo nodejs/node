@@ -64,8 +64,6 @@ all: \
   x25519_public.pem \
   ed448_private.pem \
   ed448_public.pem \
-  x448_private.pem \
-  x448_public.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -683,12 +681,6 @@ ed448_private.pem:
 
 ed448_public.pem: ed448_private.pem
 	openssl pkey -in ed448_private.pem -pubout -out ed448_public.pem
-
-x448_private.pem:
-	openssl genpkey -algorithm x448 -out x448_private.pem
-
-x448_public.pem: x448_private.pem
-	openssl pkey -in x448_private.pem -pubout -out x448_public.pem
 
 clean:
 	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem

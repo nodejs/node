@@ -212,9 +212,9 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   { private: fixtures.readKey('x25519_private.pem', 'ascii'),
     public: fixtures.readKey('x25519_public.pem', 'ascii'),
     keyType: 'x25519' },
-  { private: fixtures.readKey('x448_private.pem', 'ascii'),
-    public: fixtures.readKey('x448_public.pem', 'ascii'),
-    keyType: 'x448' },
+  { private: fixtures.readSync('test_x448_privkey.pem', 'ascii'),
+    public: fixtures.readSync('test_x448_pubkey.pem', 'ascii'),
+    keyType: 'x448' }
 ].forEach((info) => {
   const keyType = info.keyType;
 
