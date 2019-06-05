@@ -92,3 +92,9 @@ common.expectsError(() => {
   code: 'ERR_INVALID_OPT_VALUE',
   type: TypeError,
 });
+
+// Verify that the default require.resolve() is used for empty options.
+assert.strictEqual(
+  require.resolve('./printA.js', {}),
+  require.resolve('./printA.js')
+);
