@@ -38,6 +38,15 @@ node --experimental-policy=policy.json app.js
 The policy manifest will be used to enforce constraints on code loaded by
 Node.js.
 
+In order to mitigate tampering with policy files on disk, an integrity for
+the policy file itself may be provided via `--policy-integrity`.
+This allows running `node` and asserting the policy file contents
+even if the file is changed on disk.
+
+```sh
+node --experimental-policy=policy.json --policy-integrity="sha384-SggXRQHwCG8g+DktYYzxkXRIkTiEYWBHqev0xnpCxYlqMBufKZHAHQM3/boDaI/0" app.js
+```
+
 ## Features
 
 ### Error Behavior
