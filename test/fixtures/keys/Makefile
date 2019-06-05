@@ -41,9 +41,6 @@ all: \
 	rsa_private_pkcs8.pem \
 	rsa_private_pkcs8_bad.pem \
 	rsa_public.pem \
-	rsa_ca.crt \
-	rsa_cert.crt \
-	rsa_cert.pfx \
 	rsa_public_sha1_signature_signedby_rsa_private.sha1 \
 	rsa_public_sha1_signature_signedby_rsa_private_pkcs8.sha1 \
 	rsa_private_b.pem \
@@ -619,15 +616,6 @@ rsa_private_pkcs8_bad.pem: rsa_private_pkcs8.pem
 
 rsa_public.pem: rsa_private.pem
 	openssl rsa -in rsa_private.pem -pubout -out rsa_public.pem
-
-rsa_cert.crt: rsa_private.pem
-	openssl req -new -x509 -key rsa_private.pem -config rsa_cert.cnf -out rsa_cert.crt
-
-rsa_cert.pfx: rsa_cert.crt
-	openssl pkcs12 -export -passout 'pass:sample' -inkey rsa_private.pem -in rsa_cert.crt -out rsa_cert.pfx
-
-rsa_ca.crt: rsa_cert.crt
-	cp rsa_cert.crt rsa_ca.crt
 
 rsa_public_sha1_signature_signedby_rsa_private.sha1: rsa_public.pem rsa_private.pem
 	openssl dgst -sha1 -sign rsa_private.pem -out rsa_public_sha1_signature_signedby_rsa_private.sha1 rsa_public.pem

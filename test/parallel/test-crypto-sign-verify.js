@@ -11,9 +11,9 @@ const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
 
 // Test certificates
-const certPem = fixtures.readKey('rsa_cert.crt');
-const keyPem = fixtures.readKey('rsa_private.pem');
-const keySize = 2048;
+const certPem = fixtures.readSync('test_cert.pem', 'ascii');
+const keyPem = fixtures.readSync('test_key.pem', 'ascii');
+const modSize = 1024;
 
 {
   const Sign = crypto.Sign;
@@ -152,7 +152,7 @@ common.expectsError(
 {
   function testPSS(algo, hLen) {
     // Maximum permissible salt length
-    const max = keySize / 8 - hLen - 2;
+    const max = modSize / 8 - hLen - 2;
 
     function getEffectiveSaltLength(saltLength) {
       switch (saltLength) {

@@ -41,9 +41,9 @@ const DH_NOT_SUITABLE_GENERATOR = crypto.constants.DH_NOT_SUITABLE_GENERATOR;
 require('internal/crypto/util').setDefaultEncoding('latin1');
 
 // Test Certificates
-const certPem = fixtures.readKey('rsa_cert.crt');
-const certPfx = fixtures.readKey('rsa_cert.pfx');
-const keyPem = fixtures.readKey('rsa_private.pem');
+const certPem = fixtures.readSync('test_cert.pem', 'ascii');
+const certPfx = fixtures.readSync('test_cert.pfx');
+const keyPem = fixtures.readSync('test_key.pem', 'ascii');
 const rsaPubPem = fixtures.readKey('rsa_public.pem', 'ascii');
 const rsaKeyPem = fixtures.readKey('rsa_private.pem', 'ascii');
 

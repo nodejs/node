@@ -21,8 +21,8 @@ if (process.argv[2] === 'child') {
   const { Duplex } = require('stream');
   const { mustCall } = common;
 
-  const cert = fixtures.readKey('rsa_cert.crt');
-  const key = fixtures.readKey('rsa_private.pem');
+  const cert = fixtures.readSync('test_cert.pem');
+  const key = fixtures.readSync('test_key.pem');
 
   net.createServer(mustCall(onplaintext)).listen(0, mustCall(onlisten));
 

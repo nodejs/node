@@ -11,8 +11,8 @@ const constants = crypto.constants;
 const fixtures = require('../common/fixtures');
 
 // Test certificates
-const certPem = fixtures.readKey('rsa_cert.crt');
-const keyPem = fixtures.readKey('rsa_private.pem');
+const certPem = fixtures.readSync('test_cert.pem', 'ascii');
+const keyPem = fixtures.readSync('test_key.pem', 'ascii');
 const rsaKeySize = 2048;
 const rsaPubPem = fixtures.readKey('rsa_public.pem', 'ascii');
 const rsaKeyPem = fixtures.readKey('rsa_private.pem', 'ascii');
