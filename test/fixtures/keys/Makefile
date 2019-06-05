@@ -31,16 +31,6 @@ all: \
   ec-cert.pem \
   ec.pfx \
   fake-cnnic-root-cert.pem \
-	rsa_private.pem \
-	rsa_private_encrypted.pem \
-	rsa_private_pkcs8.pem \
-	rsa_private_pkcs8_bad.pem \
-	rsa_public.pem \
-	rsa_public_sha1_signature_signedby_rsa_private.sha1 \
-	rsa_public_sha1_signature_signedby_rsa_private_pkcs8.sha1 \
-	rsa_private_b.pem \
-	I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256 \
-	rsa_public_b.pem \
   rsa_private_1024.pem \
   rsa_private_2048.pem \
   rsa_private_4096.pem \
@@ -575,36 +565,6 @@ dsa_private_encrypted_1025.pem:
 
 dsa_public_1025.pem:
 	openssl dsa -in dsa_private_1025.pem -pubout -out dsa_public_1025.pem
-
-rsa_private.pem:
-	openssl genrsa -out rsa_private.pem 2048
-
-rsa_private_encrypted.pem: rsa_private.pem
-	openssl rsa -aes256 -in rsa_private.pem -passout 'pass:password' -out rsa_private_encrypted.pem
-
-rsa_private_pkcs8.pem: rsa_private.pem
-	openssl pkcs8 -topk8 -inform PEM -outform PEM -in rsa_private.pem -out rsa_private_pkcs8.pem -nocrypt
-
-rsa_private_pkcs8_bad.pem: rsa_private_pkcs8.pem
-	sed 's/PRIVATE/RSA PRIVATE/g' rsa_private_pkcs8.pem > rsa_private_pkcs8_bad.pem
-
-rsa_public.pem: rsa_private.pem
-	openssl rsa -in rsa_private.pem -pubout -out rsa_public.pem
-
-rsa_public_sha1_signature_signedby_rsa_private.sha1: rsa_public.pem rsa_private.pem
-	openssl dgst -sha1 -sign rsa_private.pem -out rsa_public_sha1_signature_signedby_rsa_private.sha1 rsa_public.pem
-
-rsa_public_sha1_signature_signedby_rsa_private_pkcs8.sha1: rsa_public.pem rsa_private_pkcs8.pem
-	openssl dgst -sha1 -sign rsa_private_pkcs8.pem -out rsa_public_sha1_signature_signedby_rsa_private_pkcs8.sha1 rsa_public.pem
-
-rsa_private_b.pem:
-	openssl genrsa -out rsa_private_b.pem 2048
-
-I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256: rsa_private_b.pem
-	echo -n "I AM THE WALRUS" | openssl dgst -sha256 -sign rsa_private_b.pem -out I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256
-
-rsa_public_b.pem: rsa_private_b.pem
-	openssl rsa -in rsa_private_b.pem -pubout -out rsa_public_b.pem
 
 rsa_private_1024.pem:
 	openssl genrsa -out rsa_private_1024.pem 1024

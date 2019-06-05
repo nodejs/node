@@ -44,8 +44,8 @@ require('internal/crypto/util').setDefaultEncoding('latin1');
 const certPem = fixtures.readSync('test_cert.pem', 'ascii');
 const certPfx = fixtures.readSync('test_cert.pfx');
 const keyPem = fixtures.readSync('test_key.pem', 'ascii');
-const rsaPubPem = fixtures.readKey('rsa_public.pem', 'ascii');
-const rsaKeyPem = fixtures.readKey('rsa_private.pem', 'ascii');
+const rsaPubPem = fixtures.readSync('test_rsa_pubkey.pem', 'ascii');
+const rsaKeyPem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
 
 // PFX tests
 tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
@@ -626,11 +626,14 @@ common.expectsError(
 
   rsaSign.update(rsaPubPem);
   const rsaSignature = rsaSign.sign(rsaKeyPem, 'hex');
-  const expectedSignature = fixtures.readKey(
-    'rsa_public_sha1_signature_signedby_rsa_private.sha1',
-    'hex'
+  assert.strictEqual(
+    rsaSignature,
+    '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c' +
+    '8f020d7e2688b122bfb54c724ac9ee169f83f66d2fe90abeb95e8' +
+    'e1290e7e177152a4de3d944cf7d4883114a20ed0f78e70e25ef0f' +
+    '60f06b858e6af42a2f276ede95bbc6bc9a9bbdda15bd663186a6f' +
+    '40819a7af19e577bb2efa5e579a1f5ce8a0d4ca8b8f6'
   );
-  assert.strictEqual(rsaSignature, expectedSignature);
 
   rsaVerify.update(rsaPubPem);
   assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
@@ -640,15 +643,17 @@ common.expectsError(
 // Test RSA signing and verification
 //
 {
-  const privateKey = fixtures.readKey('rsa_private_b.pem');
-  const publicKey = fixtures.readKey('rsa_public_b.pem');
+  const privateKey = fixtures.readSync('test_rsa_privkey_2.pem');
+  const publicKey = fixtures.readSync('test_rsa_pubkey_2.pem');
 
   const input = 'I AM THE WALRUS';
 
-  const signature = fixtures.readKey(
-    'I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256',
-    'hex'
-  );
+  const signature =
+      '79d59d34f56d0e94aa6a3e306882b52ed4191f07521f25f505a078dc2f89' +
+      '396e0c8ac89e996fde5717f4cb89199d8fec249961fcb07b74cd3d2a4ffa' +
+      '235417b69618e4bcd76b97e29975b7ce862299410e1b522a328e44ac9bb2' +
+      '8195e0268da7eda23d9825ac43c724e86ceeee0d0d4465678652ccaf6501' +
+      '0ddfb299bedeb1ad';
 
   const sign = crypto.createSign('SHA256');
   sign.update(input);

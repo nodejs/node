@@ -21,8 +21,8 @@ const {
 
 const fixtures = require('../common/fixtures');
 
-const publicPem = fixtures.readKey('rsa_public.pem', 'ascii');
-const privatePem = fixtures.readKey('rsa_private.pem', 'ascii');
+const publicPem = fixtures.readSync('test_rsa_pubkey.pem', 'ascii');
+const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
 
 const publicDsa = fixtures.readKey('dsa_public_1025.pem', 'ascii');
 const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
