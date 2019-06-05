@@ -33,27 +33,16 @@ const UDP = internalBinding('udp_wrap').UDP;
   }, TypeError);
 
   const StreamWrapProto = Object.getPrototypeOf(TTY.prototype);
+  const properties = ['bytesRead', 'fd', '_externalStream'];
 
-  // Should not throw for Object.getOwnPropertyDescriptor
-  assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(StreamWrapProto, 'bytesRead'),
-    'object'
-  );
-
-  assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(StreamWrapProto, 'fd'),
-    'object'
-  );
-
-  assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(StreamWrapProto, '_externalStream'),
-    'object'
-  );
-
-  assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(StreamWrapProto, 'fd'),
-    'object'
-  );
+  properties.forEach((property) => {
+    // Should not throw for Object.getOwnPropertyDescriptor
+    assert.strictEqual(
+      typeof Object.getOwnPropertyDescriptor(StreamWrapProto, property),
+      'object',
+      'typeof property descriptor ' + property + ' is not \'object\''
+    );
+  });
 
   if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
     // There are accessor properties in crypto too
