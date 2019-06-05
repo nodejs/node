@@ -641,6 +641,11 @@ void Environment::RunAndClearNativeImmediates() {
           if (!try_catch.HasTerminated())
             FatalException(isolate(), try_catch);
 
+          // We are done with the current callback. Increase the counter so that
+          // the steps below make everything *after* the current item part of
+          // the new list.
+          it++;
+
           // Bail out, remove the already executed callbacks from list
           // and set up a new TryCatch for the other pending callbacks.
           std::move_backward(it, list.end(), list.begin() + (list.end() - it));
