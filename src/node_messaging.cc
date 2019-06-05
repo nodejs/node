@@ -186,27 +186,30 @@ uint32_t Message::AddWASMModule(WasmModuleObject::TransferrableModule&& mod) {
 
 namespace {
 
-void ThrowDataCloneException(Local<Context> context, Local<String> message) {
+MaybeLocal<Function> GetDOMException(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
-  Local<Value> argv[] = {
-    message,
-    FIXED_ONE_BYTE_STRING(isolate, "DataCloneError")
-  };
-  Local<Value> exception;
-
   Local<Object> per_context_bindings;
   Local<Value> domexception_ctor_val;
   if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
       !per_context_bindings->Get(context,
                                 FIXED_ONE_BYTE_STRING(isolate, "DOMException"))
           .ToLocal(&domexception_ctor_val)) {
-    return;
+    return MaybeLocal<Function>();
   }
-
   CHECK(domexception_ctor_val->IsFunction());
   Local<Function> domexception_ctor = domexception_ctor_val.As<Function>();
-  if (!domexception_ctor->NewInstance(context, arraysize(argv), argv)
-          .ToLocal(&exception)) {
+  return domexception_ctor;
+}
+
+void ThrowDataCloneException(Local<Context> context, Local<String> message) {
+  Isolate* isolate = context->GetIsolate();
+  Local<Value> argv[] = {message,
+                         FIXED_ONE_BYTE_STRING(isolate, "DataCloneError")};
+  Local<Value> exception;
+  Local<Function> domexception_ctor;
+  if (!GetDOMException(context).ToLocal(&domexception_ctor) ||
+      !domexception_ctor->NewInstance(context, arraysize(argv), argv)
+           .ToLocal(&exception)) {
     return;
   }
   isolate->ThrowException(exception);
@@ -900,6 +903,15 @@ static void InitMessaging(Local<Object> target,
   env->SetMethod(target, "receiveMessageOnPort", MessagePort::ReceiveMessage);
   env->SetMethod(target, "moveMessagePortToContext",
                  MessagePort::MoveToContext);
+
+  {
+    Local<Function> domexception = GetDOMException(context).ToLocalChecked();
+    target
+        ->Set(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), "DOMException"),
+              domexception)
+        .Check();
+  }
 }
 
 }  // anonymous namespace
