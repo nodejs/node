@@ -146,7 +146,7 @@ available to the module code.
 ## N-API Version Matrix
 
 N-API versions are additive, not SemVer. Version 4 is an extension
-to version 3 in that is has all of the APIs from version 3 with
+to version 3 in that it has all of the APIs from version 3 with
 some additions. This means that you
 do NOT need to recompile for new versions of Node.js which are
 listed as supporting a later version.
