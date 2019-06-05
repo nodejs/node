@@ -709,7 +709,7 @@ def get_llvm_version(cc):
 
 def get_xcode_version(cc):
   return get_version_helper(
-    cc, r"(^Apple LLVM version) ([0-9]+\.[0-9]+)")
+    cc, r"(^Apple (?:clang|LLVM) version) ([0-9]+\.[0-9]+)")
 
 def get_gas_version(cc):
   try:
