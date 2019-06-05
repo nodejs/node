@@ -418,8 +418,8 @@ common.expectsError(
 }
 
 [
-  { private: fixtures.readKey('ed25519_private.pem', 'ascii'),
-    public: fixtures.readKey('ed25519_public.pem', 'ascii'),
+  { private: fixtures.readSync('test_ed25519_privkey.pem', 'ascii'),
+    public: fixtures.readSync('test_ed25519_pubkey.pem', 'ascii'),
     algo: null,
     sigLen: 64 },
   { private: fixtures.readSync('test_ed448_privkey.pem', 'ascii'),
