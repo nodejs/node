@@ -457,6 +457,17 @@ unless either the `--pending-deprecation` command line flag, or the
 are used to provide a kind of selective "early warning" mechanism that
 developers may leverage to detect deprecated API usage.
 
+### `--policy-integrity=sri`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Instructs Node.js to error prior to running any code if the policy does not have
+the specified integrity. It expects a [Subresource Integrity][] string as a
+parameter.
+
 ### `--preserve-symlinks`
 <!-- YAML
 added: v6.3.0
@@ -992,6 +1003,7 @@ Node.js options that are allowed are:
 - `--no-warnings`
 - `--openssl-config`
 - `--pending-deprecation`
+- `--policy-integrity`
 - `--preserve-symlinks-main`
 - `--preserve-symlinks`
 - `--prof-process`
@@ -1196,6 +1208,7 @@ greater than `4` (its current default value). For more information, see the
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
+[Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [customizing esm specifier resolution]: esm.html#esm_customizing_esm_specifier_resolution_algorithm
 [debugger]: debugger.html

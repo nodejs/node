@@ -106,6 +106,8 @@ class EnvironmentOptions : public Options {
   bool experimental_wasm_modules = false;
   std::string module_type;
   std::string experimental_policy;
+  std::string experimental_policy_integrity;
+  bool has_policy_integrity_string;
   bool experimental_repl_await = false;
   bool experimental_vm_modules = false;
   bool expose_internals = false;
