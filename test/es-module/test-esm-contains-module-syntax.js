@@ -10,6 +10,7 @@ expect('esm-with-import-statement.js', 'module');
 expect('esm-with-export-statement.js', 'module');
 expect('esm-with-import-expression.js', 'module');
 expect('esm-with-indented-import-statement.js', 'module');
+expect('hashbang.js', 'module');
 
 expect('cjs-with-require.js', 'commonjs');
 expect('cjs-with-import-expression.js', 'commonjs');
