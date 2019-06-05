@@ -9,8 +9,8 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
 const server = tls.createServer({
-  key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem'),
+  key: fixtures.readSync('/keys/agent2-key.pem'),
+  cert: fixtures.readSync('/keys/agent2-cert.pem'),
   // Amount of keylog events depends on negotiated protocol
   // version, so force a specific one:
   minVersion: 'TLSv1.3',

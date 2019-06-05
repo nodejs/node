@@ -37,7 +37,7 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
 // Test Certificates
-const certPfx = fixtures.readKey('rsa_cert.pfx');
+const certPfx = fixtures.readSync('test_cert.pfx');
 
 // 'this' safety
 // https://github.com/joyent/node/issues/6690
@@ -224,12 +224,17 @@ assert.throws(function() {
 });
 
 assert.throws(function() {
-  // The correct header inside `rsa_private_pkcs8_bad.pem` should have been
+  // The correct header inside `test_bad_rsa_privkey.pem` should have been
   // -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----
   // instead of
   // -----BEGIN RSA PRIVATE KEY----- and -----END RSA PRIVATE KEY-----
-  const sha1_privateKey = fixtures.readKey('rsa_private_pkcs8_bad.pem',
-                                           'ascii');
+  // It is generated in this way:
+  //   $ openssl genrsa -out mykey.pem 512;
+  //   $ openssl pkcs8 -topk8 -inform PEM -outform PEM -in mykey.pem \
+  //     -out private_key.pem -nocrypt;
+  //   Then open private_key.pem and change its header and footer.
+  const sha1_privateKey = fixtures.readSync('test_bad_rsa_privkey.pem',
+                                            'ascii');
   // This would inject errors onto OpenSSL's error stack
   crypto.createSign('sha1').sign(sha1_privateKey);
 }, (err) => {

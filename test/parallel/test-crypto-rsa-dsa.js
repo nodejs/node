@@ -11,19 +11,18 @@ const constants = crypto.constants;
 const fixtures = require('../common/fixtures');
 
 // Test certificates
-const certPem = fixtures.readKey('rsa_cert.crt');
-const keyPem = fixtures.readKey('rsa_private.pem');
-const rsaKeySize = 2048;
-const rsaPubPem = fixtures.readKey('rsa_public.pem', 'ascii');
-const rsaKeyPem = fixtures.readKey('rsa_private.pem', 'ascii');
-const rsaKeyPemEncrypted = fixtures.readKey('rsa_private_encrypted.pem',
-                                            'ascii');
-const dsaPubPem = fixtures.readKey('dsa_public.pem', 'ascii');
-const dsaKeyPem = fixtures.readKey('dsa_private.pem', 'ascii');
-const dsaKeyPemEncrypted = fixtures.readKey('dsa_private_encrypted.pem',
-                                            'ascii');
-const rsaPkcs8KeyPem = fixtures.readKey('rsa_private_pkcs8.pem');
-const dsaPkcs8KeyPem = fixtures.readKey('dsa_private_pkcs8.pem');
+const certPem = fixtures.readSync('test_cert.pem', 'ascii');
+const keyPem = fixtures.readSync('test_key.pem', 'ascii');
+const rsaPubPem = fixtures.readSync('test_rsa_pubkey.pem', 'ascii');
+const rsaKeyPem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
+const rsaKeyPemEncrypted = fixtures.readSync('test_rsa_privkey_encrypted.pem',
+                                             'ascii');
+const dsaPubPem = fixtures.readSync('test_dsa_pubkey.pem', 'ascii');
+const dsaKeyPem = fixtures.readSync('test_dsa_privkey.pem', 'ascii');
+const dsaKeyPemEncrypted = fixtures.readSync('test_dsa_privkey_encrypted.pem',
+                                             'ascii');
+const rsaPkcs8KeyPem = fixtures.readSync('test_rsa_pkcs8_privkey.pem');
+const dsaPkcs8KeyPem = fixtures.readSync('test_dsa_pkcs8_privkey.pem');
 
 const decryptError = {
   message: 'error:06065064:digital envelope routines:EVP_DecryptFinal_ex:' +
@@ -97,7 +96,7 @@ const decryptError = {
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
   // Now with RSA_NO_PADDING. Plaintext needs to match key size.
-  const plaintext = 'x'.repeat(rsaKeySize / 8);
+  const plaintext = 'x'.repeat(128);
   encryptedBuffer = crypto.privateEncrypt({
     padding: crypto.constants.RSA_NO_PADDING,
     key: rsaKeyPemEncrypted,
@@ -154,7 +153,7 @@ const decryptError = {
 }
 
 function test_rsa(padding) {
-  const size = (padding === 'RSA_NO_PADDING') ? rsaKeySize / 8 : 32;
+  const size = (padding === 'RSA_NO_PADDING') ? 1024 / 8 : 32;
   const input = Buffer.allocUnsafe(size);
   for (let i = 0; i < input.length; i++)
     input[i] = (i * 7 + 11) & 0xff;
@@ -190,10 +189,12 @@ let rsaVerify = crypto.createVerify('SHA1');
 assert.ok(rsaSign);
 assert.ok(rsaVerify);
 
-const expectedSignature = fixtures.readKey(
-  'rsa_public_sha1_signature_signedby_rsa_private_pkcs8.sha1',
-  'hex'
-);
+const expectedSignature =
+      '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c' +
+      '8f020d7e2688b122bfb54c724ac9ee169f83f66d2fe90abeb95e8' +
+      'e1290e7e177152a4de3d944cf7d4883114a20ed0f78e70e25ef0f' +
+      '60f06b858e6af42a2f276ede95bbc6bc9a9bbdda15bd663186a6f' +
+      '40819a7af19e577bb2efa5e579a1f5ce8a0d4ca8b8f6';
 
 rsaSign.update(rsaPubPem);
 let rsaSignature = rsaSign.sign(rsaKeyPem, 'hex');
@@ -234,21 +235,23 @@ assert.throws(() => {
 // Test RSA signing and verification
 //
 {
-  const privateKey = fixtures.readKey('rsa_private_b.pem');
-  const publicKey = fixtures.readKey('rsa_public_b.pem');
+  const privateKey = fixtures.readSync('test_rsa_privkey_2.pem');
+  const publicKey = fixtures.readSync('test_rsa_pubkey_2.pem');
 
   const input = 'I AM THE WALRUS';
 
-  const signature = fixtures.readKey(
-    'I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256',
-    'hex'
-  );
+  const signature =
+      '79d59d34f56d0e94aa6a3e306882b52ed4191f07521f25f505a078dc2f89' +
+      '396e0c8ac89e996fde5717f4cb89199d8fec249961fcb07b74cd3d2a4ffa' +
+      '235417b69618e4bcd76b97e29975b7ce862299410e1b522a328e44ac9bb2' +
+      '8195e0268da7eda23d9825ac43c724e86ceeee0d0d4465678652ccaf6501' +
+      '0ddfb299bedeb1ad';
 
   const sign = crypto.createSign('SHA256');
   sign.update(input);
 
   const output = sign.sign(privateKey, 'hex');
-  assert.strictEqual(output, signature);
+  assert.strictEqual(signature, output);
 
   const verify = crypto.createVerify('SHA256');
   verify.update(input);
@@ -260,7 +263,7 @@ assert.throws(() => {
   sign2.update(input);
 
   const output2 = sign2.sign(privateKey, 'hex');
-  assert.strictEqual(output2, signature);
+  assert.strictEqual(signature, output2);
 
   const verify2 = crypto.createVerify('SHA256');
   verify2.update(input);

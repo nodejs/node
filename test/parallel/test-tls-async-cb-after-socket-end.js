@@ -15,8 +15,8 @@ const tls = require('tls');
 
 const options = {
   secureOptions: SSL_OP_NO_TICKET,
-  key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
 const server = tls.createServer(options, common.mustCall());
