@@ -32,21 +32,30 @@ namespace v8impl {
 
 namespace {
 
-class BufferFinalizer: private Finalizer {
+class BufferFinalizer : private Finalizer {
  public:
   // node::Buffer::FreeCallback
   static void FinalizeBufferCallback(char* data, void* hint) {
     BufferFinalizer* finalizer = static_cast<BufferFinalizer*>(hint);
-    if (finalizer->_finalize_callback != nullptr) {
-      NapiCallIntoModuleThrow(finalizer->_env, [&]() {
-        finalizer->_finalize_callback(
-          finalizer->_env,
-          data,
-          finalizer->_finalize_hint);
-      });
-    }
+    finalizer->_finalize_data = data;
+    static_cast<node_napi_env>(finalizer->_env)->node_env()
+        ->SetImmediate([](node::Environment* env, void* hint) {
+      BufferFinalizer* finalizer = static_cast<BufferFinalizer*>(hint);
 
-    Delete(finalizer);
+      if (finalizer->_finalize_callback != nullptr) {
+        v8::HandleScope handle_scope(finalizer->_env->isolate);
+        v8::Context::Scope context_scope(finalizer->_env->context());
+
+        NapiCallIntoModuleThrow(finalizer->_env, [&]() {
+          finalizer->_finalize_callback(
+              finalizer->_env,
+              finalizer->_finalize_data,
+              finalizer->_finalize_hint);
+        });
+      }
+
+      Delete(finalizer);
+    }, hint);
   }
 };
 
