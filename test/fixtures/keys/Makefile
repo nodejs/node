@@ -50,9 +50,6 @@ all: \
 	rsa_private_b.pem \
 	I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256 \
 	rsa_public_b.pem \
-	rsa_cert_foafssl_b.crt \
-	rsa_cert_foafssl_b.modulus \
-	rsa_cert_foafssl_b.exponent \
 	rsa_spkac.spkac \
 	rsa_spkac_invalid.spkac \
   rsa_private_1024.pem \
@@ -650,17 +647,6 @@ I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256: rsa_private_b.pe
 
 rsa_public_b.pem: rsa_private_b.pem
 	openssl rsa -in rsa_private_b.pem -pubout -out rsa_public_b.pem
-
-rsa_cert_foafssl_b.crt: rsa_private_b.pem
-	openssl req -new -x509 -config rsa_cert_foafssl_b.cnf -key rsa_private_b.pem -out rsa_cert_foafssl_b.crt
-
-# The 'modulus=' in the output must be stripped out
-rsa_cert_foafssl_b.modulus: rsa_cert_foafssl_b.crt
-	openssl x509 -modulus -in rsa_cert_foafssl_b.crt -noout | cut -c 9- > rsa_cert_foafssl_b.modulus
-
-# Have to parse out the hex exponent
-rsa_cert_foafssl_b.exponent: rsa_cert_foafssl_b.crt
-	openssl x509 -in  rsa_cert_foafssl_b.crt -text | grep -o 'Exponent:.*' | sed 's/\(.*(\|).*\)//g' > rsa_cert_foafssl_b.exponent
 
 # openssl outputs `SPKAC=[SPKAC]`. That prefix needs to be removed to work with node
 rsa_spkac.spkac: rsa_private.pem
