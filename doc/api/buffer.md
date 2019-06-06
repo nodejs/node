@@ -1896,18 +1896,9 @@ console.log(buf.readUIntBE(1, 6).toString(16));
 // Throws ERR_OUT_OF_RANGE.
 ```
 
-### buf.slice([start[, end]])
+### buf.subarray([start[, end]])
 <!-- YAML
-added: v0.3.0
-changes:
-  - version: v7.1.0, v6.9.2
-    pr-url: https://github.com/nodejs/node/pull/9341
-    description: Coercing the offsets to integers now handles values outside
-                 the 32-bit integer range properly.
-  - version: v7.0.0
-    pr-url: https://github.com/nodejs/node/pull/9101
-    description: All offsets are now coerced to integers before doing any
-                 calculations with them.
+added: v3.0.0
 -->
 
 * `start` {integer} Where the new `Buffer` will start. **Default:** `0`.
@@ -1935,7 +1926,7 @@ for (let i = 0; i < 26; i++) {
   buf1[i] = i + 97;
 }
 
-const buf2 = buf1.slice(0, 3);
+const buf2 = buf1.subarray(0, 3);
 
 console.log(buf2.toString('ascii', 0, buf2.length));
 // Prints: abc
@@ -1952,17 +1943,57 @@ end of `buf` rather than the beginning.
 ```js
 const buf = Buffer.from('buffer');
 
-console.log(buf.slice(-6, -1).toString());
+console.log(buf.subarray(-6, -1).toString());
 // Prints: buffe
-// (Equivalent to buf.slice(0, 5).)
+// (Equivalent to buf.subarray(0, 5).)
 
-console.log(buf.slice(-6, -2).toString());
+console.log(buf.subarray(-6, -2).toString());
 // Prints: buff
-// (Equivalent to buf.slice(0, 4).)
+// (Equivalent to buf.subarray(0, 4).)
 
-console.log(buf.slice(-5, -2).toString());
+console.log(buf.subarray(-5, -2).toString());
 // Prints: uff
-// (Equivalent to buf.slice(1, 4).)
+// (Equivalent to buf.subarray(1, 4).)
+```
+
+### buf.slice([start[, end]])
+<!-- YAML
+added: v0.3.0
+changes:
+  - version: v7.1.0, v6.9.2
+    pr-url: https://github.com/nodejs/node/pull/9341
+    description: Coercing the offsets to integers now handles values outside
+                 the 32-bit integer range properly.
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/9101
+    description: All offsets are now coerced to integers before doing any
+                 calculations with them.
+-->
+
+* `start` {integer} Where the new `Buffer` will start. **Default:** `0`.
+* `end` {integer} Where the new `Buffer` will end (not inclusive).
+  **Default:** [`buf.length`][].
+* Returns: {Buffer}
+
+Returns a new `Buffer` that references the same memory as the original, but
+offset and cropped by the `start` and `end` indices.
+
+This is the same behavior as `buf.subarray()`.
+
+This method is not compatible with the `Uint8Array.prototype.slice()`,
+which is a superclass of `Buffer`. To copy the slice, use
+`Uint8Array.prototype.slice()`.
+
+```js
+const buf = Buffer.from('buffer');
+
+const copiedBuf = Uint8Array.prototype.slice.call(buf);
+copiedBuf[0]++;
+console.log(copiedBuf.toString());
+// Prints: cuffer
+
+console.log(buf.toString());
+// Prints: buffer
 ```
 
 ### buf.swap16()
