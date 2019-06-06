@@ -1214,11 +1214,11 @@ lint-js:
 jslint: lint-js
 	$(info Please use lint-js instead of jslint)
 
-# For CI use local compiled 'node', and output in xUnit (junit) format.
+# For CI use local compiled 'node', and output in TAP format.
 .PHONY: lint-js-ci
 lint-js-ci:
 	$(info Running JS linter...)
-	./node tools/lint-js.js $(PARALLEL_ARGS) -f junit -o test-eslint.xml $(LINT_JS_TARGETS)
+	./node tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap $(LINT_JS_TARGETS)
 
 jslint-ci: lint-js-ci
 	$(info Please use lint-js-ci instead of jslint-ci)
