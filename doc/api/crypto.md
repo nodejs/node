@@ -2807,8 +2807,8 @@ it can be used to put the ECDH key pair into an inconsistent state.
 
 The `crypto` module still supports some algorithms which are already
 compromised and are not currently recommended for use. The API also allows
-the use of ciphers and hashes with a small key size that are considered to be
-too weak for safe use.
+the use of ciphers and hashes with a small key size that are too weak for safe
+use.
 
 Users should take full responsibility for selecting the crypto
 algorithm and key size according to their security requirements.
