@@ -61,14 +61,14 @@ V ?= 0
 
 # Use -e to double check in case it's a broken link
 # Use $(PWD) so we can cd to anywhere before calling this
-available-node-shell = $(shell\
-	if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
-		echo $(PWD)/$(NODE); \
+available-node-shell = $(shell                                                \
+	if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then                   \
+		echo $(PWD)/$(NODE);                                                  \
 	elif [ -x `which node` ] && [ -e `which node` ] && [ `which node` ]; then \
-		echo `which node`; \
-	else \
-		echo "No available node\n"; \
-		exit 1; \
+		echo `which node`;                                                    \
+	else                                                                      \
+		echo "No available node\n";                                           \
+		exit 1;                                                               \
 	fi;)
 
 available-node = $(available-node-shell) $(1)
@@ -369,8 +369,8 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping .docbuildstamp (no crypto)"; \
 	else \
-		$(RM) -r test/addons/??_*/; \
-		[ -x $(NODE) ] && $(NODE) $< || node $< ; \
+		$(RM) -r test/addons/??_*/;  \
+		$(available-node-shell) $<;  \
 		touch $@; \
 	fi
 
@@ -689,16 +689,16 @@ apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
 tools/doc/node_modules: tools/doc/package.json
-	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
-		echo "Skipping tools/doc/node_modules (no crypto)"; \
+	if [ "$(shell $(node_use_openssl))" != "true" ]; then      \
+		echo "Skipping tools/doc/node_modules (no crypto)";    \
 	else \
-		cd tools/doc && $(call available-node,$(run-npm-ci)); \
+		cd tools/doc && $(available-node-shell) $(run-npm-ci); \
 	fi
 
 .PHONY: doc-only
 doc-only: tools/doc/node_modules \
 	$(apidoc_dirs) $(apiassets)  ## Builds the docs with the local or the global Node.js binary.
-	@$(MAKE) out/doc/api/all.html out/doc/api/all.json
+	$(MAKE) out/doc/api/all.html out/doc/api/all.json
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only
@@ -719,7 +719,7 @@ out/doc/api/assets:
 
 # If it's not a source tarball, we need to copy assets from doc/api_assets
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
-	@cp $< $@
+	cp $< $@
 
 
 run-npm-ci = $(PWD)/$(NPM) ci
@@ -745,7 +745,7 @@ out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.js
 
 .PHONY: docopen
 docopen: $(apidocs_html)
-	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
+	$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
 
 .PHONY: docclean
 docclean:
@@ -1171,7 +1171,7 @@ run-lint-doc-md = tools/lint-md.js -q -f $?
 # Lint all changed markdown files under doc/
 tools/.docmdlintstamp: AVALIBLE_NODE := $(available-node-shell)
 tools/.docmdlintstamp: $(wildcard doc/*.md doc/**/*.md)
-	$(info "Running Markdown linter on docs...")
+	$(info Running Markdown linter on docs...)
 	$(AVALIBLE_NODE) $(run-lint-doc-md)
 	touch $@
 
@@ -1182,49 +1182,43 @@ LINT_MD_MISC_FILES = \
 	! -path '*node_modules*' ! -path 'test/fixtures/*')
 # Lint other changed markdown files maintained by us
 tools/.miscmdlintstamp: $(LINT_MD_MISC_FILES)
-	$(info "Running Markdown linter on misc docs...")
+	$(info Running Markdown linter on misc docs...)
 	$(call available-node, $(run-lint-doc-md))
 	touch $@
 
 tools/.mdlintstamp: tools/.miscmdlintstamp tools/.docmdlintstamp
 
-.PHONY: lint-md
 # Lints the markdown documents maintained by us in the codebase.
-lint-md: | tools/.mdlintstamp
-
+.PHONY: lint-md
+lint-md: | tools/.mdlintstamp ;
 
 LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
-
 run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
 	--report-unused-disable-directives --ext=.js,.mjs,.md $(LINT_JS_TARGETS)
-run-lint-js-fix = $(run-lint-js) --fix
 
 .PHONY: lint-js-fix
 lint-js-fix:
-	@$(call available-node,$(run-lint-js-fix))
+	$(available-node-shell) $(run-lint-js) --fix
 
-.PHONY: lint-js
 # Note that on the CI `lint-js-ci` is run instead.
 # Lints the JavaScript code with eslint.
+.PHONY: lint-js
 lint-js:
-	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
+	if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping $@ (no crypto)"; \
 	else \
 		echo "Running JS linter..."; \
-		$(call available-node,$(run-lint-js)); \
+		$(available-node-shell) $(run-lint-js); \
 	fi
 
 jslint: lint-js
 	$(info Please use lint-js instead of jslint)
 
-run-lint-js-ci = tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
-		$(LINT_JS_TARGETS)
-
+# For CI use local compiled 'node', and output in xUnit (junit) format.
 .PHONY: lint-js-ci
-# On the CI the output is emitted in the TAP format.
 lint-js-ci:
 	$(info Running JS linter...)
-	@$(call available-node,$(run-lint-js-ci))
+	./node tools/lint-js.js $(PARALLEL_ARGS) -f junit -o test-eslint.xml $(LINT_JS_TARGETS)
 
 jslint-ci: lint-js-ci
 	$(info Please use lint-js-ci instead of jslint-ci)
