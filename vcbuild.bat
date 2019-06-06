@@ -593,51 +593,17 @@ goto lint-cpp
 
 :lint-cpp
 if not defined lint_cpp goto lint-js
-call :run-lint-cpp src\*.c src\*.cc src\*.h test\addons\*.cc test\addons\*.h test\js-native-api\*.cc test\js-native-api\*.cc test\js-native-api\*.h test\node-api\*.cc test\node-api\*.cc test\node-api\*.h test\cctest\*.cc test\cctest\*.h tools\icu\*.cc tools\icu\*.h
-python tools/check-imports.py
+if defined NODEJS_MAKE goto run-make-lint
+where make > NUL 2>&1 && make -v | findstr /C:"GNU Make" 1> NUL
+if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=make PYTHON=python" & goto run-make-lint
+where wsl > NUL 2>1
+if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=wsl make" & goto run-make-lint
+echo Could not find GNU Make, needed for linting C/C++
 goto lint-js
 
-:run-lint-cpp
-if "%*"=="" goto exit
-echo running lint-cpp '%*'
-set cppfilelist=
-setlocal enabledelayedexpansion
-for /f "tokens=*" %%G in ('dir /b /s /a %*') do (
-  set relpath=%%G
-  set relpath=!relpath:*%~dp0=!
-  call :add-to-list !relpath! > nul
-)
-( endlocal
-  set cppfilelist=%localcppfilelist%
-)
-python tools/cpplint.py %cppfilelist% > nul
-goto exit
-
-:add-to-list
-@rem Subroutine used to filter items from the cpplint file list
-echo %1 | findstr /c:"src\node_root_certs.h" > nul 2>&1
-if %errorlevel% equ 0 goto exit
-
-echo %1 | findstr /c:"src\tracing\trace_event.h" > nul 2>&1
-if %errorlevel% equ 0 goto exit
-
-echo %1 | findstr /c:"src\tracing\trace_event_common.h" > nul 2>&1
-if %errorlevel% equ 0 goto exit
-
-echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.h" > nul 2>&1
-if %errorlevel% equ 0 goto exit
-
-echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.cc" > nul 2>&1
-if %errorlevel% equ 0 goto exit
-
-echo %1 | findstr /c:"test\js-native-api\common.h" > nul 2>&1
-if %errorlevel% equ 0 goto exit
-
-echo %1 | findstr /c:"test\node-api\common.h" > nul 2>&1
-if %errorlevel% equ 0 goto exit
-
-set "localcppfilelist=%localcppfilelist% %1"
-goto exit
+:run-make-lint
+%NODEJS_MAKE% lint-cpp
+goto lint-js
 
 :lint-js
 if defined lint_js_ci goto lint-js-ci
