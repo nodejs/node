@@ -20,6 +20,7 @@ The available categories are:
 * `node.bootstrap` - Enables capture of Node.js bootstrap milestones.
 * `node.console` - Enables capture of `console.time()` and `console.count()`
   output.
+* `node.dns.native` - Enables capture of trace data for DNS queries.
 * `node.environment` - Enables capture of Node.js Environment milestones.
 * `node.fs.sync` - Enables capture of trace data for file system sync methods.
 * `node.perf` - Enables capture of [Performance API] measurements.
