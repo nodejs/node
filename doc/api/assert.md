@@ -1074,6 +1074,14 @@ assert.strictEqual('Hello foobar', 'Hello World!');
 // + 'Hello foobar'
 // - 'Hello World!'
 //          ^
+
+const apples = 1;
+const oranges = 2;
+assert.strictEqual(apples, oranges, `apples ${apples} !== oranges ${oranges}`);
+// AssertionError [ERR_ASSERTION]: apples 1 !== oranges 2
+
+assert.strictEqual(1, '1', new TypeError('Inputs are not identical'));
+// TypeError: Inputs are not identical
 ```
 
 If the values are not strictly equal, an `AssertionError` is thrown with a
