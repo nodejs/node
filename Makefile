@@ -61,15 +61,17 @@ V ?= 0
 
 # Use -e to double check in case it's a broken link
 # Use $(PWD) so we can cd to anywhere before calling this
-available-node = \
-  if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
-		$(PWD)/$(NODE) $(1); \
+available-node-shell = $(shell\
+	if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
+		echo $(PWD)/$(NODE); \
 	elif [ -x `which node` ] && [ -e `which node` ] && [ `which node` ]; then \
-		`which node` $(1); \
+		echo `which node`; \
 	else \
-		echo "No available node, cannot run \"node $(1)\""; \
+		echo "No available node\n"; \
 		exit 1; \
-	fi;
+	fi;)
+
+available-node = $(available-node-shell) $(1)
 
 .PHONY: all
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
@@ -1129,11 +1131,11 @@ endif
 
 .PHONY: bench-all
 bench-all: bench-addons-build
-	@echo "Please use benchmark/run.js or benchmark/compare.js to run the benchmarks."
+	$(info Please use benchmark/run.js or benchmark/compare.js to run the benchmarks.)
 
 .PHONY: bench
 bench: bench-addons-build
-	@echo "Please use benchmark/run.js or benchmark/compare.js to run the benchmarks."
+	$(info Please use benchmark/run.js or benchmark/compare.js to run the benchmarks.)
 
 # Build required addons for benchmark before running it.
 .PHONY: bench-addons-build
@@ -1159,25 +1161,30 @@ lint-md-clean:
 lint-md-build:
 	$(warning "Deprecated no-op target 'lint-md-build'")
 
-LINT_MD_DOC_FILES = $(shell ls doc/*.md doc/**/*.md)
-run-lint-doc-md = tools/lint-md.js -q -f $(LINT_MD_DOC_FILES)
-# Lint all changed markdown files under doc/
-tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
-	@echo "Running Markdown linter on docs..."
-	@$(call available-node,$(run-lint-doc-md))
-	@touch $@
+run-lint-doc-md = tools/lint-md.js -q -f $?
 
+# The following two targets are split for two reasons:
+# 1. The first one uses $(wildcard) and the second shells out 'find'.
+# 2. The first one uses 'available-node-shell' and the second uses
+#    $(call available-node, ...), we use that for debugging those two methods.
+
+# Lint all changed markdown files under doc/
+tools/.docmdlintstamp: AVALIBLE_NODE := $(available-node-shell)
+tools/.docmdlintstamp: $(wildcard doc/*.md doc/**/*.md)
+	$(info "Running Markdown linter on docs...")
+	$(AVALIBLE_NODE) $(run-lint-doc-md)
+	touch $@
+
+# Keep these vars recursive (no ':=') so no evaluation unless needed.
 LINT_MD_TARGETS = src lib benchmark test tools/doc tools/icu
-LINT_MD_ROOT_DOCS := $(wildcard *.md)
-LINT_MD_MISC_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
-  ! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md') \
-  $(LINT_MD_ROOT_DOCS)
-run-lint-misc-md = tools/lint-md.js -q -f $(LINT_MD_MISC_FILES)
+LINT_MD_MISC_FILES = \
+	$(wildcard *.md) $(shell find $(LINT_MD_TARGETS) -type f -name '*.md' \
+	! -path '*node_modules*' ! -path 'test/fixtures/*')
 # Lint other changed markdown files maintained by us
 tools/.miscmdlintstamp: $(LINT_MD_MISC_FILES)
-	@echo "Running Markdown linter on misc docs..."
-	@$(call available-node,$(run-lint-misc-md))
-	@touch $@
+	$(info "Running Markdown linter on misc docs...")
+	$(call available-node, $(run-lint-doc-md))
+	touch $@
 
 tools/.mdlintstamp: tools/.miscmdlintstamp tools/.docmdlintstamp
 
@@ -1208,7 +1215,7 @@ lint-js:
 	fi
 
 jslint: lint-js
-	@echo "Please use lint-js instead of jslint"
+	$(info Please use lint-js instead of jslint)
 
 run-lint-js-ci = tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
 		$(LINT_JS_TARGETS)
@@ -1216,11 +1223,11 @@ run-lint-js-ci = tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
 .PHONY: lint-js-ci
 # On the CI the output is emitted in the TAP format.
 lint-js-ci:
-	@echo "Running JS linter..."
+	$(info Running JS linter...)
 	@$(call available-node,$(run-lint-js-ci))
 
 jslint-ci: lint-js-ci
-	@echo "Please use lint-js-ci instead of jslint-ci"
+	$(info Please use lint-js-ci instead of jslint-ci)
 
 LINT_CPP_ADDON_DOC_FILES_GLOB = test/addons/??_*/*.cc test/addons/??_*/*.h
 LINT_CPP_ADDON_DOC_FILES = $(wildcard $(LINT_CPP_ADDON_DOC_FILES_GLOB))
@@ -1275,15 +1282,15 @@ CLANG_FORMAT_START ?= HEAD
 #  $ CLANG_FORMAT_START=master make format-cpp
 format-cpp: ## Format C++ diff from $CLANG_FORMAT_START to current changes
 ifneq ("","$(wildcard tools/clang-format/node_modules/)")
-	@echo "Formatting C++ diff from $(CLANG_FORMAT_START).."
-	@$(PYTHON) tools/clang-format/node_modules/.bin/git-clang-format \
+	$(info Formatting C++ diff from $(CLANG_FORMAT_START)..)
+	$(PYTHON) tools/clang-format/node_modules/.bin/git-clang-format \
 		--binary=tools/clang-format/node_modules/.bin/clang-format \
 		--style=file \
 		$(CLANG_FORMAT_START) -- \
 		$(LINT_CPP_FILES)
 else
-	@echo "clang-format is not installed."
-	@echo "To install (requires internet access) run: $ make format-cpp-build"
+	$(warning 'clang-format' is not installed.)
+	$(info To install run: 'make format-cpp-build' (internet access required))
 endif
 
 ifeq ($(V),1)
@@ -1296,28 +1303,28 @@ endif
 lint-cpp: tools/.cpplintstamp
 
 tools/.cpplintstamp: $(LINT_CPP_FILES)
-	@echo "Running C++ linter..."
-	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) $?
-	@$(PYTHON) tools/check-imports.py
-	@touch $@
+	$(info Running C++ linter...)
+	$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) $?
+	$(PYTHON) tools/check-imports.py
+	touch $@
 
 .PHONY: lint-addon-docs
 lint-addon-docs: tools/.doclintstamp
 
 tools/.doclintstamp: test/addons/.docbuildstamp
-	@echo "Running C++ linter on addon docs..."
-	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) --filter=$(ADDON_DOC_LINT_FLAGS) \
+	$(info Running C++ linter on addon docs...)
+	$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) --filter=$(ADDON_DOC_LINT_FLAGS) \
 		$(LINT_CPP_ADDON_DOC_FILES_GLOB)
-	@touch $@
+	touch $@
 
 cpplint: lint-cpp
-	@echo "Please use lint-cpp instead of cpplint"
+	$(info Please use lint-cpp instead of cpplint.)
 
 .PHONY: lint-py-build
 # python -m pip install flake8
 # Try with '--system' is to overcome systems that blindly set '--user'
 lint-py-build:
-	@echo "Pip installing flake8 linter on $(shell $(PYTHON) --version)..."
+	$(info Pip installing flake8 linter on $(shell $(PYTHON) --version)...)
 	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages flake8 || \
 		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages flake8
 
@@ -1329,8 +1336,8 @@ lint-py:
 	PYTHONPATH=tools/pip $(PYTHON) -m flake8 --count --show-source --statistics .
 else
 lint-py:
-	@echo "Python linting with flake8 is not avalible"
-	@echo "Run 'make lint-py-build'"
+	$(warning Python linting with flake8 is not avalible)
+	$(info To install run: 'make lint-py-build' (internet access required))
 endif
 
 .PHONY: lint
@@ -1357,9 +1364,9 @@ lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs
 	fi
 else
 lint:
-	@echo "Linting is not available through the source tarball."
-	@echo "Use the git repo instead:" \
-		"$ git clone https://github.com/nodejs/node.git"
+	$(warning Linting is not available through the source tarball.)
+	$(info Use the git repo instead: \
+		'git clone https://github.com/nodejs/node.git')
 
 lint-ci: lint
 endif
