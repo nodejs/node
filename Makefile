@@ -692,7 +692,7 @@ tools/doc/node_modules: tools/doc/package.json
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping tools/doc/node_modules (no crypto)"; \
 	else \
-		cd tools/doc && $(call available-node,$(run-npm-ci)) \
+		cd tools/doc && $(call available-node,$(run-npm-ci)); \
 	fi
 
 .PHONY: doc-only
@@ -1211,7 +1211,7 @@ lint-js:
 		echo "Skipping $@ (no crypto)"; \
 	else \
 		echo "Running JS linter..."; \
-		$(call available-node,$(run-lint-js)) \
+		$(call available-node,$(run-lint-js)); \
 	fi
 
 jslint: lint-js
