@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
@@ -71,6 +71,7 @@ function runTest(testCaseIndex) {
     console.log(`client: actual status message: ${response.statusMessage}`);
     assert.strictEqual(testCase.statusMessage, response.statusMessage);
 
+    response.on('aborted', common.mustNotCall());
     response.on('end', function() {
       countdown.dec();
       if (testCaseIndex + 1 < testCases.length) {
