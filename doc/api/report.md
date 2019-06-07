@@ -22,6 +22,7 @@ is provided below for reference.
 ```json
 {
   "header": {
+    "reportVersion": 1,
     "event": "exception",
     "trigger": "Exception",
     "filename": "report.20181221.005011.8974.0.001.json",
