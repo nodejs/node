@@ -176,14 +176,9 @@ Sample complete commit message:
 ```txt
 subsystem: explain the commit in one line
 
-Body of commit message is a few lines of text, explaining things
-in more detail, possibly giving some background about the issue
-being fixed, etc.
-
-The body of the commit message can be several paragraphs, and
-please do proper word-wrap and keep columns shorter than about
-72 characters or so. That way, `git log` will show things
-nicely even when it is indented.
+The body of the commit message should be one or more paragraphs, explaining
+things in more detail. Please word-wrap to keep columns to 72 characters or
+less.
 
 Fixes: https://github.com/nodejs/node/issues/1337
 Refs: http://eslint.org/docs/rules/space-in-parens.html
