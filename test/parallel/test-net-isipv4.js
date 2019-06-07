@@ -39,8 +39,10 @@ const v4not = [
 
 v4.forEach((ip) => {
   assert.strictEqual(net.isIPv4(ip), true);
+  assert.strictEqual(net.isIPv4({ toString: () => ip }), true);
 });
 
 v4not.forEach((ip) => {
   assert.strictEqual(net.isIPv4(ip), false);
+  assert.strictEqual(net.isIPv4({ toString: () => ip }), false);
 });

@@ -237,8 +237,10 @@ const v6not = [
 
 v6.forEach((ip) => {
   assert.strictEqual(net.isIPv6(ip), true);
+  assert.strictEqual(net.isIPv6({ toString: () => ip }), true);
 });
 
 v6not.forEach((ip) => {
   assert.strictEqual(net.isIPv6(ip), false);
+  assert.strictEqual(net.isIPv6({ toString: () => ip }), false);
 });
