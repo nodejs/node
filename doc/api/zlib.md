@@ -681,6 +681,22 @@ added: v0.5.8
 
 Creates and returns a new [`Gzip`][] object.
 
+```js
+const zlib = require('zlib');
+const fs = require('fs');
+
+const gzip = zlib.createGzip();
+const readStream = fs.createReadStream('file.pdf');
+const writeStream = fs.createWriteStream('file.pdf.gz');
+
+readStream
+  .pipe(gzip) 
+  .pipe(writeStream)
+  .on('finish', () => {
+    // console.log('file compress')
+  });
+```
+
 ## zlib.createInflate([options])
 <!-- YAML
 added: v0.5.8
