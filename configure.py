@@ -628,18 +628,20 @@ def pkg_config(pkg):
   Returns ("-l flags", "-I flags", "-L flags", "version")
   otherwise (None, None, None, None)"""
   pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
+  args = []  # Print pkg-config warnings on first round.
   retval = ()
   for flag in ['--libs-only-l', '--cflags-only-I',
                '--libs-only-L', '--modversion']:
+    args += [flag, pkg]
     try:
-      proc = subprocess.Popen(
-          shlex.split(pkg_config) + ['--silence-errors', flag, pkg],
-          stdout=subprocess.PIPE)
+      proc = subprocess.Popen(shlex.split(pkg_config) + args,
+                              stdout=subprocess.PIPE)
       val = proc.communicate()[0].strip()
     except OSError as e:
       if e.errno != errno.ENOENT: raise e  # Unexpected error.
       return (None, None, None, None)  # No pkg-config/pkgconf installed.
     retval += (val,)
+    args = ['--silence-errors']
   return retval
 
 
