@@ -15,7 +15,7 @@ const fnsToTest = [setTimeout, (cb) => {
     setImmediate(() => {
       hook.disable();
     });
-  })
+  });
 }, (cb) => {
   process.nextTick(() => {
     cb();
