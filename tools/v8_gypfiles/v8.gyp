@@ -393,13 +393,6 @@
             '<(icu_gyp_path):icui18n',
             '<(icu_gyp_path):icuuc',
           ],
-          'direct_dependent_settings': {
-            'include_dirs': [
-              '<(icu_path)/source/common',
-              '<(icu_path)/source/i18n',
-              '<(icu_path)/source/tools/toolutil',
-            ],
-          },
         }],
       ],
     },  # v8_maybe_icu
