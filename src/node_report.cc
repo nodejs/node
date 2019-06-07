@@ -24,6 +24,7 @@
 extern char** environ;
 #endif
 
+constexpr int NODE_REPORT_VERSION = 1;
 constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
 constexpr double SEC_PER_MICROS = 1e-6;
 
@@ -172,7 +173,7 @@ static void WriteNodeReport(Isolate* isolate,
   JSONWriter writer(out);
   writer.json_start();
   writer.json_objectstart("header");
-
+  writer.json_keyvalue("reportVersion", NODE_REPORT_VERSION);
   writer.json_keyvalue("event", message);
   writer.json_keyvalue("trigger", trigger);
   if (!filename.empty())

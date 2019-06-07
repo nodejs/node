@@ -63,8 +63,10 @@ function _validateContent(data) {
                         'nodejsVersion', 'wordSize', 'arch', 'platform',
                         'componentVersions', 'release', 'osName', 'osRelease',
                         'osVersion', 'osMachine', 'cpus', 'host',
-                        'glibcVersionRuntime', 'glibcVersionCompiler', 'cwd'];
+                        'glibcVersionRuntime', 'glibcVersionCompiler', 'cwd',
+                        'reportVersion'];
   checkForUnknownFields(header, headerFields);
+  assert.strictEqual(header.reportVersion, 1);  // Increment as needed.
   assert.strictEqual(typeof header.event, 'string');
   assert.strictEqual(typeof header.trigger, 'string');
   assert(typeof header.filename === 'string' || header.filename === null);
