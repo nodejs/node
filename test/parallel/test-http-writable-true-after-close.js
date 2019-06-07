@@ -34,7 +34,7 @@ const server = createServer(common.mustCall((req, res) => {
     }));
   }).listen(0, () => {
     external = get(`http://127.0.0.1:${server.address().port}`);
-    external.on('error', common.mustCall(() => {
+    external.on('abort', common.mustCall(() => {
       server.close();
       internal.close();
     }));
