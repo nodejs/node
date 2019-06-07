@@ -11,11 +11,13 @@ test-net-connect-options-port: PASS,FLAKY
 test-worker-prof: PASS,FLAKY
 
 [$system==win32]
+# https://github.com/nodejs/node/issues/20750
 test-http2-pipe: PASS,FLAKY
 # https://github.com/nodejs/node/issues/23277
 test-worker-memory: PASS,FLAKY
 # https://github.com/nodejs/node/issues/20750
 test-http2-client-upload: PASS,FLAKY
+# https://github.com/nodejs/node/issues/20750
 test-http2-client-upload-reject: PASS,FLAKY
 # https://github.com/nodejs/node/issues/28106
 test-worker-debug: PASS,FLAKY
