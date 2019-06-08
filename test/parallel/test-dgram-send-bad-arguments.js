@@ -68,6 +68,15 @@ function checkArgs(connected) {
         message: 'Already connected'
       }
     );
+
+    common.expectsError(
+      () => { sock.send(buf, 1234, '127.0.0.1', common.mustNotCall()); },
+      {
+        code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
+        type: Error,
+        message: 'Already connected'
+      }
+    );
   } else {
     assert.throws(() => { sock.send(buf, 1, 1, -1, host); }, RangeError);
     assert.throws(() => { sock.send(buf, 1, 1, 0, host); }, RangeError);
