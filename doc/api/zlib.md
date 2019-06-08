@@ -690,7 +690,11 @@ const readStream = fs.createReadStream('file.pdf');
 const writeStream = fs.createWriteStream('file.pdf.gz');
 
 readStream
+<<<<<<< HEAD
   .pipe(gzip)
+=======
+  .pipe(gzip) 
+>>>>>>> 4b9d71285e4e25e91f793f05a878fae4df13f5e5
   .pipe(writeStream)
   .on('finish', () => {
     // console.log('file compress')
