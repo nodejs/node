@@ -5,8 +5,6 @@ prefix sequential
 # sample-test                       : PASS,FLAKY
 
 [true] # This section applies to all platforms
-# https://github.com/nodejs/node/issues/22336
-test-gc-http-client: PASS,FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/22327
