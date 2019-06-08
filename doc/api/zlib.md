@@ -20,7 +20,14 @@ const fs = require('fs');
 const inp = fs.createReadStream('input.txt');
 const out = fs.createWriteStream('input.txt.gz');
 
-inp.pipe(gzip).pipe(out);
+inp.pipe(gzip)
+  .on('error', () => {
+    // handle error
+  })
+  .pipe(out)
+  .on('error', () => {
+    // handle error
+  });
 ```
 
 It is also possible to compress or decompress data in a single step:
@@ -679,6 +686,7 @@ added: v0.5.8
 * `options` {zlib options}
 
 Creates and returns a new [`Gzip`][] object.
+See [example][zlib.createGzip example].
 
 ## zlib.createInflate([options])
 <!-- YAML
@@ -1046,3 +1054,4 @@ Decompress a chunk of data with [`Unzip`][].
 [RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.txt
 [pool size]: cli.html#cli_uv_threadpool_size_size
 [zlib documentation]: https://zlib.net/manual.html#Constants
+[zlib.createGzip example]: #zlib_zlib
