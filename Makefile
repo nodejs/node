@@ -1159,7 +1159,7 @@ lint-md-clean:
 lint-md-build:
 	$(warning "Deprecated no-op target 'lint-md-build'")
 
-LINT_MD_DOC_FILES = $(shell ls doc/*.md doc/**/*.md)
+LINT_MD_DOC_FILES = $(shell find doc -type f -name '*.md')
 run-lint-doc-md = tools/lint-md.js -q -f $(LINT_MD_DOC_FILES)
 # Lint all changed markdown files under doc/
 tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
