@@ -81,13 +81,14 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   const err = {
     constructor: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'Transfer list argument must be array or missing'
+    message: 'Optional transferList argument must be an array'
   };
 
   assert.throws(() => port1.postMessage(5, 0), err);
   assert.throws(() => port1.postMessage(5, false), err);
   assert.throws(() => port1.postMessage(5, 'X'), err);
   assert.throws(() => port1.postMessage(5, Symbol('X')), err);
+  port1.close();
 }
 
 {
