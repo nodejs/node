@@ -1,11 +1,11 @@
 'use strict';
 require('../common');
 
-// This test checks that the maxBuffer option for child_process.spawnSync()
+// This test checks that the maxBuffer option for child_process.execFileSync()
 // works as expected.
 
 const assert = require('assert');
-const execFileSync = require('child_process').execFileSync;
+const { execFileSync } = require('child_process');
 const msgOut = 'this is stdout';
 const msgOutBuf = Buffer.from(`${msgOut}\n`);
 
@@ -16,15 +16,16 @@ const args = [
 
 // Verify that an error is returned if maxBuffer is surpassed.
 {
-  assert.throws(
-    () => execFileSync(process.execPath, args, { maxBuffer: 1 }),
-    (e) => {
-      assert.ok(e, 'maxBuffer should error');
-      assert.strictEqual(e.errno, 'ENOBUFS');
-      assert.deepStrictEqual(e.stdout, msgOutBuf);
-      return true;
-    }
-  );
+  assert.throws(() => {
+    execFileSync(process.execPath, args, { maxBuffer: 1 });
+  }, (e) => {
+    assert.ok(e, 'maxBuffer should error');
+    assert.strictEqual(e.errno, 'ENOBUFS');
+    // We can have buffers larger than maxBuffer because underneath we alloc 64k
+    // that matches our read sizes.
+    assert.deepStrictEqual(e.stdout, msgOutBuf);
+    return true;
+  });
 }
 
 // Verify that a maxBuffer size of Infinity works.
@@ -34,19 +35,16 @@ const args = [
   assert.deepStrictEqual(ret, msgOutBuf);
 }
 
-// maxBuffer size is 1024 * 1024 at default.
+// Default maxBuffer size is 1024 * 1024.
 {
-  assert.throws(
-    () => {
-      execFileSync(
-        process.execPath,
-        ['-e', "console.log('a'.repeat(1024 * 1024))"],
-        { encoding: 'utf-8' }
-      );
-    }, (e) => {
-      assert.ok(e, 'maxBuffer should error');
-      assert.strictEqual(e.errno, 'ENOBUFS');
-      return true;
-    }
-  );
+  assert.throws(() => {
+    execFileSync(
+      process.execPath,
+      ['-e', "console.log('a'.repeat(1024 * 1024))"]
+    );
+  }, (e) => {
+    assert.ok(e, 'maxBuffer should error');
+    assert.strictEqual(e.errno, 'ENOBUFS');
+    return true;
+  });
 }
