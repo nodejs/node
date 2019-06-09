@@ -12,7 +12,6 @@ server.bind(0, common.mustCall(() => {
   resolver.setServers([`127.0.0.1:${server.address().port}`]);
   resolver.resolve4('example.org', common.mustCall((err, res) => {
     assert.strictEqual(err.code, 'ECANCELLED');
-    assert.strictEqual(err.errno, 'ECANCELLED');
     assert.strictEqual(err.syscall, 'queryA');
     assert.strictEqual(err.hostname, 'example.org');
     server.close();

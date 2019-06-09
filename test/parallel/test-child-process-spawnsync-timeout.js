@@ -24,6 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 
 const spawnSync = require('child_process').spawnSync;
+const { getSystemErrorName } = require('util');
 
 const TIMER = 200;
 const SLEEP = common.platformTimeout(5000);
@@ -39,7 +40,8 @@ switch (process.argv[2]) {
     const start = Date.now();
     const ret = spawnSync(process.execPath, [__filename, 'child'],
                           { timeout: TIMER });
-    assert.strictEqual(ret.error.errno, 'ETIMEDOUT');
+    assert.strictEqual(ret.error.code, 'ETIMEDOUT');
+    assert.strictEqual(getSystemErrorName(ret.error.errno), 'ETIMEDOUT');
     const end = Date.now() - start;
     assert(end < SLEEP);
     assert(ret.status > 128 || ret.signal);
