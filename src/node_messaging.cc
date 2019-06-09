@@ -716,7 +716,7 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
     // should be an array or undefined, thus the mismatch between the checks
     // above and the actual error message.
     return THROW_ERR_INVALID_ARG_TYPE(env,
-        "Transfer list argument must be array or missing");
+        "Optional transferList argument must be an array");
   }
 
   MessagePort* port = Unwrap<MessagePort>(args.This());
