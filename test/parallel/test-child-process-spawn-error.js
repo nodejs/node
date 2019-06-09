@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const { getSystemErrorName } = require('util');
 const spawn = require('child_process').spawn;
 const assert = require('assert');
 const fs = require('fs');
@@ -42,7 +43,7 @@ assert.strictEqual(enoentChild.stdio[2], enoentChild.stderr);
 
 enoentChild.on('error', common.mustCall(function(err) {
   assert.strictEqual(err.code, 'ENOENT');
-  assert.strictEqual(err.errno, 'ENOENT');
+  assert.strictEqual(getSystemErrorName(err.errno), 'ENOENT');
   assert.strictEqual(err.syscall, `spawn ${enoentPath}`);
   assert.strictEqual(err.path, enoentPath);
   assert.deepStrictEqual(err.spawnargs, spawnargs);

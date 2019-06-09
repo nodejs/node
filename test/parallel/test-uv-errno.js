@@ -20,7 +20,7 @@ keys.forEach((key) => {
   const name = uv.errname(uv[key]);
   assert.strictEqual(getSystemErrorName(uv[key]), name);
   assert.strictEqual(err.code, name);
-  assert.strictEqual(err.code, err.errno);
+  assert.strictEqual(err.code, getSystemErrorName(err.errno));
   assert.strictEqual(err.message, `test ${name}`);
 });
 

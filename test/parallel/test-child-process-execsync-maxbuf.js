@@ -5,6 +5,7 @@ require('../common');
 // works as expected.
 
 const assert = require('assert');
+const { getSystemErrorName } = require('util');
 const { execSync } = require('child_process');
 const msgOut = 'this is stdout';
 const msgOutBuf = Buffer.from(`${msgOut}\n`);
@@ -20,7 +21,8 @@ const args = [
     execSync(`"${process.execPath}" ${args.join(' ')}`, { maxBuffer: 1 });
   }, (e) => {
     assert.ok(e, 'maxBuffer should error');
-    assert.strictEqual(e.errno, 'ENOBUFS');
+    assert.strictEqual(e.code, 'ENOBUFS');
+    assert.strictEqual(getSystemErrorName(e.errno), 'ENOBUFS');
     // We can have buffers larger than maxBuffer because underneath we alloc 64k
     // that matches our read sizes.
     assert.deepStrictEqual(e.stdout, msgOutBuf);
@@ -46,7 +48,8 @@ const args = [
     );
   }, (e) => {
     assert.ok(e, 'maxBuffer should error');
-    assert.strictEqual(e.errno, 'ENOBUFS');
+    assert.strictEqual(e.code, 'ENOBUFS');
+    assert.strictEqual(getSystemErrorName(e.errno), 'ENOBUFS');
     return true;
   });
 }

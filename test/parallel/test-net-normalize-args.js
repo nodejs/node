@@ -4,6 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const { normalizedArgsSymbol } = require('internal/net');
+const { getSystemErrorName } = require('util');
 
 function validateNormalizedArgs(input, output) {
   const args = net._normalizeArgs(input);
@@ -32,7 +33,7 @@ validateNormalizedArgs([{ port: 1234 }, assert.fail], res);
 
     socket.on('error', common.mustCall((err) => {
       assert(possibleErrors.includes(err.code));
-      assert(possibleErrors.includes(err.errno));
+      assert(possibleErrors.includes(getSystemErrorName(err.errno)));
       assert.strictEqual(err.syscall, 'connect');
       server.close();
     }));

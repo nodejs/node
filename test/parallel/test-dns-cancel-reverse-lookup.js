@@ -12,7 +12,6 @@ server.bind(0, common.mustCall(() => {
   resolver.setServers([`127.0.0.1:${server.address().port}`]);
   resolver.reverse('123.45.67.89', common.mustCall((err, res) => {
     assert.strictEqual(err.code, 'ECANCELLED');
-    assert.strictEqual(err.errno, 'ECANCELLED');
     assert.strictEqual(err.syscall, 'getHostByAddr');
     assert.strictEqual(err.hostname, '123.45.67.89');
     server.close();
