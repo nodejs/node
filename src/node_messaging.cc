@@ -712,9 +712,11 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
                                        "MessagePort.postMessage");
   }
   if (!args[1]->IsNullOrUndefined() && !args[1]->IsObject()) {
-    // Browsers also do not throw on `null` or objects, although it really
-    // should be an array or undefined, thus the mismatch between the checks
-    // above and the actual error message.
+    // Browsers ignore null or undefined, and otherwise accept an array or an
+    // options object.
+    // TODO(addaleax): Add support for an options object and generic sequence
+    // support.
+    // Refs: https://github.com/nodejs/node/pull/28033#discussion_r289964991
     return THROW_ERR_INVALID_ARG_TYPE(env,
         "Optional transferList argument must be an array");
   }
