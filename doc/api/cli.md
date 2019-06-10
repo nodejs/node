@@ -1001,6 +1001,12 @@ Node.js options that are allowed are:
 - `--throw-deprecation`
 - `--title`
 - `--tls-cipher-list`
+- `--tls-max-v1.2`
+- `--tls-max-v1.3`
+- `--tls-min-v1.0`
+- `--tls-min-v1.1`
+- `--tls-min-v1.2`
+- `--tls-min-v1.3`
 - `--trace-deprecation`
 - `--trace-event-categories`
 - `--trace-event-file-pattern`
