@@ -367,25 +367,19 @@ function isWarned(emitter) {
       code: 'ERR_INVALID_OPT_VALUE'
     });
 
-    common.expectsError(function() {
+    common.mustCall(function() {
       readline.createInterface({
         input: fi,
         completer: ''
       });
-    }, {
-      type: TypeError,
-      code: 'ERR_INVALID_OPT_VALUE'
-    });
+    })();
 
-    common.expectsError(function() {
+    common.mustCall(function() {
       readline.createInterface({
         input: fi,
         completer: false
       });
-    }, {
-      type: TypeError,
-      code: 'ERR_INVALID_OPT_VALUE'
-    });
+    })();
   }
 
   // Constructor throws if historySize is not a positive number
