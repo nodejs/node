@@ -83,6 +83,12 @@ class BaseObject : public MemoryRetainer {
                                v8::Local<v8::Value> value,
                                const v8::PropertyCallbackInfo<void>& info);
 
+ protected:
+  // Can be used to avoid the automatic object deletion when the Environment
+  // exits, for example when this object is owned and deleted by another
+  // BaseObject at that point.
+  inline void RemoveCleanupHook();
+
  private:
   v8::Local<v8::Object> WrappedObject() const override;
   static void DeleteMe(void* data);

@@ -803,11 +803,11 @@ class Http2Session : public AsyncWrap, public StreamListener {
     return env()->event_loop();
   }
 
-  Http2Ping* PopPing();
-  bool AddPing(Http2Ping* ping);
+  std::unique_ptr<Http2Ping> PopPing();
+  Http2Ping* AddPing(std::unique_ptr<Http2Ping> ping);
 
-  Http2Settings* PopSettings();
-  bool AddSettings(Http2Settings* settings);
+  std::unique_ptr<Http2Settings> PopSettings();
+  Http2Settings* AddSettings(std::unique_ptr<Http2Settings> settings);
 
   void IncrementCurrentSessionMemory(uint64_t amount) {
     current_session_memory_ += amount;
@@ -976,10 +976,10 @@ class Http2Session : public AsyncWrap, public StreamListener {
   v8::Local<v8::ArrayBuffer> stream_buf_ab_;
 
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
-  std::queue<Http2Ping*> outstanding_pings_;
+  std::queue<std::unique_ptr<Http2Ping>> outstanding_pings_;
 
   size_t max_outstanding_settings_ = DEFAULT_MAX_SETTINGS;
-  std::queue<Http2Settings*> outstanding_settings_;
+  std::queue<std::unique_ptr<Http2Settings>> outstanding_settings_;
 
   std::vector<nghttp2_stream_write> outgoing_buffers_;
   std::vector<uint8_t> outgoing_storage_;
@@ -1086,12 +1086,11 @@ class Http2Session::Http2Ping : public AsyncWrap {
 
   void Send(const uint8_t* payload);
   void Done(bool ack, const uint8_t* payload = nullptr);
+  void DetachFromSession();
 
  private:
   Http2Session* session_;
   uint64_t startTime_;
-
-  friend class Http2Session;
 };
 
 // The Http2Settings class is used to parse the settings passed in for
