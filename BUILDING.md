@@ -103,8 +103,8 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | arm64            | kernel >= 4.5, glibc >= 2.17    | Tier 1       | e.g. Ubuntu 16.04, Debian 9, EL 7 <sup>[3](#fn3)</sup> |
 | GNU/Linux        | armv7            | kernel >= 4.14, glibc >= 2.24   | Tier 1       | e.g. Ubuntu 18.04, Debian 9       |
 | GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Experimental | Downgraded as of Node.js 12       |
-| GNU/Linux        | ppc64le >=power8 | kernel >= 3.13.0, glibc >= 2.19 | Tier 2       | e.g. Ubuntu 16.04, EL 7           |
-| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2       | e.g. EL 7                         |
+| GNU/Linux        | ppc64le >=power8 | kernel >= 3.10.0, glibc >= 2.17 | Tier 2       | e.g. Ubuntu 16.04 <sup>[1](#fn1)</sup>, EL 7  <sup>[2](#fn2)</sup> |
+| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2       | e.g. EL 7 <sup>[3](#fn3)</sup>    |
 | Windows          | x64, x86 (WoW64) | >= Windows 7/2008 R2/2012 R2    | Tier 1       | <sup>[4](#fn4),[5](#fn5)</sup>    |
 | Windows          | x86 (native)     | >= Windows 7/2008 R2/2012 R2    | Tier 1 (running) / Experimental (compiling) <sup>[6](#fn6)</sup> | |
 | Windows          | arm64            | >= Windows 10                   | Experimental |                                   |
