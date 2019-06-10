@@ -2883,6 +2883,9 @@ void Http2Session::Http2Ping::Done(bool ack, const uint8_t* payload) {
   double duration_ms = duration_ns / 1e6;
   if (session_ != nullptr) session_->statistics_.ping_rtt = duration_ns;
 
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
+
   Local<Value> buf = Undefined(env()->isolate());
   if (payload != nullptr) {
     buf = Buffer::Copy(env()->isolate(),

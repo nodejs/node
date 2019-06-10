@@ -1,5 +1,8 @@
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const http2 = require('http2');
 const v8 = require('v8');
 
@@ -27,6 +30,7 @@ for (const variant of ['ping', 'settings']) {
   }));
 
   server.listen(0, common.mustCall(() => {
-    const client = http2.connect(`http://localhost:${server.address().port}`);
+    http2.connect(`http://localhost:${server.address().port}`,
+                  common.mustCall());
   }));
 }
