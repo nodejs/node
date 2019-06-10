@@ -272,7 +272,7 @@ async function testWaitForDisconnectInWorker(session, post) {
 
   session.disconnect();
   console.log('Test done');
-})().catch((err) => {
+})().then(common.mustCall()).catch((err) => {
   console.error(err);
-  process.abort();
+  process.exitCode = 1;
 });
