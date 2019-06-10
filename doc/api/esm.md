@@ -468,8 +468,7 @@ The resolve hook returns the resolved file URL and module format for a
 given module specifier and parent file URL:
 
 ```js
-const baseURL = new URL('file://');
-baseURL.pathname = `${process.cwd()}/`;
+const baseURL = new URL(`${process.cwd()}/`, 'file://');
 
 export async function resolve(specifier,
                               parentModuleURL = baseURL,
@@ -512,8 +511,7 @@ import Module from 'module';
 const builtins = Module.builtinModules;
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
-const baseURL = new URL('file://');
-baseURL.pathname = `${process.cwd()}/`;
+const baseURL = new URL(`${process.cwd()}/`, 'file://');
 
 export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
   if (builtins.includes(specifier)) {
