@@ -487,6 +487,14 @@ int llhttp__after_message_complete(
     llhttp__internal_t* s, const unsigned char* p,
     const unsigned char* endp);
 
+int llhttp__internal__c_update_finish_1(
+    llhttp__internal_t* state,
+    const unsigned char* p,
+    const unsigned char* endp) {
+  state->finish = 0;
+  return 0;
+}
+
 int llhttp__internal__c_test_flags_1(
     llhttp__internal_t* state,
     const unsigned char* p,
@@ -559,7 +567,7 @@ int llhttp__internal__c_or_flags(
   return 0;
 }
 
-int llhttp__internal__c_update_finish_1(
+int llhttp__internal__c_update_finish_2(
     llhttp__internal_t* state,
     const unsigned char* p,
     const unsigned char* endp) {
@@ -824,7 +832,7 @@ static llparse_state_t llhttp__internal__run(
     s_n_llhttp__internal__n_invoke_llhttp__after_message_complete: {
       switch (llhttp__after_message_complete(state, p, endp)) {
         default:
-          goto s_n_llhttp__internal__n_start;
+          goto s_n_llhttp__internal__n_invoke_update_finish_1;
       }
       /* UNREACHABLE */;
       abort();
@@ -1277,7 +1285,7 @@ static llparse_state_t llhttp__internal__run(
       }
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_body;
-      goto s_n_llhttp__internal__n_invoke_update_finish_1;
+      goto s_n_llhttp__internal__n_eof;
       /* UNREACHABLE */;
       abort();
     }
@@ -1291,7 +1299,7 @@ static llparse_state_t llhttp__internal__run(
         case 3:
           goto s_n_llhttp__internal__n_span_start_llhttp__on_body_1;
         case 4:
-          goto s_n_llhttp__internal__n_span_start_llhttp__on_body_2;
+          goto s_n_llhttp__internal__n_invoke_update_finish_2;
         default:
           goto s_n_llhttp__internal__n_invoke_llhttp__on_message_complete;
       }
@@ -4652,6 +4660,14 @@ static llparse_state_t llhttp__internal__run(
     /* UNREACHABLE */;
     abort();
   }
+  s_n_llhttp__internal__n_invoke_update_finish_1: {
+    switch (llhttp__internal__c_update_finish_1(state, p, endp)) {
+      default:
+        goto s_n_llhttp__internal__n_start;
+    }
+    /* UNREACHABLE */;
+    abort();
+  }
   s_n_llhttp__internal__n_pause_5: {
     state->error = 0x14;
     state->reason = "on_message_complete pause";
@@ -4878,10 +4894,10 @@ static llparse_state_t llhttp__internal__run(
     /* UNREACHABLE */;
     abort();
   }
-  s_n_llhttp__internal__n_invoke_update_finish_1: {
-    switch (llhttp__internal__c_update_finish_1(state, p, endp)) {
+  s_n_llhttp__internal__n_invoke_update_finish_2: {
+    switch (llhttp__internal__c_update_finish_2(state, p, endp)) {
       default:
-        goto s_n_llhttp__internal__n_eof;
+        goto s_n_llhttp__internal__n_span_start_llhttp__on_body_2;
     }
     /* UNREACHABLE */;
     abort();
