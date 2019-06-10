@@ -507,16 +507,16 @@ be written:
 ```js
 import path from 'path';
 import process from 'process';
-import Module from 'module';
+import { builtinModules } from 'module';
 
-const builtins = Module.builtinModules;
+const builtins = new Set(builtinModules);
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
 const baseURL = new URL('file://');
 baseURL.pathname = `${process.cwd()}/`;
 
 export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
-  if (builtins.includes(specifier)) {
+  if (builtins.has(specifier)) {
     return {
       url: specifier,
       format: 'builtin'
