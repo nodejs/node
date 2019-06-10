@@ -145,9 +145,9 @@ available to the module code.
 
 ## N-API Version Matrix
 
-N-API versions are additive and versioned independantly from Node.js. Version 4 is an extension
-to version 3 in that it has all of the APIs from version 3 with
-some additions. This means that you
+N-API versions are additive and versioned independantly from Node.js.
+Version 4 is an extension to version 3 in that it has all of the APIs
+from version 3 with some additions. This means that you
 do not need to recompile for new versions of Node.js which are
 listed as supporting a later version.
 
