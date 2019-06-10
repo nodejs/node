@@ -1897,6 +1897,9 @@ console.log(buf.readUIntBE(1, 6).toString(16));
 ```
 
 ### buf.subarray([start[, end]])
+<!-- YAML
+added: v3.0.0
+-->
 
 * `start` {integer} Where the new `Buffer` will start. **Default:** `0`.
 * `end` {integer} Where the new `Buffer` will end (not inclusive).
