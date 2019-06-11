@@ -5,7 +5,8 @@ const path = require('path');
 const assert = require('assert');
 const shutil = require('shutil');
 
-const tmpdir = require('../common/tmpdir');
+const common = require('../common');
+const tmpdir = common.tmpdir;
 
 const tmpDir = tmpdir.path;
 const baseDir = path.join(tmpDir, 'shutil-rmtree');
