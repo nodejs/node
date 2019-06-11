@@ -8,6 +8,7 @@ This directory contains modules used to test the Node.js implementation.
 * [Benchmark module](#benchmark-module)
 * [Common module API](#common-module-api)
 * [Countdown module](#countdown-module)
+* [CPU Profiler module](#cpu-profiler-module)
 * [DNS module](#dns-module)
 * [Duplex pair helper](#duplex-pair-helper)
 * [Environment variables](#environment-variables)
@@ -430,6 +431,47 @@ Decrements the `Countdown` counter.
 
 Specifies the remaining number of times `Countdown.prototype.dec()` must be
 called before the callback is invoked.
+
+## CPU Profiler module
+
+The `cpu-prof` module provides utilities related to CPU profiling tests.
+
+### env
+
+* Default: { ...process.env, FIB, NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER' }
+
+Environment variables used in profiled processes. FIB will be set to `40` on
+Windows and `30` elsewhere.
+
+### getCpuProfiles(dir)
+
+* `dir` {string} The directory containing the CPU profile files.
+* return [&lt;string>]
+
+Returns an array of all `.cpuprofile` files found in `dir`.
+
+### getFrames(output, file, suffix)
+
+* `output` Unused.
+* `file` {string} Path to a `.cpuprofile` file.
+* `suffix` {string} Suffix of the URL of call frames to retrieve.
+* returns { frames: [&lt;Object>], nodes: [&lt;Object>] }
+
+Returns an object containing an array of the relevant call frames and an array
+of all the profile nodes.
+
+### kCpuProfInterval
+
+Sampling interval in microseconds.
+
+### verifyFrames(output, file, suffix)
+
+* `output` {string}
+* `file` {string}
+* `suffix` {string}
+
+Throws an `AssertionError` if there are no call frames with the expected
+`suffix` in the profiling data contained in `file`.
 
 ## DNS Module
 
