@@ -1,3 +1,5 @@
 ESLint couldn't find the config "<%- configName %>" to extend from. Please check that the name of the config is correct.
 
+The config "<%- configName %>" was referenced from the config file in "<%- importerName %>".
+
 If you still have problems, please stop by https://gitter.im/eslint/eslint to chat with the team.

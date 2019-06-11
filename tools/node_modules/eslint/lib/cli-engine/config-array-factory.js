@@ -224,15 +224,16 @@ function loadPackageJSONConfigFile(filePath) {
 /**
  * Creates an error to notify about a missing config to extend from.
  * @param {string} configName The name of the missing config.
+ * @param {string} importerName The name of the config that imported the missing config
  * @returns {Error} The error object to throw
  * @private
  */
-function configMissingError(configName) {
+function configMissingError(configName, importerName) {
     return Object.assign(
         new Error(`Failed to load config "${configName}" to extend from.`),
         {
             messageTemplate: "extend-config-missing",
-            messageData: { configName }
+            messageData: { configName, importerName }
         }
     );
 }
@@ -637,7 +638,7 @@ class ConfigArrayFactory {
             return this._loadConfigData(eslintAllPath, name);
         }
 
-        throw configMissingError(extendName);
+        throw configMissingError(extendName, importerName);
     }
 
     /**
@@ -670,7 +671,7 @@ class ConfigArrayFactory {
             );
         }
 
-        throw plugin.error || configMissingError(extendName);
+        throw plugin.error || configMissingError(extendName, importerPath);
     }
 
     /**
@@ -704,7 +705,7 @@ class ConfigArrayFactory {
         } catch (error) {
             /* istanbul ignore else */
             if (error && error.code === "MODULE_NOT_FOUND") {
-                throw configMissingError(extendName);
+                throw configMissingError(extendName, importerPath);
             }
             throw error;
         }

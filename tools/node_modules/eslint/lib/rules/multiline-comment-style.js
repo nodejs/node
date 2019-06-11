@@ -25,6 +25,7 @@ module.exports = {
         schema: [{ enum: ["starred-block", "separate-lines", "bare-block"] }],
         messages: {
             expectedBlock: "Expected a block comment instead of consecutive line comments.",
+            expectedBareBlock: "Expected a block comment without padding stars.",
             startNewline: "Expected a linebreak after '/*'.",
             endNewline: "Expected a linebreak before '*/'.",
             missingStar: "Expected a '*' at the start of this line.",
@@ -250,7 +251,7 @@ module.exports = {
                                     start: block.loc.start,
                                     end: { line: block.loc.start.line, column: block.loc.start.column + 2 }
                                 },
-                                messageId: "expectedBlock",
+                                messageId: "expectedBareBlock",
                                 fix(fixer) {
                                     return fixer.replaceText(block, convertToBlock(block, commentLines.filter(line => line)));
                                 }

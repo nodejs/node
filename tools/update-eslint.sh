@@ -13,7 +13,7 @@ mkdir eslint-tmp
 cd eslint-tmp
 npm init --yes
 
-npm install --global-style --no-bin-links --production --no-package-lock eslint@next
+npm install --global-style --no-bin-links --production --no-package-lock eslint@latest
 cd node_modules/eslint
 
 npm install --no-bin-links --production --no-package-lock eslint-plugin-markdown@latest
