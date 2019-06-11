@@ -421,10 +421,10 @@ parser.add_option('--with-ltcg',
     dest='with_ltcg',
     help='Use Link Time Code Generation. This feature is only available on Windows.')
 
-parser.add_option('--with-node-snapshot',
+parser.add_option('--without-node-snapshot',
     action='store_true',
-    dest='with_node_snapshot',
-    help='Turn on V8 snapshot integration. Currently experimental.')
+    dest='without_node_snapshot',
+    help='Turn off V8 snapshot integration. Currently experimental.')
 
 intl_optgroup.add_option('--download',
     action='store',
@@ -940,11 +940,9 @@ def configure_node(o):
   o['variables']['want_separate_host_toolset'] = int(
       cross_compiling and want_snapshots)
 
-  if options.with_node_snapshot:
-    o['variables']['node_use_node_snapshot'] = 'true'
+  if not options.without_node_snapshot:
+    o['variables']['node_use_node_snapshot'] = b(not cross_compiling)
   else:
-    # Default to false for now.
-    # TODO(joyeecheung): enable it once we fix the hashseed uniqueness
     o['variables']['node_use_node_snapshot'] = 'false'
 
   if target_arch == 'arm':
