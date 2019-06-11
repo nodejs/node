@@ -450,9 +450,8 @@ Windows and `30` elsewhere.
 
 Returns an array of all `.cpuprofile` files found in `dir`.
 
-### getFrames(output, file, suffix)
+### getFrames(file, suffix)
 
-* `output` Unused.
 * `file` {string} Path to a `.cpuprofile` file.
 * `suffix` {string} Suffix of the URL of call frames to retrieve.
 * returns { frames: [&lt;Object>], nodes: [&lt;Object>] }
