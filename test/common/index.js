@@ -239,9 +239,6 @@ const pwdCommand = isWindows ?
 
 
 function platformTimeout(ms) {
-  // ESLint will not support 'bigint' in valid-typeof until it reaches stage 4.
-  // See https://github.com/eslint/eslint/pull/9636.
-  // eslint-disable-next-line valid-typeof
   const multipliers = typeof ms === 'bigint' ?
     { two: 2n, four: 4n, seven: 7n } : { two: 2, four: 4, seven: 7 };
 

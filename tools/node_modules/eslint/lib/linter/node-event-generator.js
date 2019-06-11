@@ -221,17 +221,19 @@ class NodeEventGenerator {
             const selector = parseSelector(rawSelector);
 
             if (selector.listenerTypes) {
-                selector.listenerTypes.forEach(nodeType => {
-                    const typeMap = selector.isExit ? this.exitSelectorsByNodeType : this.enterSelectorsByNodeType;
+                const typeMap = selector.isExit ? this.exitSelectorsByNodeType : this.enterSelectorsByNodeType;
 
+                selector.listenerTypes.forEach(nodeType => {
                     if (!typeMap.has(nodeType)) {
                         typeMap.set(nodeType, []);
                     }
                     typeMap.get(nodeType).push(selector);
                 });
-            } else {
-                (selector.isExit ? this.anyTypeExitSelectors : this.anyTypeEnterSelectors).push(selector);
+                return;
             }
+            const selectors = selector.isExit ? this.anyTypeExitSelectors : this.anyTypeEnterSelectors;
+
+            selectors.push(selector);
         });
 
         this.anyTypeEnterSelectors.sort(compareSpecificity);

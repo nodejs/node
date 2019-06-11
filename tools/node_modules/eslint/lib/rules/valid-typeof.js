@@ -39,7 +39,7 @@ module.exports = {
 
     create(context) {
 
-        const VALID_TYPES = ["symbol", "undefined", "object", "boolean", "number", "string", "function"],
+        const VALID_TYPES = ["symbol", "undefined", "object", "boolean", "number", "string", "function", "bigint"],
             OPERATORS = ["==", "===", "!=", "!=="];
 
         const requireStringLiterals = context.options[0] && context.options[0].requireStringLiterals;
