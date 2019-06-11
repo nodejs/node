@@ -438,10 +438,9 @@ The `cpu-prof` module provides utilities related to CPU profiling tests.
 
 ### env
 
-* Default: { ...process.env, FIB, NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER' }
+* Default: { ...process.env, NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER' }
 
-Environment variables used in profiled processes. FIB will be set to `40` on
-Windows and `30` elsewhere.
+Environment variables used in profiled processes.
 
 ### getCpuProfiles(dir)
 
