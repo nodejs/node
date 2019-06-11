@@ -980,6 +980,7 @@ In case an option value happens to contain a space (for example a path listed in
 ```
 
 Node.js options that are allowed are:
+<!-- node-options-node start -->
 - `--enable-fips`
 - `--es-module-specifier-resolution`
 - `--experimental-modules`
@@ -1040,8 +1041,10 @@ Node.js options that are allowed are:
 - `--use-openssl-ca`
 - `--v8-pool-size`
 - `--zero-fill-buffers`
+<!-- node-options-node end -->
 
 V8 options that are allowed are:
+<!-- node-options-v8 start -->
 - `--abort-on-uncaught-exception`
 - `--max-old-space-size`
 - `--perf-basic-prof-only-functions`
@@ -1049,6 +1052,7 @@ V8 options that are allowed are:
 - `--perf-prof-unwinding-info`
 - `--perf-prof`
 - `--stack-trace-limit`
+<!-- node-options-v8 end -->
 
 ### `NODE_PATH=path[:…]`
 <!-- YAML
