@@ -5,13 +5,6 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Helpers
-//------------------------------------------------------------------------------
-
-const DEFAULT_MESSAGE_TEMPLATE = "'{{importSource}}' import is restricted from being used.";
-const CUSTOM_MESSAGE_TEMPLATE = "'{{importSource}}' import is restricted from being used. {{customMessage}}";
-
-//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -60,6 +53,18 @@ module.exports = {
             category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-imports"
+        },
+
+        messages: {
+            path: "'{{importSource}}' import is restricted from being used.",
+            // eslint-disable-next-line eslint-plugin/report-message-format
+            pathWithCustomMessage: "'{{importSource}}' import is restricted from being used. {{customMessage}}",
+
+            patterns: "'{{importSource}}' import is restricted from being used by a pattern.",
+
+            everything: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted.",
+            // eslint-disable-next-line eslint-plugin/report-message-format
+            everythingWithCustomMessage: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted. {{customMessage}}"
         },
 
         schema: {
@@ -127,13 +132,10 @@ module.exports = {
         function reportPath(node) {
             const importSource = node.source.value.trim();
             const customMessage = restrictedPathMessages[importSource] && restrictedPathMessages[importSource].message;
-            const message = customMessage
-                ? CUSTOM_MESSAGE_TEMPLATE
-                : DEFAULT_MESSAGE_TEMPLATE;
 
             context.report({
                 node,
-                message,
+                messageId: customMessage ? "pathWithCustomMessage" : "path",
                 data: {
                     importSource,
                     customMessage
@@ -152,7 +154,7 @@ module.exports = {
 
             context.report({
                 node,
-                message: "'{{importSource}}' import is restricted from being used by a pattern.",
+                messageId: "patterns",
                 data: {
                     importSource
                 }
@@ -168,13 +170,15 @@ module.exports = {
          */
         function reportPathForEverythingImported(importSource, node) {
             const importNames = restrictedPathMessages[importSource].importNames;
+            const customMessage = restrictedPathMessages[importSource] && restrictedPathMessages[importSource].message;
 
             context.report({
                 node,
-                message: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted.",
+                messageId: customMessage ? "everythingWithCustomMessage" : "everything",
                 data: {
                     importSource,
-                    importNames
+                    importNames,
+                    customMessage
                 }
             });
         }

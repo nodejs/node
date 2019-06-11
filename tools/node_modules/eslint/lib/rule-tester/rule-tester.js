@@ -313,7 +313,7 @@ class RuleTester {
          */
         function runRuleForItem(item) {
             let config = lodash.cloneDeep(testerConfig),
-                code, filename, beforeAST, afterAST;
+                code, filename, output, beforeAST, afterAST;
 
             if (typeof item === "string") {
                 code = item;
@@ -396,8 +396,29 @@ class RuleTester {
 
             validate(config, "rule-tester", id => (id === ruleName ? rule : null));
 
+            // Verify the code.
+            const messages = linter.verify(code, config, filename);
+
+            // Ignore syntax errors for backward compatibility if `errors` is a number.
+            if (typeof item.errors !== "number") {
+                const errorMessage = messages.find(m => m.fatal);
+
+                assert(!errorMessage, `A fatal parsing error occurred: ${errorMessage && errorMessage.message}`);
+            }
+
+            // Verify if autofix makes a syntax error or not.
+            if (messages.some(m => m.fix)) {
+                output = SourceCodeFixer.applyFixes(code, messages).output;
+                const errorMessageInFix = linter.verify(output, config, filename).find(m => m.fatal);
+
+                assert(!errorMessageInFix, `A fatal parsing error occurred in autofix: ${errorMessageInFix && errorMessageInFix.message}`);
+            } else {
+                output = code;
+            }
+
             return {
-                messages: linter.verify(code, config, filename, true),
+                messages,
+                output,
                 beforeAST,
                 afterAST: cloneDeeplyExcludesParent(afterAST)
             };
@@ -488,7 +509,6 @@ class RuleTester {
                     const error = item.errors[i];
                     const message = messages[i];
 
-                    assert(!message.fatal, `A fatal parsing error occurred: ${message.message}`);
                     assert(hasMessageOfThisRule, "Error rule name should be the same as the name of the rule being tested");
 
                     if (typeof error === "string" || error instanceof RegExp) {
@@ -574,14 +594,12 @@ class RuleTester {
             if (Object.prototype.hasOwnProperty.call(item, "output")) {
                 if (item.output === null) {
                     assert.strictEqual(
-                        messages.filter(message => message.fix).length,
-                        0,
+                        result.output,
+                        item.code,
                         "Expected no autofixes to be suggested"
                     );
                 } else {
-                    const fixResult = SourceCodeFixer.applyFixes(item.code, messages);
-
-                    assert.strictEqual(fixResult.output, item.output, "Output is incorrect.");
+                    assert.strictEqual(result.output, item.output, "Output is incorrect.");
                 }
             }
 

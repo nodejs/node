@@ -96,6 +96,11 @@ module.exports = {
                     natural: {
                         type: "boolean",
                         default: false
+                    },
+                    minKeys: {
+                        type: "integer",
+                        minimum: 2,
+                        default: 2
                     }
                 },
                 additionalProperties: false
@@ -110,6 +115,7 @@ module.exports = {
         const options = context.options[1];
         const insensitive = options && options.caseSensitive === false;
         const natual = options && options.natural;
+        const minKeys = options && options.minKeys;
         const isValidOrder = isValidOrders[
             order + (insensitive ? "I" : "") + (natual ? "N" : "")
         ];
@@ -118,10 +124,11 @@ module.exports = {
         let stack = null;
 
         return {
-            ObjectExpression() {
+            ObjectExpression(node) {
                 stack = {
                     upper: stack,
-                    prevName: null
+                    prevName: null,
+                    numKeys: node.properties.length
                 };
             },
 
@@ -141,11 +148,12 @@ module.exports = {
                 }
 
                 const prevName = stack.prevName;
+                const numKeys = stack.numKeys;
                 const thisName = getPropertyName(node);
 
                 stack.prevName = thisName || prevName;
 
-                if (!prevName || !thisName) {
+                if (!prevName || !thisName || numKeys < minKeys) {
                     return;
                 }
 
