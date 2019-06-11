@@ -14,7 +14,7 @@ function getCpuProfiles(dir) {
     .map((file) => path.join(dir, file));
 }
 
-function getFrames(output, file, suffix) {
+function getFrames(file, suffix) {
   const data = fs.readFileSync(file, 'utf8');
   const profile = JSON.parse(data);
   const frames = profile.nodes.filter((i) => {
@@ -25,7 +25,7 @@ function getFrames(output, file, suffix) {
 }
 
 function verifyFrames(output, file, suffix) {
-  const { frames, nodes } = getFrames(output, file, suffix);
+  const { frames, nodes } = getFrames(file, suffix);
   if (frames.length === 0) {
     // Show native debug output and the profile for debugging.
     console.log(output.stderr.toString());

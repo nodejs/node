@@ -41,8 +41,8 @@ const {
   assert(fs.existsSync(dir));
   const profiles = getCpuProfiles(dir);
   assert.strictEqual(profiles.length, 2);
-  const profile1 = getFrames(output, profiles[0], 'fibonacci.js');
-  const profile2 = getFrames(output, profiles[1], 'fibonacci.js');
+  const profile1 = getFrames(profiles[0], 'fibonacci.js');
+  const profile2 = getFrames(profiles[1], 'fibonacci.js');
   if (profile1.frames.length === 0 && profile2.frames.length === 0) {
     // Show native debug output and the profile for debugging.
     console.log(output.stderr.toString());
