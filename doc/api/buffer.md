@@ -1982,7 +1982,7 @@ This is the same behavior as `buf.subarray()`.
 
 Note that this method is not compatible with the `Uint8Array.prototype.slice()`,
 which is a superclass of `Buffer`. If a copy of the slice is needed, use
-`Uint8Array.prototype.slice` directly.
+`Uint8Array.prototype.slice()`.
 
 ```js
 const buf = Buffer.from('buffer');
