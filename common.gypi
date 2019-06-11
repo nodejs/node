@@ -28,6 +28,7 @@
     'clang%': 0,
 
     'openssl_fips%': '',
+    'openssl_no_asm%': 0,
 
     # Some STL containers (e.g. std::vector) do not preserve ABI compatibility
     # between debug and non-debug mode.
@@ -78,12 +79,6 @@
     ##### end V8 defaults #####
 
     'conditions': [
-      ['target_arch=="arm64"', {
-        # Disabled pending https://github.com/nodejs/node/issues/23913.
-        'openssl_no_asm%': 1,
-      }, {
-        'openssl_no_asm%': 0,
-      }],
       ['OS == "win"', {
         'os_posix': 0,
         'v8_postmortem_support%': 0,
