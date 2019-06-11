@@ -1981,7 +1981,7 @@ offset and cropped by the `start` and `end` indices.
 This is the same behavior as `buf.subarray()`.
 
 This method is not compatible with the `Uint8Array.prototype.slice()`,
-which is a superclass of `Buffer`. If a copy of the slice is needed, use
+which is a superclass of `Buffer`. To copy the slice, use
 `Uint8Array.prototype.slice()`.
 
 ```js
