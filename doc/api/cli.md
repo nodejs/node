@@ -969,14 +969,10 @@ In case an option value happens to contain a space (for example a path listed in
 ```
 
 Node.js options that are allowed are:
-- `--report-directory`
-- `--report-filename`
-- `--report-on-fatalerror`
-- `--report-on-signal`
-- `--report-signal`
-- `--report-uncaught-exception`
 - `--enable-fips`
+- `--es-module-specifier-resolution`
 - `--experimental-modules`
+- `--experimental-policy`
 - `--experimental-repl-await`
 - `--experimental-report`
 - `--experimental-vm-modules`
@@ -984,11 +980,13 @@ Node.js options that are allowed are:
 - `--force-fips`
 - `--frozen-intrinsics`
 - `--heapsnapshot-signal`
+- `--http-parser`
 - `--icu-data-dir`
-- `--inspect`
+- `--input-type`
 - `--inspect-brk`
-- `--inspect-port`
+- `--inspect-port`, `--debug-port`
 - `--inspect-publish-uid`
+- `--inspect`
 - `--loader`
 - `--max-http-header-size`
 - `--napi-modules`
@@ -997,7 +995,16 @@ Node.js options that are allowed are:
 - `--no-warnings`
 - `--openssl-config`
 - `--pending-deprecation`
+- `--preserve-symlinks-main`
+- `--preserve-symlinks`
+- `--prof-process`
 - `--redirect-warnings`
+- `--report-directory`
+- `--report-filename`
+- `--report-on-fatalerror`
+- `--report-on-signal`
+- `--report-signal`
+- `--report-uncaught-exception`
 - `--require`, `-r`
 - `--throw-deprecation`
 - `--title`
@@ -1025,10 +1032,10 @@ Node.js options that are allowed are:
 V8 options that are allowed are:
 - `--abort-on-uncaught-exception`
 - `--max-old-space-size`
-- `--perf-basic-prof`
 - `--perf-basic-prof-only-functions`
-- `--perf-prof`
+- `--perf-basic-prof`
 - `--perf-prof-unwinding-info`
+- `--perf-prof`
 - `--stack-trace-limit`
 
 ### `NODE_PATH=path[:…]`
