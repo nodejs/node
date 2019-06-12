@@ -2139,7 +2139,7 @@ size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
 #  define SSL_cache_hit(s) SSL_session_reused(s)
 # endif
 
-__owur int SSL_session_reused(SSL *s);
+__owur int SSL_session_reused(const SSL *s);
 __owur int SSL_is_server(const SSL *s);
 
 __owur __owur SSL_CONF_CTX *SSL_CONF_CTX_new(void);

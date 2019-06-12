@@ -262,7 +262,7 @@ specified, the argument is given to the engine as a key identifier.
 =item B<-I<digest>>
 
 Signing digest to use. Overrides the B<signer_digest> config file
-option. (Optional)
+option. (Mandatory unless specified in the config file)
 
 =item B<-chain> certs_file.pem
 
@@ -460,7 +460,8 @@ command line option. (Optional)
 =item B<signer_digest>
 
 Signing digest to use. The same as the
-B<-I<digest>> command line option. (Optional)
+B<-I<digest>> command line option. (Mandatory unless specified on the command
+line)
 
 =item B<default_policy>
 
@@ -664,7 +665,7 @@ L<config(5)>
 
 =head1 COPYRIGHT
 
-Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

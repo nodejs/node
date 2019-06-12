@@ -69,6 +69,18 @@ Applications which could pass invalid NIDs to X509_NAME_get_index_by_NID()
 should check for the return value of -2. Alternatively the NID validity
 can be determined first by checking OBJ_nid2obj(nid) is not NULL.
 
+=head1 RETURN VALUES
+
+X509_NAME_get_index_by_NID() and X509_NAME_get_index_by_OBJ()
+return the index of the next matching entry or -1 if not found.
+X509_NAME_get_index_by_NID() can also return -2 if the supplied
+NID is invalid.
+
+X509_NAME_entry_count() returns the total number of entries.
+
+X509_NAME_get_entry() returns an B<X509_NAME> pointer to the
+requested entry or B<NULL> if the index is invalid.
+
 =head1 EXAMPLES
 
 Process all entries:
@@ -94,25 +106,13 @@ Process all commonName entries:
      /* Do something with e */
  }
 
-=head1 RETURN VALUES
-
-X509_NAME_get_index_by_NID() and X509_NAME_get_index_by_OBJ()
-return the index of the next matching entry or -1 if not found.
-X509_NAME_get_index_by_NID() can also return -2 if the supplied
-NID is invalid.
-
-X509_NAME_entry_count() returns the total number of entries.
-
-X509_NAME_get_entry() returns an B<X509_NAME> pointer to the
-requested entry or B<NULL> if the index is invalid.
-
 =head1 SEE ALSO
 
 L<ERR_get_error(3)>, L<d2i_X509_NAME(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

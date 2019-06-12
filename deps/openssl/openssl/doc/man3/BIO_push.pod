@@ -36,6 +36,13 @@ The process of calling BIO_push() and BIO_pop() on a BIO may have additional
 consequences (a control call is made to the affected BIOs) any effects will
 be noted in the descriptions of individual BIOs.
 
+=head1 RETURN VALUES
+
+BIO_push() returns the end of the chain, B<b>.
+
+BIO_pop() returns the next BIO in the chain, or NULL if there is no next
+BIO.
+
 =head1 EXAMPLES
 
 For these examples suppose B<md1> and B<md2> are digest BIOs, B<b64> is
@@ -62,13 +69,6 @@ by B<md1> and B<md2>. If the call:
 The call will return B<b64> and the new chain will be B<md1-b64-f> data can
 be written to B<md1> as before.
 
-=head1 RETURN VALUES
-
-BIO_push() returns the end of the chain, B<b>.
-
-BIO_pop() returns the next BIO in the chain, or NULL if there is no next
-BIO.
-
 =head1 SEE ALSO
 
 L<bio>
@@ -79,7 +79,7 @@ The BIO_set_next() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

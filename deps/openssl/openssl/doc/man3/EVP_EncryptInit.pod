@@ -412,7 +412,9 @@ The following I<ctrl>s are supported in CCM mode.
 This call is made to set the expected B<CCM> tag value when decrypting or
 the length of the tag (with the C<tag> parameter set to NULL) when encrypting.
 The tag length is often referred to as B<M>. If not set a default value is
-used (12 for AES).
+used (12 for AES). When decrypting, the tag needs to be set before passing
+in data to be decrypted, but as in GCM and OCB mode, it can be set after
+passing additional authenticated data (see L<AEAD Interface>).
 
 =item EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_L, ivlen, NULL)
 
@@ -436,7 +438,9 @@ The following I<ctrl>s are supported for the ChaCha20-Poly1305 AEAD algorithm.
 
 Sets the nonce length. This call can only be made before specifying the nonce.
 If not called a default nonce length of 12 (i.e. 96 bits) is used. The maximum
-nonce length is 16 (B<CHACHA_CTR_SIZE>, i.e. 128-bits).
+nonce length is 12 bytes (i.e. 96-bits). If a nonce of less than 12 bytes is set
+then the nonce is automatically padded with leading 0 bytes to make it 12 bytes
+in length.
 
 =item EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, taglen, tag)
 
@@ -641,7 +645,7 @@ EVP_CIPHER_CTX_reset().
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

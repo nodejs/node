@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -12,9 +12,9 @@
 #include "field.h"
 
 static const gf MODULUS = {
-    FIELD_LITERAL(0xffffffffffffff, 0xffffffffffffff, 0xffffffffffffff,
-                  0xffffffffffffff, 0xfffffffffffffe, 0xffffffffffffff,
-                  0xffffffffffffff, 0xffffffffffffff)
+    FIELD_LITERAL(0xffffffffffffffULL, 0xffffffffffffffULL, 0xffffffffffffffULL,
+                  0xffffffffffffffULL, 0xfffffffffffffeULL, 0xffffffffffffffULL,
+                  0xffffffffffffffULL, 0xffffffffffffffULL)
 };
 
 /* Serialize to wire format. */

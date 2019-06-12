@@ -287,6 +287,19 @@
                    Typically OpenSSL will automatically load a system config
                    file which configures default ssl options.
 
+  enable-buildtest-c++
+                   While testing, generate C++ buildtest files that
+                   simply check that the public OpenSSL header files
+                   are usable standalone with C++.
+
+                   Enabling this option demands extra care.  For any
+                   compiler flag given directly as configuration
+                   option, you must ensure that it's valid for both
+                   the C and the C++ compiler.  If not, the C++ build
+                   test will most likely break.  As an alternative,
+                   you can use the language specific variables, CFLAGS
+                   and CXXFLAGS.
+
   no-capieng
                    Don't build the CAPI engine. This option will be forced if
                    on a platform that does not support CAPI.
@@ -330,9 +343,6 @@
                    Build the /dev/crypto engine.  It is automatically selected
                    on BSD implementations, in which case it can be disabled with
                    no-devcryptoeng.
-
-  no-dso
-                   Don't build support for loading Dynamic Shared Objects.
 
   no-dynamic-engine
                    Don't build the dynamically loaded engines. This only has an
@@ -664,6 +674,11 @@
 
                         CC=gcc CROSS_COMPILE=x86_64-w64-mingw32- \
                         ./config -DCOOKIE
+
+                   If CC is set, it is advisable to also set CXX to ensure
+                   both C and C++ compilers are in the same "family".  This
+                   becomes relevant with 'enable-external-tests' and
+                   'enable-buildtest-c++'.
 
   reconf
   reconfigure

@@ -82,6 +82,14 @@ and the same race condition applies.
 The callback must return 0 if it cannot generate a session id for whatever
 reason and return 1 on success.
 
+=head1 RETURN VALUES
+
+SSL_CTX_set_generate_session_id() and SSL_set_generate_session_id()
+always return 1.
+
+SSL_has_matching_session_id() returns 1 if another session with the
+same id is already in the cache.
+
 =head1 EXAMPLES
 
 The callback function listed will generate a session id with the
@@ -114,21 +122,13 @@ server id given, and will fill the rest with pseudo random bytes:
  }
 
 
-=head1 RETURN VALUES
-
-SSL_CTX_set_generate_session_id() and SSL_set_generate_session_id()
-always return 1.
-
-SSL_has_matching_session_id() returns 1 if another session with the
-same id is already in the cache.
-
 =head1 SEE ALSO
 
 L<ssl(7)>, L<SSL_get_version(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

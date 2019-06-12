@@ -28,8 +28,8 @@ EVP_PKEY_CTX of the verification operation will be written to B<*pctx>: this
 can be used to set alternative verification options. Note that any existing
 value in B<*pctx> is overwritten. The EVP_PKEY_CTX value returned must not be freed
 directly by the application if B<ctx> is not assigned an EVP_PKEY_CTX value before
-being passed to EVP_DigestSignInit() (which means the EVP_PKEY_CTX is created
-inside EVP_DigestSignInit() and it will be freed automatically when the
+being passed to EVP_DigestVerifyInit() (which means the EVP_PKEY_CTX is created
+inside EVP_DigestVerifyInit() and it will be freed automatically when the
 EVP_MD_CTX is freed).
 
 No B<EVP_PKEY_CTX> will be created by EVP_DigsetSignInit() if the passed B<ctx>
@@ -102,7 +102,7 @@ were added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

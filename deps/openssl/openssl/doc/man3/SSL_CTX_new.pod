@@ -190,6 +190,11 @@ SSL_CTX_up_ref() returns 1 for success and 0 for failure.
 
 =back
 
+=head1 SEE ALSO
+
+L<SSL_CTX_set_options(3)>, L<SSL_CTX_free(3)>, L<SSL_accept(3)>,
+L<SSL_CTX_set_min_proto_version(3)>, L<ssl(7)>, L<SSL_set_connect_state(3)>
+
 =head1 HISTORY
 
 Support for SSLv2 and the corresponding SSLv2_method(),
@@ -198,18 +203,13 @@ removed in OpenSSL 1.1.0.
 
 SSLv23_method(), SSLv23_server_method() and SSLv23_client_method()
 were deprecated and the preferred TLS_method(), TLS_server_method()
-and TLS_client_method() functions were introduced in OpenSSL 1.1.0.
+and TLS_client_method() functions were added in OpenSSL 1.1.0.
 
 All version-specific methods were deprecated in OpenSSL 1.1.0.
 
-=head1 SEE ALSO
-
-L<SSL_CTX_set_options(3)>, L<SSL_CTX_free(3)>, L<SSL_accept(3)>,
-L<SSL_CTX_set_min_proto_version(3)>, L<ssl(7)>, L<SSL_set_connect_state(3)>
-
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

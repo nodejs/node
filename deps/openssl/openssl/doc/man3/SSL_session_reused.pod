@@ -8,7 +8,7 @@ SSL_session_reused - query whether a reused session was negotiated during handsh
 
  #include <openssl/ssl.h>
 
- int SSL_session_reused(SSL *ssl);
+ int SSL_session_reused(const SSL *ssl);
 
 =head1 DESCRIPTION
 
@@ -44,7 +44,7 @@ L<SSL_CTX_set_session_cache_mode(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

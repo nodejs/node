@@ -67,6 +67,12 @@ Applications can use the CONF_modules_load() function if they wish to load a
 configuration file themselves and have finer control over how errors are
 treated.
 
+=head1 RETURN VALUES
+
+These functions return 1 for success and a zero or negative value for
+failure. If module errors are not ignored the return code will reflect the
+return value of the failing module (this will always be zero or negative).
+
 =head1 EXAMPLES
 
 Load a configuration file and print out any errors and exit (missing file
@@ -121,12 +127,6 @@ Load and parse configuration file manually, custom error handling:
      fclose(fp);
      NCONF_free(cnf);
  }
-
-=head1 RETURN VALUES
-
-These functions return 1 for success and a zero or negative value for
-failure. If module errors are not ignored the return code will reflect the
-return value of the failing module (this will always be zero or negative).
 
 =head1 SEE ALSO
 

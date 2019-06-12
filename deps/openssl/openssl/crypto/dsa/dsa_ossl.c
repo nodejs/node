@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -187,6 +187,12 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in,
 
     if (!dsa->p || !dsa->q || !dsa->g) {
         DSAerr(DSA_F_DSA_SIGN_SETUP, DSA_R_MISSING_PARAMETERS);
+        return 0;
+    }
+
+    /* Reject obviously invalid parameters */
+    if (BN_is_zero(dsa->p) || BN_is_zero(dsa->q) || BN_is_zero(dsa->g)) {
+        DSAerr(DSA_F_DSA_SIGN_SETUP, DSA_R_INVALID_PARAMETERS);
         return 0;
     }
 

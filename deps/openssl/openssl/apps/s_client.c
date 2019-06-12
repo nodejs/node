@@ -2253,7 +2253,7 @@ int s_client_main(int argc, char **argv)
             do {
                 mbuf_len = BIO_gets(fbio, mbuf, BUFSIZZ);
             }
-            while (mbuf_len > 3 && mbuf[3] == '-');
+            while (mbuf_len > 3 && (!isdigit(mbuf[0]) || !isdigit(mbuf[1]) || !isdigit(mbuf[2]) || mbuf[3] != ' '));
             (void)BIO_flush(fbio);
             BIO_pop(fbio);
             BIO_free(fbio);

@@ -124,7 +124,10 @@ Textual representation of the cipher name.
 
 =item <protocol version>
 
-Protocol version, such as B<TLSv1.2>, when the cipher was first defined.
+The minimum protocol version that the ciphersuite supports, such as B<TLSv1.2>.
+Note that this is not always the same as the protocol version in which the
+ciphersuite was first defined because some ciphersuites are backwards compatible
+with earlier protocol versions.
 
 =item Kx=<key exchange>
 
@@ -177,6 +180,11 @@ SSL_CIPHER_get_id() returns a 4-byte integer representing the OpenSSL-specific I
 SSL_CIPHER_get_protocol_id() returns a 2-byte integer representing the TLS
 protocol-specific ID.
 
+=head1 SEE ALSO
+
+L<ssl(7)>, L<SSL_get_current_cipher(3)>,
+L<SSL_get_ciphers(3)>, L<ciphers(1)>
+
 =head1 HISTORY
 
 The SSL_CIPHER_get_version() function was updated to always return the
@@ -193,14 +201,9 @@ required to enable this function.
 
 The OPENSSL_cipher_name() function was added in OpenSSL 1.1.1.
 
-=head1 SEE ALSO
-
-L<ssl(7)>, L<SSL_get_current_cipher(3)>,
-L<SSL_get_ciphers(3)>, L<ciphers(1)>
-
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

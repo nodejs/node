@@ -7,6 +7,77 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.1b and 1.1.1c [28 May 2019]
+
+  *) Add build tests for C++.  These are generated files that only do one
+     thing, to include one public OpenSSL head file each.  This tests that
+     the public header files can be usefully included in a C++ application.
+
+     This test isn't enabled by default.  It can be enabled with the option
+     'enable-buildtest-c++'.
+     [Richard Levitte]
+
+  *) Enable SHA3 pre-hashing for ECDSA and DSA.
+     [Patrick Steuer]
+
+  *) Change the default RSA, DSA and DH size to 2048 bit instead of 1024.
+     This changes the size when using the genpkey app when no size is given. It
+     fixes an omission in earlier changes that changed all RSA, DSA and DH
+     generation apps to use 2048 bits by default.
+     [Kurt Roeckx]
+
+  *) Reorganize the manual pages to consistently have RETURN VALUES,
+     EXAMPLES, SEE ALSO and HISTORY come in that order, and adjust
+     util/fix-doc-nits accordingly.
+     [Paul Yang, Joshua Lock]
+
+  *) Add the missing accessor EVP_PKEY_get0_engine()
+     [Matt Caswell]
+
+  *) Have apps like 's_client' and 's_server' output the signature scheme
+     along with other cipher suite parameters when debugging.
+     [Lorinczy Zsigmond]
+
+  *) Make OPENSSL_config() error agnostic again.
+     [Richard Levitte]
+
+  *) Do the error handling in RSA decryption constant time.
+     [Bernd Edlinger]
+
+  *) Prevent over long nonces in ChaCha20-Poly1305.
+
+     ChaCha20-Poly1305 is an AEAD cipher, and requires a unique nonce input
+     for every encryption operation. RFC 7539 specifies that the nonce value
+     (IV) should be 96 bits (12 bytes). OpenSSL allows a variable nonce length
+     and front pads the nonce with 0 bytes if it is less than 12
+     bytes. However it also incorrectly allows a nonce to be set of up to 16
+     bytes. In this case only the last 12 bytes are significant and any
+     additional leading bytes are ignored.
+
+     It is a requirement of using this cipher that nonce values are
+     unique. Messages encrypted using a reused nonce value are susceptible to
+     serious confidentiality and integrity attacks. If an application changes
+     the default nonce length to be longer than 12 bytes and then makes a
+     change to the leading bytes of the nonce expecting the new value to be a
+     new unique nonce then such an application could inadvertently encrypt
+     messages with a reused nonce.
+
+     Additionally the ignored bytes in a long nonce are not covered by the
+     integrity guarantee of this cipher. Any application that relies on the
+     integrity of these ignored leading bytes of a long nonce may be further
+     affected. Any OpenSSL internal use of this cipher, including in SSL/TLS,
+     is safe because no such use sets such a long nonce value. However user
+     applications that use this cipher directly and set a non-default nonce
+     length to be longer than 12 bytes may be vulnerable.
+
+     This issue was reported to OpenSSL on 16th of March 2019 by Joran Dirk
+     Greef of Ronomon.
+     (CVE-2019-1543)
+     [Matt Caswell]
+
+  *) Ensure that SM2 only uses SM3 as digest algorithm
+     [Paul Yang]
+
  Changes between 1.1.1a and 1.1.1b [26 Feb 2019]
 
   *) Added SCA hardening for modular field inversion in EC_GROUP through

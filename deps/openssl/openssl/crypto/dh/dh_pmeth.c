@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -54,7 +54,7 @@ static int pkey_dh_init(EVP_PKEY_CTX *ctx)
         DHerr(DH_F_PKEY_DH_INIT, ERR_R_MALLOC_FAILURE);
         return 0;
     }
-    dctx->prime_len = 1024;
+    dctx->prime_len = 2048;
     dctx->subprime_len = -1;
     dctx->generator = 2;
     dctx->kdf_type = EVP_PKEY_DH_KDF_NONE;

@@ -124,20 +124,19 @@ In this case the DRBG will automatically request an extra amount of entropy
 utilize for the nonce, following the recommendations of [NIST SP 800-90A Rev. 1],
 section 8.6.7.
 
-
-=head1 HISTORY
-
-The RAND_DRBG functions were added in OpenSSL 1.1.1.
-
 =head1 SEE ALSO
 
 L<RAND_DRBG_new(3)>,
 L<RAND_DRBG_reseed(3)>,
 L<RAND_DRBG(7)>
 
+=head1 HISTORY
+
+The RAND_DRBG functions were added in OpenSSL 1.1.1.
+
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -137,6 +137,20 @@ sub name_synopsis()
     }
 }
 
+# Check if SECTION is located before BEFORE
+sub check_section_location()
+{
+    my $filename = shift;
+    my $contents = shift;
+    my $section = shift;
+    my $before = shift;
+
+    return unless $contents =~ /=head1 $section/
+        and $contents =~ /=head1 $before/;
+    print "$filename: $section should be placed before $before section\n"
+        if $contents =~ /=head1 $before.*=head1 $section/ms;
+}
+
 sub check()
 {
     my $filename = shift;
@@ -149,6 +163,13 @@ sub check()
         $contents = <POD>;
         close POD;
     }
+
+    # Check if EXAMPLES is located after RETURN VALUES section.
+    &check_section_location($filename, $contents, "RETURN VALUES", "EXAMPLES") if $filename =~ m|man3/|;
+    # Check if HISTORY is located after SEE ALSO
+    &check_section_location($filename, $contents, "SEE ALSO", "HISTORY") if $filename =~ m|man3/|;
+    # Check if SEE ALSO is located after EXAMPLES
+    &check_section_location($filename, $contents, "EXAMPLES", "SEE ALSO") if $filename =~ m|man3/|;
 
     my $id = "${filename}:1:";
 

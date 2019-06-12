@@ -1155,6 +1155,7 @@ ___
 } else {
 $code.=<<___;
 	jmp	.L_init_clmul
+.cfi_endproc
 .size	gcm_init_avx,.-gcm_init_avx
 ___
 }
@@ -1594,6 +1595,7 @@ ___
 } else {
 $code.=<<___;
 	jmp	.L_ghash_clmul
+.cfi_endproc
 .size	gcm_ghash_avx,.-gcm_ghash_avx
 ___
 }
