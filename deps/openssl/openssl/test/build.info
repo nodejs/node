@@ -579,11 +579,19 @@ ENDIF
        next if grep { lc("$name.h") =~ m/$_/i } @nogo_headers_re;
        $OUT .= <<"_____";
 
-  PROGRAMS_NO_INST=buildtest_$name
+  PROGRAMS_NO_INST=buildtest_c_$name
+  SOURCE[buildtest_c_$name]=buildtest_$name.c
   GENERATE[buildtest_$name.c]=generate_buildtest.pl $name
-  SOURCE[buildtest_$name]=buildtest_$name.c
-  INCLUDE[buildtest_$name]=../include
-  DEPEND[buildtest_$name]=../libssl ../libcrypto
+  INCLUDE[buildtest_c_$name]=../include
+  DEPEND[buildtest_c_$name]=../libssl ../libcrypto
+_____
+       $OUT .= <<"_____" if $config{CXX} && !$disabled{"buildtest-c++"};
+
+  PROGRAMS_NO_INST=buildtest_cc_$name
+  SOURCE[buildtest_cc_$name]=buildtest_$name.cc
+  GENERATE[buildtest_$name.cc]=generate_buildtest.pl $name
+  INCLUDE[buildtest_cc_$name]=../include
+  DEPEND[buildtest_cc_$name]=../libssl ../libcrypto
 _____
    }
 -}

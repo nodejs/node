@@ -27,6 +27,7 @@ calls must be made before calling any other functions that use the
 B<ctx> as an argument.
 
 Finally, BN_CTX_end() must be called before returning from the function.
+If B<ctx> is NULL, nothing is done.
 When BN_CTX_end() is called, the B<BIGNUM> pointers obtained from
 BN_CTX_get() become invalid.
 
@@ -47,7 +48,7 @@ L<BN_CTX_new(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -5,6 +5,10 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1b and OpenSSL 1.1.1c [28 May 2019]
+
+      o Prevent over long nonces in ChaCha20-Poly1305 (CVE-2019-1543)
+
   Major changes between OpenSSL 1.1.1a and OpenSSL 1.1.1b [26 Feb 2019]
 
       o Change the info callback signals for the start and end of a post-handshake

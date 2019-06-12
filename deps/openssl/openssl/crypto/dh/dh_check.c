@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,8 @@
 #include "internal/cryptlib.h"
 #include <openssl/bn.h>
 #include "dh_locl.h"
+
+# define DH_NUMBER_ITERATIONS_FOR_PRIME 64
 
 /*-
  * Check that p and g are suitable enough
@@ -58,10 +60,8 @@ int DH_check_params(const DH *dh, int *ret)
 
     ok = 1;
  err:
-    if (ctx != NULL) {
-        BN_CTX_end(ctx);
-        BN_CTX_free(ctx);
-    }
+    BN_CTX_end(ctx);
+    BN_CTX_free(ctx);
     return ok;
 }
 
@@ -127,7 +127,7 @@ int DH_check(const DH *dh, int *ret)
             if (!BN_is_one(t1))
                 *ret |= DH_NOT_SUITABLE_GENERATOR;
         }
-        r = BN_is_prime_ex(dh->q, BN_prime_checks, ctx, NULL);
+        r = BN_is_prime_ex(dh->q, DH_NUMBER_ITERATIONS_FOR_PRIME, ctx, NULL);
         if (r < 0)
             goto err;
         if (!r)
@@ -155,7 +155,7 @@ int DH_check(const DH *dh, int *ret)
     } else
         *ret |= DH_UNABLE_TO_CHECK_GENERATOR;
 
-    r = BN_is_prime_ex(dh->p, BN_prime_checks, ctx, NULL);
+    r = BN_is_prime_ex(dh->p, DH_NUMBER_ITERATIONS_FOR_PRIME, ctx, NULL);
     if (r < 0)
         goto err;
     if (!r)
@@ -163,7 +163,7 @@ int DH_check(const DH *dh, int *ret)
     else if (!dh->q) {
         if (!BN_rshift1(t1, dh->p))
             goto err;
-        r = BN_is_prime_ex(t1, BN_prime_checks, ctx, NULL);
+        r = BN_is_prime_ex(t1, DH_NUMBER_ITERATIONS_FOR_PRIME, ctx, NULL);
         if (r < 0)
             goto err;
         if (!r)
@@ -171,10 +171,8 @@ int DH_check(const DH *dh, int *ret)
     }
     ok = 1;
  err:
-    if (ctx != NULL) {
-        BN_CTX_end(ctx);
-        BN_CTX_free(ctx);
-    }
+    BN_CTX_end(ctx);
+    BN_CTX_free(ctx);
     return ok;
 }
 
@@ -225,9 +223,7 @@ int DH_check_pub_key(const DH *dh, const BIGNUM *pub_key, int *ret)
 
     ok = 1;
  err:
-    if (ctx != NULL) {
-        BN_CTX_end(ctx);
-        BN_CTX_free(ctx);
-    }
+    BN_CTX_end(ctx);
+    BN_CTX_free(ctx);
     return ok;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2017, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -486,6 +486,16 @@ static int aria_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     return 0;
 }
 
+static int aria_gcm_cleanup(EVP_CIPHER_CTX *ctx)
+{
+    EVP_ARIA_GCM_CTX *gctx = EVP_C_DATA(EVP_ARIA_GCM_CTX, ctx);
+
+    if (gctx->iv != EVP_CIPHER_CTX_iv_noconst(ctx))
+        OPENSSL_free(gctx->iv);
+
+    return 1;
+}
+
 static int aria_ccm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                             const unsigned char *iv, int enc)
 {
@@ -727,6 +737,8 @@ static int aria_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     }
 }
 
+#define aria_ccm_cleanup    NULL
+
 #define ARIA_AUTH_FLAGS  (EVP_CIPH_FLAG_DEFAULT_ASN1 \
                           | EVP_CIPH_CUSTOM_IV | EVP_CIPH_FLAG_CUSTOM_CIPHER \
                           | EVP_CIPH_ALWAYS_CALL_INIT | EVP_CIPH_CTRL_INIT \
@@ -739,7 +751,7 @@ static const EVP_CIPHER aria_##keylen##_##mode = { \
         ARIA_AUTH_FLAGS|EVP_CIPH_##MODE##_MODE,    \
         aria_##mode##_init_key,                    \
         aria_##mode##_cipher,                      \
-        NULL,                                      \
+        aria_##mode##_cleanup,                     \
         sizeof(EVP_ARIA_##MODE##_CTX),             \
         NULL,NULL,aria_##mode##_ctrl,NULL };       \
 const EVP_CIPHER *EVP_aria_##keylen##_##mode(void) \

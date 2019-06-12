@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -112,9 +112,8 @@ int ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
     ret = 1;
 
  err:
-    EC_POINT_free(tmp);
-    if (ctx)
-        BN_CTX_end(ctx);
+    EC_POINT_clear_free(tmp);
+    BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     OPENSSL_free(buf);
     return ret;

@@ -31,17 +31,17 @@ Number of security bits.
 ECC (Elliptic Curve Cryptography) is not covered by the BN_security_bits()
 function. The symmetric algorithms are not covered neither.
 
-=head1 HISTORY
-
-The BN_security_bits() function was added in OpenSSL 1.1.0.
-
 =head1 SEE ALSO
 
 L<DH_security_bits(3)>, L<DSA_security_bits(3)>, L<RSA_security_bits(3)>
 
+=head1 HISTORY
+
+The BN_security_bits() function was added in OpenSSL 1.1.0.
+
 =head1 COPYRIGHT
 
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

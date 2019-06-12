@@ -80,6 +80,24 @@ On Windows BIO_new_files reserves for the filename argument to be
 UTF-8 encoded. In other words if you have to make it work in multi-
 lingual environment, encode file names in UTF-8.
 
+=head1 RETURN VALUES
+
+BIO_s_file() returns the file BIO method.
+
+BIO_new_file() and BIO_new_fp() return a file BIO or NULL if an error
+occurred.
+
+BIO_set_fp() and BIO_get_fp() return 1 for success or 0 for failure
+(although the current implementation never return 0).
+
+BIO_seek() returns the same value as the underlying fseek() function:
+0 for success or -1 for failure.
+
+BIO_tell() returns the current file position.
+
+BIO_read_filename(), BIO_write_filename(), BIO_append_filename() and
+BIO_rw_filename() return 1 for success or 0 for failure.
+
 =head1 EXAMPLES
 
 File BIO "hello world":
@@ -122,24 +140,6 @@ Alternative technique:
  BIO_printf(out, "Hello World\n");
  BIO_free(out);
 
-=head1 RETURN VALUES
-
-BIO_s_file() returns the file BIO method.
-
-BIO_new_file() and BIO_new_fp() return a file BIO or NULL if an error
-occurred.
-
-BIO_set_fp() and BIO_get_fp() return 1 for success or 0 for failure
-(although the current implementation never return 0).
-
-BIO_seek() returns the same value as the underlying fseek() function:
-0 for success or -1 for failure.
-
-BIO_tell() returns the current file position.
-
-BIO_read_filename(), BIO_write_filename(), BIO_append_filename() and
-BIO_rw_filename() return 1 for success or 0 for failure.
-
 =head1 BUGS
 
 BIO_reset() and BIO_seek() are implemented using fseek() on the underlying
@@ -158,7 +158,7 @@ L<BIO_set_close(3)>, L<BIO_get_close(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

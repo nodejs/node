@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,7 +11,7 @@
 # define __MIPS_ARCH_H__
 
 # if (defined(__mips_smartmips) || defined(_MIPS_ARCH_MIPS32R3) || \
-      defined(_MIPS_ARCH_MIPS32R5) || defined(_MIPS_ARCH_MIPS32R6))
+      defined(_MIPS_ARCH_MIPS32R5) || defined(_MIPS_ARCH_MIPS32R6)) \
       && !defined(_MIPS_ARCH_MIPS32R2)
 #  define _MIPS_ARCH_MIPS32R2
 # endif

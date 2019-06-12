@@ -13,7 +13,8 @@ RAND_DRBG_set_reseed_defaults
  #include <openssl/rand_drbg.h>
 
  int RAND_DRBG_reseed(RAND_DRBG *drbg,
-                      const unsigned char *adin, size_t adinlen);
+                      const unsigned char *adin, size_t adinlen,
+                      int prediction_resistance);
 
  int RAND_DRBG_set_reseed_interval(RAND_DRBG *drbg,
                                    unsigned int interval);
@@ -37,6 +38,10 @@ and mixing in the specified additional data provided in the buffer B<adin>
 of length B<adinlen>.
 The additional data can be omitted by setting B<adin> to NULL and B<adinlen>
 to 0.
+An immediate reseeding from a live entropy source can be requested by setting
+the B<prediction_resistance> flag to 1.
+This feature is not implemented yet, so reseeding with prediction resistance
+requested will always fail.
 
 RAND_DRBG_set_reseed_interval()
 sets the reseed interval of the B<drbg>, which is the maximum allowed number
@@ -88,10 +93,6 @@ To ensure that they are applied to the global and thread-local DRBG instances
 RAND_DRBG_set_reseed_defaults() before creating any thread and before calling any
  cryptographic routines that obtain random data directly or indirectly.
 
-=head1 HISTORY
-
-The RAND_DRBG functions were added in OpenSSL 1.1.1.
-
 =head1 SEE ALSO
 
 L<RAND_DRBG_generate(3)>,
@@ -99,9 +100,13 @@ L<RAND_DRBG_bytes(3)>,
 L<RAND_DRBG_set_callbacks(3)>.
 L<RAND_DRBG(7)>
 
+=head1 HISTORY
+
+The RAND_DRBG functions were added in OpenSSL 1.1.1.
+
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -130,6 +130,17 @@ These functions cannot return B<const> because an B<ASN1_OBJECT> can
 represent both an internal, constant, OID and a dynamically-created one.
 The latter cannot be constant because it needs to be freed after use.
 
+=head1 RETURN VALUES
+
+OBJ_nid2obj() returns an B<ASN1_OBJECT> structure or B<NULL> is an
+error occurred.
+
+OBJ_nid2ln() and OBJ_nid2sn() returns a valid string or B<NULL>
+on error.
+
+OBJ_obj2nid(), OBJ_ln2nid(), OBJ_sn2nid() and OBJ_txt2nid() return
+a NID or B<NID_undef> on error.
+
 =head1 EXAMPLES
 
 Create an object for B<commonName>:
@@ -159,17 +170,6 @@ Instead B<buf> must point to a valid buffer and B<buf_len> should
 be set to a positive value. A buffer length of 80 should be more
 than enough to handle any OID encountered in practice.
 
-=head1 RETURN VALUES
-
-OBJ_nid2obj() returns an B<ASN1_OBJECT> structure or B<NULL> is an
-error occurred.
-
-OBJ_nid2ln() and OBJ_nid2sn() returns a valid string or B<NULL>
-on error.
-
-OBJ_obj2nid(), OBJ_ln2nid(), OBJ_sn2nid() and OBJ_txt2nid() return
-a NID or B<NID_undef> on error.
-
 =head1 SEE ALSO
 
 L<ERR_get_error(3)>
@@ -181,7 +181,7 @@ and should not be used.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

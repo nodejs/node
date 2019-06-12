@@ -63,7 +63,9 @@ If B<md> is NULL, the digest is placed in a static array.  The size of
 the output is placed in B<md_len>, unless it is B<NULL>. Note: passing a NULL
 value for B<md>  to use the static array is not thread safe.
 
-B<evp_md> can be EVP_sha1(), EVP_ripemd160() etc.
+B<evp_md> is a message digest such as EVP_sha1(), EVP_ripemd160() etc. HMAC does
+not support variable output length digests such as EVP_shake128() and
+EVP_shake256().
 
 HMAC_CTX_new() creates a new HMAC_CTX in heap memory.
 
