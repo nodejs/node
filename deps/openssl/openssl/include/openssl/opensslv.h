@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -39,8 +39,8 @@ extern "C" {
  * (Prior to 0.9.5a beta1, a different scheme was used: MMNNFFRBB for
  *  major minor fix final patch/beta)
  */
-# define OPENSSL_VERSION_NUMBER  0x1010102fL
-# define OPENSSL_VERSION_TEXT    "OpenSSL 1.1.1b  26 Feb 2019"
+# define OPENSSL_VERSION_NUMBER  0x1010103fL
+# define OPENSSL_VERSION_TEXT    "OpenSSL 1.1.1c  28 May 2019"
 
 /*-
  * The macros below are to be used for shared library (.so, .dll, ...)

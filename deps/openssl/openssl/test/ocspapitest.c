@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -44,6 +44,24 @@ static int get_cert_and_key(X509 **cert_out, EVP_PKEY **key_out)
  end:
     X509_free(cert);
     EVP_PKEY_free(key);
+    return 0;
+}
+
+static int get_cert(X509 **cert_out)
+{
+    BIO *certbio;
+    X509 *cert = NULL;
+
+    if (!TEST_ptr(certbio = BIO_new_file(certstr, "r")))
+        return 0;
+    cert = PEM_read_bio_X509(certbio, NULL, NULL, NULL);
+    BIO_free(certbio);
+    if (!TEST_ptr(cert))
+        goto end;
+    *cert_out = cert;
+    return 1;
+ end:
+    X509_free(cert);
     return 0;
 }
 
@@ -131,7 +149,67 @@ static int test_resp_signer(void)
     EVP_PKEY_free(key);
     return ret;
 }
-#endif
+
+static int test_access_description(int testcase)
+{
+    ACCESS_DESCRIPTION *ad = ACCESS_DESCRIPTION_new();
+    int ret = 0;
+
+    if (!TEST_ptr(ad))
+        goto err;
+
+    switch (testcase) {
+    case 0:     /* no change */
+        break;
+    case 1:     /* check and release current location */
+        if (!TEST_ptr(ad->location))
+            goto err;
+        GENERAL_NAME_free(ad->location);
+        ad->location = NULL;
+        break;
+    case 2:     /* replace current location */
+        GENERAL_NAME_free(ad->location);
+        ad->location = GENERAL_NAME_new();
+        if (!TEST_ptr(ad->location))
+            goto err;
+        break;
+    }
+    ACCESS_DESCRIPTION_free(ad);
+    ret = 1;
+err:
+    return ret;
+}
+
+static int test_ocsp_url_svcloc_new(void)
+{
+    static const char *  urls[] = {
+        "www.openssl.org",
+        "www.openssl.net",
+        NULL
+    };
+
+    X509 *issuer = NULL;
+    X509_EXTENSION * ext = NULL;
+    int ret = 0;
+
+    if (!TEST_true(get_cert(&issuer)))
+        goto err;
+
+    /*
+     * Test calling this ocsp method to catch any memory leak
+     */
+    ext = OCSP_url_svcloc_new(X509_get_issuer_name(issuer), urls);
+    if (!TEST_ptr(ext))
+        goto err;
+
+    X509_EXTENSION_free(ext);
+    ret = 1;
+err:
+    X509_free(issuer);
+    return ret;
+}
+
+#endif /* OPENSSL_NO_OCSP */
 
 int setup_tests(void)
 {
@@ -140,6 +218,8 @@ int setup_tests(void)
         return 0;
 #ifndef OPENSSL_NO_OCSP
     ADD_TEST(test_resp_signer);
+    ADD_ALL_TESTS(test_access_description, 3);
+    ADD_TEST(test_ocsp_url_svcloc_new);
 #endif
     return 1;
 }

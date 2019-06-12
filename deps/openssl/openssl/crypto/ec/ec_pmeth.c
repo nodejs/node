@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -323,7 +323,11 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
             EVP_MD_type((const EVP_MD *)p2) != NID_sha224 &&
             EVP_MD_type((const EVP_MD *)p2) != NID_sha256 &&
             EVP_MD_type((const EVP_MD *)p2) != NID_sha384 &&
-            EVP_MD_type((const EVP_MD *)p2) != NID_sha512) {
+            EVP_MD_type((const EVP_MD *)p2) != NID_sha512 &&
+            EVP_MD_type((const EVP_MD *)p2) != NID_sha3_224 &&
+            EVP_MD_type((const EVP_MD *)p2) != NID_sha3_256 &&
+            EVP_MD_type((const EVP_MD *)p2) != NID_sha3_384 &&
+            EVP_MD_type((const EVP_MD *)p2) != NID_sha3_512) {
             ECerr(EC_F_PKEY_EC_CTRL, EC_R_INVALID_DIGEST_TYPE);
             return 0;
         }

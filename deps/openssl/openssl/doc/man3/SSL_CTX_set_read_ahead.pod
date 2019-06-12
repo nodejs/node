@@ -46,7 +46,7 @@ records, and SSL_has_pending() can't tell the difference between processed and
 unprocessed data, it's recommended that if read ahead is turned on that
 B<SSL_MODE_AUTO_RETRY> is not turned off using SSL_CTX_clear_mode().
 That will prevent getting B<SSL_ERROR_WANT_READ> when there is still a complete
-record availale that hasn't been processed.
+record available that hasn't been processed.
 
 If the application wants to continue to use the underlying transport (e.g. TCP
 connection) after the SSL connection is finished using SSL_shutdown() reading
@@ -64,7 +64,7 @@ L<ssl(7)>, L<SSL_pending(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

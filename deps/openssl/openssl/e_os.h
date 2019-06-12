@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -27,10 +27,9 @@
  * set this to a comma-separated list of 'random' device files to try out. By
  * default, we will try to read at least one of these files
  */
-#  if defined(__s390__)
-#   define DEVRANDOM "/dev/prandom","/dev/urandom","/dev/hwrng","/dev/random"
-#  else
-#   define DEVRANDOM "/dev/urandom","/dev/random","/dev/srandom"
+#  define DEVRANDOM "/dev/urandom", "/dev/random", "/dev/hwrng", "/dev/srandom"
+#  ifdef __linux
+#   define DEVRANDOM_WAIT "/dev/random"
 #  endif
 # endif
 # if !defined(OPENSSL_NO_EGD) && !defined(DEVRANDOM_EGD)
@@ -39,7 +38,7 @@
  * sockets will be tried in the order listed in case accessing the device
  * files listed in DEVRANDOM did not return enough randomness.
  */
-#  define DEVRANDOM_EGD "/var/run/egd-pool","/dev/egd-pool","/etc/egd-pool","/etc/entropy"
+#  define DEVRANDOM_EGD "/var/run/egd-pool", "/dev/egd-pool", "/etc/egd-pool", "/etc/entropy"
 # endif
 
 # if defined(OPENSSL_SYS_VXWORKS) || defined(OPENSSL_SYS_UEFI)

@@ -314,6 +314,7 @@ void OPENSSL_cpuid_setup(void)
 #ifdef OSSL_IMPLEMENT_GETAUXVAL
     {
         unsigned long hwcap = getauxval(HWCAP);
+        unsigned long hwcap2 = getauxval(HWCAP2);
 
         if (hwcap & HWCAP_FPU) {
             OPENSSL_ppccap_P |= PPC_FPU;
@@ -332,11 +333,11 @@ void OPENSSL_cpuid_setup(void)
         if (hwcap & HWCAP_ALTIVEC) {
             OPENSSL_ppccap_P |= PPC_ALTIVEC;
 
-            if ((hwcap & HWCAP_VSX) && (getauxval(HWCAP2) & HWCAP_VEC_CRYPTO))
+            if ((hwcap & HWCAP_VSX) && (hwcap2 & HWCAP_VEC_CRYPTO))
                 OPENSSL_ppccap_P |= PPC_CRYPTO207;
         }
 
-        if (hwcap & HWCAP_ARCH_3_00) {
+        if (hwcap2 & HWCAP_ARCH_3_00) {
             OPENSSL_ppccap_P |= PPC_MADD300;
         }
     }

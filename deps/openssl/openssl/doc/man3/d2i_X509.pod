@@ -496,6 +496,19 @@ Represents the B<DigestInfo> structure defined in PKCS#1 and PKCS#7.
 
 =back
 
+=head1 RETURN VALUES
+
+d2i_TYPE(), d2i_TYPE_bio() and d2i_TYPE_fp() return a valid B<TYPE> structure
+or B<NULL> if an error occurs.  If the "reuse" capability has been used with
+a valid structure being passed in via B<a>, then the object is not freed in
+the event of error but may be in a potentially invalid or inconsistent state.
+
+i2d_TYPE() returns the number of bytes successfully encoded or a negative
+value if an error occurs.
+
+i2d_TYPE_bio() and i2d_TYPE_fp() return 1 for success and 0 if an error
+occurs.
+
 =head1 EXAMPLES
 
 Allocate and encode the DER encoding of an X509 structure:
@@ -586,22 +599,9 @@ structure has been modified after deserialization or previous
 serialization. This is because some objects cache the encoding for
 efficiency reasons.
 
-=head1 RETURN VALUES
-
-d2i_TYPE(), d2i_TYPE_bio() and d2i_TYPE_fp() return a valid B<TYPE> structure
-or B<NULL> if an error occurs.  If the "reuse" capability has been used with
-a valid structure being passed in via B<a>, then the object is not freed in
-the event of error but may be in a potentially invalid or inconsistent state.
-
-i2d_TYPE() returns the number of bytes successfully encoded or a negative
-value if an error occurs.
-
-i2d_TYPE_bio() and i2d_TYPE_fp() return 1 for success and 0 if an error
-occurs.
-
 =head1 COPYRIGHT
 
-Copyright 1998-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 1998-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

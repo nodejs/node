@@ -90,20 +90,20 @@ truncated.
      return strlen(buf);
  }
 
+=head1 SEE ALSO
+
+L<ssl(7)>,
+L<SSL_CTX_use_certificate(3)>
+
 =head1 HISTORY
 
 SSL_CTX_get_default_passwd_cb(), SSL_CTX_get_default_passwd_cb_userdata(),
 SSL_set_default_passwd_cb() and SSL_set_default_passwd_cb_userdata() were
 added in OpenSSL 1.1.0.
 
-=head1 SEE ALSO
-
-L<ssl(7)>,
-L<SSL_CTX_use_certificate(3)>
-
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

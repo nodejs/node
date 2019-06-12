@@ -296,6 +296,11 @@ last 4 bytes of the checksum of the input.
 DES_fcrypt() returns a pointer to the caller-provided buffer and DES_crypt() -
 to a static buffer on success; otherwise they return NULL.
 
+=head1 SEE ALSO
+
+L<des_modes(7)>,
+L<EVP_EncryptInit(3)>
+
 =head1 HISTORY
 
 The requirement that the B<salt> parameter to DES_crypt() and DES_fcrypt()
@@ -304,14 +309,9 @@ OpenSSL 1.1.0.  Previous versions tried to use the letter uppercase B<A>
 if both character were not present, and could crash when given non-ASCII
 on some platforms.
 
-=head1 SEE ALSO
-
-L<des_modes(7)>,
-L<EVP_EncryptInit(3)>
-
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
