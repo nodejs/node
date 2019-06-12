@@ -62,6 +62,26 @@ is provided below for reference.
     "osRelease": "3.10.0-862.el7.x86_64",
     "osVersion": "#1 SMP Wed Mar 21 18:14:51 EDT 2018",
     "osMachine": "x86_64",
+    "osCpus": [
+      {
+        "model": "Intel(R) Core(TM) i7-6820HQ CPU @ 2.70GHz",
+        "speed": 2700,
+        "user": 88902660,
+        "nice": 0,
+        "sys": 50902570,
+        "idle": 241732220,
+        "irq": 0
+      },
+      {
+        "model": "Intel(R) Core(TM) i7-6820HQ CPU @ 2.70GHz",
+        "speed": 2700,
+        "user": 88902660,
+        "nice": 0,
+        "sys": 50902570,
+        "idle": 241732220,
+        "irq": 0
+      }
+    ],
     "host": "test_machine"
   },
   "javascriptStack": {
