@@ -25,7 +25,6 @@
       'WHIRLPOOL_ASM',
       'GHASH_ASM',
       'ECP_NISTZ256_ASM',
-      'PADLOCK_ASM',
       'POLY1305_ASM',
     ],
     'openssl_cflags_VC-WIN32': [
