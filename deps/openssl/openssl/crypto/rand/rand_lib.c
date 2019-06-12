@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -137,7 +137,7 @@ size_t rand_drbg_get_entropy(RAND_DRBG *drbg,
     size_t entropy_available = 0;
     RAND_POOL *pool;
 
-    if (drbg->parent && drbg->strength > drbg->parent->strength) {
+    if (drbg->parent != NULL && drbg->strength > drbg->parent->strength) {
         /*
          * We currently don't support the algorithm from NIST SP 800-90C
          * 10.1.2 to use a weaker DRBG as source
@@ -155,7 +155,7 @@ size_t rand_drbg_get_entropy(RAND_DRBG *drbg,
             return 0;
     }
 
-    if (drbg->parent) {
+    if (drbg->parent != NULL) {
         size_t bytes_needed = rand_pool_bytes_needed(pool, 1 /*entropy_factor*/);
         unsigned char *buffer = rand_pool_add_begin(pool, bytes_needed);
 
@@ -235,7 +235,7 @@ size_t rand_drbg_get_nonce(RAND_DRBG *drbg,
     struct {
         void * instance;
         int count;
-    } data = { 0 };
+    } data = { NULL, 0 };
 
     pool = rand_pool_new(0, min_len, max_len);
     if (pool == NULL)
@@ -402,7 +402,7 @@ int RAND_poll(void)
     } else {
         /* fill random pool and seed the current legacy RNG */
         pool = rand_pool_new(RAND_DRBG_STRENGTH,
-                             RAND_DRBG_STRENGTH / 8,
+                             (RAND_DRBG_STRENGTH + 7) / 8,
                              RAND_POOL_MAX_LENGTH);
         if (pool == NULL)
             return 0;
@@ -689,7 +689,7 @@ unsigned char *rand_pool_add_begin(RAND_POOL *pool, size_t len)
 
     if (pool->buffer == NULL) {
         RANDerr(RAND_F_RAND_POOL_ADD_BEGIN, ERR_R_INTERNAL_ERROR);
-        return 0;
+        return NULL;
     }
 
     return pool->buffer + pool->len;

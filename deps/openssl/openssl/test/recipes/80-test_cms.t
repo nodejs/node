@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -304,6 +304,14 @@ my @smime_cms_param_tests = (
       [ "-sign", "-in", $smcont, "-outform", "PEM", "-nodetach",
 	"-signer", catfile($smdir, "smrsa1.pem"), "-keyopt", "rsa_padding_mode:pss",
 	"-out", "test.cms" ],
+      [ "-verify", "-in", "test.cms", "-inform", "PEM",
+	"-CAfile", catfile($smdir, "smroot.pem"), "-out", "smtst.txt" ]
+    ],
+
+    [ "signed content test streaming PEM format, RSA keys, PSS signature, saltlen=max",
+      [ "-sign", "-in", $smcont, "-outform", "PEM", "-nodetach",
+	"-signer", catfile($smdir, "smrsa1.pem"), "-keyopt", "rsa_padding_mode:pss",
+	"-keyopt", "rsa_pss_saltlen:max", "-out", "test.cms" ],
       [ "-verify", "-in", "test.cms", "-inform", "PEM",
 	"-CAfile", catfile($smdir, "smroot.pem"), "-out", "smtst.txt" ]
     ],

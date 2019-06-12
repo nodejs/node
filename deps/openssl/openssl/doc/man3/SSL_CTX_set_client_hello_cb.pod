@@ -65,6 +65,8 @@ both required, and on success the caller must release the storage allocated for
 B<*out> using OPENSSL_free().  The contents of B<*out> is an array of integers
 holding the numerical value of the TLS extension types in the order they appear
 in the ClientHello.  B<*outlen> contains the number of elements in the array.
+In situations when the ClientHello has no extensions, the function will return
+success with B<*out> set to NULL and B<*outlen> set to 0.
 
 =head1 NOTES
 
@@ -120,7 +122,7 @@ were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

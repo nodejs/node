@@ -88,6 +88,22 @@ a buffering BIO to the chain will speed up the process.
 Calling BIO_set_mem_buf() on a BIO created with BIO_new_secmem() will
 give undefined results, including perhaps a program crash.
 
+Switching the memory BIO from read write to read only is not supported and
+can give undefined results including a program crash. There are two notable
+exceptions to the rule. The first one is to assign a static memory buffer
+immediately after BIO creation and set the BIO as read only.
+
+The other supported sequence is to start with read write BIO then temporarily
+switch it to read only and call BIO_reset() on the read only BIO immediately
+before switching it back to read write. Before the BIO is freed it must be
+switched back to the read write mode.
+
+Calling BIO_get_mem_ptr() on read only BIO will return a BUF_MEM that
+contains only the remaining data to be read. If the close status of the
+BIO is set to BIO_NOCLOSE, before freeing the BUF_MEM the data pointer
+in it must be set to NULL as the data pointer does not point to an
+allocated memory.
+
 =head1 BUGS
 
 There should be an option to set the maximum size of a memory BIO.
@@ -124,7 +140,7 @@ BIO_new_mem_buf() returns a valid B<BIO> structure on success or NULL on error.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

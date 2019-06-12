@@ -594,6 +594,23 @@ checking or translation of the command value. For example if the return
 value is B<SSL_CONF_TYPE_FILE> an application could translate a relative
 pathname to an absolute pathname.
 
+=head1 RETURN VALUES
+
+SSL_CONF_cmd() returns 1 if the value of B<cmd> is recognised and B<value> is
+B<NOT> used and 2 if both B<cmd> and B<value> are used. In other words it
+returns the number of arguments processed. This is useful when processing
+command lines.
+
+A return value of -2 means B<cmd> is not recognised.
+
+A return value of -3 means B<cmd> is recognised and the command requires a
+value but B<value> is NULL.
+
+A return code of 0 indicates that both B<cmd> and B<value> are valid but an
+error occurred attempting to perform the operation: for example due to an
+error in the syntax of B<value> in this case the error queue may provide
+additional information.
+
 =head1 EXAMPLES
 
 Set supported signature algorithms:
@@ -639,23 +656,6 @@ Enable compression:
 Set supported curves to P-256, P-384:
 
  SSL_CONF_cmd(ctx, "Curves", "P-256:P-384");
-
-=head1 RETURN VALUES
-
-SSL_CONF_cmd() returns 1 if the value of B<cmd> is recognised and B<value> is
-B<NOT> used and 2 if both B<cmd> and B<value> are used. In other words it
-returns the number of arguments processed. This is useful when processing
-command lines.
-
-A return value of -2 means B<cmd> is not recognised.
-
-A return value of -3 means B<cmd> is recognised and the command requires a
-value but B<value> is NULL.
-
-A return code of 0 indicates that both B<cmd> and B<value> are valid but an
-error occurred attempting to perform the operation: for example due to an
-error in the syntax of B<value> in this case the error queue may provide
-additional information.
 
 =head1 SEE ALSO
 

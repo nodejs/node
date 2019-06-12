@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -143,7 +143,7 @@ void GENERAL_NAME_set0_value(GENERAL_NAME *a, int type, void *value)
     a->type = type;
 }
 
-void *GENERAL_NAME_get0_value(GENERAL_NAME *a, int *ptype)
+void *GENERAL_NAME_get0_value(const GENERAL_NAME *a, int *ptype)
 {
     if (ptype)
         *ptype = a->type;
@@ -188,7 +188,7 @@ int GENERAL_NAME_set0_othername(GENERAL_NAME *gen,
     return 1;
 }
 
-int GENERAL_NAME_get0_otherName(GENERAL_NAME *gen,
+int GENERAL_NAME_get0_otherName(const GENERAL_NAME *gen,
                                 ASN1_OBJECT **poid, ASN1_TYPE **pvalue)
 {
     if (gen->type != GEN_OTHERNAME)

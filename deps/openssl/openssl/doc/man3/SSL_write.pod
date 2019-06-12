@@ -104,10 +104,6 @@ You should instead call SSL_get_error() to find out if it's retryable.
 
 =back
 
-=head1 HISTORY
-
-The SSL_write_ex() function was added in OpenSSL 1.1.1.
-
 =head1 SEE ALSO
 
 L<SSL_get_error(3)>, L<SSL_read_ex(3)>, L<SSL_read(3)>
@@ -116,9 +112,13 @@ L<SSL_connect(3)>, L<SSL_accept(3)>
 L<SSL_set_connect_state(3)>,
 L<ssl(7)>, L<bio(7)>
 
+=head1 HISTORY
+
+The SSL_write_ex() function was added in OpenSSL 1.1.1.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

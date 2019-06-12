@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -146,14 +146,14 @@ typedef struct j_data_st {
 } j_data;
 
 static j_data jf_data[] = {
-    { 0xffffffffffffffffU, "%ju", "18446744073709551615" },
-    { 0xffffffffffffffffU, "%jx", "ffffffffffffffff" },
-    { 0x8000000000000000U, "%ju", "9223372036854775808" },
+    { 0xffffffffffffffffULL, "%ju", "18446744073709551615" },
+    { 0xffffffffffffffffULL, "%jx", "ffffffffffffffff" },
+    { 0x8000000000000000ULL, "%ju", "9223372036854775808" },
     /*
      * These tests imply two's-complement, but it's the only binary
      * representation we support, see test/sanitytest.c...
      */
-    { 0x8000000000000000U, "%ji", "-9223372036854775808" },
+    { 0x8000000000000000ULL, "%ji", "-9223372036854775808" },
 };
 
 static int test_j(int i)

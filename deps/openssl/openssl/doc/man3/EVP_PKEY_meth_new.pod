@@ -286,7 +286,7 @@ L<EVP_PKEY_verify_recover_init(3)> and L<EVP_PKEY_verify_recover(3)>.
 
 The signctx_init() and signctx() methods are used to sign a digest present by
 a B<EVP_MD_CTX> object. They are called by the EVP_DigestSign functions. See
-L<EVP_DigestSignInit(3)> for detail.
+L<EVP_DigestSignInit(3)> for details.
 
  int (*verifyctx_init) (EVP_PKEY_CTX *ctx, EVP_MD_CTX *mctx);
  int (*verifyctx) (EVP_PKEY_CTX *ctx, const unsigned char *sig, int siglen,
@@ -294,7 +294,7 @@ L<EVP_DigestSignInit(3)> for detail.
 
 The verifyctx_init() and verifyctx() methods are used to verify a signature
 against the data in a B<EVP_MD_CTX> object. They are called by the various
-EVP_DigestVerify functions. See L<EVP_DigestVerifyInit(3)> for detail.
+EVP_DigestVerify functions. See L<EVP_DigestVerifyInit(3)> for details.
 
  int (*encrypt_init) (EVP_PKEY_CTX *ctx);
  int (*encrypt) (EVP_PKEY_CTX *ctx, unsigned char *out, size_t *outlen,
@@ -321,7 +321,7 @@ L<EVP_PKEY_derive_init(3)> and L<EVP_PKEY_derive(3)>.
  int (*ctrl_str) (EVP_PKEY_CTX *ctx, const char *type, const char *value);
 
 The ctrl() and ctrl_str() methods are used to adjust algorithm-specific
-settings. See L<EVP_PKEY_CTX_ctrl(3)> and related functions for detail.
+settings. See L<EVP_PKEY_CTX_ctrl(3)> and related functions for details.
 
  int (*digestsign) (EVP_MD_CTX *ctx, unsigned char *sig, size_t *siglen,
                     const unsigned char *tbs, size_t tbslen);
@@ -330,7 +330,7 @@ settings. See L<EVP_PKEY_CTX_ctrl(3)> and related functions for detail.
                       size_t tbslen);
 
 The digestsign() and digestverify() methods are used to generate or verify
-a signature in a one-shot mode. They could be called by L<EVP_DigetSign(3)>
+a signature in a one-shot mode. They could be called by L<EVP_DigestSign(3)>
 and L<EVP_DigestVerify(3)>.
 
  int (*check) (EVP_PKEY *pkey);
@@ -414,7 +414,7 @@ arguments.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

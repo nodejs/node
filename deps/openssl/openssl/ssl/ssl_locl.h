@@ -574,7 +574,6 @@ struct ssl_session_st {
         /* Session lifetime hint in seconds */
         unsigned long tick_lifetime_hint;
         uint32_t tick_age_add;
-        int tick_identity;
         /* Max number of bytes that can be sent as early data */
         uint32_t max_early_data;
         /* The ALPN protocol selected for this session */
@@ -1356,6 +1355,13 @@ struct ssl_st {
          * as this extension is optional on server side.
          */
         uint8_t max_fragment_len_mode;
+
+        /*
+         * On the client side the number of ticket identities we sent in the
+         * ClientHello. On the server side the identity of the ticket we
+         * selected.
+         */
+        int tick_identity;
     } ext;
 
     /*
@@ -1509,7 +1515,7 @@ typedef struct cert_pkey_st CERT_PKEY;
  * CERT_PKEY entries
  */
 typedef struct {
-    int nid; /* NID of pubic key algorithm */
+    int nid; /* NID of public key algorithm */
     uint32_t amask; /* authmask corresponding to key type */
 } SSL_CERT_LOOKUP;
 
@@ -2051,9 +2057,6 @@ typedef enum downgrade_en {
 #define TLSEXT_KEX_MODE_FLAG_NONE                               0
 #define TLSEXT_KEX_MODE_FLAG_KE                                 1
 #define TLSEXT_KEX_MODE_FLAG_KE_DHE                             2
-
-/* An invalid index into the TLSv1.3 PSK identities */
-#define TLSEXT_PSK_BAD_IDENTITY                                 -1
 
 #define SSL_USE_PSS(s) (s->s3->tmp.peer_sigalg != NULL && \
                         s->s3->tmp.peer_sigalg->sig == EVP_PKEY_RSA_PSS)
