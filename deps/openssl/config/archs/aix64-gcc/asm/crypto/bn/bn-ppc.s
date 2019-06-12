@@ -94,6 +94,7 @@
 
 
 .machine	"any"
+.csect	.text[PR],7
 
 
 

@@ -1768,7 +1768,7 @@ _aesp8_ctr32_encrypt8x:
 	.long	0x7E082799
 	.long	0x7E3A2799
 	addi	4,4,0x30
-	b	.Lcbc_dec8x_done
+	b	.Lctr32_enc8x_done
 
 .align	5
 .Lctr32_enc8x_two:
@@ -1780,7 +1780,7 @@ _aesp8_ctr32_encrypt8x:
 	.long	0x7DE02799
 	.long	0x7E082799
 	addi	4,4,0x20
-	b	.Lcbc_dec8x_done
+	b	.Lctr32_enc8x_done
 
 .align	5
 .Lctr32_enc8x_one:
