@@ -610,8 +610,6 @@ void TLSWrap::ClearIn() {
     // case because no further writes would succeed anyway.
     pending_cleartext_input_ = std::move(data);
   }
-
-  return;
 }
 
 
