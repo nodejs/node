@@ -56,16 +56,12 @@ Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
     return Nothing<bool>();
   }
   if (type != nullptr) {
-    if (!String::NewFromOneByte(env->isolate(),
-                                reinterpret_cast<const uint8_t*>(type),
-                                NewStringType::kNormal)
-             .ToLocal(&args[argc++])) {
+    if (!String::NewFromUtf8(env->isolate(), type, NewStringType::kNormal)
+           .ToLocal(&args[argc++])) {
       return Nothing<bool>();
     }
     if (code != nullptr &&
-        !String::NewFromOneByte(env->isolate(),
-                                reinterpret_cast<const uint8_t*>(code),
-                                NewStringType::kNormal)
+        !String::NewFromUtf8(env->isolate(), code, NewStringType::kNormal)
              .ToLocal(&args[argc++])) {
       return Nothing<bool>();
     }
