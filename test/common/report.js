@@ -62,8 +62,8 @@ function _validateContent(data) {
                         'dumpEventTimeStamp', 'processId', 'commandLine',
                         'nodejsVersion', 'wordSize', 'arch', 'platform',
                         'componentVersions', 'release', 'osName', 'osRelease',
-                        'osVersion', 'osMachine', 'host', 'glibcVersionRuntime',
-                        'glibcVersionCompiler', 'cwd'];
+                        'osVersion', 'osMachine', 'cpus', 'host',
+                        'glibcVersionRuntime', 'glibcVersionCompiler', 'cwd'];
   checkForUnknownFields(header, headerFields);
   assert.strictEqual(typeof header.event, 'string');
   assert.strictEqual(typeof header.trigger, 'string');
@@ -87,6 +87,16 @@ function _validateContent(data) {
   assert.strictEqual(header.osRelease, os.release());
   assert.strictEqual(typeof header.osVersion, 'string');
   assert.strictEqual(typeof header.osMachine, 'string');
+  assert(Array.isArray(header.cpus));
+  header.cpus.forEach((cpu) => {
+    assert.strictEqual(typeof cpu.model, 'string');
+    assert.strictEqual(typeof cpu.speed, 'number');
+    assert.strictEqual(typeof cpu.user, 'number');
+    assert.strictEqual(typeof cpu.nice, 'number');
+    assert.strictEqual(typeof cpu.sys, 'number');
+    assert.strictEqual(typeof cpu.idle, 'number');
+    assert.strictEqual(typeof cpu.irq, 'number');
+  });
   assert.strictEqual(header.host, os.hostname());
 
   // Verify the format of the javascriptStack section.

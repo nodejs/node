@@ -65,6 +65,7 @@ static void PrintSystemInformation(JSONWriter* writer);
 static void PrintLoadedLibraries(JSONWriter* writer);
 static void PrintComponentVersions(JSONWriter* writer);
 static void PrintRelease(JSONWriter* writer);
+static void PrintCpuInfo(JSONWriter* writer);
 
 // External function to trigger a report, writing to file.
 // The 'name' parameter is in/out: an input filename is used
@@ -315,11 +316,35 @@ static void PrintVersionInformation(JSONWriter* writer) {
     writer->json_keyvalue("osMachine", os_info.machine);
   }
 
+  PrintCpuInfo(writer);
+
   char host[UV_MAXHOSTNAMESIZE];
   size_t host_size = sizeof(host);
 
   if (uv_os_gethostname(host, &host_size) == 0)
     writer->json_keyvalue("host", host);
+}
+
+// Report CPU info
+static void PrintCpuInfo(JSONWriter* writer) {
+  uv_cpu_info_t* cpu_info;
+  int count;
+  if (uv_cpu_info(&cpu_info, &count) == 0) {
+    writer->json_arraystart("cpus");
+    for (int i = 0; i < count; i++) {
+      writer->json_start();
+      writer->json_keyvalue("model", cpu_info->model);
+      writer->json_keyvalue("speed", cpu_info->speed);
+      writer->json_keyvalue("user", cpu_info->cpu_times.user);
+      writer->json_keyvalue("nice", cpu_info->cpu_times.nice);
+      writer->json_keyvalue("sys", cpu_info->cpu_times.sys);
+      writer->json_keyvalue("idle", cpu_info->cpu_times.idle);
+      writer->json_keyvalue("irq", cpu_info->cpu_times.irq);
+      writer->json_end();
+    }
+    writer->json_arrayend();
+    uv_free_cpu_info(cpu_info, count);
+  }
 }
 
 // Report the JavaScript stack.
