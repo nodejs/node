@@ -692,7 +692,7 @@ def get_nasm_version(asm):
                             stdout=subprocess.PIPE)
   except OSError:
     warn('''No acceptable ASM compiler found!
-         Please make sure you have installed NASM from http://www.nasm.us
+         Please make sure you have installed NASM from https://www.nasm.us
          and refer BUILDING.md.''')
     return '0'
 
