@@ -21,7 +21,6 @@
       'GHASH_ASM',
       'ECP_NISTZ256_ASM',
       'X25519_ASM',
-      'PADLOCK_ASM',
       'POLY1305_ASM',
     ],
     'openssl_cflags_darwin64-x86_64-cc': [
