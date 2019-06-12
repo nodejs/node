@@ -57,7 +57,12 @@ static const BIO_METHOD secmem_method = {
     NULL,                      /* mem_callback_ctrl */
 };
 
-/* BIO memory stores buffer and read pointer  */
+/*
+ * BIO memory stores buffer and read pointer
+ * however the roles are different for read only BIOs.
+ * In that case the readp just stores the original state
+ * to be used for reset.
+ */
 typedef struct bio_buf_mem_st {
     struct buf_mem_st *buf;   /* allocated buffer */
     struct buf_mem_st *readp; /* read pointer */
@@ -192,11 +197,14 @@ static int mem_read(BIO *b, char *out, int outl)
     BIO_BUF_MEM *bbm = (BIO_BUF_MEM *)b->ptr;
     BUF_MEM *bm = bbm->readp;
 
+    if (b->flags & BIO_FLAGS_MEM_RDONLY)
+        bm = bbm->buf;
     BIO_clear_retry_flags(b);
     ret = (outl >= 0 && (size_t)outl > bm->length) ? (int)bm->length : outl;
     if ((out != NULL) && (ret > 0)) {
         memcpy(out, bm->data, ret);
         bm->length -= ret;
+        bm->max -= ret;
         bm->data += ret;
     } else if (bm->length == 0) {
         ret = b->num;
@@ -241,29 +249,36 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
     BIO_BUF_MEM *bbm = (BIO_BUF_MEM *)b->ptr;
     BUF_MEM *bm;
 
+    if (b->flags & BIO_FLAGS_MEM_RDONLY)
+        bm = bbm->buf;
+    else
+        bm = bbm->readp;
+
     switch (cmd) {
     case BIO_CTRL_RESET:
         bm = bbm->buf;
         if (bm->data != NULL) {
-            /* For read only case reset to the start again */
-            if ((b->flags & BIO_FLAGS_MEM_RDONLY) || (b->flags & BIO_FLAGS_NONCLEAR_RST)) {
-                bm->length = bm->max;
+            if (!(b->flags & BIO_FLAGS_MEM_RDONLY)) {
+                if (b->flags & BIO_FLAGS_NONCLEAR_RST) {
+                    bm->length = bm->max;
+                } else {
+                    memset(bm->data, 0, bm->max);
+                    bm->length = 0;
+                }
+                *bbm->readp = *bbm->buf;
             } else {
-                memset(bm->data, 0, bm->max);
-                bm->length = 0;
+                /* For read only case just reset to the start again */
+                *bbm->buf = *bbm->readp;
             }
-            *bbm->readp = *bbm->buf;
         }
         break;
     case BIO_CTRL_EOF:
-        bm = bbm->readp;
         ret = (long)(bm->length == 0);
         break;
     case BIO_C_SET_BUF_MEM_EOF_RETURN:
         b->num = (int)num;
         break;
     case BIO_CTRL_INFO:
-        bm = bbm->readp;
         ret = (long)bm->length;
         if (ptr != NULL) {
             pptr = (char **)ptr;
@@ -278,8 +293,9 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
         break;
     case BIO_C_GET_BUF_MEM_PTR:
         if (ptr != NULL) {
-            mem_buf_sync(b);
-            bm = bbm->readp;
+            if (!(b->flags & BIO_FLAGS_MEM_RDONLY))
+                mem_buf_sync(b);
+            bm = bbm->buf;
             pptr = (char **)ptr;
             *pptr = (char *)bm;
         }
@@ -294,7 +310,6 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
         ret = 0L;
         break;
     case BIO_CTRL_PENDING:
-        bm = bbm->readp;
         ret = (long)bm->length;
         break;
     case BIO_CTRL_DUP:
@@ -318,6 +333,8 @@ static int mem_gets(BIO *bp, char *buf, int size)
     BIO_BUF_MEM *bbm = (BIO_BUF_MEM *)bp->ptr;
     BUF_MEM *bm = bbm->readp;
 
+    if (bp->flags & BIO_FLAGS_MEM_RDONLY)
+        bm = bbm->buf;
     BIO_clear_retry_flags(bp);
     j = bm->length;
     if ((size - 1) < j)

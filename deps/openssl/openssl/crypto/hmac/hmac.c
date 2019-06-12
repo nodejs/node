@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,6 +34,13 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
     } else {
         return 0;
     }
+
+    /*
+     * The HMAC construction is not allowed  to be used with the
+     * extendable-output functions (XOF) shake128 and shake256.
+     */
+    if ((EVP_MD_meth_get_flags(md) & EVP_MD_FLAG_XOF) != 0)
+        return 0;
 
     if (key != NULL) {
         reset = 1;

@@ -187,6 +187,7 @@ AS={- $config{AS} -}
 ASFLAGS={- join(' ', @{$config{ASFLAGS}}) -}
 
 RC={- $config{RC} -}
+RCFLAGS={- join(' ', @{$config{RCFLAGS}}) -}
 
 ECHO="$(PERL)" "$(SRCDIR)\util\echo.pl"
 
@@ -586,7 +587,7 @@ EOF
      if ($srcs[0] =~ /\.rc$/) {
          return <<"EOF";
 $args{obj}: $deps
-	\$(RC) \$(RCOUTFLAG)\$\@ $srcs
+	\$(RC) \$(RCFLAGS) \$(RCOUTFLAG)\$\@ $srcs
 EOF
      }
      (my $obj = $args{obj}) =~ s|\.o$||;

@@ -641,8 +641,10 @@ redo_accept:
         goto end;
     }
 
-    if (req != NULL && add_nonce)
-        OCSP_request_add1_nonce(req, NULL, -1);
+    if (req != NULL && add_nonce) {
+        if (!OCSP_request_add1_nonce(req, NULL, -1))
+            goto end;
+    }
 
     if (signfile != NULL) {
         if (keyfile == NULL)
@@ -1245,7 +1247,10 @@ static void make_ocsp_response(BIO *err, OCSP_RESPONSE **resp, OCSP_REQUEST *req
             goto end;
         }
     }
-    OCSP_basic_sign_ctx(bs, rcert, mctx, rother, flags);
+    if (!OCSP_basic_sign_ctx(bs, rcert, mctx, rother, flags)) {
+        *resp = OCSP_response_create(OCSP_RESPONSE_STATUS_INTERNALERROR, bs);
+        goto end;
+    }
 
     if (badsig) {
         const ASN1_OCTET_STRING *sig = OCSP_resp_get0_signature(bs);

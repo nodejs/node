@@ -121,6 +121,10 @@ For example if a cipher suite uses 256 bit ciphers but only a 128 bit ticket key
 the overall security is only 128 bits because breaking the ticket key will
 enable an attacker to obtain the session keys.
 
+=head1 RETURN VALUES
+
+returns 0 to indicate the callback function was set.
+
 =head1 EXAMPLES
 
 Reference Implementation:
@@ -175,10 +179,6 @@ Reference Implementation:
      }
  }
 
-=head1 RETURN VALUES
-
-returns 0 to indicate the callback function was set.
-
 =head1 SEE ALSO
 
 L<ssl(7)>, L<SSL_set_session(3)>,
@@ -190,7 +190,7 @@ L<SSL_CTX_set_session_id_context(3)>,
 
 =head1 COPYRIGHT
 
-Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1358,7 +1358,7 @@ id-tc26-algorithms 7	:	id-tc26-wrap
 id-tc26-wrap 1	: id-tc26-wrap-gostr3412-2015-magma
 id-tc26-wrap-gostr3412-2015-magma 1	: id-tc26-wrap-gostr3412-2015-magma-kexp15
 id-tc26-wrap 2	: id-tc26-wrap-gostr3412-2015-kuznyechik
-id-tc26-wrap-gostr3412-2015-magma 1	: id-tc26-wrap-gostr3412-2015-kuznyechik-kexp15
+id-tc26-wrap-gostr3412-2015-kuznyechik 1	: id-tc26-wrap-gostr3412-2015-kuznyechik-kexp15
 
 id-tc26 2 		: id-tc26-constants
 

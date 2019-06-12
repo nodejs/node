@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -27,8 +27,8 @@
 static const curve448_scalar_t precomputed_scalarmul_adjustment = {
     {
         {
-            SC_LIMB(0xc873d6d54a7bb0cf), SC_LIMB(0xe933d8d723a70aad),
-            SC_LIMB(0xbb124b65129c96fd), SC_LIMB(0x00000008335dc163)
+            SC_LIMB(0xc873d6d54a7bb0cfULL), SC_LIMB(0xe933d8d723a70aadULL),
+            SC_LIMB(0xbb124b65129c96fdULL), SC_LIMB(0x00000008335dc163ULL)
         }
     }
 };

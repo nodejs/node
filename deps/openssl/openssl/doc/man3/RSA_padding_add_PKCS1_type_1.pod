@@ -5,6 +5,7 @@
 RSA_padding_add_PKCS1_type_1, RSA_padding_check_PKCS1_type_1,
 RSA_padding_add_PKCS1_type_2, RSA_padding_check_PKCS1_type_2,
 RSA_padding_add_PKCS1_OAEP, RSA_padding_check_PKCS1_OAEP,
+RSA_padding_add_PKCS1_OAEP_mgf1, RSA_padding_check_PKCS1_OAEP_mgf1,
 RSA_padding_add_SSLv23, RSA_padding_check_SSLv23,
 RSA_padding_add_none, RSA_padding_check_none - asymmetric encryption
 padding
@@ -14,35 +15,46 @@ padding
  #include <openssl/rsa.h>
 
  int RSA_padding_add_PKCS1_type_1(unsigned char *to, int tlen,
-                                  unsigned char *f, int fl);
+                                  const unsigned char *f, int fl);
 
  int RSA_padding_check_PKCS1_type_1(unsigned char *to, int tlen,
-                                    unsigned char *f, int fl, int rsa_len);
+                                    const unsigned char *f, int fl, int rsa_len);
 
  int RSA_padding_add_PKCS1_type_2(unsigned char *to, int tlen,
-                                  unsigned char *f, int fl);
+                                  const unsigned char *f, int fl);
 
  int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
-                                    unsigned char *f, int fl, int rsa_len);
+                                    const unsigned char *f, int fl, int rsa_len);
 
  int RSA_padding_add_PKCS1_OAEP(unsigned char *to, int tlen,
-                                unsigned char *f, int fl, unsigned char *p, int pl);
+                                const unsigned char *f, int fl,
+                                const unsigned char *p, int pl);
 
  int RSA_padding_check_PKCS1_OAEP(unsigned char *to, int tlen,
-                                  unsigned char *f, int fl, int rsa_len,
-                                  unsigned char *p, int pl);
+                                  const unsigned char *f, int fl, int rsa_len,
+                                  const unsigned char *p, int pl);
+
+ int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
+                                     const unsigned char *f, int fl,
+                                     const unsigned char *p, int pl,
+                                     const EVP_MD *md, const EVP_MD *mgf1md);
+
+ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
+                                       const unsigned char *f, int fl, int rsa_len,
+                                       const unsigned char *p, int pl,
+                                       const EVP_MD *md, const EVP_MD *mgf1md);
 
  int RSA_padding_add_SSLv23(unsigned char *to, int tlen,
-                            unsigned char *f, int fl);
+                            const unsigned char *f, int fl);
 
  int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
-                              unsigned char *f, int fl, int rsa_len);
+                              const unsigned char *f, int fl, int rsa_len);
 
  int RSA_padding_add_none(unsigned char *to, int tlen,
-                          unsigned char *f, int fl);
+                          const unsigned char *f, int fl);
 
  int RSA_padding_check_none(unsigned char *to, int tlen,
-                            unsigned char *f, int fl, int rsa_len);
+                            const unsigned char *f, int fl, int rsa_len);
 
 =head1 DESCRIPTION
 
@@ -98,6 +110,10 @@ at B<to>.
 For RSA_padding_xxx_OAEP(), B<p> points to the encoding parameter
 of length B<pl>. B<p> may be B<NULL> if B<pl> is 0.
 
+For RSA_padding_xxx_OAEP_mgf1(), B<md> points to the md hash,
+if B<md> is B<NULL> that means md=sha1, and B<mgf1md> points to
+the mgf1 hash, if B<mgf1md> is B<NULL> that means mgf1md=md.
+
 =head1 RETURN VALUES
 
 The RSA_padding_add_xxx() functions return 1 on success, 0 on error.
@@ -107,15 +123,21 @@ L<ERR_get_error(3)>.
 
 =head1 WARNING
 
-The RSA_padding_check_PKCS1_type_2() padding check leaks timing
+The result of RSA_padding_check_PKCS1_type_2() is a very sensitive
 information which can potentially be used to mount a Bleichenbacher
 padding oracle attack. This is an inherent weakness in the PKCS #1
-v1.5 padding design. Prefer PKCS1_OAEP padding. Otherwise it can
-be recommended to pass zero-padded B<f>, so that B<fl> equals to
-B<rsa_len>, and if fixed by protocol, B<tlen> being set to the
-expected length. In such case leakage would be minimal, it would
-take attacker's ability to observe memory access pattern with byte
-granilarity as it occurs, post-factum timing analysis won't do.
+v1.5 padding design. Prefer PKCS1_OAEP padding. If that is not
+possible, the result of RSA_padding_check_PKCS1_type_2() should be
+checked in constant time if it matches the expected length of the
+plaintext and additionally some application specific consistency
+checks on the plaintext need to be performed in constant time.
+If the plaintext is rejected it must be kept secret which of the
+checks caused the application to reject the message.
+Do not remove the zero-padding from the decrypted raw RSA data
+which was computed by RSA_private_decrypt() with B<RSA_NO_PADDING>,
+as this would create a small timing side channel which could be
+used to mount a Bleichenbacher attack against any padding mode
+including PKCS1_OAEP.
 
 =head1 SEE ALSO
 
@@ -125,7 +147,7 @@ L<RSA_sign(3)>, L<RSA_verify(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

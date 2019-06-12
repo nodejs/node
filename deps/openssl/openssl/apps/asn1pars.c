@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -170,17 +170,17 @@ int asn1parse_main(int argc, char **argv)
     if (derfile && (derout = bio_open_default(derfile, 'w', FORMAT_ASN1)) == NULL)
         goto end;
 
+    if ((buf = BUF_MEM_new()) == NULL)
+        goto end;
     if (strictpem) {
-        if (PEM_read_bio(in, &name, &header, &str, &num) !=
-            1) {
+        if (PEM_read_bio(in, &name, &header, &str, &num) != 1) {
             BIO_printf(bio_err, "Error reading PEM file\n");
             ERR_print_errors(bio_err);
             goto end;
         }
+        buf->data = (char *)str;
+        buf->length = buf->max = num;
     } else {
-
-        if ((buf = BUF_MEM_new()) == NULL)
-            goto end;
         if (!BUF_MEM_grow(buf, BUFSIZ * 8))
             goto end;           /* Pre-allocate :-) */
 
@@ -303,8 +303,6 @@ int asn1parse_main(int argc, char **argv)
     BUF_MEM_free(buf);
     OPENSSL_free(name);
     OPENSSL_free(header);
-    if (strictpem)
-        OPENSSL_free(str);
     ASN1_TYPE_free(at);
     sk_OPENSSL_STRING_free(osk);
     return ret;

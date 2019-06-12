@@ -338,6 +338,8 @@ void BN_swap(BIGNUM *a, BIGNUM *b)
 
 void BN_clear(BIGNUM *a)
 {
+    if (a == NULL)
+        return;
     bn_check_top(a);
     if (a->d != NULL)
         OPENSSL_cleanse(a->d, sizeof(*a->d) * a->dmax);

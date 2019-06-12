@@ -65,10 +65,6 @@ Since the default DRBG implementation does not have access to such an approved
 entropy source, a request for prediction resistance will always fail.
 In other words, prediction resistance is currently not supported yet by the DRBG.
 
-=head1 HISTORY
-
-The RAND_DRBG functions were added in OpenSSL 1.1.1.
-
 =head1 SEE ALSO
 
 L<RAND_bytes(3)>,
@@ -76,9 +72,13 @@ L<RAND_DRBG_set_reseed_interval(3)>,
 L<RAND_DRBG_set_reseed_time_interval(3)>,
 L<RAND_DRBG(7)>
 
+=head1 HISTORY
+
+The RAND_DRBG functions were added in OpenSSL 1.1.1.
+
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

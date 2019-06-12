@@ -150,10 +150,20 @@ the X509_LOOKUP context, the type of the X509_OBJECT being requested, parameters
 related to the lookup, and an X509_OBJECT that will receive the requested
 object.
 
-Implementations should use either X509_OBJECT_set1_X509() or
-X509_OBJECT_set1_X509_CRL() to set the result. Any method data that was
-created as a result of the new_item function set by
-X509_LOOKUP_meth_set_new_item() can be accessed with
+Implementations must add objects they find to the B<X509_STORE> object
+using X509_STORE_add_cert() or X509_STORE_add_crl().  This increments
+its reference count.  However, the X509_STORE_CTX_get_by_subject()
+function also increases the reference count which leads to one too
+many references being held.  Therefore applications should
+additionally call X509_free() or X509_CRL_free() to decrement the
+reference count again.
+
+Implementations should also use either X509_OBJECT_set1_X509() or
+X509_OBJECT_set1_X509_CRL() to set the result.  Note that this also
+increments the result's reference count.
+
+Any method data that was created as a result of the new_item function
+set by X509_LOOKUP_meth_set_new_item() can be accessed with
 X509_LOOKUP_get_method_data(). The B<X509_STORE> object that owns the
 X509_LOOKUP may be accessed with X509_LOOKUP_get_store(). Successful lookups
 should return 1, and unsuccessful lookups should return 0.
@@ -179,7 +189,7 @@ The functions described here were added in OpenSSL 1.1.0i.
 
 =head1 COPYRIGHT
 
-Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

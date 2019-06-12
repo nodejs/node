@@ -272,20 +272,19 @@ value less than the minimum restriction.
 =head1 DSA ALGORITHM
 
 The DSA algorithm supports signing and verification operations only. Currently
-there are no additional options other than B<digest>. Only the SHA1
-digest can be used and this digest is assumed by default.
+there are no additional B<-pkeyopt> options other than B<digest>. The SHA1
+digest is assumed by default.
 
 =head1 DH ALGORITHM
 
 The DH algorithm only supports the derivation operation and no additional
-options.
+B<-pkeyopt> options.
 
 =head1 EC ALGORITHM
 
 The EC algorithm supports sign, verify and derive operations. The sign and
-verify operations use ECDSA and derive uses ECDH. Currently there are no
-additional options other than B<digest>. Only the SHA1 digest can be used and
-this digest is assumed by default.
+verify operations use ECDSA and derive uses ECDH. SHA1 is assumed by default for
+the B<-pkeyopt> B<digest> option.
 
 =head1 X25519 and X448 ALGORITHMS
 
@@ -328,7 +327,7 @@ L<EVP_PKEY_CTX_set_hkdf_md(3)>, L<EVP_PKEY_CTX_set_tls1_prf_md(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

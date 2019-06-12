@@ -8,10 +8,10 @@ RSA_public_encrypt, RSA_private_decrypt - RSA public key cryptography
 
  #include <openssl/rsa.h>
 
- int RSA_public_encrypt(int flen, unsigned char *from,
+ int RSA_public_encrypt(int flen, const unsigned char *from,
                         unsigned char *to, RSA *rsa, int padding);
 
- int RSA_private_decrypt(int flen, unsigned char *from,
+ int RSA_private_decrypt(int flen, const unsigned char *from,
                          unsigned char *to, RSA *rsa, int padding);
 
 =head1 DESCRIPTION
@@ -27,6 +27,8 @@ B<padding> denotes one of the following modes:
 =item RSA_PKCS1_PADDING
 
 PKCS #1 v1.5 padding. This currently is the most widely used mode.
+However, it is highly recommended to use RSA_PKCS1_OAEP_PADDING in
+new applications. SEE WARNING BELOW.
 
 =item RSA_PKCS1_OAEP_PADDING
 
@@ -46,23 +48,35 @@ Encrypting user data directly with RSA is insecure.
 
 =back
 
-B<flen> must be less than RSA_size(B<rsa>) - 11 for the PKCS #1 v1.5
-based padding modes, less than RSA_size(B<rsa>) - 41 for
+B<flen> must not be more than RSA_size(B<rsa>) - 11 for the PKCS #1 v1.5
+based padding modes, not more than RSA_size(B<rsa>) - 42 for
 RSA_PKCS1_OAEP_PADDING and exactly RSA_size(B<rsa>) for RSA_NO_PADDING.
-The random number generator must be seeded prior to calling
-RSA_public_encrypt().
+When a padding mode other than RSA_NO_PADDING is in use, then
+RSA_public_encrypt() will include some random bytes into the ciphertext
+and therefore the ciphertext will be different each time, even if the
+plaintext and the public key are exactly identical.
+The returned ciphertext in B<to> will always be zero padded to exactly
+RSA_size(B<rsa>) bytes.
+B<to> and B<from> may overlap.
 
 RSA_private_decrypt() decrypts the B<flen> bytes at B<from> using the
-private key B<rsa> and stores the plaintext in B<to>. B<to> must point
-to a memory section large enough to hold the decrypted data (which is
-smaller than RSA_size(B<rsa>)). B<padding> is the padding mode that
-was used to encrypt the data.
+private key B<rsa> and stores the plaintext in B<to>. B<flen> should
+be equal to RSA_size(B<rsa>) but may be smaller, when leading zero
+bytes are in the ciphertext. Those are not important and may be removed,
+but RSA_public_encrypt() does not do that. B<to> must point
+to a memory section large enough to hold the maximal possible decrypted
+data (which is equal to RSA_size(B<rsa>) for RSA_NO_PADDING,
+RSA_size(B<rsa>) - 11 for the PKCS #1 v1.5 based padding modes and
+RSA_size(B<rsa>) - 42 for RSA_PKCS1_OAEP_PADDING).
+B<padding> is the padding mode that was used to encrypt the data.
+B<to> and B<from> may overlap.
 
 =head1 RETURN VALUES
 
 RSA_public_encrypt() returns the size of the encrypted data (i.e.,
 RSA_size(B<rsa>)). RSA_private_decrypt() returns the size of the
-recovered plaintext.
+recovered plaintext. A return value of 0 is not an error and
+means only that the plaintext was empty.
 
 On error, -1 is returned; the error codes can be
 obtained by L<ERR_get_error(3)>.
@@ -85,7 +99,7 @@ L<RSA_size(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

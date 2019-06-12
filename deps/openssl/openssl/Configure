@@ -24,7 +24,7 @@ use OpenSSL::Glob;
 my $orig_death_handler = $SIG{__DIE__};
 $SIG{__DIE__} = \&death_handler;
 
-my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]shared] [[no-]zlib|zlib-dynamic] [no-asm] [no-dso] [no-egd] [sctp] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--config=FILE] os/compiler[:flags]\n";
+my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]shared] [[no-]zlib|zlib-dynamic] [no-asm] [no-egd] [sctp] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--config=FILE] os/compiler[:flags]\n";
 
 # Options:
 #
@@ -54,16 +54,14 @@ my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [-Dxxx] [-lx
 # [no-]threads  [don't] try to create a library that is suitable for
 #               multithreaded applications (default is "threads" if we
 #               know how to do it)
-# [no-]shared	[don't] try to create shared libraries when supported.
+# [no-]shared   [don't] try to create shared libraries when supported.
 # [no-]pic      [don't] try to build position independent code when supported.
 #               If disabled, it also disables shared and dynamic-engine.
 # no-asm        do not use assembler
-# no-dso        do not compile in any native shared-library methods. This
-#               will ensure that all methods just return NULL.
 # no-egd        do not compile support for the entropy-gathering daemon APIs
 # [no-]zlib     [don't] compile support for zlib compression.
-# zlib-dynamic	Like "zlib", but the zlib library is expected to be a shared
-#		library and will be loaded in run-time by the OpenSSL library.
+# zlib-dynamic  Like "zlib", but the zlib library is expected to be a shared
+#               library and will be loaded in run-time by the OpenSSL library.
 # sctp          include SCTP support
 # enable-weak-ssl-ciphers
 #               Enable weak ciphers that are disabled by default.
@@ -75,7 +73,7 @@ my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [-Dxxx] [-lx
 # -static       while -static is also a pass-through compiler option (and
 #               as such is limited to environments where it's actually
 #               meaningful), it triggers a number configuration options,
-#               namely no-dso, no-pic, no-shared and no-threads. It is
+#               namely no-pic, no-shared and no-threads. It is
 #               argued that the only reason to produce statically linked
 #               binaries (and in context it means executables linked with
 #               -static flag, and not just executables linked with static
@@ -90,21 +88,22 @@ my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [-Dxxx] [-lx
 #               production quality.
 #
 # DEBUG_SAFESTACK use type-safe stacks to enforce type-safety on stack items
-#		provided to stack calls. Generates unique stack functions for
-#		each possible stack type.
-# BN_LLONG	use the type 'long long' in crypto/bn/bn.h
-# RC4_CHAR	use 'char' instead of 'int' for RC4_INT in crypto/rc4/rc4.h
+#               provided to stack calls. Generates unique stack functions for
+#               each possible stack type.
+# BN_LLONG      use the type 'long long' in crypto/bn/bn.h
+# RC4_CHAR      use 'char' instead of 'int' for RC4_INT in crypto/rc4/rc4.h
 # Following are set automatically by this script
 #
-# MD5_ASM	use some extra md5 assembler,
-# SHA1_ASM	use some extra sha1 assembler, must define L_ENDIAN for x86
-# RMD160_ASM	use some extra ripemd160 assembler,
-# SHA256_ASM	sha256_block is implemented in assembler
-# SHA512_ASM	sha512_block is implemented in assembler
-# AES_ASM	AES_[en|de]crypt is implemented in assembler
+# MD5_ASM       use some extra md5 assembler,
+# SHA1_ASM      use some extra sha1 assembler, must define L_ENDIAN for x86
+# RMD160_ASM    use some extra ripemd160 assembler,
+# SHA256_ASM    sha256_block is implemented in assembler
+# SHA512_ASM    sha512_block is implemented in assembler
+# AES_ASM       AES_[en|de]crypt is implemented in assembler
 
-# Minimum warning options... any contributions to OpenSSL should at least get
-# past these.
+# Minimum warning options... any contributions to OpenSSL should at least
+# get past these.  Note that we only use these with C compilers, not with
+# C++ compilers.
 
 # DEBUG_UNUSED enables __owur (warn unused result) checks.
 # -DPEDANTIC complements -pedantic and is meant to mask code that
@@ -119,22 +118,23 @@ my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [-Dxxx] [-lx
 # code, so we just tell compiler to be pedantic about everything
 # but 'long long' type.
 
-my $gcc_devteam_warn = "-DDEBUG_UNUSED"
-        . " -DPEDANTIC -pedantic -Wno-long-long"
-        . " -Wall"
-        . " -Wextra"
-        . " -Wno-unused-parameter"
-        . " -Wno-missing-field-initializers"
-        . " -Wswitch"
-        . " -Wsign-compare"
-        . " -Wmissing-prototypes"
-        . " -Wstrict-prototypes"
-        . " -Wshadow"
-        . " -Wformat"
-        . " -Wtype-limits"
-        . " -Wundef"
-        . " -Werror"
-        ;
+my @gcc_devteam_warn = qw(
+    -DDEBUG_UNUSED
+    -DPEDANTIC -pedantic -Wno-long-long
+    -Wall
+    -Wextra
+    -Wno-unused-parameter
+    -Wno-missing-field-initializers
+    -Wswitch
+    -Wsign-compare
+    -Wshadow
+    -Wformat
+    -Wtype-limits
+    -Wundef
+    -Werror
+    -Wmissing-prototypes
+    -Wstrict-prototypes
+);
 
 # These are used in addition to $gcc_devteam_warn when the compiler is clang.
 # TODO(openssl-team): fix problems and investigate if (at least) the
@@ -144,19 +144,16 @@ my $gcc_devteam_warn = "-DDEBUG_UNUSED"
 #       -Wlanguage-extension-token -- no, we use asm()
 #       -Wunused-macros -- no, too tricky for BN and _XOPEN_SOURCE etc
 #       -Wextended-offsetof -- no, needed in CMS ASN1 code
-#       -Wunused-function -- no, it forces header use of safestack et al
-#                            DEFINE macros
-my $clang_devteam_warn = ""
-        . " -Wswitch-default"
-        . " -Wno-parentheses-equality"
-        . " -Wno-language-extension-token"
-        . " -Wno-extended-offsetof"
-        . " -Wconditional-uninitialized"
-        . " -Wincompatible-pointer-types-discards-qualifiers"
-        . " -Wmissing-variable-declarations"
-        . " -Wno-unknown-warning-option"
-        . " -Wno-unused-function"
-        ;
+my @clang_devteam_warn = qw(
+    -Wswitch-default
+    -Wno-parentheses-equality
+    -Wno-language-extension-token
+    -Wno-extended-offsetof
+    -Wconditional-uninitialized
+    -Wincompatible-pointer-types-discards-qualifiers
+    -Wno-unknown-warning-option
+    -Wmissing-variable-declarations
+);
 
 # This adds backtrace information to the memory leak info.  Is only used
 # when crypto-mdebug-backtrace is enabled.
@@ -225,20 +222,20 @@ if (grep /^reconf(igure)?$/, @argvcopy) {
     die "reconfiguring with other arguments present isn't supported"
         if scalar @argvcopy > 1;
     if (-f "./configdata.pm") {
-	my $file = "./configdata.pm";
-	unless (my $return = do $file) {
-	    die "couldn't parse $file: $@" if $@;
+        my $file = "./configdata.pm";
+        unless (my $return = do $file) {
+            die "couldn't parse $file: $@" if $@;
             die "couldn't do $file: $!"    unless defined $return;
             die "couldn't run $file"       unless $return;
-	}
+        }
 
-	@argvcopy = defined($configdata::config{perlargv}) ?
-	    @{$configdata::config{perlargv}} : ();
-	die "Incorrect data to reconfigure, please do a normal configuration\n"
-	    if (grep(/^reconf/,@argvcopy));
-	$config{perlenv} = $configdata::config{perlenv} // {};
+        @argvcopy = defined($configdata::config{perlargv}) ?
+            @{$configdata::config{perlargv}} : ();
+        die "Incorrect data to reconfigure, please do a normal configuration\n"
+            if (grep(/^reconf/,@argvcopy));
+        $config{perlenv} = $configdata::config{perlenv} // {};
     } else {
-	die "Insufficient data to reconfigure, please do a normal configuration\n";
+        die "Insufficient data to reconfigure, please do a normal configuration\n";
     }
 }
 
@@ -253,8 +250,8 @@ $config{shlib_version_history} = "unknown";
 collect_information(
     collect_from_file(catfile($srcdir,'include/openssl/opensslv.h')),
     qr/OPENSSL.VERSION.TEXT.*OpenSSL (\S+) / => sub { $config{version} = $1; },
-    qr/OPENSSL.VERSION.NUMBER.*(0x\S+)/	     => sub { $config{version_num}=$1 },
-    qr/SHLIB_VERSION_NUMBER *"([^"]+)"/	     => sub { $config{shlib_version_number}=$1 },
+    qr/OPENSSL.VERSION.NUMBER.*(0x\S+)/      => sub { $config{version_num}=$1 },
+    qr/SHLIB_VERSION_NUMBER *"([^"]+)"/      => sub { $config{shlib_version_number}=$1 },
     qr/SHLIB_VERSION_HISTORY *"([^"]*)"/     => sub { $config{shlib_version_history}=$1 }
     );
 if ($config{shlib_version_history} ne "") { $config{shlib_version_history} .= ":"; }
@@ -266,7 +263,7 @@ if ($config{shlib_version_history} ne "") { $config{shlib_version_history} .= ":
 die "erroneous version information in opensslv.h: ",
     "$config{major}, $config{minor}, $config{shlib_major}, $config{shlib_minor}\n"
     if ($config{major} eq "" || $config{minor} eq ""
-	|| $config{shlib_major} eq "" ||  $config{shlib_minor} eq "");
+        || $config{shlib_major} eq "" ||  $config{shlib_minor} eq "");
 
 # Collect target configurations
 
@@ -335,6 +332,7 @@ my @disablables = (
     "autoload-config",
     "bf",
     "blake2",
+    "buildtest-c\\+\\+",
     "camellia",
     "capieng",
     "cast",
@@ -351,7 +349,6 @@ my @disablables = (
     "dgram",
     "dh",
     "dsa",
-    "dso",
     "dtls",
     "dynamic-engine",
     "ec",
@@ -419,70 +416,69 @@ my @disablables = (
     "zlib-dynamic",
     );
 foreach my $proto ((@tls, @dtls))
-	{
-	push(@disablables, $proto);
-	push(@disablables, "$proto-method") unless $proto eq "tls1_3";
-	}
+        {
+        push(@disablables, $proto);
+        push(@disablables, "$proto-method") unless $proto eq "tls1_3";
+        }
 
 my %deprecated_disablables = (
     "ssl2" => undef,
     "buf-freelists" => undef,
     "ripemd" => "rmd160",
     "ui" => "ui-console",
+    "dso" => "",                # Empty string means we're silent about it
     );
 
 # All of the following are disabled by default:
 
 our %disabled = ( # "what"         => "comment"
-		  "asan"		=> "default",
-		  "crypto-mdebug"       => "default",
-		  "crypto-mdebug-backtrace" => "default",
-		  "devcryptoeng"	=> "default",
-		  "ec_nistp_64_gcc_128" => "default",
-		  "egd"                 => "default",
-		  "external-tests"	=> "default",
-		  "fuzz-libfuzzer"	=> "default",
-		  "fuzz-afl"		=> "default",
-		  "heartbeats"          => "default",
-		  "md2"                 => "default",
+                  "asan"                => "default",
+                  "buildtest-c++"       => "default",
+                  "crypto-mdebug"       => "default",
+                  "crypto-mdebug-backtrace" => "default",
+                  "devcryptoeng"        => "default",
+                  "ec_nistp_64_gcc_128" => "default",
+                  "egd"                 => "default",
+                  "external-tests"      => "default",
+                  "fuzz-libfuzzer"      => "default",
+                  "fuzz-afl"            => "default",
+                  "heartbeats"          => "default",
+                  "md2"                 => "default",
                   "msan"                => "default",
-		  "rc5"                 => "default",
-		  "sctp"                => "default",
-		  "ssl-trace"           => "default",
-		  "ssl3"                => "default",
-		  "ssl3-method"         => "default",
-                  "ubsan"		=> "default",
-		  "unit-test"           => "default",
-		  "weak-ssl-ciphers"    => "default",
-		  "zlib"                => "default",
-		  "zlib-dynamic"        => "default",
-		);
+                  "rc5"                 => "default",
+                  "sctp"                => "default",
+                  "ssl-trace"           => "default",
+                  "ssl3"                => "default",
+                  "ssl3-method"         => "default",
+                  "ubsan"               => "default",
+                  "unit-test"           => "default",
+                  "weak-ssl-ciphers"    => "default",
+                  "zlib"                => "default",
+                  "zlib-dynamic"        => "default",
+                );
 
 # Note: => pair form used for aesthetics, not to truly make a hash table
 my @disable_cascades = (
-    # "what"		=> [ "cascade", ... ]
+    # "what"            => [ "cascade", ... ]
     sub { $config{processor} eq "386" }
-			=> [ "sse2" ],
-    "ssl"		=> [ "ssl3" ],
-    "ssl3-method"	=> [ "ssl3" ],
-    "zlib"		=> [ "zlib-dynamic" ],
-    "des"		=> [ "mdc2" ],
-    "ec"		=> [ "ecdsa", "ecdh" ],
+                        => [ "sse2" ],
+    "ssl"               => [ "ssl3" ],
+    "ssl3-method"       => [ "ssl3" ],
+    "zlib"              => [ "zlib-dynamic" ],
+    "des"               => [ "mdc2" ],
+    "ec"                => [ "ecdsa", "ecdh" ],
 
-    "dgram"		=> [ "dtls", "sctp" ],
-    "sock"		=> [ "dgram" ],
-    "dtls"		=> [ @dtls ],
+    "dgram"             => [ "dtls", "sctp" ],
+    "sock"              => [ "dgram" ],
+    "dtls"              => [ @dtls ],
     sub { 0 == scalar grep { !$disabled{$_} } @dtls }
-			=> [ "dtls" ],
+                        => [ "dtls" ],
 
-    "tls"		=> [ @tls ],
+    "tls"               => [ @tls ],
     sub { 0 == scalar grep { !$disabled{$_} } @tls }
-			=> [ "tls" ],
+                        => [ "tls" ],
 
     "crypto-mdebug"     => [ "crypto-mdebug-backtrace" ],
-
-    # Without DSO, we can't load dynamic engines, so don't build them dynamic
-    "dso"               => [ "dynamic-engine" ],
 
     # Without position independent code, there can be no shared libraries or DSOs
     "pic"               => [ "shared" ],
@@ -510,14 +506,14 @@ my @list = (reverse @tls);
 while ((my $first, my $second) = (shift @list, shift @list)) {
     last unless @list;
     push @disable_cascades, ( sub { !$disabled{$first} && $disabled{$second} }
-			      => [ @list ] );
+                              => [ @list ] );
     unshift @list, $second;
 }
 my @list = (reverse @dtls);
 while ((my $first, my $second) = (shift @list, shift @list)) {
     last unless @list;
     push @disable_cascades, ( sub { !$disabled{$first} && $disabled{$second} }
-			      => [ @list ] );
+                              => [ @list ] );
     unshift @list, $second;
 }
 
@@ -544,24 +540,24 @@ my %user = (
     AS          => undef,
     ASFLAGS     => [],
     CC          => env('CC'),
-    CFLAGS      => [],
+    CFLAGS      => [ env('CFLAGS') || () ],
     CXX         => env('CXX'),
-    CXXFLAGS    => [],
+    CXXFLAGS    => [ env('CXXFLAGS') || () ],
     CPP         => undef,
-    CPPFLAGS    => [],  # -D, -I, -Wp,
+    CPPFLAGS    => [ env('CPPFLAGS') || () ],  # -D, -I, -Wp,
     CPPDEFINES  => [],  # Alternative for -D
     CPPINCLUDES => [],  # Alternative for -I
     CROSS_COMPILE => env('CROSS_COMPILE'),
     HASHBANGPERL=> env('HASHBANGPERL') || env('PERL'),
     LD          => undef,
-    LDFLAGS     => [],  # -L, -Wl,
-    LDLIBS      => [],  # -l
+    LDFLAGS     => [ env('LDFLAGS') || () ],  # -L, -Wl,
+    LDLIBS      => [ env('LDLIBS') || () ],  # -l
     MT          => undef,
     MTFLAGS     => [],
     PERL        => env('PERL') || ($^O ne "VMS" ? $^X : "perl"),
     RANLIB      => env('RANLIB'),
     RC          => env('RC') || env('WINDRES'),
-    RCFLAGS     => [],
+    RCFLAGS     => [ env('RCFLAGS') || () ],
     RM          => undef,
    );
 # Info about what "make variables" may be prefixed with the cross compiler
@@ -578,6 +574,7 @@ my %useradd = (
     CXXFLAGS    => [],
     LDFLAGS     => [],
     LDLIBS      => [],
+    RCFLAGS     => [],
    );
 
 my %user_synonyms = (
@@ -625,43 +622,43 @@ my %deprecated_options = ();
 my @known_seed_sources = qw(getrandom devrandom os egd none rdcpu librandom);
 my @seed_sources = ();
 while (@argvcopy)
-	{
-	$_ = shift @argvcopy;
+        {
+        $_ = shift @argvcopy;
 
-	# Support env variable assignments among the options
-	if (m|^(\w+)=(.+)?$|)
-		{
-		$cmdvars{$1} = $2;
-		# Every time a variable is given as a configuration argument,
-		# it acts as a reset if the variable.
-		if (exists $user{$1})
-			{
-			$user{$1} = ref $user{$1} eq "ARRAY" ? [] : undef;
-			}
-		#if (exists $useradd{$1})
-		#	{
-		#	$useradd{$1} = [];
-		#	}
-		next;
-		}
+        # Support env variable assignments among the options
+        if (m|^(\w+)=(.+)?$|)
+                {
+                $cmdvars{$1} = $2;
+                # Every time a variable is given as a configuration argument,
+                # it acts as a reset if the variable.
+                if (exists $user{$1})
+                        {
+                        $user{$1} = ref $user{$1} eq "ARRAY" ? [] : undef;
+                        }
+                #if (exists $useradd{$1})
+                #       {
+                #       $useradd{$1} = [];
+                #       }
+                next;
+                }
 
-	# VMS is a case insensitive environment, and depending on settings
-	# out of our control, we may receive options uppercased.  Let's
-	# downcase at least the part before any equal sign.
-	if ($^O eq "VMS")
-		{
-		s/^([^=]*)/lc($1)/e;
-		}
+        # VMS is a case insensitive environment, and depending on settings
+        # out of our control, we may receive options uppercased.  Let's
+        # downcase at least the part before any equal sign.
+        if ($^O eq "VMS")
+                {
+                s/^([^=]*)/lc($1)/e;
+                }
 
-	# some people just can't read the instructions, clang people have to...
-	s/^-no-(?!integrated-as)/no-/;
+        # some people just can't read the instructions, clang people have to...
+        s/^-no-(?!integrated-as)/no-/;
 
-	# rewrite some options in "enable-..." form
-	s /^-?-?shared$/enable-shared/;
-	s /^sctp$/enable-sctp/;
-	s /^threads$/enable-threads/;
-	s /^zlib$/enable-zlib/;
-	s /^zlib-dynamic$/enable-zlib-dynamic/;
+        # rewrite some options in "enable-..." form
+        s /^-?-?shared$/enable-shared/;
+        s /^sctp$/enable-sctp/;
+        s /^threads$/enable-threads/;
+        s /^zlib$/enable-zlib/;
+        s /^zlib-dynamic$/enable-zlib-dynamic/;
 
         if (/^(no|disable|enable)-(.+)$/)
                 {
@@ -715,21 +712,24 @@ while (@argvcopy)
                         }
                 elsif (exists $deprecated_disablables{$1})
                         {
-                        $deprecated_options{$_} = 1;
-                        if (defined $deprecated_disablables{$1})
+                        if ($deprecated_disablables{$1} ne "")
                                 {
-                                $disabled{$deprecated_disablables{$1}} = "option";
+                                $deprecated_options{$_} = 1;
+                                if (defined $deprecated_disablables{$1})
+                                        {
+                                        $disabled{$deprecated_disablables{$1}} = "option";
+                                        }
                                 }
                         }
                 else
                         {
                         $disabled{$1} = "option";
                         }
-		# No longer an automatic choice
-		$auto_threads = 0 if ($1 eq "threads");
-		}
-	elsif (/^enable-(.+)$/)
-		{
+                # No longer an automatic choice
+                $auto_threads = 0 if ($1 eq "threads");
+                }
+        elsif (/^enable-(.+)$/)
+                {
                 if ($1 eq "static-engine")
                         {
                         $disabled{"dynamic-engine"} = "option";
@@ -742,173 +742,172 @@ while (@argvcopy)
                         {
                         delete $disabled{"zlib"};
                         }
-		my $algo = $1;
-		delete $disabled{$algo};
+                my $algo = $1;
+                delete $disabled{$algo};
 
-		# No longer an automatic choice
-		$auto_threads = 0 if ($1 eq "threads");
-		}
-	elsif (/^--strict-warnings$/)
-		{
-		$strict_warnings = 1;
-		}
-	elsif (/^--debug$/)
-		{
-		$config{build_type} = "debug";
-		}
-	elsif (/^--release$/)
-		{
-		$config{build_type} = "release";
-		}
-	elsif (/^386$/)
-		{ $config{processor}=386; }
-	elsif (/^fips$/)
-		{
-		die "FIPS mode not supported\n";
-		}
-	elsif (/^rsaref$/)
-		{
-		# No RSAref support any more since it's not needed.
-		# The check for the option is there so scripts aren't
-		# broken
-		}
-	elsif (/^nofipscanistercheck$/)
-		{
-		die "FIPS mode not supported\n";
-		}
-	elsif (/^[-+]/)
-		{
-		if (/^--prefix=(.*)$/)
-			{
-			$config{prefix}=$1;
-			die "Directory given with --prefix MUST be absolute\n"
-				unless file_name_is_absolute($config{prefix});
-			}
-		elsif (/^--api=(.*)$/)
-			{
-			$config{api}=$1;
-			}
-		elsif (/^--libdir=(.*)$/)
-			{
-			$config{libdir}=$1;
-			}
-		elsif (/^--openssldir=(.*)$/)
-			{
-			$config{openssldir}=$1;
-			}
-		elsif (/^--with-zlib-lib=(.*)$/)
-			{
-			$withargs{zlib_lib}=$1;
-			}
-		elsif (/^--with-zlib-include=(.*)$/)
-			{
-			$withargs{zlib_include}=$1;
-			}
-		elsif (/^--with-fuzzer-lib=(.*)$/)
-			{
-			$withargs{fuzzer_lib}=$1;
-			}
-		elsif (/^--with-fuzzer-include=(.*)$/)
-			{
-			$withargs{fuzzer_include}=$1;
-			}
-		elsif (/^--with-rand-seed=(.*)$/)
-			{
-			foreach my $x (split(m|,|, $1))
-			    {
-			    die "Unknown --with-rand-seed choice $x\n"
-				if ! grep { $x eq $_ } @known_seed_sources;
-			    push @seed_sources, $x;
-			    }
+                # No longer an automatic choice
+                $auto_threads = 0 if ($1 eq "threads");
+                }
+        elsif (/^--strict-warnings$/)
+                {
+                # Pretend that our strict flags is a C flag, and replace it
+                # with the proper flags later on
+                push @{$useradd{CFLAGS}}, '--ossl-strict-warnings';
+                $strict_warnings=1;
+                }
+        elsif (/^--debug$/)
+                {
+                $config{build_type} = "debug";
+                }
+        elsif (/^--release$/)
+                {
+                $config{build_type} = "release";
+                }
+        elsif (/^386$/)
+                { $config{processor}=386; }
+        elsif (/^fips$/)
+                {
+                die "FIPS mode not supported\n";
+                }
+        elsif (/^rsaref$/)
+                {
+                # No RSAref support any more since it's not needed.
+                # The check for the option is there so scripts aren't
+                # broken
+                }
+        elsif (/^nofipscanistercheck$/)
+                {
+                die "FIPS mode not supported\n";
+                }
+        elsif (/^[-+]/)
+                {
+                if (/^--prefix=(.*)$/)
+                        {
+                        $config{prefix}=$1;
+                        die "Directory given with --prefix MUST be absolute\n"
+                                unless file_name_is_absolute($config{prefix});
                         }
-		elsif (/^--cross-compile-prefix=(.*)$/)
-			{
-			$user{CROSS_COMPILE}=$1;
-			}
-		elsif (/^--config=(.*)$/)
-			{
-			read_config $1;
-			}
-		elsif (/^-l(.*)$/)
-			{
-			push @{$useradd{LDLIBS}}, $_;
-			}
-		elsif (/^-framework$/)
-			{
-			push @{$useradd{LDLIBS}}, $_, shift(@argvcopy);
-			}
-		elsif (/^-L(.*)$/ or /^-Wl,/)
-			{
-			push @{$useradd{LDFLAGS}}, $_;
-			}
-		elsif (/^-rpath$/ or /^-R$/)
-			# -rpath is the OSF1 rpath flag
-			# -R is the old Solaris rpath flag
-			{
-			my $rpath = shift(@argvcopy) || "";
-			$rpath .= " " if $rpath ne "";
-			push @{$useradd{LDFLAGS}}, $_, $rpath;
-			}
-		elsif (/^-static$/)
-			{
-			push @{$useradd{LDFLAGS}}, $_;
-			$disabled{"dso"} = "forced";
-			$disabled{"pic"} = "forced";
-			$disabled{"shared"} = "forced";
-			$disabled{"threads"} = "forced";
-			}
-		elsif (/^-D(.*)$/)
-			{
-			push @{$useradd{CPPDEFINES}}, $1;
-			}
-		elsif (/^-I(.*)$/)
-			{
-			push @{$useradd{CPPINCLUDES}}, $1;
-			}
-		elsif (/^-Wp,$/)
-			{
-			push @{$useradd{CPPFLAGS}}, $1;
-			}
-		else	# common if (/^[-+]/), just pass down...
-			{
-			$_ =~ s/%([0-9a-f]{1,2})/chr(hex($1))/gei;
-			push @{$useradd{CFLAGS}}, $_;
-			push @{$useradd{CXXFLAGS}}, $_;
-			}
-		}
-	else
-		{
-		die "target already defined - $target (offending arg: $_)\n" if ($target ne "");
-		$target=$_;
-		}
-	unless ($_ eq $target || /^no-/ || /^disable-/)
-		{
-		# "no-..." follows later after implied deactivations
-		# have been derived.  (Don't take this too seriously,
-		# we really only write OPTIONS to the Makefile out of
-		# nostalgia.)
+                elsif (/^--api=(.*)$/)
+                        {
+                        $config{api}=$1;
+                        }
+                elsif (/^--libdir=(.*)$/)
+                        {
+                        $config{libdir}=$1;
+                        }
+                elsif (/^--openssldir=(.*)$/)
+                        {
+                        $config{openssldir}=$1;
+                        }
+                elsif (/^--with-zlib-lib=(.*)$/)
+                        {
+                        $withargs{zlib_lib}=$1;
+                        }
+                elsif (/^--with-zlib-include=(.*)$/)
+                        {
+                        $withargs{zlib_include}=$1;
+                        }
+                elsif (/^--with-fuzzer-lib=(.*)$/)
+                        {
+                        $withargs{fuzzer_lib}=$1;
+                        }
+                elsif (/^--with-fuzzer-include=(.*)$/)
+                        {
+                        $withargs{fuzzer_include}=$1;
+                        }
+                elsif (/^--with-rand-seed=(.*)$/)
+                        {
+                        foreach my $x (split(m|,|, $1))
+                            {
+                            die "Unknown --with-rand-seed choice $x\n"
+                                if ! grep { $x eq $_ } @known_seed_sources;
+                            push @seed_sources, $x;
+                            }
+                        }
+                elsif (/^--cross-compile-prefix=(.*)$/)
+                        {
+                        $user{CROSS_COMPILE}=$1;
+                        }
+                elsif (/^--config=(.*)$/)
+                        {
+                        read_config $1;
+                        }
+                elsif (/^-l(.*)$/)
+                        {
+                        push @{$useradd{LDLIBS}}, $_;
+                        }
+                elsif (/^-framework$/)
+                        {
+                        push @{$useradd{LDLIBS}}, $_, shift(@argvcopy);
+                        }
+                elsif (/^-L(.*)$/ or /^-Wl,/)
+                        {
+                        push @{$useradd{LDFLAGS}}, $_;
+                        }
+                elsif (/^-rpath$/ or /^-R$/)
+                        # -rpath is the OSF1 rpath flag
+                        # -R is the old Solaris rpath flag
+                        {
+                        my $rpath = shift(@argvcopy) || "";
+                        $rpath .= " " if $rpath ne "";
+                        push @{$useradd{LDFLAGS}}, $_, $rpath;
+                        }
+                elsif (/^-static$/)
+                        {
+                        push @{$useradd{LDFLAGS}}, $_;
+                        }
+                elsif (/^-D(.*)$/)
+                        {
+                        push @{$useradd{CPPDEFINES}}, $1;
+                        }
+                elsif (/^-I(.*)$/)
+                        {
+                        push @{$useradd{CPPINCLUDES}}, $1;
+                        }
+                elsif (/^-Wp,$/)
+                        {
+                        push @{$useradd{CPPFLAGS}}, $1;
+                        }
+                else    # common if (/^[-+]/), just pass down...
+                        {
+                        $_ =~ s/%([0-9a-f]{1,2})/chr(hex($1))/gei;
+                        push @{$useradd{CFLAGS}}, $_;
+                        push @{$useradd{CXXFLAGS}}, $_;
+                        }
+                }
+        else
+                {
+                die "target already defined - $target (offending arg: $_)\n" if ($target ne "");
+                $target=$_;
+                }
+        unless ($_ eq $target || /^no-/ || /^disable-/)
+                {
+                # "no-..." follows later after implied deactivations
+                # have been derived.  (Don't take this too seriously,
+                # we really only write OPTIONS to the Makefile out of
+                # nostalgia.)
 
-		if ($config{options} eq "")
-			{ $config{options} = $_; }
-		else
-			{ $config{options} .= " ".$_; }
-		}
-	}
+                if ($config{options} eq "")
+                        { $config{options} = $_; }
+                else
+                        { $config{options} .= " ".$_; }
+                }
+        }
 
 if (defined($config{api}) && !exists $apitable->{$config{api}}) {
-	die "***** Unsupported api compatibility level: $config{api}\n",
+        die "***** Unsupported api compatibility level: $config{api}\n",
 }
 
 if (keys %deprecated_options)
-	{
-	warn "***** Deprecated options: ",
-		join(", ", keys %deprecated_options), "\n";
-	}
+        {
+        warn "***** Deprecated options: ",
+                join(", ", keys %deprecated_options), "\n";
+        }
 if (keys %unsupported_options)
-	{
-	die "***** Unsupported options: ",
-		join(", ", keys %unsupported_options), "\n";
-	}
+        {
+        die "***** Unsupported options: ",
+                join(", ", keys %unsupported_options), "\n";
+        }
 
 # If any %useradd entry has been set, we must check that the "make
 # variables" haven't been set.  We start by checking of any %useradd entry
@@ -964,36 +963,46 @@ if (grep { /-rpath\b/ } ($user{LDFLAGS} ? @{$user{LDFLAGS}} : ())
     && !$disabled{shared}
     && !($disabled{asan} && $disabled{msan} && $disabled{ubsan})) {
     die "***** Cannot simultaneously use -rpath, shared libraries, and\n",
-	"***** any of asan, msan or ubsan\n";
+        "***** any of asan, msan or ubsan\n";
 }
 
-my @tocheckfor = (keys %disabled);
-while (@tocheckfor) {
-    my %new_tocheckfor = ();
-    my @cascade_copy = (@disable_cascades);
-    while (@cascade_copy) {
-	my ($test, $descendents) = (shift @cascade_copy, shift @cascade_copy);
-	if (ref($test) eq "CODE" ? $test->() : defined($disabled{$test})) {
-	    foreach(grep { !defined($disabled{$_}) } @$descendents) {
-		$new_tocheckfor{$_} = 1; $disabled{$_} = "forced";
-	    }
-	}
+sub disable {
+    my $disable_type = shift;
+
+    for (@_) {
+        $disabled{$_} = $disable_type;
     }
-    @tocheckfor = (keys %new_tocheckfor);
+
+    my @tocheckfor = (@_ ? @_ : keys %disabled);
+    while (@tocheckfor) {
+        my %new_tocheckfor = ();
+        my @cascade_copy = (@disable_cascades);
+        while (@cascade_copy) {
+            my ($test, $descendents) =
+                (shift @cascade_copy, shift @cascade_copy);
+            if (ref($test) eq "CODE" ? $test->() : defined($disabled{$test})) {
+                foreach (grep { !defined($disabled{$_}) } @$descendents) {
+                    $new_tocheckfor{$_} = 1; $disabled{$_} = "cascade";
+                }
+            }
+        }
+        @tocheckfor = (keys %new_tocheckfor);
+    }
 }
+disable();                     # First cascade run
 
 our $die = sub { die @_; };
 if ($target eq "TABLE") {
     local $die = sub { warn @_; };
     foreach (sort keys %table) {
-	print_table_entry($_, "TABLE");
+        print_table_entry($_, "TABLE");
     }
     exit 0;
 }
 
 if ($target eq "LIST") {
     foreach (sort keys %table) {
-	print $_,"\n" unless $table{$_}->{template};
+        print $_,"\n" unless $table{$_}->{template};
     }
     exit 0;
 }
@@ -1002,7 +1011,7 @@ if ($target eq "HASH") {
     local $die = sub { warn @_; };
     print "%table = (\n";
     foreach (sort keys %table) {
-	print_table_entry($_, "HASH");
+        print_table_entry($_, "HASH");
     }
     exit 0;
 }
@@ -1033,7 +1042,7 @@ _____
 }
 push @{$config{openssl_other_defines}},
      map { (my $x = $_) =~ tr|[\-a-z]|[_A-Z]|; "OPENSSL_RAND_SEED_$x" }
-	@seed_sources;
+        @seed_sources;
 
 # Backward compatibility?
 if ($target =~ m/^CygWin32(-.*)$/) {
@@ -1047,7 +1056,7 @@ if ($d) {
 
     # If we do not find debug-foo in the table, the target is set to foo.
     if (!$table{$target}) {
-	$target = $t;
+        $target = $t;
     }
 }
 
@@ -1064,47 +1073,11 @@ foreach (keys %target_attr_translate) {
 
 %target = ( %{$table{DEFAULTS}}, %target );
 
-# Make the flags to build DSOs the same as for shared libraries unless they
-# are already defined
-$target{module_cflags} = $target{shared_cflag} unless defined $target{module_cflags};
-$target{module_cxxflags} = $target{shared_cxxflag} unless defined $target{module_cxxflags};
-$target{module_ldflags} = $target{shared_ldflag} unless defined $target{module_ldflags};
-{
-    my $shared_info_pl =
-        catfile(dirname($0), "Configurations", "shared-info.pl");
-    my %shared_info = read_eval_file($shared_info_pl);
-    push @{$target{_conf_fname_int}}, $shared_info_pl;
-    my $si = $target{shared_target};
-    while (ref $si ne "HASH") {
-        last if ! defined $si;
-        if (ref $si eq "CODE") {
-            $si = $si->();
-        } else {
-            $si = $shared_info{$si};
-        }
-    }
-
-    # Some of the 'shared_target' values don't have any entried in
-    # %shared_info.  That's perfectly fine, AS LONG AS the build file
-    # template knows how to handle this.  That is currently the case for
-    # Windows and VMS.
-    if (defined $si) {
-        # Just as above, copy certain shared_* attributes to the corresponding
-        # module_ attribute unless the latter is already defined
-        $si->{module_cflags} = $si->{shared_cflag} unless defined $si->{module_cflags};
-        $si->{module_cxxflags} = $si->{shared_cxxflag} unless defined $si->{module_cxxflags};
-        $si->{module_ldflags} = $si->{shared_ldflag} unless defined $si->{module_ldflags};
-        foreach (sort keys %$si) {
-            $target{$_} = defined $target{$_}
-                ? add($si->{$_})->($target{$_})
-                : $si->{$_};
-        }
-    }
-}
-
 my %conf_files = map { $_ => 1 } (@{$target{_conf_fname_int}});
 $config{conf_files} = [ sort keys %conf_files ];
 
+# Using sub disable within these loops may prove fragile, so we run
+# a cascade afterwards
 foreach my $feature (@{$target{disable}}) {
     if (exists $deprecated_disablables{$feature}) {
         warn "***** config $target disables deprecated feature $feature\n";
@@ -1123,6 +1096,7 @@ foreach my $feature (@{$target{enable}}) {
         delete $disabled{$feature};
     }
 }
+disable();                      # Run a cascade now
 
 $target{CXXFLAGS}//=$target{CFLAGS} if $target{CXX};
 $target{cxxflags}//=$target{cflags} if $target{CXX};
@@ -1172,6 +1146,22 @@ foreach (keys %user) {
     delete $config{$_} unless defined $config{$_};
 }
 
+# Finish up %config by appending things the user gave us on the command line
+# apart from "make variables"
+foreach (keys %useradd) {
+    # The must all be lists, so we assert that here
+    die "internal error: \$useradd{$_} isn't an ARRAY\n"
+        unless ref $useradd{$_} eq 'ARRAY';
+
+    if (defined $config{$_}) {
+        push @{$config{$_}}, @{$useradd{$_}};
+    } else {
+        $config{$_} = [ @{$useradd{$_}} ];
+    }
+}
+# At this point, we can forget everything about %user and %useradd,
+# because it's now all been merged into the corresponding $config entry
+
 # Allow overriding the build file name
 $config{build_file} = env('BUILDFILE') || $target{build_file} || "Makefile";
 
@@ -1179,7 +1169,7 @@ my %disabled_info = ();         # For configdata.pm
 foreach my $what (sort keys %disabled) {
     $config{options} .= " no-$what";
 
-    if (!grep { $what eq $_ } ( 'dso', 'threads', 'shared', 'pic',
+    if (!grep { $what eq $_ } ( 'buildtest-c++', 'threads', 'shared', 'pic',
                                 'dynamic-engine', 'makedepend',
                                 'zlib-dynamic', 'zlib', 'sse2' )) {
         (my $WHAT = uc $what) =~ s|-|_|g;
@@ -1241,21 +1231,20 @@ foreach my $checker (($builder_platform."-".$target{build_file}."-checker.pm",
 push @{$config{defines}}, "NDEBUG"    if $config{build_type} eq "release";
 
 if ($target =~ /^mingw/ && `$config{CC} --target-help 2>&1` =~ m/-mno-cygwin/m)
-	{
-	push @{$config{cflags}}, "-mno-cygwin";
-	push @{$config{cxxflags}}, "-mno-cygwin" if $config{CXX};
-	push @{$config{shared_ldflag}}, "-mno-cygwin";
-	}
+        {
+        push @{$config{cflags}}, "-mno-cygwin";
+        push @{$config{cxxflags}}, "-mno-cygwin" if $config{CXX};
+        push @{$config{shared_ldflag}}, "-mno-cygwin";
+        }
 
 if ($target =~ /linux.*-mips/ && !$disabled{asm}
-        && !grep { $_ !~ /-m(ips|arch=)/ } (@{$user{CFLAGS}},
-                                            @{$useradd{CFLAGS}})) {
-	# minimally required architecture flags for assembly modules
-	my $value;
-	$value = '-mips2' if ($target =~ /mips32/);
-	$value = '-mips3' if ($target =~ /mips64/);
-	unshift @{$config{cflags}}, $value;
-	unshift @{$config{cxxflags}}, $value if $config{CXX};
+        && !grep { $_ !~ /-m(ips|arch=)/ } (@{$config{CFLAGS}})) {
+        # minimally required architecture flags for assembly modules
+        my $value;
+        $value = '-mips2' if ($target =~ /mips32/);
+        $value = '-mips3' if ($target =~ /mips64/);
+        unshift @{$config{cflags}}, $value;
+        unshift @{$config{cxxflags}}, $value if $config{CXX};
 }
 
 # If threads aren't disabled, check how possible they are
@@ -1263,7 +1252,7 @@ unless ($disabled{threads}) {
     if ($auto_threads) {
         # Enabled by default, disable it forcibly if unavailable
         if ($target{thread_scheme} eq "(unknown)") {
-            $disabled{threads} = "unavailable";
+            disable("unavailable", 'threads');
         }
     } else {
         # The user chose to enable threads explicitly, let's see
@@ -1274,8 +1263,7 @@ unless ($disabled{threads}) {
             # system-dependent compiler options that are necessary.  We
             # can't truly check that the given options are correct, but
             # we expect the user to know what [s]He is doing.
-            if (!@{$user{CFLAGS}} && !@{$useradd{CFLAGS}}
-                    && !@{$user{CPPDEFINES}} && !@{$useradd{CPPDEFINES}}) {
+            if (!@{$config{CFLAGS}} && !@{$config{CPPDEFINES}}) {
                 die "You asked for multi-threading support, but didn't\n"
                     ,"provide any system-specific compiler options\n";
             }
@@ -1296,13 +1284,11 @@ if (defined($disabled{"deprecated"})) {
 
 my $no_shared_warn=0;
 if ($target{shared_target} eq "")
-	{
-	$no_shared_warn = 1
-	    if (!$disabled{shared} || !$disabled{"dynamic-engine"});
-	$disabled{shared} = "no-shared-target";
-	$disabled{pic} = $disabled{shared} = $disabled{"dynamic-engine"} =
-	    "no-shared-target";
-	}
+        {
+        $no_shared_warn = 1
+            if (!$disabled{shared} || !$disabled{"dynamic-engine"});
+        disable('no-shared-target', 'pic');
+        }
 
 if ($disabled{"dynamic-engine"}) {
         push @{$config{openssl_other_defines}}, "OPENSSL_NO_DYNAMIC_ENGINE";
@@ -1314,20 +1300,16 @@ if ($disabled{"dynamic-engine"}) {
 
 unless ($disabled{asan}) {
     push @{$config{cflags}}, "-fsanitize=address";
-    push @{$config{cxxflags}}, "-fsanitize=address" if $config{CXX};
 }
 
 unless ($disabled{ubsan}) {
     # -DPEDANTIC or -fnosanitize=alignment may also be required on some
     # platforms.
     push @{$config{cflags}}, "-fsanitize=undefined", "-fno-sanitize-recover=all";
-    push @{$config{cxxflags}}, "-fsanitize=undefined", "-fno-sanitize-recover=all"
-        if $config{CXX};
 }
 
 unless ($disabled{msan}) {
   push @{$config{cflags}}, "-fsanitize=memory";
-  push @{$config{cxxflags}}, "-fsanitize=memory" if $config{CXX};
 }
 
 unless ($disabled{"fuzz-libfuzzer"} && $disabled{"fuzz-afl"}
@@ -1341,25 +1323,25 @@ unless ($disabled{"fuzz-libfuzzer"} && $disabled{"fuzz-afl"}
 
 # This saves the build files from having to check
 if ($disabled{pic})
-	{
-	foreach (qw(shared_cflag shared_cxxflag shared_cppflag
-		    shared_defines shared_includes shared_ldflag
-		    module_cflags module_cxxflags module_cppflags
-		    module_defines module_includes module_lflags))
-		{
-		delete $config{$_};
-		$target{$_} = "";
-		}
-	}
+        {
+        foreach (qw(shared_cflag shared_cxxflag shared_cppflag
+                    shared_defines shared_includes shared_ldflag
+                    module_cflags module_cxxflags module_cppflags
+                    module_defines module_includes module_lflags))
+                {
+                delete $config{$_};
+                $target{$_} = "";
+                }
+        }
 else
-	{
-	push @{$config{lib_defines}}, "OPENSSL_PIC";
-	}
+        {
+        push @{$config{lib_defines}}, "OPENSSL_PIC";
+        }
 
 if ($target{sys_id} ne "")
-	{
-	push @{$config{openssl_sys_defines}}, "OPENSSL_SYS_$target{sys_id}";
-	}
+        {
+        push @{$config{openssl_sys_defines}}, "OPENSSL_SYS_$target{sys_id}";
+        }
 
 unless ($disabled{asm}) {
     $target{cpuid_asm_src}=$table{DEFAULTS}->{cpuid_asm_src} if ($config{processor} eq "386");
@@ -1377,59 +1359,62 @@ unless ($disabled{asm}) {
     push @{$config{lib_defines}}, "BN_DIV3W" if ($target{bn_asm_src} =~ /-div3w/);
 
     if ($target{sha1_asm_src}) {
-	push @{$config{lib_defines}}, "SHA1_ASM"   if ($target{sha1_asm_src} =~ /sx86/ || $target{sha1_asm_src} =~ /sha1/);
-	push @{$config{lib_defines}}, "SHA256_ASM" if ($target{sha1_asm_src} =~ /sha256/);
-	push @{$config{lib_defines}}, "SHA512_ASM" if ($target{sha1_asm_src} =~ /sha512/);
+        push @{$config{lib_defines}}, "SHA1_ASM"   if ($target{sha1_asm_src} =~ /sx86/ || $target{sha1_asm_src} =~ /sha1/);
+        push @{$config{lib_defines}}, "SHA256_ASM" if ($target{sha1_asm_src} =~ /sha256/);
+        push @{$config{lib_defines}}, "SHA512_ASM" if ($target{sha1_asm_src} =~ /sha512/);
     }
     if ($target{keccak1600_asm_src} ne $table{DEFAULTS}->{keccak1600_asm_src}) {
-	push @{$config{lib_defines}}, "KECCAK1600_ASM";
+        push @{$config{lib_defines}}, "KECCAK1600_ASM";
     }
     if ($target{rc4_asm_src} ne $table{DEFAULTS}->{rc4_asm_src}) {
-	push @{$config{lib_defines}}, "RC4_ASM";
+        push @{$config{lib_defines}}, "RC4_ASM";
     }
     if ($target{md5_asm_src}) {
-	push @{$config{lib_defines}}, "MD5_ASM";
+        push @{$config{lib_defines}}, "MD5_ASM";
     }
     $target{cast_asm_src}=$table{DEFAULTS}->{cast_asm_src} unless $disabled{pic}; # CAST assembler is not PIC
     if ($target{rmd160_asm_src}) {
-	push @{$config{lib_defines}}, "RMD160_ASM";
+        push @{$config{lib_defines}}, "RMD160_ASM";
     }
     if ($target{aes_asm_src}) {
-	push @{$config{lib_defines}}, "AES_ASM" if ($target{aes_asm_src} =~ m/\baes-/);;
-	# aes-ctr.fake is not a real file, only indication that assembler
-	# module implements AES_ctr32_encrypt...
-	push @{$config{lib_defines}}, "AES_CTR_ASM" if ($target{aes_asm_src} =~ s/\s*aes-ctr\.fake//);
-	# aes-xts.fake indicates presence of AES_xts_[en|de]crypt...
-	push @{$config{lib_defines}}, "AES_XTS_ASM" if ($target{aes_asm_src} =~ s/\s*aes-xts\.fake//);
-	$target{aes_asm_src} =~ s/\s*(vpaes|aesni)-x86\.s//g if ($disabled{sse2});
-	push @{$config{lib_defines}}, "VPAES_ASM" if ($target{aes_asm_src} =~ m/vpaes/);
-	push @{$config{lib_defines}}, "BSAES_ASM" if ($target{aes_asm_src} =~ m/bsaes/);
+        push @{$config{lib_defines}}, "AES_ASM" if ($target{aes_asm_src} =~ m/\baes-/);;
+        # aes-ctr.fake is not a real file, only indication that assembler
+        # module implements AES_ctr32_encrypt...
+        push @{$config{lib_defines}}, "AES_CTR_ASM" if ($target{aes_asm_src} =~ s/\s*aes-ctr\.fake//);
+        # aes-xts.fake indicates presence of AES_xts_[en|de]crypt...
+        push @{$config{lib_defines}}, "AES_XTS_ASM" if ($target{aes_asm_src} =~ s/\s*aes-xts\.fake//);
+        $target{aes_asm_src} =~ s/\s*(vpaes|aesni)-x86\.s//g if ($disabled{sse2});
+        push @{$config{lib_defines}}, "VPAES_ASM" if ($target{aes_asm_src} =~ m/vpaes/);
+        push @{$config{lib_defines}}, "BSAES_ASM" if ($target{aes_asm_src} =~ m/bsaes/);
     }
     if ($target{wp_asm_src} =~ /mmx/) {
         if ($config{processor} eq "386") {
-	    $target{wp_asm_src}=$table{DEFAULTS}->{wp_asm_src};
-	} elsif (!$disabled{"whirlpool"}) {
-	    push @{$config{lib_defines}}, "WHIRLPOOL_ASM";
-	}
+            $target{wp_asm_src}=$table{DEFAULTS}->{wp_asm_src};
+        } elsif (!$disabled{"whirlpool"}) {
+            push @{$config{lib_defines}}, "WHIRLPOOL_ASM";
+        }
     }
     if ($target{modes_asm_src} =~ /ghash-/) {
-	push @{$config{lib_defines}}, "GHASH_ASM";
+        push @{$config{lib_defines}}, "GHASH_ASM";
     }
     if ($target{ec_asm_src} =~ /ecp_nistz256/) {
-	push @{$config{lib_defines}}, "ECP_NISTZ256_ASM";
+        push @{$config{lib_defines}}, "ECP_NISTZ256_ASM";
     }
     if ($target{ec_asm_src} =~ /x25519/) {
-	push @{$config{lib_defines}}, "X25519_ASM";
+        push @{$config{lib_defines}}, "X25519_ASM";
     }
     if ($target{padlock_asm_src} ne $table{DEFAULTS}->{padlock_asm_src}) {
-	push @{$config{lib_defines}}, "PADLOCK_ASM";
+        push @{$config{dso_defines}}, "PADLOCK_ASM";
     }
     if ($target{poly1305_asm_src} ne "") {
-	push @{$config{lib_defines}}, "POLY1305_ASM";
+        push @{$config{lib_defines}}, "POLY1305_ASM";
     }
 }
 
-my %predefined = compiler_predefined($config{CROSS_COMPILE}.$config{CC});
+my %predefined_C = compiler_predefined($config{CROSS_COMPILE}.$config{CC});
+my %predefined_CXX = $config{CXX}
+    ? compiler_predefined($config{CROSS_COMPILE}.$config{CXX})
+    : ();
 
 # Check for makedepend capabilities.
 if (!$disabled{makedepend}) {
@@ -1437,8 +1422,8 @@ if (!$disabled{makedepend}) {
         # For VC- and vms- targets, there's nothing more to do here.  The
         # functionality is hard coded in the corresponding build files for
         # cl (Windows) and CC/DECC (VMS).
-    } elsif (($predefined{__GNUC__} // -1) >= 3
-	     && !($predefined{__APPLE_CC__} && !$predefined{__clang__})) {
+    } elsif (($predefined_C{__GNUC__} // -1) >= 3
+             && !($predefined_C{__APPLE_CC__} && !$predefined_C{__clang__})) {
         # We know that GNU C version 3 and up as well as all clang
         # versions support dependency generation, but Xcode did not
         # handle $cc -M before clang support (but claims __GNUC__ = 3)
@@ -1447,13 +1432,13 @@ if (!$disabled{makedepend}) {
         # In all other cases, we look for 'makedepend', and disable the
         # capability if not found.
         $config{makedepprog} = which('makedepend');
-        $disabled{makedepend} = "unavailable" unless $config{makedepprog};
+        disable('unavailable', 'makedepend') unless $config{makedepprog};
     }
 }
 
-if (!$disabled{asm} && !$predefined{__MACH__} && $^O ne 'VMS') {
+if (!$disabled{asm} && !$predefined_C{__MACH__} && $^O ne 'VMS') {
     # probe for -Wa,--noexecstack option...
-    if ($predefined{__clang__}) {
+    if ($predefined_C{__clang__}) {
         # clang has builtin assembler, which doesn't recognize --help,
         # but it apparently recognizes the option in question on all
         # supported platforms even when it's meaningless. In other words
@@ -1475,24 +1460,24 @@ if (!$disabled{asm} && !$predefined{__MACH__} && $^O ne 'VMS') {
 
 # Deal with bn_ops ###################################################
 
-$config{bn_ll}			=0;
-$config{export_var_as_fn}	=0;
+$config{bn_ll}                  =0;
+$config{export_var_as_fn}       =0;
 my $def_int="unsigned int";
-$config{rc4_int}		=$def_int;
+$config{rc4_int}                =$def_int;
 ($config{b64l},$config{b64},$config{b32})=(0,0,1);
 
 my $count = 0;
 foreach (sort split(/\s+/,$target{bn_ops})) {
     $count++ if /SIXTY_FOUR_BIT|SIXTY_FOUR_BIT_LONG|THIRTY_TWO_BIT/;
     $config{export_var_as_fn}=1                 if $_ eq 'EXPORT_VAR_AS_FN';
-    $config{bn_ll}=1				if $_ eq 'BN_LLONG';
-    $config{rc4_int}="unsigned char"		if $_ eq 'RC4_CHAR';
+    $config{bn_ll}=1                            if $_ eq 'BN_LLONG';
+    $config{rc4_int}="unsigned char"            if $_ eq 'RC4_CHAR';
     ($config{b64l},$config{b64},$config{b32})
-	=(0,1,0)				if $_ eq 'SIXTY_FOUR_BIT';
+        =(0,1,0)                                if $_ eq 'SIXTY_FOUR_BIT';
     ($config{b64l},$config{b64},$config{b32})
-	=(1,0,0)				if $_ eq 'SIXTY_FOUR_BIT_LONG';
+        =(1,0,0)                                if $_ eq 'SIXTY_FOUR_BIT_LONG';
     ($config{b64l},$config{b64},$config{b32})
-	=(0,0,1)				if $_ eq 'THIRTY_TWO_BIT';
+        =(0,0,1)                                if $_ eq 'THIRTY_TWO_BIT';
 }
 die "Exactly one of SIXTY_FOUR_BIT|SIXTY_FOUR_BIT_LONG|THIRTY_TWO_BIT can be set in bn_ops\n"
     if $count > 1;
@@ -1513,49 +1498,40 @@ if (defined($config{api})) {
     push @{$config{defines}}, $apiflag;
 }
 
+my @strict_warnings_collection=();
 if ($strict_warnings)
-	{
-	my $wopt;
-	my $gccver = $predefined{__GNUC__} // -1;
+        {
+        my $wopt;
+        my $gccver = $predefined_C{__GNUC__} // -1;
 
-	die "ERROR --strict-warnings requires gcc[>=4] or gcc-alike"
+        warn "WARNING --strict-warnings requires gcc[>=4] or gcc-alike"
             unless $gccver >= 4;
-	foreach $wopt (split /\s+/, $gcc_devteam_warn)
-		{
-		push @{$config{cflags}}, $wopt
-			unless grep { $_ eq $wopt } @{$config{cflags}};
-		push @{$config{cxxflags}}, $wopt
-			if ($config{CXX}
-			    && !grep { $_ eq $wopt } @{$config{cxxflags}});
-		}
-	if (defined($predefined{__clang__}))
-		{
-		foreach $wopt (split /\s+/, $clang_devteam_warn)
-			{
-			push @{$config{cflags}}, $wopt
-				unless grep { $_ eq $wopt } @{$config{cflags}};
-			push @{$config{cxxflags}}, $wopt
-				if ($config{CXX}
-				    && !grep { $_ eq $wopt } @{$config{cxxflags}});
-			}
-		}
-	}
+        push @strict_warnings_collection, @gcc_devteam_warn;
+        push @strict_warnings_collection, @clang_devteam_warn
+            if (defined($predefined_C{__clang__}));
+        }
+
+if (grep { $_ eq '-static' } @{$config{LDFLAGS}}) {
+    disable('static', 'pic', 'threads');
+}
+
+$config{CFLAGS} = [ map { $_ eq '--ossl-strict-warnings'
+                              ? @strict_warnings_collection
+                              : ( $_ ) }
+                    @{$config{CFLAGS}} ];
 
 unless ($disabled{"crypto-mdebug-backtrace"})
-	{
-	foreach my $wopt (split /\s+/, $memleak_devteam_backtrace)
-		{
-		push @{$config{cflags}}, $wopt
-			unless grep { $_ eq $wopt } @{$config{cflags}};
-		push @{$config{cxxflags}}, $wopt
-			if ($config{CXX}
-			    && !grep { $_ eq $wopt } @{$config{cxxflags}});
-		}
-	if ($target =~ /^BSD-/)
-		{
-		push @{$config{ex_libs}}, "-lexecinfo";
-		}
-	}
+        {
+        foreach my $wopt (split /\s+/, $memleak_devteam_backtrace)
+                {
+                push @{$config{cflags}}, $wopt
+                        unless grep { $_ eq $wopt } @{$config{cflags}};
+                }
+        if ($target =~ /^BSD-/)
+                {
+                push @{$config{ex_libs}}, "-lexecinfo";
+                }
+        }
 
 unless ($disabled{afalgeng}) {
     $config{afalgeng}="";
@@ -1567,35 +1543,62 @@ unless ($disabled{afalgeng}) {
             ($mi2) = $mi2 =~ /(\d+)/;
             my $ver = $ma*10000 + $mi1*100 + $mi2;
             if ($ver < $minver) {
-                $disabled{afalgeng} = "too-old-kernel";
+                disable('too-old-kernel', 'afalgeng');
             } else {
                 push @{$config{engdirs}}, "afalg";
             }
         } else {
-            $disabled{afalgeng} = "cross-compiling";
+            disable('cross-compiling', 'afalgeng');
         }
     } else {
-        $disabled{afalgeng}  = "not-linux";
+        disable('not-linux', 'afalgeng');
     }
 }
 
 push @{$config{openssl_other_defines}}, "OPENSSL_NO_AFALGENG" if ($disabled{afalgeng});
 
-# Finish up %config by appending things the user gave us on the command line
-# apart from "make variables"
-foreach (keys %useradd) {
-    # The must all be lists, so we assert that here
-    die "internal error: \$useradd{$_} isn't an ARRAY\n"
-        unless ref $useradd{$_} eq 'ARRAY';
+# Get the extra flags used when building shared libraries and modules.  We
+# do this late because some of them depend on %disabled.
 
-    if (defined $config{$_}) {
-        push @{$config{$_}}, @{$useradd{$_}};
-    } else {
-        $config{$_} = [ @{$useradd{$_}} ];
+# Make the flags to build DSOs the same as for shared libraries unless they
+# are already defined
+$target{module_cflags} = $target{shared_cflag} unless defined $target{module_cflags};
+$target{module_cxxflags} = $target{shared_cxxflag} unless defined $target{module_cxxflags};
+$target{module_ldflags} = $target{shared_ldflag} unless defined $target{module_ldflags};
+{
+    my $shared_info_pl =
+        catfile(dirname($0), "Configurations", "shared-info.pl");
+    my %shared_info = read_eval_file($shared_info_pl);
+    push @{$target{_conf_fname_int}}, $shared_info_pl;
+    my $si = $target{shared_target};
+    while (ref $si ne "HASH") {
+        last if ! defined $si;
+        if (ref $si eq "CODE") {
+            $si = $si->();
+        } else {
+            $si = $shared_info{$si};
+        }
+    }
+
+    # Some of the 'shared_target' values don't have any entries in
+    # %shared_info.  That's perfectly fine, AS LONG AS the build file
+    # template knows how to handle this.  That is currently the case for
+    # Windows and VMS.
+    if (defined $si) {
+        # Just as above, copy certain shared_* attributes to the corresponding
+        # module_ attribute unless the latter is already defined
+        $si->{module_cflags} = $si->{shared_cflag} unless defined $si->{module_cflags};
+        $si->{module_cxxflags} = $si->{shared_cxxflag} unless defined $si->{module_cxxflags};
+        $si->{module_ldflags} = $si->{shared_ldflag} unless defined $si->{module_ldflags};
+        foreach (sort keys %$si) {
+            $target{$_} = defined $target{$_}
+                ? add($si->{$_})->($target{$_})
+                : $si->{$_};
+        }
     }
 }
 
-# ALL MODIFICATIONS TO %config and %target MUST BE DONE FROM HERE ON
+# ALL MODIFICATIONS TO %disabled, %config and %target MUST BE DONE FROM HERE ON
 
 # If we use the unified build, collect information from build.info files
 my %unified_info = ();
@@ -1640,38 +1643,38 @@ if ($builder eq "unified") {
     # Store the name of the template file we will build the build file from
     # in %config.  This may be useful for the build file itself.
     my @build_file_template_names =
-	( $builder_platform."-".$target{build_file}.".tmpl",
-	  $target{build_file}.".tmpl" );
+        ( $builder_platform."-".$target{build_file}.".tmpl",
+          $target{build_file}.".tmpl" );
     my @build_file_templates = ();
 
     # First, look in the user provided directory, if given
     if (defined env($local_config_envname)) {
-	@build_file_templates =
-	    map {
-		if ($^O eq 'VMS') {
-		    # VMS environment variables are logical names,
-		    # which can be used as is
-		    $local_config_envname . ':' . $_;
-		} else {
-		    catfile(env($local_config_envname), $_);
-		}
-	    }
-	    @build_file_template_names;
+        @build_file_templates =
+            map {
+                if ($^O eq 'VMS') {
+                    # VMS environment variables are logical names,
+                    # which can be used as is
+                    $local_config_envname . ':' . $_;
+                } else {
+                    catfile(env($local_config_envname), $_);
+                }
+            }
+            @build_file_template_names;
     }
     # Then, look in our standard directory
     push @build_file_templates,
-	( map { cleanfile($srcdir, catfile("Configurations", $_), $blddir) }
-	  @build_file_template_names );
+        ( map { cleanfile($srcdir, catfile("Configurations", $_), $blddir) }
+          @build_file_template_names );
 
     my $build_file_template;
     for $_ (@build_file_templates) {
-	$build_file_template = $_;
+        $build_file_template = $_;
         last if -f $build_file_template;
 
         $build_file_template = undef;
     }
     if (!defined $build_file_template) {
-	die "*** Couldn't find any of:\n", join("\n", @build_file_templates), "\n";
+        die "*** Couldn't find any of:\n", join("\n", @build_file_templates), "\n";
     }
     $config{build_file_templates}
       = [ cleanfile($srcdir, catfile("Configurations", "common0.tmpl"),
@@ -2327,11 +2330,11 @@ EOF
 print OUT "our %config = (\n";
 foreach (sort keys %config) {
     if (ref($config{$_}) eq "ARRAY") {
-	print OUT "  ", $_, " => [ ", join(", ",
-					   map { quotify("perl", $_) }
-					   @{$config{$_}}), " ],\n";
+        print OUT "  ", $_, " => [ ", join(", ",
+                                           map { quotify("perl", $_) }
+                                           @{$config{$_}}), " ],\n";
     } elsif (ref($config{$_}) eq "HASH") {
-	print OUT "  ", $_, " => {";
+        print OUT "  ", $_, " => {";
         if (scalar keys %{$config{$_}} > 0) {
             print OUT "\n";
             foreach my $key (sort keys %{$config{$_}}) {
@@ -2347,7 +2350,7 @@ foreach (sort keys %config) {
         }
         print OUT "},\n";
     } else {
-	print OUT "  ", $_, " => ", quotify("perl", $config{$_}), ",\n"
+        print OUT "  ", $_, " => ", quotify("perl", $config{$_}), ",\n"
     }
 }
 print OUT <<"EOF";
@@ -2357,11 +2360,11 @@ EOF
 print OUT "our %target = (\n";
 foreach (sort keys %target) {
     if (ref($target{$_}) eq "ARRAY") {
-	print OUT "  ", $_, " => [ ", join(", ",
-					   map { quotify("perl", $_) }
-					   @{$target{$_}}), " ],\n";
+        print OUT "  ", $_, " => [ ", join(", ",
+                                           map { quotify("perl", $_) }
+                                           @{$target{$_}}), " ],\n";
     } else {
-	print OUT "  ", $_, " => ", quotify("perl", $target{$_}), ",\n"
+        print OUT "  ", $_, " => ", quotify("perl", $target{$_}), ",\n"
     }
 }
 print OUT <<"EOF";
@@ -2394,11 +2397,11 @@ EOF
 print OUT "our %withargs = (\n";
 foreach (sort keys %withargs) {
     if (ref($withargs{$_}) eq "ARRAY") {
-	print OUT "  ", $_, " => [ ", join(", ",
-					   map { quotify("perl", $_) }
-					   @{$withargs{$_}}), " ],\n";
+        print OUT "  ", $_, " => [ ", join(", ",
+                                           map { quotify("perl", $_) }
+                                           @{$withargs{$_}}), " ],\n";
     } else {
-	print OUT "  ", $_, " => ", quotify("perl", $withargs{$_}), ",\n"
+        print OUT "  ", $_, " => ", quotify("perl", $withargs{$_}), ",\n"
     }
 }
 print OUT <<"EOF";
@@ -2625,9 +2628,9 @@ _____
     if ($reconf) {
         if ($verbose) {
             print 'Reconfiguring with: ', join(' ',@{$config{perlargv}}), "\n";
-	    foreach (sort keys %{$config{perlenv}}) {
-	        print '    ',$_,' = ',($config{perlenv}->{$_} || ""),"\n";
-	    }
+            foreach (sort keys %{$config{perlenv}}) {
+                print '    ',$_,' = ',($config{perlenv}->{$_} || ""),"\n";
+            }
         }
 
         chdir $here;
@@ -2822,7 +2825,7 @@ _____
 sub asm {
     my @x = @_;
     sub {
-	$disabled{asm} ? () : @x;
+        $disabled{asm} ? () : @x;
     }
 }
 
@@ -2888,29 +2891,29 @@ sub _add {
     my $found_array = !defined($separator);
 
     my @values =
-	map {
-	    my $res = $_;
-	    while (ref($res) eq "CODE") {
-		$res = $res->();
-	    }
-	    if (defined($res)) {
-		if (ref($res) eq "ARRAY") {
-		    $found_array = 1;
-		    @$res;
-		} else {
-		    $res;
-		}
-	    } else {
-		();
-	    }
+        map {
+            my $res = $_;
+            while (ref($res) eq "CODE") {
+                $res = $res->();
+            }
+            if (defined($res)) {
+                if (ref($res) eq "ARRAY") {
+                    $found_array = 1;
+                    @$res;
+                } else {
+                    $res;
+                }
+            } else {
+                ();
+            }
     } (@_);
 
     $add_called = 1;
 
     if ($found_array) {
-	[ @values ];
+        [ @values ];
     } else {
-	join($separator, grep { defined($_) && $_ ne "" } @values);
+        join($separator, grep { defined($_) && $_ ne "" } @values);
     }
 }
 sub add_before {
@@ -2960,10 +2963,10 @@ sub read_config {
     my %targets;
 
     {
-	# Protect certain tables from tampering
-	local %table = ();
+        # Protect certain tables from tampering
+        local %table = ();
 
-	%targets = read_eval_file($fname);
+        %targets = read_eval_file($fname);
     }
     my %preexisting = ();
     foreach (sort keys %targets) {
@@ -2979,14 +2982,14 @@ EOF
 
     # For each target, check that it's configured with a hash table.
     foreach (keys %targets) {
-	if (ref($targets{$_}) ne "HASH") {
-	    if (ref($targets{$_}) eq "") {
-		warn "Deprecated target configuration for $_, ignoring...\n";
-	    } else {
-		warn "Misconfigured target configuration for $_ (should be a hash table), ignoring...\n";
-	    }
-	    delete $targets{$_};
-	} else {
+        if (ref($targets{$_}) ne "HASH") {
+            if (ref($targets{$_}) eq "") {
+                warn "Deprecated target configuration for $_, ignoring...\n";
+            } else {
+                warn "Misconfigured target configuration for $_ (should be a hash table), ignoring...\n";
+            }
+            delete $targets{$_};
+        } else {
             $targets{$_}->{_conf_fname_int} = add([ $fname ]);
         }
     }
@@ -3005,13 +3008,13 @@ sub resolve_config {
 #    my $extra_checks = defined($ENV{CONFIGURE_EXTRA_CHECKS});
 
     if (grep { $_ eq $target } @breadcrumbs) {
-	die "inherit_from loop!  target backtrace:\n  "
-	    ,$target,"\n  ",join("\n  ", @breadcrumbs),"\n";
+        die "inherit_from loop!  target backtrace:\n  "
+            ,$target,"\n  ",join("\n  ", @breadcrumbs),"\n";
     }
 
     if (!defined($table{$target})) {
-	warn "Warning! target $target doesn't exist!\n";
-	return ();
+        warn "Warning! target $target doesn't exist!\n";
+        return ();
     }
     # Recurse through all inheritances.  They will be resolved on the
     # fly, so when this operation is done, they will all just be a
@@ -3021,22 +3024,22 @@ sub resolve_config {
     # this stage is done.
     my %combined_inheritance = ();
     if ($table{$target}->{inherit_from}) {
-	my @inherit_from =
-	    map { ref($_) eq "CODE" ? $_->() : $_ } @{$table{$target}->{inherit_from}};
-	foreach (@inherit_from) {
-	    my %inherited_config = resolve_config($_, $target, @breadcrumbs);
+        my @inherit_from =
+            map { ref($_) eq "CODE" ? $_->() : $_ } @{$table{$target}->{inherit_from}};
+        foreach (@inherit_from) {
+            my %inherited_config = resolve_config($_, $target, @breadcrumbs);
 
-	    # 'template' is a marker that's considered private to
-	    # the config that had it.
-	    delete $inherited_config{template};
+            # 'template' is a marker that's considered private to
+            # the config that had it.
+            delete $inherited_config{template};
 
-	    foreach (keys %inherited_config) {
-		if (!$combined_inheritance{$_}) {
-		    $combined_inheritance{$_} = [];
-		}
-		push @{$combined_inheritance{$_}}, $inherited_config{$_};
-	    }
-	}
+            foreach (keys %inherited_config) {
+                if (!$combined_inheritance{$_}) {
+                    $combined_inheritance{$_} = [];
+                }
+                push @{$combined_inheritance{$_}}, $inherited_config{$_};
+            }
+        }
     }
 
     # We won't need inherit_from in this target any more, since we've
@@ -3057,14 +3060,14 @@ sub resolve_config {
     my $default_combiner = add();
 
     my %all_keys =
-	map { $_ => 1 } (keys %combined_inheritance,
-			 keys %{$table{$target}});
+        map { $_ => 1 } (keys %combined_inheritance,
+                         keys %{$table{$target}});
 
     sub process_values {
-	my $object    = shift;
-	my $inherited = shift;  # Always a [ list ]
-	my $target    = shift;
-	my $entry     = shift;
+        my $object    = shift;
+        my $inherited = shift;  # Always a [ list ]
+        my $target    = shift;
+        my $entry     = shift;
 
         $add_called = 0;
 
@@ -3089,16 +3092,16 @@ sub resolve_config {
     foreach (sort keys %all_keys) {
         my $previous = $combined_inheritance{$_};
 
-	# Current target doesn't have a value for the current key?
-	# Assign it the default combiner, the rest of this loop body
-	# will handle it just like any other coderef.
-	if (!exists $table{$target}->{$_}) {
-	    $table{$target}->{$_} = $default_combiner;
-	}
+        # Current target doesn't have a value for the current key?
+        # Assign it the default combiner, the rest of this loop body
+        # will handle it just like any other coderef.
+        if (!exists $table{$target}->{$_}) {
+            $table{$target}->{$_} = $default_combiner;
+        }
 
-	$table{$target}->{$_} = process_values($table{$target}->{$_},
-					       $combined_inheritance{$_},
-					       $target, $_);
+        $table{$target}->{$_} = process_values($table{$target}->{$_},
+                                               $combined_inheritance{$_},
+                                               $target, $_);
         unless(defined($table{$target}->{$_})) {
             delete $table{$target}->{$_};
         }
@@ -3113,39 +3116,39 @@ sub resolve_config {
 }
 
 sub usage
-	{
-	print STDERR $usage;
-	print STDERR "\npick os/compiler from:\n";
-	my $j=0;
-	my $i;
+        {
+        print STDERR $usage;
+        print STDERR "\npick os/compiler from:\n";
+        my $j=0;
+        my $i;
         my $k=0;
-	foreach $i (sort keys %table)
-		{
-		next if $table{$i}->{template};
-		next if $i =~ /^debug/;
-		$k += length($i) + 1;
-		if ($k > 78)
-			{
-			print STDERR "\n";
-			$k=length($i);
-			}
-		print STDERR $i . " ";
-		}
-	foreach $i (sort keys %table)
-		{
-		next if $table{$i}->{template};
-		next if $i !~ /^debug/;
-		$k += length($i) + 1;
-		if ($k > 78)
-			{
-			print STDERR "\n";
-			$k=length($i);
-			}
-		print STDERR $i . " ";
-		}
-	print STDERR "\n\nNOTE: If in doubt, on Unix-ish systems use './config'.\n";
-	exit(1);
-	}
+        foreach $i (sort keys %table)
+                {
+                next if $table{$i}->{template};
+                next if $i =~ /^debug/;
+                $k += length($i) + 1;
+                if ($k > 78)
+                        {
+                        print STDERR "\n";
+                        $k=length($i);
+                        }
+                print STDERR $i . " ";
+                }
+        foreach $i (sort keys %table)
+                {
+                next if $table{$i}->{template};
+                next if $i !~ /^debug/;
+                $k += length($i) + 1;
+                if ($k > 78)
+                        {
+                        print STDERR "\n";
+                        $k=length($i);
+                        }
+                print STDERR $i . " ";
+                }
+        print STDERR "\n\nNOTE: If in doubt, on Unix-ish systems use './config'.\n";
+        exit(1);
+        }
 
 sub run_dofile
 {
@@ -3239,69 +3242,69 @@ sub print_table_entry
     return if $target{template};
 
     my @sequence = (
-	"sys_id",
-	"cpp",
-	"cppflags",
-	"defines",
-	"includes",
-	"cc",
-	"cflags",
-	"unistd",
-	"ld",
-	"lflags",
-	"loutflag",
-	"ex_libs",
-	"bn_ops",
-	"apps_aux_src",
-	"cpuid_asm_src",
-	"uplink_aux_src",
-	"bn_asm_src",
-	"ec_asm_src",
-	"des_asm_src",
-	"aes_asm_src",
-	"bf_asm_src",
-	"md5_asm_src",
-	"cast_asm_src",
-	"sha1_asm_src",
-	"rc4_asm_src",
-	"rmd160_asm_src",
-	"rc5_asm_src",
-	"wp_asm_src",
-	"cmll_asm_src",
-	"modes_asm_src",
-	"padlock_asm_src",
-	"chacha_asm_src",
-	"poly1035_asm_src",
-	"thread_scheme",
-	"perlasm_scheme",
-	"dso_scheme",
-	"shared_target",
-	"shared_cflag",
-	"shared_defines",
-	"shared_ldflag",
-	"shared_rcflag",
-	"shared_extension",
-	"dso_extension",
-	"obj_extension",
-	"exe_extension",
-	"ranlib",
-	"ar",
-	"arflags",
-	"aroutflag",
-	"rc",
-	"rcflags",
-	"rcoutflag",
-	"mt",
-	"mtflags",
-	"mtinflag",
-	"mtoutflag",
-	"multilib",
-	"build_scheme",
-	);
+        "sys_id",
+        "cpp",
+        "cppflags",
+        "defines",
+        "includes",
+        "cc",
+        "cflags",
+        "unistd",
+        "ld",
+        "lflags",
+        "loutflag",
+        "ex_libs",
+        "bn_ops",
+        "apps_aux_src",
+        "cpuid_asm_src",
+        "uplink_aux_src",
+        "bn_asm_src",
+        "ec_asm_src",
+        "des_asm_src",
+        "aes_asm_src",
+        "bf_asm_src",
+        "md5_asm_src",
+        "cast_asm_src",
+        "sha1_asm_src",
+        "rc4_asm_src",
+        "rmd160_asm_src",
+        "rc5_asm_src",
+        "wp_asm_src",
+        "cmll_asm_src",
+        "modes_asm_src",
+        "padlock_asm_src",
+        "chacha_asm_src",
+        "poly1035_asm_src",
+        "thread_scheme",
+        "perlasm_scheme",
+        "dso_scheme",
+        "shared_target",
+        "shared_cflag",
+        "shared_defines",
+        "shared_ldflag",
+        "shared_rcflag",
+        "shared_extension",
+        "dso_extension",
+        "obj_extension",
+        "exe_extension",
+        "ranlib",
+        "ar",
+        "arflags",
+        "aroutflag",
+        "rc",
+        "rcflags",
+        "rcoutflag",
+        "mt",
+        "mtflags",
+        "mtinflag",
+        "mtoutflag",
+        "multilib",
+        "build_scheme",
+        );
 
     if ($type eq "TABLE") {
-	print "\n";
-	print "*** $now_printing\n";
+        print "\n";
+        print "*** $now_printing\n";
         foreach (@sequence) {
             if (ref($target{$_}) eq "ARRAY") {
                 printf "\$%-12s = %s\n", $_, join(" ", @{$target{$_}});
@@ -3310,19 +3313,19 @@ sub print_table_entry
             }
         }
     } elsif ($type eq "HASH") {
-	my $largest =
-	    length((sort { length($a) <=> length($b) } @sequence)[-1]);
-	print "    '$now_printing' => {\n";
-	foreach (@sequence) {
-	    if ($target{$_}) {
+        my $largest =
+            length((sort { length($a) <=> length($b) } @sequence)[-1]);
+        print "    '$now_printing' => {\n";
+        foreach (@sequence) {
+            if ($target{$_}) {
                 if (ref($target{$_}) eq "ARRAY") {
                     print "      '",$_,"'"," " x ($largest - length($_))," => [ ",join(", ", map { "'$_'" } @{$target{$_}})," ],\n";
                 } else {
                     print "      '",$_,"'"," " x ($largest - length($_))," => '",$target{$_},"',\n";
                 }
-	    }
-	}
-	print "    },\n";
+            }
+        }
+        print "    },\n";
     }
 }
 
@@ -3370,21 +3373,21 @@ sub absolutedir {
 
 sub quotify {
     my %processors = (
-	perl    => sub { my $x = shift;
-			 $x =~ s/([\\\$\@"])/\\$1/g;
-			 return '"'.$x.'"'; },
-	maybeshell => sub { my $x = shift;
-			    (my $y = $x) =~ s/([\\\"])/\\$1/g;
-			    if ($x ne $y || $x =~ m|\s|) {
-				return '"'.$y.'"';
-			    } else {
-				return $x;
-			    }
-			},
-	);
+        perl    => sub { my $x = shift;
+                         $x =~ s/([\\\$\@"])/\\$1/g;
+                         return '"'.$x.'"'; },
+        maybeshell => sub { my $x = shift;
+                            (my $y = $x) =~ s/([\\\"])/\\$1/g;
+                            if ($x ne $y || $x =~ m|\s|) {
+                                return '"'.$y.'"';
+                            } else {
+                                return $x;
+                            }
+                        },
+        );
     my $for = shift;
     my $processor =
-	defined($processors{$for}) ? $processors{$for} : sub { shift; };
+        defined($processors{$for}) ? $processors{$for} : sub { shift; };
 
     return map { $processor->($_); } @_;
 }
@@ -3512,8 +3515,8 @@ sub tokenize {
     }
 
     if ($ENV{CONFIGURE_DEBUG_TOKENIZE}) {
-	print STDERR "DEBUG[tokenize]: Parsed '$debug_line' into:\n";
-	print STDERR "DEBUG[tokenize]: ('", join("', '", @result), "')\n";
+        print STDERR "DEBUG[tokenize]: Parsed '$debug_line' into:\n";
+        print STDERR "DEBUG[tokenize]: ('", join("', '", @result), "')\n";
     }
     return @result;
 }

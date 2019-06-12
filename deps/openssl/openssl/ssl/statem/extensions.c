@@ -989,7 +989,6 @@ static int final_server_name(SSL *s, unsigned int context, int sent)
                 ss->ext.ticklen = 0;
                 ss->ext.tick_lifetime_hint = 0;
                 ss->ext.tick_age_add = 0;
-                ss->ext.tick_identity = 0;
                 if (!ssl_generate_session_id(s, ss)) {
                     SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_FINAL_SERVER_NAME,
                              ERR_R_INTERNAL_ERROR);
@@ -1646,7 +1645,6 @@ static int final_early_data(SSL *s, unsigned int context, int sent)
 
     if (s->max_early_data == 0
             || !s->hit
-            || s->session->ext.tick_identity != 0
             || s->early_data_state != SSL_EARLY_DATA_ACCEPTING
             || !s->ext.early_data_ok
             || s->hello_retry_request != SSL_HRR_NONE

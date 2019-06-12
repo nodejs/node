@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -439,6 +439,7 @@ X509_EXTENSION *OCSP_url_svcloc_new(X509_NAME *issuer, const char **urls)
 
     if ((sloc = OCSP_SERVICELOC_new()) == NULL)
         goto err;
+    X509_NAME_free(sloc->issuer);
     if ((sloc->issuer = X509_NAME_dup(issuer)) == NULL)
         goto err;
     if (urls && *urls
@@ -449,12 +450,11 @@ X509_EXTENSION *OCSP_url_svcloc_new(X509_NAME *issuer, const char **urls)
             goto err;
         if ((ad->method = OBJ_nid2obj(NID_ad_OCSP)) == NULL)
             goto err;
-        if ((ad->location = GENERAL_NAME_new()) == NULL)
-            goto err;
         if ((ia5 = ASN1_IA5STRING_new()) == NULL)
             goto err;
         if (!ASN1_STRING_set((ASN1_STRING *)ia5, *urls, -1))
             goto err;
+        /* ad->location is allocated inside ACCESS_DESCRIPTION_new */
         ad->location->type = GEN_URI;
         ad->location->d.ia5 = ia5;
         ia5 = NULL;
