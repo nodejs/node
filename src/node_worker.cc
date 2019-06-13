@@ -189,7 +189,9 @@ void Worker::Run() {
     Locker locker(isolate_);
     Isolate::Scope isolate_scope(isolate_);
     SealHandleScope outer_seal(isolate_);
+#if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
     bool inspector_started = false;
+#endif
 
     DeleteFnPtr<Environment, FreeEnvironment> env_;
     OnScopeLeave cleanup_env([&]() {
