@@ -6,3 +6,4 @@
 * Rule 1: You must know how to party to continue.
 * Rule 2: You must know how to dance.
 * Rule 3: You must know how to carry a beat.
+* Rule 4: Ignore rules 1-4. 
