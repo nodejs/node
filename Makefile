@@ -586,8 +586,12 @@ test-hash-seed: all
 
 .PHONY: test-doc
 test-doc: doc-only ## Builds, lints, and verifies the docs.
-	$(MAKE) lint
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) $(CI_DOC)
+	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
+		echo "Skipping test-doc (no crypto)"; \
+	else \
+		$(MAKE) lint; \
+		$(PYTHON) tools/test.py $(PARALLEL_ARGS) $(CI_DOC); \
+	fi
 
 test-known-issues: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) known_issues
