@@ -1227,7 +1227,9 @@ if (typeof Symbol !== 'undefined') {
   class ArraySubclass extends Array {}
   class SetSubclass extends Set {}
   class MapSubclass extends Map {}
+  class MSubclass extends Map {}
   class PromiseSubclass extends Promise {}
+  class PSubclass extends Promise {}
 
   const x = new ObjectSubclass();
   x.foo = 42;
@@ -1236,11 +1238,15 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(util.inspect(new ArraySubclass(1, 2, 3)),
                      'ArraySubclass [ 1, 2, 3 ]');
   assert.strictEqual(util.inspect(new SetSubclass([1, 2, 3])),
-                     'SetSubclass [Set] { 1, 2, 3 }');
+                     'SetSubclass { 1, 2, 3 }');
   assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
-                     "MapSubclass [Map] { 'foo' => 42 }");
+                     "MapSubclass { 'foo' => 42 }");
+  assert.strictEqual(util.inspect(new MSubclass([['foo', 42]])),
+                     "MSubclass [Map] { 'foo' => 42 }");
   assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
-                     'PromiseSubclass [Promise] { <pending> }');
+                     'PromiseSubclass { <pending> }');
+  assert.strictEqual(util.inspect(new PSubclass(() => {})),
+                     'PSubclass [Promise] { <pending> }');
   assert.strictEqual(
     util.inspect({ a: { b: new ArraySubclass([1, [2], 3]) } }, { depth: 1 }),
     '{ a: { b: [ArraySubclass] } }'
