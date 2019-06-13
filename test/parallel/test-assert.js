@@ -123,16 +123,19 @@ assert.throws(() => thrower(a.AssertionError));
 assert.throws(() => thrower(TypeError));
 
 // When passing a type, only catch errors of the appropriate type.
-{
-  let threw = false;
-  try {
-    a.throws(() => thrower(TypeError), a.AssertionError);
-  } catch (e) {
-    threw = true;
-    assert.ok(e instanceof TypeError, 'type');
+assert.throws(
+  () => a.throws(() => thrower(TypeError), a.AssertionError),
+  {
+    generatedMessage: true,
+    actual: new TypeError({}),
+    expected: a.AssertionError,
+    code: 'ERR_ASSERTION',
+    name: 'AssertionError',
+    operator: 'throws',
+    message: 'The error is expected to be an instance of "AssertionError". ' +
+             'Received "TypeError"'
   }
-  assert.ok(threw, 'a.throws with an explicit error is eating extra errors');
-}
+);
 
 // doesNotThrow should pass through all errors.
 {
@@ -237,20 +240,27 @@ a.throws(() => thrower(TypeError), (err) => {
 
 // https://github.com/nodejs/node/issues/3188
 {
-  let threw = false;
-  let AnotherErrorType;
-  try {
-    const ES6Error = class extends Error {};
-    AnotherErrorType = class extends Error {};
+  let actual;
+  assert.throws(
+    () => {
+      const ES6Error = class extends Error {};
+      const AnotherErrorType = class extends Error {};
 
-    assert.throws(() => { throw new AnotherErrorType('foo'); }, ES6Error);
-  } catch (e) {
-    threw = true;
-    assert(e instanceof AnotherErrorType,
-           `expected AnotherErrorType, received ${e}`);
-  }
-
-  assert.ok(threw);
+      assert.throws(() => {
+        actual = new AnotherErrorType('foo');
+        throw actual;
+      }, ES6Error);
+    },
+    (err) => {
+      assert.strictEqual(
+        err.message,
+        'The error is expected to be an instance of "ES6Error". ' +
+          'Received "Error"'
+      );
+      assert.strictEqual(err.actual, actual);
+      return true;
+    }
+  );
 }
 
 // Check messages from assert.throws().
@@ -1299,3 +1309,20 @@ assert.throws(
     assert(!err2.stack.includes('hidden'));
   })();
 }
+
+assert.throws(
+  () => assert.throws(() => { throw Symbol('foo'); }, RangeError),
+  {
+    message: 'The error is expected to be an instance of "RangeError". ' +
+             'Received "Symbol(foo)"'
+  }
+);
+
+assert.throws(
+  // eslint-disable-next-line no-throw-literal
+  () => assert.throws(() => { throw [1, 2]; }, RangeError),
+  {
+    message: 'The error is expected to be an instance of "RangeError". ' +
+             'Received "[Array]"'
+  }
+);
