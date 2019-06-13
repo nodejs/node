@@ -529,16 +529,11 @@ void MessagePort::Close(v8::Local<v8::Value> close_callback) {
 }
 
 void MessagePort::New(const FunctionCallbackInfo<Value>& args) {
+  // This constructor just throws an error. Unfortunately, we can’t use V8’s
+  // ConstructorBehavior::kThrow, as that also removes the prototype from the
+  // class (i.e. makes it behave like an arrow function).
   Environment* env = Environment::GetCurrent(args);
-  if (!args.IsConstructCall()) {
-    THROW_ERR_CONSTRUCT_CALL_REQUIRED(env);
-    return;
-  }
-
-  Local<Context> context = args.This()->CreationContext();
-  Context::Scope context_scope(context);
-
-  new MessagePort(env, context, args.This());
+  THROW_ERR_CONSTRUCT_CALL_INVALID(env);
 }
 
 MessagePort* MessagePort::New(
@@ -546,16 +541,14 @@ MessagePort* MessagePort::New(
     Local<Context> context,
     std::unique_ptr<MessagePortData> data) {
   Context::Scope context_scope(context);
-  Local<Function> ctor;
-  if (!GetMessagePortConstructor(env, context).ToLocal(&ctor))
-    return nullptr;
+  Local<FunctionTemplate> ctor_templ = GetMessagePortConstructorTemplate(env);
 
   // Construct a new instance, then assign the listener instance and possibly
   // the MessagePortData to it.
   Local<Object> instance;
-  if (!ctor->NewInstance(context).ToLocal(&instance))
+  if (!ctor_templ->InstanceTemplate()->NewInstance(context).ToLocal(&instance))
     return nullptr;
-  MessagePort* port = Unwrap<MessagePort>(instance);
+  MessagePort* port = new MessagePort(env, context, instance);
   CHECK_NOT_NULL(port);
   if (data) {
     port->Detach();
@@ -830,13 +823,12 @@ void MessagePort::Entangle(MessagePort* a, MessagePortData* b) {
   MessagePortData::Entangle(a->data_.get(), b);
 }
 
-MaybeLocal<Function> GetMessagePortConstructor(
-    Environment* env, Local<Context> context) {
+Local<FunctionTemplate> GetMessagePortConstructorTemplate(Environment* env) {
   // Factor generating the MessagePort JS constructor into its own piece
   // of code, because it is needed early on in the child environment setup.
   Local<FunctionTemplate> templ = env->message_port_constructor_template();
   if (!templ.IsEmpty())
-    return templ->GetFunction(context);
+    return templ;
 
   Isolate* isolate = env->isolate();
 
@@ -859,7 +851,7 @@ MaybeLocal<Function> GetMessagePortConstructor(
     env->set_message_event_object_template(e);
   }
 
-  return GetMessagePortConstructor(env, context);
+  return GetMessagePortConstructorTemplate(env);
 }
 
 namespace {
@@ -902,8 +894,8 @@ static void InitMessaging(Local<Object> target,
 
   target->Set(context,
               env->message_port_constructor_string(),
-              GetMessagePortConstructor(env, context).ToLocalChecked())
-                  .Check();
+              GetMessagePortConstructorTemplate(env)
+                  ->GetFunction(context).ToLocalChecked()).Check();
 
   // These are not methods on the MessagePort prototype, because
   // the browser equivalents do not provide them.

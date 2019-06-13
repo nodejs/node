@@ -54,7 +54,8 @@ void FatalException(v8::Isolate* isolate,
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE, Error)                                 \
   V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                    \
   V(ERR_BUFFER_TOO_LARGE, Error)                                             \
-  V(ERR_CONSTRUCT_CALL_REQUIRED, Error)                                      \
+  V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                  \
+  V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                   \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                         \
   V(ERR_INVALID_MODULE_SPECIFIER, TypeError)                                 \
@@ -99,6 +100,7 @@ void FatalException(v8::Isolate* isolate,
 #define PREDEFINED_ERROR_MESSAGES(V)                                         \
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE,                                        \
     "Buffer is not available for the current Context")                       \
+  V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")              \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")    \
   V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")     \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")               \
