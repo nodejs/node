@@ -1,12 +1,11 @@
 'use strict';
+require('../common');
+const tmpdir = require('../common/tmpdir');
 
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 const shutil = require('shutil');
-
-const common = require('../common');
-const tmpdir = common.tmpdir;
 
 const tmpDir = tmpdir.path;
 const baseDir = path.join(tmpDir, 'shutil-rmtree');
