@@ -53,6 +53,7 @@ class Options {
 struct InspectPublishUid {
   bool console;
   bool http;
+  std::string ipc_path;
 };
 
 // These options are currently essentially per-Environment, but it can be nice
@@ -77,6 +78,7 @@ class DebugOptions : public Options {
   bool break_node_first_line = false;
   // --inspect-publish-uid
   std::string inspect_publish_uid_string = "stderr,http";
+  std::string inspect_publish_uid_ipc_path;
 
   InspectPublishUid inspect_publish_uid;
 

@@ -397,6 +397,11 @@ Specify ways of the inspector web socket url exposure.
 By default inspector websocket url is available in stderr and under `/json/list`
 endpoint on `http://host:port/json/list`.
 
+### `inspect-publish-uid-ipc-path`
+
+Inspector will send a space-separated list of inspector web socket URLs to IPC
+`net.Socket` with given path at the start.
+
 ### `--loader=file`
 <!-- YAML
 added: v9.0.0
@@ -989,6 +994,7 @@ Node.js options that are allowed are:
 - `--inspect-brk`
 - `--inspect-port`
 - `--inspect-publish-uid`
+- `--inspect-publish-uid-ipc-path`
 - `--loader`
 - `--max-http-header-size`
 - `--napi-modules`

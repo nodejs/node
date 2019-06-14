@@ -250,6 +250,75 @@ void PrintDebuggerReadyMessage(
   fflush(out);
 }
 
+void SendSocketToSocket(
+    uv_loop_t* loop,
+    const std::string& ipc_path,
+    const std::string& host,
+    const std::vector<InspectorSocketServer::ServerSocketPtr>& server_sockets,
+    const std::vector<std::string>& ids) {
+  if (ipc_path.empty())
+    return;
+
+  uv_pipe_t* pipe = new uv_pipe_t();
+  int r = uv_pipe_init(loop, pipe, true);
+  if (r < 0) {
+    delete pipe;
+    return;
+  }
+
+  pipe->data = new std::string();
+  std::string& data = *static_cast<std::string*>(pipe->data);
+  for (const auto& server_socket : server_sockets) {
+    for (const std::string& id : ids) {
+      data += (data.length() ? " " : "") +
+              FormatWsAddress(host, server_socket->port(), id, true);
+    }
+  }
+
+  uv_connect_t* connect_req = new uv_connect_t();
+  uv_pipe_connect(connect_req,
+                  pipe,
+                  ipc_path.c_str(),
+                  [](uv_connect_t* req, int status) {
+    uv_stream_t* stream = reinterpret_cast<uv_stream_t*>(req->handle);
+    delete req;
+
+    std::string* data = reinterpret_cast<std::string*>(stream->data);
+    uv_buf_t buf = uv_buf_init(&(*data)[0], data->length());
+    uv_write_t* write_req = new uv_write_t();
+    int err = uv_write(write_req,
+                       stream,
+                       &buf,
+                       1,
+                       [](uv_write_t* req, int status) {
+      uv_stream_t* stream = reinterpret_cast<uv_stream_t*>(req->handle);
+      delete req;
+      delete reinterpret_cast<std::string*>(stream->data);
+      stream->data = nullptr;
+    });
+    if (err < 0) {
+      delete write_req;
+      delete reinterpret_cast<std::string*>(stream->data);
+      stream->data = nullptr;
+    }
+
+    uv_shutdown_t* shutdown_req = new uv_shutdown_t();
+    err = uv_shutdown(shutdown_req, stream, [](uv_shutdown_t* req, int status) {
+      uv_stream_t* stream = reinterpret_cast<uv_stream_t*>(req->handle);
+      delete req;
+      uv_close(reinterpret_cast<uv_handle_t*>(stream), [](uv_handle_t* handle){
+        delete reinterpret_cast<uv_pipe_t*>(handle);
+      });
+    });
+    if (err < 0) {
+      delete shutdown_req;
+      uv_close(reinterpret_cast<uv_handle_t*>(stream), [](uv_handle_t* handle){
+        delete reinterpret_cast<uv_pipe_t*>(handle);
+      });
+    }
+  });
+}
+
 InspectorSocketServer::InspectorSocketServer(
     std::unique_ptr<SocketServerDelegate> delegate, uv_loop_t* loop,
     const std::string& host, int port,
@@ -426,6 +495,11 @@ bool InspectorSocketServer::Start() {
                             delegate_->GetTargetIds(),
                             inspect_publish_uid_.console,
                             out_);
+  SendSocketToSocket(loop_,
+                     inspect_publish_uid_.ipc_path,
+                     host_,
+                     server_sockets_,
+                     delegate_->GetTargetIds());
   return true;
 }
 

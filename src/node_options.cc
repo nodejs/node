@@ -49,6 +49,7 @@ void DebugOptions::CheckOptions(std::vector<std::string>* errors) {
       SplitString(inspect_publish_uid_string, ',');
   inspect_publish_uid.console = false;
   inspect_publish_uid.http = false;
+  inspect_publish_uid.ipc_path = inspect_publish_uid_ipc_path;
   for (const std::string& destination : destinations) {
     if (destination == "stderr") {
       inspect_publish_uid.console = true;
@@ -296,6 +297,11 @@ DebugOptionsParser::DebugOptionsParser() {
             "comma separated list of destinations for inspector uid"
             "(default: stderr,http)",
             &DebugOptions::inspect_publish_uid_string,
+            kAllowedInEnvironment);
+
+  AddOption("--inspect-publish-uid-ipc-path",
+            "path for IPC connection, inspector will send websocket URL to it",
+            &DebugOptions::inspect_publish_uid_ipc_path,
             kAllowedInEnvironment);
 }
 
