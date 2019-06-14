@@ -60,7 +60,7 @@ parsers.forEach((parser) => {
   });
 
   // Next, repeat the same checks using NODE_OPTIONS if it is supported.
-  if (process.config.variables.node_without_node_options) {
+  if (!process.config.variables.node_without_node_options) {
     const env = Object.assign({}, process.env, {
       NODE_OPTIONS: `--http-parser=${parser} --max-http-header-size=1024`
     });
