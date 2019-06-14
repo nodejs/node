@@ -111,7 +111,7 @@ below.
 
 =item B<rsa_keygen_bits:numbits>
 
-The number of bits in the generated key. If not specified 1024 is used.
+The number of bits in the generated key. If not specified 2048 is used.
 
 =item B<rsa_keygen_pubexp:value>
 
@@ -149,12 +149,12 @@ below.
 
 =item B<dsa_paramgen_bits:numbits>
 
-The number of bits in the generated prime. If not specified 1024 is used.
+The number of bits in the generated prime. If not specified 2048 is used.
 
 =item B<dsa_paramgen_q_bits:numbits>
 
 The number of bits in the q parameter. Must be one of 160, 224 or 256. If not
-specified 160 is used.
+specified 224 is used.
 
 =item B<dsa_paramgen_md:digest>
 
@@ -173,7 +173,7 @@ or B<sha256> if it is 256.
 
 =item B<dh_paramgen_prime_len:numbits>
 
-The number of bits in the prime parameter B<p>. The default is 1024.
+The number of bits in the prime parameter B<p>. The default is 2048.
 
 =item B<dh_paramgen_subprime_len:numbits>
 

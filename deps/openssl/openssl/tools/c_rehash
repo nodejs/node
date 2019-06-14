@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/local/bin/perl
 
 # Perl c_rehash script, scan all files in a directory
 # and add symbolic links to their hash values.

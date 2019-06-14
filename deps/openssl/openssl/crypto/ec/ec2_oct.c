@@ -14,7 +14,7 @@
  *
  */
 /* ====================================================================
- * Copyright (c) 1998-2005 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2019 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -299,7 +299,7 @@ int ec_GF2m_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
                              BN_CTX *ctx)
 {
     point_conversion_form_t form;
-    int y_bit;
+    int y_bit, m;
     BN_CTX *new_ctx = NULL;
     BIGNUM *x, *y, *yxi;
     size_t field_len, enc_len;
@@ -332,7 +332,8 @@ int ec_GF2m_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
         return EC_POINT_set_to_infinity(group, point);
     }
 
-    field_len = (EC_GROUP_get_degree(group) + 7) / 8;
+    m = EC_GROUP_get_degree(group);
+    field_len = (m + 7) / 8;
     enc_len =
         (form ==
          POINT_CONVERSION_COMPRESSED) ? 1 + field_len : 1 + 2 * field_len;
@@ -357,7 +358,7 @@ int ec_GF2m_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
 
     if (!BN_bin2bn(buf + 1, field_len, x))
         goto err;
-    if (BN_ucmp(x, &group->field) >= 0) {
+    if (BN_num_bits(x) > m) {
         ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
         goto err;
     }
@@ -369,7 +370,7 @@ int ec_GF2m_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
     } else {
         if (!BN_bin2bn(buf + 1 + field_len, field_len, y))
             goto err;
-        if (BN_ucmp(y, &group->field) >= 0) {
+        if (BN_num_bits(y) > m) {
             ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
             goto err;
         }
@@ -382,14 +383,12 @@ int ec_GF2m_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
             }
         }
 
+        /*
+         * EC_POINT_set_affine_coordinates_GF2m is responsible for checking that
+         * the point is on the curve.
+         */
         if (!EC_POINT_set_affine_coordinates_GF2m(group, point, x, y, ctx))
             goto err;
-    }
-
-    /* test required by X9.62 */
-    if (EC_POINT_is_on_curve(group, point, ctx) <= 0) {
-        ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_POINT_IS_NOT_ON_CURVE);
-        goto err;
     }
 
     ret = 1;

@@ -3,7 +3,7 @@
  * 2006.
  */
 /* ====================================================================
- * Copyright (c) 2006-2018 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2006-2019 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -69,8 +69,8 @@
 
 typedef struct {
     /* Parameter gen parameters */
-    int nbits;                  /* size of p in bits (default: 1024) */
-    int qbits;                  /* size of q in bits (default: 160) */
+    int nbits;                  /* size of p in bits (default: 2048) */
+    int qbits;                  /* size of q in bits (default: 224) */
     const EVP_MD *pmd;          /* MD for parameter generation */
     /* Keygen callback info */
     int gentmp[2];
@@ -84,8 +84,8 @@ static int pkey_dsa_init(EVP_PKEY_CTX *ctx)
     dctx = OPENSSL_malloc(sizeof(DSA_PKEY_CTX));
     if (!dctx)
         return 0;
-    dctx->nbits = 1024;
-    dctx->qbits = 160;
+    dctx->nbits = 2048;
+    dctx->qbits = 224;
     dctx->pmd = NULL;
     dctx->md = NULL;
 

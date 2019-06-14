@@ -871,6 +871,7 @@ case "$GUESSOS" in
   *-*-qnx6) OUT="QNX6" ;;
   x86-*-android|i?86-*-android) OUT="android-x86" ;;
   armv[7-9]*-*-android) OUT="android-armv7" ;;
+  aarch64-*-android) OUT="android64-aarch64" ;;
   *) OUT=`echo $GUESSOS | awk -F- '{print $3}'`;;
 esac
 

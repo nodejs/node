@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2019 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -589,7 +589,7 @@ static int RSA_eay_private_decrypt(int flen, const unsigned char *from,
         goto err;
     }
     RSAerr(RSA_F_RSA_EAY_PRIVATE_DECRYPT, RSA_R_PADDING_CHECK_FAILED);
-    err_clear_last_constant_time(r >= 0);
+    err_clear_last_constant_time(1 & ~constant_time_msb(r));
 
  err:
     if (ctx != NULL) {

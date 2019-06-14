@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2019 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -143,6 +143,7 @@ extern "C" {
 # define ERR_TXT_STRING          0x02
 
 # define ERR_FLAG_MARK           0x01
+# define ERR_FLAG_CLEAR          0x02
 
 # define ERR_NUM_ERRORS  16
 typedef struct err_state_st {

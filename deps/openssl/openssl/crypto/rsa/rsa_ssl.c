@@ -104,7 +104,7 @@ int RSA_padding_add_SSLv23(unsigned char *to, int tlen,
 
 /*
  * Copy of RSA_padding_check_PKCS1_type_2 with a twist that rejects padding
- * if nul delimiter is preceded by 8 consecutive 0x03 bytes. It also
+ * if nul delimiter is not preceded by 8 consecutive 0x03 bytes. It also
  * preserves error code reporting for backward compatibility.
  */
 int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
@@ -116,7 +116,10 @@ int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
     unsigned int good, found_zero_byte, mask, threes_in_row;
     int zero_index = 0, msg_index, mlen = -1, err;
 
-    if (flen < 10) {
+    if (tlen <= 0 || flen <= 0)
+        return -1;
+
+    if (flen > num || num < 11) {
         RSAerr(RSA_F_RSA_PADDING_CHECK_SSLV23, RSA_R_DATA_TOO_SMALL);
         return (-1);
     }
@@ -138,10 +141,9 @@ int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
         from -= 1 & mask;
         *--em = *from & mask;
     }
-    from = em;
 
-    good = constant_time_is_zero(from[0]);
-    good &= constant_time_eq(from[1], 2);
+    good = constant_time_is_zero(em[0]);
+    good &= constant_time_eq(em[1], 2);
     err = constant_time_select_int(good, 0, RSA_R_BLOCK_TYPE_IS_NOT_02);
     mask = ~good;
 
@@ -149,18 +151,18 @@ int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
     found_zero_byte = 0;
     threes_in_row = 0;
     for (i = 2; i < num; i++) {
-        unsigned int equals0 = constant_time_is_zero(from[i]);
+        unsigned int equals0 = constant_time_is_zero(em[i]);
 
         zero_index = constant_time_select_int(~found_zero_byte & equals0,
                                               i, zero_index);
         found_zero_byte |= equals0;
 
         threes_in_row += 1 & ~found_zero_byte;
-        threes_in_row &= found_zero_byte | constant_time_eq(from[i], 3);
+        threes_in_row &= found_zero_byte | constant_time_eq(em[i], 3);
     }
 
     /*
-     * PS must be at least 8 bytes long, and it starts two bytes into |from|.
+     * PS must be at least 8 bytes long, and it starts two bytes into |em|.
      * If we never found a 0-byte, then |zero_index| is 0 and the check
      * also fails.
      */
@@ -169,7 +171,7 @@ int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
                                    RSA_R_NULL_BEFORE_BLOCK_MISSING);
     mask = ~good;
 
-    good &= constant_time_lt(threes_in_row, 8);
+    good &= constant_time_ge(threes_in_row, 8);
     err = constant_time_select_int(mask | good, err,
                                    RSA_R_SSLV3_ROLLBACK_ATTACK);
     mask = ~good;
@@ -188,24 +190,25 @@ int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
     err = constant_time_select_int(mask | good, err, RSA_R_DATA_TOO_LARGE);
 
     /*
-     * Even though we can't fake result's length, we can pretend copying
-     * |tlen| bytes where |mlen| bytes would be real. Last |tlen| of |num|
-     * bytes are viewed as circular buffer with start at |tlen|-|mlen'|,
-     * where |mlen'| is "saturated" |mlen| value. Deducing information
-     * about failure or |mlen| would take attacker's ability to observe
-     * memory access pattern with byte granularity *as it occurs*. It
-     * should be noted that failure is indistinguishable from normal
-     * operation if |tlen| is fixed by protocol.
+     * Move the result in-place by |num|-11-|mlen| bytes to the left.
+     * Then if |good| move |mlen| bytes from |em|+11 to |to|.
+     * Otherwise leave |to| unchanged.
+     * Copy the memory back in a way that does not reveal the size of
+     * the data being copied via a timing side channel. This requires copying
+     * parts of the buffer multiple times based on the bits set in the real
+     * length. Clear bits do a non-copy with identical access pattern.
+     * The loop below has overall complexity of O(N*log(N)).
      */
-    tlen = constant_time_select_int(constant_time_lt(num, tlen), num, tlen);
-    msg_index = constant_time_select_int(good, msg_index, num - tlen);
-    mlen = num - msg_index;
-    for (from += msg_index, mask = good, i = 0; i < tlen; i++) {
-        unsigned int equals = constant_time_eq(i, mlen);
-
-        from -= tlen & equals;  /* if (i == mlen) rewind   */
-        mask &= mask ^ equals;  /* if (i == mlen) mask = 0 */
-        to[i] = constant_time_select_8(mask, from[i], to[i]);
+    tlen = constant_time_select_int(constant_time_lt(num - 11, tlen),
+                                    num - 11, tlen);
+    for (msg_index = 1; msg_index < num - 11; msg_index <<= 1) {
+        mask = ~constant_time_eq(msg_index & (num - 11 - mlen), 0);
+        for (i = 11; i < num - msg_index; i++)
+            em[i] = constant_time_select_8(mask, em[i + msg_index], em[i]);
+    }
+    for (i = 0; i < tlen; i++) {
+        mask = good & constant_time_lt(i, mlen);
+        to[i] = constant_time_select_8(mask, em[i + 11], to[i]);
     }
 
     OPENSSL_cleanse(em, num);
