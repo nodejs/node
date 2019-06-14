@@ -74,7 +74,7 @@ const oldgid = process.getgid();
 try {
   process.setgid('nobody');
 } catch (err) {
-  if (err.message !== 'setgid group id does not exist') {
+  if (err.code !== 'ERR_UNKNOWN_CREDENTIAL') {
     throw err;
   }
   process.setgid('nogroup');
