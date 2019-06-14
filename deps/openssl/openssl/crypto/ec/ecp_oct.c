@@ -5,7 +5,7 @@
  * OpenSSL project.
  */
 /* ====================================================================
- * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2019 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -408,14 +408,12 @@ int ec_GFp_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
             }
         }
 
+        /*
+         * EC_POINT_set_affine_coordinates_GFp is responsible for checking that
+         * the point is on the curve.
+         */
         if (!EC_POINT_set_affine_coordinates_GFp(group, point, x, y, ctx))
             goto err;
-    }
-
-    /* test required by X9.62 */
-    if (EC_POINT_is_on_curve(group, point, ctx) <= 0) {
-        ECerr(EC_F_EC_GFP_SIMPLE_OCT2POINT, EC_R_POINT_IS_NOT_ON_CURVE);
-        goto err;
     }
 
     ret = 1;

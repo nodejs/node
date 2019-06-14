@@ -7,6 +7,23 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.0.2r and 1.0.2s [28 May 2019]
+
+  *) Change the default RSA, DSA and DH size to 2048 bit instead of 1024.
+     This changes the size when using the genpkey app when no size is given. It
+     fixes an omission in earlier changes that changed all RSA, DSA and DH
+     generation apps to use 2048 bits by default.
+     [Kurt Roeckx]
+
+  *) Add FIPS support for Android Arm 64-bit
+
+     Support for Android Arm 64-bit was added to the OpenSSL FIPS Object
+     Module in Version 2.0.10. For some reason, the corresponding target
+     'android64-aarch64' was missing OpenSSL 1.0.2, whence it could not be
+     built with FIPS support on Android Arm 64-bit. This omission has been
+     fixed.
+     [Matthias St. Pierre]
+
  Changes between 1.0.2q and 1.0.2r [26 Feb 2019]
 
   *) 0-byte record padding oracle

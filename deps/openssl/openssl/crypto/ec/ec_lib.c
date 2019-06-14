@@ -3,7 +3,7 @@
  * Originally written by Bodo Moeller for the OpenSSL project.
  */
 /* ====================================================================
- * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2019 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -872,7 +872,15 @@ int EC_POINT_set_affine_coordinates_GFp(const EC_GROUP *group,
               EC_R_INCOMPATIBLE_OBJECTS);
         return 0;
     }
-    return group->meth->point_set_affine_coordinates(group, point, x, y, ctx);
+    if (!group->meth->point_set_affine_coordinates(group, point, x, y, ctx))
+        return 0;
+
+    if (EC_POINT_is_on_curve(group, point, ctx) <= 0) {
+        ECerr(EC_F_EC_POINT_SET_AFFINE_COORDINATES_GFP,
+              EC_R_POINT_IS_NOT_ON_CURVE);
+        return 0;
+    }
+    return 1;
 }
 
 #ifndef OPENSSL_NO_EC2M
@@ -890,7 +898,15 @@ int EC_POINT_set_affine_coordinates_GF2m(const EC_GROUP *group,
               EC_R_INCOMPATIBLE_OBJECTS);
         return 0;
     }
-    return group->meth->point_set_affine_coordinates(group, point, x, y, ctx);
+    if (!group->meth->point_set_affine_coordinates(group, point, x, y, ctx))
+        return 0;
+
+    if (EC_POINT_is_on_curve(group, point, ctx) <= 0) {
+        ECerr(EC_F_EC_POINT_SET_AFFINE_COORDINATES_GF2M,
+              EC_R_POINT_IS_NOT_ON_CURVE);
+        return 0;
+    }
+    return 1;
 }
 #endif
 
