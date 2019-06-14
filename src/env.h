@@ -152,6 +152,7 @@ constexpr size_t kFsStatsBufferLength =
   V(contextify_context_private_symbol, "node:contextify:context")             \
   V(contextify_global_private_symbol, "node:contextify:global")               \
   V(decorated_private_symbol, "node:decorated")                               \
+  V(napi_type_tag, "node:napi:type_tag")                                      \
   V(napi_wrapper, "node:napi:wrapper")                                        \
   V(untransferable_object_private_symbol, "node:untransferableObject")        \
 

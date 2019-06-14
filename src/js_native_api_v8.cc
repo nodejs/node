@@ -10,6 +10,9 @@
 #define CHECK_MAYBE_NOTHING(env, maybe, status) \
   RETURN_STATUS_IF_FALSE((env), !((maybe).IsNothing()), (status))
 
+#define CHECK_MAYBE_NOTHING_WITH_PREAMBLE(env, maybe, status) \
+  RETURN_STATUS_IF_FALSE_WITH_PREAMBLE((env), !((maybe).IsNothing()), (status))
+
 #define CHECK_TO_NUMBER(env, context, result, src) \
   CHECK_TO_TYPE((env), Number, (context), (result), (src), napi_number_expected)
 
@@ -364,6 +367,26 @@ class Reference : public RefBase {
   }
 
   v8impl::Persistent<v8::Value> _persistent;
+};
+
+class TypeTagReference final : public Reference {
+ public:
+  explicit TypeTagReference(napi_env env,
+                            v8::Local<v8::Object> obj,
+                            const napi_type_tag* tag)
+    : Reference(env, obj, 0, true, nullptr, nullptr, nullptr), _tag(*tag) {}
+
+  static TypeTagReference* New(napi_env env,
+                               v8::Local<v8::Object> obj,
+                               const napi_type_tag* tag) {
+    return new TypeTagReference(env, obj, tag);
+  }
+
+  inline bool TagEquals(const napi_type_tag* other) {
+    return (other->lower == _tag.lower && other->upper == _tag.upper);
+  }
+ private:
+  napi_type_tag _tag;
 };
 
 enum UnwrapAction {
@@ -2357,6 +2380,58 @@ napi_status napi_create_external(napi_env env,
   *result = v8impl::JsValueFromV8LocalValue(external_value);
 
   return napi_clear_last_error(env);
+}
+
+NAPI_EXTERN napi_status napi_type_tag_object(napi_env env,
+                                             napi_value object,
+                                             const napi_type_tag* type_tag) {
+  NAPI_PREAMBLE(env);
+  v8::Local<v8::Context> context = env->context();
+  v8::Local<v8::Object> obj;
+  CHECK_TO_OBJECT_WITH_PREAMBLE(env, context, obj, object);
+
+  auto key = NAPI_PRIVATE_KEY(context, type_tag);
+  auto maybe_has = obj->HasPrivate(context, key);
+  CHECK_MAYBE_NOTHING_WITH_PREAMBLE(env, maybe_has, napi_generic_failure);
+  RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env,
+                                       !maybe_has.FromJust(),
+                                       napi_invalid_arg);
+
+  auto ref = v8impl::TypeTagReference::New(env, obj, type_tag);
+  auto tag = v8::External::New(env->isolate, ref);
+  auto maybe_set = obj->SetPrivate(context, key, tag);
+  CHECK_MAYBE_NOTHING_WITH_PREAMBLE(env, maybe_set, napi_generic_failure);
+  RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env,
+                                       maybe_set.FromJust(),
+                                       napi_generic_failure);
+
+  return GET_RETURN_STATUS(env);
+}
+
+NAPI_EXTERN napi_status
+napi_check_object_type_tag(napi_env env,
+                           napi_value object,
+                           const napi_type_tag* type_tag,
+                           bool* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+  v8::Local<v8::Context> context = env->context();
+  v8::Local<v8::Object> obj;
+  CHECK_TO_OBJECT_WITH_PREAMBLE(env, context, obj, object);
+
+  auto maybe_value = obj->GetPrivate(context,
+                                     NAPI_PRIVATE_KEY(context, type_tag));
+  CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, maybe_value, napi_generic_failure);
+  v8::Local<v8::Value> val = maybe_value.ToLocalChecked();
+
+  *result = false;
+  if (val->IsExternal()) {
+    v8impl::TypeTagReference* ref =
+        static_cast<v8impl::TypeTagReference*>(val.As<v8::External>()->Value());
+    *result = ref->TagEquals(type_tag);
+  }
+
+  return GET_RETURN_STATUS(env);
 }
 
 napi_status napi_get_value_external(napi_env env,
