@@ -537,6 +537,16 @@ NAPI_EXTERN napi_status napi_detach_arraybuffer(napi_env env,
 NAPI_EXTERN napi_status napi_is_detached_arraybuffer(napi_env env,
                                                      napi_value value,
                                                      bool* result);
+// Type tagging
+NAPI_EXTERN napi_status napi_type_tag_object(napi_env env,
+                                             napi_value value,
+                                             const napi_type_tag* type_tag);
+
+NAPI_EXTERN napi_status
+napi_check_object_type_tag(napi_env env,
+                           napi_value value,
+                           const napi_type_tag* type_tag,
+                           bool* result);
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END

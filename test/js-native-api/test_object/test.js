@@ -160,6 +160,24 @@ assert.strictEqual(newObject.test_string, 'test string');
 }
 
 {
+  // Verify that objects can be type-tagged and type-tag-checked.
+  const obj1 = test_object.TypeTaggedInstance(0);
+  const obj2 = test_object.TypeTaggedInstance(1);
+
+  // Verify that type tags are correctly accepted.
+  assert.strictEqual(test_object.CheckTypeTag(0, obj1), true);
+  assert.strictEqual(test_object.CheckTypeTag(1, obj2), true);
+
+  // Verify that wrongly tagged objects are rejected.
+  assert.strictEqual(test_object.CheckTypeTag(0, obj2), false);
+  assert.strictEqual(test_object.CheckTypeTag(1, obj1), false);
+
+  // Verify that untagged objects are rejected.
+  assert.strictEqual(test_object.CheckTypeTag(0, {}), false);
+  assert.strictEqual(test_object.CheckTypeTag(1, {}), false);
+}
+
+{
   // Verify that normal and nonexistent properties can be deleted.
   const sym = Symbol();
   const obj = { foo: 'bar', [sym]: 'baz' };

@@ -140,4 +140,11 @@ typedef enum {
 } napi_key_conversion;
 #endif  // NAPI_VERSION >= 6
 
+#ifdef NAPI_EXPERIMENTAL
+typedef struct {
+  uint64_t lower;
+  uint64_t upper;
+} napi_type_tag;
+#endif  // NAPI_EXPERIMENTAL
+
 #endif  // SRC_JS_NATIVE_API_TYPES_H_
