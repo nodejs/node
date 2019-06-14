@@ -413,11 +413,32 @@ assert.throws(() => { throw new Error(); }, (err) => err instanceof Error);
 // Long values should be truncated for display.
 assert.throws(() => {
   assert.strictEqual('A'.repeat(1000), '');
-}, {
-  code: 'ERR_ASSERTION',
-  message: `${strictEqualMessageStart}+ actual - expected\n\n` +
-           `+ '${'A'.repeat(1000)}'\n- ''`
+}, (err) => {
+  assert.strictEqual(err.code, 'ERR_ASSERTION');
+  assert.strictEqual(err.message,
+                     `${strictEqualMessageStart}+ actual - expected\n\n` +
+                     `+ '${'A'.repeat(1000)}'\n- ''`);
+  assert.strictEqual(err.actual.length, 1000);
+  assert.ok(inspect(err).includes(`actual: '${'A'.repeat(488)}...'`));
+  return true;
 });
+
+// Output that extends beyond 10 lines should also be truncated for display.
+{
+  const multilineString = 'fhqwhgads\n'.repeat(15);
+  assert.throws(() => {
+    assert.strictEqual(multilineString, '');
+  }, (err) => {
+    assert.strictEqual(err.code, 'ERR_ASSERTION');
+    assert.strictEqual(err.message.split('\n').length, 19);
+    assert.strictEqual(err.actual.split('\n').length, 16);
+    assert.ok(inspect(err).includes(
+      "actual: 'fhqwhgads\\n' +\n" +
+      "    'fhqwhgads\\n' +\n".repeat(9) +
+      "    '...'"));
+    return true;
+  });
+}
 
 {
   // Bad args to AssertionError constructor should throw TypeError.
