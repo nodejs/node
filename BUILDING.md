@@ -476,6 +476,14 @@ Prerequisites:
   If not installed in the default location, it needs to be manually added
   to `PATH`. A build with the `openssl-no-asm` option does not need this, nor
   does a build targeting ARM64 Windows.
+  
+Note: To install all prerequisites you can install node-gyp with npm using the following command
+
+```console
+> npm install -g node-gyp
+> npm install -g --production windows-build-tools
+```
+  
 * **Optional** (to build the MSI): the [WiX Toolset v3.11](http://wixtoolset.org/releases/)
   and the [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
 * **Optional** Requirements for compiling for Windows 10 on ARM (ARM64):
@@ -490,6 +498,7 @@ Prerequisites:
 
 If the path to your build directory contains a space or a non-ASCII character,
 the build will likely fail.
+
 
 ```console
 > .\vcbuild
