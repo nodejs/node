@@ -33,8 +33,6 @@ const wptToASCIITests = require(
 }
 
 {
-  const errMessage = /^Error: Cannot convert name to ASCII$/;
-
   for (const [i, test] of wptToASCIITests.entries()) {
     if (typeof test === 'string')
       continue; // skip comments
@@ -43,8 +41,14 @@ const wptToASCIITests = require(
     if (comment)
       caseComment += ` (${comment})`;
     if (output === null) {
-      assert.throws(() => icu.toASCII(input),
-                    errMessage, `ToASCII ${caseComment}`);
+      common.expectsError(
+        () => icu.toASCII(input),
+        {
+          code: 'ERR_INVALID_ARG_VALUE',
+          type: TypeError,
+          message: 'Cannot convert name to ASCII'
+        }
+      );
       icu.toASCII(input, true); // Should not throw.
     } else {
       assert.strictEqual(icu.toASCII(input), output, `ToASCII ${caseComment}`);
