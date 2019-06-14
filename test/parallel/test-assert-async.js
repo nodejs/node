@@ -66,6 +66,21 @@ const invalidThenableFunc = () => {
       code: 'ERR_INVALID_RETURN_VALUE'
     })
   );
+
+  const err = new Error('foobar');
+  const validate = () => { return 'baz'; };
+  promises.push(assert.rejects(
+    () => assert.rejects(Promise.reject(err), validate),
+    {
+      message: 'The "validate" validation function is expected to ' +
+               "return \"true\". Received 'baz'",
+      code: 'ERR_ASSERTION',
+      actual: err,
+      expected: validate,
+      name: 'AssertionError',
+      operator: 'rejects',
+    }
+  ));
 }
 
 {

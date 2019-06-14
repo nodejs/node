@@ -1222,6 +1222,9 @@ assert.throws(
 
 Custom error validation:
 
+The function must return `true` to indicate all internal validations passed.
+It will otherwise fail with an AssertionError.
+
 ```js
 assert.throws(
   () => {

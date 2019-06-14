@@ -1326,3 +1326,20 @@ assert.throws(
              'Received "[Array]"'
   }
 );
+
+{
+  const err = new TypeError('foo');
+  const validate = (() => () => ({ a: true, b: [ 1, 2, 3 ] }))();
+  assert.throws(
+    () => assert.throws(() => { throw err; }, validate),
+    {
+      message: 'The validation function is expected to ' +
+              `return "true". Received ${inspect(validate())}`,
+      code: 'ERR_ASSERTION',
+      actual: err,
+      expected: validate,
+      name: 'AssertionError',
+      operator: 'throws',
+    }
+  );
+}
