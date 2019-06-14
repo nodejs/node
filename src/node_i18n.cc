@@ -655,7 +655,7 @@ static void ToUnicode(const FunctionCallbackInfo<Value>& args) {
   int32_t len = ToUnicode(&buf, *val, val.length());
 
   if (len < 0) {
-    return env->ThrowError("Cannot convert name to Unicode");
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Cannot convert name to Unicode");
   }
 
   args.GetReturnValue().Set(
@@ -678,7 +678,7 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
   int32_t len = ToASCII(&buf, *val, val.length(), mode);
 
   if (len < 0) {
-    return env->ThrowError("Cannot convert name to ASCII");
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Cannot convert name to ASCII");
   }
 
   args.GetReturnValue().Set(
