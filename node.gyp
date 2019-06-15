@@ -1096,7 +1096,6 @@
         'test/cctest/test_linked_binding.cc',
         'test/cctest/test_per_process.cc',
         'test/cctest/test_platform.cc',
-        'test/cctest/test_report_util.cc',
         'test/cctest/test_traced_value.cc',
         'test/cctest/test_util.cc',
         'test/cctest/test_url.cc',
@@ -1134,6 +1133,9 @@
           },
         }],
         [ 'node_report=="true"', {
+          'sources': [
+            'test/cctest/test_report_util.cc',
+          ],
           'defines': [
             'NODE_REPORT',
             'NODE_ARCH="<(target_arch)"',
