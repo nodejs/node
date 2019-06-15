@@ -18,5 +18,10 @@ assert.deepStrictEqual(keys, new Set([
 ]));
 
 for (const key of keys) {
-  assert.strictEqual(typeof process.features[key], 'boolean');
+  const original = process.features[key];
+  assert.strictEqual(typeof original, 'boolean');
+  // Check that they are not mutable.
+  assert.throws(() => {
+    process.features[key] = !original;
+  }, TypeError);
 }
