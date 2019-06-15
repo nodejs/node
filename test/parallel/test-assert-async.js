@@ -73,7 +73,8 @@ const invalidThenableFunc = () => {
     () => assert.rejects(Promise.reject(err), validate),
     {
       message: 'The "validate" validation function is expected to ' +
-               "return \"true\". Received 'baz'",
+               "return \"true\". Received 'baz'\n\nCaught error:\n\n" +
+               'Error: foobar',
       code: 'ERR_ASSERTION',
       actual: err,
       expected: validate,
