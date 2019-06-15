@@ -115,7 +115,7 @@ static inline void trigger_fatal_exception(
     napi_env env, v8::Local<v8::Value> local_err) {
   v8::Local<v8::Message> local_msg =
     v8::Exception::CreateMessage(env->isolate, local_err);
-  node::FatalException(env->isolate, local_err, local_msg);
+  node::errors::TriggerUncaughtException(env->isolate, local_err, local_msg);
 }
 
 class ThreadSafeFunction : public node::AsyncResource {

@@ -343,10 +343,6 @@ void ReportException(Environment* env,
 #endif
 }
 
-void ReportException(Environment* env, const v8::TryCatch& try_catch) {
-  ReportException(env, try_catch.Exception(), try_catch.Message());
-}
-
 void PrintErrorString(const char* format, ...) {
   va_list ap;
   va_start(ap, format);
@@ -764,7 +760,7 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
       break;
     }
     case Isolate::MessageErrorLevel::kMessageError:
-      FatalException(isolate, error, message);
+      TriggerUncaughtException(isolate, error, message);
       break;
   }
 }
@@ -775,6 +771,27 @@ void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
   env->set_prepare_stack_trace_callback(args[0].As<Function>());
 }
 
+// Side effect-free stringification that will never throw exceptions.
+static void NoSideEffectsToString(const FunctionCallbackInfo<Value>& args) {
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  Local<String> detail_string;
+  if (args[0]->ToDetailString(context).ToLocal(&detail_string))
+    args.GetReturnValue().Set(detail_string);
+}
+
+static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Value> exception = args[0];
+  Local<Message> message = Exception::CreateMessage(isolate, exception);
+  if (env != nullptr && env->abort_on_uncaught_exception()) {
+    ReportException(env, exception, message);
+    Abort();
+  }
+  bool from_promise = args[1]->IsTrue();
+  errors::TriggerUncaughtException(isolate, exception, message, from_promise);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -782,9 +799,10 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(
       target, "setPrepareStackTraceCallback", SetPrepareStackTraceCallback);
+  env->SetMethodNoSideEffect(
+      target, "noSideEffectsToString", NoSideEffectsToString);
+  env->SetMethod(target, "triggerUncaughtException", TriggerUncaughtException);
 }
-
-}  // namespace errors
 
 void DecorateErrorStack(Environment* env,
                         const errors::TryCatchScope& try_catch) {
@@ -822,10 +840,10 @@ void DecorateErrorStack(Environment* env,
       env->context(), env->decorated_private_symbol(), True(env->isolate()));
 }
 
-void FatalException(Isolate* isolate,
-                    Local<Value> error,
-                    Local<Message> message,
-                    bool from_promise) {
+void TriggerUncaughtException(Isolate* isolate,
+                              Local<Value> error,
+                              Local<Message> message,
+                              bool from_promise) {
   CHECK(!error.IsEmpty());
   HandleScope scope(isolate);
 
@@ -843,58 +861,80 @@ void FatalException(Isolate* isolate,
     Abort();
   }
 
+  // Invoke process._fatalException() to give user a chance to handle it.
+  // We have to grab it from the process object since this has been
+  // monkey-patchable.
   Local<Object> process_object = env->process_object();
   Local<String> fatal_exception_string = env->fatal_exception_string();
   Local<Value> fatal_exception_function =
       process_object->Get(env->context(),
                           fatal_exception_string).ToLocalChecked();
-
+  // If the exception happens before process._fatalException is attached
+  // during bootstrap, or if the user has patched it incorrectly, just crash.
   if (!fatal_exception_function->IsFunction()) {
-    // Failed before the process._fatalException function was added!
-    // this is probably pretty bad.  Nothing to do but report and exit.
     ReportException(env, error, message);
     env->Exit(6);
-  } else {
-    errors::TryCatchScope fatal_try_catch(env);
+    return;
+  }
 
-    // Do not call FatalException when _fatalException handler throws
-    fatal_try_catch.SetVerbose(false);
-
+  MaybeLocal<Value> handled;
+  {
+    // We do not expect the global uncaught exception itself to throw any more
+    // exceptions. If it does, crash.
+    errors::TryCatchScope fatal_try_catch(
+        env, errors::TryCatchScope::CatchMode::kFatal);
     Local<Value> argv[2] = { error,
                              Boolean::New(env->isolate(), from_promise) };
 
-    // This will return true if the JS layer handled it, false otherwise
-    MaybeLocal<Value> caught = fatal_exception_function.As<Function>()->Call(
+    handled = fatal_exception_function.As<Function>()->Call(
         env->context(), process_object, arraysize(argv), argv);
+  }
 
-    if (fatal_try_catch.HasTerminated()) return;
+  // The global uncaught exception handler returns true if the user handles it
+  // by e.g. listening to `uncaughtException`. In that case, continue program
+  // execution.
+  // TODO(joyeecheung): This has been only checking that the return value is
+  // exactly false. Investigate whether this can be turned to an "if true"
+  // similar to how the worker global uncaught exception handler handles it.
+  if (!handled.ToLocalChecked()->IsFalse()) {
+    return;
+  }
 
-    if (fatal_try_catch.HasCaught()) {
-      // The fatal exception function threw, so we must exit
-      ReportException(env, fatal_try_catch);
-      env->Exit(7);
-
-    } else if (caught.ToLocalChecked()->IsFalse()) {
-      ReportException(env, error, message);
-
-      // fatal_exception_function call before may have set a new exit code ->
-      // read it again, otherwise use default for uncaughtException 1
-      Local<String> exit_code = env->exit_code_string();
-      Local<Value> code;
-      if (!process_object->Get(env->context(), exit_code).ToLocal(&code) ||
-          !code->IsInt32()) {
-        env->Exit(1);
-      }
-      env->Exit(code.As<Int32>()->Value());
-    }
+  ReportException(env, error, message);
+  // If the global uncaught exception handler sets process.exitCode,
+  // exit with that code. Otherwise, exit with 1.
+  Local<String> exit_code = env->exit_code_string();
+  Local<Value> code;
+  if (process_object->Get(env->context(), exit_code).ToLocal(&code) &&
+      code->IsInt32()) {
+    env->Exit(code.As<Int32>()->Value());
+  } else {
+    env->Exit(1);
   }
 }
 
-void FatalException(Isolate* isolate,
-                    Local<Value> error,
-                    Local<Message> message) {
-  FatalException(isolate, error, message, false /* from_promise */);
+void TriggerUncaughtException(Isolate* isolate, const v8::TryCatch& try_catch) {
+  // If the try_catch is verbose, the per-isolate message listener is going to
+  // handle it (which is going to call into another overload of
+  // TriggerUncaughtException()).
+  if (try_catch.IsVerbose()) {
+    return;
+  }
+
+  // If the user calls TryCatch::TerminateExecution() on this TryCatch
+  // they must call CancelTerminateExecution() again before invoking
+  // TriggerUncaughtException() because it will invoke
+  // process._fatalException() in the JS land.
+  CHECK(!try_catch.HasTerminated());
+  CHECK(try_catch.HasCaught());
+  HandleScope scope(isolate);
+  TriggerUncaughtException(isolate,
+                           try_catch.Exception(),
+                           try_catch.Message(),
+                           false /* from_promise */);
 }
+
+}  // namespace errors
 
 }  // namespace node
 
