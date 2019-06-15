@@ -8,9 +8,6 @@ The `assert` module provides a set of assertion functions for verifying
 invariants. The module provides a recommended [`strict` mode][] and a more
 lenient legacy mode.
 
-For more information about the used equality comparisons see
-[MDN's guide on equality comparisons and sameness][mdn-equality-guide].
-
 ## Class: assert.AssertionError
 
 A subclass of `Error` that indicates the failure of an assertion. All errors
@@ -1289,5 +1286,4 @@ second argument. This might lead to difficult-to-spot errors.
 [SameValue Comparison]: https://tc39.github.io/ecma262/#sec-samevalue
 [Strict Equality Comparison]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
-[mdn-equality-guide]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Equality_comparisons_and_sameness
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
