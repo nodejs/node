@@ -25,6 +25,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { inspect } = require('util');
+const vm = require('vm');
 const { internalBinding } = require('internal/test/binding');
 const a = assert;
 
@@ -1344,3 +1345,17 @@ assert.throws(
     }
   );
 }
+
+assert.throws(
+  () => {
+    const script = new vm.Script('new RangeError("foobar");');
+    const context = vm.createContext();
+    const err = script.runInContext(context);
+    assert.throws(() => { throw err; }, RangeError);
+  },
+  {
+    message: 'The error is expected to be an instance of "RangeError". ' +
+             'Received an error with identical name but a different ' +
+             'prototype.\n\nError message:\n\nfoobar'
+  }
+);
