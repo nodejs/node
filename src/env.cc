@@ -666,7 +666,7 @@ void Environment::RunAndClearNativeImmediates() {
           ref_count++;
         if (UNLIKELY(try_catch.HasCaught())) {
           if (!try_catch.HasTerminated())
-            FatalException(isolate(), try_catch);
+            errors::TriggerUncaughtException(isolate(), try_catch);
 
           // We are done with the current callback. Increase the counter so that
           // the steps below make everything *after* the current item part of

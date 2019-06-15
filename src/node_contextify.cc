@@ -734,7 +734,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
       compile_options);
 
   if (v8_script.IsEmpty()) {
-    DecorateErrorStack(env, try_catch);
+    errors::DecorateErrorStack(env, try_catch);
     no_abort_scope.Close();
     if (!try_catch.HasTerminated())
       try_catch.ReThrow();
@@ -946,7 +946,7 @@ bool ContextifyScript::EvalMachine(Environment* env,
   if (try_catch.HasCaught()) {
     if (!timed_out && !received_signal && display_errors) {
       // We should decorate non-termination exceptions
-      DecorateErrorStack(env, try_catch);
+      errors::DecorateErrorStack(env, try_catch);
     }
 
     // If there was an exception thrown during script execution, re-throw it.
@@ -1110,7 +1110,7 @@ void ContextifyContext::CompileFunction(
 
   if (maybe_fn.IsEmpty()) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-      DecorateErrorStack(env, try_catch);
+      errors::DecorateErrorStack(env, try_catch);
       try_catch.ReThrow();
     }
     return;

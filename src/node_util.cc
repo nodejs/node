@@ -123,14 +123,6 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
       Array::New(env->isolate(), ret, arraysize(ret)));
 }
 
-// Side effect-free stringification that will never throw exceptions.
-static void SafeToString(const FunctionCallbackInfo<Value>& args) {
-  Local<Context> context = args.GetIsolate()->GetCurrentContext();
-  Local<String> detail_string;
-  if (args[0]->ToDetailString(context).ToLocal(&detail_string))
-    args.GetReturnValue().Set(detail_string);
-}
-
 inline Local<Private> IndexToPrivateSymbol(Environment* env, uint32_t index) {
 #define V(name, _) &Environment::name,
   static Local<Private> (Environment::*const methods[])() const = {
@@ -270,7 +262,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
   env->SetMethodNoSideEffect(target, "getPromiseDetails", GetPromiseDetails);
   env->SetMethodNoSideEffect(target, "getProxyDetails", GetProxyDetails);
-  env->SetMethodNoSideEffect(target, "safeToString", SafeToString);
   env->SetMethodNoSideEffect(target, "previewEntries", PreviewEntries);
   env->SetMethodNoSideEffect(target, "getOwnNonIndexProperties",
                                      GetOwnNonIndexProperties);

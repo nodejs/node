@@ -49,7 +49,7 @@ bool JSStream::IsClosing() {
   Local<Value> value;
   if (!MakeCallback(env()->isclosing_string(), 0, nullptr).ToLocal(&value)) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated())
-      FatalException(env()->isolate(), try_catch);
+      errors::TriggerUncaughtException(env()->isolate(), try_catch);
     return true;
   }
   return value->IsTrue();
@@ -65,7 +65,7 @@ int JSStream::ReadStart() {
   if (!MakeCallback(env()->onreadstart_string(), 0, nullptr).ToLocal(&value) ||
       !value->Int32Value(env()->context()).To(&value_int)) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated())
-      FatalException(env()->isolate(), try_catch);
+      errors::TriggerUncaughtException(env()->isolate(), try_catch);
   }
   return value_int;
 }
@@ -80,7 +80,7 @@ int JSStream::ReadStop() {
   if (!MakeCallback(env()->onreadstop_string(), 0, nullptr).ToLocal(&value) ||
       !value->Int32Value(env()->context()).To(&value_int)) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated())
-      FatalException(env()->isolate(), try_catch);
+      errors::TriggerUncaughtException(env()->isolate(), try_catch);
   }
   return value_int;
 }
@@ -102,7 +102,7 @@ int JSStream::DoShutdown(ShutdownWrap* req_wrap) {
                     argv).ToLocal(&value) ||
       !value->Int32Value(env()->context()).To(&value_int)) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated())
-      FatalException(env()->isolate(), try_catch);
+      errors::TriggerUncaughtException(env()->isolate(), try_catch);
   }
   return value_int;
 }
@@ -137,7 +137,7 @@ int JSStream::DoWrite(WriteWrap* w,
                     argv).ToLocal(&value) ||
       !value->Int32Value(env()->context()).To(&value_int)) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated())
-      FatalException(env()->isolate(), try_catch);
+      errors::TriggerUncaughtException(env()->isolate(), try_catch);
   }
   return value_int;
 }
