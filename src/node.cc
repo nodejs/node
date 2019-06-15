@@ -121,7 +121,6 @@ using options_parser::kDisallowedInEnvironment;
 
 using v8::Boolean;
 using v8::EscapableHandleScope;
-using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
@@ -212,10 +211,9 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
                                       arguments->size(),
                                       arguments->data());
 
-  // If there was an error during bootstrap then it was either handled by the
-  // FatalException handler or it's unrecoverable (e.g. max call stack
-  // exceeded). Either way, clear the stack so that the AsyncCallbackScope
-  // destructor doesn't fail on the id check.
+  // If there was an error during bootstrap, it must be unrecoverable
+  // (e.g. max call stack exceeded). Clear the stack so that the
+  // AsyncCallbackScope destructor doesn't fail on the id check.
   // There are only two ways to have a stack size > 1: 1) the user manually
   // called MakeCallback or 2) user awaited during bootstrap, which triggered
   // _tickCallback().

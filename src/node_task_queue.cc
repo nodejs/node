@@ -12,7 +12,6 @@ namespace node {
 
 using v8::Array;
 using v8::Context;
-using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
@@ -123,19 +122,6 @@ static void SetPromiseRejectCallback(
   env->set_promise_reject_callback(args[0].As<Function>());
 }
 
-static void TriggerFatalException(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  Environment* env = Environment::GetCurrent(isolate);
-  Local<Value> exception = args[0];
-  Local<Message> message = Exception::CreateMessage(isolate, exception);
-  if (env != nullptr && env->abort_on_uncaught_exception()) {
-    ReportException(env, exception, message);
-    Abort();
-  }
-  bool from_promise = args[1]->IsTrue();
-  FatalException(isolate, exception, message, from_promise);
-}
-
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -143,7 +129,6 @@ static void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-  env->SetMethod(target, "triggerFatalException", TriggerFatalException);
   env->SetMethod(target, "enqueueMicrotask", EnqueueMicrotask);
   env->SetMethod(target, "setTickCallback", SetTickCallback);
   env->SetMethod(target, "runMicrotasks", RunMicrotasks);
