@@ -120,7 +120,7 @@ assert.throws(
     name: 'AssertionError',
     operator: 'throws',
     message: 'The error is expected to be an instance of "AssertionError". ' +
-             'Received "TypeError"'
+             'Received "TypeError"\n\nError message:\n\n[object Object]'
   }
 );
 
@@ -231,7 +231,7 @@ a.throws(() => thrower(TypeError), (err) => {
       assert.strictEqual(
         err.message,
         'The error is expected to be an instance of "ES6Error". ' +
-          'Received "Error"'
+          'Received "AnotherErrorType"\n\nError message:\n\nfoo'
       );
       assert.strictEqual(err.actual, actual);
       return true;
@@ -1289,7 +1289,8 @@ assert.throws(
     () => assert.throws(() => { throw err; }, validate),
     {
       message: 'The validation function is expected to ' +
-              `return "true". Received ${inspect(validate())}`,
+              `return "true". Received ${inspect(validate())}\n\nCaught ` +
+              `error:\n\n${err}`,
       code: 'ERR_ASSERTION',
       actual: err,
       expected: validate,
