@@ -182,7 +182,7 @@ It should also be noted that a `U+FFFD` replacement value
 in case of decoding errors (invalid unicode scalar values).
 
 ```js
-// assume an invalid byte sequence
+// Assuming an invalid byte sequence
 const buf = Buffer.from([237, 166, 164]);
 
 const buf_str = buf.toString('utf-8');
