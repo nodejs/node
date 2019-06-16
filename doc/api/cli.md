@@ -209,44 +209,7 @@ Enable experimental frozen intrinsics like `Array` and `Object`.
 
 Support is currently only provided for the root context and no guarantees are
 currently provided that `global.Array` is indeed the default intrinsic
-reference.
-
-**Code breakage is highly likely with this flag**, since redefining any
-builtin properties on a subclass will throw in strict mode due to the ECMA-262
-issue https://github.com/tc39/ecma262/pull/1307. This flag may still change
-or be removed in the future.
-
-To avoid these cases, any builtin function overrides should be defined upfront:
-
-```js
-const o = {};
-// THROWS: Cannot assign read only property 'toString' of object
-o.toString = () => 'string';
-
-class X {
-  constructor() {
-    this.toString = () => 'string';
-  }
-}
-// THROWS: Cannot assign read only property 'toString' of object
-new X();
-```
-
-```js
-// OK
-const o = { toString: () => 'string' };
-
-class X {
-  toString = undefined;
-  constructor() {
-    this.toString = () => 'string';
-  }
-}
-// OK
-new X();
-```
-
-
+reference. Code may break under this flag.
 
 ### `--heapsnapshot-signal=signal`
 <!-- YAML
