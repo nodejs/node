@@ -180,37 +180,15 @@ void PatchProcessObject(const FunctionCallbackInfo<Value>& args) {
 #undef V
 
   // process.execPath
-  {
-    char exec_path_buf[2 * PATH_MAX];
-    size_t exec_path_len = sizeof(exec_path_buf);
-    std::string exec_path;
-    if (uv_exepath(exec_path_buf, &exec_path_len) == 0) {
-      exec_path = std::string(exec_path_buf, exec_path_len);
-    } else {
-      exec_path = env->argv()[0];
-    }
-    // On OpenBSD process.execPath will be relative unless we
-    // get the full path before process.execPath is used.
-#if defined(__OpenBSD__)
-    uv_fs_t req;
-    req.ptr = nullptr;
-    if (0 ==
-        uv_fs_realpath(env->event_loop(), &req, exec_path.c_str(), nullptr)) {
-      CHECK_NOT_NULL(req.ptr);
-      exec_path = std::string(static_cast<char*>(req.ptr));
-    }
-    uv_fs_req_cleanup(&req);
-#endif
-    process
-        ->Set(context,
-              FIXED_ONE_BYTE_STRING(isolate, "execPath"),
-              String::NewFromUtf8(isolate,
-                                  exec_path.c_str(),
-                                  NewStringType::kInternalized,
-                                  exec_path.size())
-                  .ToLocalChecked())
-        .Check();
-  }
+  process
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "execPath"),
+            String::NewFromUtf8(isolate,
+                                env->exec_path().c_str(),
+                                NewStringType::kInternalized,
+                                env->exec_path().size())
+                .ToLocalChecked())
+      .Check();
 
   // process.debugPort
   CHECK(process
