@@ -165,6 +165,38 @@ console.log(Buffer.from('fhqwhgads', 'utf16le'));
 // Prints: <Buffer 66 00 68 00 71 00 77 00 68 00 67 00 61 00 64 00 73 00>
 ```
 
+### Evaluating legal code points for '`utf-8'` encoding
+
+Byte sequences that do not have corresponding UTF-16 encodings and non-legal
+Unicode values, along with their UTF-8 counterparts must be treated as
+invalid byte sequences.
+
+For cases regarding operations other than employing backward compatibility
+for 7-bit (and [extended 8-bit]((https://en.wikipedia.org/wiki/UTF-8#Description))
+in rare cases) `'ascii'` data, and the valid [`UTF-8` code units](https://en.wikipedia.org/wiki/UTF-8#Codepage_layout),
+it should be noted that the replacement character (`�`) is returned,
+and *no exception will be thrown*.
+
+It should also be noted that a `U+FFFD` replacement value
+(representing the aforementioned replacement character) will be returned
+in case of decoding errors (invalid unicode scalar values).
+
+```js
+// assume an invalid byte sequence
+const buf = Buffer.from([237, 166, 164]);
+
+const buf_str = buf.toString('utf-8');
+
+console.log(buf_str);
+// Prints: '�'
+
+console.log(buf.byteLength(buf_str));
+// Prints: 3
+
+console.log(buf.codePointAt(0).toString(16));
+// Prints: 'fffd'
+```
+
 The character encodings currently supported by Node.js include:
 
 * `'ascii'` - For 7-bit ASCII data only. This encoding is fast and will strip
