@@ -595,12 +595,15 @@ class Hash : public BaseObject {
 
   Hash(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        mdctx_(nullptr) {
+        mdctx_(nullptr),
+        md_len_(0) {
     MakeWeak();
   }
 
  private:
   EVPMDPointer mdctx_;
+  unsigned char md_value_[EVP_MAX_MD_SIZE];
+  unsigned int md_len_;
 };
 
 class SignBase : public BaseObject {
