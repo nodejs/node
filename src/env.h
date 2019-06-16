@@ -850,6 +850,7 @@ class Environment : public MemoryRetainer {
   void InitializeLibuv(bool start_profiler_idle_notifier);
   inline const std::vector<std::string>& exec_argv();
   inline const std::vector<std::string>& argv();
+  const std::string& exec_path() const;
 
   typedef void (*HandleCleanupCb)(Environment* env,
                                   uv_handle_t* handle,
@@ -1239,6 +1240,7 @@ class Environment : public MemoryRetainer {
   std::shared_ptr<HostPort> inspector_host_port_;
   std::vector<std::string> exec_argv_;
   std::vector<std::string> argv_;
+  std::string exec_path_;
 
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;

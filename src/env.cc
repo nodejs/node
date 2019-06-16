@@ -261,6 +261,32 @@ void Environment::CreateProperties() {
   set_process_object(process_object);
 }
 
+std::string GetExecPath(const std::vector<std::string>& argv) {
+  char exec_path_buf[2 * PATH_MAX];
+  size_t exec_path_len = sizeof(exec_path_buf);
+  std::string exec_path;
+  if (uv_exepath(exec_path_buf, &exec_path_len) == 0) {
+    exec_path = std::string(exec_path_buf, exec_path_len);
+  } else {
+    exec_path = argv[0];
+  }
+
+  // On OpenBSD process.execPath will be relative unless we
+  // get the full path before process.execPath is used.
+#if defined(__OpenBSD__)
+  uv_fs_t req;
+  req.ptr = nullptr;
+  if (0 ==
+      uv_fs_realpath(env->event_loop(), &req, exec_path.c_str(), nullptr)) {
+    CHECK_NOT_NULL(req.ptr);
+    exec_path = std::string(static_cast<char*>(req.ptr));
+  }
+  uv_fs_req_cleanup(&req);
+#endif
+
+  return exec_path;
+}
+
 Environment::Environment(IsolateData* isolate_data,
                          Local<Context> context,
                          const std::vector<std::string>& args,
@@ -274,6 +300,7 @@ Environment::Environment(IsolateData* isolate_data,
       timer_base_(uv_now(isolate_data->event_loop())),
       exec_argv_(exec_args),
       argv_(args),
+      exec_path_(GetExecPath(args)),
       should_abort_on_uncaught_toggle_(isolate_, 1),
       stream_base_state_(isolate_, StreamBase::kNumStreamBaseStateFields),
       flags_(flags),
