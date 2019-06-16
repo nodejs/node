@@ -77,9 +77,8 @@ Please always remove it again as soon as the conditions are not met anymore.
 
 ### Handling own pull requests
 
-When you open a pull request, [start a CI](#testing-and-ci) right away and post
-the link to it in a comment in the pull request. Later, after new code changes
-or rebasing, start a new CI.
+When you open a pull request, [start a CI](#testing-and-ci) right away. Later,
+after new code changes or rebasing, start a new CI.
 
 As soon as the pull request is ready to land, please do so. This allows other
 Collaborators to focus on other pull requests. If your pull request is not ready
@@ -109,8 +108,8 @@ review by @-mention.
 See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
 If you are the first Collaborator to approve a pull request that has no CI yet,
-please [start one](#testing-and-ci). Post the link to the CI in the PR. Please
-also start a new CI if the PR creator pushed new code since the last CI run.
+please [start one](#testing-and-ci). Please also start a new CI if the PR
+creator pushed new code since the last CI run.
 
 ### Consensus Seeking
 
