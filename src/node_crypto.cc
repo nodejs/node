@@ -3419,16 +3419,20 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
 
-  unsigned char md_value[EVP_MAX_MD_SIZE];
-  unsigned int md_len;
-
-  EVP_DigestFinal_ex(hash->mdctx_.get(), md_value, &md_len);
+  if (hash->md_len_ == 0) {
+    // Some hash algorithms such as SHA3 do not support calling
+    // EVP_DigestFinal_ex more than once, however, Hash._flush
+    // and Hash.digest can both be used to retrieve the digest,
+    // so we need to cache it.
+    // See https://github.com/nodejs/node/issues/28245.
+    EVP_DigestFinal_ex(hash->mdctx_.get(), hash->md_value_, &hash->md_len_);
+  }
 
   Local<Value> error;
   MaybeLocal<Value> rc =
       StringBytes::Encode(env->isolate(),
-                          reinterpret_cast<const char*>(md_value),
-                          md_len,
+                          reinterpret_cast<const char*>(hash->md_value_),
+                          hash->md_len_,
                           encoding,
                           &error);
   if (rc.IsEmpty()) {
