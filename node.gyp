@@ -150,6 +150,7 @@
       'lib/internal/modules/esm/loader.js',
       'lib/internal/modules/esm/create_dynamic_module.js',
       'lib/internal/modules/esm/default_resolve.js',
+      'lib/internal/modules/esm/deprecate_process_buffer.js',
       'lib/internal/modules/esm/module_job.js',
       'lib/internal/modules/esm/module_map.js',
       'lib/internal/modules/esm/translators.js',
