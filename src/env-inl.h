@@ -635,6 +635,10 @@ inline const std::vector<std::string>& Environment::exec_argv() {
   return exec_argv_;
 }
 
+inline const std::string& Environment::exec_path() const {
+  return exec_path_;
+}
+
 #if HAVE_INSPECTOR
 inline void Environment::set_coverage_directory(const char* dir) {
   coverage_directory_ = std::string(dir);
