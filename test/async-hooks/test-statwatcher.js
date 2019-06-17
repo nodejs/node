@@ -21,9 +21,13 @@ fs.writeFileSync(file2, 'bar');
 const hooks = initHooks();
 hooks.enable();
 
-function onchange() {}
+function onchange1(curr, prev) {
+  console.log('Watcher: w1');
+  console.log('current stat data:', curr);
+  console.log('previous stat data:', prev);
+}
 // Install first file watcher
-const w1 = fs.watchFile(file1, { interval: 10 }, onchange);
+const w1 = fs.watchFile(file1, { interval: 10 }, onchange1);
 
 let as = hooks.activitiesOfTypes('STATWATCHER');
 assert.strictEqual(as.length, 1);
@@ -35,8 +39,14 @@ assert.strictEqual(statwatcher1.triggerAsyncId, 1);
 checkInvocations(statwatcher1, { init: 1 },
                  'watcher1: when started to watch file');
 
+function onchange2(curr, prev) {
+  console.log('Watcher: w2');
+  console.log('current stat data:', curr);
+  console.log('previous stat data:', prev);
+}
+
 // Install second file watcher
-const w2 = fs.watchFile(file2, { interval: 10 }, onchange);
+const w2 = fs.watchFile(file2, { interval: 10 }, onchange2);
 as = hooks.activitiesOfTypes('STATWATCHER');
 assert.strictEqual(as.length, 2);
 
@@ -51,7 +61,8 @@ checkInvocations(statwatcher2, { init: 1 },
 
 setTimeout(() => fs.writeFileSync(file1, 'foo++'),
            common.platformTimeout(100));
-w1.once('change', common.mustCall(() => {
+w1.once('change', common.mustCall((curr, prev) => {
+  console.log('w1 change', curr, prev);
   setImmediate(() => {
     checkInvocations(statwatcher1, { init: 1, before: 1, after: 1 },
                      'watcher1: when unwatched first file');
@@ -60,7 +71,8 @@ w1.once('change', common.mustCall(() => {
 
     setTimeout(() => fs.writeFileSync(file2, 'bar++'),
                common.platformTimeout(100));
-    w2.once('change', common.mustCall(() => {
+    w2.once('change', common.mustCall((curr, prev) => {
+      console.log('w2 change', curr, prev);
       setImmediate(() => {
         checkInvocations(statwatcher1, { init: 1, before: 1, after: 1 },
                          'watcher1: when unwatched second file');
