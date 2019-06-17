@@ -600,6 +600,10 @@ class Hash : public BaseObject {
     MakeWeak();
   }
 
+  ~Hash() override {
+    OPENSSL_cleanse(md_value_, md_len_);
+  }
+
  private:
   EVPMDPointer mdctx_;
   unsigned char md_value_[EVP_MAX_MD_SIZE];
