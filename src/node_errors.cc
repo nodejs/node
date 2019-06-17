@@ -870,7 +870,8 @@ void TriggerUncaughtException(Isolate* isolate,
       process_object->Get(env->context(),
                           fatal_exception_string).ToLocalChecked();
   // If the exception happens before process._fatalException is attached
-  // during bootstrap, or if the user has patched it incorrectly, just crash.
+  // during bootstrap, or if the user has patched it incorrectly, exit
+  // the current Node.js instance.
   if (!fatal_exception_function->IsFunction()) {
     ReportException(env, error, message);
     env->Exit(6);
@@ -880,14 +881,27 @@ void TriggerUncaughtException(Isolate* isolate,
   MaybeLocal<Value> handled;
   {
     // We do not expect the global uncaught exception itself to throw any more
-    // exceptions. If it does, crash.
-    errors::TryCatchScope fatal_try_catch(
-        env, errors::TryCatchScope::CatchMode::kFatal);
+    // exceptions. If it does, exit the current Node.js instance.
+    errors::TryCatchScope try_catch(env,
+                                    errors::TryCatchScope::CatchMode::kFatal);
+    // Explicitly disable verbose exception reporting -
+    // if process._fatalException() throws an error, we don't want it to
+    // trigger the per-isolate message listener which will call this
+    // function and recurse.
+    try_catch.SetVerbose(false);
     Local<Value> argv[2] = { error,
                              Boolean::New(env->isolate(), from_promise) };
 
     handled = fatal_exception_function.As<Function>()->Call(
         env->context(), process_object, arraysize(argv), argv);
+  }
+
+  // If process._fatalException() throws, we are now exiting the Node.js
+  // instance so return to continue the exit routine.
+  // TODO(joyeecheung): return a Maybe here to prevent the caller from
+  // stepping on the exit.
+  if (handled.IsEmpty()) {
+    return;
   }
 
   // The global uncaught exception handler returns true if the user handles it
