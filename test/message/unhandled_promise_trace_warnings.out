@@ -21,7 +21,6 @@
     at *
     at *
     at *
-    at *
 (node:*) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1)
     at handledRejection (internal/process/promises.js:*)
     at promiseRejectHandler (internal/process/promises.js:*)
