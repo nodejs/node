@@ -90,20 +90,24 @@ const expected1 = 'Proxy [ {}, {} ]';
 const expected2 = 'Proxy [ Proxy [ {}, {} ], {} ]';
 const expected3 = 'Proxy [ Proxy [ Proxy [ {}, {} ], {} ], Proxy [ {}, {} ] ]';
 const expected4 = 'Proxy [ Proxy [ {}, {} ], Proxy [ Proxy [ {}, {} ], {} ] ]';
-const expected5 = 'Proxy [\n  ' +
-                  'Proxy [ Proxy [ Proxy [Array], {} ], Proxy [ {}, {} ] ],\n' +
-                  '  Proxy [ Proxy [ {}, {} ], Proxy [ Proxy [Array], {} ] ]' +
-                  '\n]';
-const expected6 = 'Proxy [\n' +
-                  '  Proxy [\n' +
-                  '    Proxy [ Proxy [Array], Proxy [Array] ],\n' +
-                  '    Proxy [ Proxy [Array], Proxy [Array] ]\n' +
-                  '  ],\n' +
-                  '  Proxy [\n' +
-                  '    Proxy [ Proxy [Array], Proxy [Array] ],\n' +
-                  '    Proxy [ Proxy [Array], Proxy [Array] ]\n' +
-                  '  ]\n' +
-                  ']';
+const expected5 =
+'Proxy [\n' +
+'  Proxy [ Proxy [ Proxy [ {}, {} ], {} ], Proxy [ {}, {} ] ],\n' +
+'  Proxy [ Proxy [ {}, {} ], Proxy [ Proxy [ {}, {} ], {} ] ]\n' +
+']';
+
+const expected6 =
+'Proxy [\n' +
+'  Proxy [\n' +
+'    Proxy [ Proxy [ Proxy [ {}, {} ], {} ], Proxy [ {}, {} ] ],\n' +
+'    Proxy [ Proxy [ {}, {} ], Proxy [ Proxy [ {}, {} ], {} ] ]\n' +
+'  ],\n' +
+'  Proxy [\n' +
+'    Proxy [ Proxy [ Proxy [ {}, {} ], {} ], Proxy [ {}, {} ] ],\n' +
+'    Proxy [ Proxy [ {}, {} ], Proxy [ Proxy [ {}, {} ], {} ] ]\n' +
+'  ]\n' +
+']';
+
 assert.strictEqual(
   util.inspect(proxy1, { showProxy: true, depth: null }),
   expected1);

@@ -233,8 +233,8 @@ corresponding argument. Supported specifiers are:
   circular references.
 * `%o` - `Object`. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` with options
-  `{ showHidden: true, showProxy: true }`. This will show the full object
-  including non-enumerable properties and proxies.
+  `{ showHidden: true, showProxy: true, depth: 4 }`. This will show the full
+  object including non-enumerable properties and proxies.
 * `%O` - `Object`. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` without options. This will show
   the full object not including non-enumerable properties and proxies.
@@ -393,6 +393,9 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28269
+    description: The `depth` option's default value changed to `4`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/27685
     description: Circular references now include a marker to the reference.
   - version: v12.0.0
@@ -459,7 +462,7 @@ changes:
   * `depth` {number} Specifies the number of times to recurse while formatting
     `object`. This is useful for inspecting large objects. To recurse up to
     the maximum call stack size pass `Infinity` or `null`.
-    **Default:** `2`.
+    **Default:** `4`.
   * `colors` {boolean} If `true`, the output is styled with ANSI color
     codes. Colors are customizable. See [Customizing `util.inspect` colors][].
     **Default:** `false`.

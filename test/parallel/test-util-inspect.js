@@ -113,8 +113,10 @@ assert.strictEqual(util.inspect({ a: function*() {} }),
 assert.strictEqual(util.inspect({ a: 1, b: 2 }), '{ a: 1, b: 2 }');
 assert.strictEqual(util.inspect({ 'a': {} }), '{ a: {} }');
 assert.strictEqual(util.inspect({ 'a': { 'b': 2 } }), '{ a: { b: 2 } }');
-assert.strictEqual(util.inspect({ 'a': { 'b': { 'c': { 'd': 2 } } } }),
-                   '{ a: { b: { c: [Object] } } }');
+assert.strictEqual(
+  util.inspect({ 'a': { 'b': { 'c': { 'd': { 'e': { 'f': {} } } } } } }),
+  '{\n  a: {\n    b: { c: { d: { e: [Object] } } }\n  }\n}'
+);
 assert.strictEqual(
   util.inspect({ 'a': { 'b': { 'c': { 'd': 2 } } } }, false, null),
   '{\n  a: { b: { c: { d: 2 } } }\n}');
@@ -154,10 +156,12 @@ assert.strictEqual(util.inspect((new JSStream())._externalStream),
 }
 
 assert(/Object/.test(
-  util.inspect({ a: { a: { a: { a: {} } } } }, undefined, undefined, true)
+  util.inspect({ a: { a: { a: { a: { a: { a: {} } } } } } },
+               undefined, undefined, true)
 ));
 assert(!/Object/.test(
-  util.inspect({ a: { a: { a: { a: {} } } } }, undefined, null, true)
+  util.inspect({ a: { a: { a: { a: { a: { a: {} } } } } } },
+               undefined, null, true)
 ));
 
 {
@@ -1253,18 +1257,36 @@ if (typeof Symbol !== 'undefined') {
 
 // Empty and circular before depth.
 {
-  const arr = [[[[]]]];
-  assert.strictEqual(util.inspect(arr), '[ [ [ [] ] ] ]');
-  arr[0][0][0][0] = [];
-  assert.strictEqual(util.inspect(arr), '[ [ [ [Array] ] ] ]');
-  arr[0][0][0] = {};
-  assert.strictEqual(util.inspect(arr), '[ [ [ {} ] ] ]');
-  arr[0][0][0] = { a: 2 };
-  assert.strictEqual(util.inspect(arr), '[ [ [ [Object] ] ] ]');
-  arr[0][0][0] = arr;
-  assert.strictEqual(util.inspect(arr), '<ref *1> [ [ [ [Circular *1] ] ] ]');
+  const arr = [[[[[[]]]]]];
+  assert.strictEqual(
+    util.inspect(arr),
+    '[\n  [\n    [ [ [ [] ] ] ]\n  ]\n]'
+  );
+  arr[0][0][0][0][0][0] = [];
+  assert.strictEqual(
+    util.inspect(arr),
+    '[\n  [\n    [ [ [ [Array] ] ] ]\n  ]\n]'
+  );
+  arr[0][0][0][0][0] = {};
+  assert.strictEqual(
+    util.inspect(arr),
+    '[\n  [\n    [ [ [ {} ] ] ]\n  ]\n]'
+  );
+  arr[0][0][0][0][0] = { a: 2 };
+  assert.strictEqual(
+    util.inspect(arr),
+    '[\n  [\n    [ [ [ [Object] ] ] ]\n  ]\n]'
+  );
+  arr[0][0][0][0][0] = arr;
+  assert.strictEqual(
+    util.inspect(arr),
+    '<ref *1> [\n  [\n    [ [ [ [Circular *1] ] ] ]\n  ]\n]'
+  );
   arr[0][0][0] = arr[0][0];
-  assert.strictEqual(util.inspect(arr), '[ [ <ref *1> [ [Circular *1] ] ] ]');
+  assert.strictEqual(
+    util.inspect(arr),
+    '[ [ <ref *1> [ [Circular *1] ] ] ]'
+  );
 }
 
 // Corner cases.
@@ -1354,7 +1376,7 @@ if (typeof Symbol !== 'undefined') {
 // util.inspect.defaultOptions tests.
 {
   const arr = new Array(101).fill();
-  const obj = { a: { a: { a: { a: 1 } } } };
+  const obj = { a: { a: { a: { a: { a: { a: 1 } } } } } };
 
   const oldOptions = Object.assign({}, util.inspect.defaultOptions);
 
@@ -1793,7 +1815,7 @@ util.inspect(process);
     head = head.next = {};
   assert.strictEqual(
     util.inspect(list),
-    '{ next: { next: { next: [Object] } } }'
+    '{\n  next: {\n    next: { next: { next: { next: [Object] } } }\n  }\n}'
   );
   const longList = util.inspect(list, { depth: Infinity });
   const match = longList.match(/next/g);
@@ -2147,7 +2169,7 @@ assert.strictEqual(
   getset.foo = new Set([[{ a: true }, 2, {}], 'foobar', { x: 1 }]);
   assert.strictEqual(
     inspect(getset, { getters: true }),
-    '{\n  foo: [Getter/Setter] Set { [ [Object], 2, {} ], ' +
+    '{\n  foo: [Getter/Setter] Set { [ { a: true }, 2, {} ], ' +
       "'foobar', { x: 1 } },\n  inc: [Getter: NaN]\n}");
 }
 
@@ -2302,7 +2324,10 @@ assert.strictEqual(
     })
   };
 
-  out = util.inspect(obj, { compact: 1, breakLength: Infinity, colors: true });
+  out = util.inspect(
+    obj,
+    { compact: 1, depth: 2, breakLength: Infinity, colors: true }
+  );
 
   expected = [
     '{',
