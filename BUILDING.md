@@ -19,8 +19,8 @@ file a new issue.
     * [OpenSSL asm support](#openssl-asm-support)
   * [Previous versions of this document](#previous-versions-of-this-document)
 * [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
+  * [Installing Prerequisites](#installing-prerequisites)
   * [Unix/macOS](#unixmacos)
-    * [Prerequisites](#prerequisites)
     * [Building Node.js](#building-nodejs)
     * [Running Tests](#running-tests)
     * [Running Coverage](#running-coverage)
@@ -215,12 +215,13 @@ Consult previous versions of this document for older versions of Node.js:
 
 ## Building Node.js on supported platforms
 
+#### Installing Prerequisites
 The [bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md)
 explains how to install all prerequisites.
 
 ### Unix/macOS
 
-#### Prerequisites
+Prerequisites:
 
 * `gcc` and `g++` >= 6.3 or newer, or
 * macOS: Xcode Command Line Tools >= 8
