@@ -26,7 +26,7 @@ An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 ### new Agent([options])
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.5.0
     pr-url: https://github.com/nodejs/node/pull/28209
     description: do not automatically set servername if the target host was
                  specified using an IP address.

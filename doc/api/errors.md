@@ -706,7 +706,7 @@ A constructor for a class was called without `new`.
 <a id="ERR_CONSTRUCT_CALL_INVALID"></a>
 ### ERR_CONSTRUCT_CALL_INVALID
 <!--
-added: REPLACEME
+added: v12.5.0
 -->
 
 A class constructor was called that is not callable.
@@ -2019,7 +2019,7 @@ A module file could not be resolved while attempting a [`require()`][] or
 ### ERR_CANNOT_TRANSFER_OBJECT
 <!--
 added: v10.5.0
-removed: REPLACEME
+removed: v12.5.0
 -->
 
 The value passed to `postMessage()` contained an object that is not supported
