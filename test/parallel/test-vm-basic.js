@@ -152,7 +152,7 @@ const vm = require('vm');
     );
   }, {
     type: SyntaxError,
-    message: 'Unexpected token }'
+    message: "Unexpected token '}'"
   });
 
   // Tests for failed argument validation
