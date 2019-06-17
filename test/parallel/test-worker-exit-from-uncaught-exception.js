@@ -1,12 +1,14 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { isMainThread, Worker } = require('worker_threads');
+const { Worker } = require('worker_threads');
 
 // Check that `process.exit()` can be called inside a Worker from an uncaught
 // exception handler.
 
-if (isMainThread) {
+// Do not use isMainThread so that this test itself can be run inside a Worker.
+if (!process.env.HAS_STARTED_WORKER) {
+  process.env.HAS_STARTED_WORKER = 1;
   const w = new Worker(__filename);
   w.on('exit', common.mustCall((code) => {
     assert.strictEqual(code, 42);
