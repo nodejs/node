@@ -1210,6 +1210,9 @@ assert.throws(
 
 Custom error validation:
 
+The function must return `true` to indicate all internal validations passed.
+It will otherwise fail with an AssertionError.
+
 ```js
 assert.throws(
   () => {
@@ -1219,9 +1222,10 @@ assert.throws(
     assert(err instanceof Error);
     assert(/value/.test(err));
     // Returning anything from validation functions besides `true` is not
-    // recommended. Doing so results in the caught error being thrown again.
-    // That is usually not the desired outcome. Throw an error about the
-    // specific validation that failed instead (as done in this example).
+    // recommended. By doing that it's not clear what part of the validation
+    // failed. Instead, throw an error about the specific validation that failed
+    // (as done in this example) and add as much helpful debugging information
+    // to that error as possible.
     return true;
   },
   'unexpected error'
