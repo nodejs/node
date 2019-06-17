@@ -10,6 +10,7 @@ if (!process.env.HAS_STARTED_WORKER) {
   if (!isMainThread) {
     common.skip('This test can only run as main thread');
   }
+  process.chdir(__dirname);
   const w = new Worker(__filename);
   process.chdir('..');
   w.on('message', common.mustCall((message) => {
