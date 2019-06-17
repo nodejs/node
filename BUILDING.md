@@ -477,7 +477,7 @@ Prerequisites:
   to `PATH`. A build with the `openssl-no-asm` option does not need this, nor
   does a build targeting ARM64 Windows.
   
-Note: To install all prerequisites you can install node-gyp with npm using the following command
+To install all prerequisites, you can install `node-gyp` with `npm`:
 
 ```console
 > npm install -g node-gyp
