@@ -1171,10 +1171,15 @@ assert.throws(
 assert.throws(
   () => {
     const otherErr = new Error('Not found');
-    otherErr.code = 404;
+    // Copy all enumerable properties from `err` to `otherErr`.
+    for (const [key, value] of Object.entries(err)) {
+      otherErr[key] = value;
+    }
     throw otherErr;
   },
-  err // This tests for `message`, `name` and `code`.
+  // The errors `message` and `name` properties will also be checked when using
+  // an error as validation object.
+  err
 );
 ```
 
@@ -1258,11 +1263,9 @@ assert.throws(notThrowing, 'Second');
 // It does not throw because the error messages match.
 assert.throws(throwingSecond, /Second$/);
 
-// If the error message does not match, the error from within the function is
-// not caught.
+// If the error message does not match, an AssertionError is thrown.
 assert.throws(throwingFirst, /Second$/);
-// Error: First
-//     at throwingFirst (repl:2:9)
+// AssertionError [ERR_ASSERTION]
 ```
 
 Due to the confusing notation, it is recommended not to use a string as the
