@@ -43,24 +43,25 @@ assert.strictEqual(as.length, 2);
 const statwatcher2 = as[1];
 assert.strictEqual(statwatcher2.type, 'STATWATCHER');
 assert.strictEqual(typeof statwatcher2.uid, 'number');
+assert.notStrictEqual(statwatcher2.uid, statwatcher1.uid);
 assert.strictEqual(statwatcher2.triggerAsyncId, 1);
 checkInvocations(statwatcher1, { init: 1 },
                  'watcher1: when started to watch second file');
 checkInvocations(statwatcher2, { init: 1 },
                  'watcher2: when started to watch second file');
 
-setTimeout(() => fs.writeFileSync(file1, 'foo++'),
-           common.platformTimeout(100));
+const interval1 = setInterval(() => fs.writeFileSync(file1, 'foo++'), 100);
 w1.once('change', common.mustCall(() => {
+  clearInterval(interval1);
   setImmediate(() => {
     checkInvocations(statwatcher1, { init: 1, before: 1, after: 1 },
                      'watcher1: when unwatched first file');
     checkInvocations(statwatcher2, { init: 1 },
                      'watcher2: when unwatched first file');
 
-    setTimeout(() => fs.writeFileSync(file2, 'bar++'),
-               common.platformTimeout(100));
+    const interval2 = setInterval(() => fs.writeFileSync(file2, 'bar++'), 100);
     w2.once('change', common.mustCall(() => {
+      clearInterval(interval2);
       setImmediate(() => {
         checkInvocations(statwatcher1, { init: 1, before: 1, after: 1 },
                          'watcher1: when unwatched second file');
