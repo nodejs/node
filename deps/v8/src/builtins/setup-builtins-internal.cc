@@ -297,7 +297,7 @@ Code GenerateBytecodeHandler(Isolate* isolate, int builtin_index,
 
 }  // namespace
 
-#if _MSC_VER == 1920
+#ifdef _MSC_VER
 #pragma optimize( "", off )
 #endif
 
@@ -384,7 +384,7 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   builtins->MarkInitialized();
 }
 
-#if _MSC_VER == 1920
+#ifdef _MSC_VER
 #pragma optimize( "", on )
 #endif
 
