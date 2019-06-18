@@ -319,7 +319,7 @@ the data is read it will consume memory that can eventually lead to a
 'process out of memory' error.
 
 Unlike the `request` object, if the response closes prematurely, the
-`response` object does not emit an `'error'` but instead emits the
+`response` object does not emit an `'error'` event but instead emits the
 `'aborted'` event.
 
 Node.js does not check whether Content-Length and the length of the
