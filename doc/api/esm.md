@@ -278,7 +278,15 @@ These CommonJS variables are not available in ES modules.
 
 `require` can be imported into an ES module using [`module.createRequire()`][].
 
-An equivalent for `__filename` and `__dirname` is [`import.meta.url`][].
+An equivalent for variable `__filename` and `__dirname` can be created inside each file with 
+
+<code>
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+</code>
 
 ### No <code>require.extensions</code>
 
