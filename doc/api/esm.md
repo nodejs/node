@@ -280,13 +280,13 @@ These CommonJS variables are not available in ES modules.
 
 An equivalent for variable `__filename` and `__dirname` can be created inside each file with 
 
-<code>
+```js
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-</code>
+```
 
 ### No <code>require.extensions</code>
 
