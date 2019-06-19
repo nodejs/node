@@ -169,7 +169,7 @@ for (const options of bad) {
 
 for (const options of toobig) {
   const expected = {
-    message: /error:[^:]+:digital envelope routines:EVP_PBE_scrypt:memory limit exceeded/,
+    message: /error:[^:]+:digital envelope routines:[^:]+:memory limit exceeded/,
     type: Error,
   };
   common.expectsError(() => crypto.scrypt('pass', 'salt', 1, options, () => {}),
