@@ -65,8 +65,8 @@ class Agent {
   void WaitForConnect();
   // Blocks till all the sessions with "WaitForDisconnectOnShutdown" disconnect
   void WaitForDisconnect();
-  void FatalException(v8::Local<v8::Value> error,
-                      v8::Local<v8::Message> message);
+  void ReportUncaughtException(v8::Local<v8::Value> error,
+                               v8::Local<v8::Message> message);
 
   // Async stack traces instrumentation.
   void AsyncTaskScheduled(const v8_inspector::StringView& taskName, void* task,
