@@ -6,7 +6,7 @@
 
 The `assert` module provides a set of assertion functions for verifying
 invariants. The module provides a recommended [`strict` mode][] and a more
-lenient `legacy` mode.
+lenient legacy mode.
 
 For more information about the used equality comparisons see
 [MDN's guide on equality comparisons and sameness][mdn-equality-guide].
@@ -80,14 +80,14 @@ changes:
     description: Added strict mode to the assert module.
 -->
 
-When using the `strict` mode, any `assert` function will use the equality used
-in the strict function mode. So [`assert.deepEqual()`][] will, for example,
-work the same as [`assert.deepStrictEqual()`][].
+In `strict` mode, `assert` functions use the comparison in the corresponding
+strict functions. For example, [`assert.deepEqual()`][] will behave like
+[`assert.deepStrictEqual()`][].
 
-On top of that, error messages which involve objects produce an error diff
-instead of displaying both objects. That is not the case for the legacy mode.
+In `strict` mode, error messages for objects display a diff. In legacy mode,
+error messages for objects display the objects, often truncated.
 
-It can be accessed using:
+To use `strict` mode:
 
 ```js
 const assert = require('assert').strict;
