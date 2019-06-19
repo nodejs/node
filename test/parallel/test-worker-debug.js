@@ -240,11 +240,17 @@ async function testWaitForDisconnectInWorker(session, post) {
   });
   await workerSession1.post('Runtime.runIfWaitingForDebugger');
 
+  // Create the promises before sending the exit message to the Worker in order
+  // to avoid race conditions.
+  const disconnectPromise =
+    waitForEvent(workerSession1, 'NodeRuntime.waitingForDisconnect');
+  const executionContextDestroyedPromise =
+    waitForEvent(workerSession2, 'Runtime.executionContextDestroyed');
   worker.postMessage('resume');
 
-  await waitForEvent(workerSession1, 'NodeRuntime.waitingForDisconnect');
+  await disconnectPromise;
   post('NodeWorker.detach', { sessionId: sessionId1 });
-  await waitForEvent(workerSession2, 'Runtime.executionContextDestroyed');
+  await executionContextDestroyedPromise;
 
   await exitPromise;
 
