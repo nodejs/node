@@ -25,6 +25,8 @@ test-http2-client-upload-reject: PASS,FLAKY
 test-worker-debug: PASS,FLAKY
 
 [$system==linux]
+# https://github.com/nodejs/node/issues/28299
+test-worker-debug: PASS,FLAKY
 
 [$system==macos]
 
