@@ -264,38 +264,82 @@ void AppendExceptionLine(Environment* env,
   Abort();
 }
 
-void ReportException(Environment* env,
-                     Local<Value> er,
-                     Local<Message> message) {
-  CHECK(!er.IsEmpty());
-  HandleScope scope(env->isolate());
+enum class EnhanceFatalException { kEnhance, kDontEnhance };
 
-  if (message.IsEmpty()) message = Exception::CreateMessage(env->isolate(), er);
+/**
+ * Report the exception to the inspector, then print it to stderr.
+ * This should only be used when the Node.js instance is about to exit
+ * (i.e. this should be followed by a env->Exit() or an Abort()).
+ *
+ * Use enhance_stack = EnhanceFatalException::kDontEnhance
+ * when it's unsafe to call into JavaScript.
+ */
+static void ReportFatalException(Environment* env,
+                                 Local<Value> error,
+                                 Local<Message> message,
+                                 EnhanceFatalException enhance_stack) {
+  Isolate* isolate = env->isolate();
+  CHECK(!error.IsEmpty());
+  CHECK(!message.IsEmpty());
+  HandleScope scope(isolate);
 
-  AppendExceptionLine(env, er, message, FATAL_ERROR);
+  AppendExceptionLine(env, error, message, FATAL_ERROR);
 
-  Local<Value> trace_value;
+  auto report_to_inspector = [&]() {
+#if HAVE_INSPECTOR
+    env->inspector_agent()->ReportUncaughtException(error, message);
+#endif
+  };
+
   Local<Value> arrow;
-  const bool decorated = IsExceptionDecorated(env, er);
+  Local<Value> stack_trace;
+  bool decorated = IsExceptionDecorated(env, error);
 
-  if (er->IsUndefined() || er->IsNull()) {
-    trace_value = Undefined(env->isolate());
+  if (!error->IsObject()) {  // We can only enhance actual errors.
+    report_to_inspector();
+    stack_trace = Undefined(isolate);
+    // If error is not an object, AppendExceptionLine() has already print the
+    // source line and the arrow to stderr.
+    // TODO(joyeecheung): move that side effect out of AppendExceptionLine().
+    // It is done just to preserve the source line as soon as possible.
   } else {
-    Local<Object> err_obj = er->ToObject(env->context()).ToLocalChecked();
+    Local<Object> err_obj = error.As<Object>();
 
-    if (!err_obj->Get(env->context(), env->stack_string())
-             .ToLocal(&trace_value)) {
-      trace_value = Undefined(env->isolate());
+    auto enhance_with = [&](Local<Function> enhancer) {
+      Local<Value> enhanced;
+      Local<Value> argv[] = {err_obj};
+      if (!enhancer.IsEmpty() &&
+          enhancer
+              ->Call(env->context(), Undefined(isolate), arraysize(argv), argv)
+              .ToLocal(&enhanced)) {
+        stack_trace = enhanced;
+      }
+    };
+
+    switch (enhance_stack) {
+      case EnhanceFatalException::kEnhance: {
+        enhance_with(env->enhance_fatal_stack_before_inspector());
+        report_to_inspector();
+        enhance_with(env->enhance_fatal_stack_after_inspector());
+        break;
+      }
+      case EnhanceFatalException::kDontEnhance: {
+        report_to_inspector();
+        break;
+      }
+      default:
+        UNREACHABLE();
     }
+
     arrow =
         err_obj->GetPrivate(env->context(), env->arrow_message_private_symbol())
             .ToLocalChecked();
   }
 
-  node::Utf8Value trace(env->isolate(), trace_value);
+  node::Utf8Value trace(env->isolate(), stack_trace);
 
   // range errors have a trace member set to undefined
-  if (trace.length() > 0 && !trace_value->IsUndefined()) {
+  if (trace.length() > 0 && !stack_trace->IsUndefined()) {
     if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
       PrintErrorString("%s\n", *trace);
     } else {
@@ -309,8 +353,8 @@ void ReportException(Environment* env,
     MaybeLocal<Value> message;
     MaybeLocal<Value> name;
 
-    if (er->IsObject()) {
-      Local<Object> err_obj = er.As<Object>();
+    if (error->IsObject()) {
+      Local<Object> err_obj = error.As<Object>();
       message = err_obj->Get(env->context(), env->message_string());
       name = err_obj->Get(env->context(), env->name_string());
     }
@@ -318,7 +362,7 @@ void ReportException(Environment* env,
     if (message.IsEmpty() || message.ToLocalChecked()->IsUndefined() ||
         name.IsEmpty() || name.ToLocalChecked()->IsUndefined()) {
       // Not an error object. Just print as-is.
-      String::Utf8Value message(env->isolate(), er);
+      String::Utf8Value message(env->isolate(), error);
 
       PrintErrorString("%s\n",
                        *message ? *message : "<toString() threw exception>");
@@ -337,10 +381,6 @@ void ReportException(Environment* env,
   }
 
   fflush(stderr);
-
-#if HAVE_INSPECTOR
-  env->inspector_agent()->FatalException(er, message);
-#endif
 }
 
 void PrintErrorString(const char* format, ...) {
@@ -406,7 +446,12 @@ namespace errors {
 TryCatchScope::~TryCatchScope() {
   if (HasCaught() && !HasTerminated() && mode_ == CatchMode::kFatal) {
     HandleScope scope(env_->isolate());
-    ReportException(env_, Exception(), Message());
+    Local<v8::Value> exception = Exception();
+    Local<v8::Message> message = Message();
+    if (message.IsEmpty())
+      message = Exception::CreateMessage(env_->isolate(), exception);
+    ReportFatalException(
+        env_, exception, message, EnhanceFatalException::kDontEnhance);
     env_->Exit(7);
   }
 }
@@ -771,6 +816,15 @@ void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
   env->set_prepare_stack_trace_callback(args[0].As<Function>());
 }
 
+static void SetEnhanceStackForFatalException(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsFunction());
+  CHECK(args[1]->IsFunction());
+  env->set_enhance_fatal_stack_before_inspector(args[0].As<Function>());
+  env->set_enhance_fatal_stack_after_inspector(args[1].As<Function>());
+}
+
 // Side effect-free stringification that will never throw exceptions.
 static void NoSideEffectsToString(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = args.GetIsolate()->GetCurrentContext();
@@ -785,7 +839,8 @@ static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
   Local<Value> exception = args[0];
   Local<Message> message = Exception::CreateMessage(isolate, exception);
   if (env != nullptr && env->abort_on_uncaught_exception()) {
-    ReportException(env, exception, message);
+    ReportFatalException(
+        env, exception, message, EnhanceFatalException::kEnhance);
     Abort();
   }
   bool from_promise = args[1]->IsTrue();
@@ -799,6 +854,9 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(
       target, "setPrepareStackTraceCallback", SetPrepareStackTraceCallback);
+  env->SetMethod(target,
+                 "setEnhanceStackForFatalException",
+                 SetEnhanceStackForFatalException);
   env->SetMethodNoSideEffect(
       target, "noSideEffectsToString", NoSideEffectsToString);
   env->SetMethod(target, "triggerUncaughtException", TriggerUncaughtException);
@@ -847,6 +905,8 @@ void TriggerUncaughtException(Isolate* isolate,
   CHECK(!error.IsEmpty());
   HandleScope scope(isolate);
 
+  if (message.IsEmpty()) message = Exception::CreateMessage(isolate, error);
+
   CHECK(isolate->InContext());
   Local<Context> context = isolate->GetCurrentContext();
   Environment* env = Environment::GetCurrent(context);
@@ -873,7 +933,8 @@ void TriggerUncaughtException(Isolate* isolate,
   // during bootstrap, or if the user has patched it incorrectly, exit
   // the current Node.js instance.
   if (!fatal_exception_function->IsFunction()) {
-    ReportException(env, error, message);
+    ReportFatalException(
+        env, error, message, EnhanceFatalException::kDontEnhance);
     env->Exit(6);
     return;
   }
@@ -914,7 +975,9 @@ void TriggerUncaughtException(Isolate* isolate,
     return;
   }
 
-  ReportException(env, error, message);
+  // Now we are certain that the exception is fatal.
+  ReportFatalException(env, error, message, EnhanceFatalException::kEnhance);
+
   // If the global uncaught exception handler sets process.exitCode,
   // exit with that code. Otherwise, exit with 1.
   Local<String> exit_code = env->exit_code_string();
