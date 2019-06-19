@@ -570,7 +570,7 @@ class NodeInspectorClient : public V8InspectorClient {
     }
   }
 
-  void FatalException(Local<Value> error, Local<Message> message) {
+  void ReportUncaughtException(Local<Value> error, Local<Message> message) {
     Isolate* isolate = env_->isolate();
     Local<Context> context = env_->context();
 
@@ -836,10 +836,11 @@ void Agent::WaitForDisconnect() {
   }
 }
 
-void Agent::FatalException(Local<Value> error, Local<Message> message) {
+void Agent::ReportUncaughtException(Local<Value> error,
+                                    Local<Message> message) {
   if (!IsListening())
     return;
-  client_->FatalException(error, message);
+  client_->ReportUncaughtException(error, message);
   WaitForDisconnect();
 }
 
