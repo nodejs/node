@@ -676,6 +676,7 @@ const char* error_messages[] = {nullptr,
                                 "Thread-safe function queue is full",
                                 "Thread-safe function handle is closing",
                                 "A bigint was expected",
+                                "A date was expected",
 };
 
 napi_status napi_get_last_error_info(napi_env env,
@@ -688,7 +689,7 @@ napi_status napi_get_last_error_info(napi_env env,
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
   static_assert(
-      NAPI_ARRAYSIZE(error_messages) == napi_bigint_expected + 1,
+      NAPI_ARRAYSIZE(error_messages) == napi_date_expected + 1,
       "Count of error messages must match count of error values");
   CHECK_LE(env->last_error.error_code, napi_callback_scope_mismatch);
 
