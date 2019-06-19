@@ -248,7 +248,7 @@ int Environment::InitializeInspector(
 
   profiler::StartProfilers(this);
 
-  if (options_->debug_options().break_node_first_line) {
+  if (inspector_agent_->options().break_node_first_line) {
     inspector_agent_->PauseOnNextJavascriptStatement("Break at bootstrap");
   }
 
