@@ -3697,8 +3697,8 @@ conditions, `fs.write()` may write only part of the buffer and will need to be
 retried to write the remaining data, whereas `fs.writeFile()` will retry until
 the data is entirely written (or an error occurs).
 
-Since the implications of this are a common source of confusion, note that in
-the file descriptor case the file is not replaced! The data is not necessarily
+The implications of this are a common source of confusion. In
+the file descriptor case, the file is not replaced! The data is not necessarily
 written to the beginning of the file, and the file's original data may remain
 before and/or after the newly written data.
 
