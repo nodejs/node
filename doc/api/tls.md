@@ -481,7 +481,7 @@ single argument when called:
 The `tlsSocket.authorized` property is a `boolean` indicating whether the
 client has been verified by one of the supplied Certificate Authorities for the
 server. If `tlsSocket.authorized` is `false`, then `socket.authorizationError`
-is set to describe how authorization failed. Note that depending on the settings
+is set to describe how authorization failed. Depending on the settings
 of the TLS server, unauthorized connections may still be accepted.
 
 The `tlsSocket.alpnProtocol` property is a string that contains the selected
@@ -1214,9 +1214,9 @@ changes:
     [`net.Socket`][], but any `Duplex` stream is allowed.
     If this option is specified, `path`, `host` and `port` are ignored,
     except for certificate validation. Usually, a socket is already connected
-    when passed to `tls.connect()`, but it can be connected later. Note that
-    connection/disconnection/destruction of `socket` is the user's
-    responsibility, calling `tls.connect()` will not cause `net.connect()` to be
+    when passed to `tls.connect()`, but it can be connected later.
+    Connection/disconnection/destruction of `socket` is the user's
+    responsibility; calling `tls.connect()` will not cause `net.connect()` to be
     called.
   * `rejectUnauthorized` {boolean} If not `false`, the server certificate is
     verified against the list of supplied CAs. An `'error'` event is emitted if
