@@ -40,12 +40,12 @@ need to update the configuration process.
 ## Makefile
 
 To see the help text, run `make help`. This file is not generated, it is
-maintained by humans. Note that this is not usually run on Windows, where
+maintained by humans. This is not usually run on Windows, where
 [vcbuild.bat](#vcbuildbat) is used instead.
 
 ### Options
 
-- `-j <n>`: number of threads used to build the binary. Note that on the non-ci
+- `-j <n>`: number of threads used to build the binary. On the non-CI
   targets, the parallel tests will take up all the available cores, regardless
   of this option.
 
