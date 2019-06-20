@@ -124,7 +124,7 @@ onboarding session.
 * Be aware: Your opinion carries a lot of weight!
 * Nits (requests for small changes that are not essential) are fine, but try to
   avoid stalling the pull request.
-  * Note that they are nits when you comment: `Nit: change foo() to bar().`
+  * Identify them as nits when you comment: `Nit: change foo() to bar().`
   * If they are stalling the pull request, fix them yourself on merge.
 * Insofar as possible, issues should be identified by tools rather than human
   reviewers. If you are leaving comments about issues that could be identified
@@ -191,7 +191,7 @@ onboarding session.
 
 See the Collaborator Guide: [Landing Pull Requests][].
 
-Note that commits in one PR that belong to one logical change should
+Commits in one PR that belong to one logical change should
 be squashed. It is rarely the case in onboarding exercises, so this
 needs to be pointed out separately during the onboarding.
 
