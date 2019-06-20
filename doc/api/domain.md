@@ -470,9 +470,9 @@ d2.run(() => {
 });
 ```
 
-Note that domains will not interfere with the error handling mechanisms for
-Promises, i.e. no `'error'` event will be emitted for unhandled `Promise`
-rejections.
+Domains will not interfere with the error handling mechanisms for
+Promises. In other words, no `'error'` event will be emitted for unhandled
+`Promise` rejections.
 
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
