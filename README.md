@@ -300,6 +300,8 @@ For information about the governance of the Node.js project, see
 **George Adams** &lt;george.adams@uk.ibm.com&gt; (he/him)
 * [geek](https://github.com/geek) -
 **Wyatt Preul** &lt;wpreul@gmail.com&gt;
+* [gengjiawen](https://github.com/gengjiawen) -
+**Jiawen Geng** &lt;technicalcute@gmail.com&gt;
 * [gibfahn](https://github.com/gibfahn) -
 **Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
