@@ -47,10 +47,9 @@ const server = http.createServer((req, res) => {
   res.end();
 });
 
-const PORT = 3000;
-const url = `http://127.0.0.1:${PORT}`;
-
-server.listen(PORT, common.mustCall(() => {
+server.listen(0, common.mustCall(() => {
+  const PORT = server.address().port;
+  const url = `http://127.0.0.1:${PORT}`;
   http.get(url, common.mustCall(() => {
     server.close(common.mustCall(() => {
       server.listen(PORT, common.mustCall(() => {
