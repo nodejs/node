@@ -14,7 +14,6 @@ https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Symbo
 ## `Symbol(string)`
 
 Symbols created via `Symbol(string)` are local to the caller function.
-Note that `Symbol('hello') !== Symbol('hello')`.
 For this reason, we often use them to simulate private fields, like so:
 
 ```js
@@ -31,8 +30,7 @@ class MyObject {
 module.exports.MyObject = MyObject;
 ```
 
-Note that Symbols are not _fully private_, as the data could be accessed
-anyway:
+Symbols are not fully private, as the data could be accessed anyway:
 
 ```js
 for (const s of Object.getOwnPropertySymbols(obj)) {
