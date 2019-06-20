@@ -25,6 +25,10 @@
 #include <fcntl.h>  // _O_RDWR
 #include <sys/types.h>
 #include <sys/mman.h>
+#if defined(__FreeBSD__)
+#include <sys/sysctl.h>
+#include <sys/user.h>
+#endif
 #include <unistd.h>  // readlink
 
 #include <cerrno>   // NOLINT(build/include)
@@ -39,6 +43,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <vector>
 
 // The functions in this file map the text segment of node into 2M pages.
 // The algorithm is simple
@@ -88,6 +93,7 @@ inline int64_t hugepage_align_down(int64_t addr) {
 // This is also handling the case where the first line is not the binary
 
 static struct text_region FindNodeTextRegion() {
+#if defined(__linux__)
   std::ifstream ifs;
   std::string map_line;
   std::string permission;
@@ -141,9 +147,66 @@ static struct text_region FindNodeTextRegion() {
   }
 
   ifs.close();
+#elif defined(__FreeBSD__)
+  struct text_region nregion;
+  nregion.found_text_region = false;
+
+  std::string exename;
+  {
+    char selfexe[PATH_MAX];
+    size_t count;
+    int mib[] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
+    const size_t miblen = sizeof(mib) / sizeof(mib[0]);
+    if (sysctl(mib, miblen, selfexe, &count, nullptr, 0) == -1) {
+      return nregion;
+    }
+    exename = std::string(selfexe, count);
+  }
+
+  size_t iprocsz;
+  int mib[] = {CTL_KERN, KERN_PROC, KERN_PROC_VMMAP, getpid()};
+  const size_t miblen = sizeof(mib) / sizeof(mib[0]);
+  if (sysctl(mib, miblen, nullptr, &iprocsz, nullptr, 0) == -1) {
+    return nregion;
+  }
+
+  auto alg = std::vector<char>(iprocsz);
+
+  iprocsz = iprocsz * 4 / 3;
+  if (sysctl(mib, miblen, alg.data(), &iprocsz, nullptr, 0) == -1) {
+    return nregion;
+  }
+
+  char* start = alg.data();
+  char* end = start + iprocsz;
+
+  while (start < end) {
+    struct kinfo_vmentry* entry =
+       reinterpret_cast<struct kinfo_vmentry*>(start);
+    const size_t cursz = entry->kve_structsize;
+    if (!cursz || entry->kve_path[0] == '\0') {
+      break;
+    }
+    bool excmapping = ((entry->kve_protection & KVME_PROT_READ) &&
+     (entry->kve_protection & KVME_PROT_EXEC));
+
+    if (!strcmp(exename.c_str(), entry->kve_path) && excmapping) {
+      size_t size = entry->kve_end - entry->kve_start;
+      nregion.found_text_region = true;
+      nregion.from =
+         reinterpret_cast<char*>(hugepage_align_up(entry->kve_start));
+      nregion.to =
+         reinterpret_cast<char*>(hugepage_align_down(entry->kve_end));
+      nregion.total_hugepages = size / hps;
+      break;
+    }
+    start += cursz;
+  }
+#endif
   return nregion;
 }
 
+#if defined(__linux__)
 static bool IsTransparentHugePagesEnabled() {
   std::ifstream ifs;
 
@@ -171,6 +234,19 @@ static bool IsTransparentHugePagesEnabled() {
   ifs.close();
   return ret_status;
 }
+#elif defined(__FreeBSD__)
+static bool IsSuperPagesEnabled() {
+  // It is enabled by default on amd64
+  unsigned int super_pages = 0;
+  size_t super_pages_length = sizeof(super_pages);
+  if (sysctlbyname("vm.pmap.pg_ps_enabled", &super_pages,
+      &super_pages_length, nullptr, 0) == -1 ||
+      super_pages < 1) {
+    return false;
+  }
+  return true;
+}
+#endif
 
 // Moving the text region to large pages. We need to be very careful.
 // 1: This function itself should not be moved.
@@ -206,6 +282,7 @@ MoveTextRegionToLargePages(const text_region& r) {
 
   memcpy(nmem, r.from, size);
 
+#if defined(__linux__)
 // We already know the original page is r-xp
 // (PROT_READ, PROT_EXEC, MAP_PRIVATE)
 // We want PROT_WRITE because we are writing into it.
@@ -233,6 +310,17 @@ MoveTextRegionToLargePages(const text_region& r) {
 
     return -1;
   }
+#elif defined(__FreeBSD__)
+  tmem = mmap(start, size,
+              PROT_READ | PROT_WRITE | PROT_EXEC,
+              MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED |
+              MAP_ALIGNED_SUPER, -1 , 0);
+  if (tmem == MAP_FAILED) {
+    PrintSystemError(errno);
+    munmap(nmem, size);
+    return -1;
+  }
+#endif
 
   memcpy(start, nmem, size);
   ret = mprotect(start, size, PROT_READ | PROT_EXEC);
@@ -262,18 +350,25 @@ MoveTextRegionToLargePages(const text_region& r) {
 int MapStaticCodeToLargePages() {
   struct text_region r = FindNodeTextRegion();
   if (r.found_text_region == false) {
-    fprintf(stderr, "Hugepages WARNING: failed to find text region\n");
     return -1;
   }
 
+#if defined(__linux__)
   if (r.from > reinterpret_cast<void*>(&MoveTextRegionToLargePages))
     return MoveTextRegionToLargePages(r);
 
   return -1;
+#elif defined(__FreeBSD__)
+  return MoveTextRegionToLargePages(r);
+#endif
 }
 
 bool IsLargePagesEnabled() {
+#if defined(__linux__)
   return IsTransparentHugePagesEnabled();
+#else
+  return IsSuperPagesEnabled();
+#endif
 }
 
 }  // namespace node
