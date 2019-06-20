@@ -44,7 +44,7 @@ added: v0.11.8
 SPKAC is a Certificate Signing Request mechanism originally implemented by
 Netscape and was specified formally as part of [HTML5's `keygen` element][].
 
-Note that `<keygen>` is deprecated since [HTML 5.2][] and new projects
+`<keygen>` is deprecated since [HTML 5.2][] and new projects
 should not use this element anymore.
 
 The `crypto` module provides the `Certificate` class for working with SPKAC
@@ -887,7 +887,7 @@ Sets the EC Diffie-Hellman public key.
 If `encoding` is provided `publicKey` is expected to
 be a string; otherwise a [`Buffer`][], `TypedArray`, or `DataView` is expected.
 
-Note that there is not normally a reason to call this method because `ECDH`
+There is not normally a reason to call this method because `ECDH`
 only requires a private key and the other party's public key to compute the
 shared secret. Typically either [`ecdh.generateKeys()`][] or
 [`ecdh.setPrivateKey()`][] will be called. The [`ecdh.setPrivateKey()`][] method
@@ -1311,7 +1311,7 @@ object, the following additional properties can be passed:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
-  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to sign the message as specified in section 3.1 of [RFC 4055][], unless
   an MGF1 hash function has been specified as part of the key in compliance with
   section 3.3 of [RFC 4055][].
@@ -1415,7 +1415,7 @@ object, the following additional properties can be passed:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
-  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to verify the message as specified in section 3.1 of [RFC 4055][], unless
   an MGF1 hash function has been specified as part of the key in compliance with
   section 3.3 of [RFC 4055][].
@@ -2200,8 +2200,8 @@ crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
 An array of supported digest functions can be retrieved using
 [`crypto.getHashes()`][].
 
-Note that this API uses libuv's threadpool, which can have surprising and
-negative performance implications for some applications, see the
+This API uses libuv's threadpool, which can have surprising and
+negative performance implications for some applications; see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
 ### crypto.pbkdf2Sync(password, salt, iterations, keylen, digest)
@@ -2417,8 +2417,8 @@ This should normally never take longer than a few milliseconds. The only time
 when generating the random bytes may conceivably block for a longer period of
 time is right after boot, when the whole system is still low on entropy.
 
-Note that this API uses libuv's threadpool, which can have surprising and
-negative performance implications for some applications, see the
+This API uses libuv's threadpool, which can have surprising and
+negative performance implications for some applications; see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
 The asynchronous version of `crypto.randomBytes()` is carried out in a single
@@ -2538,8 +2538,8 @@ crypto.randomFill(c, (err, buf) => {
 });
 ```
 
-Note that this API uses libuv's threadpool, which can have surprising and
-negative performance implications for some applications, see the
+This API uses libuv's threadpool, which can have surprising and
+negative performance implications for some applications; see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
 The asynchronous version of `crypto.randomFill()` is carried out in a single
@@ -2711,7 +2711,7 @@ additional properties can be passed:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
-  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to sign the message as specified in section 3.1 of [RFC 4055][].
 * `saltLength`: {integer} - salt length for when padding is
   `RSA_PKCS1_PSS_PADDING`. The special value
@@ -2762,7 +2762,7 @@ additional properties can be passed:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
-  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to sign the message as specified in section 3.1 of [RFC 4055][].
 * `saltLength`: {integer} - salt length for when padding is
   `RSA_PKCS1_PSS_PADDING`. The special value
