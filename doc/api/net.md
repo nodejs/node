@@ -77,7 +77,7 @@ This class is used to create a TCP or [IPC][] server.
 added: v0.5.0
 -->
 
-Emitted when the server closes. Note that if connections exist, this
+Emitted when the server closes. If connections exist, this
 event is not emitted until all connections are ended.
 
 ### Event: 'connection'
@@ -448,7 +448,7 @@ added: v0.1.90
 Emitted when data is received. The argument `data` will be a `Buffer` or
 `String`. Encoding of data is set by [`socket.setEncoding()`][].
 
-Note that the **data will be lost** if there is no listener when a `Socket`
+The data will be lost if there is no listener when a `Socket`
 emits a `'data'` event.
 
 ### Event: 'drain'
