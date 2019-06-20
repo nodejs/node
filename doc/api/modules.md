@@ -589,8 +589,8 @@ added: v0.3.0
 * {Object}
 
 Modules are cached in this object when they are required. By deleting a key
-value from this object, the next `require` will reload the module. Note that
-this does not apply to [native addons][], for which reloading will result in an
+value from this object, the next `require` will reload the module.
+This does not apply to [native addons][], for which reloading will result in an
 error.
 
 Adding or replacing entries is also possible. This cache is checked before
@@ -675,7 +675,7 @@ changes:
   * `paths` {string[]} Paths to resolve module location from. If present, these
     paths are used instead of the default resolution paths, with the exception
     of [GLOBAL_FOLDERS][] like `$HOME/.node_modules`, which are always
-    included. Note that each of these paths is used as a starting point for
+    included. Each of these paths is used as a starting point for
     the module resolution algorithm, meaning that the `node_modules` hierarchy
     is checked from this location.
 * Returns: {string}
@@ -728,7 +728,7 @@ added: v0.1.16
 
 The `module.exports` object is created by the `Module` system. Sometimes this is
 not acceptable; many want their module to be an instance of some class. To do
-this, assign the desired export object to `module.exports`. Note that assigning
+this, assign the desired export object to `module.exports`. Assigning
 the desired object to `exports` will simply rebind the local `exports` variable,
 which is probably not what is desired.
 
@@ -755,7 +755,7 @@ a.on('ready', () => {
 });
 ```
 
-Note that assignment to `module.exports` must be done immediately. It cannot be
+Assignment to `module.exports` must be done immediately. It cannot be
 done in any callbacks. This does not work:
 
 `x.js`:
@@ -905,7 +905,7 @@ added: v9.3.0
 A list of the names of all modules provided by Node.js. Can be used to verify
 if a module is maintained by a third party or not.
 
-Note that `module` in this context isn't the same object that's provided
+`module` in this context isn't the same object that's provided
 by the [module wrapper][]. To access it, require the `Module` module:
 
 ```js
