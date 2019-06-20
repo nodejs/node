@@ -6085,7 +6085,7 @@ void Scrypt(const FunctionCallbackInfo<Value>& args) {
     // EVP_PBE_scrypt() does not always put errors on the error stack
     // and therefore ToResult() may or may not return an exception
     // object.  Return a sentinel value to inform JS land it should
-    // throw an ERR_CRYPTO_SCRYPT_PARAMETER_ERROR on our behalf.
+    // throw an ERR_CRYPTO_SCRYPT_INVALID_PARAMETER on our behalf.
     auto result = job->ToResult();
     if (result->IsUndefined()) result = Null(args.GetIsolate());
     return args.GetReturnValue().Set(result);
