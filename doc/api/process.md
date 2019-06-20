@@ -107,7 +107,7 @@ not be the same as what is originally sent.
 added: v10.12.0
 -->
 
-* `type` {string} The error type. One of `'resolve'` or `'reject'`.
+* `type` {string} The resolution type. One of `'resolve'` or `'reject'`.
 * `promise` {Promise} The promise that resolved or rejected more than once.
 * `value` {any} The value with which the promise was either resolved or
   rejected after the original resolve.
@@ -119,14 +119,10 @@ The `'multipleResolves'` event is emitted whenever a `Promise` has been either:
 * Rejected after resolve.
 * Resolved after reject.
 
-This is useful for tracking errors in an application while using the promise
-constructor. Otherwise such mistakes are silently swallowed due to being in a
-dead zone.
-
-It is recommended to end the process on such errors, since the process could be
-in an undefined state. While using the promise constructor make sure that it is
-guaranteed to trigger the `resolve()` or `reject()` functions exactly once per
-call and never call both functions in the same call.
+This is useful for tracking potential errors in an application while using the
+`Promise` constructor, as multiple resolutions are silently swallowed. However,
+the occurrence of this event does not necessarily indicate an error. For
+example, [`Promise.race()`][] can trigger a `'multipleResolves'` event.
 
 ```js
 process.on('multipleResolves', (type, promise, reason) => {
@@ -2314,6 +2310,7 @@ cases:
 [`process.kill()`]: #process_process_kill_pid_signal
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
+[`Promise.race()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options
