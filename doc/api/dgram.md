@@ -149,7 +149,7 @@ attempt to listen on all addresses. Once binding is complete, a
 `'listening'` event is emitted and the optional `callback` function is
 called.
 
-Note that specifying both a `'listening'` event listener and passing a
+Specifying both a `'listening'` event listener and passing a
 `callback` to the `socket.bind()` method is not harmful but not very
 useful.
 
@@ -209,7 +209,7 @@ than `0` is set, it will wrap around an existing socket with the given
 file descriptor. In this case, the properties of `port` and `address`
 will be ignored.
 
-Note that specifying both a `'listening'` event listener and passing a
+Specifying both a `'listening'` event listener and passing a
 `callback` to the `socket.bind()` method is not harmful but not very
 useful.
 
@@ -387,7 +387,7 @@ is assigned a random port number and is bound to the "all interfaces" address
 
 An optional `callback` function may be specified to as a way of reporting
 DNS errors or for determining when it is safe to reuse the `buf` object.
-Note that DNS lookups delay the time to send for at least one tick of the
+DNS lookups delay the time to send for at least one tick of the
 Node.js event loop.
 
 The only way to know for sure that the datagram has been sent is by using a
