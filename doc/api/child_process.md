@@ -214,10 +214,11 @@ Unlike the exec(3) POSIX system call, `child_process.exec()` does not replace
 the existing process and uses a shell to execute the command.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a `Promise` for an `Object` with `stdout` and `stderr` properties. In case of an
-error (including any error resulting in an exit code other than 0), a rejected
-promise is returned, with the same `error` object given in the callback, but
-with an additional two properties `stdout` and `stderr`.
+a `Promise` for an `Object` with `stdout` and `stderr` properties. The returned
+`ChildProcess` instance is attached to the `Promise` as a `child` property. In
+case of an error (including any error resulting in an exit code other than 0), a
+rejected promise is returned, with the same `error` object given in the
+callback, but with an additional two properties `stdout` and `stderr`.
 
 ```js
 const util = require('util');
@@ -295,9 +296,10 @@ stderr output. If `encoding` is `'buffer'`, or an unrecognized character
 encoding, `Buffer` objects will be passed to the callback instead.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a `Promise` for an `Object` with `stdout` and `stderr` properties. In case of an
-error (including any error resulting in an exit code other than 0), a rejected
-promise is returned, with the same `error` object given in the
+a `Promise` for an `Object` with `stdout` and `stderr` properties. The returned
+`ChildProcess` instance is attached to the `Promise` as a `child` property. In
+case of an error (including any error resulting in an exit code other than 0), a
+rejected promise is returned, with the same `error` object given in the
 callback, but with an additional two properties `stdout` and `stderr`.
 
 ```js
