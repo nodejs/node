@@ -188,7 +188,7 @@ For use of AVX-512,
 * gas (GNU assembler) version 2.26 or higher
 * nasm version 2.11.8 or higher in Windows
 
-Note that AVX-512 is disabled for Skylake-X by OpenSSL-1.1.1.
+AVX-512 is disabled for Skylake-X by OpenSSL-1.1.1.
 
 For use of AVX2,
 
@@ -254,7 +254,7 @@ The `-j4` option will cause `make` to run 4 simultaneous compilation jobs which
 may reduce build time. For more information, see the
 [GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
 
-Note that the above requires that `python` resolves to a supported version of
+The above requires that `python` resolves to a supported version of
 Python. See [Prerequisites](#prerequisites).
 
 After building, setting up [firewall rules](tools/macos-firewall.sh) can avoid
