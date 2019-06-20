@@ -1178,7 +1178,7 @@ assert.throws(
     }
     throw otherErr;
   },
-  // The errors `message` and `name` properties will also be checked when using
+  // The error's `message` and `name` properties will also be checked when using
   // an error as validation object.
   err
 );
@@ -1223,7 +1223,7 @@ assert.throws(
     assert(err instanceof Error);
     assert(/value/.test(err));
     // Returning anything from validation functions besides `true` is not
-    // recommended. By doing that it's not clear what part of the validation
+    // recommended. By doing that, it's not clear what part of the validation
     // failed. Instead, throw an error about the specific validation that failed
     // (as done in this example) and add as much helpful debugging information
     // to that error as possible.
