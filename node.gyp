@@ -606,7 +606,7 @@
             'src/tls_wrap.h'
           ],
         }],
-        [ 'node_use_large_pages=="true" and OS=="linux"', {
+        [ 'node_use_large_pages=="true" and OS in "linux freebsd"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
           # The current implementation of Large Pages is under Linux.
           # Other implementations are possible but not currently supported.
