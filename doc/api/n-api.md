@@ -1587,7 +1587,6 @@ structure, in most cases using a `TypedArray` will suffice.
 #### napi_create_date
 <!-- YAML
 added: v11.11.0
-napiVersion: 4
 -->
 
 > Stability: 1 - Experimental
@@ -2232,7 +2231,6 @@ This API returns various properties of a `DataView`.
 #### napi_get_date_value
 <!-- YAML
 added: v11.11.0
-napiVersion: 4
 -->
 
 > Stability: 1 - Experimental
@@ -2841,7 +2839,6 @@ This API checks if the `Object` passed in is a buffer.
 ### napi_is_date
 <!-- YAML
 added: v11.11.0
-napiVersion: 4
 -->
 
 > Stability: 1 - Experimental
@@ -3941,7 +3938,6 @@ JavaScript object becomes garbage-collected.
 
 <!-- YAML
 added: v8.0.0
-napiVersion: 1
 -->
 ```C
 napi_status napi_add_finalizer(napi_env env,
