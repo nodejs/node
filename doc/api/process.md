@@ -242,7 +242,7 @@ console.log('This will not run.');
 
 #### Warning: Using `'uncaughtException'` correctly
 
-Note that `'uncaughtException'` is a crude mechanism for exception handling
+`'uncaughtException'` is a crude mechanism for exception handling
 intended to be used only as a last resort. The event *should not* be used as
 an equivalent to `On Error Resume Next`. Unhandled exceptions inherently mean
 that an application is in an undefined state. Attempting to resume application
@@ -922,7 +922,7 @@ process.emitWarning(myWarning);
 A `TypeError` is thrown if `warning` is anything other than a string or `Error`
 object.
 
-Note that while process warnings use `Error` objects, the process warning
+While process warnings use `Error` objects, the process warning
 mechanism is **not** a replacement for normal error handling mechanisms.
 
 The following additional handling is implemented if the warning `type` is
@@ -1350,7 +1350,7 @@ the group access list, using all groups of which the user is a member. This is
 a privileged operation that requires that the Node.js process either have `root`
 access or the `CAP_SETGID` capability.
 
-Note that care must be taken when dropping privileges:
+Use care when dropping privileges:
 
 ```js
 console.log(process.getgroups());         // [ 0 ]
