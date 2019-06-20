@@ -305,7 +305,7 @@ Such fixes are tagged with the following labels in the V8 issue tracker:
 
 The backlog of issues with such is regularly reviewed by the node-team at Google
 to shepherd through the backport process. External contributors are welcome to
-collaborate on the backport process as well. Note that some of the bugs may be
+collaborate on the backport process as well. Some of the bugs may be
 security issues and will not be visible to external collaborators.
 
 ## Updating V8
