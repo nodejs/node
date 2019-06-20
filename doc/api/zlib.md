@@ -47,7 +47,7 @@ zlib.unzip(buffer, (err, buffer) => {
 
 ## Threadpool Usage
 
-Note that all zlib APIs except those that are explicitly synchronous use libuv's
+All zlib APIs, except those that are explicitly synchronous, use libuv's
 threadpool. This can lead to surprising effects in some applications, such as
 subpar performance (which can be mitigated by adjusting the [pool size][])
 and/or unrecoverable and catastrophic memory fragmentation.
@@ -394,7 +394,7 @@ changes:
 
 Each zlib-based class takes an `options` object. All options are optional.
 
-Note that some options are only relevant when compressing, and are
+Some options are only relevant when compressing and are
 ignored by the decompression classes.
 
 * `flush` {integer} **Default:** `zlib.constants.Z_NO_FLUSH`
