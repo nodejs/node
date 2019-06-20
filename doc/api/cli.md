@@ -482,7 +482,7 @@ This flag exists so that the main module can be opted-in to the same behavior
 that `--preserve-symlinks` gives to all other imports; they are separate flags,
 however, for backward compatibility with older Node.js versions.
 
-Note that `--preserve-symlinks-main` does not imply `--preserve-symlinks`; it
+`--preserve-symlinks-main` does not imply `--preserve-symlinks`; it
 is expected that `--preserve-symlinks-main` will be used in addition to
 `--preserve-symlinks` when it is not desirable to follow symlinks before
 resolving relative paths.
@@ -893,7 +893,7 @@ certificates in PEM format. A message will be emitted (once) with
 [`process.emitWarning()`][emit_warning] if the file is missing or
 malformed, but any errors are otherwise ignored.
 
-Note that neither the well known nor extra certificates are used when the `ca`
+Neither the well known nor extra certificates are used when the `ca`
 options property is explicitly specified for a TLS or HTTPS client or server.
 
 This environment variable is ignored when `node` runs as setuid root or
