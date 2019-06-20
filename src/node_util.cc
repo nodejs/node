@@ -189,12 +189,26 @@ class WeakReference : public BaseObject {
       args.GetReturnValue().Set(weak_ref->target_.Get(isolate));
   }
 
+  static void IncRef(const FunctionCallbackInfo<Value>& args) {
+    WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
+    if (weak_ref->reference_count_ == 0) weak_ref->target_.ClearWeak();
+    weak_ref->reference_count_++;
+  }
+
+  static void DecRef(const FunctionCallbackInfo<Value>& args) {
+    WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
+    CHECK_GE(weak_ref->reference_count_, 1);
+    weak_ref->reference_count_--;
+    if (weak_ref->reference_count_ == 0) weak_ref->target_.SetWeak();
+  }
+
   SET_MEMORY_INFO_NAME(WeakReference)
   SET_SELF_SIZE(WeakReference)
   SET_NO_MEMORY_INFO()
 
  private:
   Global<Object> target_;
+  uint64_t reference_count_ = 0;
 };
 
 static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
@@ -294,6 +308,8 @@ void Initialize(Local<Object> target,
   weak_ref->InstanceTemplate()->SetInternalFieldCount(1);
   weak_ref->SetClassName(weak_ref_string);
   env->SetProtoMethod(weak_ref, "get", WeakReference::Get);
+  env->SetProtoMethod(weak_ref, "incRef", WeakReference::IncRef);
+  env->SetProtoMethod(weak_ref, "decRef", WeakReference::DecRef);
   target->Set(context, weak_ref_string,
               weak_ref->GetFunction(context).ToLocalChecked()).Check();
 
