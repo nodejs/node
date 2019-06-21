@@ -27,7 +27,7 @@ for (const allocator of allocators) {
       // Uint32Array should still produce a zeroed out result.
       allocator(size);
     } catch {
-      assert.deepStrictEqual(new Uint32Array(10), zeroArray);
+      assert.deepStrictEqual(zeroArray, new Uint32Array(10));
     }
   }
 }
