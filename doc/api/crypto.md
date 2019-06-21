@@ -500,8 +500,8 @@ const decipher = crypto.createDecipheriv(algorithm, key, iv);
 const buffer = crypto.randomBytes(10);
 cipher.setAAD(buffer);
 
-let crypted = cipher.update("some clear text data", "utf8", "hex");
-crypted += cipher.final("hex")
+let crypted = cipher.update('some clear text data', 'utf8', 'hex');
+crypted += cipher.final('hex');
 
 decipher.setAAD(buffer);
 
