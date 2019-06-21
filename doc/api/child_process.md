@@ -912,6 +912,23 @@ The `'close'` event is emitted when the stdio streams of a child process have
 been closed. This is distinct from the [`'exit'`][] event, since multiple
 processes might share the same stdio streams.
 
+```js
+const { spawn } = require('child_process');
+const ls = spawn('ls', ['-lh', '/usr']);
+
+ls.stdout.on('data', (data) => {
+  console.log(`stdout: ${data}`);
+});
+
+ls.on('close', (code) => {
+	console.log(`child process close all stdio with code ${code}`);
+});
+
+ls.on('exit', (code) => {
+  console.log(`child process exited with code ${code}`);
+});
+```
+
 ### Event: 'disconnect'
 <!-- YAML
 added: v0.7.2
