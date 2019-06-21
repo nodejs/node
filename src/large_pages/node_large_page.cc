@@ -115,8 +115,12 @@ static struct text_region FindNodeTextRegion() {
   std::string exename;
   {
       char selfexe[PATH_MAX];
-      ssize_t count = readlink("/proc/self/exe", selfexe, PATH_MAX);
-      exename = std::string(selfexe, count);
+
+      size_t size = sizeof(selfexe);
+      if (uv_exepath(selfexe, &size))
+        return nregion;
+
+      exename = std::string(selfexe, size);
   }
 
   while (std::getline(ifs, map_line)) {
