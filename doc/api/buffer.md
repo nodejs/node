@@ -951,6 +951,20 @@ added: v0.9.1
 Returns `true` if `encoding` contains a supported character encoding, or `false`
 otherwise.
 
+```js
+console.log(Buffer.isEncoding('utf-8'));
+// Prints: true
+
+console.log(Buffer.isEncoding('hex'));
+// Prints: true
+
+console.log(Buffer.isEncoding('utf/8'));
+// Prints: false
+
+console.log(Buffer.isEncoding(''));
+// Prints: false
+```
+
 ### Class Property: Buffer.poolSize
 <!-- YAML
 added: v0.11.3
