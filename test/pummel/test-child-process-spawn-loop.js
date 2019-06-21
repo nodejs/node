@@ -44,7 +44,7 @@ function doSpawn(i) {
 
   child.on('close', () => {
     // + 1 for \n or + 2 for \r\n on Windows
-    assert.strictEqual(SIZE + (common.isWindows ? 2 : 1), count);
+    assert.strictEqual(count, SIZE + (common.isWindows ? 2 : 1));
     if (i < N) {
       doSpawn(i + 1);
     } else {
