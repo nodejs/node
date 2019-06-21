@@ -2307,11 +2307,16 @@ An array of supported digest functions can be retrieved using
 <!-- YAML
 added: v0.11.14
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28335
+    description: The `oaepHash` option was added.
   - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
 -->
 * `privateKey` {Object | string | Buffer | KeyObject}
+  - `oaepHash` {string} The hash function to use for OAEP padding.
+    **Default:** `'sha1'`
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `crypto.constants.RSA_PKCS1_PADDING`, or
@@ -2383,12 +2388,17 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.11.14
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28335
+    description: The `oaepHash` option was added.
   - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
 -->
 * `key` {Object | string | Buffer | KeyObject}
   - `key` {string | Buffer | KeyObject} A PEM encoded public or private key.
+  - `oaepHash` {string} The hash function to use for OAEP padding.
+    **Default:** `'sha1'`
   - `passphrase` {string | Buffer} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
