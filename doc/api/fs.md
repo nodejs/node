@@ -1293,6 +1293,13 @@ Caveats: on Windows only the write permission can be changed, and the
 distinction among the permissions of group, owner or others is not
 implemented.
 
+```js
+fs.chmod('my_file.txt', 775, (err) => {
+  if (err) throw err;
+  console.log('The permissions for file "my_file.txt" have been changed!');
+})
+```
+
 ## fs.chmodSync(path, mode)
 <!-- YAML
 added: v0.6.7
