@@ -43,6 +43,7 @@ assert.ok(a.AssertionError.prototype instanceof Error,
 
 assert.throws(() => a(false), a.AssertionError, 'ok(false)');
 assert.throws(() => a.ok(false), a.AssertionError, 'ok(false)');
+assert.throws(() => a.ok(false, true, new Error('ok(false)')), a.AssertionError);
 
 a(true);
 a('test', 'ok(\'test\')');
