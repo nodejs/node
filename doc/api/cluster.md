@@ -396,11 +396,11 @@ if (cluster.isMaster) {
   }
 
   cluster.on('fork', (worker) => {
-    console.log('worker is dead:', worker.isDead());
+    console.log('worker is dead?:', worker.isDead());
   });
 
   cluster.on('exit', (worker, code, signal) => {
-    console.log('worker is dead:', worker.isDead());
+    console.log('worker is dead?:', worker.isDead());
   });
 
 } else {
@@ -411,9 +411,9 @@ if (cluster.isMaster) {
     res.end(`Current process\n ${process.pid}`);
     process.kill(process.pid);
   }).listen(8000);
+  
   // Make http://localhost:8000 to ckeck isDead method.
 }
-
 ```
 
 ### worker.kill([signal='SIGTERM'])
