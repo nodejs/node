@@ -68,5 +68,5 @@ server.listen(0, function() {
 
 
 process.on('exit', function() {
-  assert.strictEqual(N * M, responses);
+  assert.strictEqual(responses, N * M);
 });
