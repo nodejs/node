@@ -1297,7 +1297,7 @@ implemented.
 fs.chmod('my_file.txt', 775, (err) => {
   if (err) throw err;
   console.log('The permissions for file "my_file.txt" have been changed!');
-})
+});
 ```
 
 ## fs.chmodSync(path, mode)
