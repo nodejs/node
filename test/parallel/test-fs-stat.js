@@ -72,13 +72,7 @@ fs.open('.', 'r', undefined, common.mustCall(function (err, fd) {
 // fstatSync
 fs.open('.', 'r', undefined, common.mustCall(function (err, fd) {
   let stats;
-  /*
-  try {
-    stats = fs.fstatSync(fd);
-  } catch (err) {
-    assert.fail(err);
-  }
-  */
+
   if (stats) {
     assert.ok(stats.mtime instanceof Date);
   }
