@@ -3187,6 +3187,18 @@ first argument. In this case, `fs.ftruncate()` is called.
 Passing a file descriptor is deprecated and may result in an error being thrown
 in the future.
 
+```js
+console.log(fs.readFileSync('/path/to/file', 'utf8'));
+// Prints: Node + Learn
+
+// Truncate the file to first four bytes
+fs.truncate('/path/to/file', 4, function callback(err){
+  console.log(fs.readFileSync('/path/to/file', 'utf8'));
+});
+// Prints: Node
+```
+
+
 ## fs.truncateSync(path[, len])
 <!-- YAML
 added: v0.8.6
@@ -3200,6 +3212,16 @@ passed as the first argument. In this case, `fs.ftruncateSync()` is called.
 
 Passing a file descriptor is deprecated and may result in an error being thrown
 in the future.
+
+```js
+console.log(fs.readFileSync('/path/to/file', 'utf8'));
+// Prints: Node + Learn
+
+// Truncate the file to first four bytes
+fs.truncateSync('/path/to/file', 4);
+// Prints: Node
+```
+
 
 ## fs.unlink(path, callback)
 <!-- YAML
