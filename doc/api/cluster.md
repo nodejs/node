@@ -381,6 +381,41 @@ added: v0.11.14
 This function returns `true` if the worker's process has terminated (either
 because of exiting or being signaled). Otherwise, it returns `false`.
 
+```js
+const cluster = require('cluster');
+const http = require('http');
+const numCPUs = require('os').cpus().length;
+
+if (cluster.isMaster) {
+  console.log(`Master ${process.pid} is running`);
+
+  // Fork workers.
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+
+  cluster.on('fork', (worker) => {
+    console.log('worker is dead:', worker.isDead());
+  });
+
+  cluster.on('exit', (worker, code, signal) => {
+    console.log('worker is dead:', worker.isDead());
+  });
+
+} else {
+  // Workers can share any TCP connection
+  // In this case it is an HTTP server
+  http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end(`Current process\n ${process.pid}`);
+    process.kill(process.pid);
+  }).listen(8000);
+
+  // Make http://localhost:8000 to ckeck isDead method.
+}
+
+```
+
 ### worker.kill([signal='SIGTERM'])
 <!-- YAML
 added: v0.9.12
