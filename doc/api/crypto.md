@@ -289,6 +289,25 @@ of the plaintext in bytes. See [CCM mode][].
 
 The `cipher.setAAD()` method must be called before [`cipher.update()`][].
 
+Example: Using [`cipher.setAAD()`][] method:
+
+```js
+const crypto = require('crypto');
+
+const key = 'keykeykeykeykeykeykeykey';
+const nonce = crypto.randomBytes(12);
+
+const aad = Buffer.from('0123456789', 'hex');
+
+const cipher = crypto.createCipheriv('aes-192-ccm', key, nonce, {
+  authTagLength: 16
+});
+const plaintext = 'Hello world';
+cipher.setAAD(aad, {
+  plaintextLength: Buffer.byteLength(plaintext)
+});
+```
+
 ### cipher.getAuthTag()
 <!-- YAML
 added: v1.0.0
