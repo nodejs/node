@@ -21,6 +21,8 @@
 // SPDX-License-Identifier: MIT
 
 #include "node_large_page.h"
+#include "util.h"
+#include "uv.h"
 
 #include <fcntl.h>  // _O_RDWR
 #include <sys/types.h>
@@ -154,38 +156,40 @@ static struct text_region FindNodeTextRegion() {
   std::string exename;
   {
     char selfexe[PATH_MAX];
-    size_t count;
-    int mib[] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
-    const size_t miblen = sizeof(mib) / sizeof(mib[0]);
-    if (sysctl(mib, miblen, selfexe, &count, nullptr, 0) == -1) {
+    size_t count = sizeof(selfexe);
+    if (uv_exepath(selfexe, &count))
       return nregion;
-    }
+
     exename = std::string(selfexe, count);
   }
 
-  size_t iprocsz;
+  size_t numpg;
   int mib[] = {CTL_KERN, KERN_PROC, KERN_PROC_VMMAP, getpid()};
-  const size_t miblen = sizeof(mib) / sizeof(mib[0]);
-  if (sysctl(mib, miblen, nullptr, &iprocsz, nullptr, 0) == -1) {
+  const size_t miblen = arraysize(mib);
+  if (sysctl(mib, miblen, nullptr, &numpg, nullptr, 0) == -1) {
     return nregion;
   }
 
-  auto alg = std::vector<char>(iprocsz);
+  auto alg = std::vector<char>(numpg);
 
-  iprocsz = iprocsz * 4 / 3;
-  if (sysctl(mib, miblen, alg.data(), &iprocsz, nullptr, 0) == -1) {
+  // for struct kinfo_vmentry
+  numpg = numpg * 4 / 3;
+  if (sysctl(mib, miblen, alg.data(), &numpg, nullptr, 0) == -1) {
     return nregion;
   }
 
   char* start = alg.data();
-  char* end = start + iprocsz;
+  char* end = start + numpg;
 
   while (start < end) {
-    struct kinfo_vmentry* entry =
-       reinterpret_cast<struct kinfo_vmentry*>(start);
+    kinfo_vmentry* entry = reinterpret_cast<kinfo_vmentry*>(start);
     const size_t cursz = entry->kve_structsize;
-    if (!cursz || entry->kve_path[0] == '\0') {
+    if (cursz == 0) {
       break;
+    }
+
+    if (entry->kve_path[0] == '\0') {
+      continue;
     }
     bool excmapping = ((entry->kve_protection & KVME_PROT_READ) &&
      (entry->kve_protection & KVME_PROT_EXEC));
@@ -350,6 +354,7 @@ MoveTextRegionToLargePages(const text_region& r) {
 int MapStaticCodeToLargePages() {
   struct text_region r = FindNodeTextRegion();
   if (r.found_text_region == false) {
+    fprintf(stderr, "Hugepages WARNING: failed to find text regionn");
     return -1;
   }
 
