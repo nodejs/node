@@ -480,6 +480,36 @@ of the plaintext in bytes. See [CCM mode][].
 
 The `decipher.setAAD()` method must be called before [`decipher.update()`][].
 
+Example: Using decipher.setAAD() method:
+
+```js
+const crypto = require('crypto');
+
+// Creating the decipher
+
+const algorithm = 'aes-192-cbc';
+const password = 'Password used to generate key';
+// Use the async `crypto.scrypt()` instead.
+const key = crypto.scryptSync(password, 'salt', 24);
+// The IV is usually passed along with the ciphertext.
+const iv = Buffer.alloc(16, 0); // Initialization vector.
+
+const cipher = crypto.createCipheriv(algorithm, key, iv);
+const decipher = crypto.createDecipheriv(algorithm, key, iv);
+
+const buffer = crypto.randomBytes(10);
+cipher.setAAD(buffer);
+
+let crypted = cipher.update("some clear text data", "utf8", "hex");
+crypted += cipher.final("hex")
+
+decipher.setAAD(buffer);
+
+let decrypted = decipher.update(crypted, 'hex', 'utf8');
+decrypted += decipher.final('utf8');
+console.log(decrypted);
+// Prints: some clear text data
+```
 ### decipher.setAuthTag(buffer)
 <!-- YAML
 added: v1.0.0
