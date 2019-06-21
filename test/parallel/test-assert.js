@@ -44,6 +44,19 @@ assert.ok(a.AssertionError.prototype instanceof Error,
 assert.throws(() => a(false), a.AssertionError, 'ok(false)');
 assert.throws(() => a.ok(false), a.AssertionError, 'ok(false)');
 
+// Throw message if the message is instanceof Error.
+{
+  let threw = false;
+  try {
+    assert.ok(false, new Error('ok(false)'));
+  } catch (e) {
+    threw = true;
+    assert.ok(e instanceof Error);
+  }
+  assert.ok(threw, 'Error: ok(false)');
+}
+
+
 a(true);
 a('test', 'ok(\'test\')');
 a.ok(true);
