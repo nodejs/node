@@ -34,11 +34,11 @@ function doSpawn(i) {
   let count = 0;
 
   child.stdout.setEncoding('ascii');
-  child.stdout.on('data', chunk => {
+  child.stdout.on('data', (chunk) => {
     count += chunk.length;
   });
 
-  child.stderr.on('data', chunk => {
+  child.stderr.on('data', (chunk) => {
     console.log(`stderr: ${chunk}`);
   });
 
