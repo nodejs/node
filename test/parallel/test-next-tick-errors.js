@@ -74,5 +74,5 @@ process.on('uncaughtException', function(err, errorOrigin) {
 });
 
 process.on('exit', function() {
-  assert.deepStrictEqual(['A', 'B', 'C'], order);
+  assert.deepStrictEqual(order, ['A', 'B', 'C']);
 });
