@@ -23,7 +23,7 @@ const allocators = [
 for (const allocator of allocators) {
   for (const size of sizes) {
     try {
-      // These allocations are known to fail. If they do,
+      // Some of these allocations are known to fail. If they do,
       // Uint32Array should still produce a zeroed out result.
       allocator(size);
     } catch {
