@@ -345,6 +345,33 @@ data. If the `outputEncoding`
 is specified, a string using the specified encoding is returned. If no
 `outputEncoding` is provided, a [`Buffer`][] is returned.
 
+```js
+const crypto = require('crypto');
+
+const algorithm = 'aes-192-cbc';
+const password = 'Password used to generate key';
+// Use the async `crypto.scrypt()` instead.
+const key = crypto.scryptSync(password, 'salt', 24);
+// Use `crypto.randomBytes` to generate a random iv instead of the static iv
+// shown here.
+const iv = Buffer.alloc(16, 0); // Initialization vector.
+
+const cipher = crypto.createCipheriv(algorithm, key, iv);
+
+
+let encrypted = cipher.update('some clear text data', 'utf8', 'hex');
+console.log(encrypted); // Prints: e5f79c5915c02171eec6b212d5520d44
+
+// If data is a Buffer, then inputEncoding is ignored.
+let buff = Buffer.from('some clear text data', 'utf8')
+let encryptedBuffer = cipher.update(buff, null, 'hex')
+console.log(encryptedBuffer) // Prints: 2bb302c9618b22e9f843afc1befd7997
+
+// If no outputEncoding is provided, a Buffer is returned.
+let buffer = cipher.update('some clear text data', 'utf8')
+console.log(buffer) // Prints <Buffer 42 6a 2e 23 bd 8d 51 c7 16 cf 47 f6 9f 16 b6 b6>
+```
+
 The `cipher.update()` method can be called multiple times with new data until
 [`cipher.final()`][] is called. Calling `cipher.update()` after
 [`cipher.final()`][] will result in an error being thrown.
