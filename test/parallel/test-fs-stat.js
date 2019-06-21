@@ -25,7 +25,7 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-fs.stat('.', common.mustCall(function (err, stats) {
+fs.stat('.', common.mustCall(function(err, stats) {
   assert.ifError(err);
   assert.ok(stats.mtime instanceof Date);
   // Confirm that we are not running in the context of the internal binding
@@ -34,12 +34,12 @@ fs.stat('.', common.mustCall(function (err, stats) {
   assert.strictEqual(this, undefined);
 }));
 
-fs.stat('.', common.mustCall(function (err, stats) {
+fs.stat('.', common.mustCall(function(err, stats) {
   assert.ok(stats.hasOwnProperty('blksize'));
   assert.ok(stats.hasOwnProperty('blocks'));
 }));
 
-fs.lstat('.', common.mustCall(function (err, stats) {
+fs.lstat('.', common.mustCall(function(err, stats) {
   assert.ifError(err);
   assert.ok(stats.mtime instanceof Date);
   // Confirm that we are not running in the context of the internal binding
@@ -49,11 +49,11 @@ fs.lstat('.', common.mustCall(function (err, stats) {
 }));
 
 // fstat
-fs.open('.', 'r', undefined, common.mustCall(function (err, fd) {
+fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   assert.ifError(err);
   assert.ok(fd);
 
-  fs.fstat(fd, common.mustCall(function (err, stats) {
+  fs.fstat(fd, common.mustCall(function(err, stats) {
     assert.ifError(err);
     assert.ok(stats.mtime instanceof Date);
     fs.close(fd, assert.ifError);
@@ -70,7 +70,7 @@ fs.open('.', 'r', undefined, common.mustCall(function (err, fd) {
 }));
 
 // fstatSync
-fs.open('.', 'r', undefined, common.mustCall(function (err, fd) {
+fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   let stats;
   if (stats) {
     assert.ok(stats.mtime instanceof Date);
@@ -79,7 +79,7 @@ fs.open('.', 'r', undefined, common.mustCall(function (err, fd) {
   fs.close(fd, assert.ifError);
 }));
 
-fs.stat(__filename, common.mustCall(function (err, s) {
+fs.stat(__filename, common.mustCall(function(err, s) {
   assert.ifError(err);
   assert.strictEqual(s.isDirectory(), false);
   assert.strictEqual(s.isFile(), true);
@@ -99,7 +99,7 @@ fs.stat(__filename, common.mustCall(function (err, s) {
     'blocks', 'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs'
   ];
   const dateFields = ['atime', 'mtime', 'ctime', 'birthtime'];
-  keys.forEach(function (k) {
+  keys.forEach(function(k) {
     assert.ok(k in s, `${k} should be in Stats`);
     assert.notStrictEqual(s[k], undefined, `${k} should not be undefined`);
     assert.notStrictEqual(s[k], null, `${k} should not be null`);
@@ -112,7 +112,7 @@ fs.stat(__filename, common.mustCall(function (err, s) {
   });
   const jsonString = JSON.stringify(s);
   const parsed = JSON.parse(jsonString);
-  keys.forEach(function (k) {
+  keys.forEach(function(k) {
     assert.notStrictEqual(parsed[k], undefined, `${k} should not be undefined`);
     assert.notStrictEqual(parsed[k], null, `${k} should not be null`);
   });
@@ -132,7 +132,7 @@ fs.stat(__filename, common.mustCall(function (err, s) {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
         message: 'The "fd" argument must be of type number. ' +
-          `Received type ${typeof input}`
+        `Received type ${typeof input}`
       }
     );
   });
