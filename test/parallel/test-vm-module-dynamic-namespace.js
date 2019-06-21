@@ -32,4 +32,4 @@ async function getNamespace() {
   await m.evaluate();
   const ns = await importModuleDynamicallyCallback(wrapMap.get(m));
   assert.ok(types.isModuleNamespaceObject(ns));
-})();
+})().then(common.mustCall());
