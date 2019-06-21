@@ -82,3 +82,11 @@ const util = require('util');
   );
   assert.strictEqual(util.inspect(m, { depth: -1 }), '[SourceTextModule]');
 }
+
+// Check dependencies getter returns same object every time
+{
+  const m = new SourceTextModule('');
+  const dep = m.dependencySpecifiers;
+  assert.notStrictEqual(dep, undefined);
+  assert.strictEqual(dep, m.dependencySpecifiers);
+}
