@@ -34,17 +34,17 @@ function doSpawn(i) {
   let count = 0;
 
   child.stdout.setEncoding('ascii');
-  child.stdout.on('data', (chunk) => {
+  child.stdout.on('data', chunk => {
     count += chunk.length;
   });
 
-  child.stderr.on('data', (chunk) => {
+  child.stderr.on('data', chunk => {
     console.log(`stderr: ${chunk}`);
   });
 
   child.on('close', () => {
     // + 1 for \n or + 2 for \r\n on Windows
-    assert.strictEqual(SIZE + (common.isWindows ? 2 : 1), count);
+    assert.strictEqual(count, SIZE + (common.isWindows ? 2 : 1));
     if (i < N) {
       doSpawn(i + 1);
     } else {
