@@ -62,18 +62,6 @@ fs.copyFileSync(src, dest, UV_FS_COPYFILE_FICLONE);
 verify(src, dest);
 
 // Verify that COPYFILE_FICLONE_FORCE can be used.
-/* try {
-  fs.unlinkSync(dest);
-  fs.copyFileSync(src, dest, COPYFILE_FICLONE_FORCE);
-  verify(src, dest);
-} catch (err) {
-  assert.strictEqual(err.syscall, 'copyfile');
-  assert(err.code === 'ENOTSUP' || err.code === 'ENOTTY' ||
-    err.code === 'ENOSYS' || err.code === 'EXDEV');
-  assert.strictEqual(err.path, src);
-  assert.strictEqual(err.dest, dest);
-} */
-
 assert.throws(
   () => {
     fs.unlinkSync(dest);
