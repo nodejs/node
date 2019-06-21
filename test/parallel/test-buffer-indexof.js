@@ -236,7 +236,7 @@ assert.strictEqual(mixedByteStringUtf8.indexOf('bc'), 5);
 assert.strictEqual(mixedByteStringUtf8.indexOf('bc', 5), 5);
 assert.strictEqual(mixedByteStringUtf8.indexOf('bc', -8), 5);
 assert.strictEqual(mixedByteStringUtf8.indexOf('\u03a3'), 7);
-assert.strictEqual(-1, mixedByteStringUtf8.indexOf('\u0396'));
+assert.strictEqual(mixedByteStringUtf8.indexOf('\u0396'), -1);
 
 
 // Test complex string indexOf algorithms. Only trigger for long strings.
