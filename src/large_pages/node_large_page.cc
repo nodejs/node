@@ -170,10 +170,10 @@ static struct text_region FindNodeTextRegion() {
     return nregion;
   }
 
-  auto alg = std::vector<char>(numpg);
-
   // for struct kinfo_vmentry
   numpg = numpg * 4 / 3;
+  auto alg = std::vector<char>(numpg);
+
   if (sysctl(mib, miblen, alg.data(), &numpg, nullptr, 0) == -1) {
     return nregion;
   }
@@ -354,7 +354,7 @@ MoveTextRegionToLargePages(const text_region& r) {
 int MapStaticCodeToLargePages() {
   struct text_region r = FindNodeTextRegion();
   if (r.found_text_region == false) {
-    fprintf(stderr, "Hugepages WARNING: failed to find text regionn");
+    fprintf(stderr, "Hugepages WARNING: failed to find text region\n");
     return -1;
   }
 
