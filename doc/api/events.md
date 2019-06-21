@@ -307,6 +307,43 @@ to each.
 
 Returns `true` if the event had listeners, `false` otherwise.
 
+
+```js
+const EventEmitter = require('events');
+class MyEmitter extends EventEmitter { }
+
+const myEmitter = new MyEmitter();
+
+// First listener
+myEmitter.on('event', function firstListener() {
+  console.log('Helloooo! first listener');
+});
+// Second listener
+myEmitter.on('event', function secondListener(a, b) {
+  console.log(`an event with parameters ${a},${b} occurred in second listener`);
+});
+// Third listener
+myEmitter.on('event', function thirdListener(...arrgParms) {
+  let params = '';
+  arrgParms.forEach((param) => {
+    params += `-${param}`;
+  }
+  );
+  console.log(`an event with parameters ${params} occurred in third listener`);
+});
+
+console.log(myEmitter.listeners('event'));
+myEmitter.emit('event', 1, 2, 3, 4, 5);
+
+// Prints:
+// [ [Function: firstListener],
+// [Function: secondListener],
+// [Function: thirdListener] ]
+// Helloooo! first listener
+// an event with parameters 1 - 2, occurred in second listener
+// an event with parameters -1-2-3-4-5 occurred in third listener
+```
+
 ### emitter.eventNames()
 <!-- YAML
 added: v6.0.0
