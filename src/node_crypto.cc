@@ -5180,6 +5180,7 @@ template <PublicKeyCipher::Operation operation,
 bool PublicKeyCipher::Cipher(Environment* env,
                              const ManagedEVPPKey& pkey,
                              int padding,
+                             const EVP_MD* oaep_md,
                              const unsigned char* data,
                              int len,
                              AllocatedBuffer* out) {
@@ -5190,6 +5191,13 @@ bool PublicKeyCipher::Cipher(Environment* env,
     return false;
   if (EVP_PKEY_CTX_set_rsa_padding(ctx.get(), padding) <= 0)
     return false;
+
+  if (oaep_md != nullptr) {
+    if (EVP_PKEY_CTX_ctrl(ctx.get(), -1, EVP_PKEY_OP_TYPE_CRYPT,
+                          EVP_PKEY_CTRL_RSA_OAEP_MD, 0,
+                          const_cast<EVP_MD*>(oaep_md)) <= 0)
+      return false;
+  }
 
   size_t out_len = 0;
   if (EVP_PKEY_cipher(ctx.get(), nullptr, &out_len, data, len) <= 0)
@@ -5227,6 +5235,15 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   uint32_t padding;
   if (!args[offset + 1]->Uint32Value(env->context()).To(&padding)) return;
 
+  const EVP_MD* oaep_md = nullptr;
+  if (padding == RSA_PKCS1_OAEP_PADDING && !args[offset + 2]->IsUndefined()) {
+    const node::Utf8Value oaep_hash(env->isolate(), args[offset + 2]);
+    oaep_md = EVP_get_digestbyname(*oaep_hash);
+    if (oaep_md == nullptr) {
+      return env->ThrowError("Unknown OAEP message digest");
+    }
+  }
+
   AllocatedBuffer out;
 
   ClearErrorOnReturn clear_error_on_return;
@@ -5235,6 +5252,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       env,
       pkey,
       padding,
+      oaep_md,
       buf.data(),
       buf.length(),
       &out);
