@@ -138,8 +138,8 @@ test({
 function test(options, clientResult, serverResult, clientError, serverError) {
   const server = tls.createServer(serverOptions, (c) => {
     assert.deepStrictEqual(
-      { sni: c.servername, authorized: c.authorized },
-      serverResult
+      serverResult,
+      { sni: c.servername, authorized: c.authorized }
     );
   });
 
