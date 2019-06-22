@@ -27,33 +27,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-assert.throws(
-  function() {
-    crypto.getDiffieHellman('unknown-group');
-  },
-  /^Error: Unknown group$/,
-  'crypto.getDiffieHellman(\'unknown-group\') ' +
-  'failed to throw the expected error.'
-);
-assert.throws(
-  function() {
-    crypto.getDiffieHellman('modp1').setPrivateKey('');
-  },
-  new RegExp('^TypeError: crypto\\.getDiffieHellman\\(\\.\\.\\.\\)\\.' +
-  'setPrivateKey is not a function$'),
-  'crypto.getDiffieHellman(\'modp1\').setPrivateKey(\'\') ' +
-  'failed to throw the expected error.'
-);
-assert.throws(
-  function() {
-    crypto.getDiffieHellman('modp1').setPublicKey('');
-  },
-  new RegExp('^TypeError: crypto\\.getDiffieHellman\\(\\.\\.\\.\\)\\.' +
-  'setPublicKey is not a function$'),
-  'crypto.getDiffieHellman(\'modp1\').setPublicKey(\'\') ' +
-  'failed to throw the expected error.'
-);
-
 const hashes = {
   modp1: '630e9acd2cc63f7e80d8507624ba60ac0757201a',
   modp2: '18f7aa964484137f57bca64b21917a385b6a0b60',
