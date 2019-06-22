@@ -274,3 +274,12 @@ child.exec(
     assert.ifError(err);
     assert.strictEqual(stdout, 'object\n');
   }));
+
+// Assert that packages can be imported cwd-relative with --eval
+child.exec(
+  `${nodejs} ${execOptions} ` +
+  '--eval "import \'./test/fixtures/es-modules/mjs-file.mjs\'"',
+  common.mustCall((err, stdout) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '.mjs file\n');
+  }));
