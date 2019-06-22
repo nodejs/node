@@ -4,7 +4,7 @@ const common = require('../common');
 const { Worker } = require('worker_threads');
 
 // Test that calling worker.terminate() if kHandler is null should return an
-// empty promise that resolves to undefined
+// empty promise that resolves to undefined, even when a callback is passed
 
 const w = new Worker(`
 const { parentPort } = require('worker_threads');
@@ -18,8 +18,8 @@ process.once('beforeExit', common.mustCall(() => {
 
 w.on('exit', common.mustCall(() => {
   console.log('exit');
-  assert.strictEqual(w.terminate(() => null), undefined);
   w.terminate().then(returned => assert.strictEqual(returned, undefined));
+  w.terminate(() => null).then(returned => assert.strictEqual(returned, undefined));
 }));
 
 w.unref();
