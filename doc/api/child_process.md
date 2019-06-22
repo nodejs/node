@@ -921,7 +921,7 @@ ls.stdout.on('data', (data) => {
 });
 
 ls.on('close', (code) => {
-	console.log(`child process close all stdio with code ${code}`);
+  console.log(`child process close all stdio with code ${code}`);
 });
 
 ls.on('exit', (code) => {
