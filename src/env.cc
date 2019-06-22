@@ -277,7 +277,7 @@ std::string GetExecPath(const std::vector<std::string>& argv) {
   uv_fs_t req;
   req.ptr = nullptr;
   if (0 ==
-      uv_fs_realpath(env->event_loop(), &req, exec_path.c_str(), nullptr)) {
+      uv_fs_realpath(nullptr, &req, exec_path.c_str(), nullptr)) {
     CHECK_NOT_NULL(req.ptr);
     exec_path = std::string(static_cast<char*>(req.ptr));
   }

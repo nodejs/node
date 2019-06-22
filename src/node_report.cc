@@ -519,7 +519,9 @@ static void PrintSystemInformation(JSONWriter* writer) {
 #ifndef __sun
     {"max_user_processes", RLIMIT_NPROC},
 #endif
+#ifndef __OpenBSD__
     {"virtual_memory_kbytes", RLIMIT_AS}
+#endif
   };
 #endif  // _WIN32
   writer->json_objectstart("environmentVariables");
