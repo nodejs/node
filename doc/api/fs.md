@@ -3079,9 +3079,11 @@ is recommended.
 
 For example, given the following folder structure:
 
--txtDir
---file.txt
--app.js
+```fundamental
+- txtDir
+-- file.txt
+- app.js
+```
 
 The next program will check for the stats of the given paths:
 
@@ -3090,7 +3092,7 @@ const fs = require('fs');
 
 const pathsToCheck = ['./txtDir', './txtDir/file.txt'];
 
-for (i = 0; i < pathsToCheck.length; i++) {
+for (let i = 0; i < pathsToCheck.length; i++) {
   fs.stat(pathsToCheck[i], function(err, stats) {
     console.log(stats.isDirectory());
     console.log(stats);
