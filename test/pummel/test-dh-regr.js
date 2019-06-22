@@ -27,7 +27,11 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-const p = crypto.createDiffieHellman(1024).getPrime();
+// FIPS requires length >= 1024 but we use 256 in this test to keep it from
+// taking too long and timing out in CI.
+const length = common.hasFipsCrypto ? 1024 : 256;
+
+const p = crypto.createDiffieHellman(length).getPrime();
 
 for (let i = 0; i < 2000; i++) {
   const a = crypto.createDiffieHellman(p);
