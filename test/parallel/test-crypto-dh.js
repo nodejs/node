@@ -388,3 +388,30 @@ common.expectsError(
     message: 'The "curve" argument must be of type string. ' +
              'Received type undefined'
   });
+
+assert.throws(
+  function() {
+    crypto.getDiffieHellman('unknown-group');
+  },
+  /^Error: Unknown group$/,
+  'crypto.getDiffieHellman(\'unknown-group\') ' +
+  'failed to throw the expected error.'
+);
+assert.throws(
+  function() {
+    crypto.getDiffieHellman('modp1').setPrivateKey('');
+  },
+  new RegExp('^TypeError: crypto\\.getDiffieHellman\\(\\.\\.\\.\\)\\.' +
+  'setPrivateKey is not a function$'),
+  'crypto.getDiffieHellman(\'modp1\').setPrivateKey(\'\') ' +
+  'failed to throw the expected error.'
+);
+assert.throws(
+  function() {
+    crypto.getDiffieHellman('modp1').setPublicKey('');
+  },
+  new RegExp('^TypeError: crypto\\.getDiffieHellman\\(\\.\\.\\.\\)\\.' +
+  'setPublicKey is not a function$'),
+  'crypto.getDiffieHellman(\'modp1\').setPublicKey(\'\') ' +
+  'failed to throw the expected error.'
+);
