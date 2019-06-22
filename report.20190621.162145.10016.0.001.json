@@ -1,0 +1,710 @@
+
+{
+  "header": {
+    "reportVersion": 1,
+    "event": "Allocation failed - JavaScript heap out of memory",
+    "trigger": "FatalError",
+    "filename": "report.20190621.162145.10016.0.001.json",
+    "dumpEventTime": "2019-06-21T16:21:45Z",
+    "dumpEventTimeStamp": "1561152105655",
+    "processId": 10016,
+    "cwd": "E:\\Repos\\node",
+    "commandLine": [
+      "E:\\Repos\\node\\out\\Release\\node.exe",
+      "--max-old-space-size=3",
+      "E:\\Repos\\node\\test\\parallel\\test-windows-failed-heap-allocation.js",
+      "heapBomb"
+    ],
+    "nodejsVersion": "v13.0.0-pre",
+    "wordSize": 64,
+    "arch": "x64",
+    "platform": "win32",
+    "componentVersions": {
+      "node": "13.0.0-pre",
+      "v8": "7.5.288.22-node.14",
+      "uv": "1.29.1",
+      "zlib": "1.2.11",
+      "brotli": "1.0.7",
+      "ares": "1.15.0",
+      "modules": "74",
+      "nghttp2": "1.38.0",
+      "napi": "4",
+      "llhttp": "1.1.4",
+      "http_parser": "2.8.0",
+      "openssl": "1.1.1c",
+      "cldr": "35.1",
+      "icu": "64.2",
+      "tz": "2019a",
+      "unicode": "12.1"
+    },
+    "release": {
+      "name": "node"
+    },
+    "osName": "Windows_NT",
+    "osRelease": "10.0.17763",
+    "osVersion": "Windows 10 Pro",
+    "osMachine": "x86_64",
+    "cpus": [
+      {
+        "model": "Intel(R) Core(TM) i5-7200U CPU @ 2.50GHz",
+        "speed": 2712,
+        "user": 1437015,
+        "nice": 0,
+        "sys": 439593,
+        "idle": 1170890,
+        "irq": 29500
+      },
+      {
+        "model": "Intel(R) Core(TM) i5-7200U CPU @ 2.50GHz",
+        "speed": 2712,
+        "user": 1437015,
+        "nice": 0,
+        "sys": 439593,
+        "idle": 1170890,
+        "irq": 29500
+      },
+      {
+        "model": "Intel(R) Core(TM) i5-7200U CPU @ 2.50GHz",
+        "speed": 2712,
+        "user": 1437015,
+        "nice": 0,
+        "sys": 439593,
+        "idle": 1170890,
+        "irq": 29500
+      },
+      {
+        "model": "Intel(R) Core(TM) i5-7200U CPU @ 2.50GHz",
+        "speed": 2712,
+        "user": 1437015,
+        "nice": 0,
+        "sys": 439593,
+        "idle": 1170890,
+        "irq": 29500
+      }
+    ],
+    "host": "VICKODEV-PC"
+  },
+  "javascriptStack": {
+    "message": "No stack.",
+    "stack": [
+      "Unavailable."
+    ]
+  },
+  "nativeStack": [
+    {
+      "pc": "0x00007ff7a14ef469",
+      "symbol": "report::PrintNativeStack+73 [e:\\repos\\node\\src\\node_report.cc]:L395"
+    },
+    {
+      "pc": "0x00007ff7a14f35fc",
+      "symbol": "report::WriteNodeReport+3692 [e:\\repos\\node\\src\\node_report.cc]:L247"
+    },
+    {
+      "pc": "0x00007ff7a14f23a8",
+      "symbol": "report::TriggerNodeReport+1592 [e:\\repos\\node\\src\\node_report.cc]:L134"
+    },
+    {
+      "pc": "0x00007ff7a1640acb",
+      "symbol": "node::OnFatalError+331 [e:\\repos\\node\\src\\node_errors.cc]:L396"
+    },
+    {
+      "pc": "0x00007ff7a217203e",
+      "symbol": "v8::Utils::ReportOOMFailure+62 [e:\\repos\\node\\deps\\v8\\src\\api.cc]:L502"
+    },
+    {
+      "pc": "0x00007ff7a2153faa",
+      "symbol": "v8::internal::V8::FatalProcessOutOfMemory+634 [e:\\repos\\node\\deps\\v8\\src\\api.cc]:L462"
+    },
+    {
+      "pc": "0x00007ff7a1f4398c",
+      "symbol": "v8::internal::Heap::FatalProcessOutOfMemory+28 [e:\\repos\\node\\deps\\v8\\src\\heap\\heap.cc]:L5105"
+    },
+    {
+      "pc": "0x00007ff7a1f3eb10",
+      "symbol": "v8::internal::Heap::AllocateRawWithRetryOrFail+368 [e:\\repos\\node\\deps\\v8\\src\\heap\\heap.cc]:L4541"
+    },
+    {
+      "pc": "0x00007ff7a1f699d5",
+      "symbol": "v8::internal::Factory::NewFillerObject+53 [e:\\repos\\node\\deps\\v8\\src\\heap\\factory.cc]:L218"
+    },
+    {
+      "pc": "0x00007ff7a1c21ccd",
+      "symbol": "v8::internal::Runtime_AllocateInYoungGeneration+141 [e:\\repos\\node\\deps\\v8\\src\\runtime\\runtime-internal.cc]:L302"
+    },
+    {
+      "pc": "0x00007ff7a2221a0d",
+      "symbol": "Builtins_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit+61 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L19763"
+    },
+    {
+      "pc": "0x00007ff7a21bb41e",
+      "symbol": "Builtins_CloneFastJSArrayFillingHoles+942 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L6115"
+    },
+    {
+      "pc": "0x00007ff7a21d3886",
+      "symbol": "Builtins_IterableToListWithSymbolLookup+470 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L9529"
+    },
+    {
+      "pc": "0x00007ff7a227a381",
+      "symbol": "Builtins_CreateArrayFromIterableHandler+49 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L32485"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a218f24c",
+      "symbol": "Builtins_ArgumentsAdaptorTrampoline+188 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L336"
+    },
+    {
+      "pc": "0x00007ff7a223f940",
+      "symbol": "Builtins_ArrayMap+944 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L23844"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a2195ebc",
+      "symbol": "Builtins_InterpreterEntryTrampoline+684 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L1272"
+    },
+    {
+      "pc": "0x00007ff7a21937f1",
+      "symbol": "Builtins_JSEntryTrampoline+97 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L965"
+    },
+    {
+      "pc": "0x00007ff7a21933dc",
+      "symbol": "Builtins_JSEntry+204 [E:\\Repos\\node\\out\\Release\\obj\\v8_snapshot\\embedded.S]:L926"
+    },
+    {
+      "pc": "0x00007ff7a1fab56c",
+      "symbol": "v8::internal::`anonymous namespace'::Invoke+828 [e:\\repos\\node\\deps\\v8\\src\\execution.cc]:L268"
+    },
+    {
+      "pc": "0x00007ff7a1faa086",
+      "symbol": "v8::internal::Execution::Call+182 [e:\\repos\\node\\deps\\v8\\src\\execution.cc]:L360"
+    },
+    {
+      "pc": "0x00007ff7a2148ab2",
+      "symbol": "v8::Function::Call+594 [e:\\repos\\node\\deps\\v8\\src\\api.cc]:L4993"
+    },
+    {
+      "pc": "0x00007ff7a16712ae",
+      "symbol": "node::StartExecution+574 [e:\\repos\\node\\src\\node.cc]:L413"
+    },
+    {
+      "pc": "0x00007ff7a1671647",
+      "symbol": "node::StartMainThreadExecution+311 [e:\\repos\\node\\src\\node.cc]:L466"
+    },
+    {
+      "pc": "0x00007ff7a167025a",
+      "symbol": "node::LoadEnvironment+26 [e:\\repos\\node\\src\\node.cc]:L476"
+    },
+    {
+      "pc": "0x00007ff7a15f4987",
+      "symbol": "node::NodeMainInstance::Run+295 [e:\\repos\\node\\src\\node_main_instance.cc]:L111"
+    },
+    {
+      "pc": "0x00007ff7a1670f03",
+      "symbol": "node::Start+243 [e:\\repos\\node\\src\\node.cc]:L1065"
+    },
+    {
+      "pc": "0x00007ff7a149989c",
+      "symbol": "wmain+444 [e:\\repos\\node\\src\\node_main.cc]:L72"
+    },
+    {
+      "pc": "0x00007ff7a2b073fc",
+      "symbol": "__scrt_common_main_seh+268 [d:\\agent\\_work\\1\\s\\src\\vctools\\crt\\vcstartup\\src\\startup\\exe_common.inl]:L288"
+    },
+    {
+      "pc": "0x00007fff4c3b7974",
+      "symbol": "BaseThreadInitThunk+20"
+    },
+    {
+      "pc": "0x00007fff4c4fa271",
+      "symbol": "RtlUserThreadStart+33"
+    }
+  ],
+  "javascriptHeap": {
+    "totalMemory": 4517888,
+    "totalCommittedMemory": 4517888,
+    "usedMemory": 2674984,
+    "availableMemory": 51284016,
+    "memoryLimit": 53477376,
+    "heapSpaces": {
+      "read_only_space": {
+        "memorySize": 262144,
+        "committedMemory": 262144,
+        "capacity": 261832,
+        "used": 31960,
+        "available": 229872
+      },
+      "new_space": {
+        "memorySize": 1048576,
+        "committedMemory": 1048576,
+        "capacity": 1047328,
+        "used": 0,
+        "available": 1047328
+      },
+      "old_space": {
+        "memorySize": 1978368,
+        "committedMemory": 1978368,
+        "capacity": 1763728,
+        "used": 1763728,
+        "available": 0
+      },
+      "code_space": {
+        "memorySize": 425984,
+        "committedMemory": 425984,
+        "capacity": 152640,
+        "used": 152640,
+        "available": 0
+      },
+      "map_space": {
+        "memorySize": 266240,
+        "committedMemory": 266240,
+        "capacity": 202320,
+        "used": 202320,
+        "available": 0
+      },
+      "large_object_space": {
+        "memorySize": 536576,
+        "committedMemory": 536576,
+        "capacity": 524336,
+        "used": 524336,
+        "available": 0
+      },
+      "code_large_object_space": {
+        "memorySize": 0,
+        "committedMemory": 0,
+        "capacity": 0,
+        "used": 0,
+        "available": 0
+      },
+      "new_large_object_space": {
+        "memorySize": 0,
+        "committedMemory": 0,
+        "capacity": 1047328,
+        "used": 0,
+        "available": 1047328
+      }
+    }
+  },
+  "resourceUsage": {
+    "userCpuSeconds": 0.421,
+    "kernelCpuSeconds": 0.109,
+    "cpuConsumptionPercent": 53,
+    "maxRss": 93544448,
+    "pageFaults": {
+      "IORequired": 33782,
+      "IONotRequired": 0
+    },
+    "fsActivity": {
+      "reads": 8,
+      "writes": 91
+    }
+  },
+  "libuv": [
+  ],
+  "environmentVariables": {
+    "=E:": "E:\\Repos\\node",
+    "ACLOCAL_PATH": "C:\\Program Files\\Git\\mingw64\\share\\aclocal;C:\\Program Files\\Git\\usr\\share\\aclocal",
+    "ALLUSERSPROFILE": "C:\\ProgramData",
+    "ANDROID_HOME": "C:\\Android\\Android SDK",
+    "ANSICON": "112x32766 (112x25)",
+    "ANSICON_DEF": "7",
+    "APPDATA": "C:\\Users\\harvi\\AppData\\Roaming",
+    "BUILD_ADDONS": "1",
+    "BUILD_JS_NATIVE_API_TESTS": "1",
+    "BUILD_NODE_API_TESTS": "1",
+    "COMMANDPROMPTTYPE": "Native",
+    "COMMONPROGRAMFILES": "C:\\Program Files\\Common Files",
+    "COMMONPROGRAMFILES(X86)": "C:\\Program Files (x86)\\Common Files",
+    "COMMONPROGRAMW6432": "C:\\Program Files\\Common Files",
+    "COMMON_TEST_SUITES=default doctool addons js-native-api node-api&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests": "1",
+    "COMPUTERNAME": "VICKODEV-PC",
+    "COMSPEC": "C:\\WINDOWS\\system32\\cmd.exe",
+    "CONEMUANSI": "ON",
+    "CONEMUANSILOG": "",
+    "CONEMUARGS": "",
+    "CONEMUARGS2": "",
+    "CONEMUBACKHWND": "0x000403D6",
+    "CONEMUBASEDIR": "C:\\Program Files\\ConEmu\\ConEmu",
+    "CONEMUBASEDIRSHORT": "C:\\PROGRA~1\\ConEmu\\ConEmu",
+    "CONEMUBUILD": "190526",
+    "CONEMUCFGDIR": "C:\\Users\\harvi\\AppData\\Roaming",
+    "CONEMUCONFIG": "",
+    "CONEMUDIR": "C:\\Program Files\\ConEmu",
+    "CONEMUDRAWHWND": "0x0008038A",
+    "CONEMUDRIVE": "C:",
+    "CONEMUHOOKS": "Enabled",
+    "CONEMUHWND": "0x0008054A",
+    "CONEMUPALETTE": "<ConEmu>",
+    "CONEMUPID": "6312",
+    "CONEMUSERVERPID": "5132",
+    "CONEMUTASK": "{Bash::Git bash}",
+    "CONEMUWORKDIR": "C:\\Users\\harvi",
+    "CONEMUWORKDRIVE": "C:",
+    "CONFIG": "Release",
+    "CONFIGURE_FLAGS= --dest-cpu": "x64",
+    "CONFIG_SITE": "C:/Program Files/Git/mingw64/etc/config.site",
+    "DEVENVDIR": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\Common7\\IDE\\",
+    "DISPLAY": "needs-to-be-defined",
+    "DISTTYPE": "release",
+    "DISTTYPEDIR": "release",
+    "DRIVERDATA": "C:\\Windows\\System32\\Drivers\\DriverData",
+    "EXEPATH": "C:\\Program Files\\Git",
+    "EXTENSIONSDKDIR": "C:\\Program Files (x86)\\Microsoft SDKs\\Windows Kits\\10\\ExtensionSDKs",
+    "FRAMEWORK40VERSION": "v4.0",
+    "FRAMEWORKDIR": "C:\\Windows\\Microsoft.NET\\Framework64\\",
+    "FRAMEWORKDIR64": "C:\\Windows\\Microsoft.NET\\Framework64\\",
+    "FRAMEWORKVERSION": "v4.0.30319",
+    "FRAMEWORKVERSION64": "v4.0.30319",
+    "FULLVERSION": "13.0.0",
+    "GYP_MSVS_VERSION": "2017",
+    "HOME": "C:\\Users\\harvi",
+    "HOMEDRIVE": "C:",
+    "HOMEPATH": "\\Users\\harvi",
+    "HOSTNAME": "VICKODEV-PC",
+    "INCLUDE": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Tools\\MSVC\\14.16.27023\\include;C:\\Program Files (x86)\\Windows Kits\\NETFXSDK\\4.6.1\\include\\um;C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.17763.0\\ucrt;C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.17763.0\\shared;C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.17763.0\\um;C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.17763.0\\winrt;C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.17763.0\\cppwinrt",
+    "INFOPATH": "C:\\Program Files\\Git\\usr\\local\\info;C:\\Program Files\\Git\\usr\\share\\info;C:\\Program Files\\Git\\usr\\info;C:\\Program Files\\Git\\share\\info",
+    "JAVA_EXE": "C:\\Program Files\\Java\\jdk1.8.0_211\\bin",
+    "JAVA_HOME": "C:\\Program Files\\Java\\jdk1.8.0_211\\",
+    "JS_TEST_SUITES": "default",
+    "LANG": "es_ES.UTF-8",
+    "LIB": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Tools\\MSVC\\14.16.27023\\lib\\x64;C:\\Program Files (x86)\\Windows Kits\\NETFXSDK\\4.6.1\\lib\\um\\x64;C:\\Program Files (x86)\\Windows Kits\\10\\lib\\10.0.17763.0\\ucrt\\x64;C:\\Program Files (x86)\\Windows Kits\\10\\lib\\10.0.17763.0\\um\\x64;",
+    "LIBPATH": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Tools\\MSVC\\14.16.27023\\lib\\x64;C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Tools\\MSVC\\14.16.27023\\lib\\x86\\store\\references;C:\\Program Files (x86)\\Windows Kits\\10\\UnionMetadata\\10.0.17763.0;C:\\Program Files (x86)\\Windows Kits\\10\\References\\10.0.17763.0;C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319;",
+    "LINT_CPP": "1",
+    "LINT_JS": "1",
+    "LINT_MD": "1",
+    "LOCALAPPDATA": "C:\\Users\\harvi\\AppData\\Local",
+    "LOGONSERVER": "\\\\VICKODEV-PC",
+    "MANPATH": "C:\\Program Files\\Git\\mingw64\\local\\man;C:\\Program Files\\Git\\mingw64\\share\\man;C:\\Program Files\\Git\\usr\\local\\man;C:\\Program Files\\Git\\usr\\share\\man;C:\\Program Files\\Git\\usr\\man;C:\\Program Files\\Git\\share\\man",
+    "MINGW_CHOST": "x86_64-w64-mingw32",
+    "MINGW_PACKAGE_PREFIX": "mingw-w64-x86_64",
+    "MINGW_PREFIX": "C:/Program Files/Git/mingw64",
+    "MOZ_PLUGIN_PATH": "C:\\PROGRAM FILES (X86)\\FOXIT SOFTWARE\\FOXIT READER\\plugins\\",
+    "MSBCPU": "/m:2",
+    "MSBPLATFORM": "x64",
+    "MSVS_HOST_ARCH": "amd64",
+    "MSYSTEM": "MINGW64",
+    "MSYSTEM_CARCH": "x86_64",
+    "MSYSTEM_CHOST": "x86_64-w64-mingw32",
+    "MSYSTEM_PREFIX": "C:/Program Files/Git/mingw64",
+    "NETFXSDKDIR": "C:\\Program Files (x86)\\Windows Kits\\NETFXSDK\\4.6.1\\",
+    "NODE_EXE": "Release\\node.exe",
+    "NODE_GYP_EXE": "\"Release\\node.exe\" deps\\npm\\node_modules\\node-gyp\\bin\\node-gyp",
+    "NODE_OPTIONS": "",
+    "NODE_VERSION": "13.0.0",
+    "NPM_EXE": "\"E:\\Repos\\node\\Release\\node.exe\" E:\\Repos\\node\\deps\\npm\\bin\\npm-cli.js",
+    "NUMBER_OF_PROCESSORS": "4",
+    "NVM_HOME": "C:\\Users\\harvi\\AppData\\Roaming\\nvm",
+    "NVM_SYMLINK": "C:\\Program Files\\nodejs",
+    "OLDPWD": "C:/Users/harvi",
+    "ONEDRIVE": "D:\\SyncFolder\\OneDrive",
+    "ONEDRIVECONSUMER": "D:\\SyncFolder\\OneDrive",
+    "ORIGINAL_PATH": "C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\ConEmu\\ConEmu\\Scripts;C:\\Program Files\\ConEmu;C:\\Program Files\\ConEmu\\ConEmu;C:\\ProgramData\\DockerDesktop\\version-bin;C:\\Program Files\\Docker\\Docker\\Resources\\bin;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0;C:\\WINDOWS\\System32\\OpenSSH;C:\\Program Files\\Intel\\WiFi\\bin;C:\\Program Files\\Common Files\\Intel\\WirelessCommon;C:\\Program Files\\Microsoft SQL Server\\Client SDK\\ODBC\\130\\Tools\\Binn;C:\\Program Files (x86)\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\DTS\\Binn;C:\\Program Files\\dotnet;C:\\Users\\harvi\\AppData\\Roaming\\nvm;C:\\Program Files\\nodejs;C:\\Program Files\\Git\\cmd;C:\\Program Files\\Java\\jdk1.8.0_211;C:\\Android\\Android SDK\\platform-tools;C:\\Android\\Android SDK;C:\\Program Files\\Java\\jdk1.8.0_211\\bin;C:\\Program Files (x86)\\Yarn\\bin;C:\\Program Files (x86)\\Microsoft SQL Server\\150\\DTS\\Binn;C:\\Users\\harvi\\AppData\\Local\\bin\\NASM;C:\\Users\\harvi\\.windows-build-tools\\python27;C:\\Users\\harvi\\AppData\\Roaming\\nvm\\v10.15.3\\node_modules\\npm\\node_modules\\npm-lifecycle\\node-gyp-bin;C:\\Program Files\\nodejs\\node_modules\\windows-build-tools\\node_modules\\.bin;C:\\Program Files\\nodejs\\node_modules\\.bin;C:\\Users\\harvi\\bin;C:\\Program Files\\Git\\mingw64\\bin;C:\\Program Files\\Git\\usr\\local\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\mingw64\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Users\\harvi\\bin;C:\\ProgramData\\DockerDesktop\\version-bin;C:\\Program Files\\Docker\\Docker\\Resources\\bin;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0;C:\\WINDOWS\\System32\\OpenSSH;C:\\Program Files\\Intel\\WiFi\\bin;C:\\Program Files\\Common Files\\Intel\\WirelessCommon;C:\\Program Files\\Microsoft SQL Server\\Client SDK\\ODBC\\130\\Tools\\Binn;C:\\Program Files (x86)\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\DTS\\Binn;C:\\Program Files\\dotnet;C:\\Users\\harvi\\AppData\\Roaming\\nvm;C:\\Program Files\\nodejs;C:\\Program Files\\Git\\cmd;C:\\Program Files\\Java\\jdk1.8.0_211;C:\\Android\\Android SDK\\platform-tools;C:\\Android\\Android SDK;C:\\Program Files\\Java\\jdk1.8.0_211\\bin;C:\\Program Files (x86)\\Yarn\\bin;C:\\Program Files (x86)\\Microsoft SQL Server\\150\\DTS\\Binn;C:\\Users\\harvi\\AppData\\Local\\Programs\\Python\\Python37-32;C:\\Users\\harvi\\AppData\\Local\\Yarn\\bin;C:\\Users\\harvi\\AppData\\Local\\Programs\\Microsoft VS Code\\bin;C:\\Program Files\\Git\\usr\\bin\\vendor_perl;C:\\Program Files\\Git\\usr\\bin\\core_perl;C:\\Users\\harvi\\AppData\\Local\\bin\\NASM",
+    "ORIGINAL_TEMP": "C:/Users/harvi/AppData/Local/Temp",
+    "ORIGINAL_TMP": "C:/Users/harvi/AppData/Local/Temp",
+    "OS": "Windows_NT",
+    "PATH": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Tools\\MSVC\\14.16.27023\\bin\\HostX64\\x64;C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\Common7\\IDE\\VC\\VCPackages;C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\Common7\\IDE\\CommonExtensions\\Microsoft\\TestWindow;C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\Common7\\IDE\\CommonExtensions\\Microsoft\\TeamFoundation\\Team Explorer;C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\MSBuild\\15.0\\bin\\Roslyn;C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v10.0A\\bin\\NETFX 4.6.1 Tools\\x64\\;C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.17763.0\\x64;C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x64;C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\\\MSBuild\\15.0\\bin;C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319;C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\Common7\\IDE\\;C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\Common7\\Tools\\;C:\\Users\\harvi\\bin;C:\\Program Files\\Git\\mingw64\\bin;C:\\Program Files\\Git\\usr\\local\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\ConEmu\\ConEmu\\Scripts;C:\\Program Files\\ConEmu;C:\\Program Files\\ConEmu\\ConEmu;C:\\ProgramData\\DockerDesktop\\version-bin;C:\\Program Files\\Docker\\Docker\\Resources\\bin;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0;C:\\WINDOWS\\System32\\OpenSSH;C:\\Program Files\\Intel\\WiFi\\bin;C:\\Program Files\\Common Files\\Intel\\WirelessCommon;C:\\Program Files\\Microsoft SQL Server\\Client SDK\\ODBC\\130\\Tools\\Binn;C:\\Program Files (x86)\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\DTS\\Binn;C:\\Program Files\\dotnet;C:\\Users\\harvi\\AppData\\Roaming\\nvm;C:\\Program Files\\nodejs;C:\\Program Files\\Git\\cmd;C:\\Program Files\\Java\\jdk1.8.0_211;C:\\Android\\Android SDK\\platform-tools;C:\\Android\\Android SDK;C:\\Program Files\\Java\\jdk1.8.0_211\\bin;C:\\Program Files (x86)\\Yarn\\bin;C:\\Program Files (x86)\\Microsoft SQL Server\\150\\DTS\\Binn;C:\\Users\\harvi\\AppData\\Local\\bin\\NASM;C:\\Users\\harvi\\.windows-build-tools\\python27;C:\\Users\\harvi\\AppData\\Roaming\\nvm\\v10.15.3\\node_modules\\npm\\node_modules\\npm-lifecycle\\node-gyp-bin;C:\\Program Files\\nodejs\\node_modules\\windows-build-tools\\node_modules\\.bin;C:\\Program Files\\nodejs\\node_modules\\.bin;C:\\Users\\harvi\\bin;C:\\Program Files\\Git\\mingw64\\bin;C:\\Program Files\\Git\\usr\\local\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\mingw64\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Users\\harvi\\bin;C:\\ProgramData\\DockerDesktop\\version-bin;C:\\Program Files\\Docker\\Docker\\Resources\\bin;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0;C:\\WINDOWS\\System32\\OpenSSH;C:\\Program Files\\Intel\\WiFi\\bin;C:\\Program Files\\Common Files\\Intel\\WirelessCommon;C:\\Program Files\\Microsoft SQL Server\\Client SDK\\ODBC\\130\\Tools\\Binn;C:\\Program Files (x86)\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\DTS\\Binn;C:\\Program Files\\dotnet;C:\\Users\\harvi\\AppData\\Roaming\\nvm;C:\\Program Files\\nodejs;C:\\Program Files\\Git\\cmd;C:\\Program Files\\Java\\jdk1.8.0_211;C:\\Android\\Android SDK\\platform-tools;C:\\Android\\Android SDK;C:\\Program Files\\Java\\jdk1.8.0_211\\bin;C:\\Program Files (x86)\\Yarn\\bin;C:\\Program Files (x86)\\Microsoft SQL Server\\150\\DTS\\Binn;C:\\Users\\harvi\\AppData\\Local\\Programs\\Python\\Python37-32;C:\\Users\\harvi\\AppData\\Local\\Yarn\\bin;C:\\Users\\harvi\\AppData\\Local\\Programs\\Microsoft VS Code\\bin;C:\\Program Files\\Git\\usr\\bin\\vendor_perl;C:\\Program Files\\Git\\usr\\bin\\core_perl;C:\\Users\\harvi\\AppData\\Local\\bin\\NASM;C:\\Program Files\\Git\\usr\\bin\\vendor_perl;C:\\Program Files\\Git\\usr\\bin\\core_perl;C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin;C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja",
+    "PATHEXT": ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC",
+    "PKG_CONFIG_PATH": "C:\\Program Files\\Git\\mingw64\\lib\\pkgconfig;C:\\Program Files\\Git\\mingw64\\share\\pkgconfig",
+    "PLATFORM": "x64",
+    "PLATFORM_TOOLSET": "v141",
+    "PLINK_PROTOCOL": "ssh",
+    "PROCESSOR_ARCHITECTURE": "AMD64",
+    "PROCESSOR_IDENTIFIER": "Intel64 Family 6 Model 142 Stepping 9, GenuineIntel",
+    "PROCESSOR_LEVEL": "6",
+    "PROCESSOR_REVISION": "8e09",
+    "PROGRAMDATA": "C:\\ProgramData",
+    "PROGRAMFILES": "C:\\Program Files",
+    "PROGRAMFILES(X86)": "C:\\Program Files (x86)",
+    "PROGRAMW6432": "C:\\Program Files",
+    "PROMPT": "$P$G",
+    "PS1": "\\[\\033]0;$TITLEPREFIX:$PWD\\007\\]\\n\\[\\033[32m\\]\\u@\\h \\[\\033[35m\\]$MSYSTEM \\[\\033[33m\\]\\w\\[\\033[36m\\]`__git_ps1`\\[\\033[0m\\]\\n$ ",
+    "PSMODULEPATH": "C:\\Program Files\\WindowsPowerShell\\Modules;C:\\WINDOWS\\system32\\WindowsPowerShell\\v1.0\\Modules;C:\\Program Files (x86)\\Microsoft SQL Server\\130\\Tools\\PowerShell\\Modules\\",
+    "PT": "C:\\Users\\harvi\\.windows-build-tools\\python27\\",
+    "PUBLIC": "C:\\Users\\Public",
+    "PWD": "E:/Repos/node",
+    "SESSIONNAME": "Console",
+    "SHELL": "C:\\Program Files\\Git\\usr\\bin\\bash.exe",
+    "SHLVL": "1",
+    "SSH_ASKPASS": "C:/Program Files/Git/mingw64/libexec/git-core/git-gui--askpass",
+    "SYSTEMDRIVE": "C:",
+    "SYSTEMROOT": "C:\\WINDOWS",
+    "TARGET": "Build",
+    "TARGET_ARCH": "x64",
+    "TARGET_NAME": "node-v13.0.0-win-x64",
+    "TEMP": "C:\\Users\\harvi\\AppData\\Local\\Temp",
+    "TERM": "xterm-256color",
+    "TEST_ARGS=--mode": "release  -J default doctool addons js-native-api node-api",
+    "TEST_PARALLEL": "1",
+    "TEST_THREAD_ID": "2",
+    "TMP": "C:\\Users\\harvi\\AppData\\Local\\Temp",
+    "TMPDIR": "C:\\Users\\harvi\\AppData\\Local\\Temp",
+    "UCRTVERSION": "10.0.17763.0",
+    "UNIVERSALCRTSDKDIR": "C:\\Program Files (x86)\\Windows Kits\\10\\",
+    "USERDOMAIN": "VICKODEV-PC",
+    "USERDOMAIN_ROAMINGPROFILE": "VICKODEV-PC",
+    "USERNAME": "harvi",
+    "USERPROFILE": "C:\\Users\\harvi",
+    "VCBUILD_PYTHON_LOCATION": "C:\\Users\\harvi\\.windows-build-tools\\python27\\python.exe",
+    "VCIDEINSTALLDIR": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\Common7\\IDE\\VC\\",
+    "VCINSTALLDIR": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\",
+    "VCTOOLSINSTALLDIR": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Tools\\MSVC\\14.16.27023\\",
+    "VCTOOLSREDISTDIR": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Redist\\MSVC\\14.16.27012\\",
+    "VCTOOLSVERSION": "14.16.27023",
+    "VCVARSALL_ARG": "amd64",
+    "VCVARS_CALL": "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\\\Auxiliary\\Build\\vcvarsall.bat\" amd64",
+    "VISUALSTUDIOVERSION": "15.0",
+    "VS150COMNTOOLS": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\Common7\\Tools\\",
+    "VSCMD_ARG_APP_PLAT": "Desktop",
+    "VSCMD_ARG_HOST_ARCH": "x64",
+    "VSCMD_ARG_TGT_ARCH": "x64",
+    "VSCMD_START_DIR": "E:\\Repos\\node",
+    "VSCMD_VER": "15.0",
+    "VSINSTALLDIR": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\",
+    "WINDIR": "C:\\WINDOWS",
+    "WINDOWSLIBPATH": "C:\\Program Files (x86)\\Windows Kits\\10\\UnionMetadata\\10.0.17763.0;C:\\Program Files (x86)\\Windows Kits\\10\\References\\10.0.17763.0",
+    "WINDOWSSDKBINPATH": "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\",
+    "WINDOWSSDKDIR": "C:\\Program Files (x86)\\Windows Kits\\10\\",
+    "WINDOWSSDKLIBVERSION": "10.0.17763.0\\",
+    "WINDOWSSDKVERBINPATH": "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.17763.0\\",
+    "WINDOWSSDKVERSION": "10.0.17763.0\\",
+    "WINDOWSSDK_EXECUTABLEPATH_X64": "C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v10.0A\\bin\\NETFX 4.6.1 Tools\\x64\\",
+    "WINDOWSSDK_EXECUTABLEPATH_X86": "C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v10.0A\\bin\\NETFX 4.6.1 Tools\\",
+    "_": "./vcbuild.bat",
+    "__DOTNET_ADD_64BIT": "1",
+    "__DOTNET_PREFERRED_BITNESS": "64",
+    "__VSCMD_PREINIT_PATH": "C:\\Users\\harvi\\bin;C:\\Program Files\\Git\\mingw64\\bin;C:\\Program Files\\Git\\usr\\local\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\ConEmu\\ConEmu\\Scripts;C:\\Program Files\\ConEmu;C:\\Program Files\\ConEmu\\ConEmu;C:\\ProgramData\\DockerDesktop\\version-bin;C:\\Program Files\\Docker\\Docker\\Resources\\bin;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0;C:\\WINDOWS\\System32\\OpenSSH;C:\\Program Files\\Intel\\WiFi\\bin;C:\\Program Files\\Common Files\\Intel\\WirelessCommon;C:\\Program Files\\Microsoft SQL Server\\Client SDK\\ODBC\\130\\Tools\\Binn;C:\\Program Files (x86)\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\DTS\\Binn;C:\\Program Files\\dotnet;C:\\Users\\harvi\\AppData\\Roaming\\nvm;C:\\Program Files\\nodejs;C:\\Program Files\\Git\\cmd;C:\\Program Files\\Java\\jdk1.8.0_211;C:\\Android\\Android SDK\\platform-tools;C:\\Android\\Android SDK;C:\\Program Files\\Java\\jdk1.8.0_211\\bin;C:\\Program Files (x86)\\Yarn\\bin;C:\\Program Files (x86)\\Microsoft SQL Server\\150\\DTS\\Binn;C:\\Users\\harvi\\AppData\\Local\\bin\\NASM;C:\\Users\\harvi\\.windows-build-tools\\python27;C:\\Users\\harvi\\AppData\\Roaming\\nvm\\v10.15.3\\node_modules\\npm\\node_modules\\npm-lifecycle\\node-gyp-bin;C:\\Program Files\\nodejs\\node_modules\\windows-build-tools\\node_modules\\.bin;C:\\Program Files\\nodejs\\node_modules\\.bin;C:\\Users\\harvi\\bin;C:\\Program Files\\Git\\mingw64\\bin;C:\\Program Files\\Git\\usr\\local\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\mingw64\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Users\\harvi\\bin;C:\\ProgramData\\DockerDesktop\\version-bin;C:\\Program Files\\Docker\\Docker\\Resources\\bin;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0;C:\\WINDOWS\\System32\\OpenSSH;C:\\Program Files\\Intel\\WiFi\\bin;C:\\Program Files\\Common Files\\Intel\\WirelessCommon;C:\\Program Files\\Microsoft SQL Server\\Client SDK\\ODBC\\130\\Tools\\Binn;C:\\Program Files (x86)\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\Tools\\Binn;C:\\Program Files\\Microsoft SQL Server\\130\\DTS\\Binn;C:\\Program Files\\dotnet;C:\\Users\\harvi\\AppData\\Roaming\\nvm;C:\\Program Files\\nodejs;C:\\Program Files\\Git\\cmd;C:\\Program Files\\Java\\jdk1.8.0_211;C:\\Android\\Android SDK\\platform-tools;C:\\Android\\Android SDK;C:\\Program Files\\Java\\jdk1.8.0_211\\bin;C:\\Program Files (x86)\\Yarn\\bin;C:\\Program Files (x86)\\Microsoft SQL Server\\150\\DTS\\Binn;C:\\Users\\harvi\\AppData\\Local\\Programs\\Python\\Python37-32;C:\\Users\\harvi\\AppData\\Local\\Yarn\\bin;C:\\Users\\harvi\\AppData\\Local\\Programs\\Microsoft VS Code\\bin;C:\\Program Files\\Git\\usr\\bin\\vendor_perl;C:\\Program Files\\Git\\usr\\bin\\core_perl;C:\\Users\\harvi\\AppData\\Local\\bin\\NASM;C:\\Program Files\\Git\\usr\\bin\\vendor_perl;C:\\Program Files\\Git\\usr\\bin\\core_perl",
+    "__VSCMD_PREINIT_VS150COMNTOOLS": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\Common7\\Tools\\"
+  },
+  "sharedObjects": [
+    "E:\\Repos\\node\\out\\Release\\node.exe",
+    "C:\\WINDOWS\\SYSTEM32\\ntdll.dll",
+    "C:\\WINDOWS\\System32\\KERNEL32.DLL",
+    "C:\\WINDOWS\\System32\\KERNELBASE.dll",
+    "C:\\WINDOWS\\System32\\WS2_32.dll",
+    "C:\\WINDOWS\\System32\\RPCRT4.dll",
+    "C:\\WINDOWS\\System32\\ADVAPI32.dll",
+    "C:\\WINDOWS\\System32\\msvcrt.dll",
+    "C:\\WINDOWS\\System32\\sechost.dll",
+    "C:\\WINDOWS\\System32\\USER32.dll",
+    "C:\\WINDOWS\\System32\\win32u.dll",
+    "C:\\WINDOWS\\System32\\GDI32.dll",
+    "C:\\WINDOWS\\System32\\gdi32full.dll",
+    "C:\\WINDOWS\\System32\\msvcp_win.dll",
+    "C:\\WINDOWS\\System32\\ucrtbase.dll",
+    "C:\\WINDOWS\\System32\\PSAPI.DLL",
+    "C:\\WINDOWS\\System32\\CRYPT32.dll",
+    "C:\\WINDOWS\\System32\\MSASN1.dll",
+    "C:\\WINDOWS\\System32\\bcrypt.dll",
+    "C:\\WINDOWS\\SYSTEM32\\dbghelp.dll",
+    "C:\\WINDOWS\\SYSTEM32\\IPHLPAPI.DLL",
+    "C:\\WINDOWS\\SYSTEM32\\USERENV.dll",
+    "C:\\WINDOWS\\System32\\profapi.dll",
+    "C:\\WINDOWS\\SYSTEM32\\WINMM.dll",
+    "C:\\WINDOWS\\SYSTEM32\\WINMMBASE.dll",
+    "C:\\WINDOWS\\System32\\cfgmgr32.dll",
+    "C:\\WINDOWS\\System32\\IMM32.DLL",
+    "C:\\WINDOWS\\System32\\powrprof.dll",
+    "C:\\WINDOWS\\system32\\uxtheme.dll",
+    "C:\\WINDOWS\\System32\\combase.dll",
+    "C:\\WINDOWS\\System32\\bcryptPrimitives.dll",
+    "C:\\WINDOWS\\system32\\mswsock.dll",
+    "C:\\WINDOWS\\System32\\kernel.appcore.dll",
+    "C:\\WINDOWS\\System32\\NSI.dll",
+    "C:\\WINDOWS\\SYSTEM32\\dhcpcsvc6.DLL",
+    "C:\\WINDOWS\\SYSTEM32\\dhcpcsvc.DLL",
+    "C:\\WINDOWS\\SYSTEM32\\DNSAPI.dll",
+    "C:\\WINDOWS\\system32\\napinsp.dll",
+    "C:\\WINDOWS\\system32\\pnrpnsp.dll",
+    "C:\\WINDOWS\\System32\\winrnr.dll",
+    "C:\\WINDOWS\\system32\\NLAapi.dll",
+    "C:\\WINDOWS\\system32\\wshbth.dll"
+  ]
+}

@@ -36,6 +36,18 @@ termination, such as calling [`process.exit()`][] or uncaught exceptions.
 The `'beforeExit'` should *not* be used as an alternative to the `'exit'` event
 unless the intention is to schedule additional work.
 
+```js
+function finish() {
+  console.log('It finish!!');
+}
+
+process.on('beforeExit', (code) => {
+  console.log('Process beforeExit with code:', code);
+});
+
+finish();
+```
+
 ### Event: 'disconnect'
 <!-- YAML
 added: v0.7.7
