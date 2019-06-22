@@ -38,11 +38,11 @@ unless the intention is to schedule additional work.
 
 ```js
 function finish() {
-  console.log('It finish!!');
+  console.log('Finish is displayed first.');
 }
 
 process.on('beforeExit', (code) => {
-  console.log('Process beforeExit with code:', code);
+  console.log('Process beforeExit event with code: ', code);
 });
 
 finish();
