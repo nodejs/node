@@ -46,8 +46,9 @@ There are four fundamental stream types within Node.js:
 * [`Transform`][] - `Duplex` streams that can modify or transform the data as it
   is written and read (for example, [`zlib.createDeflate()`][]).
 
-Additionally, this module includes the utility functions [pipeline][],
-[finished][] and [Readable.from][].
+Additionally, this module includes the utility functions
+[`stream.pipeline()`][], [`stream.finished()`][] and
+[`stream.Readable.from()`][].
 
 ### Object Mode
 
@@ -1496,7 +1497,7 @@ async function run() {
 run().catch(console.error);
 ```
 
-### Readable.from(iterable, [options])
+### stream.Readable.from(iterable, [options])
 
 * `iterable` {Iterable} Object implementing the `Symbol.asyncIterator` or
   `Symbol.iterator` iterable protocol.
@@ -2458,7 +2459,7 @@ and async iterators are provided below.
 #### Creating Readable Streams with Async Generators
 
 We can construct a Node.js Readable Stream from an asynchronous generator
-using the `Readable.from` utility method:
+using the `Readable.from()` utility method:
 
 ```js
 const { Readable } = require('stream');
@@ -2499,10 +2500,10 @@ const writeable = fs.createWriteStream('./file');
 ```
 
 In the above, errors on the write stream would be caught and thrown by the two
-`once` listeners, since `once` will also handle `'error'` events.
+`once()` listeners, since `once()` will also handle `'error'` events.
 
-Alternatively the readable stream could be wrapped with `Readable.from` and
-then piped via `.pipe`:
+Alternatively the readable stream could be wrapped with `Readable.from()` and
+then piped via `.pipe()`:
 
 ```js
 const { once } = require('events');
@@ -2642,8 +2643,11 @@ contain multi-byte characters.
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
 [`readable.push('')`]: #stream_readable_push
+[`stream.Readable.from()`]: #stream_stream_readable_from_iterable_options
 [`stream.cork()`]: #stream_writable_cork
+[`stream.finished()`]: #stream_stream_finished_stream_options_callback
 [`stream.pipe()`]: #stream_readable_pipe_destination_options
+[`stream.pipeline()`]: #stream_stream_pipeline_streams_callback
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
@@ -2655,18 +2659,15 @@ contain multi-byte characters.
 [Compatibility]: #stream_compatibility_with_older_node_js_versions
 [HTTP requests, on the client]: http.html#http_class_http_clientrequest
 [HTTP responses, on the server]: http.html#http_class_http_serverresponse
-[Readable.from]: #readable.from
 [TCP sockets]: net.html#net_class_net_socket
 [child process stdin]: child_process.html#child_process_subprocess_stdin
 [child process stdout and stderr]: child_process.html#child_process_subprocess_stdout
 [crypto]: crypto.html
-[finished]: #stream_stream_finished_stream_options_callback
 [fs read streams]: fs.html#fs_class_fs_readstream
 [fs write streams]: fs.html#fs_class_fs_writestream
 [http-incoming-message]: http.html#http_class_http_incomingmessage
 [hwm-gotcha]: #stream_highwatermark_discrepancy_after_calling_readable_setencoding
 [object-mode]: #stream_object_mode
-[pipeline]: #stream_stream_pipeline_streams_callback
 [readable-_destroy]: #stream_readable_destroy_err_callback
 [readable-destroy]: #stream_readable_destroy_error
 [stream-_final]: #stream_writable_final_callback
