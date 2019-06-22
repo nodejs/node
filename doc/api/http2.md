@@ -177,7 +177,7 @@ added: v8.4.0
 
 The `'frameError'` event is emitted when an error occurs while attempting to
 send a frame on the session. If the frame that could not be sent is associated
-with a specific `Http2Stream`, an attempt to emit `'frameError'` event on the
+with a specific `Http2Stream`, an attempt to emit a `'frameError'` event on the
 `Http2Stream` is made.
 
 If the `'frameError'` event is associated with a stream, the stream will be
