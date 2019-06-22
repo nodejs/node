@@ -229,12 +229,12 @@ for (let i = 0; i < chunks.length; i++) {
   tw.end(common.mustCall());
 }
 
-const hellowWorlBuffer = Buffer.from('hello world');
+const helloWorldBuffer = Buffer.from('hello world');
 
 {
   // Verify end() callback with chunk
   const tw = new TestWriter();
-  tw.end(hellowWorlBuffer, common.mustCall());
+  tw.end(helloWorldBuffer, common.mustCall());
 }
 
 {
@@ -246,7 +246,7 @@ const hellowWorlBuffer = Buffer.from('hello world');
 {
   // Verify end() callback after write() call
   const tw = new TestWriter();
-  tw.write(hellowWorlBuffer);
+  tw.write(helloWorldBuffer);
   tw.end(common.mustCall());
 }
 
@@ -254,7 +254,7 @@ const hellowWorlBuffer = Buffer.from('hello world');
   // Verify end() callback after write() callback
   const tw = new TestWriter();
   let writeCalledback = false;
-  tw.write(hellowWorlBuffer, function() {
+  tw.write(helloWorldBuffer, function() {
     writeCalledback = true;
   });
   tw.end(common.mustCall(function() {
