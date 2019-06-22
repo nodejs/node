@@ -52,16 +52,141 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         /**
+         * Checks whether the given names can be safely used to declare block-scoped variables
+         * in the given scope. Name collisions can produce redeclaration syntax errors,
+         * or silently change references and modify behavior of the original code.
+         *
+         * This is not a generic function. In particular, it is assumed that the scope is a function scope or
+         * a function's inner scope, and that the names can be valid identifiers in the given scope.
+         *
+         * @param {string[]} names Array of variable names.
+         * @param {eslint-scope.Scope} scope Function scope or a function's inner scope.
+         * @returns {boolean} True if all names can be safely declared, false otherwise.
+         */
+        function isSafeToDeclare(names, scope) {
+
+            if (names.length === 0) {
+                return true;
+            }
+
+            const functionScope = scope.variableScope;
+
+            /*
+             * If this is a function scope, scope.variables will contain parameters, implicit variables such as "arguments",
+             * all function-scoped variables ('var'), and block-scoped variables defined in the scope.
+             * If this is an inner scope, scope.variables will contain block-scoped variables defined in the scope.
+             *
+             * Redeclaring any of these would cause a syntax error, except for the implicit variables.
+             */
+            const declaredVariables = scope.variables.filter(({ defs }) => defs.length > 0);
+
+            if (declaredVariables.some(({ name }) => names.includes(name))) {
+                return false;
+            }
+
+            // Redeclaring a catch variable would also cause a syntax error.
+            if (scope !== functionScope && scope.upper.type === "catch") {
+                if (scope.upper.variables.some(({ name }) => names.includes(name))) {
+                    return false;
+                }
+            }
+
+            /*
+             * Redeclaring an implicit variable, such as "arguments", would not cause a syntax error.
+             * However, if the variable was used, declaring a new one with the same name would change references
+             * and modify behavior.
+             */
+            const usedImplicitVariables = scope.variables.filter(({ defs, references }) =>
+                defs.length === 0 && references.length > 0);
+
+            if (usedImplicitVariables.some(({ name }) => names.includes(name))) {
+                return false;
+            }
+
+            /*
+             * Declaring a variable with a name that was already used to reference a variable from an upper scope
+             * would change references and modify behavior.
+             */
+            if (scope.through.some(t => names.includes(t.identifier.name))) {
+                return false;
+            }
+
+            /*
+             * If the scope is an inner scope (not the function scope), an uninitialized `var` variable declared inside
+             * the scope node (directly or in one of its descendants) is neither declared nor 'through' in the scope.
+             *
+             * For example, this would be a syntax error "Identifier 'a' has already been declared":
+             * function foo() { if (bar) { let a; if (baz) { var a; } } }
+             */
+            if (scope !== functionScope) {
+                const scopeNodeRange = scope.block.range;
+                const variablesToCheck = functionScope.variables.filter(({ name }) => names.includes(name));
+
+                if (variablesToCheck.some(v => v.defs.some(({ node: { range } }) =>
+                    scopeNodeRange[0] <= range[0] && range[1] <= scopeNodeRange[1]))) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+
+        /**
+         * Checks whether the removal of `else` and its braces is safe from variable name collisions.
+         *
+         * @param {Node} node The 'else' node.
+         * @param {eslint-scope.Scope} scope The scope in which the node and the whole 'if' statement is.
+         * @returns {boolean} True if it is safe, false otherwise.
+         */
+        function isSafeFromNameCollisions(node, scope) {
+
+            if (node.type === "FunctionDeclaration") {
+
+                // Conditional function declaration. Scope and hoisting are unpredictable, different engines work differently.
+                return false;
+            }
+
+            if (node.type !== "BlockStatement") {
+                return true;
+            }
+
+            const elseBlockScope = scope.childScopes.find(({ block }) => block === node);
+
+            if (!elseBlockScope) {
+
+                // ecmaVersion < 6, `else` block statement cannot have its own scope, no possible collisions.
+                return true;
+            }
+
+            /*
+             * elseBlockScope is supposed to merge into its upper scope. elseBlockScope.variables array contains
+             * only block-scoped variables (such as let and const variables or class and function declarations)
+             * defined directly in the elseBlockScope. These are exactly the only names that could cause collisions.
+             */
+            const namesToCheck = elseBlockScope.variables.map(({ name }) => name);
+
+            return isSafeToDeclare(namesToCheck, scope);
+        }
+
+        /**
          * Display the context report if rule is violated
          *
          * @param {Node} node The 'else' node
          * @returns {void}
          */
         function displayReport(node) {
+            const currentScope = context.getScope();
+
             context.report({
                 node,
                 messageId: "unexpected",
                 fix: fixer => {
+
+                    if (!isSafeFromNameCollisions(node, currentScope)) {
+                        return null;
+                    }
+
                     const sourceCode = context.getSourceCode();
                     const startToken = sourceCode.getFirstToken(node);
                     const elseToken = sourceCode.getTokenBefore(startToken);
@@ -118,6 +243,8 @@ module.exports = {
                      * Extend the replacement range to include the entire
                      * function to avoid conflicting with no-useless-return.
                      * https://github.com/eslint/eslint/issues/8026
+                     *
+                     * Also, to avoid name collisions between two else blocks.
                      */
                     return new FixTracker(fixer, sourceCode)
                         .retainEnclosingFunction(node)

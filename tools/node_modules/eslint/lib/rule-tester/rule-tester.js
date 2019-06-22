@@ -123,6 +123,18 @@ function freezeDeeply(x) {
     }
 }
 
+/**
+ * Replace control characters by `\u00xx` form.
+ * @param {string} text The text to sanitize.
+ * @returns {string} The sanitized text.
+ */
+function sanitize(text) {
+    return text.replace(
+        /[\u0000-\u001f]/gu, // eslint-disable-line no-control-regex
+        c => `\\u${c.codePointAt(0).toString(16).padStart(4, "0")}`
+    );
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -613,7 +625,7 @@ class RuleTester {
         RuleTester.describe(ruleName, () => {
             RuleTester.describe("valid", () => {
                 test.valid.forEach(valid => {
-                    RuleTester.it(typeof valid === "object" ? valid.code : valid, () => {
+                    RuleTester.it(sanitize(typeof valid === "object" ? valid.code : valid), () => {
                         testValidTemplate(valid);
                     });
                 });
@@ -621,7 +633,7 @@ class RuleTester {
 
             RuleTester.describe("invalid", () => {
                 test.invalid.forEach(invalid => {
-                    RuleTester.it(invalid.code, () => {
+                    RuleTester.it(sanitize(invalid.code), () => {
                         testInvalidTemplate(invalid);
                     });
                 });

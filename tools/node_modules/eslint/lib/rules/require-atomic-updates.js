@@ -25,11 +25,50 @@ function createReferenceMap(scope, outReferenceMap = new Map()) {
 }
 
 /**
+ * Get `reference.writeExpr` of a given reference.
+ * If it's the read reference of MemberExpression in LHS, returns RHS in order to address `a.b = await a`
+ * @param {escope.Reference} reference The reference to get.
+ * @returns {Expression|null} The `reference.writeExpr`.
+ */
+function getWriteExpr(reference) {
+    if (reference.writeExpr) {
+        return reference.writeExpr;
+    }
+    let node = reference.identifier;
+
+    while (node) {
+        const t = node.parent.type;
+
+        if (t === "AssignmentExpression" && node.parent.left === node) {
+            return node.parent.right;
+        }
+        if (t === "MemberExpression" && node.parent.object === node) {
+            node = node.parent;
+            continue;
+        }
+
+        break;
+    }
+
+    return null;
+}
+
+/**
  * Checks if an expression is a variable that can only be observed within the given function.
- * @param {escope.Variable} variable The variable to check
+ * @param {Variable|null} variable The variable to check
+ * @param {boolean} isMemberAccess If `true` then this is a member access.
  * @returns {boolean} `true` if the variable is local to the given function, and is never referenced in a closure.
  */
-function isLocalVariableWithoutEscape(variable) {
+function isLocalVariableWithoutEscape(variable, isMemberAccess) {
+    if (!variable) {
+        return false; // A global variable which was not defined.
+    }
+
+    // If the reference is a property access and the variable is a parameter, it handles the variable is not local.
+    if (isMemberAccess && variable.defs.some(d => d.type === "Parameter")) {
+        return false;
+    }
+
     const functionScope = variable.scope.variableScope;
 
     return variable.references.every(reference =>
@@ -47,52 +86,49 @@ class SegmentInfo {
      * @returns {void}
      */
     initialize(segment) {
-        const outdatedReadVariables = new Set();
-        const freshReadVariables = new Set();
+        const outdatedReadVariableNames = new Set();
+        const freshReadVariableNames = new Set();
 
         for (const prevSegment of segment.prevSegments) {
             const info = this.info.get(prevSegment);
 
             if (info) {
-                info.outdatedReadVariables.forEach(Set.prototype.add, outdatedReadVariables);
-                info.freshReadVariables.forEach(Set.prototype.add, freshReadVariables);
+                info.outdatedReadVariableNames.forEach(Set.prototype.add, outdatedReadVariableNames);
+                info.freshReadVariableNames.forEach(Set.prototype.add, freshReadVariableNames);
             }
         }
 
-        this.info.set(segment, { outdatedReadVariables, freshReadVariables });
+        this.info.set(segment, { outdatedReadVariableNames, freshReadVariableNames });
     }
 
     /**
      * Mark a given variable as read on given segments.
      * @param {PathSegment[]} segments The segments that it read the variable on.
-     * @param {escope.Variable} variable The variable to be read.
+     * @param {string} variableName The variable name to be read.
      * @returns {void}
      */
-    markAsRead(segments, variable) {
+    markAsRead(segments, variableName) {
         for (const segment of segments) {
             const info = this.info.get(segment);
 
             if (info) {
-                info.freshReadVariables.add(variable);
+                info.freshReadVariableNames.add(variableName);
             }
         }
     }
 
     /**
-     * Move `freshReadVariables` to `outdatedReadVariables`.
+     * Move `freshReadVariableNames` to `outdatedReadVariableNames`.
      * @param {PathSegment[]} segments The segments to process.
      * @returns {void}
      */
     makeOutdated(segments) {
-        const vars = new Set();
-
         for (const segment of segments) {
             const info = this.info.get(segment);
 
             if (info) {
-                info.freshReadVariables.forEach(Set.prototype.add, info.outdatedReadVariables);
-                info.freshReadVariables.forEach(Set.prototype.add, vars);
-                info.freshReadVariables.clear();
+                info.freshReadVariableNames.forEach(Set.prototype.add, info.outdatedReadVariableNames);
+                info.freshReadVariableNames.clear();
             }
         }
     }
@@ -100,14 +136,14 @@ class SegmentInfo {
     /**
      * Check if a given variable is outdated on the current segments.
      * @param {PathSegment[]} segments The current segments.
-     * @param {escope.Variable} variable The variable to check.
+     * @param {string} variableName The variable name to check.
      * @returns {boolean} `true` if the variable is outdated on the segments.
      */
-    isOutdated(segments, variable) {
+    isOutdated(segments, variableName) {
         for (const segment of segments) {
             const info = this.info.get(segment);
 
-            if (info && info.outdatedReadVariables.has(variable)) {
+            if (info && info.outdatedReadVariableNames.has(variableName)) {
                 return true;
             }
         }
@@ -140,68 +176,9 @@ module.exports = {
 
     create(context) {
         const sourceCode = context.getSourceCode();
-        const globalScope = context.getScope();
-        const dummyVariables = new Map();
         const assignmentReferences = new Map();
         const segmentInfo = new SegmentInfo();
         let stack = null;
-
-        /**
-         * Get the variable of a given reference.
-         * If it's not defined, returns a dummy object.
-         * @param {escope.Reference} reference The reference to get.
-         * @returns {escope.Variable} The variable of the reference.
-         */
-        function getVariable(reference) {
-            if (reference.resolved) {
-                return reference.resolved;
-            }
-
-            // Get or create a dummy.
-            const name = reference.identifier.name;
-            let variable = dummyVariables.get(name);
-
-            if (!variable) {
-                variable = {
-                    name,
-                    scope: globalScope,
-                    references: []
-                };
-                dummyVariables.set(name, variable);
-            }
-            variable.references.push(reference);
-
-            return variable;
-        }
-
-        /**
-         * Get `reference.writeExpr` of a given reference.
-         * If it's the read reference of MemberExpression in LHS, returns RHS in order to address `a.b = await a`
-         * @param {escope.Reference} reference The reference to get.
-         * @returns {Expression|null} The `reference.writeExpr`.
-         */
-        function getWriteExpr(reference) {
-            if (reference.writeExpr) {
-                return reference.writeExpr;
-            }
-            let node = reference.identifier;
-
-            while (node) {
-                const t = node.parent.type;
-
-                if (t === "AssignmentExpression" && node.parent.left === node) {
-                    return node.parent.right;
-                }
-                if (t === "MemberExpression" && node.parent.object === node) {
-                    node = node.parent;
-                    continue;
-                }
-
-                break;
-            }
-
-            return null;
-        }
 
         return {
             onCodePathStart(codePath) {
@@ -234,12 +211,14 @@ module.exports = {
                 if (!reference) {
                     return;
                 }
-                const variable = getVariable(reference);
+                const name = reference.identifier.name;
+                const variable = reference.resolved;
                 const writeExpr = getWriteExpr(reference);
+                const isMemberAccess = reference.identifier.parent.type === "MemberExpression";
 
                 // Add a fresh read variable.
                 if (reference.isRead() && !(writeExpr && writeExpr.parent.operator === "=")) {
-                    segmentInfo.markAsRead(codePath.currentSegments, variable);
+                    segmentInfo.markAsRead(codePath.currentSegments, name);
                 }
 
                 /*
@@ -248,7 +227,7 @@ module.exports = {
                  */
                 if (writeExpr &&
                     writeExpr.parent.right === writeExpr && // ← exclude variable declarations.
-                    !isLocalVariableWithoutEscape(variable)
+                    !isLocalVariableWithoutEscape(variable, isMemberAccess)
                 ) {
                     let refs = assignmentReferences.get(writeExpr);
 
@@ -263,7 +242,7 @@ module.exports = {
 
             /*
              * Verify assignments.
-             * If the reference exists in `outdatedReadVariables` list, report it.
+             * If the reference exists in `outdatedReadVariableNames` list, report it.
              */
             ":expression:exit"(node) {
                 const { codePath, referenceMap } = stack;
@@ -285,9 +264,9 @@ module.exports = {
                     assignmentReferences.delete(node);
 
                     for (const reference of references) {
-                        const variable = getVariable(reference);
+                        const name = reference.identifier.name;
 
-                        if (segmentInfo.isOutdated(codePath.currentSegments, variable)) {
+                        if (segmentInfo.isOutdated(codePath.currentSegments, name)) {
                             context.report({
                                 node: node.parent,
                                 messageId: "nonAtomicUpdate",

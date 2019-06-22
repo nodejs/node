@@ -231,7 +231,6 @@ function mergeRuleConfigs(target, source) {
  * @returns {ExtractedConfig} The extracted config.
  */
 function createConfig(instance, indices) {
-    const slots = internalSlotsMap.get(instance);
     const config = new ExtractedConfig();
 
     // Merge elements.
@@ -256,7 +255,7 @@ function createConfig(instance, indices) {
         mergeWithoutOverwrite(config.globals, element.globals);
         mergeWithoutOverwrite(config.parserOptions, element.parserOptions);
         mergeWithoutOverwrite(config.settings, element.settings);
-        mergePlugins(config.plugins, element.plugins, slots);
+        mergePlugins(config.plugins, element.plugins);
         mergeRuleConfigs(config.rules, element.rules);
     }
 

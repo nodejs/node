@@ -315,6 +315,13 @@ module.exports = {
                         textToMeasure = line;
                     } else if (ignoreTrailingComments && isTrailingComment(line, lineNumber, comment)) {
                         textToMeasure = stripTrailingComment(line, comment);
+
+                        // ignore multiple trailing comments in the same line
+                        let lastIndex = commentsIndex;
+
+                        while (isTrailingComment(textToMeasure, lineNumber, comments[--lastIndex])) {
+                            textToMeasure = stripTrailingComment(textToMeasure, comments[lastIndex]);
+                        }
                     } else {
                         textToMeasure = line;
                     }
