@@ -41,7 +41,7 @@ process.on('beforeExit', (code) => {
   console.log('Process beforeExit event with code: ', code);
 });
 
-(function doSomething () {
+(function doSomething() {
   console.log('This message is displayed first.');
 })();
 
@@ -50,7 +50,7 @@ process.on('beforeExit', (code) => {
 // beforeExit: Process beforeExit event with code: 0
 // Considerations:
 // If exit event is called then beforeExit event will not be executed
-// (function doSomething () {
+// (function doSomething() {
 //   console.log('This message is displayed first.');
 //   process.exit();
 // })();
