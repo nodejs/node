@@ -5,7 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const readline = require('readline');
 const { Writable } = require('stream');
-const { CSI } = require('internal/readline');
+const { CSI } = require('internal/readline/utils');
 
 {
   assert(CSI);

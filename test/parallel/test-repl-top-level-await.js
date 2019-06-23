@@ -3,7 +3,7 @@
 require('../common');
 const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
-const { stripVTControlCharacters } = require('internal/readline');
+const { stripVTControlCharacters } = require('internal/readline/utils');
 const repl = require('repl');
 
 // Flags: --expose-internals --experimental-repl-await
