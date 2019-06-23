@@ -45,10 +45,10 @@ process.on('beforeExit', (code) => {
   console.log('This message is displayed first.');
 })();
 
-//Prints:
+// Prints:
 // doSomething: This message is displayed first.
 // beforeExit: Process beforeExit event with code: 0
-//Considerations:
+// Considerations:
 // If exit event is called then beforeExit event will not be executed
 // (function doSomething () {
 //   console.log('This message is displayed first.');
