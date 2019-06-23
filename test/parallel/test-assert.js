@@ -53,7 +53,7 @@ assert.throws(() => a.ok(false), a.AssertionError, 'ok(false)');
     threw = true;
     assert.ok(e instanceof Error);
   }
-  assert.ok(threw, 'Error: ok(true)');
+  assert.ok(threw, 'Error: ok(false)');
 }
 
 
