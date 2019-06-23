@@ -25,7 +25,7 @@ const common = require('../common');
 
 const assert = require('assert');
 const readline = require('readline');
-const internalReadline = require('internal/readline');
+const internalReadline = require('internal/readline/utils');
 const EventEmitter = require('events').EventEmitter;
 const { Writable, Readable } = require('stream');
 
