@@ -2484,8 +2484,8 @@ The legacy HTTP parser, used by default in versions of Node.js prior to 12.0.0,
 is deprecated. This deprecation applies to users of the
 [`--http-parser=legacy`][] command-line flag.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: worker.terminate() with callback
+<a id="DEP0132"></a>
+### DEP0132: worker.terminate() with callback
 <!-- YAML
 changes:
   - version: REPLACEME
