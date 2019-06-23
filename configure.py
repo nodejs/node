@@ -1099,7 +1099,8 @@ def configure_node(o):
     o['variables']['node_target_type'] = 'executable'
 
 def configure_napi(output):
-  output['variables']['napi_build_version'] = getnapibuildversion.get_napi_version()
+  version = getnapibuildversion.get_napi_version()
+  output['variables']['napi_build_version'] = version
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
