@@ -1323,6 +1323,18 @@ then this will be `null`.
 `subprocess.stderr` is an alias for `subprocess.stdio[2]`. Both properties will
 refer to the same value.
 
+```js
+const assert = require('assert');
+const { spawn } = require('child_process');
+
+const filePath = process.argv[1];
+
+const subprocess = spawn('cat', [filePath], { stdio: 'inherit' });
+
+assert.strictEqual(subprocess.stdio[2], null);
+assert.strictEqual(subprocess.stdio[2], subprocess.stderr);
+```
+
 ### subprocess.stdin
 <!-- YAML
 added: v0.1.90
