@@ -1,6 +1,6 @@
 'use strict';
-const assert = require('assert')
 const common = require('../common');
+const assert = require('assert');
 const { Worker } = require('worker_threads');
 
 // Test that calling worker.terminate() if kHandler is null should return an
@@ -18,8 +18,10 @@ process.once('beforeExit', common.mustCall(() => {
 
 w.on('exit', common.mustCall(() => {
   console.log('exit');
-  w.terminate().then(returned => assert.strictEqual(returned, undefined));
-  w.terminate(() => null).then(returned => assert.strictEqual(returned, undefined));
+  w.terminate().then((returned) => assert.strictEqual(returned, undefined));
+  w.terminate(() => null).then(
+    (returned) => assert.strictEqual(returned, undefined)
+  );
 }));
 
 w.unref();
