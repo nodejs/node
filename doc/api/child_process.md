@@ -135,7 +135,7 @@ added: v0.1.90
 changes:
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
-    description: The `windowsHide` option is supported now.
+    description: The `windowsHide` option is supported now. 
 -->
 
 * `command` {string} The command to run, with space-separated arguments.
