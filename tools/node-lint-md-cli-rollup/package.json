@@ -9,7 +9,7 @@
     "markdown-extensions": "^1.1.1",
     "remark": "^10.0.1",
     "remark-lint": "^6.0.4",
-    "remark-preset-lint-node": "^1.6.1",
+    "remark-preset-lint-node": "^1.7.0",
     "unified-args": "^6.0.0",
     "unified-engine": "^6.0.1"
   },
