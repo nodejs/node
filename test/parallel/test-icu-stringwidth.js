@@ -6,7 +6,7 @@ if (!common.hasIntl)
   common.skip('missing Intl');
 
 const assert = require('assert');
-const readline = require('internal/readline');
+const readline = require('internal/readline/utils');
 
 // Test column width
 
