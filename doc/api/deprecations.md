@@ -2538,7 +2538,6 @@ an officially supported API.
 changes:
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/29061
-    description: Runtime deprecation.
 -->
 
 Type: Runtime
@@ -2568,6 +2567,37 @@ accordingly instead to avoid the ambigiuty.
 
 To maintain existing behaviour `response.finished` should be replaced with
 `response.writableEnded`.
+
+<a id="DEP00XX"></a>
+### DEP00XX: Closing fs.FileHandle on garbage collection
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28396
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Allowing a [`fs.FileHandle`][] object to be closed on garbage collection is
+deprecated. In the future, doing so may result in a thrown error that will
+terminate the process.
+
+Please ensure that all `fs.FileHandle` objects are explicitly closed using
+`FileHandle.prototype.close()` when the `fs.FileHandle` is no longer needed:
+
+```js
+const fsPromises = require('fs').promises;
+async function openAndClose() {
+  let filehandle;
+  try {
+    filehandle = await fsPromises.open('thefile.txt', 'r');
+  } finally {
+    if (filehandle !== undefined)
+      await filehandle.close();
+  }
+}
+```
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
@@ -2606,6 +2636,7 @@ To maintain existing behaviour `response.finished` should be replaced with
 [`domain`]: domain.html
 [`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.html#events_emitter_listenercount_eventname
+[`fs.FileHandle`]: fs.html#fs_class_filehandle
 [`fs.access()`]: fs.html#fs_fs_access_path_mode_callback
 [`fs.createReadStream()`]: fs.html#fs_fs_createreadstream_path_options
 [`fs.createWriteStream()`]: fs.html#fs_fs_createwritestream_path_options

@@ -888,6 +888,14 @@ inline bool Environment::owns_inspector() const {
   return flags_ & kOwnsInspector;
 }
 
+bool Environment::filehandle_close_warning() const {
+  return emit_filehandle_warning_;
+}
+
+void Environment::set_filehandle_close_warning(bool on) {
+  emit_filehandle_warning_ = on;
+}
+
 inline uint64_t Environment::thread_id() const {
   return thread_id_;
 }
