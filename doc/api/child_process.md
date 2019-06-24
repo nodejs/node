@@ -1398,6 +1398,16 @@ then this will be `null`.
 `subprocess.stdout` is an alias for `subprocess.stdio[1]`. Both properties will
 refer to the same value.
 
+```js
+const { spawn } = require('child_process');
+
+const subprocess = spawn('ls');
+
+subprocess.stdout.on('data', (data) => {
+  console.log(`Received chunk ${data}`);
+});
+```
+
 ### subprocess.unref()
 <!-- YAML
 added: v0.7.10
