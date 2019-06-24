@@ -1,6 +1,12 @@
 'use strict';
 
-const { mustCall, hasCrypto, skip, expectsError } = require('../common');
+const {
+  mustCall,
+  hasCrypto,
+  hasIPv6,
+  skip,
+  expectsError
+} = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
 const { createServer, connect } = require('http2');
@@ -72,4 +78,26 @@ const { connect: netConnect } = require('net');
     code: 'ERR_HTTP2_UNSUPPORTED_PROTOCOL',
     type: Error
   });
+}
+
+// Check for literal IPv6 addresses in URL's
+if (hasIPv6) {
+  const server = createServer();
+  server.listen(0, '::1', mustCall(() => {
+    const { port } = server.address();
+    const clients = new Set();
+
+    clients.add(connect(`http://[::1]:${port}`));
+    clients.add(connect(new URL(`http://[::1]:${port}`)));
+
+    for (const client of clients) {
+      client.once('connect', mustCall(() => {
+        client.close();
+        clients.delete(client);
+        if (clients.size === 0) {
+          server.close();
+        }
+      }));
+    }
+  }));
 }
