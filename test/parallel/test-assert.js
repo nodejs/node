@@ -178,6 +178,17 @@ assert.throws(
   }
 );
 
+assert.throws(
+  () => a.doesNotThrow(() => thrower(Error), /\[[a-z]{6}\s[A-z]{6}\]/g, 'user message'),
+  {
+    name: 'AssertionError',
+    code: 'ERR_ASSERTION',
+    operator: 'doesNotThrow',
+    message: 'Got unwanted exception: user message\n' +
+             'Actual message: "[object Object]"'
+  }
+);
+
 // Make sure that validating using constructor really works.
 {
   let threw = false;
