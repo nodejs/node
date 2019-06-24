@@ -115,6 +115,8 @@ const customTypesMap = {
     'perf_hooks.html#perf_hooks_class_performanceobserverentrylist',
 
   'readline.Interface': 'readline.html#readline_class_interface',
+  'readline.promises.Interface':
+    'readline.html#readline_class_readline_promises_interface',
 
   'repl.REPLServer': 'repl.html#repl_class_replserver',
 
