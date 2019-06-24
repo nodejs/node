@@ -215,6 +215,14 @@ added: v2.3.0
 The `os.homedir()` method returns the home directory of the current user as a
 string.
 
+**POSIX**:
+Will use the `$HOME` environment variable if defined. Otherwise, it will use
+the [effective UID][EUID] to look up the user's home directory.
+
+**Windows**:
+Will use the `USERPROFILE` environment variable if defined. Otherwise it
+will be the path to the profile directory of the current user.
+
 ## os.hostname()
 <!-- YAML
 added: v0.3.3
@@ -1319,4 +1327,5 @@ The following process scheduling constants are exported by
 [`process.arch`]: process.html#process_process_arch
 [`process.platform`]: process.html#process_process_platform
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
+[EUID]: https://en.wikipedia.org/wiki/User_identifier#Effective_user_ID
 [uname(3)]: https://linux.die.net/man/3/uname
