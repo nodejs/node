@@ -273,6 +273,42 @@ const { promisify } = require('util');
 }
 
 {
+  const server = http.createServer((req, res) => {
+    pipeline(req, res, common.mustCall());
+  });
+
+  server.listen(0, () => {
+    const req = http.request({
+      port: server.address().port
+    });
+
+    let sent = 0;
+    const rs = new Readable({
+      read() {
+        if (sent++ > 10) {
+          return;
+        }
+        rs.push('hello');
+      }
+    });
+
+    pipeline(rs, req, () => {
+      server.close();
+    });
+
+    req.on('response', (res) => {
+      let writable = new Writable();
+      let cnt = 10;
+      writable.on('data', () => {
+        cnt--;
+        if (cnt === 0) rs.destroy();
+      });
+      pipeline(res, writable, common.mustCall());
+    });
+  });
+}
+
+{
   const makeTransform = () => {
     const tr = new Transform({
       transform(data, enc, cb) {
