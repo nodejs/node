@@ -1329,9 +1329,12 @@ refer to the same value.
 const { spawn } = require('child_process');
 
 const filePath = process.argv[1];
-const subprocess = spawn('cat', [filePath], { stdio: ['inherit', 'inherit', 'pipe'] });
 
-console.log('stderr some data')
+const subprocess = spawn('cat', [filePath], {
+  stdio: ['inherit', 'inherit', 'pipe']
+});
+
+console.log('stderr some data');
 console.log('server:', subprocess.stderr.server);
 console.log('handle:', subprocess.stderr._handle);
 console.log('parent:', subprocess.stderr._parent);
