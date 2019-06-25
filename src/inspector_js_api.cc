@@ -237,7 +237,6 @@ void IsEnabled(const FunctionCallbackInfo<Value>& args) {
 void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Agent* agent = env->inspector_agent();
-  bool wait_for_connect = false;
 
   if (args.Length() > 0 && args[0]->IsUint32()) {
     uint32_t port = args[0].As<Uint32>()->Value();
@@ -249,12 +248,15 @@ void Open(const FunctionCallbackInfo<Value>& args) {
     agent->host_port()->set_host(*host);
   }
 
-  if (args.Length() > 2 && args[2]->IsBoolean()) {
-    wait_for_connect = args[2]->BooleanValue(args.GetIsolate());
-  }
   agent->StartIoThread();
-  if (wait_for_connect)
+}
+
+void WaitForDebugger(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Agent* agent = env->inspector_agent();
+  if (agent->IsActive())
     agent->WaitForConnect();
+  args.GetReturnValue().Set(agent->IsActive());
 }
 
 void Url(const FunctionCallbackInfo<Value>& args) {
@@ -285,6 +287,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
   env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
   env->SetMethod(target, "open", Open);
   env->SetMethodNoSideEffect(target, "url", Url);
+  env->SetMethod(target, "waitForDebugger", WaitForDebugger);
 
   env->SetMethod(target, "asyncTaskScheduled", AsyncTaskScheduledWrapper);
   env->SetMethod(target, "asyncTaskCanceled",
