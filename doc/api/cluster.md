@@ -412,7 +412,7 @@ if (cluster.isMaster) {
     process.kill(process.pid);
   }).listen(8000);
 
-  // Make http://localhost:8000 to ckeck isDead method.
+  // Connect to http://localhost:8000 to check isDead().
 }
 ```
 
