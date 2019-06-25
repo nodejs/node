@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <node_api.h>
 #include "../../js-native-api/common.h"
@@ -29,10 +30,7 @@ void Execute(napi_env env, void* data) {
 #endif
   carrier* c = static_cast<carrier*>(data);
 
-  if (c != &the_carrier) {
-    napi_throw_type_error(env, nullptr, "Wrong data parameter to Execute.");
-    return;
-  }
+  assert(c == &the_carrier);
 
   c->_output = c->_input * 2;
 }
