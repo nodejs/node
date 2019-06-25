@@ -136,7 +136,7 @@ std::string CodeCacheBuilder::Generate(Local<Context> context) {
           loader->GetCodeCache(id.c_str());
       if (cached_data == nullptr) {
         // TODO(joyeecheung): display syntax errors
-        std::cerr << "Failed to complile " << id << "\n";
+        std::cerr << "Failed to compile " << id << "\n";
       } else {
         data.emplace(id, cached_data);
       }
