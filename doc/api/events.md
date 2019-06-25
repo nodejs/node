@@ -510,15 +510,15 @@ Removes all listeners, or those of the specified `eventName`.
 
 ```js
 server
-.on('first_connection', ()=>{
-  console.log('log first connection')
+.on('first_connection', () => {
+  console.log('log first connection');
 })
-.on('second_connection', ()=>{
-  console.log('log second connection')
+.on('second_connection', () => {
+  console.log('log second connection');
 });
-// passing a name event removes that one.
+// Passing a name event removes that one.
 server.removeAllListeners('first_connection');
-// no passing any param removes all the listeners
+// No passing any param removes all the listeners
 server.removeAllListeners();
 ```
 
