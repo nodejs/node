@@ -43,8 +43,8 @@ There are four fundamental stream types within Node.js:
   is written and read (for example, [`zlib.createDeflate()`][]).
 
 Additionally, this module includes the utility functions
-[`stream.pipeline()`][], [`stream.finished()`][] and
-[`stream.Readable.from()`][].
+[`stream.pipeline()`][], [`stream.finished()`][],
+[`stream.Readable.from()`][] and [`stream.Transform.by()`][].
 
 ### Object Mode
 
@@ -1646,6 +1646,43 @@ Calling `Readable.from(string)` or `Readable.from(buffer)` will not have
 the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
 
+### stream.Transform.by(asyncGeneratorFunction, [options])
+
+* `asyncGeneratorFunction` {AsyncGeneratorFunction} A mapping function which
+accepts a `source` iterable which can be used to read incoming data, while
+transformed data is pushed to the stream with the `yield` keyword.
+* `options` {Object} Options provided to `new stream.Transform([options])`.
+By default, `Readable.transform()` will set `options.objectMode` to `true`,
+unless this is explicitly opted out by setting `options.objectMode` to `false`.
+
+A utility method for creating Transform Streams with async generator functions.
+The async generator is supplied a single argument, `source`, which is used to
+read incoming chunks.
+
+Yielded values become the data chunks emitted from the stream.
+
+```js
+const { Readable, Transform } = require('stream');
+
+const readable = Readable.from(['hello', 'streams']);
+async function * mapper(source) {
+  for await (const chunk of source) {
+    yield chunk.toUpperCase();
+  }
+}
+const transform = Transform.by(mapper);
+readable.pipe(transform);
+transform.on('data', (chunk) => {
+  console.log(chunk);
+});
+```
+
+The `source` parameter has an `encoding` property which represents the encoding
+of the `WriteableStream` side of the transform. This is the same `encoding`
+value that would be passed as the second parameter to the `transform` function
+option (or `_transform` method) supplied to `stream.Transform`.
+
+
 ## API for Stream Implementers
 
 <!--type=misc-->
@@ -2819,6 +2856,7 @@ contain multi-byte characters.
 [`readable.push('')`]: #stream_readable_push
 [`readable.setEncoding()`]: #stream_readable_setencoding_encoding
 [`stream.Readable.from()`]: #stream_stream_readable_from_iterable_options
+[`stream.Transform.by()`]: #stream_stream_transform_by_asyncgeneratorfunction_options
 [`stream.cork()`]: #stream_writable_cork
 [`stream.finished()`]: #stream_stream_finished_stream_options_callback
 [`stream.pipe()`]: #stream_readable_pipe_destination_options

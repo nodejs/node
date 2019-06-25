@@ -28,6 +28,8 @@ const customTypesMap = {
 
   'AsyncIterator': 'https://tc39.github.io/ecma262/#sec-asynciterator-interface',
 
+  'AsyncGeneratorFunction': 'https://tc39.es/ecma262/#sec-async-generator-function-definitions',
+
   'bigint': `${jsDocPrefix}Reference/Global_Objects/BigInt`,
 
   'Iterable':

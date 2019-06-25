@@ -396,6 +396,28 @@ async function tests() {
     }
   }
 
+  console.log('readable side of a transform stream pushes null');
+  {
+    const transform = new Transform({
+      objectMode: true,
+      transform(chunk, enc, cb) {
+        cb(null, chunk);
+      }
+    });
+    transform.push(0);
+    transform.push(1);
+    transform.push(null);
+    const mustReach = common.mustCall();
+    const iter = transform[Symbol.asyncIterator]();
+    assert.strictEqual((await iter.next()).value, 0);
+
+    for await (const d of iter) {
+      assert.strictEqual(d, 1);
+    }
+
+    mustReach();
+  }
+
   {
     console.log('readable side of a transform stream pushes null');
     const transform = new Transform({
