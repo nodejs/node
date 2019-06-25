@@ -23,6 +23,13 @@ const helper = require('../common/report');
   assert.deepStrictEqual(helper.findReports(process.pid, process.cwd()), []);
 }
 
+{
+  const error = new Error();
+  error.foo = 'goo';
+  helper.validateContent(process.report.getReport(error),
+                         [['javascriptStack.errorProperties.foo', 'goo']]);
+}
+
 // Test with an invalid error argument.
 [null, 1, Symbol(), function() {}, 'foo'].forEach((error) => {
   assert.throws(() => {
