@@ -433,7 +433,7 @@ void OnFatalError(const char* location, const char* message) {
 
   if (report_on_fatalerror) {
     report::TriggerNodeReport(
-        isolate, env, message, "FatalError", "", Local<String>());
+        isolate, env, message, "FatalError", "", Local<Object>());
   }
 
   fflush(stderr);
