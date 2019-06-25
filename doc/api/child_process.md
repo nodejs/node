@@ -1326,15 +1326,19 @@ then this will be `null`.
 refer to the same value.
 
 ```js
-const assert = require('assert');
 const { spawn } = require('child_process');
 
 const filePath = process.argv[1];
+const subprocess = spawn('cat', [filePath], { stdio: ['inherit', 'inherit', 'pipe'] });
 
-const subprocess = spawn('cat', [filePath], { stdio: 'inherit' });
-
-assert.strictEqual(subprocess.stdio[2], null);
-assert.strictEqual(subprocess.stdio[2], subprocess.stderr);
+console.log('stderr some data')
+console.log('server:', subprocess.stderr.server);
+console.log('handle:', subprocess.stderr._handle);
+console.log('parent:', subprocess.stderr._parent);
+console.log('events:', subprocess.stderr._events);
+console.log('redeable:', subprocess.stderr.readable);
+console.log('connecting:', subprocess.stderr.connecting);
+console.log('readable state:', subprocess.stderr._readableState);
 ```
 
 ### subprocess.stdin
