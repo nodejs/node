@@ -1398,21 +1398,19 @@ then this will be `null`.
 `subprocess.stdout` is an alias for `subprocess.stdio[1]`. Both properties will
 refer to the same value.
 
-
 ```js
 const { spawn } = require('child_process');
 
 const subprocess = spawn('ls');
 
 const ioStdout = subprocess.stdio[1];
-const stdoutStream = subprocess.stdout;
 
 ioStdout.on('data', (data) => {
   console.log(`Received chunk ${data}`);
 });
 
-stdoutStream.on('data', (data) => {
-  console.log(`Received chunk value as ioStdout ${data}`);
+subprocess.stdout.on('data', (data) => {
+  console.log(`Received same chunk value as ioStdout ${data}`);
 });
 ```
 
