@@ -29,7 +29,7 @@
 
 """
 This is a utility for converting JavaScript source code into uint16_t[],
-that are used for embeding JavaScript code into the Node.js binary.
+that are used for embedding JavaScript code into the Node.js binary.
 """
 import argparse
 import os
