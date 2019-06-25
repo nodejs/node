@@ -10,8 +10,6 @@ namespace node {
 using v8::Context;
 using v8::HandleScope;
 using v8::Isolate;
-using v8::Local;
-using v8::Locker;
 using v8::SnapshotCreator;
 using v8::StartupData;
 
