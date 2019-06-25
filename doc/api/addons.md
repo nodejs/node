@@ -83,7 +83,7 @@ NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
 }  // namespace demo
 ```
 
-Note that all Node.js Addons must export an initialization function following
+All Node.js Addons must export an initialization function following
 the pattern:
 
 ```cpp
@@ -306,16 +306,12 @@ console.log(addon.hello());
 // Prints: 'world'
 ```
 
-Please see the examples below for further information or
-<https://github.com/arturadib/node-qt> for an example in production.
-
 Because the exact path to the compiled Addon binary can vary depending on how
 it is compiled (i.e. sometimes it may be in `./build/Debug/`), Addons can use
 the [bindings][] package to load the compiled module.
 
-Note that while the `bindings` package implementation is more sophisticated
-in how it locates Addon modules, it is essentially using a try-catch pattern
-similar to:
+While the `bindings` package implementation is more sophisticated in how it
+locates Addon modules, it is essentially using a try-catch pattern similar to:
 
 ```js
 try {
@@ -591,10 +587,10 @@ NODE_MODULE(NODE_GYP_MODULE_NAME, Init)
 }  // namespace demo
 ```
 
-Note that this example uses a two-argument form of `Init()` that receives
-the full `module` object as the second argument. This allows the Addon
-to completely overwrite `exports` with a single function instead of
-adding the function as a property of `exports`.
+This example uses a two-argument form of `Init()` that receives the full
+`module` object as the second argument. This allows the Addon to completely
+overwrite `exports` with a single function instead of adding the function as a
+property of `exports`.
 
 To test it, run the following JavaScript:
 
@@ -608,7 +604,7 @@ addon((msg) => {
 });
 ```
 
-Note that, in this example, the callback function is invoked synchronously.
+In this example, the callback function is invoked synchronously.
 
 ### Object factory
 

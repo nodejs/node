@@ -107,7 +107,7 @@ not be the same as what is originally sent.
 added: v10.12.0
 -->
 
-* `type` {string} The error type. One of `'resolve'` or `'reject'`.
+* `type` {string} The resolution type. One of `'resolve'` or `'reject'`.
 * `promise` {Promise} The promise that resolved or rejected more than once.
 * `value` {any} The value with which the promise was either resolved or
   rejected after the original resolve.
@@ -119,14 +119,10 @@ The `'multipleResolves'` event is emitted whenever a `Promise` has been either:
 * Rejected after resolve.
 * Resolved after reject.
 
-This is useful for tracking errors in an application while using the promise
-constructor. Otherwise such mistakes are silently swallowed due to being in a
-dead zone.
-
-It is recommended to end the process on such errors, since the process could be
-in an undefined state. While using the promise constructor make sure that it is
-guaranteed to trigger the `resolve()` or `reject()` functions exactly once per
-call and never call both functions in the same call.
+This is useful for tracking potential errors in an application while using the
+`Promise` constructor, as multiple resolutions are silently swallowed. However,
+the occurrence of this event does not necessarily indicate an error. For
+example, [`Promise.race()`][] can trigger a `'multipleResolves'` event.
 
 ```js
 process.on('multipleResolves', (type, promise, reason) => {
@@ -246,7 +242,7 @@ console.log('This will not run.');
 
 #### Warning: Using `'uncaughtException'` correctly
 
-Note that `'uncaughtException'` is a crude mechanism for exception handling
+`'uncaughtException'` is a crude mechanism for exception handling
 intended to be used only as a last resort. The event *should not* be used as
 an equivalent to `On Error Resume Next`. Unhandled exceptions inherently mean
 that an application is in an undefined state. Attempting to resume application
@@ -767,8 +763,8 @@ and [Cluster][] documentation), the `process.disconnect()` method will close the
 IPC channel to the parent process, allowing the child process to exit gracefully
 once there are no other connections keeping it alive.
 
-The effect of calling `process.disconnect()` is that same as calling the parent
-process's [`ChildProcess.disconnect()`][].
+The effect of calling `process.disconnect()` is the same as calling
+[`ChildProcess.disconnect()`][] from the parent process.
 
 If the Node.js process was not spawned with an IPC channel,
 `process.disconnect()` will be `undefined`.
@@ -926,7 +922,7 @@ process.emitWarning(myWarning);
 A `TypeError` is thrown if `warning` is anything other than a string or `Error`
 object.
 
-Note that while process warnings use `Error` objects, the process warning
+While process warnings use `Error` objects, the process warning
 mechanism is **not** a replacement for normal error handling mechanisms.
 
 The following additional handling is implemented if the warning `type` is
@@ -1354,7 +1350,7 @@ the group access list, using all groups of which the user is a member. This is
 a privileged operation that requires that the Node.js process either have `root`
 access or the `CAP_SETGID` capability.
 
-Note that care must be taken when dropping privileges:
+Use care when dropping privileges:
 
 ```js
 console.log(process.getgroups());         // [ 0 ]
@@ -2314,6 +2310,7 @@ cases:
 [`process.kill()`]: #process_process_kill_pid_signal
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
+[`Promise.race()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options

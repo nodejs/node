@@ -636,7 +636,7 @@ An attempt was made to register something that is not a function as an
 <a id="ERR_ASYNC_TYPE"></a>
 ### ERR_ASYNC_TYPE
 
-The type of an asynchronous resource was invalid. Note that users are also able
+The type of an asynchronous resource was invalid. Users are also able
 to define their own types if using the public embedder API.
 
 <a id="ERR_BROTLI_COMPRESSION_FAILED"></a>

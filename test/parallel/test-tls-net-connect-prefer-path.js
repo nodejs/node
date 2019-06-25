@@ -52,7 +52,7 @@ function testLib(lib, cb) {
         }));
         client.on('end', common.mustCall(() => {
           const resp = Buffer.concat(bufs).toString();
-          assert.strictEqual(`${libName(lib)}:${unixServer.address()}`, resp);
+          assert.strictEqual(resp, `${libName(lib)}:${unixServer.address()}`);
           tcpServer.close();
           unixServer.close();
           cb();

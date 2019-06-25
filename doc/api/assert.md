@@ -115,24 +115,27 @@ assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
 ```
 
 To deactivate the colors, use the `NODE_DISABLE_COLORS` environment variable.
-Please note that this will also deactivate the colors in the REPL.
+This will also deactivate the colors in the REPL.
 
 ## Legacy mode
 
 > Stability: 0 - Deprecated: Use strict mode instead.
 
-When accessing `assert` directly instead of using the `strict` property, the
-[Abstract Equality Comparison][] will be used for any function without "strict"
-in its name, such as [`assert.deepEqual()`][].
+Legacy mode uses the [Abstract Equality Comparison][] in:
 
-It can be accessed using:
+* [`assert.deepEqual()`][]
+* [`assert.equal()`][]
+* [`assert.notDeepEqual()`][]
+* [`assert.notEqual()`][]
+
+To use legacy mode:
 
 ```js
 const assert = require('assert');
 ```
 
-It is recommended to use the [`strict` mode][] instead as the
-[Abstract Equality Comparison][] can often have surprising results. This is
+Whenever possible, use the [`strict` mode][] instead. Otherwise, the
+[Abstract Equality Comparison][] may cause surprising results. This is
 especially true for [`assert.deepEqual()`][], where the comparison rules are
 lax:
 
@@ -1026,7 +1029,7 @@ assert.rejects(
 });
 ```
 
-Note that `error` cannot be a string. If a string is provided as the second
+`error` cannot be a string. If a string is provided as the second
 argument, then `error` is assumed to be omitted and the string will be used for
 `message` instead. This can lead to easy-to-miss mistakes. Please read the
 example in [`assert.throws()`][] carefully if using a string as the second
@@ -1128,7 +1131,7 @@ assert.throws(
       nested: true,
       baz: 'text'
     }
-    // Note that only properties on the validation object will be tested for.
+    // Only properties on the validation object will be tested for.
     // Using nested objects requires all properties to be present. Otherwise
     // the validation is going to fail.
   }
@@ -1214,7 +1217,7 @@ assert.throws(
 );
 ```
 
-Note that `error` cannot be a string. If a string is provided as the second
+`error` cannot be a string. If a string is provided as the second
 argument, then `error` is assumed to be omitted and the string will be used for
 `message` instead. This can lead to easy-to-miss mistakes. Using the same
 message as the thrown error message is going to result in an

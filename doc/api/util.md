@@ -276,10 +276,9 @@ util.format('%% %s');
 // Returns: '%% %s'
 ```
 
-Please note that `util.format()` is a synchronous method that is mainly
-intended as a debugging tool. Some input values can have a significant
-performance overhead that can block the event loop. Use this function
-with care and never in a hot code path.
+`util.format()` is a synchronous method that is intended as a debugging tool.
+Some input values can have a significant performance overhead that can block the
+event loop. Use this function with care and never in a hot code path.
 
 ## util.formatWithOptions(inspectOptions, format[, ...args])
 <!-- YAML
@@ -480,7 +479,7 @@ changes:
     to be displayed on a new line. It will also add new lines to text that is
     longer than `breakLength`. If set to a number, the most `n` inner elements
     are united on a single line as long as all properties fit into
-    `breakLength`. Short array elements are also grouped together. Note that no
+    `breakLength`. Short array elements are also grouped together. No
     text will be reduced below 16 characters, no matter the `breakLength` size.
     For more information, see the example below. **Default:** `3`.
   * `sorted` {boolean|Function} If set to `true` or a function, all properties
@@ -1157,7 +1156,7 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is an [async function][].
-Note that this only reports back what the JavaScript engine is seeing;
+This only reports back what the JavaScript engine is seeing;
 in particular, the return value may not match the original source code if
 a transpilation tool was used.
 
@@ -1320,7 +1319,7 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a generator function.
-Note that this only reports back what the JavaScript engine is seeing;
+This only reports back what the JavaScript engine is seeing;
 in particular, the return value may not match the original source code if
 a transpilation tool was used.
 
@@ -1339,7 +1338,7 @@ added: v10.0.0
 
 Returns `true` if the value is a generator object as returned from a
 built-in generator function.
-Note that this only reports back what the JavaScript engine is seeing;
+This only reports back what the JavaScript engine is seeing;
 in particular, the return value may not match the original source code if
 a transpilation tool was used.
 
@@ -1877,7 +1876,7 @@ util.isError({ name: 'Error', message: 'an error occurred' });
 // Returns: false
 ```
 
-Note that this method relies on `Object.prototype.toString()` behavior. It is
+This method relies on `Object.prototype.toString()` behavior. It is
 possible to obtain an incorrect result when the `object` argument manipulates
 `@@toStringTag`.
 

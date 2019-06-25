@@ -267,7 +267,7 @@ changes:
 * `...data` {any}
 
 This method calls `console.log()` passing it the arguments received.
-Please note that this method does not produce any XML formatting.
+This method does not produce any XML formatting.
 
 ### console.error([data][, ...args])
 <!-- YAML

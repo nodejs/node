@@ -1763,6 +1763,11 @@ this API: [`fs.exists()`][].
 parameter to `fs.exists()` accepts parameters that are inconsistent with other
 Node.js callbacks. `fs.existsSync()` does not use a callback.
 
+```js
+if (fs.existsSync('/etc/passwd')) {
+  console.log('The file exists.');
+}
+```
 
 ## fs.fchmod(fd, mode, callback)
 <!-- YAML
@@ -3697,8 +3702,8 @@ conditions, `fs.write()` may write only part of the buffer and will need to be
 retried to write the remaining data, whereas `fs.writeFile()` will retry until
 the data is entirely written (or an error occurs).
 
-Since the implications of this are a common source of confusion, note that in
-the file descriptor case the file is not replaced! The data is not necessarily
+The implications of this are a common source of confusion. In
+the file descriptor case, the file is not replaced! The data is not necessarily
 written to the beginning of the file, and the file's original data may remain
 before and/or after the newly written data.
 

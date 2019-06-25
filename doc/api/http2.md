@@ -177,7 +177,7 @@ added: v8.4.0
 
 The `'frameError'` event is emitted when an error occurs while attempting to
 send a frame on the session. If the frame that could not be sent is associated
-with a specific `Http2Stream`, an attempt to emit `'frameError'` event on the
+with a specific `Http2Stream`, an attempt to emit a `'frameError'` event on the
 `Http2Stream` is made.
 
 If the `'frameError'` event is associated with a stream, the stream will be
@@ -451,9 +451,9 @@ added: v8.4.0
 
 * {boolean}
 
-Indicates whether or not the `Http2Session` is currently waiting for an
-acknowledgment for a sent `SETTINGS` frame. Will be `true` after calling the
-`http2session.settings()` method. Will be `false` once all sent SETTINGS
+Indicates whether the `Http2Session` is currently waiting for acknowledgment of
+a sent `SETTINGS` frame. Will be `true` after calling the
+`http2session.settings()` method. Will be `false` once all sent `SETTINGS`
 frames have been acknowledged.
 
 #### http2session.ping([payload, ]callback)
@@ -913,7 +913,7 @@ All [`Http2Stream`][] instances are destroyed either when:
 * The `http2stream.destroy()` or `http2session.destroy()` methods are called.
 
 When an `Http2Stream` instance is destroyed, an attempt will be made to send an
-`RST_STREAM` frame will be sent to the connected peer.
+`RST_STREAM` frame to the connected peer.
 
 When the `Http2Stream` instance is destroyed, the `'close'` event will
 be emitted. Because `Http2Stream` is an instance of `stream.Duplex`, the
@@ -988,7 +988,7 @@ The `'trailers'` event is emitted when a block of headers associated with
 trailing header fields is received. The listener callback is passed the
 [HTTP/2 Headers Object][] and flags associated with the headers.
 
-Note that this event might not be emitted if `http2stream.end()` is called
+This event might not be emitted if `http2stream.end()` is called
 before trailers are received and the incoming data is not being read or
 listened for.
 
@@ -1488,7 +1488,7 @@ requests.
 
 The file descriptor is not closed when the stream is closed, so it will need
 to be closed manually once it is no longer needed.
-Note that using the same file descriptor concurrently for multiple streams
+Using the same file descriptor concurrently for multiple streams
 is not supported and may result in data loss. Re-using a file descriptor
 after a stream has finished is supported.
 
@@ -1669,7 +1669,7 @@ client should continue to send the request body, or generating an appropriate
 HTTP response (e.g. 400 Bad Request) if the client should not continue to send
 the request body.
 
-Note that when this event is emitted and handled, the [`'request'`][] event will
+When this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
 
 #### Event: 'request'
@@ -1680,7 +1680,7 @@ added: v8.4.0
 * `request` {http2.Http2ServerRequest}
 * `response` {http2.Http2ServerResponse}
 
-Emitted each time there is a request. Note that there may be multiple requests
+Emitted each time there is a request. There may be multiple requests
 per session. See the [Compatibility API][].
 
 #### Event: 'session'
@@ -1751,7 +1751,7 @@ added: v8.4.0
 
 Stops the server from accepting new connections. See [`net.Server.close()`][].
 
-Note that this is not analogous to restricting new requests since HTTP/2
+This is not analogous to restricting new requests since HTTP/2
 connections are persistent. To achieve a similar graceful shutdown behavior,
 consider also using [`http2session.close()`] on active sessions.
 
@@ -1807,7 +1807,7 @@ client should continue to send the request body, or generating an appropriate
 HTTP response (e.g. 400 Bad Request) if the client should not continue to send
 the request body.
 
-Note that when this event is emitted and handled, the [`'request'`][] event will
+When this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
 
 #### Event: 'request'
@@ -1818,7 +1818,7 @@ added: v8.4.0
 * `request` {http2.Http2ServerRequest}
 * `response` {http2.Http2ServerResponse}
 
-Emitted each time there is a request. Note that there may be multiple requests
+Emitted each time there is a request. There may be multiple requests
 per session. See the [Compatibility API][].
 
 #### Event: 'session'
@@ -1897,7 +1897,7 @@ added: v8.4.0
 
 Stops the server from accepting new connections. See [`tls.Server.close()`][].
 
-Note that this is not analogous to restricting new requests since HTTP/2
+This is not analogous to restricting new requests since HTTP/2
 connections are persistent. To achieve a similar graceful shutdown behavior,
 consider also using [`http2session.close()`] on active sessions.
 
@@ -2773,7 +2773,7 @@ added: v8.4.0
 
 The raw request/response headers list exactly as they were received.
 
-Note that the keys and values are in the same list. It is *not* a
+The keys and values are in the same list. It is *not* a
 list of tuples. So, the even-numbered offsets are key values, and the
 odd-numbered offsets are the associated values.
 
@@ -3037,7 +3037,7 @@ added: v8.4.0
 * Returns: {string}
 
 Reads out a header that has already been queued but not sent to the client.
-Note that the name is case insensitive.
+The name is case-insensitive.
 
 ```js
 const contentType = response.getHeader('content-type');
@@ -3096,7 +3096,7 @@ added: v8.4.0
 * Returns: {boolean}
 
 Returns `true` if the header identified by `name` is currently set in the
-outgoing headers. Note that the header name matching is case-insensitive.
+outgoing headers. The header name matching is case-insensitive.
 
 ```js
 const hasContentType = response.hasHeader('content-type');
@@ -3280,7 +3280,7 @@ it will switch to implicit header mode and flush the implicit headers.
 This sends a chunk of the response body. This method may
 be called multiple times to provide successive parts of the body.
 
-Note that in the `http` module, the response body is omitted when the
+In the `http` module, the response body is omitted when the
 request is a HEAD request. Similarly, the `204` and `304` responses
 _must not_ include a message body.
 
@@ -3343,12 +3343,12 @@ response.writeHead(200, {
   'Content-Type': 'text/plain' });
 ```
 
-Note that Content-Length is given in bytes not characters. The
+`Content-Length` is given in bytes not characters. The
 `Buffer.byteLength()` API may be used to determine the number of bytes in a
 given encoding. On outbound messages, Node.js does not check if Content-Length
 and the length of the body being transmitted are equal or not. However, when
 receiving messages, Node.js will automatically reject messages when the
-Content-Length does not match the actual payload size.
+`Content-Length` does not match the actual payload size.
 
 This method may be called at most one time on a message before
 [`response.end()`][] is called.

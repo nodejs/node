@@ -22,7 +22,7 @@ the functions available in the N-API are used.
 
 APIs exposed by N-API are generally used to create and manipulate
 JavaScript values. Concepts and operations generally map to ideas specified
-in the ECMA262 Language Specification. The APIs have the following
+in the ECMA-262 Language Specification. The APIs have the following
 properties:
 - All N-API calls return a status code of type `napi_status`. This
   status indicates whether the API call succeeded or failed.
@@ -478,7 +478,8 @@ typedef void (*napi_threadsafe_function_call_js)(napi_env env,
 - `[in] env`: The environment to use for API calls, or `NULL` if the thread-safe
 function is being torn down and `data` may need to be freed.
 - `[in] js_callback`: The JavaScript function to call, or `NULL` if the
-thread-safe function is being torn down and `data` may need to be freed.
+thread-safe function is being torn down and `data` may need to be freed. It may
+also be `NULL` if the thread-safe function was created without `js_callback`.
 - `[in] context`: The optional data with which the thread-safe function was
 created.
 - `[in] data`: Data created by the secondary thread. It is the responsibility of
@@ -1586,7 +1587,6 @@ structure, in most cases using a `TypedArray` will suffice.
 #### napi_create_date
 <!-- YAML
 added: v11.11.0
-napiVersion: 4
 -->
 
 > Stability: 1 - Experimental
@@ -2231,7 +2231,6 @@ This API returns various properties of a `DataView`.
 #### napi_get_date_value
 <!-- YAML
 added: v11.11.0
-napiVersion: 4
 -->
 
 > Stability: 1 - Experimental
@@ -2840,7 +2839,6 @@ This API checks if the `Object` passed in is a buffer.
 ### napi_is_date
 <!-- YAML
 added: v11.11.0
-napiVersion: 4
 -->
 
 > Stability: 1 - Experimental
@@ -3450,7 +3448,7 @@ This method allows the efficient definition of multiple properties on a given
 object. The properties are defined using property descriptors (see
 [`napi_property_descriptor`][]). Given an array of such property descriptors,
 this API will set the properties on the object one at a time, as defined by
-`DefineOwnProperty()` (described in [Section 9.1.6][] of the ECMA262
+`DefineOwnProperty()` (described in [Section 9.1.6][] of the ECMA-262
 specification).
 
 ## Working with JavaScript Functions
@@ -3940,7 +3938,6 @@ JavaScript object becomes garbage-collected.
 
 <!-- YAML
 added: v8.0.0
-napiVersion: 1
 -->
 ```C
 napi_status napi_add_finalizer(napi_env env,
@@ -4657,6 +4654,10 @@ prevent the event loop from exiting. The APIs `napi_ref_threadsafe_function` and
 <!-- YAML
 added: v10.6.0
 napiVersion: 4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27791
+    description: Made `func` parameter optional with custom `call_js_cb`.
 -->
 ```C
 NAPI_EXTERN napi_status
@@ -4674,7 +4675,8 @@ napi_create_threadsafe_function(napi_env env,
 ```
 
 - `[in] env`: The environment that the API is invoked under.
-- `[in] func`: The JavaScript function to call from another thread.
+- `[in] func`: An optional JavaScript function to call from another thread.
+It must be provided if `NULL` is passed to `call_js_cb`.
 - `[in] async_resource`: An optional object associated with the async work that
 will be passed to possible `async_hooks` [`init` hooks][].
 - `[in] async_resource_name`: A JavaScript string to provide an identifier for

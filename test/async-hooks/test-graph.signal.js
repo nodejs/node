@@ -53,7 +53,11 @@ function onexit() {
       { type: 'PIPEWRAP', id: 'pipe:4', triggerAsyncId: 'signal:1' },
       { type: 'PIPEWRAP', id: 'pipe:5', triggerAsyncId: 'signal:1' },
       { type: 'PIPEWRAP', id: 'pipe:6', triggerAsyncId: 'signal:1' },
-      { type: 'SIGNALWRAP', id: 'signal:2', triggerAsyncId: 'signal:1' },
+      { type: 'SIGNALWRAP', id: 'signal:2',
+        // TEST_THREAD_ID is set by tools/test.py. Adjust test results depending
+        // on whether the test was invoked via test.py or from the shell
+        // directly.
+        triggerAsyncId: process.env.TEST_THREAD_ID ? 'signal:1' : 'pipe:2' },
       { type: 'PROCESSWRAP', id: 'process:3', triggerAsyncId: 'signal:1' },
       { type: 'PIPEWRAP', id: 'pipe:7', triggerAsyncId: 'signal:1' },
       { type: 'PIPEWRAP', id: 'pipe:8', triggerAsyncId: 'signal:1' },

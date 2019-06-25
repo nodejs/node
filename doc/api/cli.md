@@ -209,44 +209,7 @@ Enable experimental frozen intrinsics like `Array` and `Object`.
 
 Support is currently only provided for the root context and no guarantees are
 currently provided that `global.Array` is indeed the default intrinsic
-reference.
-
-**Code breakage is highly likely with this flag**, since redefining any
-builtin properties on a subclass will throw in strict mode due to the ECMA-262
-issue https://github.com/tc39/ecma262/pull/1307. This flag may still change
-or be removed in the future.
-
-To avoid these cases, any builtin function overrides should be defined upfront:
-
-```js
-const o = {};
-// THROWS: Cannot assign read only property 'toString' of object
-o.toString = () => 'string';
-
-class X {
-  constructor() {
-    this.toString = () => 'string';
-  }
-}
-// THROWS: Cannot assign read only property 'toString' of object
-new X();
-```
-
-```js
-// OK
-const o = { toString: () => 'string' };
-
-class X {
-  toString = undefined;
-  constructor() {
-    this.toString = () => 'string';
-  }
-}
-// OK
-new X();
-```
-
-
+reference. Code may break under this flag.
 
 ### `--heapsnapshot-signal=signal`
 <!-- YAML
@@ -519,7 +482,7 @@ This flag exists so that the main module can be opted-in to the same behavior
 that `--preserve-symlinks` gives to all other imports; they are separate flags,
 however, for backward compatibility with older Node.js versions.
 
-Note that `--preserve-symlinks-main` does not imply `--preserve-symlinks`; it
+`--preserve-symlinks-main` does not imply `--preserve-symlinks`; it
 is expected that `--preserve-symlinks-main` will be used in addition to
 `--preserve-symlinks` when it is not desirable to follow symlinks before
 resolving relative paths.
@@ -930,7 +893,7 @@ certificates in PEM format. A message will be emitted (once) with
 [`process.emitWarning()`][emit_warning] if the file is missing or
 malformed, but any errors are otherwise ignored.
 
-Note that neither the well known nor extra certificates are used when the `ca`
+Neither the well known nor extra certificates are used when the `ca`
 options property is explicitly specified for a TLS or HTTPS client or server.
 
 This environment variable is ignored when `node` runs as setuid root or

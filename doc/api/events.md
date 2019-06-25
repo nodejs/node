@@ -261,7 +261,7 @@ change affects *all* `EventEmitter` instances, including those created before
 the change is made. However, calling [`emitter.setMaxListeners(n)`][] still has
 precedence over `EventEmitter.defaultMaxListeners`.
 
-Note that this is not a hard limit. The `EventEmitter` instance will allow
+This is not a hard limit. The `EventEmitter` instance will allow
 more listeners to be added but will output a trace warning to stderr indicating
 that a "possible EventEmitter memory leak" has been detected. For any single
 `EventEmitter`, the `emitter.getMaxListeners()` and `emitter.setMaxListeners()`
@@ -553,7 +553,7 @@ listener array. If any single listener has been added multiple times to the
 listener array for the specified `eventName`, then `removeListener()` must be
 called multiple times to remove each instance.
 
-Note that once an event has been emitted, all listeners attached to it at the
+Once an event has been emitted, all listeners attached to it at the
 time of emitting will be called in order. This implies that any
 `removeListener()` or `removeAllListeners()` calls *after* emitting and
 *before* the last listener finishes execution will not remove them from

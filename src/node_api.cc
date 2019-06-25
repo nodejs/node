@@ -319,10 +319,14 @@ class ThreadSafeFunction : public node::AsyncResource {
                                "ERR_NAPI_TSFN_STOP_IDLE_LOOP",
                                "Failed to stop the idle loop") == napi_ok);
       } else {
-        v8::Local<v8::Function> js_cb =
+        napi_value js_callback = nullptr;
+        if (!ref.IsEmpty()) {
+          v8::Local<v8::Function> js_cb =
             v8::Local<v8::Function>::New(env->isolate, ref);
+          js_callback = v8impl::JsValueFromV8LocalValue(js_cb);
+        }
         call_js_cb(env,
-                   v8impl::JsValueFromV8LocalValue(js_cb),
+                   js_callback,
                    context,
                    data);
       }
@@ -1014,7 +1018,6 @@ napi_create_threadsafe_function(napi_env env,
                                 napi_threadsafe_function_call_js call_js_cb,
                                 napi_threadsafe_function* result) {
   CHECK_ENV(env);
-  CHECK_ARG(env, func);
   CHECK_ARG(env, async_resource_name);
   RETURN_STATUS_IF_FALSE(env, initial_thread_count > 0, napi_invalid_arg);
   CHECK_ARG(env, result);
@@ -1022,7 +1025,11 @@ napi_create_threadsafe_function(napi_env env,
   napi_status status = napi_ok;
 
   v8::Local<v8::Function> v8_func;
-  CHECK_TO_FUNCTION(env, v8_func, func);
+  if (func == nullptr) {
+    CHECK_ARG(env, call_js_cb);
+  } else {
+    CHECK_TO_FUNCTION(env, v8_func, func);
+  }
 
   v8::Local<v8::Context> v8_context = env->context();
 
