@@ -144,7 +144,10 @@ function _validateContent(report) {
   assert.strictEqual(header.host, os.hostname());
 
   // Verify the format of the javascriptStack section.
-  checkForUnknownFields(report.javascriptStack, ['message', 'stack']);
+  checkForUnknownFields(report.javascriptStack,
+                        ['message', 'stack', 'errorProperties']);
+  assert.strictEqual(typeof report.javascriptStack.errorProperties,
+                     'object');
   assert.strictEqual(typeof report.javascriptStack.message, 'string');
   if (report.javascriptStack.stack !== undefined) {
     assert(Array.isArray(report.javascriptStack.stack));
