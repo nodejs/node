@@ -1187,6 +1187,11 @@ after the session had already closed.
 
 An error occurred while issuing a command via the `inspector` module.
 
+<a id="ERR_INSPECTOR_NOT_ACTIVE"></a>
+### ERR_INSPECTOR_NOT_ACTIVE
+
+The `inspector` is not active when `inspector.waitForDebugger()` is called.
+
 <a id="ERR_INSPECTOR_NOT_AVAILABLE"></a>
 ### ERR_INSPECTOR_NOT_AVAILABLE
 
