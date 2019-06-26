@@ -672,15 +672,15 @@ from cutting a minor or patch release.
 
 New Node.js Major releases happen twice per year:
 
-* Even Numbered Releases are cut in April
-* Odd Numbered Releases are cut in October
+* Even-numbered releases are cut in April.
+* Odd-numbered releases are cut in October.
 
-Major releases should be targeted for the *third Tuesday* of the release month.
+Major releases should be targeted for the third Tuesday of the release month.
 
-A Major release *must not* slip beyond the release month (e.g. major releases
-must not slip into May or November).
+A major release must not slip beyond the release month. In other words, major releases
+must not slip into May or November.
 
-The release date for the next major release *should be* announced immediately
+The release date for the next major release should be announced immediately
 following the current release (e.g. the release date for 13.0.0 should be
 announced immediately following the release of 12.0.0).
 
@@ -689,13 +689,13 @@ announced immediately following the release of 12.0.0).
 Approximately three months before a major release, new `vN.x` and
 `vN.x-staging` branches (where `N` indicates the major release) should be
 created as forks of the `master` branch. Up until one month before the release
-date, these must be kept in sync with `master` and *must not* be considered to
+date, these must be kept in sync with `master` and must not be considered to
 be stable branches (e.g. they may be force pushed).
 
-The `vN.x` and `vN.x-staging` branches *must* be kept in sync with one another
+The `vN.x` and `vN.x-staging` branches must be kept in sync with one another
 up until the date of release.
 
-One month or less before the release date, commits must be cherry-picked in to
+One month or less before the release date, commits must be cherry-picked into
 the two branches. To land `SEMVER-MAJOR` at this time requires no objections
 from the TSC.
 
@@ -704,7 +704,7 @@ from the TSC.
 A draft release proposal should be created two months before the release. A
 separate `vN.x-proposal` branch should be created that tracks the `vN.x`
 branch. This branch will contain the draft release commit (with the draft
-change log).
+changelog).
 
 ### Test Releases and Release Candidates
 
@@ -718,7 +718,7 @@ per week.
 Always run test releases and release candidates through the Canary in the
 Goldmine tool for additional testing.
 
-### Change Logs
+### Changelogs
 
 Generating major release changelogs is a bit more involved than minor and patch
 changelogs.
@@ -733,7 +733,7 @@ Note that the navigation headers in all of the `CHANGELOG_V*.md` files must be
 updated to account for the new `CHANGELOG_V{N}.md` file.
 
 Once the file is created, the root `CHANGELOG.md` file must be updated to
-reference the newly created major release `CHANGELOG_V{N}.md`.
+reference the newly-created major release `CHANGELOG_V{N}.md`.
 
 #### Generate the changelog
 
