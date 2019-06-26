@@ -1244,7 +1244,7 @@ possible exception are given to the completion callback.
 See also: chmod(2).
 
 ```js
-fs.chmod('my_file.txt', 775, (err) => {
+fs.chmod('my_file.txt', 0o775, (err) => {
   if (err) throw err;
   console.log('The permissions for file "my_file.txt" have been changed!');
 });
