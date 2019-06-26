@@ -310,38 +310,38 @@ Returns `true` if the event had listeners, `false` otherwise.
 
 ```js
 const EventEmitter = require('events');
-class MyEmitter extends EventEmitter { }
-
-const myEmitter = new MyEmitter();
+const myEmitter = new EventEmitter();
 
 // First listener
 myEmitter.on('event', function firstListener() {
   console.log('Helloooo! first listener');
 });
 // Second listener
-myEmitter.on('event', function secondListener(a, b) {
-  console.log(`an event with parameters ${a},${b} occurred in second listener`);
+myEmitter.on('event', function secondListener(arg1, arg2) {
+  console.log(`an event with parameters ${arg1}, ${arg2}, occurred in second listener`);
 });
 // Third listener
-myEmitter.on('event', function thirdListener(...arrgParms) {
-  let params = '';
-  arrgParms.forEach((param) => {
-    params += `-${param}`;
+myEmitter.on('event', function thirdListener(...args) {
+  let parameters = '';
+  args.forEach((arg) => {
+    parameters += `${arg}, `;
   }
   );
-  console.log(`an event with parameters ${params} occurred in third listener`);
+  console.log(`an event with parameters ${parameters}occurred in third listener`);
 });
 
 console.log(myEmitter.listeners('event'));
+
 myEmitter.emit('event', 1, 2, 3, 4, 5);
 
 // Prints:
 // [ [Function: firstListener],
 // [Function: secondListener],
 // [Function: thirdListener] ]
+
 // Helloooo! first listener
-// an event with parameters 1 - 2, occurred in second listener
-// an event with parameters -1-2-3-4-5 occurred in third listener
+// an event with parameters 1, 2, occurred in second listener
+// an event with parameters 1, 2, 3, 4, 5, occurred in third listener
 ```
 
 ### emitter.eventNames()
