@@ -38,6 +38,14 @@ function validate() {
 }
 
 {
+  // Test with an error with one line stack
+  const error = new Error();
+  error.stack = 'only one line';
+  process.report.writeReport(error);
+  validate();
+}
+
+{
   // Test with a file argument.
   const file = process.report.writeReport('custom-name-1.json');
   const absolutePath = path.join(tmpdir.path, file);
