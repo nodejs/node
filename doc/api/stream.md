@@ -505,7 +505,7 @@ the status of the `highWaterMark`.
 
 ##### writable.writableFinished
 <!-- YAML
-added: v12.4.0
+added: REPLACEME
 -->
 
 * {boolean}
