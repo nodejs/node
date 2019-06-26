@@ -1,4 +1,42 @@
-## v6.9.0 (2018-02-20):
+## v6.9.1 (2019-03-20):
+
+### BUGFIXES
+
+* [`6b1a9da0e`](https://github.com/npm/cli/commit/6b1a9da0e0f5c295cdaf4dea4b73bd221d778611)
+  [#165](https://github.com/npm/cli/pull/165)
+  Update `knownBroken` version.
+  ([@ljharb](https://github.com/ljharb))
+* [`d07547154`](https://github.com/npm/cli/commit/d07547154eb8a88aa4fde8a37e128e1e3272adc1)
+  [npm.community#5929](https://npm.community/t/npm-outdated-throw-an-error-cannot-read-property-length-of-undefined/5929)
+  Fix `outdated` rendering for global dependencies.
+  ([@zkat](https://github.com/zkat))
+* [`e4a1f1745`](https://github.com/npm/cli/commit/e4a1f174514a57580fd5e0fa33eee0f42bba77fc)
+  [npm.community#6259](https://npm.community/t/npm-token-create-doesnt-work-in-6-6-0-6-9-0/6259)
+  Fix OTP for token create and remove.
+  ([@zkat](https://github.com/zkat))
+
+### DEPENDENCIES
+
+* [`a163a9c35`](https://github.com/npm/cli/commit/a163a9c35f6f341de343562368056258bba5d7dc)
+  `sha@3.0.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`47b08b3b9`](https://github.com/npm/cli/commit/47b08b3b9860438b416efb438e975a628ec2eed5)
+  `query-string@6.4.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`d6a956cff`](https://github.com/npm/cli/commit/d6a956cff6357e6de431848e578c391768685a64)
+  `readable-stream@3.2.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`10b8bed2b`](https://github.com/npm/cli/commit/10b8bed2bb0afac5451164e87f25924cc1ac6f2e)
+  `tacks@1.3.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`e7483704d`](https://github.com/npm/cli/commit/e7483704dda1acffc8c6b8c165c14c8a7512f3c8)
+  `tap@12.6.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`3242fe698`](https://github.com/npm/cli/commit/3242fe698ead46a9cda94e1a4d489cd84a85d7e3)
+  `tar-stream@2.0.1`
+  ([@aeschright](https://github.com/aeschright))
+
+## v6.9.0 (2019-02-20):
 
 ### FEATURES
 

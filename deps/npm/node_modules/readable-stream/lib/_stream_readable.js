@@ -141,7 +141,8 @@ function ReadableState(options, stream, isDuplex) {
   this.needReadable = false;
   this.emittedReadable = false;
   this.readableListening = false;
-  this.resumeScheduled = false; // Should close be emitted on destroy. Defaults to true.
+  this.resumeScheduled = false;
+  this.paused = true; // Should close be emitted on destroy. Defaults to true.
 
   this.emitClose = options.emitClose !== false; // has it been destroyed
 
@@ -822,9 +823,14 @@ Readable.prototype.removeAllListeners = function (ev) {
 };
 
 function updateReadableListening(self) {
-  self._readableState.readableListening = self.listenerCount('readable') > 0; // crude way to check if we should resume
+  var state = self._readableState;
+  state.readableListening = self.listenerCount('readable') > 0;
 
-  if (self.listenerCount('data') > 0) {
+  if (state.resumeScheduled && !state.paused) {
+    // flowing needs to be set to true now, otherwise
+    // the upcoming resume will not flow.
+    state.flowing = true; // crude way to check if we should resume
+  } else if (self.listenerCount('data') > 0) {
     self.resume();
   }
 }
@@ -848,6 +854,7 @@ Readable.prototype.resume = function () {
     resume(this, state);
   }
 
+  state.paused = false;
   return this;
 };
 
@@ -880,6 +887,7 @@ Readable.prototype.pause = function () {
     this.emit('pause');
   }
 
+  this._readableState.paused = true;
   return this;
 };
 

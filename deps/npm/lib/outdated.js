@@ -149,7 +149,7 @@ function makePretty (p, opts) {
     has || 'MISSING',
     want,
     latest,
-    deppath
+    deppath || 'global'
   ]
   if (long) {
     columns[5] = type
