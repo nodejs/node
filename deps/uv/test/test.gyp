@@ -120,6 +120,7 @@
         'test-tcp-writealot.c',
         'test-tcp-write-fail.c',
         'test-tcp-try-write.c',
+        'test-tcp-try-write-error.c',
         'test-tcp-unexpected-read.c',
         'test-tcp-oob.c',
         'test-tcp-read-stop.c',

@@ -178,8 +178,21 @@ static size_t thread_stack_size(void) {
   if (lim.rlim_cur != RLIM_INFINITY) {
     /* pthread_attr_setstacksize() expects page-aligned values. */
     lim.rlim_cur -= lim.rlim_cur % (rlim_t) getpagesize();
-    if (lim.rlim_cur >= PTHREAD_STACK_MIN)
-      return lim.rlim_cur;
+
+    /* Musl's PTHREAD_STACK_MIN is 2 KB on all architectures, which is
+     * too small to safely receive signals on.
+     *
+     * Musl's PTHREAD_STACK_MIN + MINSIGSTKSZ == 8192 on arm64 (which has
+     * the largest MINSIGSTKSZ of the architectures that musl supports) so
+     * let's use that as a lower bound.
+     *
+     * We use a hardcoded value because PTHREAD_STACK_MIN + MINSIGSTKSZ
+     * is between 28 and 133 KB when compiling against glibc, depending
+     * on the architecture.
+     */
+    if (lim.rlim_cur >= 8192)
+      if (lim.rlim_cur >= PTHREAD_STACK_MIN)
+        return lim.rlim_cur;
   }
 #endif
 

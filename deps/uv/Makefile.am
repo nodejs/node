@@ -117,6 +117,7 @@ endif  # WINNT
 
 EXTRA_DIST = test/fixtures/empty_file \
              test/fixtures/load_error.node \
+             test/fixtures/lorem_ipsum.txt \
              include \
              docs \
              img \
@@ -272,6 +273,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-writealot.c \
                          test/test-tcp-write-fail.c \
                          test/test-tcp-try-write.c \
+                         test/test-tcp-try-write-error.c \
                          test/test-tcp-write-queue-order.c \
                          test/test-thread-equal.c \
                          test/test-thread.c \
@@ -318,6 +320,10 @@ if AIX
 test_run_tests_CFLAGS += -D_ALL_SOURCE \
                          -D_XOPEN_SOURCE=500 \
                          -D_LINUX_SOURCE_COMPAT
+endif
+
+if HAIKU
+test_run_tests_CFLAGS += -D_BSD_SOURCE
 endif
 
 if LINUX
@@ -407,6 +413,17 @@ libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
                     src/unix/kqueue.c \
                     src/unix/posix-hrtime.c
 test_run_tests_LDFLAGS += -lutil
+endif
+
+if HAIKU
+uvinclude_HEADERS += include/uv/posix.h
+libuv_la_CFLAGS += -D_BSD_SOURCE
+libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
+                    src/unix/haiku.c \
+                    src/unix/no-fsevents.c \
+                    src/unix/no-proctitle.c \
+                    src/unix/posix-hrtime.c \
+                    src/unix/posix-poll.c
 endif
 
 if HURD
