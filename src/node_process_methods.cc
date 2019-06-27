@@ -212,7 +212,7 @@ void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
   Utf8Value message(args.GetIsolate(), args[0]);
-  PrintErrorString("%s\n", *message);
+  PrintToStderr(Environment::GetCurrent(args)->event_loop(), "%s\n", *message);
   fflush(stderr);
 }
 
