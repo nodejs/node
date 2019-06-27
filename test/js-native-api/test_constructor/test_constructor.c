@@ -76,8 +76,7 @@ static napi_value TestDefineClass(napi_env env,
   NAPI_CALL(env, napi_create_object(env, &return_value));
 
   NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[0] == napi_invalid_arg ?
-                                             "pass" : "fail"),
+                                         NAPI_STATUS_TO_STRING(ret[0]),
                                          NAPI_AUTO_LENGTH,
                                          &prop_value));
   NAPI_CALL(env, napi_set_named_property(env,
@@ -86,8 +85,7 @@ static napi_value TestDefineClass(napi_env env,
                                          prop_value));
 
   NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[1] == napi_invalid_arg ?
-                                             "pass" : "fail"),
+                                         NAPI_STATUS_TO_STRING(ret[1]),
                                          NAPI_AUTO_LENGTH,
                                          &prop_value));
   NAPI_CALL(env, napi_set_named_property(env,
@@ -96,8 +94,7 @@ static napi_value TestDefineClass(napi_env env,
                                          prop_value));
 
   NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[2] == napi_invalid_arg ?
-                                             "pass" : "fail"),
+                                         NAPI_STATUS_TO_STRING(ret[2]),
                                          NAPI_AUTO_LENGTH,
                                          &prop_value));
   NAPI_CALL(env, napi_set_named_property(env,
@@ -106,8 +103,7 @@ static napi_value TestDefineClass(napi_env env,
                                          prop_value));
 
   NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[3] == napi_ok ?
-                                             "pass" : "fail"),
+                                         NAPI_STATUS_TO_STRING(ret[3]),
                                          NAPI_AUTO_LENGTH,
                                          &prop_value));
   NAPI_CALL(env, napi_set_named_property(env,
@@ -116,8 +112,7 @@ static napi_value TestDefineClass(napi_env env,
                                          prop_value));
 
   NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[4] == napi_invalid_arg ?
-                                             "pass" : "fail"),
+                                         NAPI_STATUS_TO_STRING(ret[4]),
                                          NAPI_AUTO_LENGTH,
                                          &prop_value));
   NAPI_CALL(env, napi_set_named_property(env,
@@ -126,8 +121,7 @@ static napi_value TestDefineClass(napi_env env,
                                          prop_value));
 
   NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[5] == napi_invalid_arg ?
-                                             "pass" : "fail"),
+                                         NAPI_STATUS_TO_STRING(ret[5]),
                                          NAPI_AUTO_LENGTH,
                                          &prop_value));
   NAPI_CALL(env, napi_set_named_property(env,

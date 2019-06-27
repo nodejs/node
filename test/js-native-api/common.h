@@ -58,3 +58,24 @@
 
 #define DECLARE_NAPI_GETTER(name, func)                                  \
   { (name), NULL, NULL, (func), NULL, NULL, napi_default, NULL }
+
+#define NAPI_STATUS_TO_STRING(status)                                         \
+  (status) == napi_ok ? "napi_ok" :                                           \
+  (status) == napi_invalid_arg ? "napi_invalid_arg" :                         \
+  (status) == napi_object_expected ? "napi_object_expected" :                 \
+  (status) == napi_string_expected ? "napi_string_expected" :                 \
+  (status) == napi_name_expected ? "napi_name_expected" :                     \
+  (status) == napi_function_expected ? "napi_function_expected" :             \
+  (status) == napi_number_expected ? "napi_number_expected" :                 \
+  (status) == napi_boolean_expected ? "napi_boolean_expected" :               \
+  (status) == napi_array_expected ? "napi_array_expected" :                   \
+  (status) == napi_generic_failure ? "napi_generic_failure" :                 \
+  (status) == napi_pending_exception ? "napi_pending_exception" :             \
+  (status) == napi_cancelled ? "napi_cancelled" :                             \
+  (status) == napi_escape_called_twice ? "napi_escape_called_twice" :         \
+  (status) == napi_handle_scope_mismatch ? "napi_handle_scope_mismatch" :     \
+  (status) == napi_callback_scope_mismatch ? "napi_callback_scope_mismatch" : \
+  (status) == napi_queue_full ? "napi_queue_full" :                           \
+  (status) == napi_closing ? "napi_closing" :                                 \
+  (status) == napi_bigint_expected ? "napi_bigint_expected" :                 \
+  (status) == napi_date_expected ? "napi_date_expected" : "UNKNOWN_ERROR"
