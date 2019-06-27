@@ -260,11 +260,14 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   if (try_catch.HasCaught()) {
     if (!try_catch.HasTerminated())
       try_catch.ReThrow();
+    delete context;
     return;
   }
 
-  if (context->context().IsEmpty())
+  if (context->context().IsEmpty()) {
+    delete context;
     return;
+  }
 
   sandbox->SetPrivate(
       env->context(),
