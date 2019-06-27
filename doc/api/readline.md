@@ -322,7 +322,7 @@ changes:
 
 Create an `AsyncIterator` object that iterates through each line in the input
 stream as a string. This method allows asynchronous iteration of
-`readline.Interface` objects through `for`-`await`-`of` loops.
+`readline.Interface` objects through `for await...of` loops.
 
 Errors in the input stream are not forwarded.
 
@@ -556,7 +556,7 @@ rl.on('line', (line) => {
 
 A common use case for `readline` is to consume an input file one line at a
 time. The easiest way to do so is leveraging the [`fs.ReadStream`][] API as
-well as a `for`-`await`-`of` loop:
+well as a `for await...of` loop:
 
 ```js
 const fs = require('fs');
@@ -597,7 +597,7 @@ rl.on('line', (line) => {
 });
 ```
 
-Currently, `for`-`await`-`of` loop can be a bit slower. If `async` / `await`
+Currently, `for await...of` loop can be a bit slower. If `async` / `await`
 flow and speed are both essential, a mixed approach can be applied:
 
 ```js
