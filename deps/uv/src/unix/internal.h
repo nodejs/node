@@ -25,6 +25,7 @@
 #include "uv-common.h"
 
 #include <assert.h>
+#include <limits.h> /* _POSIX_PATH_MAX, PATH_MAX */
 #include <stdlib.h> /* abort */
 #include <string.h> /* strrchr */
 #include <fcntl.h>  /* O_CLOEXEC, may be */
@@ -58,6 +59,14 @@
 
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
 # include <AvailabilityMacros.h>
+#endif
+
+#if defined(_POSIX_PATH_MAX)
+# define UV__PATH_MAX _POSIX_PATH_MAX
+#elif defined(PATH_MAX)
+# define UV__PATH_MAX PATH_MAX
+#else
+# define UV__PATH_MAX 8192
 #endif
 
 #if defined(__ANDROID__)
