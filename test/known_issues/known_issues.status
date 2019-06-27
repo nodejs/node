@@ -22,5 +22,3 @@ test-vm-timeout-escape-promise: PASS,FLAKY
 [$system==aix]
 
 [$arch==arm]
-# https://github.com/nodejs/node/issues/24120
-test-vm-timeout-escape-nexttick: PASS,FLAKY
