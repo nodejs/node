@@ -27,16 +27,20 @@ function loop() {
   }
 }
 
-assert.throws(() => {
-  vm.runInNewContext(
-    'nextTick(loop); loop();',
-    {
-      hrtime,
-      nextTick,
-      loop
-    },
-    { timeout: common.platformTimeout(10) }
-  );
-}, {
-  code: 'ERR_SCRIPT_EXECUTION_TIMEOUT'
-});
+// The bug won't happen 100% reliably so run the test a small number of times to
+// make sure we catch it if the bug exists.
+for (let i = 0; i < 4; i++) {
+  assert.throws(() => {
+    vm.runInNewContext(
+      'nextTick(loop); loop();',
+      {
+        hrtime,
+        nextTick,
+        loop
+      },
+      { timeout: common.platformTimeout(10) }
+    );
+  }, {
+    code: 'ERR_SCRIPT_EXECUTION_TIMEOUT'
+  });
+}
