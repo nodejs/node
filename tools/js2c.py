@@ -261,7 +261,8 @@ def NormalizeFileName(filename):
     split = ['internal'] + split
   else:  # `lib/**/*.js` so drop the 'lib' part
     split = split[1:]
-  filename = '/'.join(split)
+  if len(split):
+    filename = '/'.join(split)
   return os.path.splitext(filename)[0]
 
 
