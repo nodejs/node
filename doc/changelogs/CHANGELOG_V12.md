@@ -40,33 +40,38 @@
 ### Notable changes
 
 * **build**:
-  * The startup time is reduced by enabling V8 snapshots by default #28181
+  * The startup time is reduced by enabling V8 snapshots by default
+    [#28181](https://github.com/nodejs/node/pull/28181)
 * **deps**:
-  * Updated `V8` to 7.5.288.22 #27375
-    * The [numeric separator](v8.dev/features/numeric-separators) feature is now
+  * Updated `V8` to 7.5.288.22 [#27375](https://github.com/nodejs/node/pull/27375)
+    * The [numeric separator](https://v8.dev/features/numeric-separators) feature is now
       enabled by default
-  * Updated `OpenSSL` to 1.1.1c #28211
+  * Updated `OpenSSL` to 1.1.1c [#28211](https://github.com/nodejs/node/pull/28211)
 * **inspector**:
   * The `--inspect-publish-uid` flag was added to specify ways of the inspector
-    web socket url exposure #27741
+    web socket url exposure [#27741](https://github.com/nodejs/node/pull/27741)
 * **n-api**:
-  * Accessors on napi_define_* are now ECMAScript-compliant #27851
+  * Accessors on napi_define_* are now ECMAScript-compliant
+    [#27851](https://github.com/nodejs/node/pull/27851)
 * **report**:
-  * The cpu info got added to the report output #28188
+  * The cpu info got added to the report output
+    [#28188](https://github.com/nodejs/node/pull/28188)
 * **src**:
   * Restore the original state of the stdio file descriptors on exit to prevent
-    leaving stdio in raw or non-blocking mode #24260
+    leaving stdio in raw or non-blocking mode
+    [#24260](https://github.com/nodejs/node/pull/24260)
 * **tools,gyp**:
-  * Introduce MSVS 2019 #27375
+  * Introduce MSVS 2019 [#27375](https://github.com/nodejs/node/pull/27375)
 * **util**:
   * **inspect**:
     * Array grouping became more compact and uses more columns than before
-      #28059 #28070
+      [#28059](https://github.com/nodejs/node/pull/28059)
+      [#28070](https://github.com/nodejs/node/pull/28070)
     * Long strings will not be split at 80 characters anymore. Instead they will
-      be split on new lines #28055
+      be split on new lines [#28055](https://github.com/nodejs/node/pull/28055)
 * **worker**:
   * `worker.terminate()` now returns a promise and using the callback is
-    deprecated #28021
+    deprecated [#28021](https://github.com/nodejs/node/pull/28021)
 
 ### Commits
 
