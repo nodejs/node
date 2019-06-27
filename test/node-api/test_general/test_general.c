@@ -22,9 +22,16 @@ static napi_value testGetNodeVersion(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static napi_value testGetModule(napi_env env, napi_callback_info info) {
+  napi_value module;
+  NAPI_CALL(env, napi_get_module(env, &module));
+  return module;
+}
+
 static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("testGetNodeVersion", testGetNodeVersion),
+    DECLARE_NAPI_PROPERTY("testGetModule", testGetModule),
   };
 
   NAPI_CALL(env, napi_define_properties(

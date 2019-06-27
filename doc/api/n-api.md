@@ -4828,6 +4828,26 @@ idempotent.
 
 This API may only be called from the main thread.
 
+## Miscellaneous
+
+### napi_get_module
+
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status
+napi_get_module(napi_env env, napi_value* result);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[out] result`: The JavaScript object corresponding to the addon's module.
+
+This API is used to retrieve the Node.js module whose exports are initialized
+in the addon's initialization function. The result can be used to obtain the
+addon's absolute path, as well as the JavaScript `require()` function, which can
+then be used to retrieve other JavaScript modules.
+
 [ABI Stability]: https://nodejs.org/en/docs/guides/abi-stability/
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
 [Error Handling]: #n_api_error_handling

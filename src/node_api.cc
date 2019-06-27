@@ -12,8 +12,9 @@
 #include <memory>
 
 struct node_napi_env__ : public napi_env__ {
-  explicit node_napi_env__(v8::Local<v8::Context> context):
-      napi_env__(context) {
+  node_napi_env__(v8::Local<v8::Context> context, v8::Local<v8::Object> module):
+      napi_env__(context),
+      persistent_module(context->GetIsolate(), module) {
     CHECK_NOT_NULL(node_env());
   }
 
@@ -24,6 +25,8 @@ struct node_napi_env__ : public napi_env__ {
   bool can_call_into_js() const override {
     return node_env()->can_call_into_js();
   }
+
+  v8impl::Persistent<v8::Object> persistent_module;
 };
 
 typedef node_napi_env__* node_napi_env;
@@ -59,44 +62,24 @@ class BufferFinalizer : private Finalizer {
   }
 };
 
-static inline napi_env GetEnv(v8::Local<v8::Context> context) {
+static inline napi_env NewEnv(v8::Local<v8::Context> context,
+                              v8::Local<v8::Object> module) {
   node_napi_env result;
 
-  auto isolate = context->GetIsolate();
-  auto global = context->Global();
+  result = new node_napi_env__(context, module);
 
-  // In the case of the string for which we grab the private and the value of
-  // the private on the global object we can call .ToLocalChecked() directly
-  // because we need to stop hard if either of them is empty.
-  //
-  // Re https://github.com/nodejs/node/pull/14217#discussion_r128775149
-  auto value = global->GetPrivate(context, NAPI_PRIVATE_KEY(context, env))
-      .ToLocalChecked();
-
-  if (value->IsExternal()) {
-    result = static_cast<node_napi_env>(value.As<v8::External>()->Value());
-  } else {
-    result = new node_napi_env__(context);
-    auto external = v8::External::New(isolate, result);
-
-    // We must also stop hard if the result of assigning the env to the global
-    // is either nothing or false.
-    CHECK(global->SetPrivate(context, NAPI_PRIVATE_KEY(context, env), external)
-        .FromJust());
-
-    // TODO(addaleax): There was previously code that tried to delete the
-    // napi_env when its v8::Context was garbage collected;
-    // However, as long as N-API addons using this napi_env are in place,
-    // the Context needs to be accessible and alive.
-    // Ideally, we'd want an on-addon-unload hook that takes care of this
-    // once all N-API addons using this napi_env are unloaded.
-    // For now, a per-Environment cleanup hook is the best we can do.
-    result->node_env()->AddCleanupHook(
-        [](void* arg) {
-          static_cast<napi_env>(arg)->Unref();
-        },
-        static_cast<void*>(result));
-  }
+  // TODO(addaleax): There was previously code that tried to delete the
+  // napi_env when its v8::Context was garbage collected;
+  // However, as long as N-API addons using this napi_env are in place,
+  // the Context needs to be accessible and alive.
+  // Ideally, we'd want an on-addon-unload hook that takes care of this
+  // once all N-API addons using this napi_env are unloaded.
+  // For now, a per-Environment cleanup hook is the best we can do.
+  result->node_env()->AddCleanupHook(
+      [](void* arg) {
+        static_cast<napi_env>(arg)->Unref();
+      },
+      static_cast<void*>(result));
 
   return result;
 }
@@ -480,7 +463,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
 
   // Create a new napi_env for this module or reference one if a pre-existing
   // one is found.
-  napi_env env = v8impl::GetEnv(context);
+  napi_env env = v8impl::NewEnv(context, module.As<v8::Object>());
 
   napi_value _exports;
   NapiCallIntoModuleThrow(env, [&]() {
@@ -1110,4 +1093,17 @@ napi_status
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func) {
   CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Ref();
+}
+
+napi_status
+napi_get_module(napi_env env, napi_value* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, result);
+
+  node_napi_env node_env = static_cast<node_napi_env>(env);
+
+  *result = v8impl::JsValueFromV8LocalValue(
+      v8::Local<v8::Object>::New(env->isolate, node_env->persistent_module));
+
+  return napi_clear_last_error(env);
 }

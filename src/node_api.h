@@ -232,6 +232,13 @@ napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 
 #endif  // NAPI_VERSION >= 4
 
+#ifdef NAPI_EXPERIMENTAL
+
+NAPI_EXTERN napi_status
+napi_get_module(napi_env env, napi_value* result);
+
+#endif  // NAPI_EXPERIMENTAL
+
 EXTERN_C_END
 
 #endif  // SRC_NODE_API_H_
