@@ -317,6 +317,16 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
   return true;
 }
 
+bool StringEndsWith(const char* str, const char* suffix) {
+  if (!str || !suffix)
+    return false;
+  size_t lenstr = strlen(str);
+  size_t lensuffix = strlen(suffix);
+  if (lensuffix > lenstr)
+    return false;
+  return StringEqualNoCaseN(str + lenstr - lensuffix, suffix, lensuffix);
+}
+
 template <typename T>
 inline T MultiplyWithOverflowCheck(T a, T b) {
   auto ret = a * b;

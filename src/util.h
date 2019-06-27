@@ -310,6 +310,9 @@ inline bool StringEqualNoCase(const char* a, const char* b);
 // strncasecmp() is locale-sensitive.  Use StringEqualNoCaseN() instead.
 inline bool StringEqualNoCaseN(const char* a, const char* b, size_t length);
 
+// tests if str ends with the given suffix
+inline bool StringEndsWith(const char* str, const char* suffix);
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>

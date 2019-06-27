@@ -585,7 +585,8 @@ class HttpHandler : public ProtocolHandler {
     std::string host = TrimPort(host_with_port);
     return host.empty() || IsIPAddress(host)
            || node::StringEqualNoCase(host.data(), "localhost")
-           || node::StringEqualNoCase(host.data(), "localhost6");
+           || node::StringEqualNoCase(host.data(), "localhost6")
+           || node::StringEndsWith(host.data(), ".local");
   }
 
   bool parsing_value_;
