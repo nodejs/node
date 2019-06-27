@@ -515,11 +515,6 @@ parser.add_option('--without-siphash',
     dest='without_siphash',
     help=optparse.SUPPRESS_HELP)
 
-parser.add_option('--code-cache-path',
-    action='store',
-    dest='code_cache_path',
-    help='optparse.SUPPRESS_HELP')
-
 # End dummy list.
 
 parser.add_option('--without-ssl',
