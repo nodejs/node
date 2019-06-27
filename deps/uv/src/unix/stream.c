@@ -1541,7 +1541,7 @@ int uv_try_write(uv_stream_t* stream,
   }
 
   if (written == 0 && req_size != 0)
-    return UV_EAGAIN;
+    return req.error < 0 ? req.error : UV_EAGAIN;
   else
     return written;
 }

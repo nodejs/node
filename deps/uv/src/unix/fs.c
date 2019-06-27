@@ -160,12 +160,15 @@ static ssize_t uv__fs_fsync(uv_fs_t* req) {
    * to the drive platters. This is in contrast to Linux's fdatasync and fsync
    * which do, according to recent man pages. F_FULLFSYNC is Apple's equivalent
    * for flushing buffered data to permanent storage. If F_FULLFSYNC is not
-   * supported by the file system we should fall back to fsync(). This is the
-   * same approach taken by sqlite.
+   * supported by the file system we fall back to F_BARRIERFSYNC or fsync().
+   * This is the same approach taken by sqlite, except sqlite does not issue
+   * an F_BARRIERFSYNC call.
    */
   int r;
 
   r = fcntl(req->file, F_FULLFSYNC);
+  if (r != 0)
+    r = fcntl(req->file, 85 /* F_BARRIERFSYNC */);  /* fsync + barrier */
   if (r != 0)
     r = fsync(req->file);
   return r;
@@ -189,7 +192,8 @@ static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
 
 static ssize_t uv__fs_futime(uv_fs_t* req) {
 #if defined(__linux__)                                                        \
-    || defined(_AIX71)
+    || defined(_AIX71)                                                        \
+    || defined(__HAIKU__)
   /* utimesat() has nanosecond resolution but we stick to microseconds
    * for the sake of consistency with other platforms.
    */
@@ -274,6 +278,54 @@ static ssize_t uv__fs_open(uv_fs_t* req) {
 }
 
 
+static ssize_t uv__fs_preadv(uv_file fd,
+                             uv_buf_t* bufs,
+                             unsigned int nbufs,
+                             off_t off) {
+  uv_buf_t* buf;
+  uv_buf_t* end;
+  ssize_t result;
+  ssize_t rc;
+  size_t pos;
+
+  assert(nbufs > 0);
+
+  result = 0;
+  pos = 0;
+  buf = bufs + 0;
+  end = bufs + nbufs;
+
+  for (;;) {
+    do
+      rc = pread(fd, buf->base + pos, buf->len - pos, off + result);
+    while (rc == -1 && errno == EINTR);
+
+    if (rc == 0)
+      break;
+
+    if (rc == -1 && result == 0)
+      return UV__ERR(errno);
+
+    if (rc == -1)
+      break;  /* We read some data so return that, ignore the error. */
+
+    pos += rc;
+    result += rc;
+
+    if (pos < buf->len)
+      continue;
+
+    pos = 0;
+    buf += 1;
+
+    if (buf == end)
+      break;
+  }
+
+  return result;
+}
+
+
 static ssize_t uv__fs_read(uv_fs_t* req) {
 #if defined(__linux__)
   static int no_preadv;
@@ -303,7 +355,7 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
     if (no_preadv) retry:
 # endif
     {
-      result = pread(req->file, req->bufs[0].base, req->bufs[0].len, req->off);
+      result = uv__fs_preadv(req->file, req->bufs, req->nbufs, req->off);
     }
 # if defined(__linux__)
     else {
@@ -467,22 +519,13 @@ static int uv__fs_closedir(uv_fs_t* req) {
   return 0;
 }
 
-#if defined(_POSIX_PATH_MAX)
-# define UV__FS_PATH_MAX _POSIX_PATH_MAX
-#elif defined(PATH_MAX)
-# define UV__FS_PATH_MAX PATH_MAX
-#else
-# define UV__FS_PATH_MAX_FALLBACK 8192
-# define UV__FS_PATH_MAX UV__FS_PATH_MAX_FALLBACK
-#endif
-
 static ssize_t uv__fs_pathmax_size(const char* path) {
   ssize_t pathmax;
 
   pathmax = pathconf(path, _PC_PATH_MAX);
 
   if (pathmax == -1)
-    pathmax = UV__FS_PATH_MAX;
+    pathmax = UV__PATH_MAX;
 
   return pathmax;
 }
@@ -493,7 +536,9 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
   char* buf;
   char* newbuf;
 
-#if defined(UV__FS_PATH_MAX_FALLBACK)
+#if defined(_POSIX_PATH_MAX) || defined(PATH_MAX)
+  maxlen = uv__fs_pathmax_size(req->path);
+#else
   /* We may not have a real PATH_MAX.  Read size of link.  */
   struct stat st;
   int ret;
@@ -511,8 +556,6 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
      for some symlinks, such as those in /proc or /sys.  */
   if (maxlen == 0)
     maxlen = uv__fs_pathmax_size(req->path);
-#else
-  maxlen = uv__fs_pathmax_size(req->path);
 #endif
 
   buf = uv__malloc(maxlen);
@@ -796,7 +839,8 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
 static ssize_t uv__fs_utime(uv_fs_t* req) {
 #if defined(__linux__)                                                         \
     || defined(_AIX71)                                                         \
-    || defined(__sun)
+    || defined(__sun)                                                          \
+    || defined(__HAIKU__)
   /* utimesat() has nanosecond resolution but we stick to microseconds
    * for the sake of consistency with other platforms.
    */
@@ -903,7 +947,8 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   uv_fs_t fs_req;
   uv_file srcfd;
   uv_file dstfd;
-  struct stat statsbuf;
+  struct stat src_statsbuf;
+  struct stat dst_statsbuf;
   int dst_flags;
   int result;
   int err;
@@ -921,7 +966,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
     return srcfd;
 
   /* Get the source file's mode. */
-  if (fstat(srcfd, &statsbuf)) {
+  if (fstat(srcfd, &src_statsbuf)) {
     err = UV__ERR(errno);
     goto out;
   }
@@ -936,7 +981,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
                      &fs_req,
                      req->new_path,
                      dst_flags,
-                     statsbuf.st_mode,
+                     src_statsbuf.st_mode,
                      NULL);
   uv_fs_req_cleanup(&fs_req);
 
@@ -945,7 +990,19 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
     goto out;
   }
 
-  if (fchmod(dstfd, statsbuf.st_mode) == -1) {
+  /* Get the destination file's mode. */
+  if (fstat(dstfd, &dst_statsbuf)) {
+    err = UV__ERR(errno);
+    goto out;
+  }
+
+  /* Check if srcfd and dstfd refer to the same file */
+  if (src_statsbuf.st_dev == dst_statsbuf.st_dev &&
+      src_statsbuf.st_ino == dst_statsbuf.st_ino) {
+    goto out;
+  }
+
+  if (fchmod(dstfd, src_statsbuf.st_mode) == -1) {
     err = UV__ERR(errno);
     goto out;
   }
@@ -975,7 +1032,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   }
 #endif
 
-  bytes_to_send = statsbuf.st_size;
+  bytes_to_send = src_statsbuf.st_size;
   in_offset = 0;
   while (bytes_to_send != 0) {
     err = uv_fs_sendfile(NULL,

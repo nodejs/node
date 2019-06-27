@@ -31,7 +31,8 @@
 /* FIXME we shouldn't need to branch in this file */
 #if defined(__unix__) || defined(__POSIX__) || \
     defined(__APPLE__) || defined(__sun) || \
-    defined(_AIX) || defined(__MVS__)
+    defined(_AIX) || defined(__MVS__) || \
+    defined(__HAIKU__)
 #include <unistd.h> /* unlink, rmdir, etc. */
 #else
 # include <winioctl.h>
@@ -1653,6 +1654,8 @@ TEST_IMPL(fs_chown) {
   uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(fchown_cb_count == 1);
 
+#ifndef __HAIKU__
+  /* Haiku doesn't support hardlink */
   /* sync link */
   r = uv_fs_link(NULL, &req, "test_file", "test_file_link", NULL);
   ASSERT(r == 0);
@@ -1670,6 +1673,7 @@ TEST_IMPL(fs_chown) {
   ASSERT(r == 0);
   uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(lchown_cb_count == 1);
+#endif
 
   /* Close file */
   r = uv_fs_close(NULL, &req, file, NULL);
@@ -2711,6 +2715,60 @@ TEST_IMPL(fs_rename_to_existing_file) {
   /* Cleanup */
   unlink("test_file");
   unlink("test_file2");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(fs_read_bufs) {
+  char scratch[768];
+  uv_buf_t bufs[4];
+
+  ASSERT(0 <= uv_fs_open(NULL, &open_req1,
+                         "test/fixtures/lorem_ipsum.txt",
+                         O_RDONLY, 0, NULL));
+  ASSERT(open_req1.result >= 0);
+  uv_fs_req_cleanup(&open_req1);
+
+  ASSERT(UV_EINVAL == uv_fs_read(NULL, &read_req, open_req1.result,
+                                 NULL, 0, 0, NULL));
+  ASSERT(UV_EINVAL == uv_fs_read(NULL, &read_req, open_req1.result,
+                                 NULL, 1, 0, NULL));
+  ASSERT(UV_EINVAL == uv_fs_read(NULL, &read_req, open_req1.result,
+                                 bufs, 0, 0, NULL));
+
+  bufs[0] = uv_buf_init(scratch + 0, 256);
+  bufs[1] = uv_buf_init(scratch + 256, 256);
+  bufs[2] = uv_buf_init(scratch + 512, 128);
+  bufs[3] = uv_buf_init(scratch + 640, 128);
+
+  ASSERT(446 == uv_fs_read(NULL,
+                           &read_req,
+                           open_req1.result,
+                           bufs + 0,
+                           2,  /* 2x 256 bytes. */
+                           0,  /* Positional read. */
+                           NULL));
+  ASSERT(read_req.result == 446);
+  uv_fs_req_cleanup(&read_req);
+
+  ASSERT(190 == uv_fs_read(NULL,
+                           &read_req,
+                           open_req1.result,
+                           bufs + 2,
+                           2,  /* 2x 128 bytes. */
+                           256,  /* Positional read. */
+                           NULL));
+  ASSERT(read_req.result == /* 446 - 256 */ 190);
+  uv_fs_req_cleanup(&read_req);
+
+  ASSERT(0 == memcmp(bufs[1].base + 0, bufs[2].base, 128));
+  ASSERT(0 == memcmp(bufs[1].base + 128, bufs[3].base, 190 - 128));
+
+  ASSERT(0 == uv_fs_close(NULL, &close_req, open_req1.result, NULL));
+  ASSERT(close_req.result == 0);
+  uv_fs_req_cleanup(&close_req);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
