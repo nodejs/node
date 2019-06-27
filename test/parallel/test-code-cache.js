@@ -47,7 +47,7 @@ if (!process.features.cached_builtins) {
   }
 } else {  // Native compiled
   assert.strictEqual(
-    process.config.variables.node_code_cache_path,
+    process.config.variables.node_code_cache,
     'yes'
   );
 
