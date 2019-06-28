@@ -1,5 +1,4 @@
 [ req ]
-days                   = 99999
 distinguished_name     = req_distinguished_name
 attributes             = req_attributes
 prompt                 = no
