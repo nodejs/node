@@ -19,30 +19,36 @@ file a new issue.
     * [OpenSSL asm support](#openssl-asm-support)
   * [Previous versions of this document](#previous-versions-of-this-document)
 * [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
-  * [Unix/macOS](#unixmacos)
-    * [Prerequisites](#prerequisites)
+  * [Note about Python 2 and Python 3](#note-about-python-2-and-python-3)
+  * [Unix and macOS](#unix-and-macos)
+    * [Unix prerequisites](#unix-prerequisites)
+    * [macOS prerequisites](#macos-prerequisites)
     * [Building Node.js](#building-nodejs)
     * [Running Tests](#running-tests)
     * [Running Coverage](#running-coverage)
     * [Building the documentation](#building-the-documentation)
     * [Building a debug build](#building-a-debug-build)
   * [Windows](#windows)
+    * [Prerequisites](#prerequisites-1)
+      * [Option 1: Manual install](#option-1-manual-install)
+      * [Option 1: Automated install with Boxstarter](#option-1-automated-install-with-boxstarter)
+    * [Building Node.js](#building-nodejs-1)
   * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
-  * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
-    * [Default: `small-icu` (English only) support](#default-small-icu-english-only-support)
-    * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
-      * [Unix/macOS](#unixmacos-1)
-      * [Windows](#windows-1)
-    * [Building without Intl support](#building-without-intl-support)
-      * [Unix/macOS](#unixmacos-2)
-      * [Windows](#windows-2)
-    * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacos-only)
-    * [Build with a specific ICU](#build-with-a-specific-icu)
-      * [Unix/macOS](#unixmacos-3)
-      * [Windows](#windows-3)
+* [`Intl` (ECMA-402) support](#intl-ecma-402-support)
+  * [Default: `small-icu` (English only) support](#default-small-icu-english-only-support)
+  * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
+    * [Unix/macOS](#unixmacos)
+    * [Windows](#windows-1)
+  * [Building without Intl support](#building-without-intl-support)
+    * [Unix/macOS](#unixmacos-1)
+    * [Windows](#windows-2)
+  * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacOS-only)
+  * [Build with a specific ICU](#build-with-a-specific-icu)
+    * [Unix/macOS](#unixmacos-2)
+    * [Windows](#windows-3)
 * [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
 * [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
-  * [Unix/macOS](#unixmacos-4)
+  * [Unix/macOS](#unixmacos-3)
   * [Windows](#windows-4)
 * [Note for downstream distributors of Node.js](#note-for-downstream-distributors-of-nodejs)
 
@@ -215,33 +221,57 @@ Consult previous versions of this document for older versions of Node.js:
 
 ## Building Node.js on supported platforms
 
-The [bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md)
-explains how to install all prerequisites.
+### Note about Python 2 and Python 3
 
-### Unix/macOS
+The Node.js project uses Python as part of its build process and has
+historically only been Python 2 compatible.
 
-#### Prerequisites
+Python 2 will reach its _end-of-life_ at the end of 2019 at which point the
+interpreter will cease receiving updates. See https://python3statement.org/
+for more information.
+
+The Node.js project is in the process of transitioning its Python code to
+Python 3 compatibility. Installing both versions of Python while building
+and testing Node.js allows developers and end users to test, benchmark,
+and debug Node.js running on both versions to ensure a smooth and complete
+transition before the year-end deadline.
+
+### Unix and macOS
+
+#### Unix prerequisites
 
 * `gcc` and `g++` >= 6.3 or newer, or
-* macOS: Xcode Command Line Tools >= 8
-* Python 2.7
-    * Python 2.7 end of life is in 2019 so a transition to Python 3 is underway.
-    * Python 3.5, 3.6, and 3.7 are experimental.
 * GNU Make 3.81 or newer
+* Python (see note above)
+    * Python 2.7
+    * Python 3.5, 3.6, and 3.7 are experimental.
 
-On macOS, install the `Xcode Command Line Tools` by running
+Installation via Linux package manager can be achieved with:
+
+* Ubuntu, Debian: `sudo apt-get install python g++ make`
+* Fedora: `sudo dnf install python gcc-c++ make`
+* CentOS and RHEL: `sudo yum install python gcc-c++ make`
+* OpenSUSE: `sudo zypper install python gcc-c++ make`
+
+FreeBSD and OpenBSD users may also need to install `libexecinfo`.
+
+#### macOS prerequisites
+
+* Xcode Command Line Tools >= 8 for macOS
+* Python (see note above)
+    * Python 2.7
+    * Python 3.5, 3.6, and 3.7 are experimental.
+
+macOS users can install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode
 installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
 `make`.
 
+#### Building Node.js
+
 If the path to your build directory contains a space, the build will likely
 fail.
-
-On FreeBSD and OpenBSD, you may also need:
-* libexecinfo
-
-#### Building Node.js
 
 To build Node.js:
 
@@ -461,7 +491,9 @@ $ backtrace
 
 ### Windows
 
-Prerequisites:
+#### Prerequisites
+
+##### Option 1: Manual install
 
 * [Python 2.7](https://www.python.org/downloads/)
 * The "Desktop development with C++" workload from
@@ -476,17 +508,58 @@ Prerequisites:
   If not installed in the default location, it needs to be manually added
   to `PATH`. A build with the `openssl-no-asm` option does not need this, nor
   does a build targeting ARM64 Windows.
-* **Optional** (to build the MSI): the [WiX Toolset v3.11](http://wixtoolset.org/releases/)
-  and the [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
-* **Optional** Requirements for compiling for Windows 10 on ARM (ARM64):
-    * ARM64 Windows build machine
-        * Due to a GYP limitation, this is required to run compiled code
-          generation tools (like V8's builtins and mksnapshot tools)
-    * Visual Studio 15.9.0 or newer
-    * Visual Studio optional components
-        * Visual C++ compilers and libraries for ARM64
-        * Visual C++ ATL for ARM64
-    * Windows 10 SDK 10.0.17763.0 or newer
+
+Optional requirements to build the MSI installer package:
+
+* The [WiX Toolset v3.11](http://wixtoolset.org/releases/) and the
+  [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
+
+Optional requirements for compiling for Windows 10 on ARM (ARM64):
+
+* ARM64 Windows build machine
+  * Due to a GYP limitation, this is required to run compiled code
+    generation tools (like V8's builtins and mksnapshot tools)
+* Visual Studio 15.9.0 or newer
+* Visual Studio optional components
+  * Visual C++ compilers and libraries for ARM64
+  * Visual C++ ATL for ARM64
+* Windows 10 SDK 10.0.17763.0 or newer
+
+##### Option 2: Automated install with Boxstarter
+<a name="boxstarter"></a>
+
+A [Boxstarter](http://boxstarter.org/) script can be used for easy setup of
+Windows systems with all the required prerequisites for Node.js development.
+This script will install the following [Chocolatey](https://chocolatey.org/)
+packages:
+
+* [Git for Windows](https://chocolatey.org/packages/git) with the `git` and
+  Unix tools added to the `PATH`.
+* [Python 3.x](https://chocolatey.org/packages/python) and
+  [legacy Python](https://chocolatey.org/packages/python2)
+* [Visual Studio 2017 Build Tools](https://chocolatey.org/packages/visualstudio2017buildtools)
+  with [Visual C++ workload](https://chocolatey.org/packages/visualstudio2017-workload-vctools)
+* [NetWide Assembler](https://chocolatey.org/packages/nasm)
+
+To install Node.js prerequisites using
+[Boxstarter WebLauncher](http://boxstarter.org/WebLauncher), open
+<http://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter>
+with Internet Explorer or Edge browser on the target machine.
+
+Alternatively, you can use PowerShell. Run those commands from an elevated
+PowerShell terminal:
+
+```powershell
+Set-ExecutionPolicy Unrestricted -Force
+iex ((New-Object System.Net.WebClient).DownloadString('http://boxstarter.org/bootstrapper.ps1'))
+get-boxstarter -Force
+Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter -DisableReboots
+```
+
+The entire installation using Boxstarter will take up approximately 10 GB of
+disk space.
+
+#### Building Node.js
 
 If the path to your build directory contains a space or a non-ASCII character,
 the build will likely fail.
@@ -523,55 +596,54 @@ $ ./android-configure /path/to/your/android-ndk
 $ make
 ```
 
-
-### `Intl` (ECMA-402) support
+## `Intl` (ECMA-402) support
 
 [Intl](https://github.com/nodejs/node/blob/master/doc/api/intl.md) support is
 enabled by default, with English data only.
 
-#### Default: `small-icu` (English only) support
+### Default: `small-icu` (English only) support
 
 By default, only English data is included, but
 the full `Intl` (ECMA-402) APIs.  It does not need to download
 any dependencies to function. You can add full
 data at runtime.
 
-#### Build with full ICU support (all locales supported by ICU)
+### Build with full ICU support (all locales supported by ICU)
 
 With the `--download=all`, this may download ICU if you don't have an
 ICU in `deps/icu`. (The embedded `small-icu` included in the default
 Node.js source does not include all locales.)
 
-##### Unix/macOS
+#### Unix/macOS
 
 ```console
 $ ./configure --with-intl=full-icu --download=all
 ```
 
-##### Windows
+#### Windows
 
 ```console
 > .\vcbuild full-icu download-all
 ```
 
-#### Building without Intl support
+### Building without Intl support
 
 The `Intl` object will not be available, nor some other APIs such as
 `String.normalize`.
 
-##### Unix/macOS
+#### Unix/macOS
 
 ```console
 $ ./configure --without-intl
 ```
 
-##### Windows
+#### Windows
 
 ```console
 > .\vcbuild without-intl
 ```
 
-#### Use existing installed ICU (Unix/macOS only)
+### Use existing installed ICU (Unix/macOS only)
 
 ```console
 $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
@@ -580,7 +652,7 @@ $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
 If you are cross-compiling, your `pkg-config` must be able to supply a path
 that works for both your host and target environments.
 
-#### Build with a specific ICU
+### Build with a specific ICU
 
 You can find other ICU releases at
 [the ICU homepage](http://icu-project.org/download).
@@ -591,7 +663,7 @@ To check the minimum recommended ICU, run `./configure --help` and see
 the help for the `--with-icu-source` option. A warning will be printed
 during configuration if the ICU version is too old.
 
-##### Unix/macOS
+#### Unix/macOS
 
 From an already-unpacked ICU:
 ```console
@@ -608,7 +680,7 @@ From a tarball URL:
 $ ./configure --with-intl=full-icu --with-icu-source=http://url/to/icu.tgz
 ```
 
-##### Windows
+#### Windows
 
 First unpack latest ICU to `deps/icu`
 [icu4c-**##.#**-src.tgz](http://icu-project.org/download) (or `.zip`)
