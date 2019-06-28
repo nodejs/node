@@ -1,6 +1,10 @@
 prefix pseudo-tty
 
 [$system==aix]
+# https://github.com/nodejs/build/issues/1820#issuecomment-505998851
+# https://github.com/nodejs/node/pull/28469
+console-dumb-tty: SKIP
+test-fatal-error: SKIP
 
 [$system==solaris]
 # https://github.com/nodejs/node/pull/16225 - `ioctl(fd, TIOCGWINSZ)` seems
