@@ -84,25 +84,49 @@
       }, {
         'openssl_no_asm%': 0,
       }],
-      ['GENERATOR=="ninja"', {
-        'obj_dir': '<(PRODUCT_DIR)/obj',
-        'v8_base': '<(PRODUCT_DIR)/obj/tools/v8_gypfiles/libv8_snapshot.a',
-       }, {
-        'obj_dir%': '<(PRODUCT_DIR)/obj.target',
-        'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_snapshot.a',
-      }],
       ['OS == "win"', {
         'os_posix': 0,
         'v8_postmortem_support%': 0,
-        'obj_dir': '<(PRODUCT_DIR)/obj',
-        'v8_base': '<(PRODUCT_DIR)/lib/libv8_snapshot.a',
       }, {
         'os_posix': 1,
         'v8_postmortem_support%': 1,
       }],
-      ['OS == "mac"', {
-        'obj_dir%': '<(PRODUCT_DIR)/obj.target',
-        'v8_base': '<(PRODUCT_DIR)/libv8_snapshot.a',
+      ['v8_use_snapshot==1', {
+        'conditions': [
+          ['GENERATOR == "ninja"', {
+            'obj_dir': '<(PRODUCT_DIR)/obj',
+            'v8_base': '<(PRODUCT_DIR)/obj/tools/v8_gypfiles/libv8_snapshot.a',
+           }, {
+            'obj_dir%': '<(PRODUCT_DIR)/obj.target',
+            'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_snapshot.a',
+          }],
+          ['OS == "win"', {
+            'obj_dir': '<(PRODUCT_DIR)/obj',
+            'v8_base': '<(PRODUCT_DIR)/lib/libv8_snapshot.a',
+          }],
+          ['OS == "mac"', {
+            'obj_dir%': '<(PRODUCT_DIR)/obj.target',
+            'v8_base': '<(PRODUCT_DIR)/libv8_snapshot.a',
+          }],
+        ],
+      }, {
+        'conditions': [
+          ['GENERATOR == "ninja"', {
+            'obj_dir': '<(PRODUCT_DIR)/obj',
+            'v8_base': '<(PRODUCT_DIR)/obj/tools/v8_gypfiles/libv8_nosnapshot.a',
+           }, {
+            'obj_dir%': '<(PRODUCT_DIR)/obj.target',
+            'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_nosnapshot.a',
+          }],
+          ['OS == "win"', {
+            'obj_dir': '<(PRODUCT_DIR)/obj',
+            'v8_base': '<(PRODUCT_DIR)/lib/libv8_nosnapshot.a',
+          }],
+          ['OS == "mac"', {
+            'obj_dir%': '<(PRODUCT_DIR)/obj.target',
+            'v8_base': '<(PRODUCT_DIR)/libv8_nosnapshot.a',
+          }],
+        ],
       }],
       ['openssl_fips != ""', {
         'openssl_product': '<(STATIC_LIB_PREFIX)crypto<(STATIC_LIB_SUFFIX)',
