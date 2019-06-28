@@ -1,16 +1,17 @@
-// For the purpose of this test we use libuv's threading library. When deciding
-// on a threading library for a new project it bears remembering that in the
-// future libuv may introduce API changes which may render it non-ABI-stable,
-// which, in turn, may affect the ABI stability of the project despite its use
-// of N-API.
+// For the purpose of this test we use libuv's high resolution timer. When
+// deciding on using any feature of a library for a new project it bears
+// remembering that in the future such a library may introduce API changes which
+// may render it non-ABI-stable, which, in turn, may affect the ABI stability of
+// the project despite its use of N-API.
 #include <uv.h>
+#include <threads.h>
 #include <node_api.h>
 #include "../../js-native-api/common.h"
 
 #define ARRAY_LENGTH 10
 #define MAX_QUEUE_SIZE 2
 
-static uv_thread_t uv_threads[2];
+static thrd_t threads[2];
 static napi_threadsafe_function ts_fn;
 
 typedef struct {
@@ -26,17 +27,19 @@ static ts_fn_hint ts_info;
 // Thread data to transmit to JS
 static int ints[ARRAY_LENGTH];
 
-static void secondary_thread(void* data) {
+static int secondary_thread(void* data) {
   napi_threadsafe_function ts_fn = data;
 
   if (napi_release_threadsafe_function(ts_fn, napi_tsfn_release) != napi_ok) {
     napi_fatal_error("secondary_thread", NAPI_AUTO_LENGTH,
         "napi_release_threadsafe_function failed", NAPI_AUTO_LENGTH);
   }
+
+  return 0;
 }
 
 // Source thread producing the data
-static void data_source_thread(void* data) {
+static int data_source_thread(void* data) {
   napi_threadsafe_function ts_fn = data;
   int index;
   void* hint;
@@ -63,7 +66,7 @@ static void data_source_thread(void* data) {
         "napi_acquire_threadsafe_function failed", NAPI_AUTO_LENGTH);
     }
 
-    if (uv_thread_create(&uv_threads[1], secondary_thread, ts_fn) != 0) {
+    if (thrd_create(&threads[1], secondary_thread, ts_fn) != thrd_success) {
       napi_fatal_error("data_source_thread", NAPI_AUTO_LENGTH,
         "failed to start secondary thread", NAPI_AUTO_LENGTH);
     }
@@ -116,6 +119,8 @@ static void data_source_thread(void* data) {
     napi_fatal_error("data_source_thread", NAPI_AUTO_LENGTH,
         "napi_release_threadsafe_function failed", NAPI_AUTO_LENGTH);
   }
+
+  return 0;
 }
 
 // Getting the data into JS
@@ -165,13 +170,21 @@ static napi_value StopThread(napi_env env, napi_callback_info info) {
 
 // Join the thread and inform JS that we're done.
 static void join_the_threads(napi_env env, void *data, void *hint) {
-  uv_thread_t *the_threads = data;
+  thrd_t *the_threads = data;
   ts_fn_hint *the_hint = hint;
   napi_value js_cb, undefined;
+  int thread_result;
 
-  uv_thread_join(&the_threads[0]);
+  if (thrd_join(the_threads[0], &thread_result) != thrd_success) {
+    napi_fatal_error("join_the_threads", NAPI_AUTO_LENGTH,
+        "thrd_join for first thread failed", NAPI_AUTO_LENGTH);
+  }
+
   if (the_hint->start_secondary) {
-    uv_thread_join(&the_threads[1]);
+    if (thrd_join(the_threads[1], &thread_result) != thrd_success) {
+      napi_fatal_error("join_the_threads", NAPI_AUTO_LENGTH,
+          "thrd_join for second thread failed", NAPI_AUTO_LENGTH);
+    }
   }
 
   NAPI_CALL_RETURN_VOID(env,
@@ -216,7 +229,7 @@ static napi_value StartThreadInternal(napi_env env,
                                                  async_name,
                                                  ts_info.max_queue_size,
                                                  2,
-                                                 uv_threads,
+                                                 threads,
                                                  join_the_threads,
                                                  &ts_info,
                                                  cb,
@@ -227,7 +240,7 @@ static napi_value StartThreadInternal(napi_env env,
   NAPI_CALL(env, napi_get_value_bool(env, argv[2], &(ts_info.start_secondary)));
 
   NAPI_ASSERT(env,
-      (uv_thread_create(&uv_threads[0], data_source_thread, ts_fn) == 0),
+      (thrd_create(&threads[0], data_source_thread, ts_fn) == thrd_success),
       "Thread creation");
 
   return NULL;
