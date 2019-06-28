@@ -47,13 +47,12 @@ const server = http.createServer((req, res) => {
   res.end();
 });
 
-const PORT = 3000;
-const url = `http://127.0.0.1:${PORT}`;
-
-server.listen(PORT, common.mustCall(() => {
+server.listen(0, common.mustCall(() => {
+  const { port } = server.address();
+  const url = `http://127.0.0.1:${port}`;
   http.get(url, common.mustCall(() => {
     server.close(common.mustCall(() => {
-      server.listen(PORT, common.mustCall(() => {
+      server.listen(port, common.mustCall(() => {
         http.get(url, common.mustCall(() => {
           server.close(common.mustCall(() => {
             setTimeout(common.mustCall(verify), 200);
