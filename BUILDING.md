@@ -21,12 +21,14 @@ file a new issue.
 * [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
   * [Installing Prerequisites](#installing-prerequisites)
   * [Unix/macOS](#unixmacos)
+    * [Prerequisites](#prerequisites)
     * [Building Node.js](#building-nodejs)
     * [Running Tests](#running-tests)
     * [Running Coverage](#running-coverage)
     * [Building the documentation](#building-the-documentation)
     * [Building a debug build](#building-a-debug-build)
   * [Windows](#windows)
+    * [Prerequisites](#prerequisites-1)
   * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
   * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
     * [Default: `small-icu` (English only) support](#default-small-icu-english-only-support)
@@ -221,7 +223,7 @@ explains how to install all prerequisites.
 
 ### Unix/macOS
 
-Prerequisites:
+##### Prerequisites:
 
 * `gcc` and `g++` >= 6.3 or newer, or
 * macOS: Xcode Command Line Tools >= 8
@@ -462,7 +464,7 @@ $ backtrace
 
 ### Windows
 
-Prerequisites:
+##### Prerequisites:
 
 * [Python 2.7](https://www.python.org/downloads/)
 * The "Desktop development with C++" workload from
