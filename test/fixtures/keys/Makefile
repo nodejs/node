@@ -628,7 +628,7 @@ rsa_public.pem: rsa_private.pem
 	openssl rsa -in rsa_private.pem -pubout -out rsa_public.pem
 
 rsa_cert.crt: rsa_private.pem
-	openssl req -new -x509 -key rsa_private.pem -config rsa_cert.cnf -out rsa_cert.crt
+	openssl req -new -x509 -days 99999 -key rsa_private.pem -config rsa_cert.cnf -out rsa_cert.crt
 
 rsa_cert.pfx: rsa_cert.crt
 	openssl pkcs12 -export -passout 'pass:sample' -inkey rsa_private.pem -in rsa_cert.crt -out rsa_cert.pfx
@@ -655,7 +655,7 @@ rsa_public_b.pem: rsa_private_b.pem
 # It requires a SAN like 'http://example.com/#me'. More info here:
 # https://www.w3.org/wiki/Foaf+ssl
 rsa_cert_foafssl_b.crt: rsa_private_b.pem
-	openssl req -new -x509 -config rsa_cert_foafssl_b.cnf -key rsa_private_b.pem -out rsa_cert_foafssl_b.crt
+	openssl req -new -x509 -days 99999 -config rsa_cert_foafssl_b.cnf -key rsa_private_b.pem -out rsa_cert_foafssl_b.crt
 
 # The 'modulus=' in the output must be stripped out
 rsa_cert_foafssl_b.modulus: rsa_cert_foafssl_b.crt
