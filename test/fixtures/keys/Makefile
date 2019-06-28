@@ -631,7 +631,7 @@ rsa_cert.crt: rsa_private.pem
 	openssl req -new -x509 -days 99999 -key rsa_private.pem -config rsa_cert.cnf -out rsa_cert.crt
 
 rsa_cert.pfx: rsa_cert.crt
-	openssl pkcs12 -export -passout 'pass:sample' -inkey rsa_private.pem -in rsa_cert.crt -out rsa_cert.pfx
+	openssl pkcs12 -export -descert -passout 'pass:sample' -inkey rsa_private.pem -in rsa_cert.crt -out rsa_cert.pfx
 
 rsa_ca.crt: rsa_cert.crt
 	cp rsa_cert.crt rsa_ca.crt
