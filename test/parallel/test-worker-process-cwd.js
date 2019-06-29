@@ -12,7 +12,6 @@ if (!process.env.HAS_STARTED_WORKER) {
   }
   process.chdir(__dirname);
   const w = new Worker(__filename);
-  process.chdir('..');
   w.on('message', common.mustCall((message) => {
     assert.strictEqual(message, process.cwd());
     process.chdir('..');
