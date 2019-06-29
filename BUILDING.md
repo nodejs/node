@@ -41,7 +41,7 @@ file a new issue.
     * [Windows](#windows-1)
   * [Building without Intl support](#building-without-intl-support)
     * [Unix/macOS](#unixmacos-1)
-    * [Windows](#eindows-2)
+    * [Windows](#windows-2)
   * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacOS-only)
   * [Build with a specific ICU](#build-with-a-specific-icu)
     * [Unix/macOS](#unixmacos-2)
@@ -509,7 +509,7 @@ $ backtrace
   to `PATH`. A build with the `openssl-no-asm` option does not need this, nor
   does a build targeting ARM64 Windows.
 
-Optional requirements to build the MSI:
+Optional requirements to build the MSI installer package:
 
 * The [WiX Toolset v3.11](http://wixtoolset.org/releases/) and the
   [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
