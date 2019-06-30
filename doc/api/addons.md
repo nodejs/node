@@ -311,7 +311,7 @@ it is compiled (i.e. sometimes it may be in `./build/Debug/`), Addons can use
 the [bindings][] package to load the compiled module.
 
 While the `bindings` package implementation is more sophisticated in how it
-locates Addon modules, it is essentially using a try-catch pattern similar to:
+locates Addon modules, it is essentially using a `try…catch` pattern similar to:
 
 ```js
 try {

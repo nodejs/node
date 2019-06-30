@@ -32,7 +32,7 @@ fs.unlink('/tmp/hello', (err) => {
 ```
 
 Exceptions that occur using synchronous operations are thrown immediately and
-may be handled using `try`/`catch`, or may be allowed to bubble up.
+may be handled using `try…catch`, or may be allowed to bubble up.
 
 ```js
 const fs = require('fs');
