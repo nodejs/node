@@ -19,7 +19,7 @@ const server = createServer();
 server.on('connection', mustCall((socket) => {
   socket.on('error', expectsError({
     type: Error,
-    message: 'Parse Error',
+    message: 'Parse Error: Header overflow',
     code: 'HPE_HEADER_OVERFLOW',
     bytesParsed: maxHeaderSize + PAYLOAD_GET.length,
     rawPacket: Buffer.from(PAYLOAD)
