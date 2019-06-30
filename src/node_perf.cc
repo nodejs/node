@@ -366,6 +366,21 @@ void Timerify(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(wrap);
 }
 
+// Notify a custom PerformanceEntry to observers
+void Notify(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Utf8Value type(env->isolate(), args[0]);
+  Local<Value> entry = args[1];
+  PerformanceEntryType entry_type = ToPerformanceEntryTypeEnum(*type);
+  AliasedUint32Array& observers = env->performance_state()->observers;
+  if (entry_type != NODE_PERFORMANCE_ENTRY_TYPE_INVALID &&
+      observers[entry_type]) {
+    USE(env->performance_entry_callback()->
+      Call(env->context(), Undefined(env->isolate()), 1, &entry));
+  }
+}
+
+
 // Event Loop Timing Histogram
 namespace {
 static void ELDHistogramMin(const FunctionCallbackInfo<Value>& args) {
@@ -562,6 +577,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "timerify", Timerify);
   env->SetMethod(
       target, "setupGarbageCollectionTracking", SetupGarbageCollectionTracking);
+  env->SetMethod(target, "notify", Notify);
 
   Local<Object> constants = Object::New(isolate);
 
