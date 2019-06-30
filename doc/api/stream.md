@@ -1319,8 +1319,6 @@ changes:
     description: Symbol.asyncIterator support is no longer experimental.
 -->
 
-> Stability: 2 - Stable
-
 * Returns: {AsyncIterator} to fully consume the stream.
 
 ```js
