@@ -171,7 +171,7 @@ try {
 
 This will not work because the callback function passed to `fs.readFile()` is
 called asynchronously. By the time the callback has been called, the
-surrounding code (including the `try { } catch (err) { }` block will have
+surrounding code, including the `try { } catch (err) { }` block, will have
 already exited. Throwing an error inside the callback **can crash the Node.js
 process** in most cases. If [domains][] are enabled, or a handler has been
 registered with `process.on('uncaughtException')`, such errors can be
