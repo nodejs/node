@@ -29,7 +29,7 @@ static napi_value newBuffer(napi_env env, napi_callback_info info) {
             napi_create_buffer(
                 env,
                 sizeof(theText),
-                (void**)(&theCopy),
+                reinterpret_cast<void**>(&theCopy),
                 &theBuffer));
   NAPI_ASSERT(env, theCopy, "Failed to copy static text for newBuffer");
   memcpy(theCopy, theText, kBufferSize);
@@ -98,7 +98,7 @@ static napi_value bufferInfo(napi_env env, napi_callback_info info) {
             napi_get_buffer_info(
                 env,
                 theBuffer,
-                (void**)(&bufferData),
+                reinterpret_cast<void**>(&bufferData),
                 &bufferLength));
   NAPI_CALL(env, napi_get_boolean(env,
       !strcmp(bufferData, theText) && bufferLength == sizeof(theText),
