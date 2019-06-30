@@ -270,8 +270,8 @@ More Developer Tools...`. This step will install `clang`, `clang++`, and
 
 #### Building Node.js
 
-Note that if the path to your build directory contains a space, the build will
-likely fail.
+If the path to your build directory contains a space, the build will likely
+fail.
 
 To build Node.js:
 
@@ -530,7 +530,8 @@ Optional requirements for compiling for Windows 10 on ARM (ARM64):
 
 A [Boxstarter](http://boxstarter.org/) script can be used for easy setup of
 Windows systems with all the required prerequisites for Node.js development.
-This script will install the following [Chocolatey](https://chocolatey.org/) packages:
+This script will install the following [Chocolatey](https://chocolatey.org/)
+packages:
 
 * [Git for Windows](https://chocolatey.org/packages/git) with the `git` and
   Unix tools added to the `PATH`.
@@ -555,7 +556,8 @@ get-boxstarter -Force
 Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter -DisableReboots
 ```
 
-The entire installation using Boxstarter will take up approximately 10 GB of disk space.
+The entire installation using Boxstarter will take up approximately 10 GB of
+disk space.
 
 #### Building Node.js
 
