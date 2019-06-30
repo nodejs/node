@@ -1336,12 +1336,10 @@ const subprocess = spawn('cat', [filePath], {
 
 console.log('stderr some data');
 console.log('server:', subprocess.stderr.server);
-console.log('handle:', subprocess.stderr._handle);
-console.log('parent:', subprocess.stderr._parent);
-console.log('events:', subprocess.stderr._events);
 console.log('redeable:', subprocess.stderr.readable);
+console.log('writable:', subprocess.stderr.writable);
 console.log('connecting:', subprocess.stderr.connecting);
-console.log('readable state:', subprocess.stderr._readableState);
+console.log('allow half open:', subprocess.stderr.allowHalfOpen);
 ```
 
 ### subprocess.stdin
