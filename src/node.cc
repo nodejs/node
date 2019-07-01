@@ -692,7 +692,10 @@ void ResetStdio() {
       do
         err = tcsetattr(fd, TCSANOW, &s.termios);
       while (err == -1 && errno == EINTR);  // NOLINT
-      CHECK_NE(err, -1);
+      // EIO has been observed to be returned by the Linux kernel under some
+      // circumstances. Reading through drivers/tty/tty_io*.c, it seems to
+      // indicate the tty went away. Of course none of this is documented.
+      CHECK_IMPLIES(err == -1, errno == EIO);
     }
   }
 #endif  // __POSIX__
