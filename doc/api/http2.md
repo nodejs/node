@@ -2208,7 +2208,8 @@ changes:
     instance passed to `connect` and the `options` object, and returns any
     [`Duplex`][] stream that is to be used as the connection for this session.
   * ...: Any [`net.connect()`][] or [`tls.connect()`][] options can be provided.
-* `listener` {Function}
+* `listener` {Function} Will be registered as a one-time listener of the
+  [`'connect'`][] event.
 * Returns: {ClientHttp2Session}
 
 Returns a `ClientHttp2Session` instance.
@@ -3467,6 +3468,7 @@ following additional properties:
 [Stream]: stream.html#stream_stream
 [Using `options.selectPadding()`]: #http2_using_options_selectpadding
 [`'checkContinue'`]: #http2_event_checkcontinue
+[`'connect'`]: #http2_event_connect
 [`'request'`]: #http2_event_request
 [`'unknownProtocol'`]: #http2_event_unknownprotocol
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream
