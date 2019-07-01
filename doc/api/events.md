@@ -335,10 +335,10 @@ console.log(myEmitter.listeners('event'));
 myEmitter.emit('event', 1, 2, 3, 4, 5);
 
 // Prints:
-// [ 
+// [
 //  [Function: firstListener],
 //  [Function: secondListener],
-//  [Function: thirdListener] 
+//  [Function: thirdListener]
 // ]
 
 // Helloooo! first listener
