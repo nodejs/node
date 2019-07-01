@@ -1829,7 +1829,7 @@ added: REPLACEME
     * `unsharedStackSize` {integer}
     * `minorPageFault` {integer}
     * `majorPageFault` {integer}
-    * `swapedOut` {integer}
+    * `swappedOut` {integer}
     * `fsRead` {integer}
     * `fsWrite` {integer}
     * `ipcSent` {integer}
@@ -1888,7 +1888,7 @@ console.log(process.resourceUsage());
     unsharedStackSize: 0,
     minorPageFault: 2469,
     majorPageFault: 0,
-    swapedOut: 0,
+    swappedOut: 0,
     fsRead: 0,
     fsWrite: 8,
     ipcSent: 0,
