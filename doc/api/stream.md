@@ -1649,7 +1649,7 @@ for performance reasons.
 ### stream.Transform.by(asyncGeneratorFunction, [options])
 
 * `asyncGeneratorFunction` {AsyncGeneratorFunction} A mapping function which
-accepts a `source` iterable which can be used to read incoming data, while
+accepts a `source` async iterable which can be used to read incoming data, while
 transformed data is pushed to the stream with the `yield` keyword.
 * `options` {Object} Options provided to `new stream.Transform([options])`.
 By default, `Transform.by()` will set `options.objectMode` to `true`,
