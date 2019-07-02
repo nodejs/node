@@ -1679,8 +1679,8 @@ transform.on('data', (chunk) => {
 
 The `source` parameter has an `encoding` property which represents the encoding
 of the `WriteableStream` side of the transform. This is the same `encoding`
-value that would be passed as the second parameter to the `transform` function
-option (or `_transform` method) supplied to `stream.Transform`.
+value that would be passed as the second parameter to the `transform()` function
+option (or `_transform()` method) supplied to `stream.Transform`.
 
 
 ## API for Stream Implementers
