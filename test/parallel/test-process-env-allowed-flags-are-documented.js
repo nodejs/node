@@ -46,7 +46,7 @@ const conditionalOpts = [
       return ['--openssl-config', '--tls-cipher-list', '--use-bundled-ca',
               '--use-openssl-ca' ].includes(opt);
     } },
-  { include: common.hasFipsCrypto,
+  { include: process.config.variables.openssl_is_fips,
     filter: (opt) => opt.includes('-fips') },
   { include: common.hasIntl,
     filter: (opt) => opt === '--icu-data-dir' },
