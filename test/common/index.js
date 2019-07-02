@@ -789,7 +789,7 @@ module.exports = {
   get localhostIPv6() { return '::1'; },
 
   get hasFipsCrypto() {
-    return hasCrypto && require('crypto').fips;
+    return hasCrypto && require('crypto').getFips();
   },
 
   get inFreeBSDJail() {
