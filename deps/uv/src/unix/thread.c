@@ -37,7 +37,7 @@
 #include <sys/sem.h>
 #endif
 
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
 #include <gnu/libc-version.h>  /* gnu_get_libc_version() */
 #endif
 
@@ -222,6 +222,12 @@ int uv_thread_create_ex(uv_thread_t* tid,
   size_t pagesize;
   size_t stack_size;
 
+  /* Used to squelch a -Wcast-function-type warning. */
+  union {
+    void (*in)(void*);
+    void* (*out)(void*);
+  } f;
+
   stack_size =
       params->flags & UV_THREAD_HAS_STACK_SIZE ? params->stack_size : 0;
 
@@ -248,7 +254,8 @@ int uv_thread_create_ex(uv_thread_t* tid,
       abort();
   }
 
-  err = pthread_create(tid, attr, (void*(*)(void*)) entry, arg);
+  f.in = entry;
+  err = pthread_create(tid, attr, f.out, arg);
 
   if (attr != NULL)
     pthread_attr_destroy(attr);
@@ -474,7 +481,7 @@ int uv_sem_trywait(uv_sem_t* sem) {
 
 #else /* !(defined(__APPLE__) && defined(__MACH__)) */
 
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
 
 /* Hack around https://sourceware.org/bugzilla/show_bug.cgi?id=12674
  * by providing a custom implementation for glibc < 2.21 in terms of other
@@ -510,7 +517,8 @@ typedef struct uv_semaphore_s {
   unsigned int value;
 } uv_semaphore_t;
 
-#if defined(__GLIBC__) || platform_needs_custom_semaphore
+#if (defined(__GLIBC__) && !defined(__UCLIBC__)) || \
+    platform_needs_custom_semaphore
 STATIC_ASSERT(sizeof(uv_sem_t) >= sizeof(uv_semaphore_t*));
 #endif
 
@@ -639,7 +647,7 @@ static int uv__sem_trywait(uv_sem_t* sem) {
 }
 
 int uv_sem_init(uv_sem_t* sem, unsigned int value) {
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
   uv_once(&glibc_version_check_once, glibc_version_check);
 #endif
 
