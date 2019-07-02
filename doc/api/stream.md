@@ -1652,7 +1652,7 @@ for performance reasons.
 accepts a `source` iterable which can be used to read incoming data, while
 transformed data is pushed to the stream with the `yield` keyword.
 * `options` {Object} Options provided to `new stream.Transform([options])`.
-By default, `Tranfrom.by()` will set `options.objectMode` to `true`,
+By default, `Transform.by()` will set `options.objectMode` to `true`,
 unless this is explicitly opted out by setting `options.objectMode` to `false`.
 
 A utility method for creating Transform Streams with async generator functions.
