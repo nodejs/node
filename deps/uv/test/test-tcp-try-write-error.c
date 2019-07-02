@@ -48,7 +48,7 @@ static void incoming_close_cb(uv_handle_t* handle) {
   while (r > 0)
     r = uv_try_write((uv_stream_t*) &client, &buf, 1);
   fprintf(stderr, "uv_try_write error: %d %s\n", r, uv_strerror(r));
-  ASSERT(r == UV_EPIPE || r == UV_ECONNABORTED);
+  ASSERT(r == UV_EPIPE || r == UV_ECONNABORTED || r == UV_ECONNRESET);
   ASSERT(client.write_queue_size == 0);
 }
 

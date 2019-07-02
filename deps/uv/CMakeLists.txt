@@ -260,8 +260,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Android")
        src/unix/linux-syscalls.c
        src/unix/procfs-exepath.c
        src/unix/pthread-fixes.c
-       src/unix/sysinfo-loadavg.c
-       src/unix/sysinfo-memory.c)
+       src/unix/sysinfo-loadavg.c)
 endif()
 
 if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "Android|Linux|OS/390")
