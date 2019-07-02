@@ -1818,7 +1818,7 @@ Additional documentation is available in the [report documentation][].
 
 ## process.resourceUsage()
 <!-- YAML
-added: REPLACEME
+added: v12.6.0
 -->
 
 * Returns: {Object}

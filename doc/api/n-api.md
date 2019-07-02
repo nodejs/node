@@ -4655,7 +4655,7 @@ prevent the event loop from exiting. The APIs `napi_ref_threadsafe_function` and
 added: v10.6.0
 napiVersion: 4
 changes:
-  - version: REPLACEME
+  - version: v12.6.0
     pr-url: https://github.com/nodejs/node/pull/27791
     description: Made `func` parameter optional with custom `call_js_cb`.
 -->
