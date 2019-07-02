@@ -1,0 +1,19 @@
+prefix addons
+
+[true] # This section applies to all platforms
+
+[$system==aix]
+# https://github.com/nodejs/build/issues/1820#issuecomment-505998851
+# https://github.com/nodejs/node/pull/28469
+# https://github.com/nodejs/node/pull/28516
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max.js: SKIP
+
+# https://github.com/nodejs/node/pull/28516
+stringbytes-external-exceed-max/test-stringbytes-external-at-max: SKIP
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-ascii: SKIP
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-base64: SKIP
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-binary: SKIP
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-hex: SKIP
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-utf8: SKIP
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-2: SKIP
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max: SKIP
