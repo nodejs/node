@@ -64,10 +64,6 @@
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
 
-#ifdef NODE_ENABLE_VTUNE_PROFILING
-#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
-#endif
-
 #ifdef NODE_ENABLE_LARGE_CODE_PAGES
 #include "large_pages/node_large_page.h"
 #endif
