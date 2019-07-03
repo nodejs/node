@@ -41,7 +41,7 @@ you're using a non-npmjs registry.
 | updated         | 2017-10-02T21:29:45.922Z  |
 +-----------------+---------------------------+
 ```
-
+  
 * `npm profile set <property> <value>`:
   Set the value of a profile property. You can set the following properties this way:
     email, fullname, homepage, freenode, twitter, github

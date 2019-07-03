@@ -12,8 +12,8 @@ var escapeExecPath = require('../../lib/utils/escape-exec-path')
 
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, 'install-scoped-link')
-var work = path.join(__dirname, 'install-scoped-link-TEST')
+var pkg = common.pkg
+var work = pkg + '-TEST'
 var modules = path.join(work, 'node_modules')
 
 var EXEC_OPTS = { cwd: work }

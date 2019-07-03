@@ -9,7 +9,7 @@ const common = require('../common-tap.js')
 const e404 = /test-npm-404@latest' is not in the npm registry/
 const invalidPackage = /Your package name is not valid, because[\s\S]+1\. name can only contain URL-friendly characters/
 
-const basedir = path.join(__dirname, path.basename(__filename, '.js'))
+const basedir = common.pkg
 const testdir = path.join(basedir, 'testdir')
 const cachedir = path.join(basedir, 'cache')
 const globaldir = path.join(basedir, 'global')

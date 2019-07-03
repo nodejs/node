@@ -13,8 +13,8 @@ var npm = require('../../lib/npm.js')
 var fetchPackageMetadata = require('../../lib/fetch-package-metadata.js')
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'add-remote-git-file')
-var repo = resolve(__dirname, 'add-remote-git-file-repo')
+var pkg = common.pkg
+var repo = common.pkg + '-repo'
 
 var git
 var cloneURL = 'git+file://' + resolve(pkg, 'child.git')

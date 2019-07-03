@@ -130,7 +130,7 @@ function garbageCollect (cache, opts) {
             })
           })
         }
-      }, {concurrency: opts.concurrency}))
+      }, { concurrency: opts.concurrency }))
     })
   })
 }
@@ -150,7 +150,7 @@ function verifyContent (filepath, sri) {
         contentInfo.valid = false
       })
     }).then(() => contentInfo)
-  }).catch({code: 'ENOENT'}, () => ({size: 0, valid: false}))
+  }).catch({ code: 'ENOENT' }, () => ({ size: 0, valid: false }))
 }
 
 function rebuildIndex (cache, opts) {
@@ -183,7 +183,7 @@ function rebuildIndex (cache, opts) {
     }
     return BB.map(Object.keys(buckets), key => {
       return rebuildBucket(cache, buckets[key], stats, opts)
-    }, {concurrency: opts.concurrency}).then(() => stats)
+    }, { concurrency: opts.concurrency }).then(() => stats)
   })
 }
 
@@ -200,7 +200,7 @@ function rebuildBucket (cache, bucket, stats, opts) {
           metadata: entry.metadata,
           size: entry.size
         }).then(() => { stats.totalEntries++ })
-      }).catch({code: 'ENOENT'}, () => {
+      }).catch({ code: 'ENOENT' }, () => {
         stats.rejectedEntries++
         stats.missingContent++
       })

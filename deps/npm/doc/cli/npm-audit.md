@@ -3,8 +3,10 @@ npm-audit(1) -- Run a security audit
 
 ## SYNOPSIS
 
-    npm audit [--json|--parseable]
-    npm audit fix [--force|--package-lock-only|--dry-run|--production|--only=dev]
+    npm audit [--json|--parseable|--audit-level=(low|moderate|high|critical)]
+    npm audit fix [--force|--package-lock-only|--dry-run]
+    
+    common options: [--production] [--only=(dev|prod)]
 
 ## EXAMPLES
 
@@ -60,6 +62,11 @@ To parse columns, you can use for example `awk`, and just print some of them:
 $ npm audit --parseable | awk -F $'\t' '{print $1,$4}'
 ```
 
+Fail an audit only if the results include a vulnerability with a level of moderate or higher:
+```
+$ npm audit --audit-level=moderate
+```
+
 ## DESCRIPTION
 
 The audit command submits a description of the dependencies configured in
@@ -74,6 +81,12 @@ will require manual intervention or review. Also note that since `npm audit fix`
 runs a full-fledged `npm install` under the hood, all configs that apply to the
 installer will also apply to `npm install` -- so things like `npm audit fix
 --package-lock-only` will work as expected.
+
+By default, the audit command will exit with a non-zero code if any vulnerability
+is found. It may be useful in CI environments to include the `--audit-level` parameter
+to specify the minimum vulnerability level that will cause the command to fail. This
+option does not filter the report output, it simply changes the command's failure
+threshold.
 
 ## CONTENT SUBMITTED
 

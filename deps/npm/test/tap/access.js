@@ -9,7 +9,8 @@ const mr = require('npm-registry-mock')
 const test = require('tap').test
 const common = require('../common-tap.js')
 
-const pkg = path.resolve(__dirname, 'access')
+const pkg = common.pkg
+
 let server
 
 const scoped = {
@@ -63,7 +64,7 @@ test('npm access public on current package', function (t) {
 
 test('npm access public when no package passed and no package.json', function (t) {
   // need to simulate a missing package.json
-  var missing = path.join(__dirname, 'access-public-missing-guard')
+  var missing = path.join(pkg, 'access-public-missing-guard')
   mkdirp.sync(path.join(missing, 'node_modules'))
 
   common.npm([
@@ -83,7 +84,7 @@ test('npm access public when no package passed and no package.json', function (t
 
 test('npm access public when no package passed and invalid package.json', function (t) {
   // need to simulate a missing package.json
-  var invalid = path.join(__dirname, 'access-public-invalid-package')
+  var invalid = path.join(pkg, 'access-public-invalid-package')
   mkdirp.sync(path.join(invalid, 'node_modules'))
   // it's hard to force `read-package-json` to break w/o ENOENT, but this will do it
   fs.writeFileSync(path.join(invalid, 'package.json'), '{\n')
@@ -380,7 +381,7 @@ test('npm access ls-packages on user', function (t) {
 
 test('npm access ls-packages with no package specified or package.json', function (t) {
   // need to simulate a missing package.json
-  var missing = path.join(__dirname, 'access-missing-guard')
+  var missing = path.join(pkg, 'access-missing-guard')
   mkdirp.sync(path.join(missing, 'node_modules'))
 
   var serverPackages = {

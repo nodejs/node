@@ -12,7 +12,7 @@ const { test } = require('tap')
 
 const { Dir, File } = Tacks
 
-const testDir = path.join(__dirname, path.basename(__filename, '.js'))
+const testDir = common.pkg
 
 let server
 test('setup', t => {

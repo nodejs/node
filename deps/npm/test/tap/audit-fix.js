@@ -13,7 +13,7 @@ const test = tap.test
 
 const Dir = Tacks.Dir
 const File = Tacks.File
-const testDir = path.join(__dirname, path.basename(__filename, '.js'))
+const testDir = common.pkg
 
 const EXEC_OPTS = { cwd: testDir }
 

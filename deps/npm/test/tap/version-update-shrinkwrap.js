@@ -9,7 +9,7 @@ var test = require('tap').test
 var npm = require('../../')
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'version-shrinkwrap')
+var pkg = common.pkg
 var cache = path.resolve(pkg, 'cache')
 
 test('npm version <semver> updates shrinkwrap - no git', function (t) {

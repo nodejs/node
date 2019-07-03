@@ -13,7 +13,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'bitbucket-https-url-with-creds-package')
+var pkg = common.pkg
 
 var json = {
   name: 'bitbucket-https-url-with-creds-package',

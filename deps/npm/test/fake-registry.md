@@ -160,7 +160,7 @@ compatibility mode and the default value of port comes from `common.port`.
 
 ### done()
 
-Resets all of the configured mocks.
+Resets all of the configured mocks. 
 
 ### close()
 

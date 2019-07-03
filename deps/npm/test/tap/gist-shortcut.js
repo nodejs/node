@@ -10,7 +10,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'gist-shortcut')
+var pkg = common.pkg
 
 var json = {
   name: 'gist-shortcut',

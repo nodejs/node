@@ -15,7 +15,7 @@ const { Dir, File } = Tacks
 const readdirAsync = BB.promisify(fs.readdir)
 const readFileAsync = BB.promisify(fs.readFile)
 
-const testDir = path.join(__dirname, path.basename(__filename, '.js'))
+const testDir = common.pkg
 
 let server
 test('setup', t => {
@@ -98,12 +98,12 @@ test('installs an npm: protocol alias package', t => {
         bar: {
           version: '1.2.3',
           from: 'bar@npm:foo@1.2.3',
-          resolved: 'http://localhost:1337/foo/-/foo-1.2.3.tgz'
+          resolved: 'http://localhost:' + common.port + '/foo/-/foo-1.2.3.tgz'
         },
         foo: {
           version: '1.2.3',
           from: 'foo@1.2.3',
-          resolved: 'http://localhost:1337/foo/-/foo-1.2.3.tgz'
+          resolved: 'http://localhost:' + common.port + '/foo/-/foo-1.2.3.tgz'
         }
       }
     }, 'both dependencies listed correctly')
@@ -149,12 +149,12 @@ test('installs an npm: protocol alias package', t => {
         bar: {
           version: '1.2.4',
           from: 'bar@npm:foo@1.2.4',
-          resolved: 'http://localhost:1337/foo/-/foo-1.2.4.tgz'
+          resolved: 'http://localhost:' + common.port + '/foo/-/foo-1.2.4.tgz'
         },
         foo: {
           version: '1.2.4',
           from: 'foo@1.2.4',
-          resolved: 'http://localhost:1337/foo/-/foo-1.2.4.tgz'
+          resolved: 'http://localhost:' + common.port + '/foo/-/foo-1.2.4.tgz'
         }
       }
     }, 'ls shows updated packages')

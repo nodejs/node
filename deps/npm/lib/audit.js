@@ -39,7 +39,7 @@ module.exports = auditCmd
 const usage = require('./utils/usage')
 auditCmd.usage = usage(
   'audit',
-  '\nnpm audit [--json]' +
+  '\nnpm audit [--json] [--production]' +
   '\nnpm audit fix ' +
   '[--force|--package-lock-only|--dry-run|--production|--only=(dev|prod)]'
 )
@@ -175,7 +175,7 @@ function auditCmd (args, cb) {
     const requires = Object.assign(
       {},
       (pkgJson && pkgJson.dependencies) || {},
-      (pkgJson && pkgJson.devDependencies) || {}
+      (!opts.production && pkgJson && pkgJson.devDependencies) || {}
     )
     return lockVerify(npm.prefix).then((result) => {
       if (result.status) return audit.generate(sw, requires)

@@ -1,14 +1,12 @@
 var common = require('../common-tap.js')
 var test = require('tap').test
-var path = require('path')
 var fs = require('fs')
 var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 
 var mr = require('npm-registry-mock')
 
-var pkg = path.resolve(process.env.npm_config_tmp || '/tmp',
-  'noargs-install-config-save')
+var pkg = common.pkg
 
 function writePackageJson () {
   rimraf.sync(pkg)
@@ -73,6 +71,6 @@ test('updates the package.json (adds dependencies) with an argument', function (
 })
 
 test('cleanup', function (t) {
-  rimraf.sync(pkg + '/cache')
+  rimraf.sync(pkg)
   t.end()
 })
