@@ -64,7 +64,7 @@ function insert (cache, key, integrity, opts) {
     )
   }).then(
     () => fixOwner.chownr(bucket, opts.uid, opts.gid)
-  ).catch({code: 'ENOENT'}, () => {
+  ).catch({ code: 'ENOENT' }, () => {
     // There's a class of race conditions that happen when things get deleted
     // during fixOwner, or between the two mkdirfix/chownr calls.
     //
@@ -178,7 +178,7 @@ function lsStream (cache) {
             const formatted = formatEntry(cache, entry)
             formatted && stream.push(formatted)
           }
-        }).catch({code: 'ENOENT'}, nop)
+        }).catch({ code: 'ENOENT' }, nop)
       })
     })
   }).then(() => {
@@ -282,8 +282,8 @@ function formatEntry (cache, entry) {
 
 function readdirOrEmpty (dir) {
   return readdirAsync(dir)
-    .catch({code: 'ENOENT'}, () => [])
-    .catch({code: 'ENOTDIR'}, () => [])
+    .catch({ code: 'ENOENT' }, () => [])
+    .catch({ code: 'ENOTDIR' }, () => [])
 }
 
 function nop () {

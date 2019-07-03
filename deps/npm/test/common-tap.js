@@ -1,6 +1,7 @@
 'use strict'
 /* eslint-disable camelcase */
 
+const configCommon = require('./common-config.js')
 var fs = require('graceful-fs')
 var readCmdShim = require('read-cmd-shim')
 var isWindows = require('../lib/utils/is-windows.js')
@@ -17,8 +18,31 @@ if (!global.setImmediate || !require('timers').setImmediate) {
 var spawn = require('child_process').spawn
 var path = require('path')
 
-var port = exports.port = 1337
+// provide a working dir unique to each test
+const main = require.main.filename
+exports.pkg = path.resolve(path.dirname(main), path.basename(main, '.js'))
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
+mkdirp.sync(exports.pkg)
+require('tap').teardown(() => {
+  try {
+    rimraf.sync(exports.pkg)
+  } catch (e) {
+    if (process.platform !== 'win32') {
+      throw e
+    }
+  }
+})
+
+// space these out to help prevent collisions
+const testId = 3 * (+process.env.TAP_CHILD_ID || 0)
+
+var port = exports.port = 15443 + testId
 exports.registry = 'http://localhost:' + port
+
+exports.altPort = 7331 + testId
+
+exports.gitPort = 4321 + testId
 
 var fakeRegistry = require('./fake-registry.js')
 exports.fakeRegistry = fakeRegistry
@@ -29,10 +53,10 @@ ourenv.npm_config_progress = 'false'
 ourenv.npm_config_metrics = 'false'
 ourenv.npm_config_audit = 'false'
 
-var npm_config_cache = path.resolve(__dirname, 'npm_cache')
+var npm_config_cache = path.resolve(__dirname, 'npm_cache_' + testId)
 ourenv.npm_config_cache = exports.npm_config_cache = npm_config_cache
-ourenv.npm_config_userconfig = exports.npm_config_userconfig = path.join(__dirname, 'fixtures', 'config', 'userconfig')
-ourenv.npm_config_globalconfig = exports.npm_config_globalconfig = path.join(__dirname, 'fixtures', 'config', 'globalconfig')
+ourenv.npm_config_userconfig = exports.npm_config_userconfig = configCommon.userconfig
+ourenv.npm_config_globalconfig = exports.npm_config_globalconfig = configCommon.globalconfig
 ourenv.npm_config_global_style = 'false'
 ourenv.npm_config_legacy_bundling = 'false'
 ourenv.npm_config_fetch_retries = '0'
@@ -114,6 +138,9 @@ exports.makeGitRepo = function (params, cb) {
     git.chainableExec(['init'], opts),
     git.chainableExec(['config', 'user.name', user], opts),
     git.chainableExec(['config', 'user.email', email], opts),
+    // don't time out tests waiting for a gpg passphrase or 2fa
+    git.chainableExec(['config', 'commit.gpgsign', 'false'], opts),
+    git.chainableExec(['config', 'tag.forceSignAnnotated', 'false'], opts),
     git.chainableExec(['add'].concat(added), opts),
     git.chainableExec(['commit', '-m', message], opts)
   ]

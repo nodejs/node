@@ -10,7 +10,7 @@ var test = require('tap').test
 var common = require('../common-tap.js')
 var server
 
-var pkg = path.resolve(__dirname, 'install-cli-unicode')
+var pkg = common.pkg
 
 function hasOnlyAscii (s) {
   return /^[\000-\177]*$/.test(s)

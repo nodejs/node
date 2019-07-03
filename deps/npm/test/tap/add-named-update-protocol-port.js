@@ -15,7 +15,7 @@ var fooPkg = {
       name: packageName,
       version: '0.0.0',
       dist: {
-        tarball: 'https://localhost:1338/registry/' + packageName + '/-/' + packageName + '-0.0.0.tgz',
+        tarball: 'https://localhost:' + common.altPort + '/registry/' + packageName + '/-/' + packageName + '-0.0.0.tgz',
         shasum: '356a192b7913b04c54574d18c28d46e6395428ab'
       }
     }
@@ -30,7 +30,7 @@ var fooiPkg = {
       name: iPackageName,
       version: '0.0.0',
       dist: {
-        tarball: 'http://127.0.0.1:1338/registry/' + iPackageName + '/-/' + iPackageName + '-0.0.0.tgz',
+        tarball: 'http://127.0.0.1:' + common.altPort + '/registry/' + iPackageName + '/-/' + iPackageName + '-0.0.0.tgz',
         shasum: '356a192b7913b04c54574d18c28d46e6395428ab'
       }
     }
@@ -39,13 +39,13 @@ var fooiPkg = {
 
 test('setup', function (t) {
   mr({
-    port: 1337,
+    port: common.port,
     throwOnUnmatched: true
   }, function (err, s) {
     t.ifError(err, 'registry mocked successfully')
     server1 = s
     mr({
-      port: 1338,
+      port: common.altPort,
       throwOnUnmatched: true
     }, function (err, s) {
       t.ifError(err, 'registry mocked successfully')
@@ -67,7 +67,7 @@ test('tarball paths should update port if updating protocol', function (t) {
       'add',
       packageName + '@0.0.0',
       '--registry',
-      'http://localhost:1337/registry'
+      'http://localhost:' + common.port + '/registry'
     ],
     {},
     function (er, code, stdout, stderr) {
@@ -92,7 +92,7 @@ test('tarball paths should NOT update if different hostname', function (t) {
       'add',
       iPackageName + '@0.0.0',
       '--registry',
-      'http://localhost:1337/registry'
+      'http://localhost:' + common.port + '/registry'
     ],
     {},
     function (er, code, stdout, stderr) {

@@ -5,7 +5,7 @@ var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 
 var common = require('../common-tap.js')
-var basedir = path.join(__dirname, path.basename(__filename, '.js'))
+var basedir = common.pkg
 var cachedir = path.join(basedir, 'cache')
 
 var server

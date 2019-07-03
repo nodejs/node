@@ -1,6 +1,5 @@
 var common = require('../common-tap.js')
 
-var basename = require('path').basename
 var resolve = require('path').resolve
 var fs = require('graceful-fs')
 var test = require('tap').test
@@ -11,7 +10,7 @@ var Dir = Tacks.Dir
 var Symlink = Tacks.Symlink
 var isWindows = require('../../lib/utils/is-windows.js')
 
-var base = resolve(__dirname, basename(__filename, '.js'))
+var base = common.pkg
 var fixture = new Tacks(Dir({
   'working-dir': Dir({
     'node_modules': Dir({}) // so it doesn't try to install into npm's own node_modules

@@ -8,7 +8,7 @@ var mr = require('npm-registry-mock')
 var common = require('../common-tap')
 var server
 
-var pkg = path.join(__dirname, 'publish-access-unscoped')
+var pkg = common.pkg
 
 test('setup', function (t) {
   mr({port: common.port, throwOnUnmatched: true}, function (err, s) {

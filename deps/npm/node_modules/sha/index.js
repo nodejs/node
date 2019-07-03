@@ -1,6 +1,6 @@
 'use strict'
 
-var Transform = require('stream').Transform || require('readable-stream').Transform
+var Transform = require('stream').Transform
 var crypto = require('crypto')
 var fs = require('graceful-fs')
 

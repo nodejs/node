@@ -8,7 +8,7 @@ const Symlink = Tacks.Symlink
 const Dir = Tacks.Dir
 const common = require('../common-tap.js')
 
-const basedir = path.join(__dirname, path.basename(__filename, '.js'))
+const basedir = common.pkg
 const testdir = path.join(basedir, 'testdir')
 const cachedir = path.join(basedir, 'cache')
 const globaldir = path.join(basedir, 'global')

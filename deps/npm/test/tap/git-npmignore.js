@@ -1,7 +1,6 @@
 /* eslint-disable camelcase */
 var child_process = require('child_process')
 var readdir = require('graceful-fs').readdirSync
-var path = require('path')
 var resolve = require('path').resolve
 
 var rimraf = require('rimraf')
@@ -42,7 +41,7 @@ var fixture = new Tacks(Dir({
   })
 }))
 
-var testdir = resolve(__dirname, path.basename(__filename, '.js'))
+var testdir = common.pkg
 var cachedir = resolve(testdir, 'cache')
 var dep = resolve(testdir, 'deps', 'gitch')
 var packname = 'gitch-1.0.0.tgz'

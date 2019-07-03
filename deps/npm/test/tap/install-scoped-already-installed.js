@@ -9,7 +9,7 @@ var test = require('tap').test
 
 var common = require('../common-tap')
 
-var root = path.join(__dirname, 'install-scoped-already-installed')
+var root = common.pkg
 var pkg = path.join(root, 'package-with-scoped-paths')
 var modules = path.join(pkg, 'node_modules')
 

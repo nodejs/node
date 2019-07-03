@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var root = path.join(__dirname, 'install-save-local')
+var root = common.pkg
 var pkg = path.join(root, 'package')
 
 var EXEC_OPTS = { cwd: pkg }

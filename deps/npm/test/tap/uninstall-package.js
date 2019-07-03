@@ -9,7 +9,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, 'uninstall-package')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg, stdio: [0, 'pipe', 2] }
 
@@ -18,7 +18,8 @@ var json = {
   version: '0.0.0',
   dependencies: {
     underscore: '~1.3.1',
-    request: '~0.9.0'
+    request: '~0.9.0',
+    '@isaacs/namespace-test': '1.x'
   }
 }
 
@@ -67,6 +68,27 @@ test('returns a list of removed items', function (t) {
       }
     )
   })
+})
+
+test('does not fail if installed package lacks a name somehow', function (t) {
+  const scope = path.resolve(pkg, 'node_modules/@isaacs')
+  const scopePkg = path.resolve(scope, 'namespace-test')
+  const pj = path.resolve(scopePkg, 'package.json')
+  fs.writeFileSync(pj, JSON.stringify({
+    lol: 'yolo',
+    name: 99
+  }))
+  common.npm(
+    ['uninstall', '@isaacs/namespace-test'],
+    EXEC_OPTS,
+    function (err, code, stdout, stderr) {
+      if (err) throw err
+      t.equal(code, 0, 'should exit successfully')
+      t.has(stdout, /removed 1 package in/)
+      t.notOk(fs.existsSync(scope), 'scoped package removed')
+      t.end()
+    }
+  )
 })
 
 test('cleanup', function (t) {

@@ -4,7 +4,7 @@ var fs = require('fs')
 var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var path = require('path')
-var dir = path.join(__dirname, 'my_node_modules')
+var dir = path.join(common.pkg, 'my_node_modules')
 var script = process.platform === 'win32' ? 'echo %PATH%' : 'echo $PATH'
 
 t.test('setup', function (t) {

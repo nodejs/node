@@ -11,7 +11,7 @@ var test = require('tap').test
 var common = require('../common-tap.js')
 var npm = require('../../lib/npm.js')
 
-var pkg = path.resolve(__dirname, path.basename(__filename, '.js'))
+var pkg = common.pkg
 
 function setup (cb) {
   cleanup()
@@ -56,7 +56,7 @@ test('fetch-package-metadata provides resolved metadata', function (t) {
   function thenVerifyMetadata (err, pkg) {
     t.ifError(err, 'fetched metadata')
 
-    t.equals(pkg._resolved, 'http://localhost:1337/test-package/-/test-package-0.0.0.tgz', '_resolved')
+    t.equals(pkg._resolved, 'http://localhost:' + common.port + '/test-package/-/test-package-0.0.0.tgz', '_resolved')
     t.equals(pkg._integrity, 'sha1-sNMrbEXCWcV4uiADdisgUTG9+9E=', '_integrity')
     server.close()
     t.end()

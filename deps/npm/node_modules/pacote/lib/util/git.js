@@ -40,8 +40,10 @@ const GIT_TRANSIENT_ERRORS = [
 
 const GIT_TRANSIENT_ERROR_RE = new RegExp(GIT_TRANSIENT_ERRORS)
 
-function shouldRetry (error) {
-  return GIT_TRANSIENT_ERROR_RE.test(error)
+const GIT_TRANSIENT_ERROR_MAX_RETRY_NUMBER = 3
+
+function shouldRetry (error, number) {
+  return GIT_TRANSIENT_ERROR_RE.test(error) && (number < GIT_TRANSIENT_ERROR_MAX_RETRY_NUMBER)
 }
 
 const GIT_ = 'GIT_'
@@ -188,7 +190,7 @@ function execGit (gitArgs, gitOpts, opts) {
         opts.log.silly('pacote', 'Retrying git command: ' + gitArgs.join(' ') + ' attempt # ' + number)
       }
       return execFileAsync(gitPath, gitArgs, mkOpts(gitOpts, opts)).catch((err) => {
-        if (shouldRetry(err)) {
+        if (shouldRetry(err, number)) {
           retry(err)
         } else {
           throw err
@@ -219,7 +221,7 @@ function spawnGit (gitArgs, gitOpts, opts) {
       child.stderr.on('data', d => { stderr += d })
 
       return finished(child, true).catch(err => {
-        if (shouldRetry(stderr)) {
+        if (shouldRetry(stderr, number)) {
           retry(err)
         } else {
           err.stderr = stderr

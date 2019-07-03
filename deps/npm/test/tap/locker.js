@@ -10,7 +10,8 @@ var locker = require('../../lib/utils/locker.js')
 var lock = locker.lock
 var unlock = locker.unlock
 
-var pkg = path.join(__dirname, '/locker')
+const common = require('../common-tap.js')
+var pkg = common.pkg
 var cache = path.join(pkg, '/cache')
 var tmp = path.join(pkg, '/tmp')
 var nm = path.join(pkg, '/node_modules')

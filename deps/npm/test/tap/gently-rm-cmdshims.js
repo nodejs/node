@@ -7,7 +7,8 @@ var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var npm = require('../../lib/npm.js')
 
-var work = path.join(__dirname, path.basename(__filename, '.js'))
+const common = require('../common-tap.js')
+var work = common.pkg
 var doremove = path.join(work, 'doremove')
 var dontremove = path.join(work, 'dontremove')
 var example_json = {

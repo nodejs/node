@@ -8,7 +8,7 @@ var unixFormatPath = require('../../lib/utils/unix-format-path.js')
 var File = Tacks.File
 var Dir = Tacks.Dir
 
-var testdir = path.resolve(__dirname, path.basename(__filename, '.js'))
+var testdir = common.pkg
 var cachedir = path.resolve(testdir, 'cache')
 var config = ['--cache=' + cachedir, '--loglevel=error']
 

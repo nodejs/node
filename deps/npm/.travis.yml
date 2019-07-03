@@ -7,7 +7,7 @@ language: node_js
 matrix:
   include:
     # LTS is our most important target
-    - node_js: "10"
+    - node_js: "12"
       # DEPLOY_VERSION is used to set the couchapp setup mode for test/tap/registry.js
       # only gather coverage info for LTS
       env: DEPLOY_VERSION=testing COVERALLS_REPO_TOKEN="$COVERALLS_OPTIONAL_TOKEN"
@@ -15,18 +15,16 @@ matrix:
         - "node . run tap-cover -- \"test/tap/*.js\""
         - "unset COVERALLS_REPO_TOKEN ; node . run tap -- \"test/broken-under-*/*.js\""
     # previous LTS is next most important
-    - node_js: "6"
-      env: DEPLOY_VERSION=testing
-    - node_js: "8"
-      env: DEPLOY_VERSION=testing
-    - node_js: "9"
-      env: DEPLOY_VERSION=testing
-    - node_js: "11"
+    - node_js: "10"
       env: DEPLOY_VERSION=testing
       script:
       - "npx standard"
       - "node . run licenses"
       - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""
+    - node_js: "8"
+      env: DEPLOY_VERSION=testing
+    - node_js: "6"
+      env: DEPLOY_VERSION=testing
 notifications:
     slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8
 cache:

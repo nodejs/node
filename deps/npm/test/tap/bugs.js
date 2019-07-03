@@ -8,15 +8,15 @@ var rimraf = require('rimraf')
 var fs = require('fs')
 var path = require('path')
 var join = path.join
-var outFile = path.join(__dirname, '/_output')
+var outFile = path.join(common.pkg, '/_output')
 
-var opts = { cwd: __dirname }
+var opts = { cwd: common.pkg }
 
 test('setup', function (t) {
   var s = '#!/usr/bin/env bash\n' +
-          'echo "$@" > ' + JSON.stringify(__dirname) + '/_output\n'
-  fs.writeFileSync(join(__dirname, '/_script.sh'), s, 'ascii')
-  fs.chmodSync(join(__dirname, '/_script.sh'), '0755')
+          'echo "$@" > ' + JSON.stringify(common.pkg) + '/_output\n'
+  fs.writeFileSync(join(common.pkg, '/_script.sh'), s, 'ascii')
+  fs.chmodSync(join(common.pkg, '/_script.sh'), '0755')
   t.pass('made script')
   t.end()
 })
@@ -28,7 +28,7 @@ test('npm bugs underscore', function (t) {
         'bugs', 'underscore',
         '--registry=' + common.registry,
         '--loglevel=silent',
-        '--browser=' + join(__dirname, '/_script.sh')
+        '--browser=' + join(common.pkg, '/_script.sh')
       ],
       opts,
       function (err, code, stdout, stderr) {
@@ -52,7 +52,7 @@ test('npm bugs optimist - github (https://)', function (t) {
         'bugs', 'optimist',
         '--registry=' + common.registry,
         '--loglevel=silent',
-        '--browser=' + join(__dirname, '/_script.sh')
+        '--browser=' + join(common.pkg, '/_script.sh')
       ],
       opts,
       function (err, code, stdout, stderr) {
@@ -76,7 +76,7 @@ test('npm bugs npm-test-peer-deps - no repo', function (t) {
         'bugs', 'npm-test-peer-deps',
         '--registry=' + common.registry,
         '--loglevel=silent',
-        '--browser=' + join(__dirname, '/_script.sh')
+        '--browser=' + join(common.pkg, '/_script.sh')
       ],
       opts,
       function (err, code, stdout, stderr) {
@@ -100,7 +100,7 @@ test('npm bugs test-repo-url-http - non-github (http://)', function (t) {
         'bugs', 'test-repo-url-http',
         '--registry=' + common.registry,
         '--loglevel=silent',
-        '--browser=' + join(__dirname, '/_script.sh')
+        '--browser=' + join(common.pkg, '/_script.sh')
       ],
       opts,
       function (err, code, stdout, stderr) {
@@ -124,7 +124,7 @@ test('npm bugs test-repo-url-https - gitlab (https://)', function (t) {
         'bugs', 'test-repo-url-https',
         '--registry=' + common.registry,
         '--loglevel=silent',
-        '--browser=' + join(__dirname, '/_script.sh')
+        '--browser=' + join(common.pkg, '/_script.sh')
       ],
       opts,
       function (err, code, stdout, stderr) {
@@ -148,7 +148,7 @@ test('npm bugs test-repo-url-ssh - gitlab (ssh://)', function (t) {
         'bugs', 'test-repo-url-ssh',
         '--registry=' + common.registry,
         '--loglevel=silent',
-        '--browser=' + join(__dirname, '/_script.sh')
+        '--browser=' + join(common.pkg, '/_script.sh')
       ],
       opts,
       function (err, code, stdout, stderr) {
@@ -166,7 +166,7 @@ test('npm bugs test-repo-url-ssh - gitlab (ssh://)', function (t) {
 })
 
 test('cleanup', function (t) {
-  fs.unlinkSync(join(__dirname, '/_script.sh'))
+  rimraf.sync(common.pkg)
   t.pass('cleaned up')
   t.end()
 })

@@ -8,7 +8,7 @@ var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var requireInject = require('require-inject')
 
-var pkg = path.resolve(__dirname, 'version-no-git')
+var pkg = common.pkg
 var cache = path.resolve(pkg, 'cache')
 var gitDir = path.resolve(pkg, '.git')
 
