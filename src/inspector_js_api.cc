@@ -259,16 +259,10 @@ void Open(const FunctionCallbackInfo<Value>& args) {
 
 void Url(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Agent* agent = env->inspector_agent();
-  InspectorIo* io = agent->io();
-
-  if (!io) return;
-
-  std::vector<std::string> ids = io->GetTargetIds();
-
-  if (ids.empty()) return;
-
-  std::string url = FormatWsAddress(io->host(), io->port(), ids[0], true);
+  std::string url = env->inspector_agent()->GetWsUrl();
+  if (url.length() == 0) {
+    return;
+  }
   args.GetReturnValue().Set(OneByteString(env->isolate(), url.c_str()));
 }
 

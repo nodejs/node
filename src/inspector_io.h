@@ -14,31 +14,13 @@
 #include <cstddef>
 #include <memory>
 
-
-namespace v8_inspector {
-class StringBuffer;
-class StringView;
-}  // namespace v8_inspector
-
 namespace node {
 // Forward declaration to break recursive dependency chain with src/env.h.
 class Environment;
 namespace inspector {
 
-std::string FormatWsAddress(const std::string& host, int port,
-                            const std::string& target_id,
-                            bool include_protocol);
-
-class InspectorIoDelegate;
 class MainThreadHandle;
 class RequestQueue;
-
-// kKill closes connections and stops the server, kStop only stops the server
-enum class TransportAction {
-  kKill,
-  kSendMessage,
-  kStop
-};
 
 class InspectorIo {
  public:
@@ -55,9 +37,7 @@ class InspectorIo {
   ~InspectorIo();
 
   void StopAcceptingNewConnections();
-  const std::string& host() const { return host_port_->host(); }
-  int port() const { return host_port_->port(); }
-  std::vector<std::string> GetTargetIds() const;
+  std::string GetWsUrl() const;
 
  private:
   InspectorIo(std::shared_ptr<MainThreadHandle> handle,
