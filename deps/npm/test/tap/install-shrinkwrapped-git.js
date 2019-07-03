@@ -11,7 +11,7 @@ var npm = require('../../lib/npm')
 var common = require('../common-tap')
 var chain = require('slide').chain
 
-var mockPath = resolve(__dirname, 'install-shrinkwrapped')
+var mockPath = common.pkg
 var parentPath = resolve(mockPath, 'parent')
 var parentNodeModulesPath = path.join(parentPath, 'node_modules')
 var outdatedNodeModulesPath = resolve(mockPath, 'node-modules-backup')
@@ -53,11 +53,11 @@ test('shrinkwrapped git dependency got updated', function (t) {
     if (err) { throw err }
     chain([
       // Install & shrinkwrap child package's first commit
-      [npm.commands.install, ['git://localhost:1234/child.git#' + refs[0]]],
+      [npm.commands.install, ['git://localhost:' + common.gitPort + '/child.git#' + refs[0]]],
       // Backup node_modules with the first commit
       [fs.rename, parentNodeModulesPath, outdatedNodeModulesPath],
       // Install & shrinkwrap child package's latest commit
-      [npm.commands.install, ['git://localhost:1234/child.git#' + refs[1].substr(0, 8)]],
+      [npm.commands.install, ['git://localhost:' + common.gitPort + '/child.git#' + refs[1].substr(0, 8)]],
       // Restore node_modules with the first commit
       [rimraf, parentNodeModulesPath],
       [fs.rename, outdatedNodeModulesPath, parentNodeModulesPath],
@@ -68,15 +68,15 @@ test('shrinkwrapped git dependency got updated', function (t) {
       t.similar(pkglock, {
         dependencies: {
           child: {
-            version: `git://localhost:1234/child.git#${refs[1]}`,
-            from: `git://localhost:1234/child.git#${refs[1].substr(0, 8)}`
+            version: `git://localhost:${common.gitPort}/child.git#${refs[1]}`,
+            from: `git://localhost:${common.gitPort}/child.git#${refs[1].substr(0, 8)}`
           }
         }
       }, 'version and from fields are correct in git-based pkglock dep')
       var childPackageJSON = require(path.join(parentNodeModulesPath, 'child', 'package.json'))
       t.equal(
         childPackageJSON._resolved,
-        'git://localhost:1234/child.git#' + refs[1],
+        'git://localhost:' + common.gitPort + '/child.git#' + refs[1],
         "Child package wasn't updated"
       )
       t.end()
@@ -153,7 +153,7 @@ function startGitDaemon (cb) {
       '--export-all',
       '--base-path=' + mockPath, // Path to the dir that contains child.git
       '--reuseaddr',
-      '--port=1234'
+      '--port=' + common.gitPort
     ],
     {
       cwd: parentPath,

@@ -10,7 +10,7 @@ const path = require('path')
 const rimraf = require('rimraf')
 const test = require('tap').test
 
-const pkg = path.join(__dirname, path.basename(__filename, '.js'))
+const pkg = common.pkg
 
 const json = {
   author: 'Rockbert',

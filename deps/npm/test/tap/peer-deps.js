@@ -10,7 +10,7 @@ var test = require('tap').test
 var common = require('../common-tap.js')
 var npm = require('../../')
 
-var pkg = path.resolve(__dirname, 'peer-deps')
+var pkg = common.pkg
 
 var expected = [ 'peer dep missing: request@0.9.x, required by npm-test-peer-deps@0.0.0' ]
 

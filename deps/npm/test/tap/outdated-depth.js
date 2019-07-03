@@ -10,7 +10,7 @@ var test = require('tap').test
 var npm = require('../../')
 var common = require('../common-tap')
 
-var pkg = path.resolve(__dirname, 'outdated-depth')
+var pkg = common.pkg
 
 var json = {
   name: 'outdated-depth',

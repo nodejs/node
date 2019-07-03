@@ -12,7 +12,7 @@ const ms = require('mississippi')
 
 const _createCacheWriteStream = require('../../lib/search/all-package-metadata.js')._createCacheWriteStream
 
-const PKG_DIR = path.resolve(__dirname, 'create-cache-write-stream')
+const PKG_DIR = common.pkg
 const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
 
 function setup () {

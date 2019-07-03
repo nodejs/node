@@ -3,8 +3,8 @@
 Check and get file hashes (using any algorithm)
 
 [![Build Status](https://img.shields.io/travis/ForbesLindesay/sha/master.svg)](https://travis-ci.org/ForbesLindesay/sha)
-[![Dependency Status](https://img.shields.io/gemnasium/ForbesLindesay/sha.svg)](https://gemnasium.com/ForbesLindesay/sha)
-[![NPM version](https://img.shields.io/npm/v/sha.svg)](http://badge.fury.io/js/sha)
+[![Dependency Status](https://img.shields.io/david/ForbesLindesay/sha.svg)](https://david-dm.org/ForbesLindesay/sha)
+[![NPM version](https://img.shields.io/npm/v/sha.svg)](https://www.npmjs.com/package/sha)
 
 ## Installation
 

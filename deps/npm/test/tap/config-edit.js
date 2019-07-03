@@ -6,7 +6,7 @@ var rimraf = require('rimraf')
 var test = require('tap').test
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'npm-global-edit')
+var pkg = common.pkg
 
 var editorSrc = function () { /*
 #!/usr/bin/env node

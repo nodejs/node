@@ -29,6 +29,9 @@ rpt('/path/to/pkg/root', function (node, kidName) {
   //   error: <if set, the error we got loading/parsing the package.json>
   // }
 })
+
+// or promise-style
+rpt('/path/to/pkg/root').then(data => { ... })
 ```
 
 That's it.  It doesn't figure out if dependencies are met, it doesn't

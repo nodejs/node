@@ -12,7 +12,7 @@ const Tacks = require('tacks')
 const Dir = Tacks.Dir
 const File = Tacks.File
 
-const testDir = path.join(__dirname, 'pkg')
+const testDir = common.pkg
 const tmp = path.join(testDir, 'tmp')
 const cache = path.join(testDir, 'cache')
 

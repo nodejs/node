@@ -6,7 +6,7 @@ var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
-var pkg = join(__dirname, 'dedupe-scoped')
+var pkg = common.pkg
 var modules = join(pkg, 'node_modules')
 
 var EXEC_OPTS = { cwd: pkg }

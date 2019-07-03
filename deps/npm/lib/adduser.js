@@ -1,9 +1,9 @@
 module.exports = adduser
 
-var log = require('npmlog')
-var npm = require('./npm.js')
-var usage = require('./utils/usage')
-var crypto
+const log = require('npmlog')
+const npm = require('./npm.js')
+const usage = require('./utils/usage')
+let crypto
 
 try {
   crypto = require('crypto')
@@ -21,20 +21,21 @@ function adduser (args, cb) {
     ))
   }
 
-  var registry = npm.config.get('registry')
-  var scope = npm.config.get('scope')
-  var creds = npm.config.getCredentialsByURI(npm.config.get('registry'))
+  let registry = npm.config.get('registry')
+  const scope = npm.config.get('scope')
+  const creds = npm.config.getCredentialsByURI(npm.config.get('registry'))
 
   if (scope) {
-    var scopedRegistry = npm.config.get(scope + ':registry')
-    var cliRegistry = npm.config.get('registry', 'cli')
+    const scopedRegistry = npm.config.get(scope + ':registry')
+    const cliRegistry = npm.config.get('registry', 'cli')
     if (scopedRegistry && !cliRegistry) registry = scopedRegistry
   }
 
   log.disableProgress()
 
+  let auth
   try {
-    var auth = require('./auth/' + npm.config.get('auth-type'))
+    auth = require('./auth/' + npm.config.get('auth-type'))
   } catch (e) {
     return cb(new Error('no such auth module'))
   }

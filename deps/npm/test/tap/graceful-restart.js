@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'graceful-restart')
+var pkg = common.pkg
 
 var outGraceless = [
   'prerestart',

@@ -7,7 +7,7 @@ var mr = common.fakeRegistry.compat
 var server
 
 var packageName = path.basename(__filename, '.js')
-var testdir = path.join(__dirname, packageName)
+var testdir = common.pkg
 
 function setup () {
   cleanup()

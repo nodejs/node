@@ -13,7 +13,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, path.basename(__filename, '.js'))
+var pkg = common.pkg
 var outfile = path.resolve(pkg, '_npmrc')
 
 var modules = path.resolve(pkg, 'node_modules')
