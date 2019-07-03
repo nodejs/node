@@ -7,7 +7,7 @@ var rimraf = require('rimraf')
 var fs = require('graceful-fs')
 var common = require('../common-tap')
 
-var base = path.resolve(__dirname, path.basename(__filename, '.js'))
+var base = common.pkg
 var modA = path.resolve(base, 'modA')
 var modB = path.resolve(base, 'modB')
 var modC = path.resolve(base, 'modC')

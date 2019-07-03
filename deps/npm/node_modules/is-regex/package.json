@@ -1,0 +1,77 @@
+{
+	"name": "is-regex",
+	"version": "1.0.4",
+	"description": "Is this value a JS regex? Works cross-realm/iframe, and despite ES6 @@toStringTag",
+	"author": "Jordan Harband",
+	"license": "MIT",
+	"main": "index.js",
+	"scripts": {
+		"pretest": "npm run lint",
+		"test": "npm run tests-only",
+		"tests-only": "node --harmony --es-staging test.js",
+		"posttest": "npm run security",
+		"coverage": "covert test.js",
+		"coverage-quiet": "covert test.js --quiet",
+		"lint": "npm run jscs && npm run eslint",
+		"jscs": "jscs *.js",
+		"eslint": "eslint test.js *.js",
+		"eccheck": "editorconfig-tools check *.js **/*.js > /dev/null",
+		"security": "nsp check"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/ljharb/is-regex.git"
+	},
+	"bugs": {
+		"url": "https://github.com/ljharb/is-regex/issues"
+	},
+	"homepage": "https://github.com/ljharb/is-regex",
+	"keywords": [
+		"regex",
+		"regexp",
+		"is",
+		"regular expression",
+		"regular",
+		"expression"
+	],
+	"dependencies": {
+		"has": "^1.0.1"
+	},
+	"devDependencies": {
+		"tape": "^4.6.3",
+		"covert": "^1.1.0",
+		"jscs": "^3.0.7",
+		"editorconfig-tools": "^0.1.1",
+		"nsp": "^2.6.2",
+		"eslint": "^3.15.0",
+		"@ljharb/eslint-config": "^11.0.0",
+		"semver": "^5.3.0",
+		"replace": "^0.3.0"
+	},
+	"testling": {
+		"files": "test.js",
+		"browsers": [
+			"iexplore/6.0..latest",
+			"firefox/3.0..6.0",
+			"firefox/15.0..latest",
+			"firefox/nightly",
+			"chrome/4.0..10.0",
+			"chrome/20.0..latest",
+			"chrome/canary",
+			"opera/10.0..12.0",
+			"opera/15.0..latest",
+			"opera/next",
+			"safari/4.0..latest",
+			"ipad/6.0..latest",
+			"iphone/6.0..latest",
+			"android-browser/4.2"
+		]
+	},
+	"engines": {
+		"node": ">= 0.4"
+	}
+
+,"_resolved": "https://registry.npmjs.org/is-regex/-/is-regex-1.0.4.tgz"
+,"_integrity": "sha1-VRdIm1RwkbCTDglWVM7SXul+lJE="
+,"_from": "is-regex@1.0.4"
+}

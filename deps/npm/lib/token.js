@@ -5,6 +5,7 @@ const npm = require('./npm.js')
 const figgyPudding = require('figgy-pudding')
 const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output.js')
+const otplease = require('./utils/otplease.js')
 const Table = require('cli-table3')
 const Bluebird = require('bluebird')
 const isCidrV4 = require('is-cidr').v4
@@ -80,6 +81,7 @@ function generateTokenIds (tokens, minLength) {
 }
 
 const TokenConfig = figgyPudding({
+  auth: {},
   registry: {},
   otp: {},
   cidr: {},
@@ -185,13 +187,8 @@ function rm (args) {
       }
     })
     return Bluebird.map(toRemove, (key) => {
-      return profile.removeToken(key, conf).catch((ex) => {
-        if (ex.code !== 'EOTP') throw ex
-        log.info('token', 'failed because revoking this token requires OTP')
-        return readUserInfo.otp().then((otp) => {
-          conf.auth.otp = otp
-          return profile.removeToken(key, conf)
-        })
+      return otplease(conf, conf => {
+        return profile.removeToken(key, conf)
       })
     })
   })).then(() => {
@@ -213,15 +210,9 @@ function create (args) {
   const validCIDR = validateCIDRList(cidr)
   return readUserInfo.password().then((password) => {
     log.info('token', 'creating')
-    return profile.createToken(password, readonly, validCIDR, conf).catch((ex) => {
-      if (ex.code !== 'EOTP') throw ex
-      log.info('token', 'failed because it requires OTP')
-      return readUserInfo.otp().then((otp) => {
-        conf.auth.otp = otp
-        log.info('token', 'creating with OTP')
-        return pulseTillDone.withPromise(profile.createToken(password, readonly, validCIDR, conf))
-      })
-    })
+    return pulseTillDone.withPromise(otplease(conf, conf => {
+      return profile.createToken(password, readonly, validCIDR, conf)
+    }))
   }).then((result) => {
     delete result.key
     delete result.updated

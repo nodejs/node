@@ -9,7 +9,7 @@ var common = require('../common-tap')
 
 // ignore-scripts/package.json has scripts that always exit with non-zero error
 // codes.
-var pkg = path.resolve(__dirname, 'ignore-scripts')
+var pkg = common.pkg
 
 var gypfile = 'bad_binding_file\n'
 var json = {

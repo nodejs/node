@@ -5,7 +5,7 @@ var fs = require('fs')
 var rimraf = require('rimraf')
 var path = require('path')
 
-var pkg = path.resolve(__dirname, 'nested-extraneous')
+var pkg = common.pkg
 var pj = {
   name: 'nested-extraneous',
   version: '1.2.3'

@@ -9,7 +9,7 @@ var test = require('tap').test
 
 var common = require('../common-tap')
 
-var pkg = path.resolve(__dirname, 'ls-depth-unmet')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg }
 

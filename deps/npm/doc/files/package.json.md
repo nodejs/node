@@ -648,7 +648,8 @@ If we define a package.json like this:
 we can obtain `awesome-web-framework-1.0.0.tgz` file by running `npm pack`.
 This file contains the dependencies `renderized` and `super-streams` which
 can be installed in a new project by executing `npm install
-awesome-web-framework-1.0.0.tgz`.
+awesome-web-framework-1.0.0.tgz`.  Note that the package names do not include
+any versions, as that information is specified in `dependencies`.
 
 If this is spelled `"bundleDependencies"`, then that is also honored.
 

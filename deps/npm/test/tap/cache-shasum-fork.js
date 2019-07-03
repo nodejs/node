@@ -14,7 +14,7 @@ var common = require('../common-tap.js')
 var forkPath = path.resolve(
   __dirname, '..', 'fixtures', 'forked-underscore-1.5.1.tgz'
 )
-var pkg = path.resolve(__dirname, 'cache-shasum-fork')
+var pkg = common.pkg
 var cache = path.join(pkg, 'cache')
 var server
 

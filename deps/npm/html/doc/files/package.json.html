@@ -462,7 +462,8 @@ array and executing <code>npm pack</code>.</p>
 }</code></pre><p>we can obtain <code>awesome-web-framework-1.0.0.tgz</code> file by running <code>npm pack</code>.
 This file contains the dependencies <code>renderized</code> and <code>super-streams</code> which
 can be installed in a new project by executing <code>npm install
-awesome-web-framework-1.0.0.tgz</code>.</p>
+awesome-web-framework-1.0.0.tgz</code>.  Note that the package names do not include
+any versions, as that information is specified in <code>dependencies</code>.</p>
 <p>If this is spelled <code>&quot;bundleDependencies&quot;</code>, then that is also honored.</p>
 <h2 id="optionaldependencies">optionalDependencies</h2>
 <p>If a dependency can be used, but you would like npm to proceed if it cannot be
@@ -580,5 +581,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@6.9.0</p>
+<p id="footer">package.json &mdash; npm@6.10.0</p>
 

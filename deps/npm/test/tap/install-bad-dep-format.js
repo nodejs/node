@@ -21,7 +21,7 @@ test('invalid url format returns appropriate error', function (t) {
   setup(json)
   common.npm(['install'], {}, function (err, code, stdout, stderr) {
     t.ifError(err, 'install ran without error')
-    t.equals(code, 1, 'inall exited with code 1')
+    t.equals(code, 1, 'install exited with code 1')
     t.match(stderr,
       /ERR.*Unsupported URL Type/,
       'Error should report that invalid url-style formats are used')
@@ -43,12 +43,12 @@ function cleanup () {
   process.chdir(osenv.tmpdir())
   var pkgs = [json]
   pkgs.forEach(function (json) {
-    rimraf.sync(path.resolve(__dirname, json.name))
+    rimraf.sync(path.resolve(common.pkg, json.name))
   })
 }
 
 function mkPkg (json) {
-  var pkgPath = path.resolve(__dirname, json.name)
+  var pkgPath = path.resolve(common.pkg, json.name)
   mkdirp.sync(pkgPath)
   fs.writeFileSync(
     path.join(pkgPath, 'package.json'),

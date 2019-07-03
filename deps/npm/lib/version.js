@@ -301,7 +301,7 @@ function _commit (version, localData, cb) {
     ...(signCommit ? ['-S', '-m'] : ['-m']),
     message
   ])
-  const flagForTag = signTag ? '-sm' : '-am'
+  const flagForTag = signTag ? '-sm' : '-m'
 
   stagePackageFiles(localData, options).then(() => {
     return git.exec(commitArgs, options)

@@ -7,7 +7,7 @@ var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var common = require('../common-tap.js')
 
-var base = path.join(__dirname, path.basename(__filename, '.js'))
+var base = common.pkg
 var installFrom = path.join(base, 'from')
 var installIn = path.join(base, 'in')
 

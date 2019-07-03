@@ -6,7 +6,7 @@ var join = require('path').join
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 
-var pkg = join(__dirname, 'scoped_package')
+var pkg = common.pkg
 var manifest = join(pkg, 'package.json')
 var tmp = join(pkg, 'tmp')
 var cache = join(pkg, 'cache')

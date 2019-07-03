@@ -9,7 +9,7 @@ var test = require('tap').test
 
 var npm = require('../../lib/npm.js')
 
-var pkg = path.resolve(__dirname, 'version-message-config')
+var pkg = common.pkg
 var cache = path.resolve(pkg, 'cache')
 var npmrc = path.resolve(pkg, '.npmrc')
 var packagePath = path.resolve(pkg, 'package.json')

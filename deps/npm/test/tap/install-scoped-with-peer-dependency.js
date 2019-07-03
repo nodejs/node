@@ -7,7 +7,7 @@ var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
-var pkg = path.join(__dirname, 'install-scoped-with-peer-dependency')
+var pkg = common.pkg
 var local = path.join(pkg, 'package')
 
 var EXEC_OPTS = { }

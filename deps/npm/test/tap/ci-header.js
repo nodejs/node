@@ -8,7 +8,7 @@ var Dir = Tacks.Dir
 var chain = require('slide').chain
 var common = require('../common-tap.js')
 
-var basedir = path.join(__dirname, path.basename(__filename, '.js'))
+var basedir = common.pkg
 var testdir = path.join(basedir, 'testdir')
 var cachedir = path.join(basedir, 'cache')
 var globaldir = path.join(basedir, 'global')

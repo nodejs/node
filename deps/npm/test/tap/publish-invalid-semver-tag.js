@@ -9,7 +9,7 @@ var mr = require('npm-registry-mock')
 
 var osenv = require('osenv')
 
-var PKG_DIR = path.resolve(__dirname, 'publish-invalid-semver-tag')
+var PKG_DIR = common.pkg
 var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
 
 var DEFAULT_PKG = {

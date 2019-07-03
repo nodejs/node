@@ -11,7 +11,7 @@ const test = require('tap').test
 
 const common = require('../common-tap.js')
 
-const pkg = path.join(__dirname, 'install-save-consistent-newlines')
+const pkg = common.pkg
 
 const EXEC_OPTS = { cwd: pkg }
 

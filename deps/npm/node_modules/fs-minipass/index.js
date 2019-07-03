@@ -6,7 +6,7 @@ const fs = require('fs')
 // for writev
 const binding = process.binding('fs')
 const writeBuffers = binding.writeBuffers
-const FSReqWrap = binding.FSReqWrap
+const FSReqWrap = binding.FSReqWrap || binding.FSReqCallback
 
 const _autoClose = Symbol('_autoClose')
 const _close = Symbol('_close')

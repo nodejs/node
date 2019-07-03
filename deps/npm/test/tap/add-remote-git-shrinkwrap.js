@@ -9,8 +9,8 @@ var test = require('tap').test
 var npm = require('../../lib/npm.js')
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'add-remote-git-shrinkwrap')
-var repo = resolve(__dirname, 'add-remote-git-shrinkwrap-repo')
+var pkg = common.pkg
+var repo = pkg + '-repo'
 
 var daemon
 var daemonPID
@@ -20,7 +20,7 @@ var pjParent = JSON.stringify({
   name: 'parent',
   version: '1.2.3',
   dependencies: {
-    'child': 'git://localhost:1234/child.git#master'
+    'child': 'git://localhost:' + common.gitPort + '/child.git#master'
   }
 }, null, 2) + '\n'
 
@@ -73,7 +73,7 @@ test('shrinkwrap gets correct _from and _resolved (#7121)', function (t) {
           t.notOk(stderr, 'no error output')
           var treeish = stdout.trim()
 
-          t.like(shrinkwrap, {dependencies: {child: {version: 'git://localhost:1234/child.git#' + treeish}}},
+          t.like(shrinkwrap, {dependencies: {child: {version: 'git://localhost:' + common.gitPort + '/child.git#' + treeish}}},
             'npm shrinkwrapped resolved correctly'
           )
 
@@ -114,7 +114,7 @@ function setup (cb) {
           '--export-all',
           '--base-path=.',
           '--reuseaddr',
-          '--port=1234'
+          '--port=' + common.gitPort
         ],
         {
           cwd: pkg,

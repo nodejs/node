@@ -1,6 +1,6 @@
 'use strict'
 
-require('../common-tap.js')
+const common = require('../common-tap.js')
 
 const getStream = require('get-stream')
 const mkdirp = require('mkdirp')
@@ -13,7 +13,7 @@ const {File} = Tacks
 
 const _createCacheEntryStream = require('../../lib/search/all-package-metadata.js')._createCacheEntryStream
 
-const PKG_DIR = path.resolve(__dirname, 'create-cache-entry-stream')
+const PKG_DIR = common.pkg
 const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
 
 function setup () {

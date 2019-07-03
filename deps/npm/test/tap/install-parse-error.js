@@ -1,12 +1,11 @@
 'use strict'
-var path = require('path')
 var test = require('tap').test
 var Tacks = require('tacks')
 var File = Tacks.File
 var Dir = Tacks.Dir
 var common = require('../common-tap.js')
 
-var testdir = path.join(__dirname, path.basename(__filename, '.js'))
+var testdir = common.pkg
 
 var fixture = new Tacks(Dir({
   'package.json': File(

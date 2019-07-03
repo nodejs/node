@@ -13,7 +13,7 @@ const which = require('which')
 const Dir = Tacks.Dir
 const File = Tacks.File
 
-const ROOT = path.join(__dirname, path.basename(__filename, '.js'))
+const ROOT = common.pkg
 const CACHE = path.join(ROOT, 'cache')
 const TMP = path.join(ROOT, 'tmp')
 const PREFIX = path.join(ROOT, 'global-prefix')

@@ -5,16 +5,17 @@ var test = require('tap').test
 var rimraf = require('rimraf')
 var fs = require('fs')
 var path = require('path')
-var fakeBrowser = path.join(__dirname, '_script.sh')
-var outFile = path.join(__dirname, '/_output')
-
-var opts = { cwd: __dirname }
+var fakeBrowser = path.join(common.pkg, '_script.sh')
+var outFile = path.join(common.pkg, '_output')
+var opts = { cwd: common.pkg }
+var mkdirp = require('mkdirp')
 
 common.pendIfWindows('This is trickier to convert without opening new shells')
 
 test('setup', function (t) {
+  mkdirp.sync(common.pkg)
   var s = '#!/usr/bin/env bash\n' +
-          'echo "$@" > ' + JSON.stringify(__dirname) + '/_output\n'
+          'echo "$@" > ' + JSON.stringify(common.pkg) + '/_output\n'
   fs.writeFileSync(fakeBrowser, s, 'ascii')
   fs.chmodSync(fakeBrowser, '0755')
   t.pass('made script')

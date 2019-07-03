@@ -54,8 +54,8 @@ function readStream (cache, integrity, opts) {
   opts = ReadOpts(opts)
   const stream = new PassThrough()
   withContentSri(cache, integrity, (cpath, sri) => {
-    return lstatAsync(cpath).then(stat => ({cpath, sri, stat}))
-  }).then(({cpath, sri, stat}) => {
+    return lstatAsync(cpath).then(stat => ({ cpath, sri, stat }))
+  }).then(({ cpath, sri, stat }) => {
     return pipe(
       fs.createReadStream(cpath),
       ssri.integrityStream({
@@ -95,7 +95,7 @@ module.exports.hasContent = hasContent
 function hasContent (cache, integrity) {
   if (!integrity) { return BB.resolve(false) }
   return withContentSri(cache, integrity, (cpath, sri) => {
-    return lstatAsync(cpath).then(stat => ({size: stat.size, sri, stat}))
+    return lstatAsync(cpath).then(stat => ({ size: stat.size, sri, stat }))
   }).catch(err => {
     if (err.code === 'ENOENT') { return false }
     if (err.code === 'EPERM') {
@@ -114,7 +114,7 @@ function hasContentSync (cache, integrity) {
   return withContentSriSync(cache, integrity, (cpath, sri) => {
     try {
       const stat = fs.lstatSync(cpath)
-      return {size: stat.size, sri, stat}
+      return { size: stat.size, sri, stat }
     } catch (err) {
       if (err.code === 'ENOENT') { return false }
       if (err.code === 'EPERM') {
@@ -141,12 +141,12 @@ function withContentSri (cache, integrity, fn) {
     } else {
       return BB.any(sri[sri.pickAlgorithm()].map(meta => {
         return withContentSri(cache, meta, fn)
-      }, {concurrency: 1}))
+      }, { concurrency: 1 }))
         .catch(err => {
           if ([].some.call(err, e => e.code === 'ENOENT')) {
             throw Object.assign(
               new Error('No matching content found for ' + sri.toString()),
-              {code: 'ENOENT'}
+              { code: 'ENOENT' }
             )
           } else {
             throw err[0]

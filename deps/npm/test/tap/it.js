@@ -10,7 +10,7 @@ var test = require('tap').test
 
 var common = require('../common-tap')
 
-var pkg = join(__dirname, 'run-script')
+var pkg = common.pkg
 var installed = join(pkg, 'node_modules', 'underscore', 'package.json')
 
 var json = {

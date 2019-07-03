@@ -107,7 +107,7 @@ function withTarballStream (spec, opts, streamHandler) {
               // Retry once if we have a cache, to clear up any weird conditions.
               // Don't retry network errors, though -- make-fetch-happen has already
               // taken care of making sure we're all set on that front.
-              if (opts.cache && err.code && !err.code.match(/^E\d{3}$/)) {
+              if (opts.cache && err.code && !String(err.code).match(/^E\d{3}$/)) {
                 if (err.code === 'EINTEGRITY' || err.code === 'Z_DATA_ERROR') {
                   opts.log.warn('tarball', `tarball data for ${spec} (${opts.integrity}) seems to be corrupted. Trying one more time.`)
                 }

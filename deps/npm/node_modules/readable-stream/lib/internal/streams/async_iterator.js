@@ -47,6 +47,11 @@ function onReadable(iter) {
 function wrapForNext(lastPromise, iter) {
   return function (resolve, reject) {
     lastPromise.then(function () {
+      if (iter[kEnded]) {
+        resolve(createIterResult(undefined, true));
+        return;
+      }
+
       iter[kHandlePromise](resolve, reject);
     }, reject);
   };
@@ -70,7 +75,7 @@ var ReadableStreamAsyncIteratorPrototype = Object.setPrototypeOf((_Object$setPro
     }
 
     if (this[kEnded]) {
-      return Promise.resolve(createIterResult(null, true));
+      return Promise.resolve(createIterResult(undefined, true));
     }
 
     if (this[kStream].destroyed) {
@@ -83,7 +88,7 @@ var ReadableStreamAsyncIteratorPrototype = Object.setPrototypeOf((_Object$setPro
           if (_this[kError]) {
             reject(_this[kError]);
           } else {
-            resolve(createIterResult(null, true));
+            resolve(createIterResult(undefined, true));
           }
         });
       });
@@ -128,7 +133,7 @@ var ReadableStreamAsyncIteratorPrototype = Object.setPrototypeOf((_Object$setPro
         return;
       }
 
-      resolve(createIterResult(null, true));
+      resolve(createIterResult(undefined, true));
     });
   });
 }), _Object$setPrototypeO), AsyncIteratorPrototype);
@@ -151,9 +156,6 @@ var createReadableStreamAsyncIterator = function createReadableStreamAsyncIterat
   }), _defineProperty(_Object$create, kEnded, {
     value: stream._readableState.endEmitted,
     writable: true
-  }), _defineProperty(_Object$create, kLastPromise, {
-    value: null,
-    writable: true
   }), _defineProperty(_Object$create, kHandlePromise, {
     value: function value(resolve, reject) {
       var data = iterator[kStream].read();
@@ -170,6 +172,7 @@ var createReadableStreamAsyncIterator = function createReadableStreamAsyncIterat
     },
     writable: true
   }), _Object$create));
+  iterator[kLastPromise] = null;
   finished(stream, function (err) {
     if (err && err.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
       var reject = iterator[kLastReject]; // reject if we are waiting for data in the Promise
@@ -192,7 +195,7 @@ var createReadableStreamAsyncIterator = function createReadableStreamAsyncIterat
       iterator[kLastPromise] = null;
       iterator[kLastResolve] = null;
       iterator[kLastReject] = null;
-      resolve(createIterResult(null, true));
+      resolve(createIterResult(undefined, true));
     }
 
     iterator[kEnded] = true;

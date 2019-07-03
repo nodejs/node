@@ -11,7 +11,7 @@ test('cache add', function (t) {
         'cache',
         'add',
         'superfoo',
-        '--registry=http://localhost:1337/'
+        '--registry=http://localhost:' + common.port + '/'
       ],
       {},
       function (er, c, so, se) {
@@ -31,7 +31,7 @@ function setup (cb) {
     res.statusCode = 404
     res.end('{"error":"not_found"}\n')
   })
-  s.listen(1337, function () {
+  s.listen(common.port, function () {
     cb(null, s)
   })
 }

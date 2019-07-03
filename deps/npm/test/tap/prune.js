@@ -10,7 +10,7 @@ var test = require('tap').test
 var common = require('../common-tap')
 var server
 
-var pkg = path.resolve(__dirname, path.basename(__filename, '.js'))
+var pkg = common.pkg
 var cache = path.resolve(pkg, 'cache')
 
 var json = {

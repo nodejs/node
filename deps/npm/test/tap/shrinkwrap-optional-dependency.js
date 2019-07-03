@@ -10,7 +10,7 @@ var test = require('tap').test
 var common = require('../common-tap.js')
 var npm = require('../../')
 
-var pkg = path.resolve(__dirname, 'shrinkwrap-optional-dependency')
+var pkg = common.pkg
 
 test('shrinkwrap does not fail on missing optional dependency', function (t) {
   t.plan(1)

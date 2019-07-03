@@ -290,7 +290,7 @@ one exists.
 
 * `key` - Key the entry was looked up under. Matches the `key` argument.
 * `integrity` - [Subresource Integrity hash](#integrity) for the content this entry refers to.
-* `path` - Filesystem path relative to `cache` argument where content is stored.
+* `path` - Filesystem path where content is stored, joined with `cache` argument.
 * `time` - Timestamp the entry was first added on.
 * `metadata` - User-assigned metadata associated with the entry/content.
 

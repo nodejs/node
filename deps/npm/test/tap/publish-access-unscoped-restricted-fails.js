@@ -6,7 +6,7 @@ var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, 'publish-access-unscoped')
+var pkg = common.pkg
 
 test('setup', function (t) {
   mkdirp.sync(pkg)

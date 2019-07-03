@@ -12,7 +12,7 @@ const test = require('tap').test
 
 const Dir = Tacks.Dir
 const File = Tacks.File
-const testDir = path.join(__dirname, 'ci')
+const testDir = common.pkg
 
 const EXEC_OPTS = { cwd: testDir }
 
@@ -44,25 +44,27 @@ test('setup', () => {
   const fixture = new Tacks(Dir({
     'package.json': File(PKG)
   }))
-  fixture.create(testDir)
-  return mr({port: common.port})
+  return rimraf(testDir).then(() => {
+    fixture.create(testDir)
+    return mr({port: common.port})
+  })
     .then((server) => {
       SERVER = server
       return common.npm([
         'install',
         '--registry', common.registry
       ], EXEC_OPTS)
-        .then(() => fs.readFileAsync(
-          path.join(testDir, 'package-lock.json'),
-          'utf8')
-        )
-        .then((lock) => {
-          RAW_LOCKFILE = lock
-        })
-        .then(() => common.npm(['ls', '--json'], EXEC_OPTS))
-        .then((ret) => {
-          TREE = scrubFrom(JSON.parse(ret[1]))
-        })
+    })
+    .then(() => fs.readFileAsync(
+      path.join(testDir, 'package-lock.json'),
+      'utf8')
+    )
+    .then((lock) => {
+      RAW_LOCKFILE = lock
+    })
+    .then(() => common.npm(['ls', '--json'], EXEC_OPTS))
+    .then((ret) => {
+      TREE = scrubFrom(JSON.parse(ret[1]))
     })
 })
 

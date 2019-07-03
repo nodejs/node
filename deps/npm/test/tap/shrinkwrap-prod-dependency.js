@@ -10,7 +10,7 @@ var test = require('tap').test
 var npm = require('../../')
 
 var common = require('../common-tap.js')
-var pkg = path.resolve(__dirname, 'shrinkwrap-prod-dependency')
+var pkg = common.pkg
 
 test("shrinkwrap --dev doesn't strip out prod dependencies", function (t) {
   t.plan(1)

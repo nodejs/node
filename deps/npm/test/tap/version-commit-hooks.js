@@ -3,7 +3,8 @@ var path = require('path')
 var osenv = require('osenv')
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
-var pkg = path.resolve(__dirname, 'version-commit-hooks')
+const common = require('../common-tap.js')
+var pkg = common.pkg
 
 var test = require('tap').test
 var npm = require('../../')

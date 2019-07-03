@@ -7,8 +7,8 @@ var mr = require('npm-registry-mock')
 var test = require('tap').test
 var common = require('../common-tap.js')
 
-var opts = { cwd: __dirname }
-var pkg = path.resolve(__dirname, 'adduser-saml')
+var opts = { cwd: common.pkg }
+var pkg = common.pkg
 var fakeBrowser = path.resolve(pkg, '_script.sh')
 var configfile = path.resolve(pkg, '_npmrc')
 var outfile = path.resolve(pkg, '_outfile')

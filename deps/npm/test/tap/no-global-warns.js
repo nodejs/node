@@ -7,7 +7,7 @@ var rimraf = require('rimraf')
 var writeFileSync = require('fs').writeFileSync
 var common = require('../common-tap.js')
 
-var base = path.join(__dirname, path.basename(__filename, '.js'))
+var base = common.pkg
 var mockGlobal = path.join(base, 'global')
 var toInstall = path.join(base, 'to-install')
 

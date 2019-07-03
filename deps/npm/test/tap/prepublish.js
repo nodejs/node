@@ -6,7 +6,7 @@ var join = require('path').join
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 
-var pkg = join(__dirname, 'prepublish_package')
+var pkg = common.pkg
 var tmp = join(pkg, 'tmp')
 var cache = join(pkg, 'cache')
 

@@ -8,7 +8,7 @@ const path = require('path')
 const rimraf = require('rimraf')
 const test = require('tap').test
 
-const testdir = path.join(__dirname, path.basename(__filename, '.js'))
+const testdir = common.pkg
 
 const moduleName = 'xyzzy-wibble'
 const testModule = {

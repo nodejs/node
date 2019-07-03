@@ -9,7 +9,7 @@ var test = require('tap').test
 
 var common = require('../common-tap')
 
-var base = path.resolve(__dirname, path.basename(__filename, '.js'))
+var base = common.pkg
 var installPath = path.resolve(base, 'install')
 var installBin = path.resolve(installPath, 'node_modules', '.bin')
 var packageApath = path.resolve(base, 'packageA')

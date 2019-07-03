@@ -9,7 +9,7 @@ var common = require('../common-tap.js')
 var npm = require('../../')
 
 // config
-var pkg = path.resolve(__dirname, 'outdated-git')
+var pkg = common.pkg
 var cache = path.resolve(pkg, 'cache')
 var json = {
   name: 'outdated-git',

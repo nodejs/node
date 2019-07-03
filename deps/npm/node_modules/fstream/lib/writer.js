@@ -147,7 +147,7 @@ Writer.prototype._stat = function (current) {
 
     // if it's a type change, then we need to clobber or error.
     // if it's not a type change, then let the impl take care of it.
-    if (currentType !== self.type) {
+    if (currentType !== self.type || self.type === 'File' && current.nlink > 1) {
       return rimraf(self._path, function (er) {
         if (er) return self.error(er)
         self._old = null

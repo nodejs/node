@@ -38,6 +38,7 @@ function Parse () {
   me._stream = new BlockStream(512)
   me.position = 0
   me._ended = false
+  me._hardLinks = {}
 
   me._stream.on("error", function (e) {
     me.emit("error", e)
@@ -251,6 +252,11 @@ Parse.prototype._startEntry = function (c) {
   if (onend) entry.on("end", onend)
 
   this._entry = entry
+
+  if (entry.type === "Link") {
+    this._hardLinks[entry.path] = entry
+  }
+
   var me = this
 
   entry.on("pause", function () {

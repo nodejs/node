@@ -4,7 +4,7 @@ var common = require('../common-tap.js')
 var path = require('path')
 var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
-var basepath = path.resolve(__dirname, path.basename(__filename, '.js'))
+var basepath = common.pkg
 var fixturepath = path.resolve(basepath, 'npm-test-platform-all')
 var modulepath = path.resolve(basepath, 'node_modules')
 var Tacks = require('tacks')
@@ -33,6 +33,7 @@ var fixture = new Tacks(
       ],
       cpu: [
         'arm',
+        'arm64',
         'mips',
         'ia32',
         'x64',

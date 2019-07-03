@@ -10,7 +10,7 @@ var test = require('tap').test
 var common = require('../common-tap.js')
 var npm = require('../../')
 
-var pkg = path.resolve(__dirname, 'shrinkwrap-optional-dependency')
+var pkg = common.pkg
 
 test('shrinkwrap adds optional property when optional dependency', function (t) {
   t.plan(1)
@@ -58,7 +58,7 @@ var desired = {
     },
     'underscore': {
       version: '1.3.3',
-      resolved: 'http://localhost:1337/underscore/-/underscore-1.3.3.tgz',
+      resolved: 'http://localhost:' + common.port + '/underscore/-/underscore-1.3.3.tgz',
       optional: true,
       integrity: 'sha1-R6xTaD2vgyv6lS4XdEF9pHgXrkI='
     }

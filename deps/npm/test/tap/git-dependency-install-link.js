@@ -11,9 +11,9 @@ var mr = require('npm-registry-mock')
 var npm = require('../../lib/npm.js')
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'git-dependency-install-link')
-var repo = resolve(__dirname, 'git-dependency-install-link-repo')
-var prefix = resolve(__dirname, 'git-dependency-install-link-prefix')
+var pkg = common.pkg
+var repo = pkg + '-repo'
+var prefix = pkg + '-prefix'
 var cache = resolve(pkg, 'cache')
 
 var daemon
@@ -32,7 +32,7 @@ var pjParent = JSON.stringify({
   name: 'parent',
   version: '1.2.3',
   dependencies: {
-    'child': 'git://localhost:1234/child.git'
+    'child': 'git://localhost:' + common.gitPort + '/child.git'
   }
 }, null, 2) + '\n'
 
@@ -139,7 +139,7 @@ function setup (cb) {
           '--export-all',
           '--base-path=.',
           '--reuseaddr',
-          '--port=1234'
+          '--port=' + common.gitPort
         ],
         {
           cwd: pkg,

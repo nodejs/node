@@ -14,7 +14,7 @@ const {File} = Tacks
 
 const _createEntryStream = require('../../lib/search/all-package-metadata.js')._createEntryStream
 
-const PKG_DIR = path.resolve(__dirname, 'create-entry-update-stream')
+const PKG_DIR = common.pkg
 const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
 
 let server

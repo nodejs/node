@@ -9,7 +9,7 @@ var common = require('../common-tap.js')
 var npm = require('../../lib/npm.js')
 var tar = require('tar')
 var mkdirp = require('mkdirp')
-var testdir = path.join(__dirname, path.basename(__filename, '.js'))
+var testdir = common.pkg
 var packed = path.join(testdir, 'packed')
 
 var fixture = new Tacks(

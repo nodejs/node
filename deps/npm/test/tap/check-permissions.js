@@ -8,7 +8,8 @@ var writableFallback = require('../../lib/install/writable.js').fsOpenImplementa
 var exists = require('../../lib/install/exists.js').fsAccessImplementation
 var existsFallback = require('../../lib/install/exists.js').fsStatImplementation
 
-var testBase = path.resolve(__dirname, 'check-permissions')
+const common = require('../common-tap.js')
+var testBase = common.pkg
 var existingDir = path.resolve(testBase, 'exists')
 var nonExistingDir = path.resolve(testBase, 'does-not-exist')
 var writableDir = path.resolve(testBase, 'writable')

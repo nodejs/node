@@ -10,7 +10,7 @@ var test = require('tap').test
 var common = require('../common-tap.js')
 var server
 
-var pkg = path.join(__dirname, 'install-save-prefix')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg }
 

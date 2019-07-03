@@ -9,12 +9,12 @@ var test = require('tap').test
 var npm = require('../../lib/npm.js')
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'add-remote-git-submodule')
-var repos = resolve(__dirname, 'add-remote-git-submodule-repos')
+var pkg = common.pkg
+var repos = pkg + '-repos'
 var subwt = resolve(repos, 'subwt')
 var topwt = resolve(repos, 'topwt')
-var suburl = 'git://localhost:1234/sub.git'
-var topurl = 'git://localhost:1234/top.git'
+var suburl = 'git://localhost:' + common.gitPort + '/sub.git'
+var topurl = 'git://localhost:' + common.gitPort + '/top.git'
 
 var daemon
 var daemonPID
@@ -97,7 +97,7 @@ function setup (cb) {
           '--export-all',
           '--base-path=.',
           '--reuseaddr',
-          '--port=1234'
+          '--port=' + common.gitPort
         ],
         {
           cwd: repos,

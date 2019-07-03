@@ -1,9 +1,9 @@
 /* eslint-disable camelcase */
 var test = require('tap').test
 var assert = require('assert')
-var path = require('path')
 var requireInject = require('require-inject')
-var cache_dir = path.resolve(__dirname, 'correct-mkdir')
+const common = require('../common-tap.js')
+var cache_dir = common.pkg
 
 test('correct-mkdir: no race conditions', function (t) {
   var mock_fs = {}

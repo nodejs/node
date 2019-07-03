@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="9.5.1"></a>
+## [9.5.1](https://github.com/zkat/pacote/compare/v9.5.0...v9.5.1) (2019-06-17)
+
+
+### Bug Fixes
+
+* **audit:** npm audit fix ([127a28b](https://github.com/zkat/pacote/commit/127a28b))
+* **errors:** Fix "TypeError: err.code.match is not a function" error ([#170](https://github.com/zkat/pacote/issues/170)) ([92f5e4c](https://github.com/zkat/pacote/commit/92f5e4c))
+* **git:** limit retry times, avoid unlimited retries ([#172](https://github.com/zkat/pacote/issues/172)) ([8bbd051](https://github.com/zkat/pacote/commit/8bbd051))
+
+
+
 <a name="9.5.0"></a>
 # [9.5.0](https://github.com/zkat/pacote/compare/v9.4.1...v9.5.0) (2019-02-18)
 

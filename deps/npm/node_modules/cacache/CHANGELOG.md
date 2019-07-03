@@ -1,6 +1,19 @@
-# Change Log
+# Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+### [11.3.3](https://github.com/zkat/cacache/compare/v11.3.2...v11.3.3) (2019-06-17)
+
+
+### Bug Fixes
+
+* **audit:** npm audit fix ([200a6d5](https://github.com/zkat/cacache/commit/200a6d5))
+* **config:** Add ssri config 'error' option ([#146](https://github.com/zkat/cacache/issues/146)) ([47de8f5](https://github.com/zkat/cacache/commit/47de8f5))
+* **deps:** npm audit fix ([481a7dc](https://github.com/zkat/cacache/commit/481a7dc))
+* **standard:** standard --fix ([7799149](https://github.com/zkat/cacache/commit/7799149))
+* **write:** avoid another cb never called situation ([5156561](https://github.com/zkat/cacache/commit/5156561))
+
+
 
 <a name="11.3.2"></a>
 ## [11.3.2](https://github.com/zkat/cacache/compare/v11.3.1...v11.3.2) (2018-12-21)

@@ -8,8 +8,8 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'install-bad-man')
-var target = resolve(__dirname, 'install-bad-man-target')
+var pkg = common.pkg
+var target = pkg + '-target'
 
 var EXEC_OPTS = {
   cwd: target

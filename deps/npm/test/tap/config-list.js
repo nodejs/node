@@ -5,7 +5,7 @@ var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'config-list')
+var pkg = common.pkg
 var opts = { cwd: pkg, env: common.emptyEnv() }
 var npmrc = path.resolve(pkg, '.npmrc')
 var npmrcContents = `

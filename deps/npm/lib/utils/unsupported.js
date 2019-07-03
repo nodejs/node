@@ -8,7 +8,7 @@ var supportedNode = [
   {ver: '11', min: '11.0.0'},
   {ver: '12', min: '12.0.0'}
 ]
-var knownBroken = '<4.7.0'
+var knownBroken = '<6.0.0'
 
 var checkVersion = exports.checkVersion = function (version) {
   var versionNoPrerelease = version.replace(/-.*$/, '')

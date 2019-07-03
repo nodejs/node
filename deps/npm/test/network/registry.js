@@ -2,7 +2,7 @@
 // This verifies that the server-side stuff still works.
 
 var common = require('../common-tap')
-var test = require('tap').test
+var t = require('tap')
 
 var npmExec = require.resolve('../../bin/npm-cli.js')
 var path = require('path')
@@ -17,16 +17,15 @@ if (v[0] === 0 && v[1] < 10) {
     process.versions.node
   )
 } else {
-  which('couchdb', function (er) {
-    if (er) {
-      console.error('WARNING: need couch to run test: ' + er.message)
-    } else {
-      runTests()
-    }
-  })
+  try {
+    which.sync('couchdb')
+    t.test(runTests)
+  } catch (er) {
+    console.error('WARNING: need couch to run test: ' + er.message)
+  }
 }
 
-function runTests () {
+function runTests (t) {
   var env = Object.assign({ TAP: 1 }, process.env)
   env.npm = npmExec
   // TODO: fix tap and / or nyc to handle nested invocations properly
@@ -39,10 +38,8 @@ function runTests () {
   common.npm(['install'], opts, function (err, code) {
     if (err) { throw err }
     if (code) {
-      return test('need install to work', function (t) {
-        t.fail('install failed with: ' + code)
-        t.end()
-      })
+      t.fail('install failed with: ' + code)
+      return t.end()
     } else {
       opts = {
         cwd: ca,
@@ -52,10 +49,8 @@ function runTests () {
       common.npm(['test', '--', '-Rtap', '--no-coverage'], opts, function (err, code) {
         if (err) { throw err }
         if (code) {
-          return test('need test to work', function (t) {
-            t.fail('test failed with: ' + code)
-            t.end()
-          })
+          t.fail('test failed with: ' + code)
+          return t.end()
         }
         opts = {
           cwd: ca,
@@ -63,8 +58,9 @@ function runTests () {
           stdio: 'inherit'
         }
         common.npm(['prune', '--production'], opts, function (err, code) {
-          if (err) { throw err }
-          process.exit(code || 0)
+          t.ifError(err)
+          t.equal(code, 0)
+          return t.end()
         })
       })
     }

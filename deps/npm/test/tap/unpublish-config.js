@@ -7,10 +7,9 @@ var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
-var pkg = path.join(__dirname, 'npm-test-unpublish-config')
-var fixturePath = path.join(pkg, 'fixture_npmrc')
-
 var common = require('../common-tap.js')
+var pkg = common.pkg
+var fixturePath = path.join(pkg, 'fixture_npmrc')
 
 var json = {
   name: 'npm-test-unpublish-config',
@@ -27,7 +26,7 @@ test('setup', function (t) {
   )
   fs.writeFileSync(
     fixturePath,
-    '//localhost:1337/:_authToken = beeeeeeeeeeeeef\n' +
+    '//localhost:' + common.port + '/:_authToken = beeeeeeeeeeeeef\n' +
       'registry = http://lvh.me:4321/registry/path\n'
   )
 

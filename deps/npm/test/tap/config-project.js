@@ -3,7 +3,7 @@ var path = require('path')
 var fix = path.resolve(__dirname, '..', 'fixtures', 'config')
 var projectRc = path.resolve(fix, '.npmrc')
 var npmconf = require('../../lib/config/core.js')
-var common = require('./00-config-setup.js')
+var common = require('../common-config.js')
 
 var projectData = { just: 'testing' }
 

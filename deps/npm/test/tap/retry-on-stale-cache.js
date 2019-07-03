@@ -7,7 +7,7 @@ var Tacks = require('tacks')
 var Dir = Tacks.Dir
 var File = Tacks.File
 
-var workdir = path.join(__dirname, path.basename(__filename, '.js'))
+var workdir = common.pkg
 var cachedir = path.join(workdir, 'cache')
 var modulesdir = path.join(workdir, 'modules')
 var oldModule = path.join(modulesdir, 'good-night-0.1.0.tgz')

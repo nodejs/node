@@ -2,7 +2,6 @@
 // if 'npm init' is interrupted with ^C, don't report
 // 'init written successfully'
 var test = require('tap').test
-var path = require('path')
 var osenv = require('osenv')
 var rimraf = require('rimraf')
 var npmlog = require('npmlog')
@@ -10,7 +9,8 @@ var requireInject = require('require-inject')
 
 var npm = require('../../lib/npm.js')
 
-var PKG_DIR = path.resolve(__dirname, 'init-interrupt')
+const common = require('../common-tap.js')
+var PKG_DIR = common.pkg
 
 test('setup', function (t) {
   cleanup()

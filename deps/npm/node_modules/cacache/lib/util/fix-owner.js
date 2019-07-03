@@ -27,7 +27,7 @@ function fixOwner (filepath, uid, gid) {
       filepath,
       typeof uid === 'number' ? uid : process.getuid(),
       typeof gid === 'number' ? gid : process.getgid()
-    ).catch({code: 'ENOENT'}, () => null)
+    ).catch({ code: 'ENOENT' }, () => null)
   )
 }
 
@@ -65,7 +65,7 @@ function mkdirfix (p, uid, gid, cb) {
     if (made) {
       return fixOwner(made, uid, gid).then(() => made)
     }
-  }).catch({code: 'EEXIST'}, () => {
+  }).catch({ code: 'EEXIST' }, () => {
     // There's a race in mkdirp!
     return fixOwner(p, uid, gid).then(() => null)
   })

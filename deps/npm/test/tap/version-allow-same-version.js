@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 var npm = require('../../')
-var pkg = path.resolve(__dirname, 'version-allow-same-version')
+var pkg = common.pkg
 var cache = path.resolve(pkg, 'cache')
 var npmrc = path.resolve(pkg, './.npmrc')
 var configContents = 'sign-git-tag=false\n'

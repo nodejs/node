@@ -11,7 +11,7 @@ var test = require('tap').test
 var common = require('../common-tap.js')
 var server
 
-var pkg = path.resolve(__dirname, 'circular-dep')
+var pkg = common.pkg
 var minimist = path.join(pkg, 'minimist')
 
 var EXEC_OPTS = {

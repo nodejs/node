@@ -7,8 +7,8 @@ var mr = require('npm-registry-mock')
 var test = require('tap').test
 var common = require('../common-tap.js')
 
-var opts = { cwd: __dirname }
-var pkg = path.resolve(__dirname, 'adduser-legacy-auth')
+var opts = { cwd: common.pkg }
+var pkg = common.pkg
 var outfile = path.resolve(pkg, '_npmrc')
 
 var contents = '_auth=' + Buffer.from('u:x').toString('base64') + '\n' +
@@ -42,6 +42,7 @@ function mocks (server) {
 }
 
 test('setup', function (t) {
+  rimraf.sync(pkg)
   mkdirp(pkg, function (er) {
     t.ifError(er, pkg + ' made successfully')
 
@@ -65,8 +66,8 @@ test('npm login', function (t) {
       opts,
       function (err, code, stdout, stderr) {
         if (err) throw err
-        t.is(code, 0, 'exited OK')
         t.is(stderr, '', 'no error output')
+        t.is(code, 0, 'exited OK')
         var config = fs.readFileSync(outfile, 'utf8')
         t.like(config, /:always-auth=false/, 'always-auth is scoped and false (by default)')
         s.close()

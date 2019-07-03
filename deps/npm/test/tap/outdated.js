@@ -10,7 +10,7 @@ var npm = require('../../')
 var common = require('../common-tap.js')
 
 // config
-var pkg = path.resolve(__dirname, 'outdated')
+var pkg = common.pkg
 var cache = path.resolve(pkg, 'cache')
 var originalLog
 

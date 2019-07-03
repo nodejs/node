@@ -10,7 +10,8 @@ var requireInject = require('require-inject')
 
 var npm = require('../../lib/npm.js')
 
-var PKG_DIR = path.resolve(__dirname, 'build-already-built')
+const common = require('../common-tap.js')
+var PKG_DIR = common.pkg
 var fakePkg = 'foo'
 
 test('setup', function (t) {

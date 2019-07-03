@@ -14,7 +14,7 @@ const File = Tacks.File
 
 const common = require('../common-tap.js')
 
-const PKG_DIR = path.resolve(__dirname, 'search')
+const PKG_DIR = common.pkg
 const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
 const cacheBase = cacheFile(CACHE_DIR)(common.registry + '/-/all')
 const cachePath = path.join(cacheBase, '.cache.json')

@@ -287,7 +287,7 @@ entrada si existe.
 
 * `key` - Clave de la entrada. Igual al argumento `clave`.
 * `integrity` - [hacheo de Subresource Integrity](#integrity) del contenido al que se refiere esta entrada.
-* `path` - Dirección del fichero de datos almacenados, relativa al argumento `cache`.
+* `path` - Dirección del fichero de datos almacenados, unida al argumento `cache`.
 * `time` - Hora de creación de la entrada
 * `metadata` - Metadatos asignados a esta entrada por el usuario
 

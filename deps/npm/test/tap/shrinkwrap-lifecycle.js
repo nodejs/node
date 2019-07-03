@@ -7,7 +7,7 @@ var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
-var pkg = path.resolve(__dirname, 'shrinkwrap-lifecycle')
+var pkg = common.pkg
 
 test('npm shrinkwrap execution order', function (t) {
   setup()

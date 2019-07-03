@@ -6,12 +6,17 @@ var requireInject = require('require-inject')
 var osenv = require('osenv')
 var npm = require('../../lib/npm.js')
 
+// XXX update this when rpt's realpath.js is extracted out
+var rptRealpath = require.resolve('read-package-tree/realpath.js')
+
+const common = require('../common-tap.js')
+const pkg = common.pkg
 var packages = {
-  test: {package: {name: 'test'}, path: __dirname, children: ['abc', 'def', 'ghi', 'jkl']},
-  abc: {package: {name: 'abc'}, path: path.join(__dirname, 'node_modules', 'abc')},
-  def: {package: {name: 'def'}, path: path.join(__dirname, 'node_modules', 'def')},
-  ghi: {package: {name: 'ghi'}, path: path.join(__dirname, 'node_modules', 'ghi')},
-  jkl: {package: {name: 'jkl'}, path: path.join(__dirname, 'node_modules', 'jkl')}
+  test: {package: {name: 'test'}, path: pkg, children: ['abc', 'def', 'ghi', 'jkl']},
+  abc: {package: {name: 'abc'}, path: path.join(pkg, 'node_modules', 'abc')},
+  def: {package: {name: 'def'}, path: path.join(pkg, 'node_modules', 'def')},
+  ghi: {package: {name: 'ghi'}, path: path.join(pkg, 'node_modules', 'ghi')},
+  jkl: {package: {name: 'jkl'}, path: path.join(pkg, 'node_modules', 'jkl')}
 }
 var dirs = {}
 var files = {}
@@ -39,6 +44,8 @@ mockFs.realpath = function (dir, cb) {
   return cb(null, dir)
 }
 
+const mockRptRealpath = path => Promise.resolve(path)
+
 test('setup', function (t) {
   npm.load(function () {
     t.pass('npm loaded')
@@ -52,7 +59,8 @@ test('installer', function (t) {
     'fs': mockFs,
     'readdir-scoped-modules': mockReaddir,
     'read-package-json': mockReadPackageJson,
-    'mkdirp': function (path, cb) { cb() }
+    'mkdirp': function (path, cb) { cb() },
+    [rptRealpath]: mockRptRealpath
   })
 
   var Installer = installer.Installer
@@ -67,7 +75,7 @@ test('installer', function (t) {
     }
   }
 
-  var inst = new TestInstaller(__dirname, false, ['def', 'abc'])
+  var inst = new TestInstaller(pkg, false, ['def', 'abc'])
   inst.loadCurrentTree(function () {
     var kids = inst.currentTree.children.map(function (child) { return child.package.name })
     t.isDeeply(kids, ['abc', 'def'])
@@ -81,7 +89,8 @@ test('uninstaller', function (t) {
     'fs': mockFs,
     'readdir-scoped-modules': mockReaddir,
     'read-package-json': mockReadPackageJson,
-    'mkdirp': function (path, cb) { cb() }
+    'mkdirp': function (path, cb) { cb() },
+    [rptRealpath]: mockRptRealpath
   })
 
   var Uninstaller = uninstaller.Uninstaller
@@ -92,7 +101,7 @@ test('uninstaller', function (t) {
     }
   }
 
-  var uninst = new TestUninstaller(__dirname, false, ['ghi', 'jkl'])
+  var uninst = new TestUninstaller(pkg, false, ['ghi', 'jkl'])
   uninst.loadCurrentTree(function () {
     var kids = uninst.currentTree.children.map(function (child) { return child.package.name })
     t.isDeeply(kids, ['ghi', 'jkl'])

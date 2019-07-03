@@ -12,7 +12,7 @@ const ssri = require('ssri')
 //
 module.exports = contentPath
 function contentPath (cache, integrity) {
-  const sri = ssri.parse(integrity, {single: true})
+  const sri = ssri.parse(integrity, { single: true })
   // contentPath is the *strongest* algo given
   return path.join.apply(path, [
     contentDir(cache),

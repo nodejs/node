@@ -11,7 +11,7 @@ var test = require('tap').test
 var common = require('../common-tap.js')
 var toNerfDart = require('../../lib/config/nerf-dart.js')
 
-var pkg = resolve(__dirname, 'install-bearer-check')
+var pkg = common.pkg
 var outfile = resolve(pkg, '_npmrc')
 var modules = resolve(pkg, 'node_modules')
 var tarballPath = '/scoped-underscore/-/scoped-underscore-1.3.1.tgz'

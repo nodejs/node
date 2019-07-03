@@ -10,7 +10,7 @@ var tmpdir = require('osenv').tmpdir
 
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'ls-l-depth-0')
+var pkg = common.pkg
 var dep = resolve(pkg, 'deps', 'glock')
 var modules = resolve(pkg, 'node_modules')
 

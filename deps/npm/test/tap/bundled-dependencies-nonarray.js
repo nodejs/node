@@ -9,7 +9,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var dir = path.resolve(__dirname, path.basename(__filename, '.js'))
+var dir = common.pkg
 var pkg = path.resolve(dir, 'pkg-with-bundled')
 var dep = path.resolve(dir, 'a-bundled-dep')
 

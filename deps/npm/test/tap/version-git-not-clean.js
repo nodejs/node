@@ -9,7 +9,7 @@ var mkdirp = require('mkdirp')
 var which = require('which')
 var spawn = require('child_process').spawn
 
-var pkg = path.resolve(__dirname, 'version-git-not-clean')
+var pkg = common.pkg
 var cache = path.resolve(pkg, 'cache')
 
 test('npm version <semver> with working directory not clean', function (t) {

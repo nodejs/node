@@ -18,8 +18,8 @@ var json = {
   name: 'peer-deps-invalid',
   version: '0.0.0',
   dependencies: {
-    'npm-test-peer-deps-file': 'http://localhost:1337/ok.js',
-    'npm-test-peer-deps-file-invalid': 'http://localhost:1337/invalid.js'
+    'npm-test-peer-deps-file': 'http://localhost:' + common.port + '/ok.js',
+    'npm-test-peer-deps-file-invalid': 'http://localhost:' + common.port + '/invalid.js'
   }
 }
 

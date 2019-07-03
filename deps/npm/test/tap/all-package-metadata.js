@@ -15,7 +15,7 @@ const File = Tacks.File
 
 const allPackageMetadata = require('../../lib/search/all-package-metadata.js')
 
-const PKG_DIR = path.resolve(__dirname, path.basename(__filename, '.js'), 'update-index')
+const PKG_DIR = path.resolve(common.pkg, 'update-index')
 const CACHE_DIR = path.resolve(PKG_DIR, 'cache', '_cacache')
 let cacheBase
 let cachePath

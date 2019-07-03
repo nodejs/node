@@ -10,7 +10,7 @@ const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 const requireInject = require('require-inject')
 
-const pkg = path.resolve(__dirname, 'version-no-git')
+const pkg = common.pkg
 const cache = path.resolve(pkg, 'cache')
 const gitDir = path.resolve(pkg, '.git')
 

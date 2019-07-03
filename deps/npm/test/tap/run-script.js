@@ -7,7 +7,7 @@ var rimraf = require('rimraf')
 
 var common = require('../common-tap')
 
-var pkg = path.resolve(__dirname, 'run-script')
+var pkg = common.pkg
 var cache = path.resolve(pkg, 'cache')
 var tmp = path.resolve(pkg, 'tmp')
 

@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'ping')
+var pkg = common.pkg
 var opts = { cwd: pkg }
 
 var outfile = path.join(pkg, '_npmrc')

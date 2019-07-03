@@ -10,7 +10,7 @@ var test = require('tap').test
 var common = require('../common-tap')
 var server
 
-var pkg = path.resolve(__dirname, 'url-dependencies')
+var pkg = common.pkg
 
 var json = {
   author: 'Steve Mason',

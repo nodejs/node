@@ -185,6 +185,7 @@ function fetchAndRead (nv, args, silent, opts, cb) {
     }
 
     if (silent) {
+      return retval
     } else if (error) {
       throw error
     } else if (
