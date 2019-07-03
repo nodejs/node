@@ -977,6 +977,12 @@ std::shared_ptr<WorkerManager> Agent::GetWorkerManager() {
   return client_->getWorkerManager();
 }
 
+std::string Agent::GetWsUrl() const {
+  if (io_ == nullptr)
+    return "";
+  return io_->GetWsUrl();
+}
+
 SameThreadInspectorSession::~SameThreadInspectorSession() {
   auto client = client_.lock();
   if (client)
@@ -989,8 +995,6 @@ void SameThreadInspectorSession::Dispatch(
   if (client)
     client->dispatchMessageFromFrontend(session_id_, message);
 }
-
-
 
 }  // namespace inspector
 }  // namespace node
