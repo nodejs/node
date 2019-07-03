@@ -39,7 +39,6 @@ for (const [ createCompress, createDecompress ] of [
   gunz.on('data', (c) => output += c);
   gunz.on('end', common.mustCall(() => {
     assert.strictEqual(output, input);
-    assert.strictEqual(gzip._nextFlush, -1);
   }));
 
   // Make sure that flush/write doesn't trigger an assert failure
