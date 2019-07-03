@@ -7,10 +7,6 @@
 #include "node_v8_platform-inl.h"
 #include "uv.h"
 
-#ifdef NODE_ENABLE_VTUNE_PROFILING
-#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
-#endif
-
 namespace node {
 using errors::TryCatchScope;
 using v8::Array;
@@ -186,10 +182,6 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
     // heap based on the actual physical memory.
     params->constraints.ConfigureDefaults(total_memory, 0);
   }
-
-#ifdef NODE_ENABLE_VTUNE_PROFILING
-  params->code_event_handler = vTune::GetVtuneCodeEventHandler();
-#endif
 }
 
 void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat) {
