@@ -640,14 +640,20 @@ void ResetStdio() {
     }
 
     if (s.isatty) {
+      sigset_t sa;
       int err;
+
+      // We might be a background job that doesn't own the TTY so block SIGTTOU
+      // before making the tcsetattr() call, otherwise that signal suspends us.
+      sigemptyset(&sa);
+      sigaddset(&sa, SIGTTOU);
+
+      CHECK_EQ(0, pthread_sigmask(SIG_BLOCK, &sa, nullptr));
       do
         err = tcsetattr(fd, TCSANOW, &s.termios);
       while (err == -1 && errno == EINTR);  // NOLINT
-      // EIO has been observed to be returned by the Linux kernel under some
-      // circumstances. Reading through drivers/tty/tty_io*.c, it seems to
-      // indicate the tty went away. Of course none of this is documented.
-      CHECK_IMPLIES(err == -1, errno == EIO);
+      CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sa, nullptr));
+      CHECK_EQ(0, err);
     }
   }
 #endif  // __POSIX__
