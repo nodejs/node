@@ -24,9 +24,9 @@
 
 #ifdef _WIN32
 # ifndef BUILDING_NODE_EXTENSION
-#   define NODE_EXTERN __declspec(dllexport)
+#  define NODE_EXTERN __declspec(dllexport)
 # else
-#   define NODE_EXTERN __declspec(dllimport)
+#  define NODE_EXTERN __declspec(dllimport)
 # endif
 #else
 # define NODE_EXTERN __attribute__((visibility("default")))
@@ -43,7 +43,7 @@
 // See issue https://github.com/nodejs/node-v0.x-archive/issues/1236
 #if defined(__MINGW32__) || defined(_MSC_VER)
 #ifndef _WIN32_WINNT
-# define _WIN32_WINNT   0x0600  // Windows Server 2008
+# define _WIN32_WINNT 0x0600  // Windows Server 2008
 #endif
 
 #ifndef NOMINMAX
@@ -57,7 +57,7 @@
 #endif
 
 #ifdef _WIN32
-# define SIGKILL         9
+# define SIGKILL 9
 #endif
 
 #include "v8.h"  // NOLINT(build/include_order)
@@ -184,8 +184,8 @@ NODE_DEPRECATED("Use MakeCallback(..., async_context)",
 #include <cstdint>
 
 #ifndef NODE_STRINGIFY
-#define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
-#define NODE_STRINGIFY_HELPER(n) #n
+# define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
+# define NODE_STRINGIFY_HELPER(n) #n
 #endif
 
 #ifdef _WIN32
