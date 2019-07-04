@@ -1111,7 +1111,7 @@ def configure_node(o):
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
   # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
   if o['variables']['want_separate_host_toolset'] == 0:
-    o['variables']['node_code_cache'] = 'yes'
+    o['variables']['node_code_cache'] = 'yes' # For testing
   o['variables']['node_shared'] = b(options.shared)
   node_module_version = getmoduleversion.get_version()
 
