@@ -362,6 +362,13 @@ Local<Context> NewContext(Isolate* isolate,
                           Local<ObjectTemplate> object_template) {
   auto context = Context::New(isolate, nullptr, object_template);
   if (context.IsEmpty()) return context;
+
+  return MaybeInitializeContext(context, object_template);
+}
+
+Local<Context> MaybeInitializeContext(Local<Context> context,
+                                      Local<ObjectTemplate> object_template) {
+  Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
   context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
