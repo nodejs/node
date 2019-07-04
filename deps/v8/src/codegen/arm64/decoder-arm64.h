@@ -95,7 +95,7 @@ class V8_EXPORT_PRIVATE DecoderVisitor {
 };
 
 // A visitor that dispatches to a list of visitors.
-class V8_EXPORT_PRIVATE DispatchingDecoderVisitor : public DecoderVisitor {
+class DispatchingDecoderVisitor : public DecoderVisitor {
  public:
   DispatchingDecoderVisitor() {}
   virtual ~DispatchingDecoderVisitor() {}
