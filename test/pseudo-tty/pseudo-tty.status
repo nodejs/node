@@ -3,6 +3,7 @@ prefix pseudo-tty
 [$system==aix]
 # https://github.com/nodejs/build/issues/1820#issuecomment-505998851
 # https://github.com/nodejs/node/pull/28469
+# https://github.com/nodejs/node/pull/28541
 console_colors: SKIP
 console-dumb-tty: SKIP
 no_dropped_stdio: SKIP
