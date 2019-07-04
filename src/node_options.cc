@@ -226,6 +226,17 @@ class PerProcessOptionsParser : public OptionsParser<PerProcessOptions> {
 #if HAVE_INSPECTOR
 const DebugOptionsParser _dop_instance{};
 const EnvironmentOptionsParser _eop_instance{_dop_instance};
+
+// This Parse is not dead code. It is used by embedders (e.g., Electron).
+template <>
+void Parse(
+  StringVector* const args, StringVector* const exec_args,
+  StringVector* const v8_args,
+  DebugOptions* const options,
+  OptionEnvvarSettings required_env_settings, StringVector* const errors) {
+  _dop_instance.Parse(
+    args, exec_args, v8_args, options, required_env_settings, errors);
+}
 #else
 const EnvironmentOptionsParser _eop_instance{};
 #endif  // HAVE_INSPECTOR
