@@ -193,3 +193,19 @@ const stat = promisify(fs.stat);
                `Received type ${typeof input}`
     });
 });
+
+{
+  const func = (arg1, arg2, callback) => {
+    setTimeout(() => callback(null, arg1 + arg2), 1);
+    return arg2 - arg1;
+  };
+
+  const promisified = promisify(func);
+  const promise = promisified(5, 7);
+  const result = promise[promisify.result];
+
+  assert.strictEqual(result, 2);
+  promise.then(common.mustCall((finalResult) => {
+    assert.strictEqual(finalResult, 12);
+  }));
+}
