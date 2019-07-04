@@ -1968,7 +1968,7 @@ class InstructionAccurateScope {
 // original state, even if the lists were modified by some other means. Note
 // that this scope can be nested but the destructors need to run in the opposite
 // order as the constructors. We do not have assertions for this.
-class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+class UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(TurboAssembler* tasm)
       : available_(tasm->TmpList()),
