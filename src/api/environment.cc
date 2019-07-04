@@ -353,6 +353,15 @@ Local<Context> NewContext(Isolate* isolate,
                           Local<ObjectTemplate> object_template) {
   auto context = Context::New(isolate, nullptr, object_template);
   if (context.IsEmpty()) return context;
+
+  if (!InitializeContext(context)) {
+    return Local<Context>();
+  }
+  return context;
+}
+
+bool InitializeContext(Local<Context> context) {
+  Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
   context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
@@ -373,7 +382,7 @@ Local<Context> NewContext(Isolate* isolate,
     if (!primordials->SetPrototype(context, Null(isolate)).FromJust() ||
         !GetPerContextExports(context).ToLocal(&exports) ||
         !exports->Set(context, primordials_string, primordials).FromJust()) {
-      return Local<Context>();
+      return false;
     }
 
     static const char* context_files[] = {"internal/per_context/primordials",
@@ -389,7 +398,7 @@ Local<Context> NewContext(Isolate* isolate,
           native_module::NativeModuleEnv::LookupAndCompile(
               context, *module, &parameters, nullptr);
       if (maybe_fn.IsEmpty()) {
-        return Local<Context>();
+        return false;
       }
       Local<Function> fn = maybe_fn.ToLocalChecked();
       MaybeLocal<Value> result =
@@ -398,12 +407,12 @@ Local<Context> NewContext(Isolate* isolate,
       // Execution failed during context creation.
       // TODO(joyeecheung): deprecate this signature and return a MaybeLocal.
       if (result.IsEmpty()) {
-        return Local<Context>();
+        return false;
       }
     }
   }
 
-  return context;
+  return true;
 }
 
 uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {
