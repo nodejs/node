@@ -4,10 +4,25 @@
 static double value_ = 1;
 static double static_value_ = 10;
 
+static void add_named_property(napi_env env, const char * key, napi_value return_value) {
+  napi_value prop_value;
+  const napi_extended_error_info * p_last_error;
+  napi_get_last_error_info(env, &p_last_error);
+
+  NAPI_CALL(env, napi_create_string_utf8(env,
+                                         (p_last_error->error_message == NULL ? "napi_ok" : p_last_error->error_message),
+                                         NAPI_AUTO_LENGTH,
+                                         &prop_value));
+  NAPI_CALL(env, napi_set_named_property(env,
+                                         return_value,
+                                         key,
+                                         prop_value));
+}
+
 static napi_value TestDefineClass(napi_env env,
                                   napi_callback_info info) {
-  napi_status ret[7];
-  napi_value result, return_value, prop_value;
+
+  napi_value result, return_value;
 
   napi_property_descriptor property_descriptor = {
     "TestDefineClass",
@@ -19,115 +34,74 @@ static napi_value TestDefineClass(napi_env env,
     napi_enumerable | napi_static,
     NULL};
 
-  ret[0] = napi_define_class(NULL,
-                             "TrackedFunction",
-                             NAPI_AUTO_LENGTH,
-                             TestDefineClass,
-                             NULL,
-                             1,
-                             &property_descriptor,
-                             &result);
-
-  ret[1] = napi_define_class(env,
-                             NULL,
-                             NAPI_AUTO_LENGTH,
-                             TestDefineClass,
-                             NULL,
-                             1,
-                             &property_descriptor,
-                             &result);
-
-  ret[2] = napi_define_class(env,
-                             "TrackedFunction",
-                             NAPI_AUTO_LENGTH,
-                             NULL,
-                             NULL,
-                             1,
-                             &property_descriptor,
-                             &result);
-
-  ret[3] = napi_define_class(env,
-                             "TrackedFunction",
-                             NAPI_AUTO_LENGTH,
-                             TestDefineClass,
-                             NULL,
-                             1,
-                             &property_descriptor,
-                             &result);
-
-  ret[4] = napi_define_class(env,
-                             "TrackedFunction",
-                             NAPI_AUTO_LENGTH,
-                             TestDefineClass,
-                             NULL,
-                             1,
-                             NULL,
-                             &result);
-
-  ret[5] = napi_define_class(env,
-                             "TrackedFunction",
-                             NAPI_AUTO_LENGTH,
-                             TestDefineClass,
-                             NULL,
-                             1,
-                             &property_descriptor,
-                             NULL);
-
   NAPI_CALL(env, napi_create_object(env, &return_value));
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         NAPI_STATUS_TO_STRING(ret[0]),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         return_value,
-                                         "envIsNull",
-                                         prop_value));
+  napi_define_class(NULL,
+                    "TrackedFunction",
+                    NAPI_AUTO_LENGTH,
+                    TestDefineClass,
+                    NULL,
+                    1,
+                    &property_descriptor,
+                    &result);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         NAPI_STATUS_TO_STRING(ret[1]),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         return_value,
-                                         "nameIsNull",
-                                         prop_value));
+  add_named_property(env, "envIsNull", return_value);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         NAPI_STATUS_TO_STRING(ret[2]),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         return_value,
-                                         "cbIsNull",
-                                         prop_value));
+  napi_define_class(env,
+                    NULL,
+                    NAPI_AUTO_LENGTH,
+                    TestDefineClass,
+                    NULL,
+                    1,
+                    &property_descriptor,
+                    &result);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         NAPI_STATUS_TO_STRING(ret[3]),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         return_value,
-                                         "cbDataIsNull",
-                                         prop_value));
+  add_named_property(env, "nameIsNull", return_value);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         NAPI_STATUS_TO_STRING(ret[4]),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         return_value,
-                                         "propertiesIsNull",
-                                         prop_value));
+  napi_define_class(env,
+                    "TrackedFunction",
+                    NAPI_AUTO_LENGTH,
+                    NULL,
+                    NULL,
+                    1,
+                    &property_descriptor,
+                    &result);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         NAPI_STATUS_TO_STRING(ret[5]),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         return_value,
-                                         "resultIsNull",
-                                         prop_value));
+  add_named_property(env, "cbIsNull", return_value);
+
+  napi_define_class(env,
+                    "TrackedFunction",
+                    NAPI_AUTO_LENGTH,
+                    TestDefineClass,
+                    NULL,
+                    1,
+                    &property_descriptor,
+                    &result);
+
+  add_named_property(env, "cbDataIsNull", return_value);
+
+  napi_define_class(env,
+                    "TrackedFunction",
+                    NAPI_AUTO_LENGTH,
+                    TestDefineClass,
+                    NULL,
+                    1,
+                    NULL,
+                    &result);
+
+  add_named_property(env, "propertiesIsNull", return_value);
+
+
+  napi_define_class(env,
+                    "TrackedFunction",
+                    NAPI_AUTO_LENGTH,
+                    TestDefineClass,
+                    NULL,
+                    1,
+                    &property_descriptor,
+                    NULL);
+
+  add_named_property(env, "resultIsNull", return_value);
 
   return return_value;
 }
