@@ -448,10 +448,11 @@ TryCatchScope::~TryCatchScope() {
     HandleScope scope(env_->isolate());
     Local<v8::Value> exception = Exception();
     Local<v8::Message> message = Message();
+    EnhanceFatalException enhance = CanContinue() ?
+        EnhanceFatalException::kEnhance : EnhanceFatalException::kDontEnhance;
     if (message.IsEmpty())
       message = Exception::CreateMessage(env_->isolate(), exception);
-    ReportFatalException(
-        env_, exception, message, EnhanceFatalException::kDontEnhance);
+    ReportFatalException(env_, exception, message, enhance);
     env_->Exit(7);
   }
 }
