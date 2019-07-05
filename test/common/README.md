@@ -194,7 +194,12 @@ Indicates whether OpenSSL is available.
 ### hasFipsCrypto
 * [&lt;boolean>]
 
-Indicates `hasCrypto` and `crypto` with fips.
+Indicates that Node.js has been linked with a FIPS compatible OpenSSL library, 
+and that FIPS as been enabled using `--enable-fips`.
+
+To only detect if the OpenSSL library is FIPS compatible, regardless if it has
+been enabled or not, then `process.config.variables.openssl_is_fips` can be
+used to determine that situation.
 
 ### hasIntl
 * [&lt;boolean>]
