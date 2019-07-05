@@ -7,7 +7,6 @@
 
 These functions are executed via gyp-mac-tool when using the Makefile generator.
 """
-from __future__ import print_function
 
 import fcntl
 import fnmatch
@@ -271,7 +270,7 @@ class MacTool(object):
     _, err = libtoolout.communicate()
     for line in err.splitlines():
       if not libtool_re.match(line) and not libtool_re5.match(line):
-        print(line, file=sys.stderr)
+        print >>sys.stderr, line
     # Unconditionally touch the output .a file on the command line if present
     # and the command succeeded. A bit hacky.
     if not libtoolout.returncode:
@@ -481,8 +480,8 @@ class MacTool(object):
     profiles_dir = os.path.join(
         os.environ['HOME'], 'Library', 'MobileDevice', 'Provisioning Profiles')
     if not os.path.isdir(profiles_dir):
-      print((
-          'cannot find mobile provisioning for %s' % bundle_identifier), file=sys.stderr)
+      print >>sys.stderr, (
+          'cannot find mobile provisioning for %s' % bundle_identifier)
       sys.exit(1)
     provisioning_profiles = None
     if profile:
@@ -503,8 +502,8 @@ class MacTool(object):
           valid_provisioning_profiles[app_id_pattern] = (
               profile_path, profile_data, team_identifier)
     if not valid_provisioning_profiles:
-      print((
-          'cannot find mobile provisioning for %s' % bundle_identifier), file=sys.stderr)
+      print >>sys.stderr, (
+          'cannot find mobile provisioning for %s' % bundle_identifier)
       sys.exit(1)
     # If the user has multiple provisioning profiles installed that can be
     # used for ${bundle_identifier}, pick the most specific one (ie. the
@@ -668,7 +667,7 @@ def WriteHmap(output_name, filelist):
   count = len(filelist)
   capacity = NextGreaterPowerOf2(count)
   strings_offset = 24 + (12 * capacity)
-  max_value_length = len(max(filelist.items(), key=lambda k_v:len(k_v[1]))[1])
+  max_value_length = len(max(filelist.items(), key=lambda (k,v):len(v))[1])
 
   out = open(output_name, "wb")
   out.write(struct.pack('<LHHLLLL', magic, version, _reserved, strings_offset,

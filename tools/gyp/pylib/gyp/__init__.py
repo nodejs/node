@@ -4,7 +4,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from __future__ import print_function
 import copy
 import gyp.input
 import optparse
@@ -14,8 +13,6 @@ import shlex
 import sys
 import traceback
 from gyp.common import GypError
-from six import iteritems, string_types
-from six.moves import xrange
 
 # Default debug modes for GYP
 debug = {}
@@ -33,12 +30,12 @@ def DebugOutput(mode, message, *args):
       f = traceback.extract_stack(limit=2)
       if f:
         ctx = f[0][:3]
-    except Exception:
+    except:
       pass
     if args:
       message %= args
-    print('%s:%s:%d:%s %s' % (mode.upper(), os.path.basename(ctx[0]),
-                              ctx[1], ctx[2], message))
+    print '%s:%s:%d:%s %s' % (mode.upper(), os.path.basename(ctx[0]),
+                              ctx[1], ctx[2], message)
 
 def FindBuildFiles():
   extension = '.gyp'
@@ -210,7 +207,7 @@ def RegenerateFlags(options):
   # We always want to ignore the environment when regenerating, to avoid
   # duplicate or changed flags in the environment at the time of regeneration.
   flags = ['--ignore-environment']
-  for name, metadata in iteritems(options._regeneration_metadata):
+  for name, metadata in options._regeneration_metadata.iteritems():
     opt = metadata['opt']
     value = getattr(options, name)
     value_predicate = metadata['type'] == 'path' and FixPath or Noop
@@ -229,12 +226,12 @@ def RegenerateFlags(options):
           (action == 'store_false' and not value)):
         flags.append(opt)
       elif options.use_environment and env_name:
-        print('Warning: environment regeneration unimplemented '
-              'for %s flag %r env_name %r' % (action, opt, env_name),
-              file=sys.stderr)
+        print >>sys.stderr, ('Warning: environment regeneration unimplemented '
+                             'for %s flag %r env_name %r' % (action, opt,
+                                                             env_name))
     else:
-      print('Warning: regeneration unimplemented for action %r '
-            'flag %r' % (action, opt), file=sys.stderr)
+      print >>sys.stderr, ('Warning: regeneration unimplemented for action %r '
+                           'flag %r' % (action, opt))
 
   return flags
 
@@ -413,7 +410,7 @@ def gyp_main(args):
     for option, value in sorted(options.__dict__.items()):
       if option[0] == '_':
         continue
-      if isinstance(value, string_types):
+      if isinstance(value, basestring):
         DebugOutput(DEBUG_GENERAL, "  %s: '%s'", option, value)
       else:
         DebugOutput(DEBUG_GENERAL, "  %s: %s", option, value)
@@ -478,7 +475,7 @@ def gyp_main(args):
   if home_dot_gyp != None:
     default_include = os.path.join(home_dot_gyp, 'include.gypi')
     if os.path.exists(default_include):
-      print('Using overrides found in ' + default_include)
+      print 'Using overrides found in ' + default_include
       includes.append(default_include)
 
   # Command-line --include files come after the default include.
@@ -539,7 +536,7 @@ def gyp_main(args):
 def main(args):
   try:
     return gyp_main(args)
-  except GypError as e:
+  except GypError, e:
     sys.stderr.write("gyp: %s\n" % e)
     return 1
 

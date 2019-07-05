@@ -142,8 +142,6 @@ import posixpath
 import re
 import struct
 import sys
-from six import text_type, string_types
-from six.moves import xrange
 
 # hashlib is supplied as of Python 2.5 as the replacement interface for sha
 # and other secure hashes.  In 2.6, sha is deprecated.  Import hashlib if
@@ -156,11 +154,6 @@ except ImportError:
   import sha
   _new_sha1 = sha.new
 
-try:
-  cmp
-except NameError:  # Python 3
-  def cmp(x, y):
-    return (x > y) - (x < y)
 
 # See XCObject._EncodeString.  This pattern is used to determine when a string
 # can be printed unquoted.  Strings that match this pattern may be printed
@@ -331,7 +324,8 @@ class XCObject(object):
           that._properties[key] = new_value
         else:
           that._properties[key] = value
-      elif isinstance(value, (string_types, int)):
+      elif isinstance(value, str) or isinstance(value, unicode) or \
+           isinstance(value, int):
         that._properties[key] = value
       elif isinstance(value, list):
         if is_strong:
@@ -609,7 +603,7 @@ class XCObject(object):
       comment = value.Comment()
     elif isinstance(value, str):
       printable += self._EncodeString(value)
-    elif isinstance(value, text_type):
+    elif isinstance(value, unicode):
       printable += self._EncodeString(value.encode('utf-8'))
     elif isinstance(value, int):
       printable += str(value)
@@ -697,7 +691,7 @@ class XCObject(object):
           printable_value[0] == '"' and printable_value[-1] == '"':
         printable_value = printable_value[1:-1]
       printable += printable_key + ' = ' + printable_value + ';' + after_kv
-    except TypeError as e:
+    except TypeError, e:
       gyp.common.ExceptionAppend(e,
                                  'while printing key "%s"' % key)
       raise
@@ -772,7 +766,7 @@ class XCObject(object):
                 ' must be list, not ' + value.__class__.__name__)
         for item in value:
           if not isinstance(item, property_type) and \
-             not (item.__class__ == text_type and property_type == str):
+             not (item.__class__ == unicode and property_type == str):
             # Accept unicode where str is specified.  str is treated as
             # UTF-8-encoded.
             raise TypeError(
@@ -780,7 +774,7 @@ class XCObject(object):
                   ' must be ' + property_type.__name__ + ', not ' + \
                   item.__class__.__name__)
       elif not isinstance(value, property_type) and \
-           not (value.__class__ == text_type and property_type == str):
+           not (value.__class__ == unicode and property_type == str):
         # Accept unicode where str is specified.  str is treated as
         # UTF-8-encoded.
         raise TypeError(
@@ -794,7 +788,8 @@ class XCObject(object):
             self._properties[property] = value.Copy()
           else:
             self._properties[property] = value
-        elif isinstance(value, (string_types, int)):
+        elif isinstance(value, str) or isinstance(value, unicode) or \
+             isinstance(value, int):
           self._properties[property] = value
         elif isinstance(value, list):
           if is_strong:
