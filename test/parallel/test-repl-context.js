@@ -16,11 +16,21 @@ const stream = new ArrayStream();
     useGlobal: false
   });
 
+  let output = '';
+  stream.write = function(d) {
+    output += d;
+  };
+
   // Ensure that the repl context gets its own "console" instance.
   assert(r.context.console);
 
   // Ensure that the repl console instance is not the global one.
   assert.notStrictEqual(r.context.console, console);
+  assert.notStrictEqual(r.context.Object, Object);
+
+  stream.run(['({} instanceof Object)']);
+
+  assert.strictEqual(output, 'true\n> ');
 
   const context = r.createContext();
   // Ensure that the repl context gets its own "console" instance.
