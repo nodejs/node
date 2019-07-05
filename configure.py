@@ -752,11 +752,11 @@ def get_gas_version(cc):
        consider adjusting the CC environment variable if you installed
        it in a non-standard prefix.''')
 
-  gas_ret = proc.communicate()[1]
-  match = re.match(b"GNU assembler version ([2-9]\.[0-9]+)", gas_ret)
+  gas_ret = str(proc.communicate()[1])
+  match = re.match(r"GNU assembler version ([2-9]\.[0-9]+)", gas_ret)
 
   if match:
-    return str(float(match.group(1)))
+    return match.group(1)
   else:
     warn('Could not recognize `gas`: ' + gas_ret)
     return '0'
