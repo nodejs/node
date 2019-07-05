@@ -7,6 +7,9 @@ x-ccache-setup-steps: &ccache-setup-steps
 os: linux
 dist: xenial
 language: cpp
+env:
+  global:
+    - PYTHON_VERSION="2.7.15"
 jobs:
   include:
     - stage: "Compile"
@@ -36,9 +39,8 @@ jobs:
             - g++-6
       install: *ccache-setup-steps
       script:
-        - pyenv global 2.7.15
-        - pip install --upgrade pip
-        - pip install six
+        - pyenv global ${PYTHON_VERSION}
+        - export PYTHONPATH="${PYTHONPATH}:$(pwd)/deps"
         - ./configure
         - make -j2 V=1
         - cp out/Release/node /home/travis/.ccache
@@ -51,9 +53,8 @@ jobs:
         - mkdir -p out/Release
         - cp /home/travis/.ccache/node out/Release/node
       script:
-        - pyenv global 2.7.15
-        - pip install --upgrade pip
-        - pip install six
+        - pyenv global ${PYTHON_VERSION}
+        - export PYTHONPATH="${PYTHONPATH}:$(pwd)/deps"
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare default
 
     - name: "Test C++ Suites"
@@ -69,9 +70,8 @@ jobs:
         - cp /home/travis/.ccache/cctest out/Release/cctest
         - touch config.gypi
       script:
-        - pyenv global 2.7.15
-        - pip install --upgrade pip
-        - pip install six
+        - pyenv global ${PYTHON_VERSION}
+        - export PYTHONPATH="${PYTHONPATH}:$(pwd)/deps"
         - out/Release/cctest
         - make -j1 V=1 test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare addons js-native-api node-api
@@ -80,9 +80,8 @@ jobs:
       language: node_js
       node_js: "node"
       install:
-        - pyenv global 2.7.15
-        - pip install --upgrade pip
-        - pip install six
+        - pyenv global ${PYTHON_VERSION}
+        - export PYTHONPATH="${PYTHONPATH}:$(pwd)/deps"
         - make lint-py-build || true
       script:
         - NODE=$(which node) make lint lint-py
