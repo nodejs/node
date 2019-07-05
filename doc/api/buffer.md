@@ -207,7 +207,7 @@ For cases regarding operations other than employing backward compatibility
 for 7-bit (and [extended 8-bit]((https://en.wikipedia.org/wiki/UTF-8#Description))
 in rare cases) `'ascii'` data, and the valid [`UTF-8` code units](https://en.wikipedia.org/wiki/UTF-8#Codepage_layout),
 the replacement character (`�`) is returned,
-and *no exception will be thrown*.
+and no exception will be thrown.
 
 It should also be noted that a `U+FFFD` replacement value
 (representing the aforementioned replacement character) will be returned
