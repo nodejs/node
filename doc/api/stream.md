@@ -917,16 +917,6 @@ will be ignored.
 Implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
 
-##### readable.readableEncoding
-<!-- YAML
-added: REPLACEME
--->
-
-* {null|string}
-
-Getter for the property `encoding` of a given `Readable` stream. The `encoding`
-property can be set using the [`readable.setEncoding()`][] method.
-
 ##### readable.isPaused()
 <!-- YAML
 added: v0.11.14
@@ -1095,6 +1085,16 @@ added: v11.4.0
 * {boolean}
 
 Is `true` if it is safe to call [`readable.read()`][stream-read].
+
+##### readable.readableEncoding
+<!-- YAML
+added: REPLACEME
+-->
+
+* {null|string}
+
+Getter for the property `encoding` of a given `Readable` stream. The `encoding`
+property can be set using the [`readable.setEncoding()`][] method.
 
 ##### readable.readableHighWaterMark
 <!-- YAML
@@ -2660,8 +2660,8 @@ contain multi-byte characters.
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
-[`readable.setEncoding()`]: #stream_readable_setencoding_encoding
 [`readable.push('')`]: #stream_readable_push
+[`readable.setEncoding()`]: #stream_readable_setencoding_encoding
 [`stream.Readable.from()`]: #stream_stream_readable_from_iterable_options
 [`stream.cork()`]: #stream_writable_cork
 [`stream.finished()`]: #stream_stream_finished_stream_options_callback
