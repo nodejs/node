@@ -23,9 +23,8 @@ jobs:
             - g++-6
       install: *ccache-setup-steps
       script:
-        - pyenv global 2.7.15
-        - pip install --upgrade pip
-        - pip install six
+        - pyenv global ${PYTHON_VERSION}
+        - export PYTHONPATH="${PYTHONPATH}:$(pwd)/deps"
         - ./configure
         - make -j2 -C out V=1 v8
 
