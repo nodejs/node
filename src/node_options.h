@@ -172,6 +172,7 @@ class PerIsolateOptions : public Options {
  public:
   std::shared_ptr<EnvironmentOptions> per_env { new EnvironmentOptions() };
   bool track_heap_objects = false;
+  bool no_node_snapshot = false;
 
 #ifdef NODE_REPORT
   bool report_uncaught_exception = false;
