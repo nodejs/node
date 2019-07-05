@@ -630,6 +630,12 @@ display if `block` does not throw.
 An iterable argument (i.e. a value that works with `for...of` loops) was
 required, but not provided to a Node.js API.
 
+<a id="ERR_ARG_RETURN_VALUE_NOT_ASYNC_ITERABLE"></a>
+### ERR_ARG_RETURN_VALUE_NOT_ASYNC_ITERABLE
+
+A function argument that returns an async iterable (i.e. a value that works
+with `for await...of` loops) was required, but not provided to a Node.js API.
+
 <a id="ERR_ASSERTION"></a>
 ### ERR_ASSERTION
 
