@@ -209,7 +209,7 @@ in rare cases) `'ascii'` data, and the valid [`UTF-8` code units](https://en.wik
 the replacement character (`�`) is returned,
 and no exception will be thrown.
 
-It should also be noted that a `U+FFFD` replacement value
+A `U+FFFD` replacement value
 (representing the aforementioned replacement character) will be returned
 in case of decoding errors (invalid unicode scalar values).
 
