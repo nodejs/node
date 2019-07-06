@@ -70,7 +70,7 @@ std::string SnapshotBuilder::Generate(
   Isolate* isolate = Isolate::Allocate();
   per_process::v8_platform.Platform()->RegisterIsolate(isolate,
                                                        uv_default_loop());
-  NodeMainInstance* main_instance = nullptr;
+  std::unique_ptr<NodeMainInstance> main_instance;
   std::string result;
 
   {
