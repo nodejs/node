@@ -483,6 +483,11 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   void maxAsyncCallStackDepthChanged(int depth) override {
+    if (waiting_for_sessions_disconnect_) {
+      // V8 isolate is mostly done and is only letting Inspector protocol
+      // clients gather data.
+      return;
+    }
     if (auto agent = env_->inspector_agent()) {
       if (depth == 0) {
         agent->DisableAsyncHook();
