@@ -1207,7 +1207,7 @@ changes:
   * `host` {string} Host the client should connect to. **Default:**
     `'localhost'`.
   * `port` {number} Port the client should connect to.
-  * `path` {string} Creates unix socket connection to path. If this option is
+  * `path` {string} Creates Unix socket connection to path. If this option is
     specified, `host` and `port` are ignored.
   * `socket` {stream.Duplex} Establish secure connection on a given socket
     rather than creating a new socket. Typically, this is an instance of
