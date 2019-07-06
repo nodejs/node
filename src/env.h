@@ -462,6 +462,8 @@ class IsolateData : public MemoryRetainer {
   inline v8::Isolate* isolate() const;
   IsolateData(const IsolateData&) = delete;
   IsolateData& operator=(const IsolateData&) = delete;
+  IsolateData(IsolateData&&) = delete;
+  IsolateData& operator=(IsolateData&&) = delete;
 
  private:
   void DeserializeProperties(const std::vector<size_t>* indexes);
@@ -552,6 +554,12 @@ class AsyncRequest : public MemoryRetainer {
  public:
   AsyncRequest() = default;
   ~AsyncRequest();
+
+  AsyncRequest(const AsyncRequest&) = delete;
+  AsyncRequest& operator=(const AsyncRequest&) = delete;
+  AsyncRequest(AsyncRequest&&) = delete;
+  AsyncRequest& operator=(AsyncRequest&&) = delete;
+
   void Install(Environment* env, void* data, uv_async_cb target);
   void Uninstall();
   void Stop();
@@ -636,6 +644,9 @@ class AsyncHooks : public MemoryRetainer {
 
   AsyncHooks(const AsyncHooks&) = delete;
   AsyncHooks& operator=(const AsyncHooks&) = delete;
+  AsyncHooks(AsyncHooks&&) = delete;
+  AsyncHooks& operator=(AsyncHooks&&) = delete;
+  ~AsyncHooks() = default;
 
   // Used to set the kDefaultTriggerAsyncId in a scope. This is instead of
   // passing the trigger_async_id along with other constructor arguments.
@@ -649,6 +660,9 @@ class AsyncHooks : public MemoryRetainer {
 
     DefaultTriggerAsyncIdScope(const DefaultTriggerAsyncIdScope&) = delete;
     DefaultTriggerAsyncIdScope& operator=(const DefaultTriggerAsyncIdScope&) =
+        delete;
+    DefaultTriggerAsyncIdScope(DefaultTriggerAsyncIdScope&&) = delete;
+    DefaultTriggerAsyncIdScope& operator=(DefaultTriggerAsyncIdScope&&) =
         delete;
 
    private:
@@ -679,6 +693,8 @@ class AsyncCallbackScope {
   ~AsyncCallbackScope();
   AsyncCallbackScope(const AsyncCallbackScope&) = delete;
   AsyncCallbackScope& operator=(const AsyncCallbackScope&) = delete;
+  AsyncCallbackScope(AsyncCallbackScope&&) = delete;
+  AsyncCallbackScope& operator=(AsyncCallbackScope&&) = delete;
 
  private:
   Environment* env_;
@@ -697,6 +713,9 @@ class ImmediateInfo : public MemoryRetainer {
 
   ImmediateInfo(const ImmediateInfo&) = delete;
   ImmediateInfo& operator=(const ImmediateInfo&) = delete;
+  ImmediateInfo(ImmediateInfo&&) = delete;
+  ImmediateInfo& operator=(ImmediateInfo&&) = delete;
+  ~ImmediateInfo() = default;
 
   SET_MEMORY_INFO_NAME(ImmediateInfo)
   SET_SELF_SIZE(ImmediateInfo)
@@ -723,6 +742,9 @@ class TickInfo : public MemoryRetainer {
 
   TickInfo(const TickInfo&) = delete;
   TickInfo& operator=(const TickInfo&) = delete;
+  TickInfo(TickInfo&&) = delete;
+  TickInfo& operator=(TickInfo&&) = delete;
+  ~TickInfo() = default;
 
  private:
   friend class Environment;  // So we can call the constructor.
@@ -757,6 +779,12 @@ class ShouldNotAbortOnUncaughtScope {
   explicit inline ShouldNotAbortOnUncaughtScope(Environment* env);
   inline void Close();
   inline ~ShouldNotAbortOnUncaughtScope();
+  ShouldNotAbortOnUncaughtScope(const ShouldNotAbortOnUncaughtScope&) = delete;
+  ShouldNotAbortOnUncaughtScope& operator=(
+      const ShouldNotAbortOnUncaughtScope&) = delete;
+  ShouldNotAbortOnUncaughtScope(ShouldNotAbortOnUncaughtScope&&) = delete;
+  ShouldNotAbortOnUncaughtScope& operator=(ShouldNotAbortOnUncaughtScope&&) =
+      delete;
 
  private:
   Environment* env_;
@@ -796,6 +824,8 @@ class Environment : public MemoryRetainer {
  public:
   Environment(const Environment&) = delete;
   Environment& operator=(const Environment&) = delete;
+  Environment(Environment&&) = delete;
+  Environment& operator=(Environment&&) = delete;
 
   SET_MEMORY_INFO_NAME(Environment)
 
