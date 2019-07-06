@@ -1011,8 +1011,7 @@ Protocol versions are:
 * `'TLSv1.2'`
 * `'TLSv1.3'`
 
-See <https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html> for more
-information.
+See the OpenSSL [`SSL_get_version`][] documentation for more information.
 
 ### tlsSocket.getSession()
 <!-- YAML
@@ -1477,9 +1476,8 @@ and [`server.addContext()`][], but has no public methods.
 A key is *required* for ciphers that make use of certificates. Either `key` or
 `pfx` can be used to provide it.
 
-If the 'ca' option is not given, then Node.js will use the default
-publicly trusted list of CAs as given in
-<https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt>.
+If the `ca` option is not given, then Node.js will default to using
+[Mozilla's publicly trusted list of CAs][].
 
 ## tls.createServer([options][, secureConnectionListener])
 <!-- YAML
@@ -1769,6 +1767,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`'session'`]: #tls_event_session
 [`--tls-cipher-list`]: cli.html#cli_tls_cipher_list_list
 [`NODE_OPTIONS`]: cli.html#cli_node_options_options
+[`SSL_get_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`net.createServer()`]: net.html#net_net_createserver_options_connectionlistener
 [`net.Server.address()`]: net.html#net_server_address
@@ -1799,6 +1798,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
+[Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.html#crypto_openssl_options
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
