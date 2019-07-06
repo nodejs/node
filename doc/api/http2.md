@@ -1749,11 +1749,14 @@ added: v8.4.0
 -->
 * `callback` {Function}
 
-Stops the server from accepting new connections. See [`net.Server.close()`][].
+Stops the server from establishing new sessions. This does not prevent new
+request streams from being created due to the persistent nature of HTTP/2
+sessions. To gracefully shut down the server, call [`http2session.close()`] on
+all active sessions.
 
-This is not analogous to restricting new requests since HTTP/2
-connections are persistent. To achieve a similar graceful shutdown behavior,
-consider also using [`http2session.close()`] on active sessions.
+If `callback` is provided, it is not invoked until all active sessions have been
+closed, although the server has already stopped allowing new sessions. See
+[`net.Server.close()`][] for more details.
 
 #### server.setTimeout([msecs][, callback])
 <!-- YAML
@@ -1895,11 +1898,14 @@ added: v8.4.0
 -->
 * `callback` {Function}
 
-Stops the server from accepting new connections. See [`tls.Server.close()`][].
+Stops the server from establishing new sessions. This does not prevent new
+request streams from being created due to the persistent nature of HTTP/2
+sessions. To gracefully shut down the server, call [`http2session.close()`] on
+all active sessions.
 
-This is not analogous to restricting new requests since HTTP/2
-connections are persistent. To achieve a similar graceful shutdown behavior,
-consider also using [`http2session.close()`] on active sessions.
+If `callback` is provided, it is not invoked until all active sessions have been
+closed, although the server has already stopped allowing new sessions. See
+[`tls.Server.close()`][] for more details.
 
 #### server.setTimeout([msecs][, callback])
 <!-- YAML
