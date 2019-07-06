@@ -161,8 +161,8 @@ class OrderedDict(dict):
         for k in self:
             yield self[k]
 
-    def iteritems(self):
-        'od.iteritems -> an iterator over the (key, value) items in od'
+    def items(self):
+        'od.items -> an iterator over the (key, value) items in od'
         for k in self:
             yield (k, self[k])
 
