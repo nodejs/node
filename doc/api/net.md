@@ -17,7 +17,7 @@ const net = require('net');
 
 ## IPC Support
 
-The `net` module supports IPC with named pipes on Windows, and UNIX domain
+The `net` module supports IPC with named pipes on Windows, and Unix domain
 sockets on other operating systems.
 
 ### Identifying paths for IPC connections
@@ -25,18 +25,18 @@ sockets on other operating systems.
 [`net.connect()`][], [`net.createConnection()`][], [`server.listen()`][] and
 [`socket.connect()`][] take a `path` parameter to identify IPC endpoints.
 
-On UNIX, the local domain is also known as the UNIX domain. The path is a
+On Unix, the local domain is also known as the Unix domain. The path is a
 filesystem pathname. It gets truncated to `sizeof(sockaddr_un.sun_path) - 1`,
 which varies on different operating system between 91 and 107 bytes.
 The typical values are 107 on Linux and 103 on macOS. The path is
 subject to the same naming conventions and permissions checks as would be done
-on file creation. If the UNIX domain socket (that is visible as a file system
+on file creation. If the Unix domain socket (that is visible as a file system
 path) is created and used in conjunction with one of Node.js' API abstractions
 such as [`net.createServer()`][], it will be unlinked as part of
 [`server.close()`][]. On the other hand, if it is created and used outside of
 these abstractions, the user will need to manually remove it. The same applies
 when the path was created by a Node.js API but the program crashes abruptly.
-In short, a UNIX domain socket once successfully created will be visible in the
+In short, a Unix domain socket once successfully created will be visible in the
 filesystem, and will persist until unlinked.
 
 On Windows, the local domain is implemented using a named pipe. The path *must*
@@ -44,7 +44,7 @@ refer to an entry in `\\?\pipe\` or `\\.\pipe\`. Any characters are permitted,
 but the latter may do some processing of pipe names, such as resolving `..`
 sequences. Despite how it might look, the pipe namespace is flat. Pipes will
 *not persist*. They are removed when the last reference to them is closed.
-Unlike UNIX domain sockets, Windows will close and remove the pipe when the
+Unlike Unix domain sockets, Windows will close and remove the pipe when the
 owning process exits.
 
 JavaScript string escaping requires paths to be specified with extra backslash
@@ -121,7 +121,7 @@ as reported by the operating system if listening on an IP socket
 (useful to find which port was assigned when getting an OS-assigned address):
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`.
 
-For a server listening on a pipe or UNIX domain socket, the name is returned
+For a server listening on a pipe or Unix domain socket, the name is returned
 as a string.
 
 ```js
@@ -241,7 +241,7 @@ added: v0.5.10
 * Returns: {net.Server}
 
 Start a server listening for connections on a given `handle` that has
-already been bound to a port, a UNIX domain socket, or a Windows named pipe.
+already been bound to a port, a Unix domain socket, or a Windows named pipe.
 
 The `handle` object can be either a server, a socket (anything with an
 underlying `_handle` member), or an object with an `fd` member that is a
@@ -385,7 +385,7 @@ added: v0.3.4
 -->
 
 This class is an abstraction of a TCP socket or a streaming [IPC][] endpoint
-(uses named pipes on Windows, and UNIX domain sockets otherwise). A
+(uses named pipes on Windows, and Unix domain sockets otherwise). A
 `net.Socket` is also a [duplex stream][], so it can be both readable and
 writable, and it is also an [`EventEmitter`][].
 
@@ -496,7 +496,7 @@ changes:
 -->
 
 Emitted after resolving the hostname but before connecting.
-Not applicable to UNIX sockets.
+Not applicable to Unix sockets.
 
 * `err` {Error|null} The error object. See [`dns.lookup()`][].
 * `address` {string} The IP address.
@@ -1112,7 +1112,7 @@ server.listen('/tmp/echo.sock', () => {
 });
 ```
 
-Use `nc` to connect to a UNIX domain socket server:
+Use `nc` to connect to a Unix domain socket server:
 
 ```console
 $ nc -U /tmp/echo.sock
