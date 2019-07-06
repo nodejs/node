@@ -618,8 +618,8 @@ For TCP connections, available `options` are:
 * `host` {string} Host the socket should connect to. **Default:** `'localhost'`.
 * `localAddress` {string} Local address the socket should connect from.
 * `localPort` {number} Local port the socket should connect from.
-* `family` {number}: Version of IP stack. Must be `4`, `6`, or `0`.
-  **Default:** `0`.
+* `family` {number}: Version of IP stack. Must be `4`, `6`, or `0`. The value
+  `0` indicates that both IPv4 and IPv6 addresses are allowed. **Default:** `0`.
 * `hints` {number} Optional [`dns.lookup()` hints][].
 * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
 
