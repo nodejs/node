@@ -29,7 +29,7 @@ file a new issue.
     * [Building the documentation](#building-the-documentation)
     * [Building a debug build](#building-a-debug-build)
   * [Windows](#windows)
-    * [Prerequisites](#prerequisites-1)
+    * [Prerequisites](#prerequisites)
       * [Option 1: Manual install](#option-1-manual-install)
       * [Option 1: Automated install with Boxstarter](#option-1-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-1)
