@@ -1668,8 +1668,8 @@ const readable = Readable.from(['hello', 'streams']);
 async function * mapper(source) {
   for await (const chunk of source) {
     // If objectMode was set to false, the buffer would have to be converted
-    // to a string here but since it is true by default for both Readable.from
-    // and Transform.by each chunk is already a string
+    // to a string here but since it is true by default for both Readable.from()
+    // and Transform.by() each chunk is already a string.
     yield chunk.toUpperCase();
   }
 }
