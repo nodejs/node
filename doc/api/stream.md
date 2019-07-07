@@ -2670,6 +2670,36 @@ readable.on('data', (chunk) => {
 });
 ```
 
+#### Creating Transform Streams with Async Generator Functions
+
+We can construct a Node.js Transform stream with an asynchronous
+generator function using the `Transform.by` utility method.
+
+
+```js
+const { Readable, Transform } = require('stream');
+
+async function * toUpperCase(source) {
+  for await (const chunk of source) {
+    yield chunk.toUpperCase();
+  }
+}
+const transform = Transform.by(toUpperCase);
+
+async function * generate() {
+  yield 'a';
+  yield 'b';
+  yield 'c';
+}
+
+const readable = Readable.from(generate());
+
+readable.pipe(transform);
+transform.on('data', (chunk) => {
+  console.log(chunk);
+});
+```
+
 #### Piping to Writable Streams from Async Iterators
 
 In the scenario of writing to a writable stream from an async iterator, ensure
