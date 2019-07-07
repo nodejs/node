@@ -2673,7 +2673,7 @@ readable.on('data', (chunk) => {
 #### Creating Transform Streams with Async Generator Functions
 
 We can construct a Node.js Transform stream with an asynchronous
-generator function using the `Transform.by` utility method.
+generator function using the `Transform.by()` utility method.
 
 
 ```js
