@@ -101,3 +101,18 @@ if (hasIPv6) {
     }
   }));
 }
+
+// Check that `options.host` and `options.port` take precedence over
+// `authority.host` and `authority.port`.
+{
+  const server = createServer();
+  server.listen(0, mustCall(() => {
+    connect('http://foo.bar', {
+      host: 'localhost',
+      port: server.address().port
+    }, mustCall((session) => {
+      session.close();
+      server.close();
+    }));
+  }));
+}
