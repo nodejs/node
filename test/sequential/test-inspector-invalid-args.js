@@ -10,7 +10,7 @@ const execFile = require('child_process').execFile;
 const mainScript = fixtures.path('loop.js');
 const expected =
   '`node --debug` and `node --debug-brk` are invalid. ' +
-  'Please use `node --inspect` or `node --inspect-brk` instead.';
+  'Please use `node --inspect` and `node --inspect-brk` instead.';
 for (const invalidArg of ['--debug-brk', '--debug']) {
   execFile(
     process.execPath,
