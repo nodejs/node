@@ -698,6 +698,32 @@ module):
 * `DH_UNABLE_TO_CHECK_GENERATOR`
 * `DH_NOT_SUITABLE_GENERATOR`
 
+## Class: DiffieHellmanGroup
+<!-- YAML
+added: v0.7.5
+-->
+
+The `DiffieHellmanGroup` class takes a well-known modp group as its argument but
+otherwise works the same as `DiffieHellman`.
+
+```js
+const name = 'modp1';
+const dh = crypto.createDiffieHellmanGroup(name);
+```
+
+`name` is taken from [RFC 2412][] (modp1 and 2) and [RFC 3526][]:
+```console
+$ perl -ne 'print "$1\n" if /"(modp\d+)"/' src/node_crypto_groups.h
+modp1  #  768 bits
+modp2  # 1024 bits
+modp5  # 1536 bits
+modp14 # 2048 bits
+modp15 # etc.
+modp16
+modp17
+modp18
+```
+
 ## Class: ECDH
 <!-- YAML
 added: v0.11.14
@@ -1732,6 +1758,16 @@ added: v0.5.0
 Creates a `DiffieHellman` key exchange object and generates a prime of
 `primeLength` bits using an optional specific numeric `generator`.
 If `generator` is not specified, the value `2` is used.
+
+### crypto.createDiffieHellmanGroup(name)
+<!-- YAML
+added: v0.9.3
+-->
+
+* `name` {string}
+* Returns: {DiffieHellman}
+
+An alias for [`crypto.getDiffieHellman()`][]
 
 ### crypto.createECDH(curveName)
 <!-- YAML
@@ -3226,6 +3262,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`crypto.createSign()`]: #crypto_crypto_createsign_algorithm_options
 [`crypto.createVerify()`]: #crypto_crypto_createverify_algorithm_options
 [`crypto.getCurves()`]: #crypto_crypto_getcurves
+[`crypto.getDiffieHellman()`]: #crypto_crypto_getdiffiehellman_groupname
 [`crypto.getHashes()`]: #crypto_crypto_gethashes
 [`crypto.privateDecrypt()`]: #crypto_crypto_privatedecrypt_privatekey_buffer
 [`crypto.privateEncrypt()`]: #crypto_crypto_privateencrypt_privatekey_buffer
