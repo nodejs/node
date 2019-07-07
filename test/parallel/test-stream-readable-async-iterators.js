@@ -400,9 +400,7 @@ async function tests() {
   {
     const transform = new Transform({
       objectMode: true,
-      transform(chunk, enc, cb) {
-        cb(null, chunk);
-      }
+      transform: common.mustNotCall()
     });
     transform.push(0);
     transform.push(1);
