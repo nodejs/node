@@ -53,7 +53,14 @@ const ip = [
   ['0', 0]
 ];
 
-ip.forEach(([ip, version]) => {
-  assert.strictEqual(net.isIP(ip), version);
-  assert.strictEqual(net.isIP({ toString: () => ip }), version);
-});
+const validateIsIP = ([ip, version]) => {
+  const errMessage = `\n\nnet.isIP('${ip}') !== ${version}\n`;
+  assert.strictEqual(net.isIP(ip), version, errMessage);
+  assert.strictEqual(
+    net.isIP({ toString: () => ip }),
+    version,
+    errMessage
+  );
+};
+
+ip.forEach(validateIsIP);

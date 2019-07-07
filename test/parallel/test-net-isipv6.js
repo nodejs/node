@@ -235,12 +235,16 @@ const v6not = [
   '02001:0000:1234:0000:0000:C1C0:ABCD:0876'
 ];
 
-v6.forEach((ip) => {
-  assert.strictEqual(net.isIPv6(ip), true);
-  assert.strictEqual(net.isIPv6({ toString: () => ip }), true);
-});
+const validateIsIPv6 = (ip, expected) => {
+  const errMessage = `\n\nnet.isIPv6('${ip}') !== ${expected}\n`;
+  assert.strictEqual(net.isIPv6(ip), expected, errMessage);
+  assert.strictEqual(
+    net.isIPv6({ toString: () => ip }),
+    expected,
+    errMessage
+  );
+};
 
-v6not.forEach((ip) => {
-  assert.strictEqual(net.isIPv6(ip), false);
-  assert.strictEqual(net.isIPv6({ toString: () => ip }), false);
-});
+v6.forEach((ip) => validateIsIPv6(ip, true));
+
+v6not.forEach((ip) => validateIsIPv6(ip, false));

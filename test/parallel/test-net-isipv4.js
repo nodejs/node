@@ -37,12 +37,16 @@ const v4not = [
   '192.168.0.2000000000'
 ];
 
-v4.forEach((ip) => {
-  assert.strictEqual(net.isIPv4(ip), true);
-  assert.strictEqual(net.isIPv4({ toString: () => ip }), true);
-});
+const validateIsIPv4 = (ip, expected) => {
+  const errMessage = `\n\nnet.isIPv4('${ip}') !== ${expected}\n`;
+  assert.strictEqual(net.isIPv4(ip), expected, errMessage);
+  assert.strictEqual(
+    net.isIPv4({ toString: () => ip }),
+    expected,
+    errMessage
+  );
+};
 
-v4not.forEach((ip) => {
-  assert.strictEqual(net.isIPv4(ip), false);
-  assert.strictEqual(net.isIPv4({ toString: () => ip }), false);
-});
+v4.forEach((ip) => validateIsIPv4(ip, true));
+
+v4not.forEach((ip) => validateIsIPv4(ip, false));
