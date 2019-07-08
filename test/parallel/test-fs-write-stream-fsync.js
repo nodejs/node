@@ -27,15 +27,3 @@ function checkContent(stream, expected) {
     }));
   }));
 }
-
-{
-  const stream = fs.createWriteStream(file);
-  stream.write('data');
-  checkContent(stream, '');
-  stream.flush();
-  checkContent(stream, 'data');
-  stream.write('data');
-  stream.flush();
-  checkContent(stream, 'datadata');
-  stream.destroy();
-}
