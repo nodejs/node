@@ -1,16 +1,17 @@
 #include <js_native_api.h>
 #include "../common.h"
-
 static double value_ = 1;
 static double static_value_ = 10;
 
-static void add_named_property(napi_env env, const char * key, napi_value return_value) {
+static void add_named_property(napi_env env, const char* key, napi_value return_value) {
   napi_value prop_value;
-  const napi_extended_error_info * p_last_error;
-  napi_get_last_error_info(env, &p_last_error);
+  const napi_extended_error_info* p_last_error;
+  NAPI_CALL_RETURN_VOID(env, napi_get_last_error_info(env, &p_last_error));
 
   NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (p_last_error->error_message == NULL ? "napi_ok" : p_last_error->error_message),
+                                         (p_last_error->error_message == NULL ?
+                                           "napi_ok" :
+                                           p_last_error->error_message),
                                          NAPI_AUTO_LENGTH,
                                          &prop_value));
   NAPI_CALL(env, napi_set_named_property(env,
