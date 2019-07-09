@@ -339,7 +339,7 @@ changes:
 Type: End-of-Life
 
 Calling an asynchronous function without a callback throws a `TypeError`
-in Node.js 10.0.0 onwards. (See <https://github.com/nodejs/node/pull/12562>.)
+in Node.js 10.0.0 onwards. See <https://github.com/nodejs/node/pull/12562>.
 
 <a id="DEP0014"></a>
 ### DEP0014: fs.read legacy String interface
@@ -1754,8 +1754,8 @@ changes:
 Type: End-of-Life
 
 The AsyncHooks Sensitive API was never documented and had various minor issues.
-(See <https://github.com/nodejs/node/issues/15572>.) Use the `AsyncResource`
-API instead.
+Use the `AsyncResource` API instead. See
+<https://github.com/nodejs/node/issues/15572>.
 
 <a id="DEP0086"></a>
 ### DEP0086: Remove runInAsyncIdScope
@@ -1774,8 +1774,7 @@ changes:
 Type: End-of-Life
 
 `runInAsyncIdScope` doesn't emit the `'before'` or `'after'` event and can thus
-cause a lot of issues. See <https://github.com/nodejs/node/issues/14328> for
-more details.
+cause a lot of issues. See <https://github.com/nodejs/node/issues/14328>.
 
 <a id="DEP0089"></a>
 ### DEP0089: require('assert')
@@ -1937,7 +1936,7 @@ to unrecoverable errors.
 
 Use [`asyncResource.runInAsyncScope()`][] API instead which provides a much
 safer, and more convenient, alternative. See
-<https://github.com/nodejs/node/pull/18513> for more details.
+<https://github.com/nodejs/node/pull/18513>.
 
 <a id="DEP0099"></a>
 ### DEP0099: async context-unaware node::MakeCallback C++ APIs
