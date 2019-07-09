@@ -325,10 +325,9 @@ class ThreadSafeFunction : public node::AsyncResource {
             v8::Local<v8::Function>::New(env->isolate, ref);
           js_callback = v8impl::JsValueFromV8LocalValue(js_cb);
         }
-        call_js_cb(env,
-                   js_callback,
-                   context,
-                   data);
+        NapiCallIntoModuleThrow(env, [&]() {
+          call_js_cb(env, js_callback, context, data);
+        });
       }
     }
   }
@@ -347,7 +346,9 @@ class ThreadSafeFunction : public node::AsyncResource {
     v8::HandleScope scope(env->isolate);
     if (finalize_cb) {
       CallbackScope cb_scope(this);
-      finalize_cb(env, finalize_data, context);
+      NapiCallIntoModuleThrow(env, [&]() {
+        finalize_cb(env, finalize_data, context);
+      });
     }
     EmptyQueueAndDelete();
   }
