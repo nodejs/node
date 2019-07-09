@@ -1760,7 +1760,7 @@ Creates a `DiffieHellman` key exchange object and generates a prime of
 `primeLength` bits using an optional specific numeric `generator`.
 If `generator` is not specified, the value `2` is used.
 
-### crypto.createDiffieHellmanGroup()
+### crypto.createDiffieHellmanGroup(groupName)
 <!-- YAML
 added: v0.9.3
 -->
@@ -3260,7 +3260,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`crypto.createSign()`]: #crypto_crypto_createsign_algorithm_options
 [`crypto.createVerify()`]: #crypto_crypto_createverify_algorithm_options
 [`crypto.getCurves()`]: #crypto_crypto_getcurves
-[`crypto.getDiffieHellman()`]: #crypto_crypto_getdiffiehellman
+[`crypto.getDiffieHellman()`]: #crypto_crypto_getdiffiehellman_groupname
 [`crypto.getHashes()`]: #crypto_crypto_gethashes
 [`crypto.privateDecrypt()`]: #crypto_crypto_privatedecrypt_privatekey_buffer
 [`crypto.privateEncrypt()`]: #crypto_crypto_privateencrypt_privatekey_buffer
