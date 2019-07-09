@@ -581,33 +581,6 @@ const bobSecret = bob.computeSecret(aliceKey);
 assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 ```
 
-## Class: DiffieHellmanGroup
-<!-- YAML
-added: v0.7.5
--->
-
-Usage:
-
-```js
-const name = 'modp1';
-const dh = crypto.createDiffieHellmanGroup(name);
-```
-It takes a well-known modp group as its argument but
- otherwise works the same as `DiffieHellman`.
-
-`name` is taken from [RFC 2412][] (modp1 and 2) and [RFC 3526][]:
-```bash
-$ perl -ne 'print "$1\n" if /"(modp\d+)"/' src/node_crypto_groups.h
-modp1  #  768 bits
-modp2  # 1024 bits
-modp5  # 1536 bits
-modp14 # 2048 bits
-modp15 # etc.
-modp16
-modp17
-modp18
-```
-
 ### diffieHellman.computeSecret(otherPublicKey[, inputEncoding][, outputEncoding])
 <!-- YAML
 added: v0.5.0
@@ -724,6 +697,33 @@ module):
 * `DH_CHECK_P_NOT_PRIME`
 * `DH_UNABLE_TO_CHECK_GENERATOR`
 * `DH_NOT_SUITABLE_GENERATOR`
+
+## Class: DiffieHellmanGroup
+<!-- YAML
+added: v0.7.5
+-->
+
+Usage:
+
+```js
+const name = 'modp1';
+const dh = crypto.createDiffieHellmanGroup(name);
+```
+It takes a well-known modp group as its argument but
+ otherwise works the same as `DiffieHellman`.
+
+`name` is taken from [RFC 2412][] (modp1 and 2) and [RFC 3526][]:
+```bash
+$ perl -ne 'print "$1\n" if /"(modp\d+)"/' src/node_crypto_groups.h
+modp1  #  768 bits
+modp2  # 1024 bits
+modp5  # 1536 bits
+modp14 # 2048 bits
+modp15 # etc.
+modp16
+modp17
+modp18
+```
 
 ## Class: ECDH
 <!-- YAML
