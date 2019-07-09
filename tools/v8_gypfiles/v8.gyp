@@ -2536,16 +2536,24 @@
           },
         }],
         ['OS=="aix"', {
+          'variables': {
+            # Used to differentiate `AIX` and `OS400`(IBM i).
+            'aix_variant_name': '<!(uname -s)',
+          },
           'sources': [
             '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
             '<(V8_ROOT)/src/base/platform/platform-aix.cc',
           ],
-          'link_settings': {
-            'libraries': [
-              '-ldl',
-              '-lrt'
-            ],
-          },
+          'conditions': [
+            [ '"<(aix_variant_name)"=="AIX"', { # It is `AIX`
+              'link_settings': {
+                'libraries': [
+                  '-ldl',
+                  '-lrt'
+                ],
+              },
+            }],
+          ],
         }],
         ['is_android', {
           'sources': [
