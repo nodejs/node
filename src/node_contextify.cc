@@ -255,24 +255,21 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   options.allow_code_gen_wasm = args[4].As<Boolean>();
 
   TryCatchScope try_catch(env);
-  ContextifyContext* context = new ContextifyContext(env, sandbox, options);
+  auto context_ptr = std::make_unique<ContextifyContext>(env, sandbox, options);
 
   if (try_catch.HasCaught()) {
     if (!try_catch.HasTerminated())
       try_catch.ReThrow();
-    delete context;
     return;
   }
 
-  if (context->context().IsEmpty()) {
-    delete context;
+  if (context_ptr->context().IsEmpty())
     return;
-  }
 
   sandbox->SetPrivate(
       env->context(),
       env->contextify_context_private_symbol(),
-      External::New(env->isolate(), context));
+      External::New(env->isolate(), context_ptr.release()));
 }
 
 
