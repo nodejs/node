@@ -1405,12 +1405,13 @@ const subprocess = spawn('ls');
 
 const ioStdout = subprocess.stdio[1];
 
-ioStdout.on('data', (data) => {
+// This is the same of listening to ioStdout data event
+subprocess.stdout.on('data', (data) => {
   console.log(`Received chunk ${data}`);
 });
 
-subprocess.stdout.on('data', (data) => {
-  console.log(`Received same chunk value as ioStdout ${data}`);
+ioStdout.on('data', (data) => {
+  console.log(`Received chunk ${data}`);
 });
 ```
 
