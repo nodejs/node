@@ -312,12 +312,37 @@ There are four types of specifiers:
 Bare specifiers, and the bare specifier portion of deep import specifiers, are
 strings; but everything else in a specifier is a URL.
 
-Only `file://` URLs are supported. A specifier like
+Only `file:` and `data:` URLs are supported. A specifier like
 `'https://example.com/app.js'` may be supported by browsers but it is not
 supported in Node.js.
 
 Specifiers may not begin with `/` or `//`. These are reserved for potential
 future use. The root of the current volume may be referenced via `file:///`.
+
+#### `data:` Imports
+
+<!-- YAML
+added: REPLACEME
+-->
+
+[`data:` URLs][] are supported for importing with the following MIME types:
+
+* `text/javascript` for ES Modules
+* `application/json` for JSON
+* `application/wasm` for WASM.
+
+`data:` URLs only resolve [_Bare specifiers_][Terminology] for builtin modules
+and [_Absolute specifiers_][Terminology]. Resolving
+[_Relative specifiers_][Terminology] will not work because `data:` is not a
+[special scheme][]. For example, attempting to load `./foo`
+from `data:text/javascript,import "./foo";` will fail to resolve since there
+is no concept of relative resolution for `data:` URLs. An example of a `data:`
+URLs being used is:
+
+```mjs
+import 'data:text/javascript,console.log("hello!");'
+import _ from 'data:application/json,"world!"'
+```
 
 ## import.meta
 
@@ -869,6 +894,8 @@ $ node --experimental-modules --es-module-specifier-resolution=node index
 success!
 ```
 
+[Terminology]: #esm_terminology
+[`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`import()`]: #esm_import-expressions
@@ -877,6 +904,7 @@ success!
 [CommonJS]: modules.html
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
+[special scheme]: https://url.spec.whatwg.org/#special-scheme
 [WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
