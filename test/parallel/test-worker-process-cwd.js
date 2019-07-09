@@ -19,7 +19,7 @@ if (!process.env.HAS_STARTED_WORKER) {
   // 1. Start the first worker.
   const w = new Worker(__filename);
   w.once('message', common.mustCall((message) => {
-    // 5. step: change the cwd and send that to the spawned worker
+    // 5. Change the cwd and send that to the spawned worker.
     assert.strictEqual(message, process.cwd());
     process.chdir('..');
     w.postMessage(process.cwd());
