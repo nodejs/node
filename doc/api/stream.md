@@ -491,8 +491,7 @@ added: v12.6.0
 
 * {boolean}
 
-Is `true` if all data has been flushed to the underlying system. After
-the [`'finish'`][] event has been emitted.
+Is `true` if after the [`'finish'`][] event has been emitted.
 
 ##### writable.writableHighWaterMark
 <!-- YAML
