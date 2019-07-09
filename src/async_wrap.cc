@@ -586,7 +586,7 @@ AsyncWrap::AsyncWrap(Environment* env,
   AsyncReset(execution_async_id, silent);
 }
 
-AsyncWrap::AsyncWrap(Environment* env, v8::Local<v8::Object> object)
+AsyncWrap::AsyncWrap(Environment* env, Local<Object> object)
     : BaseObject(env, object),
       provider_type_(PROVIDER_NONE) {
   CHECK_GE(object->InternalFieldCount(), 1);
