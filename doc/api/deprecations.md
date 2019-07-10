@@ -26,7 +26,7 @@ are explicitly labeled as such in the
 
 A Runtime deprecation will, by default, generate a process warning that will
 be printed to `stderr` the first time the deprecated API is used. When the
-`--throw-deprecation` command-line flag is used, a Runtime deprecation will
+[`--throw-deprecation`][] command-line flag is used, a Runtime deprecation will
 cause an error to be thrown.
 
 An End-of-Life deprecation is used when functionality is or will soon be removed
@@ -2500,6 +2500,7 @@ Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
+[`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
