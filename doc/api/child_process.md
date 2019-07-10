@@ -1403,14 +1403,7 @@ const { spawn } = require('child_process');
 
 const subprocess = spawn('ls');
 
-const ioStdout = subprocess.stdio[1];
-
-// This is the same of listening to ioStdout data event
 subprocess.stdout.on('data', (data) => {
-  console.log(`Received chunk ${data}`);
-});
-
-ioStdout.on('data', (data) => {
   console.log(`Received chunk ${data}`);
 });
 ```
