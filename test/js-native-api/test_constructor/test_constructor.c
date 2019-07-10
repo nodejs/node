@@ -1,9 +1,11 @@
 #include <js_native_api.h>
 #include "../common.h"
+
 static double value_ = 1;
 static double static_value_ = 10;
 
-static void add_named_property(napi_env env, const char* key, napi_value return_value) {
+static void
+add_named_property(napi_env env, const char* key, napi_value return_value) {
   napi_value prop_value;
   const napi_extended_error_info* p_last_error;
   NAPI_CALL_RETURN_VOID(env, napi_get_last_error_info(env, &p_last_error));
@@ -23,10 +25,9 @@ static void add_named_property(napi_env env, const char* key, napi_value return_
 
 static napi_value TestDefineClass(napi_env env,
                                   napi_callback_info info) {
-
-  napi_value prop_value;
-  napi_value result, return_value;
   napi_status status;
+  napi_value result, return_value, prop_value;
+  char p_napi_message[100] = "";
 
   napi_property_descriptor property_descriptor = {
     "TestDefineClass",
@@ -49,17 +50,22 @@ static napi_value TestDefineClass(napi_env env,
                              &property_descriptor,
                              &result);
 
-  NAPI_CALL_RETURN_VOID(env,
-      napi_create_string_utf8(env,
-                              "napi_env_null_is_ok",
-                              NAPI_AUTO_LENGTH,
-                              &prop_value));
-  NAPI_CALL_RETURN_VOID(env, napi_set_named_property(env,
-                                                     return_value,
-                                                     "envIsNull",
-                                                     prop_value));
+  if (status == napi_invalid_arg) {
+    snprintf(p_napi_message, 99, "Invalid argument");
+  } else {
+    snprintf(p_napi_message, 99, "Invalid status [%d]", status);
+  }
 
-   napi_define_class(env,
+  NAPI_CALL(env, napi_create_string_utf8(env,
+                                         p_napi_message,
+                                         NAPI_AUTO_LENGTH,
+                                         &prop_value));
+  NAPI_CALL(env, napi_set_named_property(env,
+                                         return_value,
+                                         "envIsNull",
+                                          prop_value));
+
+  napi_define_class(env,
                     NULL,
                     NAPI_AUTO_LENGTH,
                     TestDefineClass,
