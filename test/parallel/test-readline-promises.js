@@ -3,10 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const readline = require('readline');
 const { PassThrough } = require('stream');
-
-common.expectWarning('ExperimentalWarning',
-                     'The readline.promises API is experimental');
-
 const promises = readline.promises;
 
 {
