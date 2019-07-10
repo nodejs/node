@@ -504,6 +504,8 @@ Return the value of `highWaterMark` passed when constructing this
 added: v9.4.0
 -->
 
+* {number}
+
 This property contains the number of bytes (or objects) in the queue
 ready to be written. The value provides introspection data regarding
 the status of the `highWaterMark`.
@@ -512,6 +514,8 @@ the status of the `highWaterMark`.
 <!-- YAML
 added: v12.3.0
 -->
+
+* {boolean}
 
 Getter for the property `objectMode` of a given `Writable` stream.
 
@@ -1106,6 +1110,8 @@ the status of the `highWaterMark`.
 <!-- YAML
 added: v12.3.0
 -->
+
+* {boolean}
 
 Getter for the property `objectMode` of a given `Readable` stream.
 
