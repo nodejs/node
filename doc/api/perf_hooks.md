@@ -419,7 +419,7 @@ added: v11.10.0
 * Returns: {Histogram}
 
 Creates a `Histogram` object that samples and reports the event loop delay
-over time.
+over time. The delays will be reported in nanoseconds.
 
 Using a timer to detect approximate event loop delay works because the
 execution of timers is tied specifically to the lifecycle of the libuv
