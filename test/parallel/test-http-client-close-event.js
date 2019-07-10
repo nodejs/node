@@ -23,6 +23,7 @@ server.listen(0, common.mustCall(() => {
 
   req.on('close', common.mustCall(() => {
     assert.strictEqual(errorEmitted, true);
+    assert.strictEqual(req.closed, true);
     server.close();
   }));
 

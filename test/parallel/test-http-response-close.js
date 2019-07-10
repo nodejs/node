@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const http = require('http');
+const assert = require('assert');
 
 {
   const server = http.createServer(
@@ -40,6 +41,7 @@ const http = require('http');
             res.destroy();
           }));
           res.on('close', common.mustCall(() => {
+            assert.strictEqual(res.closed, true);
             server.close();
           }));
         })
