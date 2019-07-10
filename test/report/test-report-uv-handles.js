@@ -43,7 +43,7 @@ if (process.argv[2] === 'child') {
   const server = http.createServer((req, res) => {
     req.on('end', () => {
       // Generate the report while the connection is active.
-      console.log(process.report.getReport());
+      console.log(JSON.stringify(process.report.getReport(), null, 2));
       child_process.kill();
 
       res.writeHead(200, { 'Content-Type': 'text/plain' });
