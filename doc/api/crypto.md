@@ -1765,7 +1765,8 @@ If `generator` is not specified, the value `2` is used.
 added: v0.9.3
 -->
 
-* name {string}
+* `name` {string}
+* Returns: {DiffieHellman}
 
 An alias for [`crypto.getDiffieHellman()`][]
 
