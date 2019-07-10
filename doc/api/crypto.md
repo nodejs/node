@@ -2837,7 +2837,7 @@ mode must adhere to certain restrictions when using the cipher API:
   bytes (`7 ≤ N ≤ 13`).
 - The length of the plaintext is limited to `2 ** (8 * (15 - N))` bytes.
 - When decrypting, the authentication tag must be set via `setAuthTag()` before
-  specifying additional authenticated data or calling `update()`.
+  calling `update()`.
   Otherwise, decryption will fail and `final()` will throw an error in
   compliance with section 2.6 of [RFC 3610][].
 - Using stream methods such as `write(data)`, `end(data)` or `pipe()` in CCM
