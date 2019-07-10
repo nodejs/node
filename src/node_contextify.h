@@ -22,6 +22,8 @@ class ContextifyContext {
   ContextifyContext(Environment* env,
                     v8::Local<v8::Object> sandbox_obj,
                     const ContextOptions& options);
+  ~ContextifyContext();
+  static void CleanupHook(void* arg);
 
   v8::MaybeLocal<v8::Object> CreateDataWrapper(Environment* env);
   v8::MaybeLocal<v8::Context> CreateV8Context(Environment* env,
