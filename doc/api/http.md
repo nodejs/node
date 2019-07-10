@@ -553,6 +553,15 @@ changes:
 The `request.aborted` property will be `true` if the request has
 been aborted.
 
+### request.closed
+<!-- YAML
+added: CHANGEME
+-->
+
+* {boolean}
+
+The `request.closed` property indicates whether the request has been closed.
+
 ### request.connection
 <!-- YAML
 added: v0.3.0
@@ -1129,6 +1138,15 @@ response.end();
 
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
+
+### response.closed
+<!-- YAML
+added: CHANGEME
+-->
+
+* {boolean}
+
+The `response.closed` property indicates whether the response has been closed.
 
 ### response.connection
 <!-- YAML

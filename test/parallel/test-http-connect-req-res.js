@@ -33,9 +33,14 @@ server.listen(0, common.mustCall(function() {
     path: 'example.com:443'
   }, common.mustNotCall());
 
-  req.on('close', common.mustCall());
+  assert.strictEqual(req.closed, false);
+  req.on('close', common.mustCall(() => {
+    assert.strictEqual(req.closed, true);
+  }));
 
   req.on('connect', common.mustCall(function(res, socket, firstBodyChunk) {
+    assert.strictEqual(req.closed, false);
+
     console.error('Client got CONNECT request');
 
     // Make sure this request got removed from the pool.
@@ -54,10 +59,20 @@ server.listen(0, common.mustCall(function() {
     // Test that the firstBodyChunk was not parsed as HTTP
     assert.strictEqual(data, 'Head');
 
+    let closeEmitted = false;
+
+    req.on('close', common.mustCall(() => {
+      closeEmitted = true;
+    }));
+
     socket.on('data', function(buf) {
+      assert.strictEqual(req.closed, true); // TODO: This should be false
+      assert.strictEqual(closeEmitted, true); // TODO: This should be false
       data += buf.toString();
     });
     socket.on('end', function() {
+      assert.strictEqual(req.closed, true); // TODO: This should be false
+      assert.strictEqual(closeEmitted, true); // TODO: This should be false
       assert.strictEqual(data, 'HeadRequestEnd');
       server.close();
     });
