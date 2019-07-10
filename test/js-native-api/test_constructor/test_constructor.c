@@ -8,22 +8,25 @@ static void add_named_property(napi_env env, const char* key, napi_value return_
   const napi_extended_error_info* p_last_error;
   NAPI_CALL_RETURN_VOID(env, napi_get_last_error_info(env, &p_last_error));
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (p_last_error->error_message == NULL ?
-                                           "napi_ok" :
-                                           p_last_error->error_message),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         return_value,
-                                         key,
-                                         prop_value));
+  NAPI_CALL_RETURN_VOID(env,
+      napi_create_string_utf8(env,
+                              (p_last_error->error_message == NULL ?
+                                  "napi_ok" :
+                                  p_last_error->error_message),
+                              NAPI_AUTO_LENGTH,
+                              &prop_value));
+  NAPI_CALL_RETURN_VOID(env, napi_set_named_property(env,
+                                                     return_value,
+                                                     key,
+                                                     prop_value));
 }
 
 static napi_value TestDefineClass(napi_env env,
                                   napi_callback_info info) {
 
+  napi_value prop_value;
   napi_value result, return_value;
+  napi_status status;
 
   napi_property_descriptor property_descriptor = {
     "TestDefineClass",
@@ -37,18 +40,26 @@ static napi_value TestDefineClass(napi_env env,
 
   NAPI_CALL(env, napi_create_object(env, &return_value));
 
-  napi_define_class(NULL,
-                    "TrackedFunction",
-                    NAPI_AUTO_LENGTH,
-                    TestDefineClass,
-                    NULL,
-                    1,
-                    &property_descriptor,
-                    &result);
+  status = napi_define_class(NULL,
+                             "TrackedFunction",
+                             NAPI_AUTO_LENGTH,
+                             TestDefineClass,
+                             NULL,
+                             1,
+                             &property_descriptor,
+                             &result);
 
-  add_named_property(env, "envIsNull", return_value);
+  NAPI_CALL_RETURN_VOID(env,
+      napi_create_string_utf8(env,
+                              "napi_env_null_is_ok",
+                              NAPI_AUTO_LENGTH,
+                              &prop_value));
+  NAPI_CALL_RETURN_VOID(env, napi_set_named_property(env,
+                                                     return_value,
+                                                     "envIsNull",
+                                                     prop_value));
 
-  napi_define_class(env,
+   napi_define_class(env,
                     NULL,
                     NAPI_AUTO_LENGTH,
                     TestDefineClass,

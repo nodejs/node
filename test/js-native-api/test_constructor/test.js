@@ -53,7 +53,7 @@ assert.strictEqual(test_object.staticReadonlyAccessor1, undefined);
 // Verify that passing NULL to napi_define_class() results in the correct
 // error.
 assert.deepStrictEqual(TestConstructor.TestDefineClass(), {
-  envIsNull: 'napi_ok',
+  envIsNull: 'napi_env_null_is_ok',
   nameIsNull: 'Invalid argument',
   cbIsNull: 'Invalid argument',
   cbDataIsNull: 'napi_ok',
