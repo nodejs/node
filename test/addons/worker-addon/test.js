@@ -31,7 +31,7 @@ switch (process.argv[2]) {
 }
 
 // Use process.report to figure out if we might be running under musl libc.
-const glibc = JSON.parse(process.report.getReport()).header.glibcVersionRuntime;
+const glibc = process.report.getReport().header.glibcVersionRuntime;
 assert(typeof glibc === 'string' || glibc === undefined, glibc);
 
 const libcMayBeMusl = common.isLinux && glibc === undefined;
