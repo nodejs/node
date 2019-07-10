@@ -114,6 +114,19 @@ ContextifyContext::ContextifyContext(
 
   context_.Reset(env->isolate(), v8_context.ToLocalChecked());
   context_.SetWeak(this, WeakCallback, WeakCallbackType::kParameter);
+  env->AddCleanupHook(CleanupHook, this);
+}
+
+
+ContextifyContext::~ContextifyContext() {
+  env()->RemoveCleanupHook(CleanupHook, this);
+}
+
+
+void ContextifyContext::CleanupHook(void* arg) {
+  ContextifyContext* self = static_cast<ContextifyContext*>(arg);
+  self->context_.Reset();
+  delete self;
 }
 
 
