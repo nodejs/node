@@ -557,11 +557,19 @@ class Http2Session::MemoryAllocatorInfo {
 
     if (mem != nullptr) {
       // Adjust the memory info counter.
+      // TODO(addaleax): Avoid the double bookkeeping we do with
+      // current_nghttp2_memory_ + AdjustAmountOfExternalAllocatedMemory
+      // and provide versions of our memory allocation utilities that take an
+      // Environment*/Isolate* parameter and call the V8 method transparently.
       session->current_nghttp2_memory_ += size - previous_size;
+      session->env()->isolate()->AdjustAmountOfExternalAllocatedMemory(
+          static_cast<int64_t>(size - previous_size));
       *reinterpret_cast<size_t*>(mem) = size;
       mem += sizeof(size_t);
     } else if (size == 0) {
       session->current_nghttp2_memory_ -= previous_size;
+      session->env()->isolate()->AdjustAmountOfExternalAllocatedMemory(
+          -static_cast<int64_t>(previous_size));
     }
 
     return mem;
@@ -571,6 +579,8 @@ class Http2Session::MemoryAllocatorInfo {
     size_t* original_ptr = reinterpret_cast<size_t*>(
         static_cast<char*>(ptr) - sizeof(size_t));
     session->current_nghttp2_memory_ -= *original_ptr;
+    session->env()->isolate()->AdjustAmountOfExternalAllocatedMemory(
+        -static_cast<int64_t>(*original_ptr));
     *original_ptr = 0;
   }
 
