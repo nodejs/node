@@ -4542,8 +4542,6 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
 <!--lint disable no-unused-definitions remark-lint-->
 ## Asynchronous Thread-safe Function Calls
 
-> Stability: 1 - Experimental
-
 JavaScript functions can normally only be called from a native addon's main
 thread. If an addon creates additional threads, then N-API functions that
 require a `napi_env`, `napi_value`, or `napi_ref` must not be called from those
