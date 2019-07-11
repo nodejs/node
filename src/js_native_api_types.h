@@ -81,6 +81,10 @@ typedef enum {
   napi_bigint_expected,
   napi_date_expected,
 } napi_status;
+// Note: when adding a new enum value to `napi_status`, please also update
+// `const int last_status` in `napi_get_last_error_info()' definition,
+// in file js_native_api_v8.cc. Please also update the definition of
+// `napi_status` in doc/api/n-api.md to reflect the newly added value(s).
 
 typedef napi_value (*napi_callback)(napi_env env,
                                     napi_callback_info info);
