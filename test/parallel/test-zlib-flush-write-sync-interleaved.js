@@ -13,14 +13,31 @@ const decompress = createGunzip();
 decompress.setEncoding('utf8');
 
 const events = [];
+const compressedChunks = [];
 
 for (const chunk of ['abc', 'def', 'ghi']) {
   compress.write(chunk, common.mustCall(() => events.push({ written: chunk })));
   compress.flush(Z_PARTIAL_FLUSH, common.mustCall(() => {
     events.push('flushed');
-    decompress.write(compress.read(), common.mustCall(() => {
-      events.push({ read: decompress.read() });
-    }));
+    const chunk = compress.read();
+    if (chunk !== null)
+      compressedChunks.push(chunk);
+  }));
+}
+
+compress.end(common.mustCall(() => {
+  events.push('compress end');
+  writeToDecompress();
+}));
+
+function writeToDecompress() {
+  // Write the compressed chunks to a decompressor, one by one, in order to
+  // verify that the flushes actually worked.
+  const chunk = compressedChunks.shift();
+  if (chunk === undefined) return decompress.end();
+  decompress.write(chunk, common.mustCall(() => {
+    events.push({ read: decompress.read() });
+    writeToDecompress();
   }));
 }
 
@@ -29,11 +46,12 @@ process.on('exit', () => {
     { written: 'abc' },
     'flushed',
     { written: 'def' },
-    { read: 'abc' },
     'flushed',
     { written: 'ghi' },
-    { read: 'def' },
     'flushed',
+    'compress end',
+    { read: 'abc' },
+    { read: 'def' },
     { read: 'ghi' }
   ]);
 });
