@@ -29,8 +29,19 @@ class TestWritable extends Writable {
 
 const writable = new TestWritable();
 
-readline.clearScreenDown(writable);
+assert.strictEqual(readline.clearScreenDown(writable), true);
 assert.deepStrictEqual(writable.data, CSI.kClearScreenDown);
+assert.strictEqual(readline.clearScreenDown(writable, common.mustCall()), true);
+
+// Verify that clearScreenDown() throws on invalid callback.
+assert.throws(() => {
+  readline.clearScreenDown(writable, null);
+}, /ERR_INVALID_CALLBACK/);
+
+// Verify that clearScreenDown() does not throw on null or undefined stream.
+assert.strictEqual(readline.clearScreenDown(null, common.mustCall()), true);
+assert.strictEqual(readline.clearScreenDown(undefined, common.mustCall()),
+                   true);
 
 writable.data = '';
 readline.clearLine(writable, -1);

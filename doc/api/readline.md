@@ -360,12 +360,20 @@ added: v0.7.7
 The `readline.clearLine()` method clears current line of given [TTY][] stream
 in a specified direction identified by `dir`.
 
-## readline.clearScreenDown(stream)
+## readline.clearScreenDown(stream[, callback])
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28641
+    description: The stream's write() callback and return value are exposed.
 -->
 
 * `stream` {stream.Writable}
+* `callback` {Function} Invoked once the operation completes.
+* Returns: {boolean} `false` if `stream` wishes for the calling code to wait for
+  the `'drain'` event to be emitted before continuing to write additional data;
+  otherwise `true`.
 
 The `readline.clearScreenDown()` method clears the given [TTY][] stream from
 the current position of the cursor down.
