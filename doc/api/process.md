@@ -1684,6 +1684,8 @@ relied upon to exist.
 added: v11.8.0
 -->
 
+> Stability: 1 - Experimental
+
 * {Object}
 
 `process.report` is an object whose methods are used to generate diagnostic
@@ -1694,6 +1696,8 @@ reports for the current process. Additional documentation is available in the
 <!-- YAML
 added: v11.12.0
 -->
+
+> Stability: 1 - Experimental
 
 * {string}
 
@@ -1710,6 +1714,8 @@ console.log(`Report directory is ${process.report.directory}`);
 added: v11.12.0
 -->
 
+> Stability: 1 - Experimental
+
 * {string}
 
 Filename where the report is written. If set to the empty string, the output
@@ -1724,6 +1730,8 @@ console.log(`Report filename is ${process.report.filename}`);
 <!-- YAML
 added: v11.8.0
 -->
+
+> Stability: 1 - Experimental
 
 * `err` {Error} A custom error used for reporting the JavaScript stack.
 * Returns: {Object}
@@ -1748,6 +1756,8 @@ Additional documentation is available in the [report documentation][].
 added: v11.12.0
 -->
 
+> Stability: 1 - Experimental
+
 * {boolean}
 
 If `true`, a diagnostic report is generated on fatal errors, such as out of
@@ -1761,6 +1771,8 @@ console.log(`Report on fatal error: ${process.report.reportOnFatalError}`);
 <!-- YAML
 added: v11.12.0
 -->
+
+> Stability: 1 - Experimental
 
 * {boolean}
 
@@ -1776,6 +1788,8 @@ console.log(`Report on signal: ${process.report.reportOnSignal}`);
 added: v11.12.0
 -->
 
+> Stability: 1 - Experimental
+
 * {boolean}
 
 If `true`, a diagnostic report is generated on uncaught exception.
@@ -1788,6 +1802,8 @@ console.log(`Report on exception: ${process.report.reportOnUncaughtException}`);
 <!-- YAML
 added: v11.12.0
 -->
+
+> Stability: 1 - Experimental
 
 * {string}
 
@@ -1802,6 +1818,8 @@ console.log(`Report signal: ${process.report.signal}`);
 <!-- YAML
 added: v11.8.0
 -->
+
+> Stability: 1 - Experimental
 
 * `filename` {string} Name of the file where the report is written. This
   should be a relative path, that will be appended to the directory specified in
