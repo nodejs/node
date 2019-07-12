@@ -2498,20 +2498,6 @@ Type: Runtime
 Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 `Promise` instead, or a listener to the worker’s `'exit'` event.
 
-<a id="DEP0133"></a>
-### DEP0133: _readableState.pipesCount
-<!-- YAML
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/28583
-    description: Documentation-only.
--->
-
-Type: Documentation-only
-
-`_readableState.pipesCount` is deprecated. Please use
-`_readableState.pipes.length` instead.
-
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
