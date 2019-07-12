@@ -703,14 +703,13 @@ module):
 added: v0.7.5
 -->
 
-Usage:
+The `DiffieHellmanGroup` class takes a well-known modp group as its argument but
+otherwise works the same as `DiffieHellman`.
 
 ```js
 const name = 'modp1';
 const dh = crypto.createDiffieHellmanGroup(name);
 ```
-It takes a well-known modp group as its argument but
- otherwise works the same as `DiffieHellman`.
 
 `name` is taken from [RFC 2412][] (modp1 and 2) and [RFC 3526][]:
 ```bash
