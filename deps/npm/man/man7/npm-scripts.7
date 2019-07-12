@@ -1,4 +1,4 @@
-.TH "NPM\-SCRIPTS" "7" "April 2019" "" ""
+.TH "NPM\-SCRIPTS" "7" "July 2019" "" ""
 .SH "NAME"
 \fBnpm-scripts\fR \- How npm handles the "scripts" field
 .SH DESCRIPTION
@@ -72,20 +72,20 @@ Run by the \fBnpm shrinkwrap\fP command\.
 Additionally, arbitrary scripts can be executed by running \fBnpm
 run\-script <stage>\fP\|\. \fIPre\fR and \fIpost\fR commands with matching
 names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP,
-\fBpostmyscript\fP)\. Scripts from dependencies can be run with
+\fBpostmyscript\fP)\. Scripts from dependencies can be run with 
 \fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
 .SH PREPUBLISH AND PREPARE
 .SS DEPRECATION NOTE
 .P
-Since \fB, the npm CLI has run the\fPprepublish\fBscript for both\fPnpm
-publish\fBand\fPnpm install\fB, because it's a convenient way to prepare a package
+Since \fBnpm@1\.1\.71\fP, the npm CLI has run the \fBprepublish\fP script for both \fBnpm
+publish\fP and \fBnpm install\fP, because it's a convenient way to prepare a package
 for use (some common use cases are described in the section below)\.  It has
-also turned out to be, in practice, [very
-confusing](https://github\.com/npm/npm/issues/10074)\.  As of\fP\fB, a new
-event has been introduced,\fPprepare\fB, that preserves this existing behavior\. A
-_new_ event,\fPprepublishOnly\fBhas been added as a transitional strategy to
+also turned out to be, in practice, very
+confusing \fIhttps://github\.com/npm/npm/issues/10074\fR\|\.  As of \fBnpm@4\.0\.0\fP, a new
+event has been introduced, \fBprepare\fP, that preserves this existing behavior\. A
+\fInew\fR event, \fBprepublishOnly\fP has been added as a transitional strategy to
 allow users to avoid the confusing behavior of existing npm versions and only
-run on\fPnpm publish` (for instance, running the tests one last time to ensure
+run on \fBnpm publish\fP (for instance, running the tests one last time to ensure
 they're in good shape)\.
 .P
 See https://github\.com/npm/npm/issues/10074 for a much lengthier
@@ -169,8 +169,8 @@ The package\.json fields are tacked onto the \fBnpm_package_\fP prefix\. So,
 for instance, if you had \fB{"name":"foo", "version":"1\.2\.5"}\fP in your
 package\.json file, then your package scripts would have the
 \fBnpm_package_name\fP environment variable set to "foo", and the
-\fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables
-in your code with \fBprocess\.env\.npm_package_name\fP and
+\fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables 
+in your code with \fBprocess\.env\.npm_package_name\fP and 
 \fBprocess\.env\.npm_package_version\fP, and so on for other fields\.
 .SS configuration
 .P

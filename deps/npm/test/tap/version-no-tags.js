@@ -9,7 +9,7 @@ var mkdirp = require('mkdirp')
 var which = require('which')
 var spawn = require('child_process').spawn
 
-var pkg = path.resolve(__dirname, 'version-no-tags')
+var pkg = common.pkg
 var cache = path.resolve(pkg, 'cache')
 
 test('npm version <semver> without git tag', function (t) {

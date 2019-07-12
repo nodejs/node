@@ -7,10 +7,10 @@ var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var isWindows = require('../../lib/utils/is-windows.js')
 
-var pkg = resolve(__dirname, 'gently-rm-linked')
-var dep = resolve(__dirname, 'test-linked')
-var glb = resolve(__dirname, 'test-global')
-var lnk = resolve(__dirname, 'test-global-link')
+var pkg = resolve(common.pkg, 'package')
+var dep = resolve(common.pkg, 'test-linked')
+var glb = resolve(common.pkg, 'test-global')
+var lnk = resolve(common.pkg, 'test-global-link')
 
 var EXEC_OPTS = { cwd: pkg }
 

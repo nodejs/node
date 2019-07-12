@@ -167,7 +167,7 @@ function shouldPrependCurrentNodeDirToPATH (opts) {
   var isWindows = process.platform === 'win32'
   var foundExecPath
   try {
-    foundExecPath = which.sync(path.basename(process.execPath), {pathExt: isWindows ? ';' : ':'})
+    foundExecPath = which.sync(path.basename(process.execPath), { pathExt: isWindows ? ';' : ':' })
     // Apply `fs.realpath()` here to avoid false positives when `node` is a symlinked executable.
     isDifferentNodeInPath = fs.realpathSync(process.execPath).toUpperCase() !==
         fs.realpathSync(foundExecPath).toUpperCase()

@@ -10,7 +10,7 @@ if (!String.prototype.startsWith) {
 }
 
 function processExecSync(file, args, options) {
-  var child, error, timeout, tmpdir, command, quote
+  var child, error, timeout, tmpdir, command
   command = makeCommand(file, args)
 
   /*

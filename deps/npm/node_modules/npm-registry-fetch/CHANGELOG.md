@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="3.9.1"></a>
+## [3.9.1](https://github.com/npm/registry-fetch/compare/v3.9.0...v3.9.1) (2019-07-02)
+
+
+
 <a name="3.9.0"></a>
 # [3.9.0](https://github.com/npm/registry-fetch/compare/v3.8.0...v3.9.0) (2019-01-24)
 

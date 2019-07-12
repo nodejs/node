@@ -6,7 +6,7 @@ var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var fs = require('graceful-fs')
 var tar = require('tar')
-var basepath = path.resolve(__dirname, path.basename(__filename, '.js'))
+var basepath = common.pkg
 var fixturepath = path.resolve(basepath, 'npm-test-files')
 var targetpath = path.resolve(basepath, 'target')
 var Tacks = require('tacks')
@@ -484,7 +484,7 @@ test('default-ignored files can be explicitly included', function (t) {
     })
   )
   withFixture(t, fixture, function (done) {
-    t.ok(fileExists('.git'), '.git included')
+    t.notOk(fileExists('.git'), '.git should never be included')
     t.ok(fileExists('.svn'), '.svn included')
     t.ok(fileExists('CVS'), 'CVS included')
     t.ok(fileExists('.hg'), '.hg included')

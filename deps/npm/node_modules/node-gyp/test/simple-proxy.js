@@ -13,7 +13,6 @@ function handler (req, res) {
     throw new Error('request url [' + req.url + '] does not start with [' + prefix + ']')
 
   var upstreamUrl = upstream + req.url.substring(prefix.length)
-  console.log(req.url + ' -> ' + upstreamUrl)
   https.get(upstreamUrl, function (ures) {
     ures.on('end', function () {
       if (++calls == 2)

@@ -1,6 +1,6 @@
 'use strict';
 
-var test = require('tape')
+var test = require('tap').test
 var gyp = require('../lib/node-gyp')
 
 test('options in environment', function (t) {

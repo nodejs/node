@@ -17,23 +17,34 @@ $ npm install p-try
 ```js
 const pTry = require('p-try');
 
-pTry(() => {
-	return synchronousFunctionThatMightThrow();
-}).then(value => {
-	console.log(value);
-}).catch(error => {
-	console.error(error);
-});
+(async () => {
+	try {
+		const value = await pTry(() => {
+			return synchronousFunctionThatMightThrow();
+		});
+		console.log(value);
+	} catch (error) {
+		console.error(error);
+	}
+})();
 ```
 
 
 ## API
 
-### pTry(fn, ...args)
+### pTry(fn, ...arguments)
 
-Returns a `Promise` resolved with the value of calling `fn(...args)`. If the function throws an error, the returned `Promise` will be rejected with that error.
+Returns a `Promise` resolved with the value of calling `fn(...arguments)`. If the function throws an error, the returned `Promise` will be rejected with that error.
 
 Support for passing arguments on to the `fn` is provided in order to be able to avoid creating unnecessary closures. You probably don't need this optimization unless you're pushing a *lot* of functions.
+
+#### fn
+
+The function to run to start the promise chain.
+
+#### arguments
+
+Arguments to pass to `fn`.
 
 
 ## Related

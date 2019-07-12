@@ -3,10 +3,6 @@ module.exports = exports = remove
 
 exports.usage = 'Removes the node development files for the specified version'
 
-/**
- * Module dependencies.
- */
-
 var fs = require('fs')
   , rm = require('rimraf')
   , path = require('path')
@@ -14,7 +10,6 @@ var fs = require('fs')
   , semver = require('semver')
 
 function remove (gyp, argv, callback) {
-
   var devDir = gyp.devDir
   log.verbose('remove', 'using node-gyp dir:', devDir)
 
@@ -36,7 +31,7 @@ function remove (gyp, argv, callback) {
   log.verbose('remove', 'removing development files for version:', version)
 
   // first check if its even installed
-  fs.stat(versionPath, function (err, stat) {
+  fs.stat(versionPath, function (err) {
     if (err) {
       if (err.code == 'ENOENT') {
         callback(null, 'version was already uninstalled: ' + version)
@@ -48,5 +43,4 @@ function remove (gyp, argv, callback) {
     // Go ahead and delete the dir
     rm(versionPath, callback)
   })
-
 }

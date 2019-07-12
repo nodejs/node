@@ -14,7 +14,7 @@ const {File} = Tacks
 
 const common = require('../common-tap.js')
 
-const PKG_DIR = path.resolve(__dirname, 'search')
+const PKG_DIR = common.pkg
 const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
 const cacheBase = cacheFile(CACHE_DIR)(common.registry + '/-/all')
 const cachePath = path.join(cacheBase, '.cache.json')
@@ -146,6 +146,7 @@ searches.forEach(function (search) {
     const query = qs.stringify({
       text: search.term,
       size: 20,
+      from: 0,
       quality: 0.65,
       popularity: 0.98,
       maintenance: 0.5

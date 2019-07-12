@@ -1,4 +1,4 @@
-var test = require('tape')
+var test = require('tap').test
 var path = require('path')
 var findNodeDirectory = require('../lib/find-node-directory')
 

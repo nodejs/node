@@ -9,7 +9,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, path.basename(__filename, '.js'))
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg }
 

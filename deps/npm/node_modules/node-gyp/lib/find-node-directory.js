@@ -1,7 +1,7 @@
 var path = require('path')
   , log = require('npmlog')
 
-function findNodeDirectory(scriptLocation, processObj) {
+module.exports = function findNodeDirectory(scriptLocation, processObj) {
   // set dirname and process if not passed in
   // this facilitates regression tests
   if (scriptLocation === undefined) {
@@ -57,5 +57,3 @@ function findNodeDirectory(scriptLocation, processObj) {
   }
   return node_root_dir
 }
-
-module.exports = findNodeDirectory

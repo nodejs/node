@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'install-property-conflicts')
+var pkg = common.pkg
 var target = resolve(pkg, '_target')
 
 var EXEC_OPTS = {

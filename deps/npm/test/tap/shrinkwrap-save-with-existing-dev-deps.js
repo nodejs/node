@@ -9,7 +9,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var base = path.resolve(__dirname, path.basename(__filename, '.js'))
+var base = common.pkg
 var installme = path.join(base, 'installme')
 var installme_pkg = path.join(installme, 'package.json')
 var example = path.join(base, 'example')

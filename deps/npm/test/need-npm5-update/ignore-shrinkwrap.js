@@ -24,7 +24,7 @@ var json = {
   name: 'ignore-shrinkwrap',
   version: '0.0.0',
   dependencies: {
-    'npm-test-ignore-shrinkwrap-file': 'http://localhost:1337/package.js'
+    'npm-test-ignore-shrinkwrap-file': 'http://localhost:' + common.port + '/package.js'
   }
 }
 
@@ -34,8 +34,8 @@ var shrinkwrap = {
   dependencies: {
     'npm-test-ignore-shrinkwrap-file': {
       version: '1.2.3',
-      from: 'http://localhost:1337/shrinkwrap.js',
-      resolved: 'http://localhost:1337/shrinkwrap.js',
+      from: 'http://localhost:' + common.port + '/shrinkwrap.js',
+      resolved: 'http://localhost:' + common.port + '/shrinkwrap.js',
       dependencies: {
         opener: {
           version: '1.3.0',

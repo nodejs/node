@@ -1,9 +1,9 @@
 'use strict'
-var path = require('path')
 var test = require('tap').test
 var log = require('npmlog')
 var fs = require('graceful-fs')
-var configName = path.join(__dirname, path.basename(__filename, '.js')) + '-npmrc'
+const common = require('../common-tap.js')
+var configName = common.pkg + '-npmrc'
 
 // We use requireInject to get a fresh copy of
 // the npm singleton each time we require it.

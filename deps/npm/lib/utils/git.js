@@ -28,6 +28,16 @@ function execGit (args, options, cb) {
 
 function spawnGit (args, options) {
   log.info('git', args)
+  // If we're already in a git command (eg, running test as an exec
+  // line in an interactive rebase) then these environment variables
+  // will force git to operate on the current project, instead of
+  // checking out/fetching/etc. whatever the user actually intends.
+  options.env = options.env || Object.keys(process.env)
+    .filter(k => !/^GIT/.test(k))
+    .reduce((set, k) => {
+      set[k] = process.env[k]
+      return set
+    }, {})
   return spawn(git, prefixGitArgs().concat(args || []), options)
 }
 

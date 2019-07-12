@@ -26,7 +26,7 @@ function end (api, callback) {
   for (let i = 0; i < farms.length; i++)
     if (farms[i] && farms[i].api === api)
       return farms[i].farm.end(callback)
-  process.nextTick(callback.bind(null, 'Worker farm not found!'))
+  process.nextTick(callback.bind(null, new Error('Worker farm not found!')))
 }
 
 

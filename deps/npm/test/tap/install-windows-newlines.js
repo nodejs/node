@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, 'install-windows-newlines')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg, stdio: [0, 1, 2] }
 
