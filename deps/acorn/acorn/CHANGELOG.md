@@ -1,3 +1,25 @@
+## 6.2.0 (2019-07-04)
+
+### Bug fixes
+
+Improve valid assignment checking in `for`/`in` and `for`/`of` loops.
+
+Disallow binding `let` in patterns.
+
+### New features
+
+Support bigint syntax with `ecmaVersion` >= 10.
+
+Support dynamic `import` syntax with `ecmaVersion` >= 10.
+
+Upgrade to Unicode version 12.
+
+## 6.1.1 (2019-02-27)
+
+### Bug fixes
+
+Fix bug that caused parsing default exports of with names to fail.
+
 ## 6.1.0 (2019-02-08)
 
 ### Bug fixes

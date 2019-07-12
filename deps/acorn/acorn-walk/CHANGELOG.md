@@ -1,3 +1,9 @@
+## 6.2.0 (2017-07-04)
+
+### New features
+
+Add support for `Import` nodes.
+
 ## 6.1.0 (2018-09-28)
 
 ### New features
