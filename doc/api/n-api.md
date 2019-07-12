@@ -192,20 +192,48 @@ napi_value create_addon(napi_env env);
 ```C
 // addon.c
 #include "addon.h"
+
+#define NAPI_CALL(env, call)                                      \
+  do {                                                            \
+    napi_status status = (call);                                  \
+    if (status != napi_ok) {                                      \
+      const napi_extended_error_info* error_info = NULL;          \
+      napi_get_last_error_info((env), &error_info);               \
+      bool is_pending;                                            \
+      napi_is_exception_pending((env), &is_pending);              \
+      if (!is_pending) {                                          \
+        const char* message = (error_info->error_message == NULL) \
+            ? "empty error message"                               \
+            : error_info->error_message;                          \
+        napi_throw_error((env), NULL, message);                   \
+        return NULL;                                              \
+      }                                                           \
+    }                                                             \
+  } while(0)
+
+static napi_value
+DoSomethingUseful(napi_env env, napi_callback_info info) {
+  // Do something useful.
+  return NULL;
+}
+
 napi_value create_addon(napi_env env) {
   napi_value result;
-  assert(napi_create_object(env, &result) == napi_ok);
+  NAPI_CALL(env, napi_create_object(env, &result));
+
   napi_value exported_function;
-  assert(napi_create_function(env,
-                              "doSomethingUseful",
-                              NAPI_AUTO_LENGTH,
-                              DoSomethingUseful,
-                              NULL,
-                              &exported_function) == napi_ok);
-  assert(napi_set_named_property(env,
-                                 result,
-                                 "doSomethingUseful",
-                                 exported_function) == napi_ok);
+  NAPI_CALL(env, napi_create_function(env,
+                                      "doSomethingUseful",
+                                      NAPI_AUTO_LENGTH,
+                                      DoSomethingUseful,
+                                      NULL,
+                                      &exported_function));
+
+  NAPI_CALL(env, napi_set_named_property(env,
+                                         result,
+                                         "doSomethingUseful",
+                                         exported_function));
+
   return result;
 }
 ```
@@ -213,12 +241,14 @@ napi_value create_addon(napi_env env) {
 ```C
 // addon_node.c
 #include <node_api.h>
+#include "addon.h"
 
-static napi_value Init(napi_env env, napi_value exports) {
+NAPI_MODULE_INIT() {
+  // This function body is expected to return a `napi_value`.
+  // The variables `napi_env env` and `napi_value exports` may be used within
+  // the body, as they are provided by the definition of `NAPI_MODULE_INIT()`.
   return create_addon(env);
 }
-
-NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
 ```
 
 ## Basic N-API Data Types
