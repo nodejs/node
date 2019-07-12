@@ -1310,7 +1310,7 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
 
 def configure_intl(o):
   def icu_download(path):
-    depFile = 'tools/icu/current_ver.dep';
+    depFile = 'tools/icu/current_ver.dep'
     with open(depFile) as f:
       icus = json.load(f)
     # download ICU, if needed
@@ -1519,7 +1519,7 @@ def configure_intl(o):
   elif int(icu_ver_major) < icu_versions['minimum_icu']:
     error('icu4c v%s.x is too old, v%d.x or later is required.' %
           (icu_ver_major, icu_versions['minimum_icu']))
-  icu_endianness = sys.byteorder[0];
+  icu_endianness = sys.byteorder[0]
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
   icu_data_file_l = 'icudt%s%s.dat' % (icu_ver_major, 'l')

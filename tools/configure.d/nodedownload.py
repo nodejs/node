@@ -7,7 +7,10 @@ import sys
 import zipfile
 import tarfile
 import contextlib
-from six.moves.urllib.request import FancyURLopener, URLopener
+try:
+    from urllib.request import FancyURLopener, URLopener
+except ImportError:
+    from urllib import FancyURLopener, URLopener
 
 def formatSize(amt):
     """Format a size as a string in MB"""
