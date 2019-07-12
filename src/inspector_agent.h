@@ -94,9 +94,7 @@ class Agent {
 
   void PauseOnNextJavascriptStatement(const std::string& reason);
 
-  InspectorIo* io() {
-    return io_.get();
-  }
+  std::string GetWsUrl() const;
 
   // Can only be called from the main thread.
   bool StartIoThread();

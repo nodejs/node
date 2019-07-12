@@ -34,8 +34,10 @@ std::string GetOpenSSLVersion() {
   // sample openssl version string format
   // for reference: "OpenSSL 1.1.0i 14 Aug 2018"
   char buf[128];
-  const int start = search(OPENSSL_VERSION_TEXT, 0, ' ') + 1;
-  const int end = search(OPENSSL_VERSION_TEXT + start, start, ' ');
+  const char* etext = OPENSSL_VERSION_TEXT;
+  const int start = search(etext, 0, ' ') + 1;
+  etext += start;
+  const int end = search(etext, start, ' ');
   const int len = end - start;
   snprintf(buf, sizeof(buf), "%.*s", len, &OPENSSL_VERSION_TEXT[start]);
   return std::string(buf);

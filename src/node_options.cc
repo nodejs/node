@@ -34,15 +34,10 @@ void DebugOptions::CheckOptions(std::vector<std::string>* errors) {
   }
 #endif
 
-  if (deprecated_debug && !inspector_enabled) {
+  if (deprecated_debug) {
     errors->push_back("[DEP0062]: `node --debug` and `node --debug-brk` "
-                      "are invalid. Please use `node --inspect` or "
+                      "are invalid. Please use `node --inspect` and "
                       "`node --inspect-brk` instead.");
-  }
-
-  if (deprecated_debug && inspector_enabled && break_first_line) {
-    errors->push_back("[DEP0062]: `node --inspect --debug-brk` is deprecated. "
-                      "Please use `node --inspect-brk` instead.");
   }
 
   std::vector<std::string> destinations =
@@ -521,6 +516,10 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
   AddOption("--track-heap-objects",
             "track heap object allocations for heap snapshots",
             &PerIsolateOptions::track_heap_objects,
+            kAllowedInEnvironment);
+  AddOption("--no-node-snapshot",
+            "",  // It's a debug-only option.
+            &PerIsolateOptions::no_node_snapshot,
             kAllowedInEnvironment);
 
   // Explicitly add some V8 flags to mark them as allowed in NODE_OPTIONS.

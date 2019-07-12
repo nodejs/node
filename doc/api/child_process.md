@@ -146,7 +146,7 @@ changes:
   * `encoding` {string} **Default:** `'utf8'`
   * `shell` {string} Shell to execute the command with. See
     [Shell Requirements][] and [Default Windows Shell][]. **Default:**
-    `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows.
+    `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
     stderr. If exceeded, the child process is terminated and any output is
@@ -260,7 +260,7 @@ changes:
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
 * `callback` {Function} Called with the output when process terminates.
@@ -411,7 +411,7 @@ changes:
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
@@ -666,7 +666,7 @@ child registers an event handler for the [`'disconnect'`][] event
 or the [`'message'`][] event. This allows the child to exit
 normally without the process being held open by the open IPC channel.*
 
-On UNIX-like operating systems, the [`child_process.spawn()`][] method
+On Unix-like operating systems, the [`child_process.spawn()`][] method
 performs memory operations synchronously before decoupling the event loop
 from the child. Applications with a large memory footprint may find frequent
 [`child_process.spawn()`][] calls to be a bottleneck. For more information,
@@ -729,7 +729,7 @@ changes:
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
 * Returns: {Buffer|string} The stdout from the command.
@@ -780,7 +780,7 @@ changes:
   * `env` {Object} Environment key-value pairs.
   * `shell` {string} Shell to execute the command with. See
     [Shell Requirements][] and [Default Windows Shell][]. **Default:**
-    `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows.
+    `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
   * `uid` {number} Sets the user identity of the process. (See setuid(2)).
   * `gid` {number} Sets the group identity of the process. (See setgid(2)).
   * `timeout` {number} In milliseconds the maximum amount of time the process
@@ -858,7 +858,7 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     **Default:** `'buffer'`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
@@ -1255,7 +1255,7 @@ can be handled by the parent and some by the child.
 While the example above uses a server created using the `net` module, `dgram`
 module servers use exactly the same workflow with the exceptions of listening on
 a `'message'` event instead of `'connection'` and using `server.bind()` instead
-of `server.listen()`. This is, however, currently only supported on UNIX
+of `server.listen()`. This is, however, currently only supported on Unix
 platforms.
 
 #### Example: sending a socket object

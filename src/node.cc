@@ -688,14 +688,20 @@ void ResetStdio() {
     }
 
     if (s.isatty) {
+      sigset_t sa;
       int err;
+
+      // We might be a background job that doesn't own the TTY so block SIGTTOU
+      // before making the tcsetattr() call, otherwise that signal suspends us.
+      sigemptyset(&sa);
+      sigaddset(&sa, SIGTTOU);
+
+      CHECK_EQ(0, pthread_sigmask(SIG_BLOCK, &sa, nullptr));
       do
         err = tcsetattr(fd, TCSANOW, &s.termios);
       while (err == -1 && errno == EINTR);  // NOLINT
-      // EIO has been observed to be returned by the Linux kernel under some
-      // circumstances. Reading through drivers/tty/tty_io*.c, it seems to
-      // indicate the tty went away. Of course none of this is documented.
-      CHECK_IMPLIES(err == -1, errno == EIO);
+      CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sa, nullptr));
+      CHECK_EQ(0, err);
     }
   }
 #endif  // __POSIX__
@@ -1046,16 +1052,21 @@ int Start(int argc, char** argv) {
 
   {
     Isolate::CreateParams params;
-    // TODO(joyeecheung): collect external references and set it in
-    // params.external_references.
-    std::vector<intptr_t> external_references = {
-        reinterpret_cast<intptr_t>(nullptr)};
-    v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
-    const std::vector<size_t>* indexes =
-        NodeMainInstance::GetIsolateDataIndexes();
-    if (blob != nullptr) {
-      params.external_references = external_references.data();
-      params.snapshot_blob = blob;
+    const std::vector<size_t>* indexes = nullptr;
+    std::vector<intptr_t> external_references;
+
+    bool force_no_snapshot =
+        per_process::cli_options->per_isolate->no_node_snapshot;
+    if (!force_no_snapshot) {
+      v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
+      if (blob != nullptr) {
+        // TODO(joyeecheung): collect external references and set it in
+        // params.external_references.
+        external_references.push_back(reinterpret_cast<intptr_t>(nullptr));
+        params.external_references = external_references.data();
+        params.snapshot_blob = blob;
+        indexes = NodeMainInstance::GetIsolateDataIndexes();
+      }
     }
 
     NodeMainInstance main_instance(&params,

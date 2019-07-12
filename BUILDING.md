@@ -29,7 +29,7 @@ file a new issue.
     * [Building the documentation](#building-the-documentation)
     * [Building a debug build](#building-a-debug-build)
   * [Windows](#windows)
-    * [Prerequisites](#prerequisites-1)
+    * [Prerequisites](#prerequisites)
       * [Option 1: Manual install](#option-1-manual-install)
       * [Option 1: Automated install with Boxstarter](#option-1-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-1)
@@ -322,8 +322,7 @@ Make sure the linter does not report any issues and that all tests pass. Please
 do not submit patches that fail either check.
 
 If you want to run the linter without running tests, use
-`make lint`/`vcbuild lint`. It will run both JavaScript linting and
-C++ linting.
+`make lint`/`vcbuild lint`. It will lint JavaScript, C++, and Markdown files.
 
 If you are updating tests and want to run tests in a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):

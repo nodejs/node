@@ -23,6 +23,9 @@ namespace {
 using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
 
+// kKill closes connections and stops the server, kStop only stops the server
+enum class TransportAction { kKill, kSendMessage, kStop };
+
 std::string ScriptPath(uv_loop_t* loop, const std::string& script_name) {
   std::string script_path;
 
@@ -177,12 +180,6 @@ class RequestQueue {
       data_->Post(session_id, action, std::move(message));
   }
 
-  void SetServer(InspectorSocketServer* server) {
-    Mutex::ScopedLock scoped_lock(lock_);
-    if (data_ != nullptr)
-      data_->SetServer(server);
-  }
-
   bool Expired() {
     Mutex::ScopedLock scoped_lock(lock_);
     return data_ == nullptr;
@@ -315,8 +312,8 @@ void InspectorIo::ThreadMain() {
   CheckedUvLoopClose(&loop);
 }
 
-std::vector<std::string> InspectorIo::GetTargetIds() const {
-  return { id_ };
+std::string InspectorIo::GetWsUrl() const {
+  return FormatWsAddress(host_port_->host(), host_port_->port(), id_, true);
 }
 
 InspectorIoDelegate::InspectorIoDelegate(

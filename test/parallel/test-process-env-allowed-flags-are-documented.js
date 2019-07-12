@@ -79,6 +79,8 @@ const undocumented = difference(process.allowedNodeEnvironmentFlags,
 // Remove intentionally undocumented options.
 assert(undocumented.delete('--debug-arraybuffer-allocations'));
 assert(undocumented.delete('--experimental-worker'));
+assert(undocumented.delete('--no-node-snapshot'));
+
 assert.strictEqual(undocumented.size, 0,
                    'The following options are not documented as allowed in ' +
                    `NODE_OPTIONS in ${cliMd}: ${[...undocumented].join(' ')}`);

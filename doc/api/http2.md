@@ -1749,11 +1749,14 @@ added: v8.4.0
 -->
 * `callback` {Function}
 
-Stops the server from accepting new connections. See [`net.Server.close()`][].
+Stops the server from establishing new sessions. This does not prevent new
+request streams from being created due to the persistent nature of HTTP/2
+sessions. To gracefully shut down the server, call [`http2session.close()`] on
+all active sessions.
 
-This is not analogous to restricting new requests since HTTP/2
-connections are persistent. To achieve a similar graceful shutdown behavior,
-consider also using [`http2session.close()`] on active sessions.
+If `callback` is provided, it is not invoked until all active sessions have been
+closed, although the server has already stopped allowing new sessions. See
+[`net.Server.close()`][] for more details.
 
 #### server.setTimeout([msecs][, callback])
 <!-- YAML
@@ -1895,11 +1898,14 @@ added: v8.4.0
 -->
 * `callback` {Function}
 
-Stops the server from accepting new connections. See [`tls.Server.close()`][].
+Stops the server from establishing new sessions. This does not prevent new
+request streams from being created due to the persistent nature of HTTP/2
+sessions. To gracefully shut down the server, call [`http2session.close()`] on
+all active sessions.
 
-This is not analogous to restricting new requests since HTTP/2
-connections are persistent. To achieve a similar graceful shutdown behavior,
-consider also using [`http2session.close()`] on active sessions.
+If `callback` is provided, it is not invoked until all active sessions have been
+closed, although the server has already stopped allowing new sessions. See
+[`tls.Server.close()`][] for more details.
 
 #### server.setTimeout([msecs][, callback])
 <!-- YAML
@@ -2208,7 +2214,8 @@ changes:
     instance passed to `connect` and the `options` object, and returns any
     [`Duplex`][] stream that is to be used as the connection for this session.
   * ...: Any [`net.connect()`][] or [`tls.connect()`][] options can be provided.
-* `listener` {Function}
+* `listener` {Function} Will be registered as a one-time listener of the
+  [`'connect'`][] event.
 * Returns: {ClientHttp2Session}
 
 Returns a `ClientHttp2Session` instance.
@@ -3467,6 +3474,7 @@ following additional properties:
 [Stream]: stream.html#stream_stream
 [Using `options.selectPadding()`]: #http2_using_options_selectpadding
 [`'checkContinue'`]: #http2_event_checkcontinue
+[`'connect'`]: #http2_event_connect
 [`'request'`]: #http2_event_request
 [`'unknownProtocol'`]: #http2_event_unknownprotocol
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream

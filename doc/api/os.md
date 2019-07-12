@@ -164,7 +164,7 @@ The properties included on each object include:
 ]
 ```
 
-Because `nice` values are UNIX-specific, on Windows the `nice` values of all
+Because `nice` values are Unix-specific, on Windows the `nice` values of all
 processors are always 0.
 
 ## os.endianness()
@@ -239,7 +239,7 @@ The load average is a measure of system activity, calculated by the operating
 system and expressed as a fractional number. As a rule of thumb, the load
 average should ideally be less than the number of logical CPUs in the system.
 
-The load average is a UNIX-specific concept with no real equivalent on
+The load average is a Unix-specific concept with no real equivalent on
 Windows platforms. On Windows, the return value is always `[0, 0, 0]`.
 
 ## os.networkInterfaces()
