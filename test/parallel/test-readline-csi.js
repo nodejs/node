@@ -83,9 +83,27 @@ assert.strictEqual(readline.clearLine(undefined, 0, common.mustCall()), true);
   [1, -1, '\x1b[1C\x1b[1A'],
 ].forEach((set) => {
   writable.data = '';
-  readline.moveCursor(writable, set[0], set[1]);
+  assert.strictEqual(readline.moveCursor(writable, set[0], set[1]), true);
+  assert.deepStrictEqual(writable.data, set[2]);
+  writable.data = '';
+  assert.strictEqual(
+    readline.moveCursor(writable, set[0], set[1], common.mustCall()),
+    true
+  );
   assert.deepStrictEqual(writable.data, set[2]);
 });
+
+// Verify that moveCursor() throws on invalid callback.
+assert.throws(() => {
+  readline.moveCursor(writable, 1, 1, null);
+}, /ERR_INVALID_CALLBACK/);
+
+// Verify that moveCursor() does not throw on null or undefined stream.
+assert.strictEqual(readline.moveCursor(null, 1, 1), true);
+assert.strictEqual(readline.moveCursor(undefined, 1, 1), true);
+assert.strictEqual(readline.moveCursor(null, 1, 1, common.mustCall()), true);
+assert.strictEqual(readline.moveCursor(undefined, 1, 1, common.mustCall()),
+                   true);
 
 // Undefined or null as stream should not throw.
 readline.cursorTo(null);
