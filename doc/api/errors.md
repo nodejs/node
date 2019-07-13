@@ -1717,6 +1717,11 @@ instance.setEncoding('utf8');
 An attempt was made to call [`stream.write()`][] after `stream.end()` has been
 called.
 
+<a id="ERR_REQUEST_WRITE_AFTER_RESPONSE"></a>
+### ERR_REQUEST_WRITE_AFTER_RESPONSE
+
+An attempt was made to call [`req.write()`][] after `'response'` has been emitted.
+
 <a id="ERR_STRING_TOO_LONG"></a>
 ### ERR_STRING_TOO_LONG
 
