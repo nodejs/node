@@ -44,16 +44,31 @@ assert.strictEqual(readline.clearScreenDown(undefined, common.mustCall()),
                    true);
 
 writable.data = '';
-readline.clearLine(writable, -1);
+assert.strictEqual(readline.clearLine(writable, -1), true);
 assert.deepStrictEqual(writable.data, CSI.kClearToBeginning);
 
 writable.data = '';
-readline.clearLine(writable, 1);
+assert.strictEqual(readline.clearLine(writable, 1), true);
 assert.deepStrictEqual(writable.data, CSI.kClearToEnd);
 
 writable.data = '';
-readline.clearLine(writable, 0);
+assert.strictEqual(readline.clearLine(writable, 0), true);
 assert.deepStrictEqual(writable.data, CSI.kClearLine);
+
+writable.data = '';
+assert.strictEqual(readline.clearLine(writable, -1, common.mustCall()), true);
+assert.deepStrictEqual(writable.data, CSI.kClearToBeginning);
+
+// Verify that clearLine() throws on invalid callback.
+assert.throws(() => {
+  readline.clearLine(writable, 0, null);
+}, /ERR_INVALID_CALLBACK/);
+
+// Verify that clearLine() does not throw on null or undefined stream.
+assert.strictEqual(readline.clearLine(null, 0), true);
+assert.strictEqual(readline.clearLine(undefined, 0), true);
+assert.strictEqual(readline.clearLine(null, 0, common.mustCall()), true);
+assert.strictEqual(readline.clearLine(undefined, 0, common.mustCall()), true);
 
 // Nothing is written when moveCursor 0, 0
 [
