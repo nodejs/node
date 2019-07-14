@@ -2518,6 +2518,23 @@ Type: Documentation-only
 Prefer [`response.socket`][] over [`response.connection`] and
 [`request.socket`][] over [`request.connection`].
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: http finished
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28679
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`response.finished`][] indicates whether the [`response.end()`] has been
+called, not whether the underlying data has been flushed and `'finish'` has been
+emitted. Use [`response.writableFinished`][] or [`response.writableEnded`][]
+accordingly instead to avoid the ambigiuty.
+
+[`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2576,6 +2593,9 @@ Prefer [`response.socket`][] over [`response.connection`] and
 [`request.connection`]: http.html#http_request_connection
 [`response.socket`]: http.html#http_response_socket
 [`response.connection`]: http.html#http_response_connection
+[`response.finished`]: #http_response_finished
+[`response.writableFinished`]: #http_response_writablefinished
+[`response.writableEnded`]: #http_response_writableended
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
