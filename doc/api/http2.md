@@ -3091,7 +3091,10 @@ is finished.
 #### `response.finished`
 <!-- YAML
 added: v8.4.0
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated. Use [`response.writableEnded`][].
 
 * {boolean}
 
@@ -3576,6 +3579,7 @@ following additional properties:
 [`response.end()`]: #http2_response_end_data_encoding_callback
 [`response.setHeader()`]: #http2_response_setheader_name_value
 [`response.socket`]: #http2_response_socket
+[`response.writableEnded`]: #http2_response_writableended
 [`response.write()`]: #http2_response_write_chunk_encoding_callback
 [`response.write(data, encoding)`]: http.html#http_response_write_chunk_encoding_callback
 [`response.writeContinue()`]: #http2_response_writecontinue
