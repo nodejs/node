@@ -623,7 +623,10 @@ is finished.
 ### request.finished
 <!-- YAML
 added: v0.0.1
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated. Use [`request.writableEnded`][].
 
 * {boolean}
 
@@ -1305,7 +1308,10 @@ is finished.
 ### response.finished
 <!-- YAML
 added: v0.0.2
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated. Use [`response.writableEnded`][].
 
 * {boolean}
 
@@ -2417,12 +2423,14 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`request.socket`]: #http_request_socket
 [`request.writableFinished`]: #http_request_writablefinished
+[`request.writableEnded`]: #http_request_writableended
 [`request.write(data, encoding)`]: #http_request_write_chunk_encoding_callback
 [`response.end()`]: #http_response_end_data_encoding_callback
 [`response.getHeader()`]: #http_response_getheader_name
 [`response.setHeader()`]: #http_response_setheader_name_value
 [`response.socket`]: #http_response_socket
 [`response.writableFinished`]: #http_response_writablefinished
+[`response.writableEnded`]: #http_response_writableended
 [`response.write()`]: #http_response_write_chunk_encoding_callback
 [`response.write(data, encoding)`]: #http_response_write_chunk_encoding_callback
 [`response.writeContinue()`]: #http_response_writecontinue
