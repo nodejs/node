@@ -561,9 +561,10 @@ class Http2Session::MemoryAllocatorInfo {
       // current_nghttp2_memory_ + AdjustAmountOfExternalAllocatedMemory
       // and provide versions of our memory allocation utilities that take an
       // Environment*/Isolate* parameter and call the V8 method transparently.
-      session->current_nghttp2_memory_ += size - previous_size;
+      const int64_t new_size = size - previous_size;
+      session->current_nghttp2_memory_ += new_size;
       session->env()->isolate()->AdjustAmountOfExternalAllocatedMemory(
-          static_cast<int64_t>(size - previous_size));
+          new_size);
       *reinterpret_cast<size_t*>(mem) = size;
       mem += sizeof(size_t);
     } else if (size == 0) {
