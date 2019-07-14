@@ -39,6 +39,7 @@ const http = require('http');
           res.on('data', common.mustCall(() => {
             res.destroy();
           }));
+          res.on('error', common.mustCall());
           res.on('close', common.mustCall(() => {
             server.close();
           }));

@@ -16,6 +16,7 @@ const server = http.createServer(function(req, res) {
 }).listen(0, function() {
   http.get({ port: this.address().port }, function(res) {
     res.resume();
+    res.on('error', common.mustCall());
     throw new Error('get did fail');
   }).on('close', function() {
     server.close();

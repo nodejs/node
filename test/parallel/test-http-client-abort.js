@@ -48,6 +48,7 @@ server.listen(0, common.mustCall(() => {
     requests.push(
       http.get(options, common.mustCall((res) => {
         res.resume();
+        res.on('error', common.mustCall());
         reqCountdown.dec();
       })));
   }

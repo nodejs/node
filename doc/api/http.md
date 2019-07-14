@@ -2217,7 +2217,9 @@ will be emitted in the following order:
   * `'data'` any number of times, on the `res` object
 * (`req.abort()` called here)
 * `'abort'`
-* `'aborted'` on the `res` object
+* `'aborted'` on the `res` object if `'aborted'` listener exists, otherwise
+  `'error'` with an error with message `'Error: aborted'` and code
+  `'ECONNRESET'`
 * `'close'`
 * `'end'` on the `res` object
 * `'close'` on the `res` object

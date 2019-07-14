@@ -48,6 +48,7 @@ server.listen(0, () => {
 
   const req = https.request(requestOptions, (res) => {
     res.on('data', () => {});
+    res.on('aborted', common.mustCall());
     setImmediate(shutdown);
   });
   req.end();

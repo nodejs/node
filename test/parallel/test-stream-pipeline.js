@@ -187,6 +187,7 @@ const { promisify } = require('util');
 
     req.end();
     req.on('response', (res) => {
+      res.on('aborted', common.mustCall());
       setImmediate(() => {
         res.destroy();
         server.close();

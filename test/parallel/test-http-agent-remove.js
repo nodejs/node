@@ -11,7 +11,8 @@ const server = http.createServer(mustCall((req, res) => {
 server.listen(0, mustCall(() => {
   const req = http.get({
     port: server.address().port
-  }, mustCall(() => {
+  }, mustCall((res) => {
+    res.on('error', mustCall());
     const { socket } = req;
     socket.emit('agentRemove');
     strictEqual(socket._httpMessage, req);

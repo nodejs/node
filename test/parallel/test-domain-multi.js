@@ -68,6 +68,7 @@ const server = http.createServer((req, res) => {
   req.on('response', (res) => {
     // Add the response object to the C domain
     c.add(res);
+    res.on('aborted', common.mustCall());
     res.pipe(process.stdout);
   });
 

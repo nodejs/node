@@ -22,6 +22,7 @@ server.listen(0, common.localhostIPv4, function() {
   function onResponse(res) {
     assert.strictEqual(res.headers.foo, 'bar');
     res.destroy();
+    res.on('error', common.mustCall());
     server.close();
   }
 });

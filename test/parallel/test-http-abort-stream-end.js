@@ -40,6 +40,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 
 server.listen(0, () => {
   const res = common.mustCall((res) => {
+    res.on('error', common.mustCall());
     res.on('data', (chunk) => {
       size += chunk.length;
       assert(!req.aborted, 'got data after abort');
