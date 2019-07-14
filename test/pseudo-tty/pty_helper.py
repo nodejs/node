@@ -44,42 +44,42 @@ if __name__ == '__main__':
   # Make select() interruptable by SIGCHLD.
   signal.signal(signal.SIGCHLD, lambda nr, _: None)
 
-  master_fd, slave_fd = pty.openpty()
-  assert master_fd > STDIN
+  parent_fd, child_fd = pty.openpty()
+  assert parent_fd > STDIN
 
-  mode = termios.tcgetattr(slave_fd)
+  mode = termios.tcgetattr(child_fd)
   # Don't translate \n to \r\n.
   mode[1] = mode[1] & ~termios.ONLCR  # oflag
   # Disable ECHOCTL. It's a BSD-ism that echoes e.g. \x04 as ^D but it
   # doesn't work on platforms like AIX and Linux. I checked Linux's tty
   # driver and it's a no-op, the driver is just oblivious to the flag.
   mode[3] = mode[3] & ~termios.ECHOCTL  # lflag
-  termios.tcsetattr(slave_fd, termios.TCSANOW, mode)
+  termios.tcsetattr(child_fd, termios.TCSANOW, mode)
 
   pid = os.fork()
   if not pid:
     os.setsid()
-    os.close(master_fd)
+    os.close(parent_fd)
 
     # Ensure the pty is a controlling tty.
-    name = os.ttyname(slave_fd)
+    name = os.ttyname(child_fd)
     fd = os.open(name, os.O_RDWR)
-    os.dup2(fd, slave_fd)
+    os.dup2(fd, child_fd)
     os.close(fd)
 
-    os.dup2(slave_fd, STDIN)
-    os.dup2(slave_fd, STDOUT)
-    os.dup2(slave_fd, STDERR)
+    os.dup2(child_fd, STDIN)
+    os.dup2(child_fd, STDOUT)
+    os.dup2(child_fd, STDERR)
 
-    if slave_fd > STDERR:
-      os.close(slave_fd)
+    if child_fd > STDERR:
+      os.close(child_fd)
 
     os.execve(argv[0], argv, os.environ)
     raise Exception('unreachable')
 
-  os.close(slave_fd)
+  os.close(child_fd)
 
-  fds = [STDIN, master_fd]
+  fds = [STDIN, parent_fd]
   while fds:
     try:
       rfds, _, _ = select.select(fds, [], [])
@@ -90,9 +90,9 @@ if __name__ == '__main__':
         break
 
     if STDIN in rfds:
-      if pipe(STDIN, master_fd):
+      if pipe(STDIN, parent_fd):
         fds.remove(STDIN)
 
-    if master_fd in rfds:
-      if pipe(master_fd, STDOUT):
+    if parent_fd in rfds:
+      if pipe(parent_fd, STDOUT):
         break
