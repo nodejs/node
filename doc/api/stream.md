@@ -348,6 +348,16 @@ writer.on('unpipe', (src) => {
 reader.pipe(writer);
 reader.unpipe(writer);
 ```
+##### writable.bytesWritten
+<!-- YAML
+added: CHANGEME
+-->
+
+* {integer}
+
+Integer value that indicates how many bytes has been written to
+the stream (not the amount flushed). In `objectMode` this
+value represents the number of objects written.
 
 ##### writable.cork()
 <!-- YAML

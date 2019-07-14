@@ -892,8 +892,10 @@ Fires immediately after `'open'`.
 added: v0.4.7
 -->
 
-The number of bytes written so far. Does not include data that is still queued
-for writing.
+{integer}
+
+Integer value that indicates how many bytes has been written to
+the response body (not the amount flushed).
 
 ### writeStream.path
 <!-- YAML

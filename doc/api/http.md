@@ -1166,6 +1166,16 @@ response.end();
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
+### response.bytesWritten
+<!-- YAML
+added: CHANGEME
+-->
+
+* {integer}
+
+Integer value that indicates how many bytes has been written to
+the response body (not the amount flushed).
+
 ### response.connection
 <!-- YAML
 added: v0.3.0
