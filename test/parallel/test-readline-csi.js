@@ -106,15 +106,17 @@ assert.strictEqual(readline.moveCursor(undefined, 1, 1, common.mustCall()),
                    true);
 
 // Undefined or null as stream should not throw.
-readline.cursorTo(null);
-readline.cursorTo();
+assert.strictEqual(readline.cursorTo(null), true);
+assert.strictEqual(readline.cursorTo(), true);
+assert.strictEqual(readline.cursorTo(null, 1, 1, common.mustCall()), true);
+assert.strictEqual(readline.cursorTo(undefined, 1, 1, common.mustCall()), true);
 
 writable.data = '';
-readline.cursorTo(writable, 'a');
+assert.strictEqual(readline.cursorTo(writable, 'a'), true);
 assert.strictEqual(writable.data, '');
 
 writable.data = '';
-readline.cursorTo(writable, 'a', 'b');
+assert.strictEqual(readline.cursorTo(writable, 'a', 'b'), true);
 assert.strictEqual(writable.data, '');
 
 writable.data = '';
@@ -128,9 +130,18 @@ common.expectsError(
 assert.strictEqual(writable.data, '');
 
 writable.data = '';
-readline.cursorTo(writable, 1, 'a');
+assert.strictEqual(readline.cursorTo(writable, 1, 'a'), true);
 assert.strictEqual(writable.data, '\x1b[2G');
 
 writable.data = '';
-readline.cursorTo(writable, 1, 2);
+assert.strictEqual(readline.cursorTo(writable, 1, 2), true);
 assert.strictEqual(writable.data, '\x1b[3;2H');
+
+writable.data = '';
+assert.strictEqual(readline.cursorTo(writable, 1, 2, common.mustCall()), true);
+assert.strictEqual(writable.data, '\x1b[3;2H');
+
+// Verify that cursorTo() throws on invalid callback.
+assert.throws(() => {
+  readline.cursorTo(writable, 1, 1, null);
+}, /ERR_INVALID_CALLBACK/);

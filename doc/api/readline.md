@@ -487,14 +487,22 @@ function completer(linePartial, callback) {
 }
 ```
 
-## readline.cursorTo(stream, x, y)
+## readline.cursorTo(stream, x, y[, callback])
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28674
+    description: The stream's write() callback and return value are exposed.
 -->
 
 * `stream` {stream.Writable}
 * `x` {number}
 * `y` {number}
+* `callback` {Function} Invoked once the operation completes.
+* Returns: {boolean} `false` if `stream` wishes for the calling code to wait for
+  the `'drain'` event to be emitted before continuing to write additional data;
+  otherwise `true`.
 
 The `readline.cursorTo()` method moves cursor to the specified position in a
 given [TTY][] `stream`.
