@@ -2548,6 +2548,27 @@ APIs that do not make sense to use in userland. File streams should always be
 opened through their corresponding factory methods [`fs.createWriteStream()`][]
 and [`fs.createReadStream()`][]) or by passing a file descriptor in options.
 
+<a id="DEP0136"></a>
+### DEP0136: http finished
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28679
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`response.finished`][] indicates whether [`response.end()`][] has been
+called, not whether `'finish'` has been emitted and the underlying data
+is flushed.
+
+Use [`response.writableFinished`][] or [`response.writableEnded`][]
+accordingly instead to avoid the ambigiuty.
+
+To maintain existing behaviour `response.finished` should be replaced with
+`response.writableEnded`.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2610,6 +2631,10 @@ and [`fs.createReadStream()`][]) or by passing a file descriptor in options.
 [`request.connection`]: http.html#http_request_connection
 [`response.socket`]: http.html#http_response_socket
 [`response.connection`]: http.html#http_response_connection
+[`response.end()`]: http.html#http_response_end_data_encoding_callback
+[`response.finished`]: #http_response_finished
+[`response.writableFinished`]: #http_response_writablefinished
+[`response.writableEnded`]: #http_response_writableended
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
