@@ -546,7 +546,10 @@ srv.listen(1337, '127.0.0.1', () => {
 ### request.abort()
 <!-- YAML
 added: v0.3.8
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated: Use [`request.destroy()`][] instead.
 
 Marks the request as aborting. Calling this will cause remaining data
 in the response to be dropped and the socket to be destroyed.
@@ -2215,6 +2218,7 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
 [`new URL()`]: url.html#url_constructor_new_url_input_base
 [`removeHeader(name)`]: #http_request_removeheader_name
+[`request.destroy()`]: #stream.html#stream_readable_destroy_error
 [`request.end()`]: #http_request_end_data_encoding_callback
 [`request.flushHeaders()`]: #http_request_flushheaders
 [`request.getHeader()`]: #http_request_getheader_name

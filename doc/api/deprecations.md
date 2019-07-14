@@ -2500,6 +2500,21 @@ Type: Runtime
 Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 `Promise` instead, or a listener to the worker’s `'exit'` event.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: ClientRequest.abort() is destroy
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28683
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`[ClientRequest.destroy()`][] should be the same as
+`[ClientRequest.abort()`][]. Make ClientRequest more streamlike by deprecating
+ abort().
+
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
@@ -2508,6 +2523,8 @@ Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Cipher`]: crypto.html#crypto_class_cipher
+[`ClientRequest.abort()`]: #http.html#http_request_abort
+[`ClientRequest.destroy()`]: #stream.html#stream_readable_destroy_error
 [`Decipher`]: crypto.html#crypto_class_decipher
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
 [`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
