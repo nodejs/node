@@ -2548,6 +2548,33 @@ APIs that do not make sense to use in userland. File streams should always be
 opened through their corresponding factory methods [`fs.createWriteStream()`][]
 and [`fs.createReadStream()`][]) or by passing a file descriptor in options.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: ClientRequest.abort() is the same ClientRequest.destroy()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29192
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`ClientRequest.destroy()`][] is the same as [`ClientRequest.abort()`][].
+
+<a id="DEP0XXX"></a>
+### DEP0XXX: ClientRequest.aborted is the same ClientRequest.destroyed
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29192
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`ClientRequest.destroyed`][] is the same as [`ClientRequest.aborted`][].
+
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2555,6 +2582,8 @@ and [`fs.createReadStream()`][]) or by passing a file descriptor in options.
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Cipher`]: crypto.html#crypto_class_cipher
+[`ClientRequest.abort()`]: http.html#http_request_abort
+[`ClientRequest.destroy()`]: stream.html#stream_readable_destroy_error
 [`Decipher`]: crypto.html#crypto_class_decipher
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
 [`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand

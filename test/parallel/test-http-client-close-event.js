@@ -26,5 +26,7 @@ server.listen(0, common.mustCall(() => {
     server.close();
   }));
 
-  req.destroy();
+  const err = new Error('socket hang up');
+  err.code = 'ECONNRESET';
+  req.destroy(err);
 }));

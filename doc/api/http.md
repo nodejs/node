@@ -565,10 +565,14 @@ srv.listen(1337, '127.0.0.1', () => {
 ### request.abort()
 <!-- YAML
 added: v0.3.8
+deprecated: REPLACEME
 -->
 
+> Stability: 0 - Deprecated. Use [`request.destroy()`][] instead.
+
 Marks the request as aborting. Calling this will cause remaining data
-in the response to be dropped and the socket to be destroyed.
+in the response to be dropped and the socket to be destroyed. After
+calling this method, no further errors will be emitted.
 
 ### request.aborted
 <!-- YAML
@@ -578,6 +582,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/20230
     description: The `aborted` property is no longer a timestamp number.
 -->
+
+> Stability: 0 - Deprecated. Use [`request.destroyed`][] instead.
 
 * {boolean}
 
@@ -2319,43 +2325,24 @@ In the case of a connection error, the following events will be emitted:
 * `'error'`
 * `'close'`
 
-In the case of a premature connection close before the response is received,
-the following events will be emitted in the following order:
+If `req.destroy()` is called before the connection succeeds, the following
+events will be emitted in the following order:
 
 * `'socket'`
-* `'error'` with an error with message `'Error: socket hang up'` and code
-  `'ECONNRESET'`
+* (`req.destroy(err)` called here)
+* `'abort'`
+* `'error'` if `err` was provided in `req.destroy(err)`.
 * `'close'`
 
-In the case of a premature connection close after the response is received,
-the following events will be emitted in the following order:
+If `req.destroy()` is called after the response is received, the following
+events will be emitted in the following order:
 
 * `'socket'`
 * `'response'`
   * `'data'` any number of times, on the `res` object
-* (connection closed here)
-* `'aborted'` on the `res` object
-* `'close'`
-* `'close'` on the `res` object
-
-If `req.abort()` is called before the connection succeeds, the following events
-will be emitted in the following order:
-
-* `'socket'`
-* (`req.abort()` called here)
+* (`req.destroy(err)` called here)
 * `'abort'`
-* `'error'` with an error with message `'Error: socket hang up'` and code
-  `'ECONNRESET'`
-* `'close'`
-
-If `req.abort()` is called after the response is received, the following events
-will be emitted in the following order:
-
-* `'socket'`
-* `'response'`
-  * `'data'` any number of times, on the `res` object
-* (`req.abort()` called here)
-* `'abort'`
+* `'error'` if `err` was provided in `req.destroy(err)`.
 * `'aborted'` on the `res` object
 * `'close'`
 * `'close'` on the `res` object
@@ -2392,6 +2379,8 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
 [`new URL()`]: url.html#url_constructor_new_url_input_base
 [`removeHeader(name)`]: #http_request_removeheader_name
+[`request.destroy()`]: stream.html#stream_readable_destroy_error
+[`request.destroyed`]: stream.html#stream_readable_destroyed
 [`request.end()`]: #http_request_end_data_encoding_callback
 [`request.flushHeaders()`]: #http_request_flushheaders
 [`request.getHeader()`]: #http_request_getheader_name

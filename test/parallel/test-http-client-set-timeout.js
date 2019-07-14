@@ -43,6 +43,8 @@ server.listen(0, mustCall(() => {
 
   req.on('timeout', mustCall(() => {
     strictEqual(req.socket.listenerCount('timeout'), 0);
-    req.destroy();
+    const err = new Error('socket hang up');
+    err.code = 'ECONNRESET';
+    req.destroy(err);
   }));
 }));

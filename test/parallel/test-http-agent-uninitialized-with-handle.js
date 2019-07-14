@@ -12,6 +12,7 @@ const socket = new net.Socket();
 socket._handle = {
   ref() { },
   readStart() { },
+  close() {}
 };
 
 const server = http.createServer(common.mustCall((req, res) => {
