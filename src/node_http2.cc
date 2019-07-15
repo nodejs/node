@@ -663,12 +663,9 @@ inline bool HasHttp2Observer(Environment* env) {
 void Http2Stream::EmitStatistics() {
   if (!HasHttp2Observer(env()))
     return;
-  Http2StreamPerformanceEntry* entry =
-    new Http2StreamPerformanceEntry(env(), id_, statistics_);
-  env()->SetImmediate([](Environment* env, void* data) {
-    // This takes ownership, the entry is destroyed at the end of this scope.
-    std::unique_ptr<Http2StreamPerformanceEntry> entry {
-        static_cast<Http2StreamPerformanceEntry*>(data) };
+  auto entry =
+      std::make_unique<Http2StreamPerformanceEntry>(env(), id_, statistics_);
+  env()->SetImmediate([entry = move(entry)](Environment* env) {
     if (!HasHttp2Observer(env))
       return;
     HandleScope handle_scope(env->isolate());
@@ -696,18 +693,15 @@ void Http2Stream::EmitStatistics() {
     buffer[IDX_STREAM_STATS_RECEIVEDBYTES] = entry->received_bytes();
     Local<Object> obj;
     if (entry->ToObject().ToLocal(&obj)) entry->Notify(obj);
-  }, static_cast<void*>(entry));
+  });
 }
 
 void Http2Session::EmitStatistics() {
   if (!HasHttp2Observer(env()))
     return;
-  Http2SessionPerformanceEntry* entry =
-    new Http2SessionPerformanceEntry(env(), statistics_, session_type_);
-  env()->SetImmediate([](Environment* env, void* data) {
-    // This takes ownership, the entr is destroyed at the end of this scope.
-    std::unique_ptr<Http2SessionPerformanceEntry> entry {
-        static_cast<Http2SessionPerformanceEntry*>(data) };
+  auto entry = std::make_unique<Http2SessionPerformanceEntry>(
+      env(), statistics_, session_type_);
+  env()->SetImmediate([entry = std::move(entry)](Environment* env) {
     if (!HasHttp2Observer(env))
       return;
     HandleScope handle_scope(env->isolate());
@@ -725,7 +719,7 @@ void Http2Session::EmitStatistics() {
         entry->max_concurrent_streams();
     Local<Object> obj;
     if (entry->ToObject().ToLocal(&obj)) entry->Notify(obj);
-  }, static_cast<void*>(entry));
+  });
 }
 
 // Closes the session and frees the associated resources
@@ -760,11 +754,9 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
   while (std::unique_ptr<Http2Ping> ping = PopPing()) {
     ping->DetachFromSession();
     env()->SetImmediate(
-        [](Environment* env, void* data) {
-          std::unique_ptr<Http2Ping> ping{static_cast<Http2Ping*>(data)};
+        [ping = std::move(ping)](Environment* env) {
           ping->Done(false);
-        },
-        static_cast<void*>(ping.release()));
+        });
   }
 
   statistics_.end_time = uv_hrtime();
@@ -1532,10 +1524,8 @@ void Http2Session::MaybeScheduleWrite() {
     HandleScope handle_scope(env()->isolate());
     Debug(this, "scheduling write");
     flags_ |= SESSION_STATE_WRITE_SCHEDULED;
-    env()->SetImmediate([](Environment* env, void* data) {
-      Http2Session* session = static_cast<Http2Session*>(data);
-      if (session->session_ == nullptr ||
-          !(session->flags_ & SESSION_STATE_WRITE_SCHEDULED)) {
+    env()->SetImmediate([this](Environment* env) {
+      if (session_ == nullptr || !(flags_ & SESSION_STATE_WRITE_SCHEDULED)) {
         // This can happen e.g. when a stream was reset before this turn
         // of the event loop, in which case SendPendingData() is called early,
         // or the session was destroyed in the meantime.
@@ -1545,9 +1535,9 @@ void Http2Session::MaybeScheduleWrite() {
       // Sending data may call arbitrary JS code, so keep track of
       // async context.
       HandleScope handle_scope(env->isolate());
-      InternalCallbackScope callback_scope(session);
-      session->SendPendingData();
-    }, static_cast<void*>(this), object());
+      InternalCallbackScope callback_scope(this);
+      SendPendingData();
+    }, object());
   }
 }
 
@@ -1975,25 +1965,23 @@ void Http2Stream::Destroy() {
 
   // Wait until the start of the next loop to delete because there
   // may still be some pending operations queued for this stream.
-  env()->SetImmediate([](Environment* env, void* data) {
-    Http2Stream* stream = static_cast<Http2Stream*>(data);
+  env()->SetImmediate([this](Environment* env) {
     // Free any remaining outgoing data chunks here. This should be done
     // here because it's possible for destroy to have been called while
     // we still have queued outbound writes.
-    while (!stream->queue_.empty()) {
-      nghttp2_stream_write& head = stream->queue_.front();
+    while (!queue_.empty()) {
+      nghttp2_stream_write& head = queue_.front();
       if (head.req_wrap != nullptr)
         head.req_wrap->Done(UV_ECANCELED);
-      stream->queue_.pop();
+      queue_.pop();
     }
 
     // We can destroy the stream now if there are no writes for it
     // already on the socket. Otherwise, we'll wait for the garbage collector
     // to take care of cleaning up.
-    if (stream->session() == nullptr ||
-        !stream->session()->HasWritesOnSocketForStream(stream))
-      delete stream;
-  }, this, this->object());
+    if (session() == nullptr || !session()->HasWritesOnSocketForStream(this))
+      delete this;
+  }, object());
 
   statistics_.end_time = uv_hrtime();
   session_->statistics_.stream_average_duration =

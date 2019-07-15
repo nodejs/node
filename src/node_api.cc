@@ -36,27 +36,33 @@ class BufferFinalizer : private Finalizer {
  public:
   // node::Buffer::FreeCallback
   static void FinalizeBufferCallback(char* data, void* hint) {
-    BufferFinalizer* finalizer = static_cast<BufferFinalizer*>(hint);
+    std::unique_ptr<BufferFinalizer, Deleter> finalizer{
+        static_cast<BufferFinalizer*>(hint)};
     finalizer->_finalize_data = data;
-    static_cast<node_napi_env>(finalizer->_env)->node_env()
-        ->SetImmediate([](node::Environment* env, void* hint) {
-      BufferFinalizer* finalizer = static_cast<BufferFinalizer*>(hint);
 
-      if (finalizer->_finalize_callback != nullptr) {
-        v8::HandleScope handle_scope(finalizer->_env->isolate);
-        v8::Context::Scope context_scope(finalizer->_env->context());
+    node::Environment* node_env =
+        static_cast<node_napi_env>(finalizer->_env)->node_env();
+    node_env->SetImmediate(
+        [finalizer = std::move(finalizer)](node::Environment* env) {
+      if (finalizer->_finalize_callback == nullptr) return;
 
-        finalizer->_env->CallIntoModuleThrow([&](napi_env env) {
-          finalizer->_finalize_callback(
-              env,
-              finalizer->_finalize_data,
-              finalizer->_finalize_hint);
-        });
-      }
+      v8::HandleScope handle_scope(finalizer->_env->isolate);
+      v8::Context::Scope context_scope(finalizer->_env->context());
 
-      Delete(finalizer);
-    }, hint);
+      finalizer->_env->CallIntoModuleThrow([&](napi_env env) {
+        finalizer->_finalize_callback(
+            env,
+            finalizer->_finalize_data,
+            finalizer->_finalize_hint);
+      });
+    });
   }
+
+  struct Deleter {
+    void operator()(BufferFinalizer* finalizer) {
+      Finalizer::Delete(finalizer);
+    }
+  };
 };
 
 static inline napi_env NewEnv(v8::Local<v8::Context> context) {
