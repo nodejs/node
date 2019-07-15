@@ -541,8 +541,7 @@ added: v0.3.8
 -->
 
 Marks the request as aborting. Calling this will cause remaining data
-in the response to be dropped and the socket to be destroyed. After
-calling this method no further errors will be emitted.
+in the response to be dropped and the socket to be destroyed.
 
 ### request.aborted
 <!-- YAML
@@ -2143,6 +2142,8 @@ will be emitted in the following order:
 * `'socket'`
 * (`req.abort()` called here)
 * `'abort'`
+* `'error'` with an error with message `'Error: socket hang up'` and code
+  `'ECONNRESET'`
 * `'close'`
 
 If `req.abort()` is called after the response is received, the following events
