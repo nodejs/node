@@ -467,7 +467,7 @@ def ConvertToMSBuildSettings(msvs_settings, stderr=sys.stderr):
             msvs_tool[msvs_setting](msvs_value, msbuild_settings)
           except ValueError as e:
             print('Warning: while converting %s/%s to MSBuild, '
-                              '%s' % (msvs_tool_name, msvs_setting, e), file=stderr)
+                  '%s' % (msvs_tool_name, msvs_setting, e), file=stderr)
         else:
           _ValidateExclusionSetting(msvs_setting,
                                     msvs_tool,
@@ -477,7 +477,7 @@ def ConvertToMSBuildSettings(msvs_settings, stderr=sys.stderr):
                                     stderr)
     else:
       print('Warning: unrecognized tool %s while converting to '
-                        'MSBuild.' % msvs_tool_name, file=stderr)
+            'MSBuild.' % msvs_tool_name, file=stderr)
   return msbuild_settings
 
 
@@ -522,8 +522,8 @@ def _ValidateSettings(validators, settings, stderr):
           try:
             tool_validators[setting](value)
           except ValueError as e:
-            print('Warning: for %s/%s, %s' %
-                              (tool_name, setting, e), file=stderr)
+            print('Warning: for %s/%s, %s' % (tool_name, setting, e),
+                  file=stderr)
         else:
           _ValidateExclusionSetting(setting,
                                     tool_validators,
