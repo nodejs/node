@@ -25,6 +25,14 @@ struct napi_env__ {
     CHECK_NOT_NULL(node_env());
   }
 
+  virtual ~napi_env__() {
+    if (instance_data.finalize_cb != nullptr) {
+      CallIntoModuleThrow([&](napi_env env) {
+        instance_data.finalize_cb(env, instance_data.data, instance_data.hint);
+      });
+    }
+  }
+
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   node::Persistent<v8::Context> context_persistent;
 
@@ -39,11 +47,37 @@ struct napi_env__ {
   inline void Ref() { refs++; }
   inline void Unref() { if (--refs == 0) delete this; }
 
+  template <typename T, typename U>
+  void CallIntoModule(T&& call, U&& handle_exception) {
+    int open_handle_scopes_before = open_handle_scopes;
+    int open_callback_scopes_before = open_callback_scopes;
+    napi_clear_last_error(this);
+    call(this);
+    CHECK_EQ(open_handle_scopes, open_handle_scopes_before);
+    CHECK_EQ(open_callback_scopes, open_callback_scopes_before);
+    if (!last_exception.IsEmpty()) {
+      handle_exception(this, last_exception.Get(this->isolate));
+      last_exception.Reset();
+    }
+  }
+
+  template <typename T>
+  void CallIntoModuleThrow(T&& call) {
+    CallIntoModule(call, [&](napi_env env, v8::Local<v8::Value> value) {
+      env->isolate->ThrowException(value);
+    });
+  }
+
   node::Persistent<v8::Value> last_exception;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
   int open_callback_scopes = 0;
   int refs = 1;
+  struct {
+    void* data = nullptr;
+    void* hint = nullptr;
+    napi_finalize finalize_cb = nullptr;
+  } instance_data;
 };
 
 #define NAPI_PRIVATE_KEY(context, suffix) \
@@ -157,27 +191,6 @@ struct napi_env__ {
         "Invalid typed array length");                                         \
     (out) = v8::type::New((buffer), (byte_offset), (length));                  \
   } while (0)
-
-template <typename T, typename U>
-void NapiCallIntoModule(napi_env env, T&& call, U&& handle_exception) {
-  int open_handle_scopes = env->open_handle_scopes;
-  int open_callback_scopes = env->open_callback_scopes;
-  napi_clear_last_error(env);
-  call();
-  CHECK_EQ(env->open_handle_scopes, open_handle_scopes);
-  CHECK_EQ(env->open_callback_scopes, open_callback_scopes);
-  if (!env->last_exception.IsEmpty()) {
-    handle_exception(env->last_exception.Get(env->isolate));
-    env->last_exception.Reset();
-  }
-}
-
-template <typename T>
-void NapiCallIntoModuleThrow(napi_env env, T&& call) {
-  NapiCallIntoModule(env, call, [&](v8::Local<v8::Value> value) {
-    env->isolate->ThrowException(value);
-  });
-}
 
 namespace {
 namespace v8impl {
@@ -357,11 +370,8 @@ class Finalizer {
   static void FinalizeBufferCallback(char* data, void* hint) {
     Finalizer* finalizer = static_cast<Finalizer*>(hint);
     if (finalizer->_finalize_callback != nullptr) {
-      NapiCallIntoModuleThrow(finalizer->_env, [&]() {
-        finalizer->_finalize_callback(
-          finalizer->_env,
-          data,
-          finalizer->_finalize_hint);
+      finalizer->_env->CallIntoModuleThrow([&](napi_env env) {
+        finalizer->_finalize_callback(env, data, finalizer->_finalize_hint);
       });
     }
 
@@ -494,12 +504,10 @@ class Reference : private Finalizer {
   static void SecondPassCallback(const v8::WeakCallbackInfo<Reference>& data) {
     Reference* reference = data.GetParameter();
 
-    napi_env env = reference->_env;
-
     if (reference->_finalize_callback != nullptr) {
-      NapiCallIntoModuleThrow(env, [&]() {
+      reference->_env->CallIntoModuleThrow([&](napi_env env) {
         reference->_finalize_callback(
-            reference->_env,
+            env,
             reference->_finalize_data,
             reference->_finalize_hint);
       });
@@ -617,7 +625,9 @@ class CallbackWrapperBase : public CallbackWrapper {
     napi_callback cb = _bundle->*FunctionField;
 
     napi_value result;
-    NapiCallIntoModuleThrow(env, [&]() { result = cb(env, cbinfo_wrapper); });
+    env->CallIntoModuleThrow([&](napi_env env) {
+      result = cb(env, cbinfo_wrapper);
+    });
 
     if (result != nullptr) {
       this->SetReturnValue(result);
@@ -781,44 +791,22 @@ v8::Local<v8::Value> CreateAccessorCallbackData(napi_env env,
 }
 
 static
-napi_env GetEnv(v8::Local<v8::Context> context) {
+napi_env NewEnv(v8::Local<v8::Context> context) {
   napi_env result;
 
-  auto isolate = context->GetIsolate();
-  auto global = context->Global();
-
-  // In the case of the string for which we grab the private and the value of
-  // the private on the global object we can call .ToLocalChecked() directly
-  // because we need to stop hard if either of them is empty.
-  //
-  // Re https://github.com/nodejs/node/pull/14217#discussion_r128775149
-  auto value = global->GetPrivate(context, NAPI_PRIVATE_KEY(context, env))
-      .ToLocalChecked();
-
-  if (value->IsExternal()) {
-    result = static_cast<napi_env>(value.As<v8::External>()->Value());
-  } else {
-    result = new napi_env__(context);
-    auto external = v8::External::New(isolate, result);
-
-    // We must also stop hard if the result of assigning the env to the global
-    // is either nothing or false.
-    CHECK(global->SetPrivate(context, NAPI_PRIVATE_KEY(context, env), external)
-        .FromJust());
-
-    // TODO(addaleax): There was previously code that tried to delete the
-    // napi_env when its v8::Context was garbage collected;
-    // However, as long as N-API addons using this napi_env are in place,
-    // the Context needs to be accessible and alive.
-    // Ideally, we’d want an on-addon-unload hook that takes care of this
-    // once all N-API addons using this napi_env are unloaded.
-    // For now, a per-Environment cleanup hook is the best we can do.
-    result->node_env()->AddCleanupHook(
-        [](void* arg) {
-          static_cast<napi_env>(arg)->Unref();
-        },
-        static_cast<void*>(result));
-  }
+  result = new napi_env__(context);
+  // TODO(addaleax): There was previously code that tried to delete the
+  // napi_env when its v8::Context was garbage collected;
+  // However, as long as N-API addons using this napi_env are in place,
+  // the Context needs to be accessible and alive.
+  // Ideally, we'd want an on-addon-unload hook that takes care of this
+  // once all N-API addons using this napi_env are unloaded.
+  // For now, a per-Environment cleanup hook is the best we can do.
+  result->node_env()->AddCleanupHook(
+      [](void* arg) {
+        static_cast<napi_env>(arg)->Unref();
+      },
+      static_cast<void*>(result));
 
   return result;
 }
@@ -1311,10 +1299,10 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
 
   // Create a new napi_env for this module or reference one if a pre-existing
   // one is found.
-  napi_env env = v8impl::GetEnv(context);
+  napi_env env = v8impl::NewEnv(context);
 
   napi_value _exports;
-  NapiCallIntoModuleThrow(env, [&]() {
+  env->CallIntoModuleThrow([&](napi_env env) {
     _exports = init(env, v8impl::JsValueFromV8LocalValue(exports));
   });
 
@@ -3941,15 +3929,9 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
 
     CallbackScope callback_scope(this);
 
-    // We have to back up the env here because the `NAPI_CALL_INTO_MODULE` macro
-    // makes use of it after the call into the module completes, but the module
-    // may have deallocated **this**, and along with it the place where _env is
-    // stored.
-    napi_env env = _env;
-
-    NapiCallIntoModule(env, [&]() {
-      _complete(_env, ConvertUVErrorCode(status), _data);
-    }, [env](v8::Local<v8::Value> local_err) {
+    _env->CallIntoModule([&](napi_env env) {
+      _complete(env, ConvertUVErrorCode(status), _data);
+    }, [](napi_env env, v8::Local<v8::Value> local_err) {
       // If there was an unhandled exception in the complete callback,
       // report it as a fatal exception. (There is no JavaScript on the
       // callstack that can possibly handle it.)
@@ -4286,4 +4268,27 @@ napi_status napi_add_finalizer(napi_env env,
                                          finalize_cb,
                                          finalize_hint,
                                          result);
+}
+
+napi_status napi_set_instance_data(napi_env env,
+                                   void* data,
+                                   napi_finalize finalize_cb,
+                                   void* finalize_hint) {
+  CHECK_ENV(env);
+
+  env->instance_data.data = data;
+  env->instance_data.finalize_cb = finalize_cb;
+  env->instance_data.hint = finalize_hint;
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_get_instance_data(napi_env env,
+                                   void** data) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, data);
+
+  *data = env->instance_data.data;
+
+  return napi_clear_last_error(env);
 }

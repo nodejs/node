@@ -726,6 +726,15 @@ NAPI_EXTERN napi_status napi_get_value_bigint_words(napi_env env,
                                                     int* sign_bit,
                                                     size_t* word_count,
                                                     uint64_t* words);
+
+// Instance data
+NAPI_EXTERN napi_status napi_set_instance_data(napi_env env,
+                                               void* data,
+                                               napi_finalize finalize_cb,
+                                               void* finalize_hint);
+
+NAPI_EXTERN napi_status napi_get_instance_data(napi_env env,
+                                               void** data);
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END
