@@ -30,7 +30,9 @@ const server = http.createServer(common.mustCall((req, res) => {
 server.listen(0, common.mustCall(() => {
   const options = { port: server.address().port };
   const req = http.get(options, common.mustCall((res) => {
+    res._dump = common.mustCall(res._dump.bind(res));
     res.on('data', (data) => {
+      req.abort();
       req.abort();
       server.close();
     });
