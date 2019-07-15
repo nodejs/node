@@ -5,7 +5,6 @@ x-ccache-setup-steps: &ccache-setup-steps
   - export CXX='ccache g++-6'
 
 os: linux
-dist: xenial
 language: cpp
 env:
   global:
