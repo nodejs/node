@@ -154,7 +154,7 @@ class AsyncWrap : public BaseObject {
   static void EmitTraceEventAfter(ProviderType type, double async_id);
   void EmitTraceEventDestroy();
 
-  static void DestroyAsyncIdsCallback(Environment* env, void* data);
+  static void DestroyAsyncIdsCallback(Environment* env);
 
   inline ProviderType provider_type() const;
   inline ProviderType set_provider_type(ProviderType provider);
