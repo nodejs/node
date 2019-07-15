@@ -1647,6 +1647,9 @@ the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
 
 ### stream.Transform.by(asyncGeneratorFunction, [options])
+<!-- YAML
+added: REPLACEME
+-->
 
 * `asyncGeneratorFunction` {AsyncGeneratorFunction} A mapping function which
 accepts a `source` async iterable which can be used to read incoming data, while
