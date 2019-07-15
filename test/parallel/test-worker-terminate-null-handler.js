@@ -6,22 +6,22 @@ const { Worker } = require('worker_threads');
 // Test that calling worker.terminate() if kHandler is null should return an
 // empty promise that resolves to undefined, even when a callback is passed
 
-const w = new Worker(`
+const worker = new Worker(`
 const { parentPort } = require('worker_threads');
 parentPort.postMessage({ hello: 'world' });
 `, { eval: true });
 
 process.once('beforeExit', common.mustCall(() => {
   console.log('beforeExit');
-  w.ref();
+  worker.ref();
 }));
 
-w.on('exit', common.mustCall(() => {
+worker.on('exit', common.mustCall(() => {
   console.log('exit');
-  w.terminate().then((returned) => assert.strictEqual(returned, undefined));
-  w.terminate(() => null).then(
+  worker.terminate().then((returned) => assert.strictEqual(returned, undefined));
+  worker.terminate(() => null).then(
     (returned) => assert.strictEqual(returned, undefined)
   );
 }));
 
-w.unref();
+worker.unref();
