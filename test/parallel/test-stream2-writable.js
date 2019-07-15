@@ -402,3 +402,42 @@ const helloWorldBuffer = Buffer.from('hello world');
   w.write(Buffer.allocUnsafe(1));
   w.end(Buffer.allocUnsafe(0));
 }
+
+{
+  // Verify that error is only emitted once when failing in _finish.
+  const w = new W();
+
+  w._final = common.mustCall(function(cb) {
+    cb(new Error('test'));
+  });
+  w.on('error', common.mustCall((err) => {
+    assert.strictEqual(w._writableState.errorEmitted, true);
+    assert.strictEqual(err.message, 'test');
+    w.on('error', common.mustNotCall());
+    w.destroy(new Error());
+  }));
+  w.end();
+}
+
+{
+  // Verify that error is only emitted once when failing in write.
+  const w = new W();
+  w.on('error', common.mustCall((err) => {
+    assert.strictEqual(w._writableState.errorEmitted, true);
+    assert.strictEqual(err.code, 'ERR_STREAM_NULL_VALUES');
+  }));
+  w.write(null);
+  w.destroy(new Error());
+}
+
+{
+  // Verify that error is only emitted once when failing in write after end.
+  const w = new W();
+  w.on('error', common.mustCall((err) => {
+    assert.strictEqual(w._writableState.errorEmitted, true);
+    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
+  }));
+  w.end();
+  w.write('hello');
+  w.destroy(new Error());
+}
