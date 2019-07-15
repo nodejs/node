@@ -272,11 +272,27 @@ async function transformByOnErrorAndTryCatchAndDestroyed() {
   }
 }
 
+async function transformByThrowPriorToForAwait() {
+  async function * generate() {
+    yield 'a';
+    yield 'b';
+    yield 'c';
+  }
+  const read = Readable.from(generate());
+  const stream = Transform.by(async function * transformA(source) {
+    throw new Error('kaboom');
+  });
+  stream.on('error', mustCall((err) => {
+    strictEqual(err.message, 'kaboom');
+  }));
+
+  read.pipe(stream);
+}
+
 Promise.all([
   transformBy(),
   transformByFuncReturnsObjectWithSymbolAsyncIterator(),
   transformByObjReturnedWSymbolAsyncIteratorWithNonPromiseReturningNext(),
-
   transformByObjReturnedWSymbolAsyncIteratorWithNoNext(),
   transformByObjReturnedWSymbolAsyncIteratorThatIsNotFunction(),
   transformByFuncReturnsObjectWithoutSymbolAsyncIterator(),
@@ -288,5 +304,6 @@ Promise.all([
   transformByOnDataNonObject(),
   transformByOnErrorAndDestroyed(),
   transformByErrorTryCatchAndDestroyed(),
-  transformByOnErrorAndTryCatchAndDestroyed()
+  transformByOnErrorAndTryCatchAndDestroyed(),
+  transformByThrowPriorToForAwait()
 ]).then(mustCall());
