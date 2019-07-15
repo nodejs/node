@@ -441,3 +441,20 @@ const helloWorldBuffer = Buffer.from('hello world');
   w.write('hello');
   w.destroy(new Error());
 }
+
+{
+  // Verify that finish is not emitted after error
+  const w = new W();
+
+  w._final = common.mustCall(function(cb) {
+    cb(new Error());
+  });
+  w._write = function(chunk, e, cb) {
+    process.nextTick(cb);
+  };
+  w.on('error', common.mustCall());
+  w.on('prefinish', common.mustNotCall());
+  w.on('finish', common.mustNotCall());
+  w.write(Buffer.allocUnsafe(1));
+  w.end(Buffer.allocUnsafe(0));
+}
