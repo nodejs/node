@@ -157,6 +157,82 @@ available to the module code.
 
 \* Indicates that the N-API version was released as experimental
 
+## Environment Life Cycle APIs
+
+> Stability: 1 - Experimental
+
+[Section 8.7][] of the [ECMAScript Language Specification][] defines the concept
+of an "Agent" as a self-contained environment in which JavaScript code runs.
+Multiple such Agents may be started and terminated either concurrently or in
+sequence by the process.
+
+A Node.js environment corresponds to an ECMAScript Agent. In the main process,
+an environment is created at startup, and additional environments can be created
+on separate threads to serve as [worker threads][]. When Node.js is embedded in
+another application, the main thread of the application may also construct and
+destroy a Node.js environment multiple times during the life cycle of the
+application process such that each Node.js environment created by the
+application may, in turn, during its life cycle create and destroy additional
+environments as worker threads.
+
+From the perspective of a native addon this means that the bindings it provides
+may be called multiple times, from multiple contexts, and even concurrently from
+multiple threads.
+
+Native addons may need to allocate global state of which they make use during
+their entire life cycle such that the state must be unique to each instance of
+the addon.
+
+To this env, N-API provides a way to allocate data such that its life cycle is
+tied to the life cycle of the Agent.
+
+### napi_set_instance_data
+<!-- YAML
+added: REPLACEME
+-->
+
+```C
+napi_status napi_set_instance_data(napi_env env,
+                                   void* data,
+                                   napi_finalize finalize_cb,
+                                   void* finalize_hint);
+```
+
+- `[in] env`: The environment that the N-API call is invoked under.
+- `[in] data`: The data item to make available to bindings of this instance.
+- `[in] finalize_cb`: The function to call when the environment is being torn
+down. The function receives `data` so that it might free it.
+- `[in] finalize_hint`: Optional hint to pass to the finalize callback
+during collection.
+
+Returns `napi_ok` if the API succeeded.
+
+This API associates `data` with the currently running Agent. `data` can later
+be retrieved using `napi_get_instance_data()`. Any existing data associated with
+the currently running Agent which was set by means of a previous call to
+`napi_set_instance_data()` will be overwritten. If a `finalize_cb` was provided
+by the previous call, it will not be called.
+
+### napi_get_instance_data
+<!-- YAML
+added: REPLACEME
+-->
+
+```C
+napi_status napi_get_instance_data(napi_env env,
+                                   void** data);
+```
+
+- `[in] env`: The environment that the N-API call is invoked under.
+- `[out] data`: The data item that was previously associated with the currently
+running Agent by a call to `napi_set_instance_data()`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API retrieves data that was previously associated with the currently
+running Agent via `napi_set_instance_data()`. If no data is set, the call will
+succeed and `data` will be set to `NULL`.
+
 ## Basic N-API Data Types
 
 N-API exposes the following fundamental datatypes as abstractions that are
@@ -4735,6 +4811,7 @@ This API may only be called from the main thread.
 [Section 6.1.4]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type
 [Section 6.1.6]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
 [Section 6.1.7.1]: https://tc39.github.io/ecma262/#table-2
+[Section 8.7]: https://tc39.es/ecma262/#sec-agents
 [Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
 [Working with JavaScript Functions]: #n_api_working_with_javascript_functions
 [Working with JavaScript Properties]: #n_api_working_with_javascript_properties
@@ -4789,3 +4866,4 @@ This API may only be called from the main thread.
 [`uv_unref`]: http://docs.libuv.org/en/v1.x/handle.html#c.uv_unref
 [async_hooks `type`]: async_hooks.html#async_hooks_type
 [context-aware addons]: addons.html#addons_context_aware_addons
+[worker threads]: https://nodejs.org/api/worker_threads.html
