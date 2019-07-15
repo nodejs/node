@@ -1517,6 +1517,9 @@ run().catch(console.error);
 ```
 
 ### stream.Readable.from(iterable, [options])
+<!-- YAML
+added: v12.3.0
+-->
 
 * `iterable` {Iterable} Object implementing the `Symbol.asyncIterator` or
   `Symbol.iterator` iterable protocol.
