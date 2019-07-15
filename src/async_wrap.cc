@@ -87,7 +87,7 @@ struct AsyncWrapObject : public AsyncWrap {
   SET_SELF_SIZE(AsyncWrapObject)
 };
 
-void AsyncWrap::DestroyAsyncIdsCallback(Environment* env, void* data) {
+void AsyncWrap::DestroyAsyncIdsCallback(Environment* env) {
   Local<Function> fn = env->async_hooks_destroy_function();
 
   TryCatchScope try_catch(env, TryCatchScope::CatchMode::kFatal);
@@ -642,7 +642,7 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
   }
 
   if (env->destroy_async_id_list()->empty()) {
-    env->SetUnrefImmediate(DestroyAsyncIdsCallback, nullptr);
+    env->SetUnrefImmediate(&DestroyAsyncIdsCallback);
   }
 
   env->destroy_async_id_list()->push_back(async_id);

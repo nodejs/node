@@ -690,9 +690,9 @@ class QueryWrap : public AsyncWrap {
   }
 
   void QueueResponseCallback(int status) {
-    env()->SetImmediate([](Environment*, void* data) {
-      static_cast<QueryWrap*>(data)->AfterResponse();
-    }, this, object());
+    env()->SetImmediate([this](Environment*) {
+      AfterResponse();
+    }, object());
 
     channel_->set_query_last_ok(status != ARES_ECONNREFUSED);
     channel_->ModifyActivityQueryCount(-1);

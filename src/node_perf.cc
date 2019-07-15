@@ -229,9 +229,8 @@ void SetupPerformanceObservers(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Creates a GC Performance Entry and passes it to observers
-void PerformanceGCCallback(Environment* env, void* ptr) {
-  std::unique_ptr<GCPerformanceEntry> entry{
-      static_cast<GCPerformanceEntry*>(ptr)};
+void PerformanceGCCallback(Environment* env,
+                           std::unique_ptr<GCPerformanceEntry> entry) {
   HandleScope scope(env->isolate());
   Local<Context> context = env->context();
 
@@ -268,13 +267,14 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
   // If no one is listening to gc performance entries, do not create them.
   if (!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC])
     return;
-  GCPerformanceEntry* entry =
-      new GCPerformanceEntry(env,
-                             static_cast<PerformanceGCKind>(type),
-                             state->performance_last_gc_start_mark,
-                             PERFORMANCE_NOW());
-  env->SetUnrefImmediate(PerformanceGCCallback,
-                         entry);
+  auto entry = std::make_unique<GCPerformanceEntry>(
+      env,
+      static_cast<PerformanceGCKind>(type),
+      state->performance_last_gc_start_mark,
+      PERFORMANCE_NOW());
+  env->SetUnrefImmediate([entry = std::move(entry)](Environment* env) mutable {
+    PerformanceGCCallback(env, std::move(entry));
+  });
 }
 
 static void SetupGarbageCollectionTracking(
