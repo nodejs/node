@@ -100,11 +100,25 @@ const { promisify } = require('util');
   const rs = new Readable();
 
   finished(rs, common.mustCall((err) => {
+    assert(err, 'premature close error');
+  }));
+
+  rs.push(null);
+  rs.emit('close');
+  rs.resume();
+}
+
+{
+  const rs = new Readable();
+
+  finished(rs, common.mustCall((err) => {
     assert(!err, 'no error');
   }));
 
   rs.push(null);
-  rs.emit('close'); // Should not trigger an error
+  rs.on('end', common.mustCall(() => {
+    rs.emit('close'); // Should not trigger an error
+  }));
   rs.resume();
 }
 
