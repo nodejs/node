@@ -363,11 +363,13 @@ Local<Context> NewContext(Isolate* isolate,
   auto context = Context::New(isolate, nullptr, object_template);
   if (context.IsEmpty()) return context;
 
-  return MaybeInitializeContext(context, object_template);
+  if (!InitializeContext(context)) {
+    return Local<Context>();
+  }
+  return context;
 }
 
-Local<Context> MaybeInitializeContext(Local<Context> context,
-                                      Local<ObjectTemplate> object_template) {
+bool InitializeContext(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
@@ -389,7 +391,7 @@ Local<Context> MaybeInitializeContext(Local<Context> context,
     if (!primordials->SetPrototype(context, Null(isolate)).FromJust() ||
         !GetPerContextExports(context).ToLocal(&exports) ||
         !exports->Set(context, primordials_string, primordials).FromJust()) {
-      return Local<Context>();
+      return false;
     }
 
     static const char* context_files[] = {"internal/per_context/primordials",
@@ -405,7 +407,7 @@ Local<Context> MaybeInitializeContext(Local<Context> context,
           native_module::NativeModuleEnv::LookupAndCompile(
               context, *module, &parameters, nullptr);
       if (maybe_fn.IsEmpty()) {
-        return Local<Context>();
+        return false;
       }
       Local<Function> fn = maybe_fn.ToLocalChecked();
       MaybeLocal<Value> result =
@@ -414,12 +416,12 @@ Local<Context> MaybeInitializeContext(Local<Context> context,
       // Execution failed during context creation.
       // TODO(joyeecheung): deprecate this signature and return a MaybeLocal.
       if (result.IsEmpty()) {
-        return Local<Context>();
+        return false;
       }
     }
   }
 
-  return context;
+  return true;
 }
 
 uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {
