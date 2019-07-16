@@ -5,7 +5,7 @@ static double value_ = 1;
 static double static_value_ = 10;
 
 static void
-add_named_property(napi_env env, const char* key, napi_value return_value) {
+add_named_status(napi_env env, const char* key, napi_value return_value) {
   napi_value prop_value;
   const napi_extended_error_info* p_last_error;
   NAPI_CALL_RETURN_VOID(env, napi_get_last_error_info(env, &p_last_error));
@@ -74,7 +74,7 @@ static napi_value TestDefineClass(napi_env env,
                     &property_descriptor,
                     &result);
 
-  add_named_property(env, "nameIsNull", return_value);
+  add_named_status(env, "nameIsNull", return_value);
 
   napi_define_class(env,
                     "TrackedFunction",
@@ -85,7 +85,7 @@ static napi_value TestDefineClass(napi_env env,
                     &property_descriptor,
                     &result);
 
-  add_named_property(env, "cbIsNull", return_value);
+  add_named_status(env, "cbIsNull", return_value);
 
   napi_define_class(env,
                     "TrackedFunction",
@@ -96,7 +96,7 @@ static napi_value TestDefineClass(napi_env env,
                     &property_descriptor,
                     &result);
 
-  add_named_property(env, "cbDataIsNull", return_value);
+  add_named_status(env, "cbDataIsNull", return_value);
 
   napi_define_class(env,
                     "TrackedFunction",
@@ -107,7 +107,7 @@ static napi_value TestDefineClass(napi_env env,
                     NULL,
                     &result);
 
-  add_named_property(env, "propertiesIsNull", return_value);
+  add_named_status(env, "propertiesIsNull", return_value);
 
 
   napi_define_class(env,
@@ -119,7 +119,7 @@ static napi_value TestDefineClass(napi_env env,
                     &property_descriptor,
                     NULL);
 
-  add_named_property(env, "resultIsNull", return_value);
+  add_named_status(env, "resultIsNull", return_value);
 
   return return_value;
 }
