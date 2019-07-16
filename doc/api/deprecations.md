@@ -2511,8 +2511,8 @@ changes:
 
 Type: Documentation-only
 
-`[ClientRequest.destroy()`][] should be the same as
-`[ClientRequest.abort()`][]. Make ClientRequest more streamlike by deprecating
+[`ClientRequest.destroy()`][] should be the same as
+[`ClientRequest.abort()`][]. Make ClientRequest more streamlike by deprecating
  abort().
 
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library

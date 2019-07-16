@@ -553,7 +553,7 @@ deprecated: REPLACEME
 
 Marks the request as aborting. Calling this will cause remaining data
 in the response to be dropped and the socket to be destroyed. After
-calling this method no further errors will be emitted.
+calling this method, no further errors will be emitted.
 
 ### request.aborted
 <!-- YAML
@@ -2165,22 +2165,24 @@ In the case of a connection error, the following events will be emitted:
 * `'error'`
 * `'close'`
 
-If `req.abort()` is called before the connection succeeds, the following events
-will be emitted in the following order:
+If `req.destroy()` is called before the connection succeeds, the following
+events will be emitted in the following order:
 
 * `'socket'`
-* (`req.abort()` called here)
+* (`req.destroy(err)` called here)
 * `'abort'`
+* `'error'` if `err` was provided.
 * `'close'`
 
-If `req.abort()` is called after the response is received, the following events
-will be emitted in the following order:
+If `req.destroy()` is called after the response is received, the following
+events will be emitted in the following order:
 
 * `'socket'`
 * `'response'`
   * `'data'` any number of times, on the `res` object
-* (`req.abort()` called here)
+* (`req.destroy(err)` called here)
 * `'abort'`
+* `'error'` if `err` was provided.
 * `'aborted'` on the `res` object
 * `'close'`
 * `'end'` on the `res` object
