@@ -56,3 +56,19 @@ cp.exec(cmd, { timeout: 2 ** 30 }, common.mustCall((err, stdout, stderr) => {
   assert.strictEqual(stdout.trim(), 'child stdout');
   assert.strictEqual(stderr.trim(), 'child stderr');
 }));
+
+// Workaround for Windows Server 2008R2
+// When CMD is used to launch a process and CMD is killed too quickly, the
+// process can stay behind running in suspended state, never completing.
+if (common.isWindows) {
+  process.once('beforeExit', () => {
+    const basename = __filename.replace(/.*[/\\]/g, '');
+    cp.execFileSync(`${process.env.SystemRoot}\\System32\\wbem\\WMIC.exe`, [
+      'process',
+      'where',
+      `commandline like '%${basename}%child'`,
+      'delete',
+      '/nointeractive'
+    ]);
+  });
+}
