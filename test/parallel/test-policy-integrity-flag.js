@@ -11,7 +11,7 @@ const { spawnSync } = require('child_process');
 const fs = require('fs');
 const crypto = require('crypto');
 
-const depPolicy =fixtures.path('policy', 'dep-policy.json');
+const depPolicy = fixtures.path('policy', 'dep-policy.json');
 const dep = fixtures.path('policy', 'dep.js');
 
 const emptyHash = crypto.createHash('sha512');
