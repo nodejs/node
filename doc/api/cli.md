@@ -432,7 +432,8 @@ added: REPLACEME
 -->
 
 Instructs Node.js to error prior to running any code if the policy does not have
-the specified integrity. It expects a [Subresource Integrity] string as a parameter.
+the specified integrity. It expects a [Subresource Integrity][] string as a
+parameter.
 
 ### `--preserve-symlinks`
 <!-- YAML
