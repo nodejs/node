@@ -1,6 +1,8 @@
 #include <js_native_api.h>
 #include "../common.h"
 
+#include <stdio.h>
+
 static double value_ = 1;
 static double static_value_ = 10;
 
