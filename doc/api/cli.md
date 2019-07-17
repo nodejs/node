@@ -1173,6 +1173,7 @@ greater than `4` (its current default value). For more information, see the
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
+[Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [customizing esm specifier resolution]: esm.html#esm_customizing_esm_specifier_resolution_algorithm
 [debugger]: debugger.html
@@ -1181,4 +1182,3 @@ greater than `4` (its current default value). For more information, see the
 [experimental ECMAScript Module]: esm.html#esm_resolve_hook
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
-[Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
