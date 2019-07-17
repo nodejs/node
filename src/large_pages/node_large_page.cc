@@ -195,12 +195,14 @@ static struct text_region FindNodeTextRegion() {
      (entry->kve_protection & KVME_PROT_EXEC));
 
     if (!strcmp(exename.c_str(), entry->kve_path) && excmapping) {
-      size_t size = entry->kve_end - entry->kve_start;
+      char* estart =
+        reinterpret_cast<char*>(hugepage_align_up(entry->kve_start));
+      char* eend =
+        reinterpret_cast<char*>(hugepage_align_down(entry->kve_end));
+      size_t size = eend - estart;
       nregion.found_text_region = true;
-      nregion.from =
-         reinterpret_cast<char*>(hugepage_align_up(entry->kve_start));
-      nregion.to =
-         reinterpret_cast<char*>(hugepage_align_down(entry->kve_end));
+      nregion.from = estart;
+      nregion.to = eend;
       nregion.total_hugepages = size / hps;
       break;
     }
