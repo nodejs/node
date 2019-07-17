@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -122,7 +122,9 @@ static int dh_builtin_genparams(DH *ret, int prime_len, int generator,
         ok = 0;
     }
 
-    BN_CTX_end(ctx);
-    BN_CTX_free(ctx);
+    if (ctx != NULL) {
+        BN_CTX_end(ctx);
+        BN_CTX_free(ctx);
+    }
     return ok;
 }

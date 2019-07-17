@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,7 +17,7 @@
 
 static char *find_friendly_name(PKCS12 *p12)
 {
-    STACK_OF(PKCS7) *safes;
+    STACK_OF(PKCS7) *safes = PKCS12_unpack_authsafes(p12);
     int n, m;
     char *name = NULL;
     PKCS7 *safe;
@@ -48,64 +48,56 @@ static char *find_friendly_name(PKCS12 *p12)
 int main(int argc, char **argv)
 {
     FILE *fp;
-    EVP_PKEY *pkey = NULL;
-    X509 *cert = NULL;
+    EVP_PKEY *pkey;
+    X509 *cert;
     STACK_OF(X509) *ca = NULL;
-    PKCS12 *p12 = NULL;
-    char *name = NULL;
-    int i, ret = EXIT_FAILURE;
+    PKCS12 *p12;
+    const char *name;
+    int i;
 
     if (argc != 4) {
         fprintf(stderr, "Usage: pkread p12file password opfile\n");
-        exit(EXIT_FAILURE);
+        exit(1);
     }
-
+    OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
     if ((fp = fopen(argv[1], "rb")) == NULL) {
         fprintf(stderr, "Error opening file %s\n", argv[1]);
-        exit(EXIT_FAILURE);
+        exit(1);
     }
     p12 = d2i_PKCS12_fp(fp, NULL);
     fclose(fp);
-    if (p12 == NULL) {
+    if (!p12) {
         fprintf(stderr, "Error reading PKCS#12 file\n");
         ERR_print_errors_fp(stderr);
-        goto err;
+        exit(1);
     }
     if (!PKCS12_parse(p12, argv[2], &pkey, &cert, &ca)) {
         fprintf(stderr, "Error parsing PKCS#12 file\n");
         ERR_print_errors_fp(stderr);
-        goto err;
+        exit(1);
     }
     name = find_friendly_name(p12);
     PKCS12_free(p12);
     if ((fp = fopen(argv[3], "w")) == NULL) {
         fprintf(stderr, "Error opening file %s\n", argv[1]);
-        goto err;
+        exit(1);
     }
-    if (name != NULL)
+    if (name)
         fprintf(fp, "***Friendly Name***\n%s\n", name);
-    if (pkey != NULL) {
+    if (pkey) {
         fprintf(fp, "***Private Key***\n");
         PEM_write_PrivateKey(fp, pkey, NULL, NULL, 0, NULL, NULL);
     }
-    if (cert != NULL) {
+    if (cert) {
         fprintf(fp, "***User Certificate***\n");
         PEM_write_X509_AUX(fp, cert);
     }
-    if (ca != NULL && sk_X509_num(ca) > 0) {
+    if (ca && sk_X509_num(ca)) {
         fprintf(fp, "***Other Certificates***\n");
         for (i = 0; i < sk_X509_num(ca); i++)
             PEM_write_X509_AUX(fp, sk_X509_value(ca, i));
     }
     fclose(fp);
-
-    ret = EXIT_SUCCESS;
-
- err:
-    OPENSSL_free(name);
-    X509_free(cert);
-    EVP_PKEY_free(pkey);
-    sk_X509_pop_free(ca, X509_free);
-
-    return ret;
+    return 0;
 }

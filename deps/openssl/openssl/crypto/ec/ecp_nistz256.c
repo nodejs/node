@@ -888,7 +888,8 @@ __owur static int ecp_nistz256_mult_precompute(EC_GROUP *group, BN_CTX *ctx)
     ret = 1;
 
  err:
-    BN_CTX_end(ctx);
+    if (ctx != NULL)
+        BN_CTX_end(ctx);
     BN_CTX_free(new_ctx);
 
     EC_nistz256_pre_comp_free(pre_comp);
