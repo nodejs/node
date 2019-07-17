@@ -582,6 +582,13 @@ class AsyncRequest : public MemoryRetainer {
 
 class KVStore {
  public:
+  KVStore() = default;
+  virtual ~KVStore() = default;
+  KVStore(const KVStore&) = delete;
+  KVStore& operator=(const KVStore&) = delete;
+  KVStore(KVStore&&) = delete;
+  KVStore& operator=(KVStore&&) = delete;
+
   virtual v8::Local<v8::String> Get(v8::Isolate* isolate,
                                     v8::Local<v8::String> key) const = 0;
   virtual void Set(v8::Isolate* isolate,
