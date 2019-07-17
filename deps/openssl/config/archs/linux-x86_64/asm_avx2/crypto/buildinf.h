@@ -11,7 +11,7 @@
  */
 
 #define PLATFORM "platform: linux-x86_64"
-#define DATE "built on: Wed Jun 12 20:55:14 2019 UTC"
+#define DATE "built on: Thu May  2 20:27:43 2019 UTC"
 
 /*
  * Generate compiler_flags as an array of individual characters. This is a
@@ -43,6 +43,7 @@ static const char compiler_flags[] = {
     'E','S','_','A','S','M',' ','-','D','G','H','A','S','H','_','A',
     'S','M',' ','-','D','E','C','P','_','N','I','S','T','Z','2','5',
     '6','_','A','S','M',' ','-','D','X','2','5','5','1','9','_','A',
-    'S','M',' ','-','D','P','O','L','Y','1','3','0','5','_','A','S',
-    'M',' ','-','D','N','D','E','B','U','G','\0'
+    'S','M',' ','-','D','P','A','D','L','O','C','K','_','A','S','M',
+    ' ','-','D','P','O','L','Y','1','3','0','5','_','A','S','M',' ',
+    '-','D','N','D','E','B','U','G','\0'
 };

@@ -104,7 +104,6 @@
 
 
 .machine	"any"
-.text
 
 
 

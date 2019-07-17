@@ -154,7 +154,6 @@ bn_mul_add_words:
 
 
 .machine	"any"
-.text
 
 
 

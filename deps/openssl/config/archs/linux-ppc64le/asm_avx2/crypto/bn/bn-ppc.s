@@ -104,8 +104,6 @@
 
 
 .machine	"any"
-.abiversion	2
-.text
 
 
 
