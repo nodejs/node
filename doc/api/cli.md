@@ -426,13 +426,13 @@ unless either the `--pending-deprecation` command line flag, or the
 are used to provide a kind of selective "early warning" mechanism that
 developers may leverage to detect deprecated API usage.
 
-### `--policy-integrity`
+### `--policy-integrity=sri`
 <!-- YAML
 added: REPLACEME
 -->
 
 Instructs Node.js to error prior to running any code if the policy does not have
-the specified integrity.
+the specified integrity. It expects a [Subresource Integrity] string as a parameter.
 
 ### `--preserve-symlinks`
 <!-- YAML
@@ -1180,3 +1180,4 @@ greater than `4` (its current default value). For more information, see the
 [experimental ECMAScript Module]: esm.html#esm_resolve_hook
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
+[Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
