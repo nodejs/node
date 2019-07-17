@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.16.1">10.16.1</a><br/>
 <a href="#10.16.0">10.16.0</a><br/>
 <a href="#10.15.3">10.15.3</a><br/>
 <a href="#10.15.2">10.15.2</a><br/>
@@ -51,6 +52,50 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.16.1"></a>
+## 2019-07-31, Version 10.16.1 'Dubnium' (LTS), @BethGriggs
+
+### Notable changes
+
+* **deps**: upgrade openssl sources to 1.1.1c (Sam Roberts) [#28212](https://github.com/nodejs/node/pull/28212)
+* **stream**: do not unconditionally call `\_read()` on `resume()` (Anna Henningsen) [#26965](https://github.com/nodejs/node/pull/26965)
+* **worker**: fix nullptr deref after MessagePort deser failure (Anna Henningsen) [#25076](https://github.com/nodejs/node/pull/25076)
+
+### Commits
+
+* [[`65ef26fdcb`](https://github.com/nodejs/node/commit/65ef26fdcb)] - **async_hooks**: avoid double-destroy HTTPParser (Gerhard Stoebich) [#27477](https://github.com/nodejs/node/pull/27477)
+* [[`8f5d6cf5f5`](https://github.com/nodejs/node/commit/8f5d6cf5f5)] - **deps**: update archs files for OpenSSL-1.1.1c (Sam Roberts) [#28212](https://github.com/nodejs/node/pull/28212)
+* [[`9e62852724`](https://github.com/nodejs/node/commit/9e62852724)] - **deps**: upgrade openssl sources to 1.1.1c (Sam Roberts) [#28212](https://github.com/nodejs/node/pull/28212)
+* [[`c59e0c256d`](https://github.com/nodejs/node/commit/c59e0c256d)] - **deps**: updated openssl upgrade instructions (Sam Roberts) [#28212](https://github.com/nodejs/node/pull/28212)
+* [[`609d2b9ea4`](https://github.com/nodejs/node/commit/609d2b9ea4)] - **deps**: V8: backport f27ac28 (Michaël Zasso) [#28061](https://github.com/nodejs/node/pull/28061)
+* [[`8f780e8f99`](https://github.com/nodejs/node/commit/8f780e8f99)] - **deps**: cherry-pick 88f8fe1 from upstream V8 (Yang Guo) [#24514](https://github.com/nodejs/node/pull/24514)
+* [[`ad588eb5fc`](https://github.com/nodejs/node/commit/ad588eb5fc)] - **doc**: adjust TOC margins (Roman Reiss) [#28075](https://github.com/nodejs/node/pull/28075)
+* [[`b3d8a1b1d0`](https://github.com/nodejs/node/commit/b3d8a1b1d0)] - **doc**: add missing changes entry (Ruben Bridgewater) [#24758](https://github.com/nodejs/node/pull/24758)
+* [[`819a647d8f`](https://github.com/nodejs/node/commit/819a647d8f)] - **esm**: fix esm load bug (ZYSzys) [#25491](https://github.com/nodejs/node/pull/25491)
+* [[`f34bb968c4`](https://github.com/nodejs/node/commit/f34bb968c4)] - **process**: make stdout and stderr emit 'close' on destroy (Matteo Collina) [#26691](https://github.com/nodejs/node/pull/26691)
+* [[`0339fba1bb`](https://github.com/nodejs/node/commit/0339fba1bb)] - **src**: handle empty Maybe in uv binding initialize (Anna Henningsen) [#25079](https://github.com/nodejs/node/pull/25079)
+* [[`f9e8e8856a`](https://github.com/nodejs/node/commit/f9e8e8856a)] - **src**: fix Get() usage in tls\_wrap.cc (cjihrig) [#24060](https://github.com/nodejs/node/pull/24060)
+* [[`b689008dea`](https://github.com/nodejs/node/commit/b689008dea)] - **src**: in-source comments and minor TLS cleanups (Sam Roberts) [#25713](https://github.com/nodejs/node/pull/25713)
+* [[`76af23a32b`](https://github.com/nodejs/node/commit/76af23a32b)] - **src**: remove internalBinding('config').warningFile (Joyee Cheung) [#24959](https://github.com/nodejs/node/pull/24959)
+* [[`b7dbc1c537`](https://github.com/nodejs/node/commit/b7dbc1c537)] - **src**: fix warning in cares\_wrap.cc (cjihrig) [#25230](https://github.com/nodejs/node/pull/25230)
+* [[`a8f78f02cb`](https://github.com/nodejs/node/commit/a8f78f02cb)] - **src**: fulfill Maybe contract in InlineDecoder (Anna Henningsen) [#25140](https://github.com/nodejs/node/pull/25140)
+* [[`0dee607409`](https://github.com/nodejs/node/commit/0dee607409)] - **src**: extract common Bind method (Jon Moss) [#22315](https://github.com/nodejs/node/pull/22315)
+* [[`08a32fbf57`](https://github.com/nodejs/node/commit/08a32fbf57)] - **src**: elevate v8 namespaces for node\_process.cc (Jayasankar) [#24578](https://github.com/nodejs/node/pull/24578)
+* [[`f3841c6750`](https://github.com/nodejs/node/commit/f3841c6750)] - **stream**: convert existing buffer when calling .setEncoding (Anna Henningsen) [#27936](https://github.com/nodejs/node/pull/27936)
+* [[`274b97c4ea`](https://github.com/nodejs/node/commit/274b97c4ea)] - **stream**: do not unconditionally call `\_read()` on `resume()` (Anna Henningsen) [#26965](https://github.com/nodejs/node/pull/26965)
+* [[`044e753aaf`](https://github.com/nodejs/node/commit/044e753aaf)] - **stream**: make \_read() be called indefinitely if the user wants so (Matteo Collina) [#26135](https://github.com/nodejs/node/pull/26135)
+* [[`f332265cda`](https://github.com/nodejs/node/commit/f332265cda)] - **test**: remove `util.inherits()` usage (ZYSzys) [#25245](https://github.com/nodejs/node/pull/25245)
+* [[`ada0ed55d1`](https://github.com/nodejs/node/commit/ada0ed55d1)] - **test**: fix pty test hangs on aix (Ben Noordhuis) [#28600](https://github.com/nodejs/node/pull/28600)
+* [[`2ae99160e5`](https://github.com/nodejs/node/commit/2ae99160e5)] - **test**: skip stringbytes-external-exceed-max on AIX (Sam Roberts) [#28516](https://github.com/nodejs/node/pull/28516)
+* [[`39637cb95f`](https://github.com/nodejs/node/commit/39637cb95f)] - **test**: skip tests related to CI failures on AIX (Sam Roberts) [#28469](https://github.com/nodejs/node/pull/28469)
+* [[`35be08a16f`](https://github.com/nodejs/node/commit/35be08a16f)] - **test**: clean up build files (Gabriel Schulhof) [#28297](https://github.com/nodejs/node/pull/28297)
+* [[`cc3ca08046`](https://github.com/nodejs/node/commit/cc3ca08046)] - **test**: clearing require cache crashes esm loader (Antoine du HAMEL) [#25491](https://github.com/nodejs/node/pull/25491)
+* [[`75052cadaa`](https://github.com/nodejs/node/commit/75052cadaa)] - **tls**: add debugging to native TLS code (Anna Henningsen) [#26843](https://github.com/nodejs/node/pull/26843)
+* [[`99dad28ebf`](https://github.com/nodejs/node/commit/99dad28ebf)] - **tls**: add CHECK for impossible condition (Anna Henningsen) [#26843](https://github.com/nodejs/node/pull/26843)
+* [[`5ffe04753e`](https://github.com/nodejs/node/commit/5ffe04753e)] - **tls**: renegotiate should take care of its own state (Sam Roberts) [#25997](https://github.com/nodejs/node/pull/25997)
+* [[`4a607fab49`](https://github.com/nodejs/node/commit/4a607fab49)] - **tools**: replace rollup with ncc (Rich Trott) [#24813](https://github.com/nodejs/node/pull/24813)
+* [[`14090b59fc`](https://github.com/nodejs/node/commit/14090b59fc)] - **worker**: fix nullptr deref after MessagePort deser failure (Anna Henningsen) [#25076](https://github.com/nodejs/node/pull/25076)
 
 <a id="10.16.0"></a>
 ## 2019-05-28, Version 10.16.0 'Dubnium' (LTS), @BethGriggs
