@@ -426,6 +426,14 @@ unless either the `--pending-deprecation` command line flag, or the
 are used to provide a kind of selective "early warning" mechanism that
 developers may leverage to detect deprecated API usage.
 
+### `--policy-integrity`
+<!-- YAML
+added: TODO
+-->
+
+Instructs node to error prior to running any code if the policy does not have
+the specified integrity.
+
 ### `--preserve-symlinks`
 <!-- YAML
 added: v6.3.0
@@ -959,6 +967,7 @@ Node.js options that are allowed are:
 - `--no-warnings`
 - `--openssl-config`
 - `--pending-deprecation`
+- `--policy-integrity`
 - `--preserve-symlinks-main`
 - `--preserve-symlinks`
 - `--prof-process`
