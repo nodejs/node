@@ -428,7 +428,7 @@ developers may leverage to detect deprecated API usage.
 
 ### `--policy-integrity`
 <!-- YAML
-added: TODO
+added: REPLACEME
 -->
 
 Instructs node to error prior to running any code if the policy does not have
