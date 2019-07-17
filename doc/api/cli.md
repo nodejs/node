@@ -431,7 +431,7 @@ developers may leverage to detect deprecated API usage.
 added: REPLACEME
 -->
 
-Instructs node to error prior to running any code if the policy does not have
+Instructs Node.js to error prior to running any code if the policy does not have
 the specified integrity.
 
 ### `--preserve-symlinks`
