@@ -66,7 +66,7 @@
       'defines': [ '__POSIX__' ],
     }],
     [ 'node_enable_d8=="true"', {
-      'dependencies': [ 'deps/v8/gypfiles/d8.gyp:d8' ],
+      'dependencies': [ 'tools/v8_gypfiles/d8.gyp:d8' ],
     }],
     [ 'node_use_bundled_v8=="true"', {
       'dependencies': [
