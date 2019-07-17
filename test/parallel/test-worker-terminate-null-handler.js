@@ -18,9 +18,9 @@ process.once('beforeExit', common.mustCall(() => {
 
 worker.on('exit', common.mustCall(() => {
   console.log('exit');
-  worker.terminate().then((returned) => assert.strictEqual(returned, undefined));
+  worker.terminate().then((res) => assert.strictEqual(res, undefined));
   worker.terminate(() => null).then(
-    (returned) => assert.strictEqual(returned, undefined)
+    (res) => assert.strictEqual(res, undefined)
   );
 }));
 
