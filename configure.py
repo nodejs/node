@@ -400,7 +400,7 @@ parser.add_option('--use-largepages',
     action='store_true',
     dest='node_use_large_pages',
     help='build with Large Pages support. This feature is supported only on Linux kernel' +
-         '>= 2.6.38 with Transparent Huge pages enabled')
+         '>= 2.6.38 with Transparent Huge pages enabled and FreeBSD')
 
 intl_optgroup.add_option('--with-intl',
     action='store',
