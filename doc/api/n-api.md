@@ -462,10 +462,9 @@ typedef void (*napi_async_execute_callback)(napi_env env, void* data);
 Implementations of this type of function should avoid making any N-API calls
 that could result in the execution of JavaScript or interaction with
 JavaScript objects. Most often, any code that needs to make N-API
-calls should be made in `napi_async_complete_callback` instead. The
-current recommendation is to avoid all usage of the
-`napi_env` parameter in the execute callback as it will most
-likely cause JavaScript to be executed.
+calls should be made in `napi_async_complete_callback` instead. 
+Avoid using the `napi_env` parameter in the execute callback as
+it will likely execute JavaScript.
 
 #### napi_async_complete_callback
 <!-- YAML
@@ -4030,10 +4029,9 @@ task respectively.
 The `execute` function should avoid making any N-API calls
 that could result in the execution of JavaScript or interaction with
 JavaScript objects. Most often, any code that needs to make N-API
-calls should be made in `complete` callback instead. The
-current recommendation is to avoid all usage of the
-`napi_env` parameter in the execute callback as it will most
-likely cause JavaScript to be executed.
+calls should be made in `complete` callback instead. 
+Avoid using the `napi_env` parameter in the execute callback as
+it will likely execute JavaScript.
 
 These functions implement the following interfaces:
 
