@@ -4032,7 +4032,7 @@ that could result in the execution of JavaScript or interaction with
 JavaScript objects. Most often, any code that needs to make N-API
 calls should be made in `complete` callback instead. The
 current recommendation is to avoid all usage of the
-napi_env parameter in the execute callback as it will most
+`napi_env` parameter in the execute callback as it will most
 likely cause JavaScript to be executed.
 
 These functions implement the following interfaces:
