@@ -699,8 +699,7 @@ class NodeInspectorClient : public V8InspectorClient {
 
     MultiIsolatePlatform* platform = env_->isolate_data()->platform();
     while (shouldRunMessageLoop()) {
-      if (interface_ && hasConnectedSessions())
-        interface_->WaitForFrontendEvent();
+      if (interface_) interface_->WaitForFrontendEvent();
       while (platform->FlushForegroundTasks(env_->isolate())) {}
     }
     running_nested_loop_ = false;
