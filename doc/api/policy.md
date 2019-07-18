@@ -38,7 +38,7 @@ node --experimental-policy=policy.json app.js
 The policy manifest will be used to enforce constraints on code loaded by
 Node.js.
 
-In order to mitigate tampering with policy files on disk, an integrity for
+To mitigate tampering with policy files on disk, an integrity for
 the policy file itself may be provided via `--policy-integrity`.
 This allows running `node` and asserting the policy file contents
 even if the file is changed on disk.
@@ -105,9 +105,83 @@ When loading resources the entire URL must match including search parameters
 and hash fragment. `./a.js?b` will not be used when attempting to load
 `./a.js` and vice versa.
 
-In order to generate integrity strings, a script such as
+To generate integrity strings, a script such as
 `printf "sha384-$(cat checked.js | openssl dgst -sha384 -binary | base64)"`
 can be used.
+
+Integrity can be specified as the boolean value `true` to accept any
+body for the resource which can be useful for local development. It is not
+recommended in production since it would allow unexpected alteration of
+resources to be considered valid.
+
+### Dependency Redirection
+
+An application may need to ship patched versions of modules or to prevent
+modules from allowing all modules access to all other modules. Redirection
+can be used by intercepting attempts to load the modules wishing to be
+replaced.
+
+```json
+{
+  "builtins": [],
+  "resources": {
+    "./app/checked.js": {
+      "dependencies": {
+        "fs": true,
+        "os": "./app/node_modules/alt-os"
+      }
+    }
+  }
+}
+```
+
+The dependencies are keyed by the requested string specifier and have values
+of either `true` or a string pointing to a module that will be resolved.
+
+The specifier string does not perform any searching and must match exactly
+what is provided to the `require()`. Therefore, multiple specifiers may be
+needed in the policy if `require()` uses multiple different strings to point
+to the same module (such as excluding the extension).
+
+If the value of the redirection is `true` the default searching algorithms will
+be used to find the module.
+
+If the value of the redirection is a string, it will be resolved relative to
+the manifest and then immediately be used without searching.
+
+Any specifier string that is `require()`ed and not listed in the dependencies
+will result in an error according to the policy.
+
+Redirection will not prevent access to APIs through means such as direct access
+to `require.cache` and/or through `module.constructor` which allow access to
+loading modules. Policy redirection only affect specifiers to `require()`.
+Other means such as to prevent undesired access to APIs through variables are
+necessary to lock down that path of loading modules.
+
+A boolean value of `true` for the dependencies map can be specified to allow a
+module to load any specifier without redirection. This can be useful for local
+development and may have some valid usage in production, but should be used
+only with care after auditing a module to ensure its behavior is valid.
+
+#### Example: Patched Dependency
+
+Since a dependency can be redirected, you can provide attenuated or modified
+forms of dependencies as fits your application. For example, you could log
+data about timing of function durations by wrapping the original:
+
+```js
+const original = require('fn');
+module.exports = function fn(...args) {
+  console.time();
+  try {
+    return new.target ?
+      Reflect.construct(original, args) :
+      Reflect.apply(original, this, args);
+  } finally {
+    console.timeEnd();
+  }
+};
+```
 
 
 [relative url string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
