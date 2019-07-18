@@ -1430,6 +1430,13 @@ An attempt was made to load a resource, but the resource did not match the
 integrity defined by the policy manifest. See the documentation for [policy]
 manifests for more information.
 
+<a id="ERR_MANIFEST_DEPENDENCY_MISSING"></a>
+### ERR_MANIFEST_DEPENDENCY_MISSING
+
+An attempt was made to load a resource, but the resource was not listed as a
+dependency from the location that attempted to load it. See the documentation
+for [policy] manifests for more information.
+
 <a id="ERR_MANIFEST_INTEGRITY_MISMATCH"></a>
 ### ERR_MANIFEST_INTEGRITY_MISMATCH
 
@@ -1437,6 +1444,13 @@ An attempt was made to load a policy manifest, but the manifest had multiple
 entries for a resource which did not match each other. Update the manifest
 entries to match in order to resolve this error. See the documentation for
 [policy] manifests for more information.
+
+<a id="ERR_MANIFEST_INVALID_RESOURCE_FIELD"></a>
+### ERR_MANIFEST_INVALID_RESOURCE_FIELD
+
+A policy manifest resource had an invalid value for one of its fields. Update
+the manifest entry to match in order to resolve this error. See the
+documentation for [policy] manifests for more information.
 
 <a id="ERR_MANIFEST_PARSE_POLICY"></a>
 ### ERR_MANIFEST_PARSE_POLICY

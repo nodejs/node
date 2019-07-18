@@ -71,7 +71,8 @@ function test({
   };
   for (const [url, { body, match }] of Object.entries(resources)) {
     manifest.resources[url] = {
-      integrity: `sha256-${hash('sha256', match ? body : body + '\n')}`
+      integrity: `sha256-${hash('sha256', match ? body : body + '\n')}`,
+      dependencies: true
     };
     fs.writeFileSync(new URL(url, tmpdirURL.href), body);
   }
