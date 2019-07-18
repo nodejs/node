@@ -488,7 +488,11 @@ test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run a
 
 CI_NATIVE_SUITES ?= addons js-native-api node-api
 CI_JS_SUITES ?= default
-CI_DOC := doctool
+ifeq ($(node_use_openssl), false)
+  CI_DOC := doctool
+else
+  CI_DOC =
+endif
 
 .PHONY: test-ci-native
 # Build and test addons without building anything else
@@ -700,7 +704,11 @@ tools/doc/node_modules: tools/doc/package.json
 .PHONY: doc-only
 doc-only: tools/doc/node_modules \
 	$(apidoc_dirs) $(apiassets)  ## Builds the docs with the local or the global Node.js binary.
-	@$(MAKE) out/doc/api/all.html out/doc/api/all.json
+	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
+		echo "Skipping doc-only (no crypto)"; \
+	else \
+		$(MAKE) out/doc/api/all.html out/doc/api/all.json; \
+	fi
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only
