@@ -109,5 +109,62 @@ In order to generate integrity strings, a script such as
 `printf "sha384-$(cat checked.js | openssl dgst -sha384 -binary | base64)"`
 can be used.
 
+### Dependency Redirection
+
+An application may need to ship patched versions of software or to prevent
+software from allowing all modules access to all other modules. In order to
+do so redirection can be used.
+
+```json
+{
+  "builtins": [],
+  "resources": {
+    "./app/checked.js": {
+      "dependencies": {
+        "fs": true,
+        "os": "./app/node_modules/alt-os"
+      }
+    }
+  }
+}
+```
+
+The dependencies are keyed by the requested string specifier and have values
+of either `true` or a string pointing to a module that will be resolved.
+
+The specifier string does not perform any searching and must match exactly
+what is provided to the `require()`. Therefore, multiple specifiers may be
+needed in the policy if `require()` uses multiple different strings to point
+to the same module (such as excluding the extension).
+
+If the value of the redirection is `true` the default searching algorithms will
+be used to find the module.
+
+If the value of the redirection is a string, it will be resolved relative to
+the manifest and them immediately be used without searching.
+
+Any specifier missing from the list of dependency will result in an error
+according to the policy.
+
+#### Example: Patched Dependency
+
+Since a dependency can be redirected, you can provide attenuated or modified
+forms of dependencies as fits your application. For example, you could log
+data about timing of function durations by wrapping the original:
+
+```js
+const original = require('fn');
+module.exports = function fn(...args) {
+  console.time();
+  try {
+    return new.target ?
+      Reflect.construct(original, args) :
+      Reflect.apply(original, this, args);
+  } finally {
+    console.timeEnd();
+  }
+};
+```
+
 
 [relative url string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
