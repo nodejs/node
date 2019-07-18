@@ -64,6 +64,8 @@ V ?= 0
 available-node = \
   if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
 		$(PWD)/$(NODE) $(1); \
+	elif [ -x $(PWD)/$(NODE_G_EXE) ] && [ -e $(PWD)/$(NODE_G_EXE) ]; then \
+		$(PWD)/$(NODE_G_EXE) $(1); \
 	elif [ -x `which node` ] && [ -e `which node` ] && [ `which node` ]; then \
 		`which node` $(1); \
 	else \
