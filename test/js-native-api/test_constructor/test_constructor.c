@@ -1,35 +1,13 @@
 #include <js_native_api.h>
 #include "../common.h"
 
-#include <stdio.h>
-
 static double value_ = 1;
 static double static_value_ = 10;
-
-static void
-add_named_status(napi_env env, const char* key, napi_value return_value) {
-  napi_value prop_value;
-  const napi_extended_error_info* p_last_error;
-  NAPI_CALL_RETURN_VOID(env, napi_get_last_error_info(env, &p_last_error));
-
-  NAPI_CALL_RETURN_VOID(env,
-      napi_create_string_utf8(env,
-                              (p_last_error->error_message == NULL ?
-                                  "napi_ok" :
-                                  p_last_error->error_message),
-                              NAPI_AUTO_LENGTH,
-                              &prop_value));
-  NAPI_CALL_RETURN_VOID(env, napi_set_named_property(env,
-                                                     return_value,
-                                                     key,
-                                                     prop_value));
-}
 
 static napi_value TestDefineClass(napi_env env,
                                   napi_callback_info info) {
   napi_status status;
-  napi_value result, return_value, prop_value;
-  char p_napi_message[100] = "";
+  napi_value result, return_value;
 
   napi_property_descriptor property_descriptor = {
     "TestDefineClass",
@@ -52,20 +30,7 @@ static napi_value TestDefineClass(napi_env env,
                              &property_descriptor,
                              &result);
 
-  if (status == napi_invalid_arg) {
-    snprintf(p_napi_message, 99, "Invalid argument");
-  } else {
-    snprintf(p_napi_message, 99, "Invalid status [%d]", status);
-  }
-
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         p_napi_message,
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         return_value,
-                                         "envIsNull",
-                                          prop_value));
+  add_returned_status(env, "envIsNull", return_value, napi_invalid_arg, status);
 
   napi_define_class(env,
                     NULL,
@@ -76,7 +41,7 @@ static napi_value TestDefineClass(napi_env env,
                     &property_descriptor,
                     &result);
 
-  add_named_status(env, "nameIsNull", return_value);
+  add_last_status(env, "nameIsNull", return_value);
 
   napi_define_class(env,
                     "TrackedFunction",
@@ -87,7 +52,7 @@ static napi_value TestDefineClass(napi_env env,
                     &property_descriptor,
                     &result);
 
-  add_named_status(env, "cbIsNull", return_value);
+  add_last_status(env, "cbIsNull", return_value);
 
   napi_define_class(env,
                     "TrackedFunction",
@@ -98,7 +63,7 @@ static napi_value TestDefineClass(napi_env env,
                     &property_descriptor,
                     &result);
 
-  add_named_status(env, "cbDataIsNull", return_value);
+  add_last_status(env, "cbDataIsNull", return_value);
 
   napi_define_class(env,
                     "TrackedFunction",
@@ -109,7 +74,7 @@ static napi_value TestDefineClass(napi_env env,
                     NULL,
                     &result);
 
-  add_named_status(env, "propertiesIsNull", return_value);
+  add_last_status(env, "propertiesIsNull", return_value);
 
 
   napi_define_class(env,
@@ -121,7 +86,7 @@ static napi_value TestDefineClass(napi_env env,
                     &property_descriptor,
                     NULL);
 
-  add_named_status(env, "resultIsNull", return_value);
+  add_last_status(env, "resultIsNull", return_value);
 
   return return_value;
 }

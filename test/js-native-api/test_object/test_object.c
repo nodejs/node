@@ -341,8 +341,8 @@ static napi_value Unwrap(napi_env env, napi_callback_info info) {
 
 static napi_value TestSetProperty(napi_env env,
                                   napi_callback_info info) {
-  napi_status ret[4];
-  napi_value object, key, value, prop_value;
+  napi_status status;
+  napi_value object, key, value;
 
   NAPI_CALL(env, napi_create_object(env, &object));
 
@@ -350,122 +350,58 @@ static napi_value TestSetProperty(napi_env env,
 
   NAPI_CALL(env, napi_create_object(env, &value));
 
-  ret[0] = napi_set_property(NULL, object, key, value);
+  status = napi_set_property(NULL, object, key, value);
 
-  ret[1] = napi_set_property(env, NULL, key, value);
+  add_returned_status(env, "envIsNull", object, napi_invalid_arg, status);
 
-  ret[2] = napi_set_property(env, object, NULL, value);
+  napi_set_property(env, NULL, key, value);
 
-  ret[3] = napi_set_property(env, object, key, NULL);
+  add_last_status(env, "objectIsNull", object);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[0] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "envIsNull",
-                                         prop_value));
+  napi_set_property(env, object, NULL, value);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[1] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "objectIsNull",
-                                         prop_value));
+  add_last_status(env, "keyIsNull", object);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[2] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "keyIsNull",
-                                         prop_value));
+  napi_set_property(env, object, key, NULL);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[3] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_value));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "valueIsNull",
-                                         prop_value));
+  add_last_status(env, "valueIsNull", object);
 
   return object;
 }
 
 static napi_value TestHasProperty(napi_env env,
                                   napi_callback_info info) {
-  napi_status ret[4];
-  napi_value object, key, prop_result;
+  napi_status status;
+  napi_value object, key;
   bool result;
 
   NAPI_CALL(env, napi_create_object(env, &object));
 
   NAPI_CALL(env, napi_create_string_utf8(env, "", NAPI_AUTO_LENGTH, &key));
 
-  ret[0] = napi_has_property(NULL, object, key, &result);
+  status = napi_has_property(NULL, object, key, &result);
 
-  ret[1] = napi_has_property(env, NULL, key, &result);
+  add_returned_status(env, "envIsNull", object, napi_invalid_arg, status);
 
-  ret[2] = napi_has_property(env, object, NULL, &result);
+  napi_has_property(env, NULL, key, &result);
 
-  ret[3] = napi_has_property(env, object, key, NULL);
+  add_last_status(env, "objectIsNull", object);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[0] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_result));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "envIsNull",
-                                         prop_result));
+  napi_has_property(env, object, NULL, &result);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[1] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_result));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "objectIsNull",
-                                         prop_result));
+  add_last_status(env, "keyIsNull", object);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[2] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_result));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "keyIsNull",
-                                         prop_result));
+  napi_has_property(env, object, key, NULL);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[3] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_result));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "resultIsNull",
-                                         prop_result));
+  add_last_status(env, "resultIsNull", object);
 
   return object;
 }
 
 static napi_value TestGetProperty(napi_env env,
                                   napi_callback_info info) {
-  napi_status ret[4];
-  napi_value object, key, result, prop_result;
+  napi_status status;
+  napi_value object, key, result;
 
   NAPI_CALL(env, napi_create_object(env, &object));
 
@@ -473,53 +409,21 @@ static napi_value TestGetProperty(napi_env env,
 
   NAPI_CALL(env, napi_create_object(env, &result));
 
-  ret[0] = napi_get_property(NULL, object, key, &result);
+  status = napi_get_property(NULL, object, key, &result);
 
-  ret[1] = napi_get_property(env, NULL, key, &result);
+  add_returned_status(env, "envIsNull", object, napi_invalid_arg, status);
 
-  ret[2] = napi_get_property(env, object, NULL, &result);
+  napi_get_property(env, NULL, key, &result);
 
-  ret[3] = napi_get_property(env, object, key, NULL);
+  add_last_status(env, "objectIsNull", object);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[0] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_result));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "envIsNull",
-                                         prop_result));
+  napi_get_property(env, object, NULL, &result);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[1] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_result));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "objectIsNull",
-                                         prop_result));
+  add_last_status(env, "keyIsNull", object);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[2] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_result));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "keyIsNull",
-                                         prop_result));
+  napi_get_property(env, object, key, NULL);
 
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         (ret[3] == napi_invalid_arg ?
-                                             "pass" : "fail"),
-                                         NAPI_AUTO_LENGTH,
-                                         &prop_result));
-  NAPI_CALL(env, napi_set_named_property(env,
-                                         object,
-                                         "resultIsNull",
-                                         prop_result));
+  add_last_status(env, "resultIsNull", object);
 
   return object;
 }
