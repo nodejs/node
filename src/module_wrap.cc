@@ -1041,7 +1041,7 @@ static MaybeLocal<Promise> ImportModuleDynamically(
     ModuleWrap* wrap = ModuleWrap::GetFromID(env, id);
     object = wrap->object();
   } else if (type == ScriptType::kFunction) {
-    object = env->id_to_function_map.find(id)->second.Get(iso);
+    object = env->id_to_function_map.find(id)->second->cache_key.Get(iso);
   } else {
     UNREACHABLE();
   }
