@@ -646,7 +646,7 @@ Maybe<const PackageConfig*> GetPackageScopeConfig(Environment* env,
     if (pjson_url.path() == last_pjson_url.path()) {
       auto entry = env->package_json_cache.emplace(pjson_url.ToFilePath(),
           PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "",
-                          PackageType::None });
+                          PackageType::None, Global<Value>() });
       const PackageConfig* pcfg = &entry.first->second;
       return Just(pcfg);
     }
