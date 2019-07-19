@@ -216,7 +216,8 @@ reference. Code may break under this flag.
 added: v12.0.0
 -->
 
-Enables a signal handler that causes the node process to write a heap dump when the specified signal is received.
+Enables a signal handler that causes the Node.js process to write a heap dump
+when the specified signal is received.
 
 ```
 $ node --heapsnapshot-signal=SIGUSR2 index.js &
