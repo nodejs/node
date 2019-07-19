@@ -219,7 +219,7 @@ added: v12.0.0
 Enables a signal handler that causes the Node.js process to write a heap dump
 when the specified signal is received.
 
-```
+```console
 $ node --heapsnapshot-signal=SIGUSR2 index.js &
 $ ps aux        
 USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
