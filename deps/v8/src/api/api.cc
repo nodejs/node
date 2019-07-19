@@ -2442,69 +2442,92 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     Local<String> arguments[], size_t context_extension_count,
     Local<Object> context_extensions[], CompileOptions options,
     NoCacheReason no_cache_reason) {
-  PREPARE_FOR_EXECUTION(v8_context, ScriptCompiler, CompileFunctionInContext,
-                        Function);
-  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
+  return ScriptCompiler::CompileFunctionInContext(
+      v8_context, source, arguments_count, arguments, context_extension_count,
+      context_extensions, options, no_cache_reason, nullptr);
+}
 
-  DCHECK(options == CompileOptions::kConsumeCodeCache ||
-         options == CompileOptions::kEagerCompile ||
-         options == CompileOptions::kNoCompileOptions);
+MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
+    Local<Context> v8_context, Source* source, size_t arguments_count,
+    Local<String> arguments[], size_t context_extension_count,
+    Local<Object> context_extensions[], CompileOptions options,
+    NoCacheReason no_cache_reason,
+    Local<ScriptOrModule>* script_or_module_out) {
+  Local<Function> result;
 
-  i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
+  {
+    PREPARE_FOR_EXECUTION(v8_context, ScriptCompiler, CompileFunctionInContext,
+                          Function);
+    TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
 
-  DCHECK(context->IsNativeContext());
-  i::Handle<i::SharedFunctionInfo> outer_info(
-      context->empty_function().shared(), isolate);
+    DCHECK(options == CompileOptions::kConsumeCodeCache ||
+           options == CompileOptions::kEagerCompile ||
+           options == CompileOptions::kNoCompileOptions);
 
-  i::Handle<i::JSFunction> fun;
-  i::Handle<i::FixedArray> arguments_list =
-      isolate->factory()->NewFixedArray(static_cast<int>(arguments_count));
-  for (int i = 0; i < static_cast<int>(arguments_count); i++) {
-    i::Handle<i::String> argument = Utils::OpenHandle(*arguments[i]);
-    if (!IsIdentifier(isolate, argument)) return Local<Function>();
-    arguments_list->set(i, *argument);
+    i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
+
+    DCHECK(context->IsNativeContext());
+
+    i::Handle<i::FixedArray> arguments_list =
+        isolate->factory()->NewFixedArray(static_cast<int>(arguments_count));
+    for (int i = 0; i < static_cast<int>(arguments_count); i++) {
+      i::Handle<i::String> argument = Utils::OpenHandle(*arguments[i]);
+      if (!IsIdentifier(isolate, argument)) return Local<Function>();
+      arguments_list->set(i, *argument);
+    }
+
+    for (size_t i = 0; i < context_extension_count; ++i) {
+      i::Handle<i::JSReceiver> extension =
+          Utils::OpenHandle(*context_extensions[i]);
+      if (!extension->IsJSObject()) return Local<Function>();
+      context = isolate->factory()->NewWithContext(
+          context,
+          i::ScopeInfo::CreateForWithScope(
+              isolate,
+              context->IsNativeContext()
+                  ? i::Handle<i::ScopeInfo>::null()
+                  : i::Handle<i::ScopeInfo>(context->scope_info(), isolate)),
+          extension);
+    }
+
+    i::Compiler::ScriptDetails script_details = GetScriptDetails(
+        isolate, source->resource_name, source->resource_line_offset,
+        source->resource_column_offset, source->source_map_url,
+        source->host_defined_options);
+
+    i::ScriptData* script_data = nullptr;
+    if (options == kConsumeCodeCache) {
+      DCHECK(source->cached_data);
+      // ScriptData takes care of pointer-aligning the data.
+      script_data = new i::ScriptData(source->cached_data->data,
+                                      source->cached_data->length);
+    }
+
+    i::Handle<i::JSFunction> scoped_result;
+    has_pending_exception =
+        !i::Compiler::GetWrappedFunction(
+             Utils::OpenHandle(*source->source_string), arguments_list, context,
+             script_details, source->resource_options, script_data, options,
+             no_cache_reason)
+             .ToHandle(&scoped_result);
+    if (options == kConsumeCodeCache) {
+      source->cached_data->rejected = script_data->rejected();
+    }
+    delete script_data;
+    RETURN_ON_FAILED_EXECUTION(Function);
+    result = handle_scope.Escape(Utils::CallableToLocal(scoped_result));
   }
 
-  for (size_t i = 0; i < context_extension_count; ++i) {
-    i::Handle<i::JSReceiver> extension =
-        Utils::OpenHandle(*context_extensions[i]);
-    if (!extension->IsJSObject()) return Local<Function>();
-    context = isolate->factory()->NewWithContext(
-        context,
-        i::ScopeInfo::CreateForWithScope(
-            isolate,
-            context->IsNativeContext()
-                ? i::Handle<i::ScopeInfo>::null()
-                : i::Handle<i::ScopeInfo>(context->scope_info(), isolate)),
-        extension);
+  if (script_or_module_out != nullptr) {
+    i::Handle<i::JSFunction> function =
+        i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*result));
+    i::Isolate* isolate = function->GetIsolate();
+    i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
+    i::Handle<i::Script> script(i::Script::cast(shared->script()), isolate);
+    *script_or_module_out = v8::Utils::ScriptOrModuleToLocal(script);
   }
 
-  i::Compiler::ScriptDetails script_details = GetScriptDetails(
-      isolate, source->resource_name, source->resource_line_offset,
-      source->resource_column_offset, source->source_map_url,
-      source->host_defined_options);
-
-  i::ScriptData* script_data = nullptr;
-  if (options == kConsumeCodeCache) {
-    DCHECK(source->cached_data);
-    // ScriptData takes care of pointer-aligning the data.
-    script_data = new i::ScriptData(source->cached_data->data,
-                                    source->cached_data->length);
-  }
-
-  i::Handle<i::JSFunction> result;
-  has_pending_exception =
-      !i::Compiler::GetWrappedFunction(
-           Utils::OpenHandle(*source->source_string), arguments_list, context,
-           script_details, source->resource_options, script_data, options,
-           no_cache_reason)
-           .ToHandle(&result);
-  if (options == kConsumeCodeCache) {
-    source->cached_data->rejected = script_data->rejected();
-  }
-  delete script_data;
-  RETURN_ON_FAILED_EXECUTION(Function);
-  RETURN_ESCAPED(Utils::CallableToLocal(result));
+  return result;
 }
 
 void ScriptCompiler::ScriptStreamingTask::Run() { data_->task->Run(); }
