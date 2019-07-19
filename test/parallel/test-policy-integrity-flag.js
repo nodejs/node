@@ -53,5 +53,5 @@ const depPolicySRI = `sha512-${policyHash.digest('base64')}`;
     ]
   );
 
-  assert.strictEqual(status, 0);
+  assert.strictEqual(status, 0, `status: ${status}\nstderr: ${stderr}`);
 }
