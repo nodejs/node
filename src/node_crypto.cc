@@ -4569,15 +4569,21 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
 
   const node::Utf8Value hash_type(env->isolate(), args[0]);
 
+  Maybe<unsigned int> xof_md_len = Nothing<unsigned int>();
+  if (!args[1]->IsUndefined()) {
+    CHECK(args[1]->IsUint32());
+    xof_md_len = Just<unsigned int>(args[1].As<Uint32>()->Value());
+  }
+
   Hash* hash = new Hash(env, args.This());
-  if (!hash->HashInit(*hash_type)) {
+  if (!hash->HashInit(*hash_type, xof_md_len)) {
     return ThrowCryptoError(env, ERR_get_error(),
                             "Digest method not supported");
   }
 }
 
 
-bool Hash::HashInit(const char* hash_type) {
+bool Hash::HashInit(const char* hash_type, Maybe<unsigned int> xof_md_len) {
   const EVP_MD* md = EVP_get_digestbyname(hash_type);
   if (md == nullptr)
     return false;
@@ -4586,6 +4592,18 @@ bool Hash::HashInit(const char* hash_type) {
     mdctx_.reset();
     return false;
   }
+
+  md_len_ = EVP_MD_size(md);
+  if (xof_md_len.IsJust() && xof_md_len.FromJust() != md_len_) {
+    // This is a little hack to cause createHash to fail when an incorrect
+    // hashSize option was passed for a non-XOF hash function.
+    if ((EVP_MD_meth_get_flags(md) & EVP_MD_FLAG_XOF) == 0) {
+      EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
+      return false;
+    }
+    md_len_ = xof_md_len.FromJust();
+  }
+
   return true;
 }
 
@@ -4634,13 +4652,40 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
 
-  if (hash->md_len_ == 0) {
+  // TODO(tniessen): SHA3_squeeze does not work for zero-length outputs on all
+  // platforms and will cause a segmentation fault if called. This workaround
+  // causes hash.digest() to correctly return an empty buffer / string.
+  // See https://github.com/openssl/openssl/issues/9431.
+  if (!hash->has_md_ && hash->md_len_ == 0) {
+    hash->has_md_ = true;
+  }
+
+  if (!hash->has_md_) {
     // Some hash algorithms such as SHA3 do not support calling
     // EVP_DigestFinal_ex more than once, however, Hash._flush
     // and Hash.digest can both be used to retrieve the digest,
     // so we need to cache it.
     // See https://github.com/nodejs/node/issues/28245.
-    EVP_DigestFinal_ex(hash->mdctx_.get(), hash->md_value_, &hash->md_len_);
+
+    hash->md_value_ = MallocOpenSSL<unsigned char>(hash->md_len_);
+
+    size_t default_len = EVP_MD_CTX_size(hash->mdctx_.get());
+    int ret;
+    if (hash->md_len_ == default_len) {
+      ret = EVP_DigestFinal_ex(hash->mdctx_.get(), hash->md_value_,
+                               &hash->md_len_);
+    } else {
+      ret = EVP_DigestFinalXOF(hash->mdctx_.get(), hash->md_value_,
+                               hash->md_len_);
+    }
+
+    if (ret != 1) {
+      OPENSSL_free(hash->md_value_);
+      hash->md_value_ = nullptr;
+      return ThrowCryptoError(env, ERR_get_error());
+    }
+
+    hash->has_md_ = true;
   }
 
   Local<Value> error;

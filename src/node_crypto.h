@@ -585,7 +585,7 @@ class Hash : public BaseObject {
   SET_MEMORY_INFO_NAME(Hash)
   SET_SELF_SIZE(Hash)
 
-  bool HashInit(const char* hash_type);
+  bool HashInit(const char* hash_type, v8::Maybe<unsigned int> xof_md_len);
   bool HashUpdate(const char* data, int len);
 
  protected:
@@ -596,18 +596,21 @@ class Hash : public BaseObject {
   Hash(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
         mdctx_(nullptr),
-        md_len_(0) {
+        has_md_(false),
+        md_value_(nullptr) {
     MakeWeak();
   }
 
   ~Hash() override {
-    OPENSSL_cleanse(md_value_, md_len_);
+    if (md_value_ != nullptr)
+      OPENSSL_clear_free(md_value_, md_len_);
   }
 
  private:
   EVPMDPointer mdctx_;
-  unsigned char md_value_[EVP_MAX_MD_SIZE];
+  bool has_md_;
   unsigned int md_len_;
+  unsigned char* md_value_;
 };
 
 class SignBase : public BaseObject {
