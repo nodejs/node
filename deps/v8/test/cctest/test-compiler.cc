@@ -650,11 +650,16 @@ TEST(CompileFunctionInContextScriptOrigin) {
                           v8::Integer::New(CcTest::isolate(), 22),
                           v8::Integer::New(CcTest::isolate(), 41));
   v8::ScriptCompiler::Source script_source(v8_str("throw new Error()"), origin);
+  Local<ScriptOrModule> script;
   v8::Local<v8::Function> fun =
-      v8::ScriptCompiler::CompileFunctionInContext(env.local(), &script_source,
-                                                   0, nullptr, 0, nullptr)
+      v8::ScriptCompiler::CompileFunctionInContext(
+          env.local(), &script_source, 0, nullptr, 0, nullptr,
+          v8::ScriptCompiler::CompileOptions::kNoCompileOptions,
+          v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason, &script)
           .ToLocalChecked();
   CHECK(!fun.IsEmpty());
+  CHECK(!script.IsEmpty());
+  CHECK(script->GetResourceName()->StrictEquals(v8_str("test")));
   v8::TryCatch try_catch(CcTest::isolate());
   CcTest::isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
   CHECK(fun->Call(env.local(), env->Global(), 0, nullptr).IsEmpty());

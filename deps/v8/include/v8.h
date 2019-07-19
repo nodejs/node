@@ -1670,6 +1670,13 @@ class V8_EXPORT ScriptCompiler {
       CompileOptions options = kNoCompileOptions,
       NoCacheReason no_cache_reason = kNoCacheNoReason);
 
+  static V8_WARN_UNUSED_RESULT MaybeLocal<Function> CompileFunctionInContext(
+      Local<Context> context, Source* source, size_t arguments_count,
+      Local<String> arguments[], size_t context_extension_count,
+      Local<Object> context_extensions[], CompileOptions options,
+      NoCacheReason no_cache_reason,
+      Local<ScriptOrModule>* script_or_module_out);
+
   /**
    * Creates and returns code cache for the specified unbound_script.
    * This will return nullptr if the script cannot be serialized. The
