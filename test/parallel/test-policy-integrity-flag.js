@@ -45,7 +45,7 @@ const depPolicySRI = `sha512-${policyHash.digest('base64')}`;
   assert.strictEqual(status, 9);
 }
 {
-  const { status } = spawnSync(
+  const { status, stderr } = spawnSync(
     process.execPath,
     [
       '--policy-integrity', depPolicySRI,
@@ -53,5 +53,5 @@ const depPolicySRI = `sha512-${policyHash.digest('base64')}`;
     ]
   );
 
-  assert.strictEqual(status, 0);
+  assert.strictEqual(status, 0, `status: ${status}\nstderr: ${stderr}`);
 }
