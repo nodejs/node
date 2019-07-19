@@ -39,6 +39,7 @@ using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::Private;
+using v8::ScriptOrModule;
 using v8::SnapshotCreator;
 using v8::StackTrace;
 using v8::String;
@@ -46,6 +47,7 @@ using v8::Symbol;
 using v8::TracingController;
 using v8::Undefined;
 using v8::Value;
+using v8::WeakCallbackInfo;
 using worker::Worker;
 
 int const Environment::kNodeContextTag = 0x6e6f64;
@@ -385,9 +387,22 @@ Environment::Environment(IsolateData* isolate_data,
   CreateProperties();
 }
 
-CompileFnEntry::CompileFnEntry(Environment* env, uint32_t id)
-    : env(env), id(id) {
-  env->compile_fn_entries.insert(this);
+static void WeakCallbackCompiledFn(
+    const WeakCallbackInfo<CompiledFnEntry>& data) {
+  CompiledFnEntry* entry = data.GetParameter();
+  entry->env->id_to_function_map.erase(entry->id);
+  delete entry;
+}
+
+CompiledFnEntry::CompiledFnEntry(Environment* env,
+                                 uint32_t id,
+                                 Local<ScriptOrModule> script)
+    : env(env),
+      id(id),
+      cache_key(env->isolate(), Object::New(env->isolate())),
+      script(env->isolate(), script) {
+  this->script.SetWeak(
+      this, WeakCallbackCompiledFn, v8::WeakCallbackType::kParameter);
 }
 
 Environment::~Environment() {
@@ -397,12 +412,6 @@ Environment::~Environment() {
   // Make sure there are no re-used libuv wrapper objects.
   // CleanupHandles() should have removed all of them.
   CHECK(file_handle_read_wrap_freelist_.empty());
-
-  // dispose the Persistent references to the compileFunction
-  // wrappers used in the dynamic import callback
-  for (auto& entry : compile_fn_entries) {
-    delete entry;
-  }
 
   HandleScope handle_scope(isolate());
 

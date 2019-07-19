@@ -157,6 +157,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(cached_data_produced_string, "cachedDataProduced")                         \
   V(cached_data_rejected_string, "cachedDataRejected")                         \
   V(cached_data_string, "cachedData")                                          \
+  V(cache_key_string, "cacheKey")                                              \
   V(change_string, "change")                                                   \
   V(channel_string, "channel")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
@@ -500,10 +501,14 @@ struct ContextInfo {
   bool is_default = false;
 };
 
-struct CompileFnEntry {
+struct CompiledFnEntry {
   Environment* env;
   uint32_t id;
-  CompileFnEntry(Environment* env, uint32_t id);
+  v8::Global<v8::Object> cache_key;
+  v8::Global<v8::ScriptOrModule> script;
+  CompiledFnEntry(Environment* env,
+                  uint32_t id,
+                  v8::Local<v8::ScriptOrModule> script);
 };
 
 // Listing the AsyncWrap provider types first enables us to cast directly
@@ -990,8 +995,7 @@ class Environment : public MemoryRetainer {
   std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;
   std::unordered_map<uint32_t, contextify::ContextifyScript*>
       id_to_script_map;
-  std::unordered_set<CompileFnEntry*> compile_fn_entries;
-  std::unordered_map<uint32_t, v8::Global<v8::Function>> id_to_function_map;
+  std::unordered_map<uint32_t, CompiledFnEntry*> id_to_function_map;
 
   inline uint32_t get_next_module_id();
   inline uint32_t get_next_script_id();
