@@ -221,7 +221,7 @@ when the specified signal is received.
 
 ```console
 $ node --heapsnapshot-signal=SIGUSR2 index.js &
-$ ps aux        
+$ ps aux
 USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
 node         1  5.5  6.1 787252 247004 ?       Ssl  16:43   0:02 node --heapsnapshot-signal=SIGUSR2 index.js
 $ kill -USR2 1
