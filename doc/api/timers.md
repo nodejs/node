@@ -263,6 +263,17 @@ added: v0.0.1
 
 Cancels a `Timeout` object created by [`setTimeout()`][].
 
+## Diagnostics
+
+### getActiveTimers()
+<!-- YAML
+added: REPLACE ME
+-->
+
+Returns an array of all currently active timers by duration
+from shortest to longest. Order of timers with the same
+duration will be based on expiration time in ascending order.
+
 [Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#setimmediate-vs-settimeout
 [`TypeError`]: errors.html#errors_class_typeerror
 [`clearImmediate()`]: timers.html#timers_clearimmediate_immediate
