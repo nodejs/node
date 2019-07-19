@@ -53,6 +53,7 @@ void PrintErrorString(const char* format, ...);
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                  \
   V(ERR_MODULE_NOT_FOUND, Error)                                             \
   V(ERR_OUT_OF_RANGE, RangeError)                                            \
+  V(ERR_PATH_NOT_EXPORTED, Error)                                            \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                     \
   V(ERR_STRING_TOO_LONG, Error)                                              \

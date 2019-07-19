@@ -1583,6 +1583,13 @@ compiled with ICU support.
 
 A given value is out of the accepted range.
 
+<a id="ERR_PATH_NOT_EXPORTED"></a>
+### ERR_PATH_NOT_EXPORTED
+
+> Stability: 1 - Experimental
+
+An attempt was made to load a protected path from a package using `exports`.
+
 <a id="ERR_REQUIRE_ESM"></a>
 ### ERR_REQUIRE_ESM
 
