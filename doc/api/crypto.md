@@ -1785,6 +1785,10 @@ and description of each available elliptic curve.
 ### crypto.createHash(algorithm[, options])
 <!-- YAML
 added: v0.1.92
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28805
+    description: The `outputLength` option was added for XOF hash functions.
 -->
 * `algorithm` {string}
 * `options` {Object} [`stream.transform` options][]
@@ -1792,7 +1796,8 @@ added: v0.1.92
 
 Creates and returns a `Hash` object that can be used to generate hash digests
 using the given `algorithm`. Optional `options` argument controls stream
-behavior.
+behavior. For XOF hash functions such as `'shake256'`, the `outputLength` option
+can be used to specify the desired output length in bytes.
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
