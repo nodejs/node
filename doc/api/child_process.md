@@ -777,7 +777,7 @@ changes:
   * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
-  * `env` {Object} Environment key-value pairs.
+  * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `shell` {string} Shell to execute the command with. See
     [Shell Requirements][] and [Default Windows Shell][]. **Default:**
     `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
