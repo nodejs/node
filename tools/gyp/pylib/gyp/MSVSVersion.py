@@ -475,7 +475,7 @@ def SelectVisualStudioVersion(version='auto', allow_fallback=True):
   if version == 'auto':
     version = os.environ.get('GYP_MSVS_VERSION', 'auto')
   version_map = {
-    'auto': ('15.0', '14.0', '12.0', '10.0', '9.0', '8.0', '11.0'),
+    'auto': ('16.0', '15.0', '14.0', '12.0', '10.0', '9.0', '8.0', '11.0'),
     '2005': ('8.0',),
     '2005e': ('8.0',),
     '2008': ('9.0',),
@@ -488,6 +488,7 @@ def SelectVisualStudioVersion(version='auto', allow_fallback=True):
     '2013e': ('12.0',),
     '2015': ('14.0',),
     '2017': ('15.0',),
+    '2019': ('16.0',),
   }
   override_path = os.environ.get('GYP_MSVS_OVERRIDE_PATH')
   if override_path:
