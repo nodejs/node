@@ -141,7 +141,7 @@ If the value of the redirection is `true` the default searching algorithms will
 be used to find the module.
 
 If the value of the redirection is a string, it will be resolved relative to
-the manifest and them immediately be used without searching.
+the manifest and then immediately be used without searching.
 
 Any specifier missing from the list of dependency will result in an error
 according to the policy.
