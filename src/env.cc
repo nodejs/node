@@ -954,8 +954,8 @@ void MemoryTracker::TrackField(const char* edge_name,
   // identified and tracked here (based on their deleters),
   // but we may convert and track other known types here.
   BaseObject* obj = value.GetBaseObject();
-  if (obj != nullptr) {
-    this->TrackField("arg", obj);
+  if (obj != nullptr && obj->IsDoneInitializing()) {
+    TrackField("arg", obj);
   }
   CHECK_EQ(CurrentNode(), n);
   CHECK_NE(n->size_, 0);
@@ -1076,6 +1076,8 @@ void BaseObject::DeleteMe(void* data) {
   BaseObject* self = static_cast<BaseObject*>(data);
   delete self;
 }
+
+bool BaseObject::IsDoneInitializing() const { return true; }
 
 Local<Object> BaseObject::WrappedObject() const {
   return object();

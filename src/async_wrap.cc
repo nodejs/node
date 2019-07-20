@@ -577,21 +577,43 @@ AsyncWrap::AsyncWrap(Environment* env,
                      ProviderType provider,
                      double execution_async_id,
                      bool silent)
-    : BaseObject(env, object),
-      provider_type_(provider) {
+    : AsyncWrap(env, object) {
   CHECK_NE(provider, PROVIDER_NONE);
-  CHECK_GE(object->InternalFieldCount(), 1);
+  provider_type_ = provider;
 
   // Use AsyncReset() call to execute the init() callbacks.
   AsyncReset(execution_async_id, silent);
+  init_hook_ran_ = true;
 }
 
 AsyncWrap::AsyncWrap(Environment* env, Local<Object> object)
-    : BaseObject(env, object),
-      provider_type_(PROVIDER_NONE) {
-  CHECK_GE(object->InternalFieldCount(), 1);
+  : BaseObject(env, object) {
 }
 
+// This method is necessary to work around one specific problem:
+// Before the init() hook runs, if there is one, the BaseObject() constructor
+// registers this object with the Environment for finilization and debugging
+// purposes.
+// If the Environment decides to inspect this object for debugging, it tries to
+// call virtual methods on this object that are only (meaningfully) implemented
+// by the subclasses of AsyncWrap.
+// This could, with bad luck, happen during the AsyncWrap() constructor,
+// because we run JS code as part of it and that in turn can lead to a heapdump
+// being taken, either through the inspector or our programmatic API for it.
+// The object being initialized is not fully constructed at that point, and
+// in particular its virtual function table points to the AsyncWrap one
+// (as the subclass constructor has not yet begun execution at that point).
+// This means that the functions that are used for heap dump memory tracking
+// are not yet available, and trying to call them would crash the process.
+// We use this particular `IsDoneInitializing()` method to tell the Environment
+// that such debugging methods are not yet available.
+// This may be somewhat unreliable when it comes to future changes, because
+// at this point it *only* protects AsyncWrap subclasses, and *only* for cases
+// where heap dumps are being taken while the init() hook is on the call stack.
+// For now, it seems like the best solution, though.
+bool AsyncWrap::IsDoneInitializing() const {
+  return init_hook_ran_;
+}
 
 AsyncWrap::~AsyncWrap() {
   EmitTraceEventDestroy();
