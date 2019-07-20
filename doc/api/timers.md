@@ -267,7 +267,7 @@ Cancels a `Timeout` object created by [`setTimeout()`][].
 
 ### getActiveTimers()
 <!-- YAML
-added: REPLACE ME
+added: REPLACEME
 -->
 
 Returns an array of all currently active timers by duration
