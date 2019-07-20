@@ -74,6 +74,7 @@ if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="arm64"         set target_arch=arm64&goto arg-ok
 if /i "%1"=="vs2017"        set target_env=vs2017&goto arg-ok
+if /i "%1"=="vs2019"        set target_env=vs2019&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="projgen"       set projgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
@@ -174,6 +175,7 @@ set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
 set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
 if "%target_env%"=="vs2017" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2017"
+if "%target_env%"=="vs2019" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2019"
 
 if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
 if defined nosnapshot       set configure_flags=%configure_flags% --without-snapshot
@@ -229,9 +231,9 @@ if %target_arch%==x86 if %msvs_host_arch%==x86 set vcvarsall_arg=x86
 
 @rem Look for Visual Studio 2017
 :vs-set-2017
-if defined target_env if "%target_env%" NEQ "vs2017" goto msbuild-not-found
+if defined target_env if "%target_env%" NEQ "vs2017" goto vs-set-2019
 echo Looking for Visual Studio 2017
-call tools\msvs\vswhere_usability_wrapper.cmd
+call tools\msvs\vswhere_usability_wrapper.cmd "[15.0,16.0)"
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 if defined msi (
   echo Looking for WiX installation for Visual Studio 2017...
@@ -260,6 +262,41 @@ if defined DEBUG_HELPER @ECHO ON
 echo Found MSVS version %VisualStudioVersion%
 set GYP_MSVS_VERSION=2017
 set PLATFORM_TOOLSET=v141
+goto msbuild-found
+
+@rem Look for Visual Studio 2019
+:vs-set-2019
+if defined target_env if "%target_env%" NEQ "vs2019" goto msbuild-not-found
+echo Looking for Visual Studio 2019
+call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)"
+if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
+if defined msi (
+  echo Looking for WiX installation for Visual Studio 2019...
+  if not exist "%WIX%\SDK\VS2017" (
+    echo Failed to find WiX install for Visual Studio 2019
+    echo VS2019 support for WiX is only present starting at version 3.11
+    goto msbuild-not-found
+  )
+  if not exist "%VCINSTALLDIR%\..\MSBuild\Microsoft\WiX" (
+    echo Failed to find the WiX Toolset Visual Studio 2019 Extension
+    goto msbuild-not-found
+  )
+)
+@rem check if VS2019 is already setup, and for the requested arch
+if "_%VisualStudioVersion%_" == "_16.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2019
+@rem need to clear VSINSTALLDIR for vcvarsall to work as expected
+set "VSINSTALLDIR="
+@rem prevent VsDevCmd.bat from changing the current working directory
+set "VSCMD_START_DIR=%CD%"
+set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
+echo calling: %vcvars_call%
+call %vcvars_call%
+if errorlevel 1 goto msbuild-not-found
+if defined DEBUG_HELPER @ECHO ON
+:found_vs2019
+echo Found MSVS version %VisualStudioVersion%
+set GYP_MSVS_VERSION=2019
+set PLATFORM_TOOLSET=v142
 goto msbuild-found
 
 :msbuild-not-found
