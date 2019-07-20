@@ -930,6 +930,7 @@ void AsyncHooks::MemoryInfo(MemoryTracker* tracker) const {
 void AsyncHooks::grow_async_ids_stack() {
   async_ids_stack_.reserve(async_ids_stack_.Length() * 3);
 
+  CHECK(!env()->async_hooks_binding().IsEmpty());
   env()->async_hooks_binding()->Set(
       env()->context(),
       env()->async_ids_stack_string(),

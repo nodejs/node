@@ -121,7 +121,8 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
   NodeArrayBufferAllocator* GetImpl() final { return this; }
 
  private:
-  uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
+  // Boolean but exposed as uint32 to JS land.
+  static thread_local uint32_t zero_fill_field_;
 };
 
 class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {

@@ -76,6 +76,8 @@ static MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
   return result;
 }
 
+thread_local uint32_t NodeArrayBufferAllocator::zero_fill_field_ = 1;
+
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
   if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers)
     return UncheckedCalloc(size);

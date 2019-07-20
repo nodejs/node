@@ -18,7 +18,6 @@
 
 using node::options_parser::kDisallowedInEnvironment;
 using v8::Array;
-using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::Function;
@@ -107,12 +106,13 @@ bool Worker::is_stopped() const {
 // (Eventually, the Environment instance should probably also be moved here.)
 class WorkerThreadData {
  public:
-  explicit WorkerThreadData(Worker* w)
-    : w_(w),
-      array_buffer_allocator_(ArrayBufferAllocator::Create()) {
-    CHECK_EQ(uv_loop_init(&loop_), 0);
+  explicit WorkerThreadData(Worker* w) : w_(w) {
+    IsolateData* parent_isolate_data = w->env()->isolate_data();
 
-    Isolate* isolate = NewIsolate(array_buffer_allocator_.get(), &loop_);
+    CHECK_EQ(uv_loop_init(&loop_), 0);
+    Isolate::CreateParams params;
+    params.array_buffer_allocator = parent_isolate_data->allocator();
+    Isolate* isolate = NewIsolate(&params, &loop_, w->platform_);
     CHECK_NOT_NULL(isolate);
 
     {
@@ -121,10 +121,11 @@ class WorkerThreadData {
       isolate->SetStackLimit(w_->stack_base_);
 
       HandleScope handle_scope(isolate);
-      isolate_data_.reset(CreateIsolateData(isolate,
-                                            &loop_,
-                                            w_->platform_,
-                                            array_buffer_allocator_.get()));
+      isolate_data_.reset(CreateIsolateData(
+          isolate,
+          &loop_,
+          w_->platform_,
+          parent_isolate_data->node_allocator()));
       CHECK(isolate_data_);
       if (w_->per_isolate_opts_)
         isolate_data_->set_options(std::move(w_->per_isolate_opts_));
@@ -166,7 +167,6 @@ class WorkerThreadData {
  private:
   Worker* const w_;
   uv_loop_t loop_;
-  std::unique_ptr<ArrayBufferAllocator> array_buffer_allocator_;
   DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data_;
 
   friend class Worker;
