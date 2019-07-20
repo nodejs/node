@@ -19,7 +19,11 @@ emptyHash.update('');
 const emptySRI = `sha512-${emptyHash.digest('base64')}`;
 const policyHash = crypto.createHash('sha512');
 policyHash.update(fs.readFileSync(depPolicy));
-const depPolicySRI = `sha512-${policyHash.digest('base64')}`;
+// When using \n only
+const nixPolicySRI = 'sha512-u/nXI6UacK5fKDC2bopcgnuQY4JXJKlK3dESO3GIKKxwogVHjJqpF9rgk7Zw+TJXIc96xBUWKHuUgOzic8/4tQ==';
+// When \n is turned into \r\n
+const windowsPolicySRI = 'sha512-OeyCPRo4OZMosHyquZXDHpuU1F4KzG9UHFnn12FMaHsvqFUt3TFZ+7wmZE7ThZ5rsQWkUjc9ZH0knGZ2e8BYPQ==';
+const depPolicySRI = `${nixPolicySRI} ${windowsPolicySRI}`;
 console.dir({
   depPolicySRI,
   body: JSON.stringify(fs.readFileSync(depPolicy).toString('utf8'))
