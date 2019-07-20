@@ -250,6 +250,7 @@ class Serializer : public SerializerDeserializer {
   void PushStack(HeapObject o) { stack_.push_back(o); }
   void PopStack() { stack_.pop_back(); }
   void PrintStack();
+  void PrintStack(std::ostream&);
 #endif  // DEBUG
 
   SerializerReferenceMap* reference_map() { return &reference_map_; }
