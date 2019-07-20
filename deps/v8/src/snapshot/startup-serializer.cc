@@ -71,7 +71,16 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
 #endif  // DEBUG
 
 void StartupSerializer::SerializeObject(HeapObject obj) {
-  DCHECK(!obj.IsJSFunction());
+#ifdef DEBUG
+  if (obj.IsJSFunction()) {
+    v8::base::OS::PrintError("Reference stack:\n");
+    PrintStack(std::cerr);
+    obj.Print(std::cerr);
+    FATAL(
+        "JSFunction should be added through the context snapshot instead of "
+        "the isolate snapshot");
+  }
+#endif  // DEBUG
   DCHECK(!IsUnexpectedCodeObject(isolate(), obj));
 
   if (SerializeHotObject(obj)) return;
