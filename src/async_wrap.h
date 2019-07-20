@@ -210,6 +210,8 @@ class AsyncWrap : public BaseObject {
     AsyncWrap* wrap_ = nullptr;
   };
 
+  bool IsDoneInitializing() const override;
+
  private:
   friend class PromiseWrap;
 
@@ -218,7 +220,8 @@ class AsyncWrap : public BaseObject {
             ProviderType provider,
             double execution_async_id,
             bool silent);
-  ProviderType provider_type_;
+  ProviderType provider_type_ = PROVIDER_NONE;
+  bool init_hook_ran_ = false;
   // Because the values may be Reset(), cannot be made const.
   double async_id_ = kInvalidAsyncId;
   double trigger_async_id_;
