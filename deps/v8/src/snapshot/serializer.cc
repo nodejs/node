@@ -115,10 +115,12 @@ void Serializer::SerializeRootObject(Object object) {
 }
 
 #ifdef DEBUG
-void Serializer::PrintStack() {
+void Serializer::PrintStack() { PrintStack(std::cout); }
+
+void Serializer::PrintStack(std::ostream& out) {
   for (const auto o : stack_) {
-    o.Print();
-    PrintF("\n");
+    o.Print(out);
+    out << "\n";
   }
 }
 #endif  // DEBUG
