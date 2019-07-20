@@ -1124,9 +1124,13 @@ void ContextifyContext::CompileFunction(
   }
   Local<Function> fn = maybe_fn.ToLocalChecked();
 
-  CompiledFnEntry* entry = new CompiledFnEntry(env, id, script);
+  Local<Object> cache_key;
+  if (!env->compiled_fn_entry_template()->NewInstance(
+           context).ToLocal(&cache_key)) {
+    return;
+  }
+  CompiledFnEntry* entry = new CompiledFnEntry(env, cache_key, id, script);
   env->id_to_function_map.emplace(id, entry);
-  Local<Object> cache_key = entry->cache_key.Get(isolate);
 
   Local<Object> result = Object::New(isolate);
   if (result->Set(parsing_context, env->function_string(), fn).IsNothing())
@@ -1162,6 +1166,27 @@ void ContextifyContext::CompileFunction(
   args.GetReturnValue().Set(result);
 }
 
+void CompiledFnEntry::WeakCallback(
+    const WeakCallbackInfo<CompiledFnEntry>& data) {
+  CompiledFnEntry* entry = data.GetParameter();
+  delete entry;
+}
+
+CompiledFnEntry::CompiledFnEntry(Environment* env,
+                                 Local<Object> object,
+                                 uint32_t id,
+                                 Local<ScriptOrModule> script)
+    : BaseObject(env, object),
+      id_(id),
+      script_(env->isolate(), script) {
+  script_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+}
+
+CompiledFnEntry::~CompiledFnEntry() {
+  env()->id_to_function_map.erase(id_);
+  script_.ClearWeak();
+}
+
 static void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
   int ret = SigintWatchdogHelper::GetInstance()->Start();
   args.GetReturnValue().Set(ret == 0);
@@ -1190,6 +1215,14 @@ void Initialize(Local<Object> target,
   // Used in tests.
   env->SetMethodNoSideEffect(
       target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
+
+  {
+    Local<FunctionTemplate> tpl = FunctionTemplate::New(env->isolate());
+    tpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "CompiledFnEntry"));
+    tpl->InstanceTemplate()->SetInternalFieldCount(1);
+
+    env->set_compiled_fn_entry_template(tpl->InstanceTemplate());
+  }
 }
 
 }  // namespace contextify

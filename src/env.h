@@ -55,6 +55,7 @@ namespace node {
 
 namespace contextify {
 class ContextifyScript;
+class CompiledFnEntry;
 }
 
 namespace fs {
@@ -355,6 +356,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(as_callback_data_template, v8::FunctionTemplate)                           \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
+  V(compiled_fn_entry_template, v8::ObjectTemplate)                            \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
@@ -499,16 +501,6 @@ struct ContextInfo {
   const std::string name;
   std::string origin;
   bool is_default = false;
-};
-
-struct CompiledFnEntry {
-  Environment* env;
-  uint32_t id;
-  v8::Global<v8::Object> cache_key;
-  v8::Global<v8::ScriptOrModule> script;
-  CompiledFnEntry(Environment* env,
-                  uint32_t id,
-                  v8::Local<v8::ScriptOrModule> script);
 };
 
 // Listing the AsyncWrap provider types first enables us to cast directly
@@ -995,7 +987,7 @@ class Environment : public MemoryRetainer {
   std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;
   std::unordered_map<uint32_t, contextify::ContextifyScript*>
       id_to_script_map;
-  std::unordered_map<uint32_t, CompiledFnEntry*> id_to_function_map;
+  std::unordered_map<uint32_t, contextify::CompiledFnEntry*> id_to_function_map;
 
   inline uint32_t get_next_module_id();
   inline uint32_t get_next_script_id();
