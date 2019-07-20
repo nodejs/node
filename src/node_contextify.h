@@ -133,6 +133,25 @@ class ContextifyScript : public BaseObject {
   uint32_t id_;
 };
 
+class CompiledFnEntry final : public BaseObject {
+ public:
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(CompiledFnEntry)
+  SET_SELF_SIZE(CompiledFnEntry)
+
+  CompiledFnEntry(Environment* env,
+                  v8::Local<v8::Object> object,
+                  uint32_t id,
+                  v8::Local<v8::ScriptOrModule> script);
+  ~CompiledFnEntry();
+
+ private:
+  uint32_t id_;
+  v8::Global<v8::ScriptOrModule> script_;
+
+  static void WeakCallback(const v8::WeakCallbackInfo<CompiledFnEntry>& data);
+};
+
 }  // namespace contextify
 }  // namespace node
 

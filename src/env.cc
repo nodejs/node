@@ -39,7 +39,6 @@ using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::Private;
-using v8::ScriptOrModule;
 using v8::SnapshotCreator;
 using v8::StackTrace;
 using v8::String;
@@ -47,7 +46,6 @@ using v8::Symbol;
 using v8::TracingController;
 using v8::Undefined;
 using v8::Value;
-using v8::WeakCallbackInfo;
 using worker::Worker;
 
 int const Environment::kNodeContextTag = 0x6e6f64;
@@ -385,24 +383,6 @@ Environment::Environment(IsolateData* isolate_data,
   // TODO(joyeecheung): deserialize when the snapshot covers the environment
   // properties.
   CreateProperties();
-}
-
-static void WeakCallbackCompiledFn(
-    const WeakCallbackInfo<CompiledFnEntry>& data) {
-  CompiledFnEntry* entry = data.GetParameter();
-  entry->env->id_to_function_map.erase(entry->id);
-  delete entry;
-}
-
-CompiledFnEntry::CompiledFnEntry(Environment* env,
-                                 uint32_t id,
-                                 Local<ScriptOrModule> script)
-    : env(env),
-      id(id),
-      cache_key(env->isolate(), Object::New(env->isolate())),
-      script(env->isolate(), script) {
-  this->script.SetWeak(
-      this, WeakCallbackCompiledFn, v8::WeakCallbackType::kParameter);
 }
 
 Environment::~Environment() {
