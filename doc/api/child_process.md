@@ -844,7 +844,7 @@ changes:
   * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
     process. This will be set to `command` if not specified.
   * `stdio` {string|Array} Child's stdio configuration.
-  * `env` {Object} Environment key-value pairs.
+  * `env` {Object} Environment key-value pairs.  **Default:** `process.env`.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `timeout` {number} In milliseconds the maximum amount of time the process
