@@ -203,11 +203,11 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
   MaybeLocal<Function> maybe_fn =
       NativeModuleEnv::LookupAndCompile(env->context(), id, parameters, env);
 
-  if (maybe_fn.IsEmpty()) {
+  Local<Function> fn;
+  if (!maybe_fn.ToLocal(&fn)) {
     return MaybeLocal<Value>();
   }
 
-  Local<Function> fn = maybe_fn.ToLocalChecked();
   MaybeLocal<Value> result = fn->Call(env->context(),
                                       Undefined(env->isolate()),
                                       arguments->size(),
@@ -298,14 +298,21 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
     return MaybeLocal<Value>();
   }
   CHECK(loader_exports->IsObject());
-  Local<Object> loader_exports_obj = loader_exports.As<Object>();
-  Local<Value> internal_binding_loader =
-      loader_exports_obj->Get(context(), internal_binding_string())
-          .ToLocalChecked();
+  Local<Object> loader_exports_obj;
+  if (!loader_exports->ToObject(context()).ToLocal(&loader_exports_obj)) {
+    return MaybeLocal<Value>();
+  }
+  Local<Value> internal_binding_loader;
+  if (!loader_exports_obj->Get(context(), internal_binding_string())
+          .ToLocal(&internal_binding_loader)) {
+    return MaybeLocal<Value>();
+  }
   CHECK(internal_binding_loader->IsFunction());
   set_internal_binding_loader(internal_binding_loader.As<Function>());
-  Local<Value> require =
-      loader_exports_obj->Get(context(), require_string()).ToLocalChecked();
+  Local<Value> require;
+  if (!loader_exports_obj->Get(context(), require_string()).ToLocal(&require)) {
+    return MaybeLocal<Value>();
+  }
   CHECK(require->IsFunction());
   set_native_module_require(require.As<Function>());
 

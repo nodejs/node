@@ -175,8 +175,10 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
 
   Local<Context> context;
   if (deserialize_mode_) {
-    context =
-        Context::FromSnapshot(isolate_, kNodeContextIndex).ToLocalChecked();
+    if (!Context::FromSnapshot(isolate_, kNodeContextIndex).ToLocal(&context)) {
+      *exit_code = 1;
+      return nullptr;
+    }
     SetIsolateUpForNode(isolate_, IsolateSettingCategories::kErrorHandlers);
   } else {
     context = NewContext(isolate_);
