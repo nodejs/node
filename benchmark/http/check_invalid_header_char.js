@@ -61,7 +61,7 @@ function main({ n, input }) {
 
   const len = inputs.length;
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     _checkInvalidHeaderChar(inputs[i % len]);
   }
   bench.end(n);

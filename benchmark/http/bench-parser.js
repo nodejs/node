@@ -22,7 +22,7 @@ function main({ len, n }) {
     const parser = newParser(REQUEST);
 
     bench.start();
-    for (var i = 0; i < n; i++) {
+    for (let i = 0; i < n; i++) {
       parser.execute(header, 0, header.length);
       parser.initialize(REQUEST, {});
     }
@@ -45,7 +45,7 @@ function main({ len, n }) {
 
   let header = `GET /hello HTTP/1.1${CRLF}Content-Type: text/plain${CRLF}`;
 
-  for (var i = 0; i < len; i++) {
+  for (let i = 0; i < len; i++) {
     header += `X-Filler${i}: ${Math.random().toString(36).substr(2)}${CRLF}`;
   }
   header += CRLF;
