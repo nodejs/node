@@ -262,7 +262,7 @@ function createDisableDirectives(options) {
  */
 function getDirectiveComments(filename, ast, ruleMapper) {
     const configuredRules = {};
-    const enabledGlobals = {};
+    const enabledGlobals = Object.create(null);
     const exportedVariables = {};
     const problems = [];
     const disableDirectives = [];

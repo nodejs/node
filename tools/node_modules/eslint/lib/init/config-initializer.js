@@ -18,6 +18,7 @@ const util = require("util"),
     recConfig = require("../../conf/eslint-recommended"),
     ConfigOps = require("../shared/config-ops"),
     log = require("../shared/logging"),
+    naming = require("../shared/naming"),
     ModuleResolver = require("../shared/relative-module-resolver"),
     autoconfig = require("./autoconfig.js"),
     ConfigFile = require("./config-file"),
@@ -97,17 +98,26 @@ function getModulesList(config, installESLint) {
     // Create a list of modules which should be installed based on config
     if (config.plugins) {
         for (const plugin of config.plugins) {
-            modules[`eslint-plugin-${plugin}`] = "latest";
+            const moduleName = naming.normalizePackageName(plugin, "eslint-plugin");
+
+            modules[moduleName] = "latest";
         }
     }
-    if (config.extends && config.extends.indexOf("eslint:") === -1) {
-        const moduleName = `eslint-config-${config.extends}`;
+    if (config.extends) {
+        const extendList = Array.isArray(config.extends) ? config.extends : [config.extends];
 
-        modules[moduleName] = "latest";
-        Object.assign(
-            modules,
-            getPeerDependencies(`${moduleName}@latest`)
-        );
+        for (const extend of extendList) {
+            if (extend.startsWith("eslint:") || extend.startsWith("plugin:")) {
+                continue;
+            }
+            const moduleName = naming.normalizePackageName(extend, "eslint-config");
+
+            modules[moduleName] = "latest";
+            Object.assign(
+                modules,
+                getPeerDependencies(`${moduleName}@latest`)
+            );
+        }
     }
 
     if (installESLint === false) {

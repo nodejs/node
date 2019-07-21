@@ -20,6 +20,7 @@ const path = require("path");
 const defaultOptions = require("../../conf/default-cli-options");
 const pkg = require("../../package.json");
 const ConfigOps = require("../shared/config-ops");
+const naming = require("../shared/naming");
 const ModuleResolver = require("../shared/relative-module-resolver");
 const { Linter } = require("../linter");
 const builtInRules = require("../rules");
@@ -29,7 +30,6 @@ const { FileEnumerator } = require("./file-enumerator");
 const hash = require("./hash");
 const { IgnoredPaths } = require("./ignored-paths");
 const LintResultCache = require("./lint-result-cache");
-const naming = require("./naming");
 
 const debug = require("debug")("eslint:cli-engine");
 const validFixTypes = new Set(["problem", "suggestion", "layout"]);
@@ -734,7 +734,10 @@ class CLIEngine {
             try {
                 fs.unlinkSync(cacheFilePath);
             } catch (error) {
-                if (!error || error.code !== "ENOENT") {
+                const errorCode = error && error.code;
+
+                // Ignore errors when no such file exists or file system is read only (and cache file does not exist)
+                if (errorCode !== "ENOENT" && !(errorCode === "EROFS" && !fs.existsSync(cacheFilePath))) {
                     throw error;
                 }
             }

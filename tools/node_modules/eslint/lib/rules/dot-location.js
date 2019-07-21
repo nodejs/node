@@ -54,29 +54,31 @@ module.exports = {
          */
         function checkDotLocation(obj, prop, node) {
             const dot = sourceCode.getTokenBefore(prop);
-            const textBeforeDot = sourceCode.getText().slice(obj.range[1], dot.range[0]);
+
+            // `obj` expression can be parenthesized, but those paren tokens are not a part of the `obj` node.
+            const tokenBeforeDot = sourceCode.getTokenBefore(dot);
+
+            const textBeforeDot = sourceCode.getText().slice(tokenBeforeDot.range[1], dot.range[0]);
             const textAfterDot = sourceCode.getText().slice(dot.range[1], prop.range[0]);
 
-            if (dot.type === "Punctuator" && dot.value === ".") {
-                if (onObject) {
-                    if (!astUtils.isTokenOnSameLine(obj, dot)) {
-                        const neededTextAfterObj = astUtils.isDecimalInteger(obj) ? " " : "";
+            if (onObject) {
+                if (!astUtils.isTokenOnSameLine(tokenBeforeDot, dot)) {
+                    const neededTextAfterToken = astUtils.isDecimalIntegerNumericToken(tokenBeforeDot) ? " " : "";
 
-                        context.report({
-                            node,
-                            loc: dot.loc.start,
-                            messageId: "expectedDotAfterObject",
-                            fix: fixer => fixer.replaceTextRange([obj.range[1], prop.range[0]], `${neededTextAfterObj}.${textBeforeDot}${textAfterDot}`)
-                        });
-                    }
-                } else if (!astUtils.isTokenOnSameLine(dot, prop)) {
                     context.report({
                         node,
                         loc: dot.loc.start,
-                        messageId: "expectedDotBeforeProperty",
-                        fix: fixer => fixer.replaceTextRange([obj.range[1], prop.range[0]], `${textBeforeDot}${textAfterDot}.`)
+                        messageId: "expectedDotAfterObject",
+                        fix: fixer => fixer.replaceTextRange([tokenBeforeDot.range[1], prop.range[0]], `${neededTextAfterToken}.${textBeforeDot}${textAfterDot}`)
                     });
                 }
+            } else if (!astUtils.isTokenOnSameLine(dot, prop)) {
+                context.report({
+                    node,
+                    loc: dot.loc.start,
+                    messageId: "expectedDotBeforeProperty",
+                    fix: fixer => fixer.replaceTextRange([tokenBeforeDot.range[1], prop.range[0]], `${textBeforeDot}${textAfterDot}.`)
+                });
             }
         }
 
@@ -86,7 +88,9 @@ module.exports = {
          * @returns {void}
          */
         function checkNode(node) {
-            checkDotLocation(node.object, node.property, node);
+            if (!node.computed) {
+                checkDotLocation(node.object, node.property, node);
+            }
         }
 
         return {

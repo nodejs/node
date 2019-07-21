@@ -1,9 +1,11 @@
-var toInteger = require('./toInteger'),
+var root = require('./_root'),
+    toInteger = require('./toInteger'),
     toNumber = require('./toNumber'),
     toString = require('./toString');
 
 /* Built-in method references for those with the same name as other `lodash` methods. */
-var nativeMin = Math.min;
+var nativeIsFinite = root.isFinite,
+    nativeMin = Math.min;
 
 /**
  * Creates a function like `_.round`.
@@ -17,7 +19,7 @@ function createRound(methodName) {
   return function(number, precision) {
     number = toNumber(number);
     precision = precision == null ? 0 : nativeMin(toInteger(precision), 292);
-    if (precision) {
+    if (precision && nativeIsFinite(number)) {
       // Shift with exponential notation to avoid floating-point issues.
       // See [MDN](https://mdn.io/round#Examples) for more details.
       var pair = (toString(number) + 'e').split('e'),
