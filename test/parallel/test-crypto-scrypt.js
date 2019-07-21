@@ -217,3 +217,18 @@ for (const { args, expected } of badargs) {
   common.expectsError(() => crypto.scrypt('', '', 42, {}), expected);
   common.expectsError(() => crypto.scrypt('', '', 42, {}, {}), expected);
 }
+
+{
+  // Values for maxmem that do not fit in 32 bits but that are still safe
+  // integers should be allowed.
+  crypto.scrypt('', '', 4, { maxmem: 2 ** 52 },
+                common.mustCall((err, actual) => {
+                  assert.ifError(err);
+                  assert.strictEqual(actual.toString('hex'), 'd72c87d0');
+                }));
+
+  // Values that exceed Number.isSafeInteger should not be allowed.
+  common.expectsError(() => crypto.scryptSync('', '', 0, { maxmem: 2 ** 53 }), {
+    code: 'ERR_OUT_OF_RANGE'
+  });
+}
