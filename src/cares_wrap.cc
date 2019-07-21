@@ -756,7 +756,7 @@ Local<Array> AddrTTLToArray(Environment* env,
 
   Local<Array> ttls = Array::New(isolate, naddrttls);
   for (size_t i = 0; i < naddrttls; i++) {
-    auto value = Integer::New(isolate, addrttls[i].ttl);
+    auto value = Integer::NewFromUnsigned(isolate, addrttls[i].ttl);
     ttls->Set(context, i, value).Check();
   }
 
@@ -1139,7 +1139,7 @@ int ParseSoaReply(Environment* env,
                                     hostmaster.get())).Check();
       soa_record->Set(context,
                       env->serial_string(),
-                      Integer::New(env->isolate(), serial)).Check();
+                      Integer::NewFromUnsigned(env->isolate(), serial)).Check();
       soa_record->Set(context,
                       env->refresh_string(),
                       Integer::New(env->isolate(), refresh)).Check();
@@ -1151,7 +1151,7 @@ int ParseSoaReply(Environment* env,
                       Integer::New(env->isolate(), expire)).Check();
       soa_record->Set(context,
                       env->minttl_string(),
-                      Integer::New(env->isolate(), minttl)).Check();
+                      Integer::NewFromUnsigned(env->isolate(), minttl)).Check();
       soa_record->Set(context,
                       env->type_string(),
                       env->dns_soa_string()).Check();
@@ -1219,7 +1219,8 @@ class QueryAnyWrap: public QueryWrap {
                  ret->Get(context, i).ToLocalChecked()).Check();
         obj->Set(context,
                  env()->ttl_string(),
-                 Integer::New(env()->isolate(), addrttls[i].ttl)).Check();
+                 Integer::NewFromUnsigned(
+                   env()->isolate(), addrttls[i].ttl)).Check();
         obj->Set(context,
                  env()->type_string(),
                  env()->dns_a_string()).Check();
@@ -1265,8 +1266,8 @@ class QueryAnyWrap: public QueryWrap {
                ret->Get(context, i).ToLocalChecked()).Check();
       obj->Set(context,
                env()->ttl_string(),
-               Integer::New(env()->isolate(), addr6ttls[i - a_count].ttl))
-          .Check();
+               Integer::NewFromUnsigned(
+                 env()->isolate(), addr6ttls[i - a_count].ttl)).Check();
       obj->Set(context,
                env()->type_string(),
                env()->dns_aaaa_string()).Check();
@@ -1709,7 +1710,8 @@ class QuerySoaWrap: public QueryWrap {
                                   soa_out->hostmaster)).Check();
     soa_record->Set(context,
                     env()->serial_string(),
-                    Integer::New(env()->isolate(), soa_out->serial)).Check();
+                    Integer::NewFromUnsigned(
+                      env()->isolate(), soa_out->serial)).Check();
     soa_record->Set(context,
                     env()->refresh_string(),
                     Integer::New(env()->isolate(),
@@ -1722,7 +1724,8 @@ class QuerySoaWrap: public QueryWrap {
                     Integer::New(env()->isolate(), soa_out->expire)).Check();
     soa_record->Set(context,
                     env()->minttl_string(),
-                    Integer::New(env()->isolate(), soa_out->minttl)).Check();
+                    Integer::NewFromUnsigned(
+                      env()->isolate(), soa_out->minttl)).Check();
 
     ares_free_data(soa_out);
 
