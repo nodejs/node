@@ -2587,6 +2587,9 @@ request.
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28799
+    description: The `maxmem` value can now be any safe integer.
   - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21525
     description: The `cost`, `blockSize` and `parallelization` option names
@@ -2641,6 +2644,9 @@ crypto.scrypt('secret', 'salt', 64, { N: 1024 }, (err, derivedKey) => {
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28799
+    description: The `maxmem` value can now be any safe integer.
   - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21525
     description: The `cost`, `blockSize` and `parallelization` option names
