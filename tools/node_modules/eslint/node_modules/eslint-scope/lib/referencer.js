@@ -81,7 +81,7 @@ class Importer extends esrecurse.Visitor {
                     this.declaration,
                     null,
                     null
-                    ));
+                ));
         });
     }
 
@@ -151,20 +151,26 @@ class Referencer extends esrecurse.Visitor {
                 assignment.right,
                 maybeImplicitGlobal,
                 pattern !== assignment.left,
-                init);
+                init
+            );
         });
     }
 
     visitPattern(node, options, callback) {
+        let visitPatternOptions = options;
+        let visitPatternCallback = callback;
+
         if (typeof options === "function") {
-            callback = options;
-            options = { processRightHandNodes: false };
+            visitPatternCallback = options;
+            visitPatternOptions = { processRightHandNodes: false };
         }
+
         traverseIdentifierInPattern(
             this.options,
             node,
-            options.processRightHandNodes ? this : null,
-            callback);
+            visitPatternOptions.processRightHandNodes ? this : null,
+            visitPatternCallback
+        );
     }
 
     visitFunction(node) {
@@ -180,14 +186,14 @@ class Referencer extends esrecurse.Visitor {
 
             // id is defined in upper scope
             this.currentScope().__define(node.id,
-                    new Definition(
-                        Variable.FunctionName,
-                        node.id,
-                        node,
-                        null,
-                        null,
-                        null
-                    ));
+                new Definition(
+                    Variable.FunctionName,
+                    node.id,
+                    node,
+                    null,
+                    null,
+                    null
+                ));
         }
 
         // FunctionExpression with name creates its special scope;
@@ -258,14 +264,14 @@ class Referencer extends esrecurse.Visitor {
     visitClass(node) {
         if (node.type === Syntax.ClassDeclaration) {
             this.currentScope().__define(node.id,
-                    new Definition(
-                        Variable.ClassName,
-                        node.id,
-                        node,
-                        null,
-                        null,
-                        null
-                    ));
+                new Definition(
+                    Variable.ClassName,
+                    node.id,
+                    node,
+                    null,
+                    null,
+                    null
+                ));
         }
 
         this.visit(node.superClass);
@@ -274,11 +280,11 @@ class Referencer extends esrecurse.Visitor {
 
         if (node.id) {
             this.currentScope().__define(node.id,
-                    new Definition(
-                        Variable.ClassName,
-                        node.id,
-                        node
-                    ));
+                new Definition(
+                    Variable.ClassName,
+                    node.id,
+                    node
+                ));
         }
         this.visit(node.body);
 

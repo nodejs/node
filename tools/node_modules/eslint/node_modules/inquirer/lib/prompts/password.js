@@ -101,6 +101,11 @@ class PasswordPrompt extends Base {
   }
 
   onKeypress() {
+    // If user press a key, just clear the default value
+    if (this.opt.default) {
+      this.opt.default = undefined;
+    }
+
     this.render();
   }
 }

@@ -420,8 +420,9 @@ module.exports = {
 
                 let shouldFix = varDeclParent &&
 
-                    // Don't do a fix unless the variable is initialized (or it's in a for-in or for-of loop)
-                    (varDeclParent.parent.type === "ForInStatement" || varDeclParent.parent.type === "ForOfStatement" || varDeclParent.declarations[0].init) &&
+                    // Don't do a fix unless all variables in the declarations are initialized (or it's in a for-in or for-of loop)
+                    (varDeclParent.parent.type === "ForInStatement" || varDeclParent.parent.type === "ForOfStatement" ||
+                        varDeclParent.declarations.every(declaration => declaration.init)) &&
 
                     /*
                      * If options.destructuring is "all", then this warning will not occur unless
@@ -450,7 +451,12 @@ module.exports = {
                         node,
                         messageId: "useConst",
                         data: node,
-                        fix: shouldFix ? fixer => fixer.replaceText(sourceCode.getFirstToken(varDeclParent), "const") : null
+                        fix: shouldFix
+                            ? fixer => fixer.replaceText(
+                                sourceCode.getFirstToken(varDeclParent, t => t.value === varDeclParent.kind),
+                                "const"
+                            )
+                            : null
                     });
                 });
             }

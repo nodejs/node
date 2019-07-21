@@ -292,25 +292,17 @@ class FileEnumerator {
     _iterateFiles(pattern) {
         const { cwd, globInputPaths } = internalSlotsMap.get(this);
         const absolutePath = path.resolve(cwd, pattern);
-
-        if (globInputPaths && isGlobPattern(pattern)) {
-            return this._iterateFilesWithGlob(
-                absolutePath,
-                dotfilesPattern.test(pattern)
-            );
-        }
-
+        const isDot = dotfilesPattern.test(pattern);
         const stat = statSafeSync(absolutePath);
 
         if (stat && stat.isDirectory()) {
-            return this._iterateFilesWithDirectory(
-                absolutePath,
-                dotfilesPattern.test(pattern)
-            );
+            return this._iterateFilesWithDirectory(absolutePath, isDot);
         }
-
         if (stat && stat.isFile()) {
             return this._iterateFilesWithFile(absolutePath);
+        }
+        if (globInputPaths && isGlobPattern(pattern)) {
+            return this._iterateFilesWithGlob(absolutePath, isDot);
         }
 
         return [];
