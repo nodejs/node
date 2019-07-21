@@ -549,8 +549,8 @@ class RuleTester {
                                 assert(false, `Invalid messageId '${error.messageId}'. Expected one of ${friendlyIDList}.`);
                             }
                             assert.strictEqual(
-                                error.messageId,
                                 message.messageId,
+                                error.messageId,
                                 `messageId '${message.messageId}' does not match expected messageId '${error.messageId}'.`
                             );
                             if (hasOwnProperty(error, "data")) {

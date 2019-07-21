@@ -37,6 +37,8 @@ const LINEBREAKS = new Set(["\r\n", "\r", "\n", "\u2028", "\u2029"]);
 // A set of node types that can contain a list of statements
 const STATEMENT_LIST_PARENTS = new Set(["Program", "BlockStatement", "SwitchCase"]);
 
+const DECIMAL_INTEGER_PATTERN = /^(0|[1-9]\d*)$/u;
+
 /**
  * Checks reference if is non initializer and writable.
  * @param {Reference} reference - A reference to check.
@@ -284,6 +286,16 @@ function isCommaToken(token) {
 }
 
 /**
+ * Checks if the given token is a dot token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a dot token.
+ */
+function isDotToken(token) {
+    return token.value === "." && token.type === "Punctuator";
+}
+
+/**
  * Checks if the given token is a semicolon token or not.
  *
  * @param {Token} token - The token to check.
@@ -462,12 +474,14 @@ module.exports = {
     isColonToken,
     isCommaToken,
     isCommentToken,
+    isDotToken,
     isKeywordToken,
     isNotClosingBraceToken: negate(isClosingBraceToken),
     isNotClosingBracketToken: negate(isClosingBracketToken),
     isNotClosingParenToken: negate(isClosingParenToken),
     isNotColonToken: negate(isColonToken),
     isNotCommaToken: negate(isCommaToken),
+    isNotDotToken: negate(isDotToken),
     isNotOpeningBraceToken: negate(isOpeningBraceToken),
     isNotOpeningBracketToken: negate(isOpeningBracketToken),
     isNotOpeningParenToken: negate(isOpeningParenToken),
@@ -988,7 +1002,18 @@ module.exports = {
      * '5'     // false
      */
     isDecimalInteger(node) {
-        return node.type === "Literal" && typeof node.value === "number" && /^(0|[1-9]\d*)$/u.test(node.raw);
+        return node.type === "Literal" && typeof node.value === "number" &&
+            DECIMAL_INTEGER_PATTERN.test(node.raw);
+    },
+
+    /**
+     * Determines whether this token is a decimal integer numeric token.
+     * This is similar to isDecimalInteger(), but for tokens.
+     * @param {Token} token - The token to check.
+     * @returns {boolean} `true` if this token is a decimal integer.
+     */
+    isDecimalIntegerNumericToken(token) {
+        return token.type === "Numeric" && DECIMAL_INTEGER_PATTERN.test(token.value);
     },
 
     /**

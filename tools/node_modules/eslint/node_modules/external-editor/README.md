@@ -7,7 +7,7 @@
 
 A node module to edit a string with a users preferred text editor using $VISUAL or $ENVIRONMENT.
 
-Version: 3.0.3
+Version: 3.1.0
 
 As of version 3.0.0, the minimum version of node supported is 4.
 
@@ -63,15 +63,17 @@ A full featured example
 #### API
 **Convenience Methods**
 
-- `edit(text)`
+- `edit(text, config)`
     - `text` (string) *Optional* Defaults to empty string
+    - `config` (Config) *Optional* Options for temporary file creation
     - **Returns** (string) The contents of the file
     - Could throw `CreateFileError`, `ReadFileError`, or `LaunchEditorError`, or `RemoveFileError`
-- `editAsync(text, callback)`
+- `editAsync(text, callback, config)`
     - `text` (string) *Optional* Defaults to empty string
     - `callback` (function (error, text))
         - `error` could be of type `CreateFileError`, `ReadFileError`, or `LaunchEditorError`, or `RemoveFileError`
-        - `text`(string) The contents of the file     
+        - `text`(string) The contents of the file
+    - `config` (Config) *Optional* Options for temporary file creation
 
 
 **Errors**
@@ -83,8 +85,9 @@ A full featured example
 
 **External Editor Public Methods**
 
-- `new ExternalEditor(text)`
+- `new ExternalEditor(text, config)`
     - `text` (string) *Optional* Defaults to empty string
+    - `config` (Config) *Optional* Options for temporary file creation
     - Could throw `CreateFileError`
 - `run()` Launches the editor.
     - **Returns** (string) The contents of the file
@@ -104,6 +107,14 @@ A full featured example
 - `tempFile` (string) Path to temporary file. Can be changed, but be careful as the temporary file probably already 
     exists and would need be removed manually.
 - `lastExitStatus` (number) The last exit code emitted from the editor.
+    
+**Config Options**
+
+- `prefix` (string) *Optional* A prefix for the file name.
+- `postfix` (string; *Optional* A postfix for the file name. Useful if you want to provide an extension.
+- `mode` (number) *Optional* Which mode to create the file with. e.g. 644
+- `template` (string) *Optional* A template for the filename. See [tmp](https://www.npmjs.com/package/tmp).
+- `dir` (string) *Optional* Which path to store the file.
     
 ## Errors
 

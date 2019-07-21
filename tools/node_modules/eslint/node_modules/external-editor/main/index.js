@@ -3,7 +3,7 @@
  * Node External Editor
  *
  * Kevin Gravier <kevin@mrkmg.com>
- * MIT 2018
+ * MIT 2019
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 var chardet_1 = require("chardet");
@@ -19,17 +19,17 @@ var ReadFileError_1 = require("./errors/ReadFileError");
 exports.ReadFileError = ReadFileError_1.ReadFileError;
 var RemoveFileError_1 = require("./errors/RemoveFileError");
 exports.RemoveFileError = RemoveFileError_1.RemoveFileError;
-function edit(text) {
+function edit(text, fileOptions) {
     if (text === void 0) { text = ""; }
-    var editor = new ExternalEditor(text);
+    var editor = new ExternalEditor(text, fileOptions);
     editor.run();
     editor.cleanup();
     return editor.text;
 }
 exports.edit = edit;
-function editAsync(text, callback) {
+function editAsync(text, callback, fileOptions) {
     if (text === void 0) { text = ""; }
-    var editor = new ExternalEditor(text);
+    var editor = new ExternalEditor(text, fileOptions);
     editor.runAsync(function (err, result) {
         if (err) {
             setImmediate(callback, err, null);
@@ -47,10 +47,14 @@ function editAsync(text, callback) {
 }
 exports.editAsync = editAsync;
 var ExternalEditor = /** @class */ (function () {
-    function ExternalEditor(text) {
+    function ExternalEditor(text, fileOptions) {
         if (text === void 0) { text = ""; }
         this.text = "";
+        this.fileOptions = {};
         this.text = text;
+        if (fileOptions) {
+            this.fileOptions = fileOptions;
+        }
         this.determineEditor();
         this.createTemporaryFile();
     }
@@ -124,8 +128,12 @@ var ExternalEditor = /** @class */ (function () {
     };
     ExternalEditor.prototype.createTemporaryFile = function () {
         try {
-            this.tempFile = tmp_1.tmpNameSync({});
-            fs_1.writeFileSync(this.tempFile, this.text, { encoding: "utf8" });
+            this.tempFile = tmp_1.tmpNameSync(this.fileOptions);
+            var opt = { encoding: "utf8" };
+            if (this.fileOptions.hasOwnProperty("mode")) {
+                opt.mode = this.fileOptions.mode;
+            }
+            fs_1.writeFileSync(this.tempFile, this.text, opt);
         }
         catch (createFileError) {
             throw new CreateFileError_1.CreateFileError(createFileError);

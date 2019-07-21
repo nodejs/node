@@ -68,7 +68,7 @@ function defaultOptions() {
         directive: false,
         nodejsScope: false,
         impliedStrict: false,
-        sourceType: "script",  // one of ['script', 'module']
+        sourceType: "script", // one of ['script', 'module']
         ecmaVersion: 5,
         childVisitorKeys: null,
         fallback: "iteration"
@@ -93,7 +93,7 @@ function updateDeeply(target, override) {
     }
 
     for (const key in override) {
-        if (override.hasOwnProperty(key)) {
+        if (Object.prototype.hasOwnProperty.call(override, key)) {
             const val = override[key];
 
             if (isHashObject(val)) {

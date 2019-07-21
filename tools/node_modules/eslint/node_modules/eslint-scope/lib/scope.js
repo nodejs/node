@@ -161,7 +161,7 @@ class Scope {
          */
         this.type = type;
 
-         /**
+        /**
          * The scoped {@link Variable}s of this scope, as <code>{ Variable.name
          * : Variable }</code>.
          * @member {Map} Scope#set
@@ -192,13 +192,13 @@ class Scope {
          */
         this.block = block;
 
-         /**
+        /**
          * The {@link Reference|references} that are not resolved with this scope.
          * @member {Reference[]} Scope#through
          */
         this.through = [];
 
-         /**
+        /**
          * The scoped {@link Variable}s of this scope. In the case of a
          * 'function' scope this includes the automatic argument <em>arguments</em> as
          * its first element, as well as all further formal arguments.
@@ -206,7 +206,7 @@ class Scope {
          */
         this.variables = [];
 
-         /**
+        /**
          * Any variable {@link Reference|reference} found in this scope. This
          * includes occurrences of local variables as well as variables from
          * parent scopes (including the global scope). For local variables
@@ -217,7 +217,7 @@ class Scope {
          */
         this.references = [];
 
-         /**
+        /**
          * For 'global' and 'function' scopes, this is a self-reference. For
          * other scope types this is the <em>variableScope</em> value of the
          * parent scope.
@@ -226,38 +226,38 @@ class Scope {
         this.variableScope =
             (this.type === "global" || this.type === "function" || this.type === "module") ? this : upperScope.variableScope;
 
-         /**
+        /**
          * Whether this scope is created by a FunctionExpression.
          * @member {boolean} Scope#functionExpressionScope
          */
         this.functionExpressionScope = false;
 
-         /**
+        /**
          * Whether this is a scope that contains an 'eval()' invocation.
          * @member {boolean} Scope#directCallToEvalScope
          */
         this.directCallToEvalScope = false;
 
-         /**
+        /**
          * @member {boolean} Scope#thisFound
          */
         this.thisFound = false;
 
         this.__left = [];
 
-         /**
+        /**
          * Reference to the parent {@link Scope|scope}.
          * @member {Scope} Scope#upper
          */
         this.upper = upperScope;
 
-         /**
+        /**
          * Whether 'use strict' is in effect in this scope.
          * @member {boolean} Scope#isStrict
          */
         this.isStrict = isStrictScope(this, block, isMethodDefinition, scopeManager.__useDirective());
 
-         /**
+        /**
          * List of nested {@link Scope}s.
          * @member {Scope[]} Scope#childScopes
          */
@@ -414,11 +414,12 @@ class Scope {
     __define(node, def) {
         if (node && node.type === Syntax.Identifier) {
             this.__defineGeneric(
-                    node.name,
-                    this.set,
-                    this.variables,
-                    node,
-                    def);
+                node.name,
+                this.set,
+                this.variables,
+                node,
+                def
+            );
         }
     }
 
@@ -550,14 +551,14 @@ class GlobalScope extends Scope {
             const info = implicit[i];
 
             this.__defineImplicit(info.pattern,
-                    new Definition(
-                        Variable.ImplicitGlobalVariable,
-                        info.pattern,
-                        info.node,
-                        null,
-                        null,
-                        null
-                    ));
+                new Definition(
+                    Variable.ImplicitGlobalVariable,
+                    info.pattern,
+                    info.node,
+                    null,
+                    null,
+                    null
+                ));
 
         }
 
@@ -569,11 +570,12 @@ class GlobalScope extends Scope {
     __defineImplicit(node, def) {
         if (node && node.type === Syntax.Identifier) {
             this.__defineGeneric(
-                    node.name,
-                    this.implicit.set,
-                    this.implicit.variables,
-                    node,
-                    def);
+                node.name,
+                this.implicit.set,
+                this.implicit.variables,
+                node,
+                def
+            );
         }
     }
 }
@@ -588,14 +590,14 @@ class FunctionExpressionNameScope extends Scope {
     constructor(scopeManager, upperScope, block) {
         super(scopeManager, "function-expression-name", upperScope, block, false);
         this.__define(block.id,
-                new Definition(
-                    Variable.FunctionName,
-                    block.id,
-                    block,
-                    null,
-                    null,
-                    null
-                ));
+            new Definition(
+                Variable.FunctionName,
+                block.id,
+                block,
+                null,
+                null,
+                null
+            ));
         this.functionExpressionScope = true;
     }
 }
@@ -684,11 +686,12 @@ class FunctionScope extends Scope {
 
     __defineArguments() {
         this.__defineGeneric(
-                "arguments",
-                this.set,
-                this.variables,
-                null,
-                null);
+            "arguments",
+            this.set,
+            this.variables,
+            null,
+            null
+        );
         this.taints.set("arguments", true);
     }
 
@@ -710,7 +713,7 @@ class FunctionScope extends Scope {
         // It's invalid resolution in the following case:
         return !(
             variable.scope === this &&
-            ref.identifier.range[0] < bodyStart &&                 // the reference is in the parameter part.
+            ref.identifier.range[0] < bodyStart && // the reference is in the parameter part.
             variable.defs.every(d => d.name.range[0] >= bodyStart) // the variable is in the body.
         );
     }

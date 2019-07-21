@@ -81,6 +81,8 @@ module.exports = {
         const PRECEDENCE_OF_ASSIGNMENT_EXPR = precedence({ type: "AssignmentExpression" });
         const PRECEDENCE_OF_UPDATE_EXPR = precedence({ type: "UpdateExpression" });
 
+        let reportsBuffer;
+
         /**
          * Determines if this rule should be enforced for a node given the current configuration.
          * @param {ASTNode} node - The node to be checked.
@@ -316,19 +318,33 @@ module.exports = {
                 }
             }
 
-            context.report({
-                node,
-                loc: leftParenToken.loc.start,
-                messageId: "unexpected",
-                fix(fixer) {
-                    const parenthesizedSource = sourceCode.text.slice(leftParenToken.range[1], rightParenToken.range[0]);
+            /**
+             * Finishes reporting
+             * @returns {void}
+             * @private
+             */
+            function finishReport() {
+                context.report({
+                    node,
+                    loc: leftParenToken.loc.start,
+                    messageId: "unexpected",
+                    fix(fixer) {
+                        const parenthesizedSource = sourceCode.text.slice(leftParenToken.range[1], rightParenToken.range[0]);
 
-                    return fixer.replaceTextRange([
-                        leftParenToken.range[0],
-                        rightParenToken.range[1]
-                    ], (requiresLeadingSpace(node) ? " " : "") + parenthesizedSource + (requiresTrailingSpace(node) ? " " : ""));
-                }
-            });
+                        return fixer.replaceTextRange([
+                            leftParenToken.range[0],
+                            rightParenToken.range[1]
+                        ], (requiresLeadingSpace(node) ? " " : "") + parenthesizedSource + (requiresTrailingSpace(node) ? " " : ""));
+                    }
+                });
+            }
+
+            if (reportsBuffer) {
+                reportsBuffer.reports.push({ node, finishReport });
+                return;
+            }
+
+            finishReport();
         }
 
         /**
@@ -498,6 +514,126 @@ module.exports = {
             }
         }
 
+        /**
+         * Finds the path from the given node to the specified ancestor.
+         * @param {ASTNode} node First node in the path.
+         * @param {ASTNode} ancestor Last node in the path.
+         * @returns {ASTNode[]} Path, including both nodes.
+         * @throws {Error} If the given node does not have the specified ancestor.
+         */
+        function pathToAncestor(node, ancestor) {
+            const path = [node];
+            let currentNode = node;
+
+            while (currentNode !== ancestor) {
+
+                currentNode = currentNode.parent;
+
+                /* istanbul ignore if */
+                if (currentNode === null) {
+                    throw new Error("Nodes are not in the ancestor-descendant relationship.");
+                }
+
+                path.push(currentNode);
+            }
+
+            return path;
+        }
+
+        /**
+         * Finds the path from the given node to the specified descendant.
+         * @param {ASTNode} node First node in the path.
+         * @param {ASTNode} descendant Last node in the path.
+         * @returns {ASTNode[]} Path, including both nodes.
+         * @throws {Error} If the given node does not have the specified descendant.
+         */
+        function pathToDescendant(node, descendant) {
+            return pathToAncestor(descendant, node).reverse();
+        }
+
+        /**
+         * Checks whether the syntax of the given ancestor of an 'in' expression inside a for-loop initializer
+         * is preventing the 'in' keyword from being interpreted as a part of an ill-formed for-in loop.
+         *
+         * @param {ASTNode} node Ancestor of an 'in' expression.
+         * @param {ASTNode} child Child of the node, ancestor of the same 'in' expression or the 'in' expression itself.
+         * @returns {boolean} True if the keyword 'in' would be interpreted as the 'in' operator, without any parenthesis.
+         */
+        function isSafelyEnclosingInExpression(node, child) {
+            switch (node.type) {
+                case "ArrayExpression":
+                case "ArrayPattern":
+                case "BlockStatement":
+                case "ObjectExpression":
+                case "ObjectPattern":
+                case "TemplateLiteral":
+                    return true;
+                case "ArrowFunctionExpression":
+                case "FunctionExpression":
+                    return node.params.includes(child);
+                case "CallExpression":
+                case "NewExpression":
+                    return node.arguments.includes(child);
+                case "MemberExpression":
+                    return node.computed && node.property === child;
+                case "ConditionalExpression":
+                    return node.consequent === child;
+                default:
+                    return false;
+            }
+        }
+
+        /**
+         * Starts a new reports buffering. Warnings will be stored in a buffer instead of being reported immediately.
+         * An additional logic that requires multiple nodes (e.g. a whole subtree) may dismiss some of the stored warnings.
+         *
+         * @returns {void}
+         */
+        function startNewReportsBuffering() {
+            reportsBuffer = {
+                upper: reportsBuffer,
+                inExpressionNodes: [],
+                reports: []
+            };
+        }
+
+        /**
+         * Ends the current reports buffering.
+         * @returns {void}
+         */
+        function endCurrentReportsBuffering() {
+            const { upper, inExpressionNodes, reports } = reportsBuffer;
+
+            if (upper) {
+                upper.inExpressionNodes.push(...inExpressionNodes);
+                upper.reports.push(...reports);
+            } else {
+
+                // flush remaining reports
+                reports.forEach(({ finishReport }) => finishReport());
+            }
+
+            reportsBuffer = upper;
+        }
+
+        /**
+         * Checks whether the given node is in the current reports buffer.
+         * @param {ASTNode} node Node to check.
+         * @returns {boolean} True if the node is in the current buffer, false otherwise.
+         */
+        function isInCurrentReportsBuffer(node) {
+            return reportsBuffer.reports.some(r => r.node === node);
+        }
+
+        /**
+         * Removes the given node from the current reports buffer.
+         * @param {ASTNode} node Node to remove.
+         * @returns {void}
+         */
+        function removeFromCurrentReportsBuffer(node) {
+            reportsBuffer.reports = reportsBuffer.reports.filter(r => r.node !== node);
+        }
+
         return {
             ArrayExpression(node) {
                 node.elements
@@ -540,7 +676,14 @@ module.exports = {
                 }
             },
 
-            BinaryExpression: checkBinaryLogical,
+            BinaryExpression(node) {
+                if (reportsBuffer && node.operator === "in") {
+                    reportsBuffer.inExpressionNodes.push(node);
+                }
+
+                checkBinaryLogical(node);
+            },
+
             CallExpression: checkCallNew,
 
             ConditionalExpression(node) {
@@ -602,10 +745,6 @@ module.exports = {
             },
 
             ForStatement(node) {
-                if (node.init && hasExcessParens(node.init)) {
-                    report(node.init);
-                }
-
                 if (node.test && hasExcessParens(node.test) && !isCondAssignException(node)) {
                     report(node.test);
                 }
@@ -613,6 +752,81 @@ module.exports = {
                 if (node.update && hasExcessParens(node.update)) {
                     report(node.update);
                 }
+
+                if (node.init) {
+                    startNewReportsBuffering();
+
+                    if (hasExcessParens(node.init)) {
+                        report(node.init);
+                    }
+                }
+            },
+
+            "ForStatement > *.init:exit"(node) {
+
+                /*
+                 * Removing parentheses around `in` expressions might change semantics and cause errors.
+                 *
+                 * For example, this valid for loop:
+                 *      for (let a = (b in c); ;);
+                 * after removing parentheses would be treated as an invalid for-in loop:
+                 *      for (let a = b in c; ;);
+                 */
+
+                if (reportsBuffer.reports.length) {
+                    reportsBuffer.inExpressionNodes.forEach(inExpressionNode => {
+                        const path = pathToDescendant(node, inExpressionNode);
+                        let nodeToExclude;
+
+                        for (let i = 0; i < path.length; i++) {
+                            const pathNode = path[i];
+
+                            if (i < path.length - 1) {
+                                const nextPathNode = path[i + 1];
+
+                                if (isSafelyEnclosingInExpression(pathNode, nextPathNode)) {
+
+                                    // The 'in' expression in safely enclosed by the syntax of its ancestor nodes (e.g. by '{}' or '[]').
+                                    return;
+                                }
+                            }
+
+                            if (isParenthesised(pathNode)) {
+                                if (isInCurrentReportsBuffer(pathNode)) {
+
+                                    // This node was supposed to be reported, but parentheses might be necessary.
+
+                                    if (isParenthesisedTwice(pathNode)) {
+
+                                        /*
+                                         * This node is parenthesised twice, it certainly has at least one pair of `extra` parentheses.
+                                         * If the --fix option is on, the current fixing iteration will remove only one pair of parentheses.
+                                         * The remaining pair is safely enclosing the 'in' expression.
+                                         */
+                                        return;
+                                    }
+
+                                    // Exclude the outermost node only.
+                                    if (!nodeToExclude) {
+                                        nodeToExclude = pathNode;
+                                    }
+
+                                    // Don't break the loop here, there might be some safe nodes or parentheses that will stay inside.
+
+                                } else {
+
+                                    // This node will stay parenthesised, the 'in' expression in safely enclosed by '()'.
+                                    return;
+                                }
+                            }
+                        }
+
+                        // Exclude the node from the list (i.e. treat parentheses as necessary)
+                        removeFromCurrentReportsBuffer(nodeToExclude);
+                    });
+                }
+
+                endCurrentReportsBuffering();
             },
 
             IfStatement(node) {
@@ -662,6 +876,16 @@ module.exports = {
 
                         return value && hasExcessParens(value) && precedence(value) >= PRECEDENCE_OF_ASSIGNMENT_EXPR;
                     }).forEach(property => report(property.value));
+            },
+
+            Property(node) {
+                if (node.computed) {
+                    const { key } = node;
+
+                    if (key && hasExcessParens(key) && precedence(key) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
+                        report(key);
+                    }
+                }
             },
 
             ReturnStatement(node) {

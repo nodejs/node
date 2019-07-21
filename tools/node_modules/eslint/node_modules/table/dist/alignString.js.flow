@@ -74,7 +74,7 @@ export default (subject, containerWidth, alignment) => {
     throw new TypeError('Alignment parameter value must be a string.');
   }
 
-  if (alignments.indexOf(alignment) === -1) {
+  if (!alignments.includes(alignment)) {
     throw new Error('Alignment parameter value must be a known alignment parameter value (left, right, center).');
   }
 

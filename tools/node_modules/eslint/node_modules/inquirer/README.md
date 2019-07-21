@@ -442,3 +442,8 @@ An S3 object selector for Inquirer.
 
 [**inquirer-autosubmit-prompt**](https://github.com/yaodingyd/inquirer-autosubmit-prompt)<br>
 Auto submit based on your current input, saving one extra enter
+
+[**inquirer-file-tree-selection-prompt**](https://github.com/anc95/inquirer-file-tree-selection)<br>
+Inquirer prompt for to select a file or directory in file tree
+
+![inquirer-file-tree-selection-prompt](https://github.com/anc95/inquirer-file-tree-selection/blob/master/example/screenshot.gif)
