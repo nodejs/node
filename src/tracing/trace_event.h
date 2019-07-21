@@ -310,6 +310,8 @@ const int kZeroNumArgs = 0;
 const decltype(nullptr) kGlobalScope = nullptr;
 const uint64_t kNoId = 0;
 
+// Extern (for now) because embedders need access to TraceEventHelper.
+// Refs: https://github.com/nodejs/node/pull/28724
 class NODE_EXTERN TraceEventHelper {
  public:
   static TracingController* GetTracingController();
