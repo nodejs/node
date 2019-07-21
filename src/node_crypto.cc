@@ -6015,7 +6015,7 @@ struct ScryptJob : public CryptoJob {
   uint32_t N;
   uint32_t r;
   uint32_t p;
-  uint32_t maxmem;
+  uint64_t maxmem;
   CryptoErrorVector errors;
 
   inline explicit ScryptJob(Environment* env) : CryptoJob(env) {}
@@ -6070,7 +6070,7 @@ void Scrypt(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[3]->IsUint32());  // N
   CHECK(args[4]->IsUint32());  // r
   CHECK(args[5]->IsUint32());  // p
-  CHECK(args[6]->IsUint32());  // maxmem
+  CHECK(args[6]->IsNumber());  // maxmem
   CHECK(args[7]->IsObject() || args[7]->IsUndefined());  // wrap object
   std::unique_ptr<ScryptJob> job(new ScryptJob(env));
   job->keybuf_data = reinterpret_cast<unsigned char*>(Buffer::Data(args[0]));
@@ -6080,7 +6080,8 @@ void Scrypt(const FunctionCallbackInfo<Value>& args) {
   job->N = args[3].As<Uint32>()->Value();
   job->r = args[4].As<Uint32>()->Value();
   job->p = args[5].As<Uint32>()->Value();
-  job->maxmem = args[6].As<Uint32>()->Value();
+  Local<Context> ctx = env->isolate()->GetCurrentContext();
+  job->maxmem = static_cast<uint64_t>(args[6]->IntegerValue(ctx).ToChecked());
   if (!job->Validate()) {
     // EVP_PBE_scrypt() does not always put errors on the error stack
     // and therefore ToResult() may or may not return an exception
