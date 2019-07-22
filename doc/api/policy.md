@@ -146,6 +146,10 @@ the manifest and then immediately be used without searching.
 Any specifier missing from the list of dependency will result in an error
 according to the policy.
 
+This will not prevent access to APIs through other means such as direct access
+to `require.cache` and/or through `module.constructor`. Other means such as
+attenuating variables are necessary to lock down that path of loading modules.
+
 #### Example: Patched Dependency
 
 Since a dependency can be redirected, you can provide attenuated or modified
