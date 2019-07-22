@@ -109,6 +109,11 @@ In order to generate integrity strings, a script such as
 `printf "sha384-$(cat checked.js | openssl dgst -sha384 -binary | base64)"`
 can be used.
 
+Integrity can be specified as the boolean value `true` in order to accept any
+body for the resource which can be useful for local development. It is not
+recommended in production since it would allow unexpected alteration of
+resources to be considered valid.
+
 ### Dependency Redirection
 
 An application may need to ship patched versions of software or to prevent
@@ -149,6 +154,11 @@ according to the policy.
 This will not prevent access to APIs through other means such as direct access
 to `require.cache` and/or through `module.constructor`. Other means such as
 attenuating variables are necessary to lock down that path of loading modules.
+
+A boolean value of `true` for the dependencies map can be specified to allow a
+module to load any specifier without redirection. This can be useful for local
+development and may have some valid usage in production, but should be used
+only with care after auditing a module to ensure its behavior is valid.
 
 #### Example: Patched Dependency
 
