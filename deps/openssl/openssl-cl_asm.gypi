@@ -18,6 +18,8 @@
       'includes': ['config/archs/linux-armv4/asm/openssl-cl.gypi'],
     }, 'target_arch=="arm64" and OS=="linux"', {
       'includes': ['config/archs/linux-aarch64/asm/openssl-cl.gypi'],
+    }, 'target_arch=="ia32" and OS=="freebsd"', {
+      'includes': ['config/archs/BSD-x86/asm/openssl-cl.gypi'],
     }, 'target_arch=="ia32" and OS=="linux"', {
       'includes': ['config/archs/linux-elf/asm/openssl-cl.gypi'],
     }, 'target_arch=="ia32" and OS=="mac"', {
