@@ -71,7 +71,7 @@ Allows configuration of `tty.ReadStream` so that it operates as a raw device.
 When in raw mode, input is always available character-by-character, not
 including modifiers. Additionally, all special processing of characters by the
 terminal is disabled, including echoing input characters.
-Note that `CTRL`+`C` will no longer cause a `SIGINT` when in this mode.
+`CTRL`+`C` will no longer cause a `SIGINT` when in this mode.
 
 ## Class: tty.WriteStream
 <!-- YAML
@@ -99,23 +99,40 @@ process.stdout.on('resize', () => {
 });
 ```
 
-### writeStream.clearLine(dir)
+### writeStream.clearLine(dir[, callback])
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28721
+    description: The stream's write() callback and return value are exposed.
 -->
 
 * `dir` {number}
   * `-1` - to the left from cursor
   * `1` - to the right from cursor
   * `0` - the entire line
+* `callback` {Function} Invoked once the operation completes.
+* Returns: {boolean} `false` if the stream wishes for the calling code to wait
+  for the `'drain'` event to be emitted before continuing to write additional
+  data; otherwise `true`.
 
 `writeStream.clearLine()` clears the current line of this `WriteStream` in a
 direction identified by `dir`.
 
-### writeStream.clearScreenDown()
+### writeStream.clearScreenDown([callback])
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28721
+    description: The stream's write() callback and return value are exposed.
 -->
+
+* `callback` {Function} Invoked once the operation completes.
+* Returns: {boolean} `false` if the stream wishes for the calling code to wait
+  for the `'drain'` event to be emitted before continuing to write additional
+  data; otherwise `true`.
 
 `writeStream.clearScreenDown()` clears this `WriteStream` from the current
 cursor down.
@@ -128,13 +145,21 @@ added: v0.7.7
 A `number` specifying the number of columns the TTY currently has. This property
 is updated whenever the `'resize'` event is emitted.
 
-### writeStream.cursorTo(x, y)
+### writeStream.cursorTo(x, y[, callback])
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28721
+    description: The stream's write() callback and return value are exposed.
 -->
 
 * `x` {number}
 * `y` {number}
+* `callback` {Function} Invoked once the operation completes.
+* Returns: {boolean} `false` if the stream wishes for the calling code to wait
+  for the `'drain'` event to be emitted before continuing to write additional
+  data; otherwise `true`.
 
 `writeStream.cursorTo()` moves this `WriteStream`'s cursor to the specified
 position.
@@ -220,13 +245,21 @@ added: v0.5.8
 
 A `boolean` that is always `true`.
 
-### writeStream.moveCursor(dx, dy)
+### writeStream.moveCursor(dx, dy[, callback])
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28721
+    description: The stream's write() callback and return value are exposed.
 -->
 
 * `dx` {number}
 * `dy` {number}
+* `callback` {Function} Invoked once the operation completes.
+* Returns: {boolean} `false` if the stream wishes for the calling code to wait
+  for the `'drain'` event to be emitted before continuing to write additional
+  data; otherwise `true`.
 
 `writeStream.moveCursor()` moves this `WriteStream`'s cursor *relative* to its
 current position.

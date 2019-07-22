@@ -1,12 +1,14 @@
-.TH "NPM\-AUDIT" "1" "April 2019" "" ""
+.TH "NPM\-AUDIT" "1" "July 2019" "" ""
 .SH "NAME"
 \fBnpm-audit\fR \- Run a security audit
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm audit [\-\-json|\-\-parseable]
-npm audit fix [\-\-force|\-\-package\-lock\-only|\-\-dry\-run|\-\-production|\-\-only=dev]
+npm audit [\-\-json|\-\-parseable|\-\-audit\-level=(low|moderate|high|critical)]
+npm audit fix [\-\-force|\-\-package\-lock\-only|\-\-dry\-run]
+
+common options: [\-\-production] [\-\-only=(dev|prod)]
 .fi
 .RE
 .SH EXAMPLES
@@ -89,6 +91,14 @@ To parse columns, you can use for example \fBawk\fP, and just print some of them
 $ npm audit \-\-parseable | awk \-F $'\\t' '{print $1,$4}'
 .fi
 .RE
+.P
+Fail an audit only if the results include a vulnerability with a level of moderate or higher:
+.P
+.RS 2
+.nf
+$ npm audit \-\-audit\-level=moderate
+.fi
+.RE
 .SH DESCRIPTION
 .P
 The audit command submits a description of the dependencies configured in
@@ -103,6 +113,12 @@ will require manual intervention or review\. Also note that since \fBnpm audit f
 runs a full\-fledged \fBnpm install\fP under the hood, all configs that apply to the
 installer will also apply to \fBnpm install\fP \-\- so things like \fBnpm audit fix
 \-\-package\-lock\-only\fP will work as expected\.
+.P
+By default, the audit command will exit with a non\-zero code if any vulnerability
+is found\. It may be useful in CI environments to include the \fB\-\-audit\-level\fP parameter
+to specify the minimum vulnerability level that will cause the command to fail\. This
+option does not filter the report output, it simply changes the command's failure
+threshold\.
 .SH CONTENT SUBMITTED
 .RS 0
 .IP \(bu 2

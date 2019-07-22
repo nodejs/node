@@ -1,12 +1,11 @@
 var test = require('tap').test
-var path = require('path')
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var common = require('../common-tap.js')
 var mr = common.fakeRegistry.compat
 var server
 
-var testdir = path.join(__dirname, path.basename(__filename, '.js'))
+var testdir = common.pkg
 
 function setup () {
   cleanup()

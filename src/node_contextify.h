@@ -22,6 +22,8 @@ class ContextifyContext {
   ContextifyContext(Environment* env,
                     v8::Local<v8::Object> sandbox_obj,
                     const ContextOptions& options);
+  ~ContextifyContext();
+  static void CleanupHook(void* arg);
 
   v8::MaybeLocal<v8::Object> CreateDataWrapper(Environment* env);
   v8::MaybeLocal<v8::Context> CreateV8Context(Environment* env,
@@ -63,8 +65,6 @@ class ContextifyContext {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WeakCallback(
       const v8::WeakCallbackInfo<ContextifyContext>& data);
-  static void WeakCallbackCompileFn(
-      const v8::WeakCallbackInfo<CompileFnEntry>& data);
   static void PropertyGetterCallback(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Value>& args);
@@ -133,6 +133,25 @@ class ContextifyScript : public BaseObject {
  private:
   v8::Global<v8::UnboundScript> script_;
   uint32_t id_;
+};
+
+class CompiledFnEntry final : public BaseObject {
+ public:
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(CompiledFnEntry)
+  SET_SELF_SIZE(CompiledFnEntry)
+
+  CompiledFnEntry(Environment* env,
+                  v8::Local<v8::Object> object,
+                  uint32_t id,
+                  v8::Local<v8::ScriptOrModule> script);
+  ~CompiledFnEntry();
+
+ private:
+  uint32_t id_;
+  v8::Global<v8::ScriptOrModule> script_;
+
+  static void WeakCallback(const v8::WeakCallbackInfo<CompiledFnEntry>& data);
 };
 
 }  // namespace contextify

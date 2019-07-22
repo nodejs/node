@@ -558,7 +558,7 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
   if (source.IsNothing()) {
     auto entry = env->package_json_cache.emplace(path,
         PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "",
-                        PackageType::None });
+                        PackageType::None, Global<Value>() });
     return Just(&entry.first->second);
   }
 
@@ -578,7 +578,7 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
         !pkg_json_v->ToObject(context).ToLocal(&pkg_json)) {
       env->package_json_cache.emplace(path,
           PackageConfig { Exists::Yes, IsValid::No, HasMain::No, "",
-                          PackageType::None });
+                          PackageType::None, Global<Value>() });
       std::string msg = "Invalid JSON in '" + path +
           "' imported from " + base.ToFilePath();
       node::THROW_ERR_INVALID_PACKAGE_CONFIG(env, msg.c_str());
@@ -609,22 +609,22 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
   }
 
   Local<Value> exports_v;
-  if (pkg_json->Get(env->context(),
+  if (env->options()->experimental_exports &&
+      pkg_json->Get(env->context(),
       env->exports_string()).ToLocal(&exports_v) &&
-      (exports_v->IsObject() || exports_v->IsString() ||
-      exports_v->IsBoolean())) {
+      !exports_v->IsNullOrUndefined()) {
     Global<Value> exports;
     exports.Reset(env->isolate(), exports_v);
 
     auto entry = env->package_json_cache.emplace(path,
         PackageConfig { Exists::Yes, IsValid::Yes, has_main, main_std,
-                        pkg_type });
+                        pkg_type, std::move(exports) });
     return Just(&entry.first->second);
   }
 
   auto entry = env->package_json_cache.emplace(path,
       PackageConfig { Exists::Yes, IsValid::Yes, has_main, main_std,
-                      pkg_type });
+                      pkg_type, Global<Value>() });
   return Just(&entry.first->second);
 }
 
@@ -646,7 +646,7 @@ Maybe<const PackageConfig*> GetPackageScopeConfig(Environment* env,
     if (pjson_url.path() == last_pjson_url.path()) {
       auto entry = env->package_json_cache.emplace(pjson_url.ToFilePath(),
           PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "",
-                          PackageType::None });
+                          PackageType::None, Global<Value>() });
       const PackageConfig* pcfg = &entry.first->second;
       return Just(pcfg);
     }
@@ -800,6 +800,66 @@ Maybe<URL> PackageMainResolve(Environment* env,
   return Nothing<URL>();
 }
 
+Maybe<URL> PackageExportsResolve(Environment* env,
+                                 const URL& pjson_url,
+                                 const std::string& pkg_subpath,
+                                 const PackageConfig& pcfg,
+                                 const URL& base) {
+  CHECK(env->options()->experimental_exports);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Value> exports = pcfg.exports.Get(isolate);
+  if (exports->IsObject()) {
+    Local<Object> exports_obj = exports.As<Object>();
+    Local<String> subpath = String::NewFromUtf8(isolate,
+        pkg_subpath.c_str(), v8::NewStringType::kNormal).ToLocalChecked();
+
+    auto target = exports_obj->Get(context, subpath).ToLocalChecked();
+    if (target->IsString()) {
+      Utf8Value target_utf8(isolate, target.As<v8::String>());
+      std::string target(*target_utf8, target_utf8.length());
+      if (target.substr(0, 2) == "./") {
+        URL target_url(target, pjson_url);
+        return FinalizeResolution(env, target_url, base);
+      }
+    }
+
+    Local<String> best_match;
+    std::string best_match_str = "";
+    Local<Array> keys =
+        exports_obj->GetOwnPropertyNames(context).ToLocalChecked();
+    for (uint32_t i = 0; i < keys->Length(); ++i) {
+      Local<String> key = keys->Get(context, i).ToLocalChecked().As<String>();
+      Utf8Value key_utf8(isolate, key);
+      std::string key_str(*key_utf8, key_utf8.length());
+      if (key_str.back() != '/') continue;
+      if (pkg_subpath.substr(0, key_str.length()) == key_str &&
+          key_str.length() > best_match_str.length()) {
+        best_match = key;
+        best_match_str = key_str;
+      }
+    }
+
+    if (best_match_str.length() > 0) {
+      auto target = exports_obj->Get(context, best_match).ToLocalChecked();
+      if (target->IsString()) {
+        Utf8Value target_utf8(isolate, target.As<v8::String>());
+        std::string target(*target_utf8, target_utf8.length());
+        if (target.back() == '/' && target.substr(0, 2) == "./") {
+          std::string subpath = pkg_subpath.substr(best_match_str.length());
+          URL target_url(target + subpath, pjson_url);
+          return FinalizeResolution(env, target_url, base);
+        }
+      }
+    }
+  }
+  std::string msg = "Package exports for '" +
+      URL(".", pjson_url).ToFilePath() + "' do not define a '" + pkg_subpath +
+      "' subpath, imported from " + base.ToFilePath();
+  node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
+  return Nothing<URL>();
+}
+
 Maybe<URL> PackageResolve(Environment* env,
                           const std::string& specifier,
                           const URL& base) {
@@ -847,7 +907,12 @@ Maybe<URL> PackageResolve(Environment* env,
     if (!pkg_subpath.length()) {
       return PackageMainResolve(env, pjson_url, *pcfg.FromJust(), base);
     } else {
-      return FinalizeResolution(env, URL(pkg_subpath, pjson_url), base);
+      if (!pcfg.FromJust()->exports.IsEmpty()) {
+        return PackageExportsResolve(env, pjson_url, pkg_subpath,
+                                     *pcfg.FromJust(), base);
+      } else {
+        return FinalizeResolution(env, URL(pkg_subpath, pjson_url), base);
+      }
     }
     CHECK(false);
     // Cross-platform root check.
@@ -976,7 +1041,9 @@ static MaybeLocal<Promise> ImportModuleDynamically(
     ModuleWrap* wrap = ModuleWrap::GetFromID(env, id);
     object = wrap->object();
   } else if (type == ScriptType::kFunction) {
-    object = env->id_to_function_map.find(id)->second.Get(iso);
+    auto it = env->id_to_function_map.find(id);
+    CHECK_NE(it, env->id_to_function_map.end());
+    object = it->second->object();
   } else {
     UNREACHABLE();
   }

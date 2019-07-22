@@ -249,7 +249,7 @@ static int uv__process_open_stream(uv_stdio_container_t* container,
 
 static void uv__process_close_stream(uv_stdio_container_t* container) {
   if (!(container->flags & UV_CREATE_PIPE)) return;
-  uv__stream_close((uv_stream_t*)container->data.stream);
+  uv__stream_close(container->data.stream);
 }
 
 
@@ -384,6 +384,11 @@ static void uv__process_child_init(const uv_process_options_t* options,
   for (n = 1; n < 32; n += 1) {
     if (n == SIGKILL || n == SIGSTOP)
       continue;  /* Can't be changed. */
+
+#if defined(__HAIKU__)
+    if (n == SIGKILLTHR)
+      continue;  /* Can't be changed. */
+#endif
 
     if (SIG_ERR != signal(n, SIG_DFL))
       continue;

@@ -16,7 +16,7 @@ process.nextTick(() => {
 common.expectWarning(
   'DeprecationWarning',
   'Passing a callback to worker.terminate() is deprecated. ' +
-  'It returns a Promise instead.', 'DEP0XXX');
+  'It returns a Promise instead.', 'DEP0132');
 
 w.on('message', common.mustCall(() => {
   setTimeout(() => {

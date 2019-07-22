@@ -141,7 +141,7 @@ def GetAllIncludeDirectories(target_list, target_dicts,
             compiler_includes_list.append(include_dir)
 
       # Find standard gyp include dirs.
-      if config.has_key('include_dirs'):
+      if 'include_dirs' in config:
         include_dirs = config['include_dirs']
         for shared_intermediate_dir in shared_intermediate_dirs:
           for include_dir in include_dirs:

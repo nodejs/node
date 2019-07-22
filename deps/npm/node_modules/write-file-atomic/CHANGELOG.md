@@ -1,3 +1,8 @@
+# 2.4.3
+
+* Ignore errors raised by `fs.closeSync` when cleaning up after a write
+  error.
+
 # 2.4.2
 
 * A pair of patches to fix some fd leaks.  We would leak fds with sync use

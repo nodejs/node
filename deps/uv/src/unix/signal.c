@@ -375,7 +375,7 @@ static int uv__signal_start(uv_signal_t* handle,
 
   /* Short circuit: if the signal watcher is already watching {signum} don't
    * go through the process of deregistering and registering the handler.
-   * Additionally, this avoids pending signals getting lost in the small time
+   * Additionally, this avoids pending signals getting lost in the small
    * time frame that handle->signum == 0.
    */
   if (signum == handle->signum) {

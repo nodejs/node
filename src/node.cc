@@ -64,10 +64,6 @@
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
 
-#ifdef NODE_ENABLE_VTUNE_PROFILING
-#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
-#endif
-
 #ifdef NODE_ENABLE_LARGE_CODE_PAGES
 #include "large_pages/node_large_page.h"
 #endif
@@ -688,11 +684,20 @@ void ResetStdio() {
     }
 
     if (s.isatty) {
+      sigset_t sa;
       int err;
+
+      // We might be a background job that doesn't own the TTY so block SIGTTOU
+      // before making the tcsetattr() call, otherwise that signal suspends us.
+      sigemptyset(&sa);
+      sigaddset(&sa, SIGTTOU);
+
+      CHECK_EQ(0, pthread_sigmask(SIG_BLOCK, &sa, nullptr));
       do
         err = tcsetattr(fd, TCSANOW, &s.termios);
       while (err == -1 && errno == EINTR);  // NOLINT
-      CHECK_NE(err, -1);
+      CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sa, nullptr));
+      CHECK_EQ(0, err);
     }
   }
 #endif  // __POSIX__
@@ -1043,16 +1048,21 @@ int Start(int argc, char** argv) {
 
   {
     Isolate::CreateParams params;
-    // TODO(joyeecheung): collect external references and set it in
-    // params.external_references.
-    std::vector<intptr_t> external_references = {
-        reinterpret_cast<intptr_t>(nullptr)};
-    v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
-    const std::vector<size_t>* indexes =
-        NodeMainInstance::GetIsolateDataIndexes();
-    if (blob != nullptr) {
-      params.external_references = external_references.data();
-      params.snapshot_blob = blob;
+    const std::vector<size_t>* indexes = nullptr;
+    std::vector<intptr_t> external_references;
+
+    bool force_no_snapshot =
+        per_process::cli_options->per_isolate->no_node_snapshot;
+    if (!force_no_snapshot) {
+      v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
+      if (blob != nullptr) {
+        // TODO(joyeecheung): collect external references and set it in
+        // params.external_references.
+        external_references.push_back(reinterpret_cast<intptr_t>(nullptr));
+        params.external_references = external_references.data();
+        params.snapshot_blob = blob;
+        indexes = NodeMainInstance::GetIsolateDataIndexes();
+      }
     }
 
     NodeMainInstance main_instance(&params,

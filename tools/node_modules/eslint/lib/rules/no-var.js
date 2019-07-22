@@ -174,6 +174,17 @@ function hasReferenceInTDZ(node) {
     };
 }
 
+/**
+ * Checks whether a given variable has name that is allowed for 'var' declarations,
+ * but disallowed for `let` declarations.
+ *
+ * @param {eslint-scope.Variable} variable The variable to check.
+ * @returns {boolean} `true` if the variable has a disallowed name.
+ */
+function hasNameDisallowedForLetDeclarations(variable) {
+    return variable.name === "let";
+}
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -223,6 +234,7 @@ module.exports = {
          * - A variable might be used before it is assigned within a loop.
          * - A variable might be used in TDZ.
          * - A variable is declared in statement position (e.g. a single-line `IfStatement`)
+         * - A variable has name that is disallowed for `let` declarations.
          *
          * ## A variable is declared on a SwitchCase node.
          *
@@ -271,7 +283,8 @@ module.exports = {
                 node.declarations.some(hasSelfReferenceInTDZ) ||
                 variables.some(isGlobal) ||
                 variables.some(isRedeclared) ||
-                variables.some(isUsedFromOutsideOf(scopeNode))
+                variables.some(isUsedFromOutsideOf(scopeNode)) ||
+                variables.some(hasNameDisallowedForLetDeclarations)
             ) {
                 return false;
             }

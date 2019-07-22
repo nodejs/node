@@ -1,7 +1,6 @@
 # TODO: determine CMAKE_SYSTEM_NAME on OS/390.  Currently assumes "OS/390".
 cmake_minimum_required(VERSION 3.0)
 project(libuv)
-enable_testing()
 
 if(MSVC)
   list(APPEND uv_cflags /W4)
@@ -137,6 +136,7 @@ set(uv_test_sources
     test/test-tcp-read-stop.c
     test/test-tcp-shutdown-after-write.c
     test/test-tcp-try-write.c
+    test/test-tcp-try-write-error.c
     test/test-tcp-unexpected-read.c
     test/test-tcp-write-after-connect.c
     test/test-tcp-write-fail.c
@@ -260,8 +260,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Android")
        src/unix/linux-syscalls.c
        src/unix/procfs-exepath.c
        src/unix/pthread-fixes.c
-       src/unix/sysinfo-loadavg.c
-       src/unix/sysinfo-memory.c)
+       src/unix/sysinfo-loadavg.c)
 endif()
 
 if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "Android|Linux|OS/390")
@@ -350,8 +349,11 @@ target_compile_options(uv_a PRIVATE ${uv_cflags})
 target_include_directories(uv_a PRIVATE include src)
 target_link_libraries(uv_a ${uv_libraries})
 
-if(BUILD_TESTING)
-  include(CTest)
+option(libuv_buildtests "Build the unit tests when BUILD_TESTING is enabled." ON)
+
+include(CTest)
+if(BUILD_TESTING AND libuv_buildtests)
+  enable_testing()
   add_executable(uv_run_tests ${uv_test_sources})
   target_compile_definitions(uv_run_tests
                              PRIVATE ${uv_defines} USING_UV_SHARED=1)

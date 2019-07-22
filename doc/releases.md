@@ -256,7 +256,7 @@ Collect a formatted list of commits since the last release. Use
 $ changelog-maker --group
 ```
 
-Note that changelog-maker counts commits since the last tag and if the last tag
+`changelog-maker` counts commits since the last tag and if the last tag
 in the repository was not on the current branch you may have to supply a
 `--start-ref` argument:
 
@@ -327,7 +327,7 @@ doc/api/*.md`.
 If this release includes any new deprecations it is necessary to ensure that
 those are assigned a proper static deprecation code. These are listed in the
 docs (see `doc/api/deprecations.md`) and in the source as `DEP00XX`. The code
-must be assigned a number (e.g. `DEP0012`). Note that this assignment should
+must be assigned a number (e.g. `DEP0012`). This assignment should
 occur when the PR is landed, but a check will be made when the release build is
 run.
 

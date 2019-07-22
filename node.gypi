@@ -66,11 +66,11 @@
       'defines': [ '__POSIX__' ],
     }],
     [ 'node_enable_d8=="true"', {
-      'dependencies': [ 'deps/v8/gypfiles/d8.gyp:d8' ],
+      'dependencies': [ 'tools/v8_gypfiles/d8.gyp:d8' ],
     }],
     [ 'node_use_bundled_v8=="true"', {
       'dependencies': [
-        'tools/v8_gypfiles/v8.gyp:v8_snapshot',
+        'tools/v8_gypfiles/v8.gyp:v8_maybe_snapshot',
         'tools/v8_gypfiles/v8.gyp:v8_libplatform',
       ],
     }],
@@ -104,14 +104,6 @@
         [ 'icu_small=="true"', {
           'defines': [ 'NODE_HAVE_SMALL_ICU=1' ],
       }]],
-    }],
-    [ 'node_use_bundled_v8=="true" and \
-       node_enable_v8_vtunejit=="true" and (target_arch=="x64" or \
-       target_arch=="ia32" or target_arch=="x32")', {
-      'defines': [ 'NODE_ENABLE_VTUNE_PROFILING' ],
-      'dependencies': [
-        'tools/v8_gypfiles/v8vtune.gyp:v8_vtune'
-      ],
     }],
     [ 'node_no_browser_globals=="true"', {
       'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],

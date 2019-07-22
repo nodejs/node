@@ -483,6 +483,11 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   void maxAsyncCallStackDepthChanged(int depth) override {
+    if (waiting_for_sessions_disconnect_) {
+      // V8 isolate is mostly done and is only letting Inspector protocol
+      // clients gather data.
+      return;
+    }
     if (auto agent = env_->inspector_agent()) {
       if (depth == 0) {
         agent->DisableAsyncHook();
@@ -570,7 +575,7 @@ class NodeInspectorClient : public V8InspectorClient {
     }
   }
 
-  void FatalException(Local<Value> error, Local<Message> message) {
+  void ReportUncaughtException(Local<Value> error, Local<Message> message) {
     Isolate* isolate = env_->isolate();
     Local<Context> context = env_->context();
 
@@ -694,8 +699,7 @@ class NodeInspectorClient : public V8InspectorClient {
 
     MultiIsolatePlatform* platform = env_->isolate_data()->platform();
     while (shouldRunMessageLoop()) {
-      if (interface_ && hasConnectedSessions())
-        interface_->WaitForFrontendEvent();
+      if (interface_) interface_->WaitForFrontendEvent();
       while (platform->FlushForegroundTasks(env_->isolate())) {}
     }
     running_nested_loop_ = false;
@@ -836,10 +840,11 @@ void Agent::WaitForDisconnect() {
   }
 }
 
-void Agent::FatalException(Local<Value> error, Local<Message> message) {
+void Agent::ReportUncaughtException(Local<Value> error,
+                                    Local<Message> message) {
   if (!IsListening())
     return;
-  client_->FatalException(error, message);
+  client_->ReportUncaughtException(error, message);
   WaitForDisconnect();
 }
 
@@ -976,6 +981,12 @@ std::shared_ptr<WorkerManager> Agent::GetWorkerManager() {
   return client_->getWorkerManager();
 }
 
+std::string Agent::GetWsUrl() const {
+  if (io_ == nullptr)
+    return "";
+  return io_->GetWsUrl();
+}
+
 SameThreadInspectorSession::~SameThreadInspectorSession() {
   auto client = client_.lock();
   if (client)
@@ -988,8 +999,6 @@ void SameThreadInspectorSession::Dispatch(
   if (client)
     client->dispatchMessageFromFrontend(session_id_, message);
 }
-
-
 
 }  // namespace inspector
 }  // namespace node

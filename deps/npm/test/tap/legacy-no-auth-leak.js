@@ -1,8 +1,7 @@
 'use strict'
 var test = require('tap').test
 var common = require('../common-tap.js')
-var path = require('path')
-var basepath = path.resolve(__dirname, path.basename(__filename, '.js'))
+var basepath = common.pkg
 var Tacks = require('tacks')
 var File = Tacks.File
 var Dir = Tacks.Dir

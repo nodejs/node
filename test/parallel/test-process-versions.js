@@ -45,3 +45,6 @@ for (let i = 0; i < expected_keys.length; i++) {
   const descriptor = Object.getOwnPropertyDescriptor(process.versions, key);
   assert.strictEqual(descriptor.writable, false);
 }
+
+assert.strictEqual(process.config.variables.napi_build_version,
+                   process.versions.napi);

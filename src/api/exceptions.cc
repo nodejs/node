@@ -12,11 +12,9 @@
 namespace node {
 
 using v8::Exception;
-using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
-using v8::Message;
 using v8::NewStringType;
 using v8::Object;
 using v8::String;

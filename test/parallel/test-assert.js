@@ -44,6 +44,19 @@ assert.ok(a.AssertionError.prototype instanceof Error,
 assert.throws(() => a(false), a.AssertionError, 'ok(false)');
 assert.throws(() => a.ok(false), a.AssertionError, 'ok(false)');
 
+// Throw message if the message is instanceof Error.
+{
+  let threw = false;
+  try {
+    assert.ok(false, new Error('ok(false)'));
+  } catch (e) {
+    threw = true;
+    assert.ok(e instanceof Error);
+  }
+  assert.ok(threw, 'Error: ok(false)');
+}
+
+
 a(true);
 a('test', 'ok(\'test\')');
 a.ok(true);
@@ -162,6 +175,17 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     message: 'Got unwanted exception.\nActual message: "[object Object]"'
+  }
+);
+
+assert.throws(
+  () => a.doesNotThrow(() => thrower(Error), /\[[a-z]{6}\s[A-z]{6}\]/g, 'user message'),
+  {
+    name: 'AssertionError',
+    code: 'ERR_ASSERTION',
+    operator: 'doesNotThrow',
+    message: 'Got unwanted exception: user message\n' +
+             'Actual message: "[object Object]"'
   }
 );
 

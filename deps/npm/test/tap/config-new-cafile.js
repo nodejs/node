@@ -1,4 +1,4 @@
-require('./00-config-setup.js')
+const common = require('../common-tap.js')
 
 var path = require('path')
 var fs = require('graceful-fs')
@@ -8,8 +8,9 @@ var rimraf = require('rimraf')
 var osenv = require('osenv')
 var npmconf = require('../../lib/config/core.js')
 
-var dir = path.resolve(__dirname, 'config-new-cafile')
+var dir = common.pkg
 var beep = path.resolve(dir, 'beep.pem')
+var npmrc = path.resolve(dir, 'npmrc')
 
 test('setup', function (t) {
   bootstrap()
@@ -18,7 +19,7 @@ test('setup', function (t) {
 
 test('can set new cafile when old is gone', function (t) {
   t.plan(5)
-  npmconf.load(function (error, conf) {
+  npmconf.load({ userconfig: npmrc }, function (error, conf) {
     npmconf.loaded = false
     t.ifError(error)
     conf.set('cafile', beep, 'user')
@@ -26,7 +27,7 @@ test('can set new cafile when old is gone', function (t) {
       t.ifError(error)
       t.equal(conf.get('cafile'), beep)
       rimraf.sync(beep)
-      npmconf.load(function (error, conf) {
+      npmconf.load({ userconfig: npmrc }, function (error, conf) {
         if (error) {
           throw error
         }
@@ -47,6 +48,7 @@ test('cleanup', function (t) {
 
 function bootstrap () {
   mkdirp.sync(dir)
+  fs.writeFileSync(npmrc, '')
   fs.writeFileSync(beep, '')
 }
 

@@ -366,7 +366,6 @@ static void PrintJavaScriptStack(JSONWriter* writer,
   int line = ss.find('\n');
   if (line == -1) {
     writer->json_keyvalue("message", ss);
-    writer->json_objectend();
   } else {
     std::string l = ss.substr(0, line);
     writer->json_keyvalue("message", l);
@@ -382,8 +381,8 @@ static void PrintJavaScriptStack(JSONWriter* writer,
       ss = ss.substr(line + 1);
       line = ss.find('\n');
     }
+    writer->json_arrayend();
   }
-  writer->json_arrayend();
   writer->json_objectend();
 }
 

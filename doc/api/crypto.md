@@ -44,7 +44,7 @@ added: v0.11.8
 SPKAC is a Certificate Signing Request mechanism originally implemented by
 Netscape and was specified formally as part of [HTML5's `keygen` element][].
 
-Note that `<keygen>` is deprecated since [HTML 5.2][] and new projects
+`<keygen>` is deprecated since [HTML 5.2][] and new projects
 should not use this element anymore.
 
 The `crypto` module provides the `Certificate` class for working with SPKAC
@@ -698,6 +698,32 @@ module):
 * `DH_UNABLE_TO_CHECK_GENERATOR`
 * `DH_NOT_SUITABLE_GENERATOR`
 
+## Class: DiffieHellmanGroup
+<!-- YAML
+added: v0.7.5
+-->
+
+The `DiffieHellmanGroup` class takes a well-known modp group as its argument but
+otherwise works the same as `DiffieHellman`.
+
+```js
+const name = 'modp1';
+const dh = crypto.createDiffieHellmanGroup(name);
+```
+
+`name` is taken from [RFC 2412][] (modp1 and 2) and [RFC 3526][]:
+```console
+$ perl -ne 'print "$1\n" if /"(modp\d+)"/' src/node_crypto_groups.h
+modp1  #  768 bits
+modp2  # 1024 bits
+modp5  # 1536 bits
+modp14 # 2048 bits
+modp15 # etc.
+modp16
+modp17
+modp18
+```
+
 ## Class: ECDH
 <!-- YAML
 added: v0.11.14
@@ -887,7 +913,7 @@ Sets the EC Diffie-Hellman public key.
 If `encoding` is provided `publicKey` is expected to
 be a string; otherwise a [`Buffer`][], `TypedArray`, or `DataView` is expected.
 
-Note that there is not normally a reason to call this method because `ECDH`
+There is not normally a reason to call this method because `ECDH`
 only requires a private key and the other party's public key to compute the
 shared secret. Typically either [`ecdh.generateKeys()`][] or
 [`ecdh.setPrivateKey()`][] will be called. The [`ecdh.setPrivateKey()`][] method
@@ -1311,7 +1337,7 @@ object, the following additional properties can be passed:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
-  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to sign the message as specified in section 3.1 of [RFC 4055][], unless
   an MGF1 hash function has been specified as part of the key in compliance with
   section 3.3 of [RFC 4055][].
@@ -1415,7 +1441,7 @@ object, the following additional properties can be passed:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
-  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to verify the message as specified in section 3.1 of [RFC 4055][], unless
   an MGF1 hash function has been specified as part of the key in compliance with
   section 3.3 of [RFC 4055][].
@@ -1732,6 +1758,16 @@ added: v0.5.0
 Creates a `DiffieHellman` key exchange object and generates a prime of
 `primeLength` bits using an optional specific numeric `generator`.
 If `generator` is not specified, the value `2` is used.
+
+### crypto.createDiffieHellmanGroup(name)
+<!-- YAML
+added: v0.9.3
+-->
+
+* `name` {string}
+* Returns: {DiffieHellman}
+
+An alias for [`crypto.getDiffieHellman()`][]
 
 ### crypto.createECDH(curveName)
 <!-- YAML
@@ -2200,8 +2236,8 @@ crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
 An array of supported digest functions can be retrieved using
 [`crypto.getHashes()`][].
 
-Note that this API uses libuv's threadpool, which can have surprising and
-negative performance implications for some applications, see the
+This API uses libuv's threadpool, which can have surprising and
+negative performance implications for some applications; see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
 ### crypto.pbkdf2Sync(password, salt, iterations, keylen, digest)
@@ -2417,8 +2453,8 @@ This should normally never take longer than a few milliseconds. The only time
 when generating the random bytes may conceivably block for a longer period of
 time is right after boot, when the whole system is still low on entropy.
 
-Note that this API uses libuv's threadpool, which can have surprising and
-negative performance implications for some applications, see the
+This API uses libuv's threadpool, which can have surprising and
+negative performance implications for some applications; see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
 The asynchronous version of `crypto.randomBytes()` is carried out in a single
@@ -2538,8 +2574,8 @@ crypto.randomFill(c, (err, buf) => {
 });
 ```
 
-Note that this API uses libuv's threadpool, which can have surprising and
-negative performance implications for some applications, see the
+This API uses libuv's threadpool, which can have surprising and
+negative performance implications for some applications; see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
 The asynchronous version of `crypto.randomFill()` is carried out in a single
@@ -2711,7 +2747,7 @@ additional properties can be passed:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
-  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to sign the message as specified in section 3.1 of [RFC 4055][].
 * `saltLength`: {integer} - salt length for when padding is
   `RSA_PKCS1_PSS_PADDING`. The special value
@@ -2762,7 +2798,7 @@ additional properties can be passed:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
-  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to sign the message as specified in section 3.1 of [RFC 4055][].
 * `saltLength`: {integer} - salt length for when padding is
   `RSA_PKCS1_PSS_PADDING`. The special value
@@ -2837,7 +2873,7 @@ mode must adhere to certain restrictions when using the cipher API:
   bytes (`7 ≤ N ≤ 13`).
 - The length of the plaintext is limited to `2 ** (8 * (15 - N))` bytes.
 - When decrypting, the authentication tag must be set via `setAuthTag()` before
-  specifying additional authenticated data or calling `update()`.
+  calling `update()`.
   Otherwise, decryption will fail and `final()` will throw an error in
   compliance with section 2.6 of [RFC 3610][].
 - Using stream methods such as `write(data)`, `end(data)` or `pipe()` in CCM
@@ -3226,6 +3262,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`crypto.createSign()`]: #crypto_crypto_createsign_algorithm_options
 [`crypto.createVerify()`]: #crypto_crypto_createverify_algorithm_options
 [`crypto.getCurves()`]: #crypto_crypto_getcurves
+[`crypto.getDiffieHellman()`]: #crypto_crypto_getdiffiehellman_groupname
 [`crypto.getHashes()`]: #crypto_crypto_gethashes
 [`crypto.privateDecrypt()`]: #crypto_crypto_privatedecrypt_privatekey_buffer
 [`crypto.privateEncrypt()`]: #crypto_crypto_privateencrypt_privatekey_buffer

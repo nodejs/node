@@ -44,7 +44,7 @@ server.listen(0, common.mustCall(() => {
     }).on('error', common.mustCall((e) => {
       common.expectsError({
         code: 'HPE_INVALID_CONSTANT',
-        message: 'Parse Error'
+        message: 'Parse Error: Expected HTTP/'
       })(e);
       countdown.dec();
     }));

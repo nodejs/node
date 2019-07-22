@@ -306,7 +306,7 @@ In particular, the significant differences to `JSON` are:
 - `value` may contain circular references.
 - `value` may contain instances of builtin JS types such as `RegExp`s,
   `BigInt`s, `Map`s, `Set`s, etc.
-- `value` may contained typed arrays, both using `ArrayBuffer`s
+- `value` may contain typed arrays, both using `ArrayBuffer`s
    and `SharedArrayBuffer`s.
 - `value` may contain [`WebAssembly.Module`][] instances.
 - `value` may not contain native (C++-backed) objects other than `MessagePort`s.
@@ -621,7 +621,7 @@ inside the worker thread. If `stdout: true` was not passed to the
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v12.5.0
     pr-url: https://github.com/nodejs/node/pull/28021
     description: This function now returns a Promise.
                  Passing a callback is deprecated, and was useless up to this

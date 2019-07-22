@@ -46,7 +46,14 @@ const conditionalOpts = [
       return ['--openssl-config', '--tls-cipher-list', '--use-bundled-ca',
               '--use-openssl-ca' ].includes(opt);
     } },
-  { include: common.hasFipsCrypto,
+  {
+    // We are using openssl_is_fips from the configuration because it could be
+    // the case that OpenSSL is FIPS compatible but fips has not been enabled
+    // (starting node with --enable-fips). If we use common.hasFipsCrypto
+    // that would only tells us if fips has been enabled, but in this case we
+    // want to check options which will be available regardless of whether fips
+    // is enabled at runtime or not.
+    include: process.config.variables.openssl_is_fips,
     filter: (opt) => opt.includes('-fips') },
   { include: common.hasIntl,
     filter: (opt) => opt === '--icu-data-dir' },
@@ -79,6 +86,8 @@ const undocumented = difference(process.allowedNodeEnvironmentFlags,
 // Remove intentionally undocumented options.
 assert(undocumented.delete('--debug-arraybuffer-allocations'));
 assert(undocumented.delete('--experimental-worker'));
+assert(undocumented.delete('--no-node-snapshot'));
+
 assert.strictEqual(undocumented.size, 0,
                    'The following options are not documented as allowed in ' +
                    `NODE_OPTIONS in ${cliMd}: ${[...undocumented].join(' ')}`);

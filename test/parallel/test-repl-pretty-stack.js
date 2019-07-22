@@ -5,6 +5,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const repl = require('repl');
 
+const stackRegExp = /(at .*repl:)[0-9]+:[0-9]+/g;
 
 function run({ command, expected, ...extraREPLOptions }) {
   let accum = '';
@@ -24,7 +25,10 @@ function run({ command, expected, ...extraREPLOptions }) {
   });
 
   r.write(`${command}\n`);
-  assert.strictEqual(accum, expected);
+  assert.strictEqual(
+    accum.replace(stackRegExp, '$1*:*'),
+    expected.replace(stackRegExp, '$1*:*')
+  );
   r.close();
 }
 
@@ -32,9 +36,9 @@ const tests = [
   {
     // Test .load for a file that throws.
     command: `.load ${fixtures.path('repl-pretty-stack.js')}`,
-    expected: 'Thrown:\nError: Whoops!\n    at repl:9:24\n' +
-              '    at d (repl:12:3)\n    at c (repl:9:3)\n' +
-              '    at b (repl:6:3)\n    at a (repl:3:3)\n'
+    expected: 'Thrown:\nError: Whoops!\n    at repl:*:*\n' +
+              '    at d (repl:*:*)\n    at c (repl:*:*)\n' +
+              '    at b (repl:*:*)\n    at a (repl:*:*)\n'
   },
   {
     command: 'let x y;',
@@ -48,12 +52,12 @@ const tests = [
   {
     command: '(() => { const err = Error(\'Whoops!\'); ' +
              'err.foo = \'bar\'; throw err; })()',
-    expected: "Thrown:\nError: Whoops!\n    at repl:1:22 {\n  foo: 'bar'\n}\n",
+    expected: "Thrown:\nError: Whoops!\n    at repl:*:* {\n  foo: 'bar'\n}\n",
   },
   {
     command: '(() => { const err = Error(\'Whoops!\'); ' +
              'err.foo = \'bar\'; throw err; })()',
-    expected: 'Thrown:\nError: Whoops!\n    at repl:1:22 {\n  foo: ' +
+    expected: 'Thrown:\nError: Whoops!\n    at repl:*:* {\n  foo: ' +
               "\u001b[32m'bar'\u001b[39m\n}\n",
     useColors: true
   },
@@ -64,7 +68,7 @@ const tests = [
   // Test anonymous IIFE.
   {
     command: '(function() { throw new Error(\'Whoops!\'); })()',
-    expected: 'Thrown:\nError: Whoops!\n    at repl:1:21\n'
+    expected: 'Thrown:\nError: Whoops!\n    at repl:*:*\n'
   }
 ];
 

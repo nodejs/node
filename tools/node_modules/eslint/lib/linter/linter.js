@@ -929,13 +929,11 @@ function getEnv(slots, envId) {
  * Get a rule.
  * @param {LinterInternalSlots} slots The internal slots of Linter.
  * @param {string} ruleId The rule ID to get.
- * @returns {Rule} The rule.
+ * @returns {Rule|null} The rule.
  */
 function getRule(slots, ruleId) {
     return (
         (slots.lastConfigArray && slots.lastConfigArray.pluginRules.get(ruleId)) ||
-
-        // This returns the stub for missing rules if the rule does not exist.
         slots.ruleMap.get(ruleId)
     );
 }

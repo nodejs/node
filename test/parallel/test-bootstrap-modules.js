@@ -64,7 +64,6 @@ const expectedModules = new Set([
   'NativeModule path',
   'NativeModule timers',
   'NativeModule url',
-  'NativeModule util',
   'NativeModule vm',
 ]);
 

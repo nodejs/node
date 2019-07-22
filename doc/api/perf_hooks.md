@@ -183,7 +183,7 @@ added: v8.5.0
 * {string}
 
 The type of the performance entry. Currently it may be one of: `'node'`,
-`'mark'`, `'measure'`, `'gc'`, `'function'`, or `'http2'`.
+`'mark'`, `'measure'`, `'gc'`, `'function'`, `'http2'` or `'http'`.
 
 ### performanceEntry.kind
 <!-- YAML
@@ -419,7 +419,7 @@ added: v11.10.0
 * Returns: {Histogram}
 
 Creates a `Histogram` object that samples and reports the event loop delay
-over time.
+over time. The delays will be reported in nanoseconds.
 
 Using a timer to detect approximate event loop delay works because the
 execution of timers is tied specifically to the lifecycle of the libuv

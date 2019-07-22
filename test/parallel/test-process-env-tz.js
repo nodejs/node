@@ -1,5 +1,10 @@
 'use strict';
 
+// Set the locale to a known good value because it affects ICU's date string
+// formatting. Setting LC_ALL needs to happen before the first call to
+// `icu::Locale::getDefault()` because ICU caches the result.
+process.env.LC_ALL = 'C';
+
 const common = require('../common');
 const assert = require('assert');
 

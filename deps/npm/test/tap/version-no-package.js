@@ -1,11 +1,10 @@
 var common = require('../common-tap.js')
 var test = require('tap').test
 var osenv = require('osenv')
-var path = require('path')
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 
-var pkg = path.resolve(__dirname, 'version-no-package')
+var pkg = common.pkg
 
 test('setup', function (t) {
   setup()

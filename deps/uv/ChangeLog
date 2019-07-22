@@ -1,3 +1,57 @@
+2019.07.03, Version 1.30.1 (Stable), 1551969c84c2f546a429dac169c7fdac3e38115e
+
+Changes since version 1.30.0:
+
+* doc: fix incorrect versionchanged (cjihrig)
+
+* test: allow UV_ECONNRESET in tcp_try_write_error (cjihrig)
+
+* unix: add uv_get_constrained_memory() cygwin stub (cjihrig)
+
+* build: fix android cmake build (Ben Noordhuis)
+
+* unix: squelch -Wcast-function-type warning (Ben Noordhuis)
+
+* build: fix compile error with uClibc (zlargon)
+
+
+2019.06.28, Version 1.30.0 (Stable), 365b6f2a0eacda1ff52be8e57ab9381cfddc5dbb
+
+Changes since version 1.29.1:
+
+* darwin: fall back to F_BARRIERFSYNC (Ben Noordhuis)
+
+* darwin: add 32 bit close$NOCANCEL implementation (ken-cunningham-webuse)
+
+* build, core, unix: add support for Haiku (Leorize)
+
+* darwin,linux: more conservative minimum stack size (Ben Noordhuis)
+
+* threadpool: increase UV_THREADPOOL_SIZE limit (Vlad A)
+
+* unix: return actual error from `uv_try_write()` (Anna Henningsen)
+
+* darwin: fix build error with macos 10.10 (Ben Noordhuis)
+
+* unix: make uv_cwd() report UV_ENOBUFS (Ben Noordhuis)
+
+* unix: make uv_fs_read() fill all buffers (Ben Noordhuis)
+
+* test: give hrtime test a custom 10s timeout (Ben Noordhuis)
+
+* fs: fix uv_fs_copyfile if same src and dst (Santiago Gimeno)
+
+* build: add cmake option to skip building tests (Niels Lohmann)
+
+* doc: add link to nodejs.org (Jenil Christo)
+
+* unix: fix a comment typo in signal.c (Evgeny Ermakov)
+
+* unix: remove redundant cast in process.c (gengjiawen)
+
+* doc: fix wrong mutex function prototypes (Leo Chung)
+
+
 2019.05.22, Version 1.29.1 (Stable), d16e6094e1eb3b0b5981ef1dd7e03ec4d466944d
 
 Changes since version 1.29.0:

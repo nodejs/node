@@ -19,6 +19,7 @@ using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Just;
@@ -241,8 +242,10 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       Local<SharedArrayBuffer> shared_array_buffer) override {
     uint32_t i;
     for (i = 0; i < seen_shared_array_buffers_.size(); ++i) {
-      if (seen_shared_array_buffers_[i] == shared_array_buffer)
+      if (PersistentToLocal::Strong(seen_shared_array_buffers_[i]) ==
+          shared_array_buffer) {
         return Just(i);
+      }
     }
 
     auto reference = SharedArrayBufferMetadata::ForSharedArrayBuffer(
@@ -252,7 +255,8 @@ class SerializerDelegate : public ValueSerializer::Delegate {
     if (!reference) {
       return Nothing<uint32_t>();
     }
-    seen_shared_array_buffers_.push_back(shared_array_buffer);
+    seen_shared_array_buffers_.emplace_back(
+      Global<SharedArrayBuffer> { isolate, shared_array_buffer });
     msg_->AddSharedArrayBuffer(reference);
     return Just(i);
   }
@@ -289,7 +293,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   Environment* env_;
   Local<Context> context_;
   Message* msg_;
-  std::vector<Local<SharedArrayBuffer>> seen_shared_array_buffers_;
+  std::vector<Global<SharedArrayBuffer>> seen_shared_array_buffers_;
   std::vector<MessagePort*> ports_;
 
   friend class worker::Message;

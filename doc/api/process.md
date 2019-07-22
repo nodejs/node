@@ -36,6 +36,23 @@ termination, such as calling [`process.exit()`][] or uncaught exceptions.
 The `'beforeExit'` should *not* be used as an alternative to the `'exit'` event
 unless the intention is to schedule additional work.
 
+```js
+process.on('beforeExit', (code) => {
+  console.log('Process beforeExit event with code: ', code);
+});
+
+process.on('exit', (code) => {
+  console.log('Process exit event with code: ', code);
+});
+
+console.log('This message is displayed first.');
+
+// Prints:
+// This message is displayed first.
+// Process beforeExit event with code: 0
+// Process exit event with code: 0
+```
+
 ### Event: 'disconnect'
 <!-- YAML
 added: v0.7.7
@@ -242,7 +259,7 @@ console.log('This will not run.');
 
 #### Warning: Using `'uncaughtException'` correctly
 
-Note that `'uncaughtException'` is a crude mechanism for exception handling
+`'uncaughtException'` is a crude mechanism for exception handling
 intended to be used only as a last resort. The event *should not* be used as
 an equivalent to `On Error Resume Next`. Unhandled exceptions inherently mean
 that an application is in an undefined state. Attempting to resume application
@@ -662,6 +679,7 @@ An example of the possible output looks like:
   variables:
    {
      host_arch: 'x64',
+     napi_build_version: 4,
      node_install_npm: 'true',
      node_prefix: '',
      node_shared_cares: 'false',
@@ -922,7 +940,7 @@ process.emitWarning(myWarning);
 A `TypeError` is thrown if `warning` is anything other than a string or `Error`
 object.
 
-Note that while process warnings use `Error` objects, the process warning
+While process warnings use `Error` objects, the process warning
 mechanism is **not** a replacement for normal error handling mechanisms.
 
 The following additional handling is implemented if the warning `type` is
@@ -1350,7 +1368,7 @@ the group access list, using all groups of which the user is a member. This is
 a privileged operation that requires that the Node.js process either have `root`
 access or the `CAP_SETGID` capability.
 
-Note that care must be taken when dropping privileges:
+Use care when dropping privileges:
 
 ```js
 console.log(process.getgroups());         // [ 0 ]
@@ -1683,6 +1701,8 @@ relied upon to exist.
 added: v11.8.0
 -->
 
+> Stability: 1 - Experimental
+
 * {Object}
 
 `process.report` is an object whose methods are used to generate diagnostic
@@ -1693,6 +1713,8 @@ reports for the current process. Additional documentation is available in the
 <!-- YAML
 added: v11.12.0
 -->
+
+> Stability: 1 - Experimental
 
 * {string}
 
@@ -1709,6 +1731,8 @@ console.log(`Report directory is ${process.report.directory}`);
 added: v11.12.0
 -->
 
+> Stability: 1 - Experimental
+
 * {string}
 
 Filename where the report is written. If set to the empty string, the output
@@ -1724,15 +1748,22 @@ console.log(`Report filename is ${process.report.filename}`);
 added: v11.8.0
 -->
 
-* `err` {Error} A custom error used for reporting the JavaScript stack.
-* Returns: {string}
+> Stability: 1 - Experimental
 
-Returns a JSON-formatted diagnostic report for the running process. The report's
-JavaScript stack trace is taken from `err`, if present.
+* `err` {Error} A custom error used for reporting the JavaScript stack.
+* Returns: {Object}
+
+Returns a JavaScript Object representation of a diagnostic report for the
+running process. The report's JavaScript stack trace is taken from `err`, if
+present.
 
 ```js
 const data = process.report.getReport();
-console.log(data);
+console.log(data.header.nodeJsVersion);
+
+// Similar to process.report.writeReport()
+const fs = require('fs');
+fs.writeFileSync(util.inspect(data), 'my-report.log', 'utf8');
 ```
 
 Additional documentation is available in the [report documentation][].
@@ -1741,6 +1772,8 @@ Additional documentation is available in the [report documentation][].
 <!-- YAML
 added: v11.12.0
 -->
+
+> Stability: 1 - Experimental
 
 * {boolean}
 
@@ -1756,6 +1789,8 @@ console.log(`Report on fatal error: ${process.report.reportOnFatalError}`);
 added: v11.12.0
 -->
 
+> Stability: 1 - Experimental
+
 * {boolean}
 
 If `true`, a diagnostic report is generated when the process receives the
@@ -1770,6 +1805,8 @@ console.log(`Report on signal: ${process.report.reportOnSignal}`);
 added: v11.12.0
 -->
 
+> Stability: 1 - Experimental
+
 * {boolean}
 
 If `true`, a diagnostic report is generated on uncaught exception.
@@ -1782,6 +1819,8 @@ console.log(`Report on exception: ${process.report.reportOnUncaughtException}`);
 <!-- YAML
 added: v11.12.0
 -->
+
+> Stability: 1 - Experimental
 
 * {string}
 
@@ -1796,6 +1835,8 @@ console.log(`Report signal: ${process.report.signal}`);
 <!-- YAML
 added: v11.8.0
 -->
+
+> Stability: 1 - Experimental
 
 * `filename` {string} Name of the file where the report is written. This
   should be a relative path, that will be appended to the directory specified in
@@ -1814,6 +1855,79 @@ process.report.writeReport();
 ```
 
 Additional documentation is available in the [report documentation][].
+
+## process.resourceUsage()
+<!-- YAML
+added: v12.6.0
+-->
+
+* Returns: {Object} the resource usage for the current process. All of these
+  values come from the `uv_getrusage` call which returns
+  a [`uv_rusage_t` struct][uv_rusage_t].
+    * `userCPUTime` {integer} maps to `ru_utime` computed in microseconds.
+      It is the same value as [`process.cpuUsage().user`][process.cpuUsage].
+    * `systemCPUTime` {integer} maps to `ru_stime` computed in microseconds.
+      It is the same value as [`process.cpuUsage().system`][process.cpuUsage].
+    * `maxRSS` {integer} maps to `ru_maxrss` which is the maximum resident set
+      size used in kilobytes.
+    * `sharedMemorySize` {integer} maps to `ru_ixrss` but is not supported by
+      any platform.
+    * `unsharedDataSize` {integer} maps to `ru_idrss` but is not supported by
+      any platform.
+    * `unsharedStackSize` {integer} maps to `ru_isrss` but is not supported by
+      any platform.
+    * `minorPageFault` {integer} maps to `ru_minflt` which is the number of
+      minor page faults for the process, see
+      [this article for more details][wikipedia_minor_fault].
+    * `majorPageFault` {integer} maps to `ru_majflt` which is the number of
+      major page faults for the process, see
+      [this article for more details][wikipedia_major_fault]. This field is not
+      supported on Windows.
+    * `swappedOut` {integer} maps to `ru_nswap` but is not supported by any
+      platform.
+    * `fsRead` {integer} maps to `ru_inblock` which is the number of times the
+      file system had to perform input.
+    * `fsWrite` {integer} maps to `ru_oublock` which is the number of times the
+      file system had to perform output.
+    * `ipcSent` {integer} maps to `ru_msgsnd` but is not supported by any
+      platform.
+    * `ipcReceived` {integer} maps to `ru_msgrcv` but is not supported by any
+      platform.
+    * `signalsCount` {integer} maps to `ru_nsignals` but is not supported by any
+      platform.
+    * `voluntaryContextSwitches` {integer} maps to `ru_nvcsw` which is the
+      number of times a CPU context switch resulted due to a process voluntarily
+      giving up the processor before its time slice was completed (usually to
+      await availability of a resource). This field is not supported on Windows.
+    * `involuntaryContextSwitches` {integer} maps to `ru_nivcsw` which is the
+      number of times a CPU context switch resulted due to a higher priority
+      process becoming runnable or because the current process exceeded its
+      time slice. This field is not supported on Windows.
+
+```js
+console.log(process.resourceUsage());
+/*
+  Will output:
+  {
+    userCPUTime: 82872,
+    systemCPUTime: 4143,
+    maxRSS: 33164,
+    sharedMemorySize: 0,
+    unsharedDataSize: 0,
+    unsharedStackSize: 0,
+    minorPageFault: 2469,
+    majorPageFault: 0,
+    swappedOut: 0,
+    fsRead: 0,
+    fsWrite: 8,
+    ipcSent: 0,
+    ipcReceived: 0,
+    signalsCount: 0,
+    voluntaryContextSwitches: 79,
+    involuntaryContextSwitches: 1
+  }
+*/
+```
 
 ## process.send(message[, sendHandle[, options]][, callback])
 <!-- YAML
@@ -2329,6 +2443,10 @@ cases:
 [Writable]: stream.html#stream_writable_streams
 [debugger]: debugger.html
 [note on process I/O]: process.html#process_a_note_on_process_i_o
+[process.cpuUsage]: #process_process_cpuusage_previousvalue
 [process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning
 [report documentation]: report.html
+[uv_rusage_t]: http://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
+[wikipedia_minor_fault]: https://en.wikipedia.org/wiki/Page_fault#Minor
+[wikipedia_major_fault]: https://en.wikipedia.org/wiki/Page_fault#Major

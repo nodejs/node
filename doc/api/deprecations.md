@@ -26,7 +26,7 @@ are explicitly labeled as such in the
 
 A Runtime deprecation will, by default, generate a process warning that will
 be printed to `stderr` the first time the deprecated API is used. When the
-`--throw-deprecation` command-line flag is used, a Runtime deprecation will
+[`--throw-deprecation`][] command-line flag is used, a Runtime deprecation will
 cause an error to be thrown.
 
 An End-of-Life deprecation is used when functionality is or will soon be removed
@@ -339,7 +339,7 @@ changes:
 Type: End-of-Life
 
 Calling an asynchronous function without a callback throws a `TypeError`
-in Node.js 10.0.0 onwards. (See <https://github.com/nodejs/node/pull/12562>.)
+in Node.js 10.0.0 onwards. See <https://github.com/nodejs/node/pull/12562>.
 
 <a id="DEP0014"></a>
 ### DEP0014: fs.read legacy String interface
@@ -1754,8 +1754,8 @@ changes:
 Type: End-of-Life
 
 The AsyncHooks Sensitive API was never documented and had various minor issues.
-(See <https://github.com/nodejs/node/issues/15572>.) Use the `AsyncResource`
-API instead.
+Use the `AsyncResource` API instead. See
+<https://github.com/nodejs/node/issues/15572>.
 
 <a id="DEP0086"></a>
 ### DEP0086: Remove runInAsyncIdScope
@@ -1774,8 +1774,7 @@ changes:
 Type: End-of-Life
 
 `runInAsyncIdScope` doesn't emit the `'before'` or `'after'` event and can thus
-cause a lot of issues. See <https://github.com/nodejs/node/issues/14328> for
-more details.
+cause a lot of issues. See <https://github.com/nodejs/node/issues/14328>.
 
 <a id="DEP0089"></a>
 ### DEP0089: require('assert')
@@ -1937,7 +1936,7 @@ to unrecoverable errors.
 
 Use [`asyncResource.runInAsyncScope()`][] API instead which provides a much
 safer, and more convenient, alternative. See
-<https://github.com/nodejs/node/pull/18513> for more details.
+<https://github.com/nodejs/node/pull/18513>.
 
 <a id="DEP0099"></a>
 ### DEP0099: async context-unaware node::MakeCallback C++ APIs
@@ -2484,11 +2483,11 @@ The legacy HTTP parser, used by default in versions of Node.js prior to 12.0.0,
 is deprecated. This deprecation applies to users of the
 [`--http-parser=legacy`][] command-line flag.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: worker.terminate() with callback
+<a id="DEP0132"></a>
+### DEP0132: worker.terminate() with callback
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.5.0
     pr-url: https://github.com/nodejs/node/pull/28021
     description: Runtime deprecation.
 -->
@@ -2500,6 +2499,7 @@ Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
+[`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer

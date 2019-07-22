@@ -9,7 +9,7 @@ var osenv = require('osenv')
 
 var requireInject = require('require-inject')
 
-var PKG_DIR = path.resolve(__dirname, 'update-examples')
+var PKG_DIR = common.pkg
 var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
 
 // ** constant templates for mocks **

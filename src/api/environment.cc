@@ -7,10 +7,6 @@
 #include "node_v8_platform-inl.h"
 #include "uv.h"
 
-#ifdef NODE_ENABLE_VTUNE_PROFILING
-#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
-#endif
-
 namespace node {
 using errors::TryCatchScope;
 using v8::Array;
@@ -21,7 +17,6 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::Message;
 using v8::MicrotasksPolicy;
 using v8::Null;
 using v8::Object;
@@ -179,17 +174,16 @@ void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
 }
 
 void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
-  const uint64_t total_memory = uv_get_total_memory();
+  const uint64_t constrained_memory = uv_get_constrained_memory();
+  const uint64_t total_memory = constrained_memory > 0 ?
+      std::min(uv_get_total_memory(), constrained_memory) :
+      uv_get_total_memory();
   if (total_memory > 0) {
     // V8 defaults to 700MB or 1.4GB on 32 and 64 bit platforms respectively.
     // This default is based on browser use-cases. Tell V8 to configure the
     // heap based on the actual physical memory.
     params->constraints.ConfigureDefaults(total_memory, 0);
   }
-
-#ifdef NODE_ENABLE_VTUNE_PROFILING
-  params->code_event_handler = vTune::GetVtuneCodeEventHandler();
-#endif
 }
 
 void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat) {

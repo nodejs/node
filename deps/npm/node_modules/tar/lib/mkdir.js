@@ -69,7 +69,7 @@ const mkdir = module.exports = (dir, opt, cb) => {
     return done()
 
   if (dir === cwd)
-    return fs.lstat(dir, (er, st) => {
+    return fs.stat(dir, (er, st) => {
       if (er || !st.isDirectory())
         er = new CwdError(dir, er && er.code || 'ENOTDIR')
       done(er)
@@ -154,7 +154,7 @@ const mkdirSync = module.exports.sync = (dir, opt) => {
     let ok = false
     let code = 'ENOTDIR'
     try {
-      ok = fs.lstatSync(dir).isDirectory()
+      ok = fs.statSync(dir).isDirectory()
     } catch (er) {
       code = er.code
     } finally {

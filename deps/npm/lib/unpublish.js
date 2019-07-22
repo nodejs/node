@@ -99,7 +99,7 @@ function unpublish (args, cb) {
   }).then(
     ret => {
       if (!opts.silent && opts.loglevel !== 'silent') {
-        output(`-${spec.name}${
+        output(`- ${spec.name}${
           spec.type === 'version' ? `@${spec.rawSpec}` : ''
         }`)
       }

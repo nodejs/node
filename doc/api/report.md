@@ -463,12 +463,15 @@ try {
 // Any other code
 ```
 
-The content of the diagnostic report can be returned as a JSON-compatible object
+The content of the diagnostic report can be returned as a JavaScript Object
 via an API call from a JavaScript application:
 
 ```js
 const report = process.report.getReport();
-console.log(report);
+console.log(typeof report === 'object'); // true
+
+// Similar to process.report.writeReport() output
+console.log(JSON.stringify(report, null, 2));
 ```
 
 This function takes an optional additional argument `err` - an `Error` object
@@ -476,7 +479,7 @@ that will be used as the context for the JavaScript stack printed in the report.
 
 ```js
 const report = process.report.getReport(new Error('custom error'));
-console.log(report);
+console.log(typeof report === 'object'); // true
 ```
 
 The API versions are useful when inspecting the runtime state from within
@@ -498,7 +501,7 @@ Node.js report completed
 >
 ```
 
-When a report is triggered, start and end messages are issued to stderr
+When a report is written, start and end messages are issued to stderr
 and the filename of the report is returned to the caller. The default filename
 includes the date, time, PID and a sequence number. The sequence number helps
 in associating the report dump with the runtime state if generated multiple

@@ -5,6 +5,7 @@
 "use strict";
 
 const xmlEscape = require("../xml-escape");
+const path = require("path");
 
 //------------------------------------------------------------------------------
 // Helper Functions
@@ -24,6 +25,16 @@ function getMessageType(message) {
 
 }
 
+/**
+ * Returns a full file path without extension
+ * @param {string} filePath input file path
+ * @returns {string} file path without extension
+ * @private
+ */
+function pathWithoutExt(filePath) {
+    return path.posix.join(path.posix.dirname(filePath), path.basename(filePath, path.extname(filePath)));
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -38,13 +49,14 @@ module.exports = function(results) {
     results.forEach(result => {
 
         const messages = result.messages;
+        const classname = pathWithoutExt(result.filePath);
 
         if (messages.length > 0) {
             output += `<testsuite package="org.eslint" time="0" tests="${messages.length}" errors="${messages.length}" name="${result.filePath}">\n`;
             messages.forEach(message => {
                 const type = message.fatal ? "error" : "failure";
 
-                output += `<testcase time="0" name="org.eslint.${message.ruleId || "unknown"}">`;
+                output += `<testcase time="0" name="org.eslint.${message.ruleId || "unknown"}" classname="${classname}">`;
                 output += `<${type} message="${xmlEscape(message.message || "")}">`;
                 output += "<![CDATA[";
                 output += `line ${message.line || 0}, col `;
@@ -58,7 +70,7 @@ module.exports = function(results) {
             output += "</testsuite>\n";
         } else {
             output += `<testsuite package="org.eslint" time="0" tests="1" errors="0" name="${result.filePath}">\n`;
-            output += `<testcase time="0" name="${result.filePath}" />\n`;
+            output += `<testcase time="0" name="${result.filePath}" classname="${classname}" />\n`;
             output += "</testsuite>\n";
         }
 

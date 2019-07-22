@@ -37,7 +37,7 @@
 #include <sys/sem.h>
 #endif
 
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
 #include <gnu/libc-version.h>  /* gnu_get_libc_version() */
 #endif
 
@@ -178,8 +178,21 @@ static size_t thread_stack_size(void) {
   if (lim.rlim_cur != RLIM_INFINITY) {
     /* pthread_attr_setstacksize() expects page-aligned values. */
     lim.rlim_cur -= lim.rlim_cur % (rlim_t) getpagesize();
-    if (lim.rlim_cur >= PTHREAD_STACK_MIN)
-      return lim.rlim_cur;
+
+    /* Musl's PTHREAD_STACK_MIN is 2 KB on all architectures, which is
+     * too small to safely receive signals on.
+     *
+     * Musl's PTHREAD_STACK_MIN + MINSIGSTKSZ == 8192 on arm64 (which has
+     * the largest MINSIGSTKSZ of the architectures that musl supports) so
+     * let's use that as a lower bound.
+     *
+     * We use a hardcoded value because PTHREAD_STACK_MIN + MINSIGSTKSZ
+     * is between 28 and 133 KB when compiling against glibc, depending
+     * on the architecture.
+     */
+    if (lim.rlim_cur >= 8192)
+      if (lim.rlim_cur >= PTHREAD_STACK_MIN)
+        return lim.rlim_cur;
   }
 #endif
 
@@ -209,6 +222,12 @@ int uv_thread_create_ex(uv_thread_t* tid,
   size_t pagesize;
   size_t stack_size;
 
+  /* Used to squelch a -Wcast-function-type warning. */
+  union {
+    void (*in)(void*);
+    void* (*out)(void*);
+  } f;
+
   stack_size =
       params->flags & UV_THREAD_HAS_STACK_SIZE ? params->stack_size : 0;
 
@@ -235,7 +254,8 @@ int uv_thread_create_ex(uv_thread_t* tid,
       abort();
   }
 
-  err = pthread_create(tid, attr, (void*(*)(void*)) entry, arg);
+  f.in = entry;
+  err = pthread_create(tid, attr, f.out, arg);
 
   if (attr != NULL)
     pthread_attr_destroy(attr);
@@ -461,7 +481,7 @@ int uv_sem_trywait(uv_sem_t* sem) {
 
 #else /* !(defined(__APPLE__) && defined(__MACH__)) */
 
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
 
 /* Hack around https://sourceware.org/bugzilla/show_bug.cgi?id=12674
  * by providing a custom implementation for glibc < 2.21 in terms of other
@@ -497,7 +517,8 @@ typedef struct uv_semaphore_s {
   unsigned int value;
 } uv_semaphore_t;
 
-#if defined(__GLIBC__) || platform_needs_custom_semaphore
+#if (defined(__GLIBC__) && !defined(__UCLIBC__)) || \
+    platform_needs_custom_semaphore
 STATIC_ASSERT(sizeof(uv_sem_t) >= sizeof(uv_semaphore_t*));
 #endif
 
@@ -626,7 +647,7 @@ static int uv__sem_trywait(uv_sem_t* sem) {
 }
 
 int uv_sem_init(uv_sem_t* sem, unsigned int value) {
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
   uv_once(&glibc_version_check_once, glibc_version_check);
 #endif
 

@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "April 2019" "" ""
+.TH "PACKAGE\.JSON" "5" "July 2019" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -791,7 +791,8 @@ If we define a package\.json like this:
 we can obtain \fBawesome\-web\-framework\-1\.0\.0\.tgz\fP file by running \fBnpm pack\fP\|\.
 This file contains the dependencies \fBrenderized\fP and \fBsuper\-streams\fP which
 can be installed in a new project by executing \fBnpm install
-awesome\-web\-framework\-1\.0\.0\.tgz\fP\|\.
+awesome\-web\-framework\-1\.0\.0\.tgz\fP\|\.  Note that the package names do not include
+any versions, as that information is specified in \fBdependencies\fP\|\.
 .P
 If this is spelled \fB"bundleDependencies"\fP, then that is also honored\.
 .SH optionalDependencies

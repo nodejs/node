@@ -29,12 +29,14 @@ from __future__ import print_function
 
 import test
 import os
-from os.path import join, exists, basename, isdir
+from os.path import join, exists, basename, dirname, isdir
 import re
+import sys
 import utils
 from functools import reduce
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
+PTY_HELPER = join(dirname(__file__), 'pty_helper.py')
 
 class TTYTestCase(test.TestCase):
 
@@ -108,16 +110,18 @@ class TTYTestCase(test.TestCase):
           + open(self.expected).read())
 
   def RunCommand(self, command, env):
-    input_arg = None
+    fd = None
     if self.input is not None and exists(self.input):
-      input_arg = open(self.input).read()
+      fd = os.open(self.input, os.O_RDONLY)
     full_command = self.context.processor(command)
+    full_command = [sys.executable, PTY_HELPER] + full_command
     output = test.Execute(full_command,
                      self.context,
                      self.context.GetTimeout(self.mode),
                      env,
-                     faketty=True,
-                     input=input_arg)
+                     stdin=fd)
+    if fd is not None:
+      os.close(fd)
     return test.TestOutput(self,
                       full_command,
                       output,

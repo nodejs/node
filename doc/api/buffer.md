@@ -250,7 +250,7 @@ console.log(buf2);
 // Prints: <Buffer 88 13 70 17>
 ```
 
-Note that when creating a `Buffer` using a [`TypedArray`][]'s `.buffer`, it is
+When creating a `Buffer` using a [`TypedArray`][]'s `.buffer`, it is
 possible to use only a portion of the underlying [`ArrayBuffer`][] by passing in
 `byteOffset` and `length` parameters.
 
@@ -597,7 +597,7 @@ console.log(buf);
 
 A `TypeError` will be thrown if `size` is not a number.
 
-Note that the `Buffer` module pre-allocates an internal `Buffer` instance of
+The `Buffer` module pre-allocates an internal `Buffer` instance of
 size [`Buffer.poolSize`][] that is used as a pool for the fast allocation of new
 `Buffer` instances created using [`Buffer.allocUnsafe()`][] and the deprecated
 `new Buffer(size)` constructor only when `size` is less than or equal to
@@ -950,6 +950,20 @@ added: v0.9.1
 
 Returns `true` if `encoding` contains a supported character encoding, or `false`
 otherwise.
+
+```js
+console.log(Buffer.isEncoding('utf-8'));
+// Prints: true
+
+console.log(Buffer.isEncoding('hex'));
+// Prints: true
+
+console.log(Buffer.isEncoding('utf/8'));
+// Prints: false
+
+console.log(Buffer.isEncoding(''));
+// Prints: false
+```
 
 ### Class Property: Buffer.poolSize
 <!-- YAML
@@ -1501,7 +1515,7 @@ added: v0.1.90
 
 * {integer}
 
-Returns the amount of memory allocated for `buf` in bytes. Note that this
+Returns the amount of memory allocated for `buf` in bytes. This
 does not necessarily reflect the amount of "usable" data within `buf`.
 
 ```js
@@ -2087,7 +2101,7 @@ buf2.swap64();
 // Throws ERR_INVALID_BUFFER_SIZE.
 ```
 
-Note that JavaScript cannot encode 64-bit integers. This method is intended
+JavaScript cannot encode 64-bit integers. This method is intended
 for working with 64-bit floats.
 
 ### buf.toJSON()
@@ -2623,7 +2637,7 @@ Returns the maximum number of bytes that will be returned when
 `buf.inspect()` is called. This can be overridden by user modules. See
 [`util.inspect()`][] for more details on `buf.inspect()` behavior.
 
-Note that this is a property on the `buffer` module returned by
+This is a property on the `buffer` module returned by
 `require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
 
 ## buffer.kMaxLength
@@ -2635,7 +2649,7 @@ added: v3.0.0
 
 An alias for [`buffer.constants.MAX_LENGTH`][].
 
-Note that this is a property on the `buffer` module returned by
+This is a property on the `buffer` module returned by
 `require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
 
 ## buffer.transcode(source, fromEnc, toEnc)
@@ -2675,7 +2689,7 @@ console.log(newBuf.toString('ascii'));
 Because the Euro (`€`) sign is not representable in US-ASCII, it is replaced
 with `?` in the transcoded `Buffer`.
 
-Note that this is a property on the `buffer` module returned by
+This is a property on the `buffer` module returned by
 `require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
 
 ## Class: SlowBuffer
@@ -2753,7 +2767,7 @@ console.log(buf);
 added: v8.2.0
 -->
 
-Note that `buffer.constants` is a property on the `buffer` module returned by
+`buffer.constants` is a property on the `buffer` module returned by
 `require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
 
 ### buffer.constants.MAX_LENGTH

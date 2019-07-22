@@ -21,6 +21,14 @@ common.expectWarning('ExperimentalWarning',
   assert.deepStrictEqual(helper.findReports(process.pid, process.cwd()), []);
 }
 
+{
+  // Test with an error with one line stack
+  const error = new Error();
+  error.stack = 'only one line';
+  helper.validateContent(process.report.getReport(error));
+  assert.deepStrictEqual(helper.findReports(process.pid, process.cwd()), []);
+}
+
 // Test with an invalid error argument.
 [null, 1, Symbol(), function() {}, 'foo'].forEach((error) => {
   common.expectsError(() => {

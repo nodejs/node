@@ -105,6 +105,7 @@ _UpgradeReport_Files/
 # coverage related
 /gcovr
 /build
+/coverage
 
 # === Rules for XCode artifacts ===
 *.xcodeproj

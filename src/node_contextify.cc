@@ -66,6 +66,7 @@ using v8::PropertyHandlerFlags;
 using v8::Script;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
+using v8::ScriptOrModule;
 using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
@@ -116,6 +117,19 @@ ContextifyContext::ContextifyContext(
 
   context_.Reset(env->isolate(), v8_context.ToLocalChecked());
   context_.SetWeak(this, WeakCallback, WeakCallbackType::kParameter);
+  env->AddCleanupHook(CleanupHook, this);
+}
+
+
+ContextifyContext::~ContextifyContext() {
+  env()->RemoveCleanupHook(CleanupHook, this);
+}
+
+
+void ContextifyContext::CleanupHook(void* arg) {
+  ContextifyContext* self = static_cast<ContextifyContext*>(arg);
+  self->context_.Reset();
+  delete self;
 }
 
 
@@ -258,7 +272,7 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   options.allow_code_gen_wasm = args[4].As<Boolean>();
 
   TryCatchScope try_catch(env);
-  ContextifyContext* context = new ContextifyContext(env, sandbox, options);
+  auto context_ptr = std::make_unique<ContextifyContext>(env, sandbox, options);
 
   if (try_catch.HasCaught()) {
     if (!try_catch.HasTerminated())
@@ -266,13 +280,13 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (context->context().IsEmpty())
+  if (context_ptr->context().IsEmpty())
     return;
 
   sandbox->SetPrivate(
       env->context(),
       env->contextify_context_private_symbol(),
-      External::New(env->isolate(), context));
+      External::New(env->isolate(), context_ptr.release()));
 }
 
 
@@ -317,15 +331,6 @@ void ContextifyContext::WeakCallback(
     const WeakCallbackInfo<ContextifyContext>& data) {
   ContextifyContext* context = data.GetParameter();
   delete context;
-}
-
-void ContextifyContext::WeakCallbackCompileFn(
-    const WeakCallbackInfo<CompileFnEntry>& data) {
-  CompileFnEntry* entry = data.GetParameter();
-  if (entry->env->compile_fn_entries.erase(entry) != 0) {
-    entry->env->id_to_function_map.erase(entry->id);
-    delete entry;
-  }
 }
 
 // static
@@ -1131,9 +1136,11 @@ void ContextifyContext::CompileFunction(
     }
   }
 
+  Local<ScriptOrModule> script;
   MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunctionInContext(
       parsing_context, &source, params.size(), params.data(),
-      context_extensions.size(), context_extensions.data(), options);
+      context_extensions.size(), context_extensions.data(), options,
+      v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason, &script);
 
   if (maybe_fn.IsEmpty()) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
@@ -1143,13 +1150,21 @@ void ContextifyContext::CompileFunction(
     return;
   }
   Local<Function> fn = maybe_fn.ToLocalChecked();
-  env->id_to_function_map.emplace(std::piecewise_construct,
-                                  std::make_tuple(id),
-                                  std::make_tuple(isolate, fn));
-  CompileFnEntry* gc_entry = new CompileFnEntry(env, id);
-  env->id_to_function_map[id].SetWeak(gc_entry,
-      WeakCallbackCompileFn,
-      v8::WeakCallbackType::kParameter);
+
+  Local<Object> cache_key;
+  if (!env->compiled_fn_entry_template()->NewInstance(
+           context).ToLocal(&cache_key)) {
+    return;
+  }
+  CompiledFnEntry* entry = new CompiledFnEntry(env, cache_key, id, script);
+  env->id_to_function_map.emplace(id, entry);
+
+  Local<Object> result = Object::New(isolate);
+  if (result->Set(parsing_context, env->function_string(), fn).IsNothing())
+    return;
+  if (result->Set(parsing_context, env->cache_key_string(), cache_key)
+          .IsNothing())
+    return;
 
   if (produce_cached_data) {
     const std::unique_ptr<ScriptCompiler::CachedData> cached_data(
@@ -1160,18 +1175,43 @@ void ContextifyContext::CompileFunction(
           env,
           reinterpret_cast<const char*>(cached_data->data),
           cached_data->length);
-      if (fn->Set(
-          parsing_context,
-          env->cached_data_string(),
-          buf.ToLocalChecked()).IsNothing()) return;
+      if (result
+              ->Set(parsing_context,
+                    env->cached_data_string(),
+                    buf.ToLocalChecked())
+              .IsNothing())
+        return;
     }
-    if (fn->Set(
-        parsing_context,
-        env->cached_data_produced_string(),
-        Boolean::New(isolate, cached_data_produced)).IsNothing()) return;
+    if (result
+            ->Set(parsing_context,
+                  env->cached_data_produced_string(),
+                  Boolean::New(isolate, cached_data_produced))
+            .IsNothing())
+      return;
   }
 
-  args.GetReturnValue().Set(fn);
+  args.GetReturnValue().Set(result);
+}
+
+void CompiledFnEntry::WeakCallback(
+    const WeakCallbackInfo<CompiledFnEntry>& data) {
+  CompiledFnEntry* entry = data.GetParameter();
+  delete entry;
+}
+
+CompiledFnEntry::CompiledFnEntry(Environment* env,
+                                 Local<Object> object,
+                                 uint32_t id,
+                                 Local<ScriptOrModule> script)
+    : BaseObject(env, object),
+      id_(id),
+      script_(env->isolate(), script) {
+  script_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+}
+
+CompiledFnEntry::~CompiledFnEntry() {
+  env()->id_to_function_map.erase(id_);
+  script_.ClearWeak();
 }
 
 static void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
@@ -1202,6 +1242,14 @@ void Initialize(Local<Object> target,
   // Used in tests.
   env->SetMethodNoSideEffect(
       target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
+
+  {
+    Local<FunctionTemplate> tpl = FunctionTemplate::New(env->isolate());
+    tpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "CompiledFnEntry"));
+    tpl->InstanceTemplate()->SetInternalFieldCount(1);
+
+    env->set_compiled_fn_entry_template(tpl->InstanceTemplate());
+  }
 }
 
 }  // namespace contextify

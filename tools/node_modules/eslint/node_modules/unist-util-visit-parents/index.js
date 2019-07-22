@@ -2,7 +2,7 @@
 
 module.exports = visitParents
 
-var is = require('unist-util-is')
+var convert = require('unist-util-is/convert')
 
 var CONTINUE = true
 var SKIP = 'skip'
@@ -13,11 +13,15 @@ visitParents.SKIP = SKIP
 visitParents.EXIT = EXIT
 
 function visitParents(tree, test, visitor, reverse) {
+  var is
+
   if (typeof test === 'function' && typeof visitor !== 'function') {
     reverse = visitor
     visitor = test
     test = null
   }
+
+  is = convert(test)
 
   one(tree, null, [])
 
@@ -26,7 +30,7 @@ function visitParents(tree, test, visitor, reverse) {
     var result = []
     var subresult
 
-    if (!test || is(test, node, index, parents[parents.length - 1] || null)) {
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
       result = toResult(visitor(node, parents))
 
       if (result[0] === EXIT) {

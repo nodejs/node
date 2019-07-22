@@ -11,8 +11,10 @@
 
 <h1><a href="../cli/npm-audit.html">npm-audit</a></h1> <p>Run a security audit</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm audit [--json|--parseable]
-npm audit fix [--force|--package-lock-only|--dry-run|--production|--only=dev]</code></pre><h2 id="examples">EXAMPLES</h2>
+<pre><code>npm audit [--json|--parseable|--audit-level=(low|moderate|high|critical)]
+npm audit fix [--force|--package-lock-only|--dry-run]
+
+common options: [--production] [--only=(dev|prod)]</code></pre><h2 id="examples">EXAMPLES</h2>
 <p>Scan your project for vulnerabilities and automatically install any compatible
 updates to vulnerable dependencies:</p>
 <pre><code>$ npm audit fix</code></pre><p>Run <code>audit fix</code> without modifying <code>node_modules</code>, but still updating the
@@ -29,7 +31,8 @@ anything:</p>
 future reuse in scripting or command line post processing, like for example, selecting
 some of the columns printed:</p>
 <pre><code>$ npm audit --parseable</code></pre><p>To parse columns, you can use for example <code>awk</code>, and just print some of them:</p>
-<pre><code>$ npm audit --parseable | awk -F $&#39;\t&#39; &#39;{print $1,$4}&#39;</code></pre><h2 id="description">DESCRIPTION</h2>
+<pre><code>$ npm audit --parseable | awk -F $&#39;\t&#39; &#39;{print $1,$4}&#39;</code></pre><p>Fail an audit only if the results include a vulnerability with a level of moderate or higher:</p>
+<pre><code>$ npm audit --audit-level=moderate</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>The audit command submits a description of the dependencies configured in
 your project to your default registry and asks for a report of known
 vulnerabilities. The report returned includes instructions on how to act on
@@ -41,6 +44,11 @@ will require manual intervention or review. Also note that since <code>npm audit
 runs a full-fledged <code>npm install</code> under the hood, all configs that apply to the
 installer will also apply to <code>npm install</code> -- so things like <code>npm audit fix
 --package-lock-only</code> will work as expected.</p>
+<p>By default, the audit command will exit with a non-zero code if any vulnerability
+is found. It may be useful in CI environments to include the <code>--audit-level</code> parameter
+to specify the minimum vulnerability level that will cause the command to fail. This
+option does not filter the report output, it simply changes the command&#39;s failure
+threshold.</p>
 <h2 id="content-submitted">CONTENT SUBMITTED</h2>
 <ul>
 <li>npm_version</li>
@@ -86,4 +94,4 @@ configuration setting.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-audit &mdash; npm@6.9.0</p>
+<p id="footer">npm-audit &mdash; npm@6.10.0</p>

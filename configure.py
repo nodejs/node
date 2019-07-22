@@ -34,6 +34,7 @@ import nodedownload
 # imports in tools/
 sys.path.insert(0, 'tools')
 import getmoduleversion
+import getnapibuildversion
 from gyp_node import run_gyp
 
 # imports in deps/v8/tools/node
@@ -129,13 +130,6 @@ parser.add_option("--partly-static",
     dest="partly_static",
     help="Generate an executable with libgcc and libstdc++ libraries. This "
          "will not work on OSX when using the default compilation environment")
-
-parser.add_option("--enable-vtune-profiling",
-    action="store_true",
-    dest="enable_vtune_profiling",
-    help="Enable profiling support for Intel VTune profiler to profile "
-         "JavaScript code executed in nodejs. This feature is only available "
-         "for x32, x86, and x64 architectures.")
 
 parser.add_option("--enable-pgo-generate",
     action="store_true",
@@ -406,7 +400,7 @@ parser.add_option('--use-largepages',
     action='store_true',
     dest='node_use_large_pages',
     help='build with Large Pages support. This feature is supported only on Linux kernel' +
-         '>= 2.6.38 with Transparent Huge pages enabled')
+         '>= 2.6.38 with Transparent Huge pages enabled and FreeBSD')
 
 intl_optgroup.add_option('--with-intl',
     action='store',
@@ -513,11 +507,6 @@ parser.add_option('--without-siphash',
     action='store_true',
     dest='without_siphash',
     help=optparse.SUPPRESS_HELP)
-
-parser.add_option('--code-cache-path',
-    action='store',
-    dest='code_cache_path',
-    help='optparse.SUPPRESS_HELP')
 
 # End dummy list.
 
@@ -721,7 +710,7 @@ def get_nasm_version(asm):
                             stdout=subprocess.PIPE)
   except OSError:
     warn('''No acceptable ASM compiler found!
-         Please make sure you have installed NASM from http://www.nasm.us
+         Please make sure you have installed NASM from https://www.nasm.us
          and refer BUILDING.md.''')
     return '0'
 
@@ -996,15 +985,6 @@ def configure_node(o):
   if flavor == 'aix':
     o['variables']['node_target_type'] = 'static_library'
 
-  if target_arch in ('x86', 'x64', 'ia32', 'x32'):
-    o['variables']['node_enable_v8_vtunejit'] = b(options.enable_vtune_profiling)
-  elif options.enable_vtune_profiling:
-    raise Exception(
-       'The VTune profiler for JavaScript is only supported on x32, x86, and x64 '
-       'architectures.')
-  else:
-    o['variables']['node_enable_v8_vtunejit'] = 'false'
-
   if flavor != 'linux' and (options.enable_pgo_generate or options.enable_pgo_use):
     raise Exception(
       'The pgo option is supported only on linux.')
@@ -1059,22 +1039,23 @@ def configure_node(o):
   else:
     o['variables']['node_use_dtrace'] = 'false'
 
-  if options.node_use_large_pages and flavor != 'linux':
+  if options.node_use_large_pages and not flavor in ('linux', 'freebsd'):
     raise Exception(
       'Large pages are supported only on Linux Systems.')
-  if options.node_use_large_pages and flavor == 'linux':
+  if options.node_use_large_pages and flavor in ('linux', 'freebsd'):
     if options.shared or options.enable_static:
       raise Exception(
         'Large pages are supported only while creating node executable.')
     if target_arch!="x64":
       raise Exception(
         'Large pages are supported only x64 platform.')
-    # Example full version string: 2.6.32-696.28.1.el6.x86_64
-    FULL_KERNEL_VERSION=os.uname()[2]
-    KERNEL_VERSION=FULL_KERNEL_VERSION.split('-')[0]
-    if KERNEL_VERSION < "2.6.38":
-      raise Exception(
-        'Large pages need Linux kernel version >= 2.6.38')
+    if flavor == 'linux':
+      # Example full version string: 2.6.32-696.28.1.el6.x86_64
+      FULL_KERNEL_VERSION=os.uname()[2]
+      KERNEL_VERSION=FULL_KERNEL_VERSION.split('-')[0]
+      if KERNEL_VERSION < "2.6.38" and flavor == 'linux':
+        raise Exception(
+          'Large pages need Linux kernel version >= 2.6.38')
   o['variables']['node_use_large_pages'] = b(options.node_use_large_pages)
 
   if options.no_ifaddrs:
@@ -1115,7 +1096,7 @@ def configure_node(o):
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
   # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
   if o['variables']['want_separate_host_toolset'] == 0:
-    o['variables']['node_code_cache_path'] = 'yes'
+    o['variables']['node_code_cache'] = 'yes' # For testing
   o['variables']['node_shared'] = b(options.shared)
   node_module_version = getmoduleversion.get_version()
 
@@ -1146,6 +1127,10 @@ def configure_node(o):
     o['variables']['node_target_type'] = 'static_library'
   else:
     o['variables']['node_target_type'] = 'executable'
+
+def configure_napi(output):
+  version = getnapibuildversion.get_napi_version()
+  output['variables']['napi_build_version'] = version
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
@@ -1626,6 +1611,7 @@ if (options.dest_os):
 flavor = GetFlavor(flavor_params)
 
 configure_node(output)
+configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)

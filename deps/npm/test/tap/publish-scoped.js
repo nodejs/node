@@ -7,7 +7,7 @@ var rimraf = require('rimraf')
 var common = require('../common-tap')
 var mr = require('npm-registry-mock')
 
-var pkg = path.join(__dirname, 'prepublish_package')
+var pkg = common.pkg
 
 var server
 
@@ -42,9 +42,9 @@ test('npm publish should honor scoping', function (t) {
     'progress=false',
     'cache=' + path.join(pkg, 'cache'),
     'registry=http://nonexistent.lvh.me',
-    '//localhost:1337/:username=username',
-    '//localhost:1337/:_password=' + Buffer.from('password').toString('base64'),
-    '//localhost:1337/:email=' + 'ogd@aoaioxxysz.net',
+    '//localhost:' + common.port + '/:username=username',
+    '//localhost:' + common.port + '/:_password=' + Buffer.from('password').toString('base64'),
+    '//localhost:' + common.port + '/:email=' + 'ogd@aoaioxxysz.net',
     '@bigco:registry=' + common.registry
   ]
   var configFile = path.join(pkg, '.npmrc')

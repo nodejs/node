@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, 'install-link-scripts')
+var pkg = common.pkg
 var tmp = path.join(pkg, 'tmp')
 var dep = path.join(pkg, 'dep')
 

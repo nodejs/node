@@ -11,6 +11,23 @@
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Get location should be reported by AST node.
+ *
+ * @param {ASTNode} node AST Node.
+ * @returns {Location} Location information.
+ */
+function getLocation(node) {
+    return {
+        start: node.params[0].loc.start,
+        end: node.params[node.params.length - 1].loc.end
+    };
+}
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -102,6 +119,7 @@ module.exports = {
                     context.report({
                         node,
                         messageId: "unexpectedParensInline",
+                        loc: getLocation(node),
                         fix: fixParamsWithParenthesis
                     });
                 }
@@ -116,6 +134,7 @@ module.exports = {
                     context.report({
                         node,
                         messageId: "expectedParensBlock",
+                        loc: getLocation(node),
                         fix(fixer) {
                             return fixer.replaceText(firstTokenOfParam, `(${firstTokenOfParam.value})`);
                         }
@@ -135,6 +154,7 @@ module.exports = {
                     context.report({
                         node,
                         messageId: "unexpectedParens",
+                        loc: getLocation(node),
                         fix: fixParamsWithParenthesis
                     });
                 }
@@ -149,6 +169,7 @@ module.exports = {
                     context.report({
                         node,
                         messageId: "expectedParens",
+                        loc: getLocation(node),
                         fix(fixer) {
                             return fixer.replaceText(firstTokenOfParam, `(${firstTokenOfParam.value})`);
                         }

@@ -23,7 +23,7 @@ class NeverEndReadable extends Readable {
   dest.on('unpipe', common.mustCall());
   src.pipe(dest);
   setImmediate(() => {
-    assert.strictEqual(src._readableState.pipesCount, 0);
+    assert.strictEqual(src._readableState.pipes.length, 0);
   });
 }
 
@@ -34,7 +34,7 @@ class NeverEndReadable extends Readable {
   dest.on('unpipe', common.mustNotCall('unpipe should not have been emitted'));
   src.pipe(dest);
   setImmediate(() => {
-    assert.strictEqual(src._readableState.pipesCount, 1);
+    assert.strictEqual(src._readableState.pipes.length, 1);
   });
 }
 
@@ -46,7 +46,7 @@ class NeverEndReadable extends Readable {
   src.pipe(dest);
   src.unpipe(dest);
   setImmediate(() => {
-    assert.strictEqual(src._readableState.pipesCount, 0);
+    assert.strictEqual(src._readableState.pipes.length, 0);
   });
 }
 
@@ -57,7 +57,7 @@ class NeverEndReadable extends Readable {
   dest.on('unpipe', common.mustCall());
   src.pipe(dest, { end: false });
   setImmediate(() => {
-    assert.strictEqual(src._readableState.pipesCount, 0);
+    assert.strictEqual(src._readableState.pipes.length, 0);
   });
 }
 
@@ -68,7 +68,7 @@ class NeverEndReadable extends Readable {
   dest.on('unpipe', common.mustNotCall('unpipe should not have been emitted'));
   src.pipe(dest, { end: false });
   setImmediate(() => {
-    assert.strictEqual(src._readableState.pipesCount, 1);
+    assert.strictEqual(src._readableState.pipes.length, 1);
   });
 }
 
@@ -80,6 +80,6 @@ class NeverEndReadable extends Readable {
   src.pipe(dest, { end: false });
   src.unpipe(dest);
   setImmediate(() => {
-    assert.strictEqual(src._readableState.pipesCount, 0);
+    assert.strictEqual(src._readableState.pipes.length, 0);
   });
 }

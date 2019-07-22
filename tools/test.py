@@ -638,15 +638,10 @@ def RunProcess(context, timeout, args, **rest):
       prev_error_mode = Win32SetErrorMode(error_mode)
       Win32SetErrorMode(error_mode | prev_error_mode)
 
-  faketty = rest.pop('faketty', False)
-  pty_out = rest.pop('pty_out')
-
   process = subprocess.Popen(
     args = popen_args,
     **rest
   )
-  if faketty:
-    os.close(rest['stdout'])
   if utils.IsWindows() and context.suppress_dialogs and prev_error_mode != SEM_INVALID_VALUE:
     Win32SetErrorMode(prev_error_mode)
   # Compute the end time - if the process crosses this limit we
@@ -658,28 +653,6 @@ def RunProcess(context, timeout, args, **rest):
   # loop and keep track of whether or not it times out.
   exit_code = None
   sleep_time = INITIAL_SLEEP_TIME
-  output = ''
-  if faketty:
-    while True:
-      if time.time() >= end_time:
-        # Kill the process and wait for it to exit.
-        KillTimedOutProcess(context, process.pid)
-        exit_code = process.wait()
-        timed_out = True
-        break
-
-      # source: http://stackoverflow.com/a/12471855/1903116
-      # related: http://stackoverflow.com/q/11165521/1903116
-      try:
-        data = os.read(pty_out, 9999)
-      except OSError as e:
-        if e.errno != errno.EIO:
-          raise
-        break # EIO means EOF on some systems
-      else:
-        if not data: # EOF
-          break
-        output += data
 
   while exit_code is None:
     if (not end_time is None) and (time.time() >= end_time):
@@ -693,7 +666,7 @@ def RunProcess(context, timeout, args, **rest):
       sleep_time = sleep_time * SLEEP_TIME_FACTOR
       if sleep_time > MAX_SLEEP_TIME:
         sleep_time = MAX_SLEEP_TIME
-  return (process, exit_code, timed_out, output)
+  return (process, exit_code, timed_out)
 
 
 def PrintError(str):
@@ -715,31 +688,12 @@ def CheckedUnlink(name):
       PrintError("os.unlink() " + str(e))
     break
 
-def Execute(args, context, timeout=None, env=None, faketty=False, disable_core_files=False, input=None):
+def Execute(args, context, timeout=None, env=None, disable_core_files=False, stdin=None):
+  (fd_out, outname) = tempfile.mkstemp()
+  (fd_err, errname) = tempfile.mkstemp()
+
   if env is None:
     env = {}
-  if faketty:
-    import pty
-    (out_master, fd_out) = pty.openpty()
-    fd_in = fd_err = fd_out
-    pty_out = out_master
-
-    if input is not None:
-      # Before writing input data, disable echo so the input doesn't show
-      # up as part of the output.
-      import termios
-      attr = termios.tcgetattr(fd_in)
-      attr[3] = attr[3] & ~termios.ECHO
-      termios.tcsetattr(fd_in, termios.TCSADRAIN, attr)
-
-      os.write(pty_out, input)
-      os.write(pty_out, '\x04') # End-of-file marker (Ctrl+D)
-  else:
-    (fd_out, outname) = tempfile.mkstemp()
-    (fd_err, errname) = tempfile.mkstemp()
-    fd_in = 0
-    pty_out = None
-
   env_copy = os.environ.copy()
 
   # Remove NODE_PATH
@@ -758,28 +712,22 @@ def Execute(args, context, timeout=None, env=None, faketty=False, disable_core_f
       resource.setrlimit(resource.RLIMIT_CORE, (0,0))
     preexec_fn = disableCoreFiles
 
-  (process, exit_code, timed_out, output) = RunProcess(
+  (process, exit_code, timed_out) = RunProcess(
     context,
     timeout,
     args = args,
-    stdin = fd_in,
+    stdin = stdin,
     stdout = fd_out,
     stderr = fd_err,
     env = env_copy,
-    faketty = faketty,
-    pty_out = pty_out,
     preexec_fn = preexec_fn
   )
-  if faketty:
-    os.close(out_master)
-    errors = ''
-  else:
-    os.close(fd_out)
-    os.close(fd_err)
-    output = open(outname).read()
-    errors = open(errname).read()
-    CheckedUnlink(outname)
-    CheckedUnlink(errname)
+  os.close(fd_out)
+  os.close(fd_err)
+  output = open(outname).read()
+  errors = open(errname).read()
+  CheckedUnlink(outname)
+  CheckedUnlink(errname)
 
   return CommandOutput(exit_code, timed_out, output, errors)
 

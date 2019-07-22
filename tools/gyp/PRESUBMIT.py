@@ -76,8 +76,7 @@ PYLINT_DISABLED_WARNINGS = [
 def _LicenseHeader(input_api):
   # Accept any year number from 2009 to the current year.
   current_year = int(input_api.time.strftime('%Y'))
-  allowed_years = (str(s) for s in reversed(xrange(2009, current_year + 1)))
-
+  allowed_years = (str(s) for s in reversed(range(2009, current_year + 1)))
   years_re = '(' + '|'.join(allowed_years) + ')'
 
   # The (c) is deprecated, but tolerate it until it's removed from all files.
@@ -124,3 +123,16 @@ def CheckChangeOnCommit(input_api, output_api):
   finally:
     sys.path = old_sys_path
   return report
+
+
+TRYBOTS = [
+    'linux_try',
+    'mac_try',
+    'win_try',
+]
+
+
+def GetPreferredTryMasters(_, change):
+  return {
+      'client.gyp': { t: set(['defaulttests']) for t in TRYBOTS },
+  }

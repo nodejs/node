@@ -8,7 +8,7 @@ var fs = require('fs')
 var path = require('path')
 var common = require('../common-tap.js')
 
-var testdir = path.resolve(__dirname, path.basename(__filename, '.js'))
+var testdir = common.pkg
 var modAtgz = path.resolve(testdir, 'modA') + '-1.0.0.tgz'
 var modB1tgz = path.resolve(testdir, 'modB') + '-1.0.0.tgz'
 var modB2tgz = path.resolve(testdir, 'modB') + '-2.0.0.tgz'

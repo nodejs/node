@@ -171,11 +171,10 @@ try {
 
 This will not work because the callback function passed to `fs.readFile()` is
 called asynchronously. By the time the callback has been called, the
-surrounding code (including the `try { } catch (err) { }` block will have
-already exited. Throwing an error inside the callback **can crash the Node.js
-process** in most cases. If [domains][] are enabled, or a handler has been
-registered with `process.on('uncaughtException')`, such errors can be
-intercepted.
+surrounding code, including the `try…catch` block, will have already exited.
+Throwing an error inside the callback **can crash the Node.js process** in most
+cases. If [domains][] are enabled, or a handler has been registered with
+`process.on('uncaughtException')`, such errors can be intercepted.
 
 ## Class: Error
 
@@ -636,7 +635,7 @@ An attempt was made to register something that is not a function as an
 <a id="ERR_ASYNC_TYPE"></a>
 ### ERR_ASYNC_TYPE
 
-The type of an asynchronous resource was invalid. Note that users are also able
+The type of an asynchronous resource was invalid. Users are also able
 to define their own types if using the public embedder API.
 
 <a id="ERR_BROTLI_COMPRESSION_FAILED"></a>
@@ -708,7 +707,7 @@ A constructor for a class was called without `new`.
 <a id="ERR_CONSTRUCT_CALL_INVALID"></a>
 ### ERR_CONSTRUCT_CALL_INVALID
 <!--
-added: REPLACEME
+added: v12.5.0
 -->
 
 A class constructor was called that is not callable.
@@ -1188,6 +1187,11 @@ after the session had already closed.
 ### ERR_INSPECTOR_COMMAND
 
 An error occurred while issuing a command via the `inspector` module.
+
+<a id="ERR_INSPECTOR_NOT_ACTIVE"></a>
+### ERR_INSPECTOR_NOT_ACTIVE
+
+The `inspector` is not active when `inspector.waitForDebugger()` is called.
 
 <a id="ERR_INSPECTOR_NOT_AVAILABLE"></a>
 ### ERR_INSPECTOR_NOT_AVAILABLE
@@ -2021,7 +2025,7 @@ A module file could not be resolved while attempting a [`require()`][] or
 ### ERR_CANNOT_TRANSFER_OBJECT
 <!--
 added: v10.5.0
-removed: REPLACEME
+removed: v12.5.0
 -->
 
 The value passed to `postMessage()` contained an object that is not supported

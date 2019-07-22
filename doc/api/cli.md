@@ -148,6 +148,13 @@ the ability to import a directory that has an index file.
 
 Please see [customizing esm specifier resolution][] for example usage.
 
+### `--experimental-exports`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental resolution using the `exports` field in `package.json`.
+
 ### `--experimental-modules`
 <!-- YAML
 added: v8.5.0
@@ -215,6 +222,19 @@ reference. Code may break under this flag.
 <!-- YAML
 added: v12.0.0
 -->
+
+Enables a signal handler that causes the Node.js process to write a heap dump
+when the specified signal is received.
+
+```console
+$ node --heapsnapshot-signal=SIGUSR2 index.js &
+$ ps aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+node         1  5.5  6.1 787252 247004 ?       Ssl  16:43   0:02 node --heapsnapshot-signal=SIGUSR2 index.js
+$ kill -USR2 1
+$ ls
+Heap.20190718.133405.15554.0.001.heapsnapshot
+```
 
 ### `--heap-prof`
 <!-- YAML
@@ -426,6 +446,17 @@ unless either the `--pending-deprecation` command line flag, or the
 are used to provide a kind of selective "early warning" mechanism that
 developers may leverage to detect deprecated API usage.
 
+### `--policy-integrity=sri`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Instructs Node.js to error prior to running any code if the policy does not have
+the specified integrity. It expects a [Subresource Integrity][] string as a
+parameter.
+
 ### `--preserve-symlinks`
 <!-- YAML
 added: v6.3.0
@@ -482,7 +513,7 @@ This flag exists so that the main module can be opted-in to the same behavior
 that `--preserve-symlinks` gives to all other imports; they are separate flags,
 however, for backward compatibility with older Node.js versions.
 
-Note that `--preserve-symlinks-main` does not imply `--preserve-symlinks`; it
+`--preserve-symlinks-main` does not imply `--preserve-symlinks`; it
 is expected that `--preserve-symlinks-main` will be used in addition to
 `--preserve-symlinks` when it is not desirable to follow symlinks before
 resolving relative paths.
@@ -893,7 +924,7 @@ certificates in PEM format. A message will be emitted (once) with
 [`process.emitWarning()`][emit_warning] if the file is missing or
 malformed, but any errors are otherwise ignored.
 
-Note that neither the well known nor extra certificates are used when the `ca`
+Neither the well known nor extra certificates are used when the `ca`
 options property is explicitly specified for a TLS or HTTPS client or server.
 
 This environment variable is ignored when `node` runs as setuid root or
@@ -935,6 +966,7 @@ Node.js options that are allowed are:
 <!-- node-options-node start -->
 - `--enable-fips`
 - `--es-module-specifier-resolution`
+- `--experimental-exports`
 - `--experimental-modules`
 - `--experimental-policy`
 - `--experimental-repl-await`
@@ -959,6 +991,7 @@ Node.js options that are allowed are:
 - `--no-warnings`
 - `--openssl-config`
 - `--pending-deprecation`
+- `--policy-integrity`
 - `--preserve-symlinks-main`
 - `--preserve-symlinks`
 - `--prof-process`
@@ -1163,6 +1196,7 @@ greater than `4` (its current default value). For more information, see the
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
+[Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [customizing esm specifier resolution]: esm.html#esm_customizing_esm_specifier_resolution_algorithm
 [debugger]: debugger.html

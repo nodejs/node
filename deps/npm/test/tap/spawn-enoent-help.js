@@ -1,10 +1,9 @@
-var path = require('path')
 var test = require('tap').test
 var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'spawn-enoent-help')
+var pkg = common.pkg
 
 common.pendIfWindows('man pages are not built on Windows')
 

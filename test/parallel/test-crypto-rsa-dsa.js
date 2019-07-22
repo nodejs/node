@@ -38,6 +38,7 @@ const decryptError = {
 {
   const input = 'I AM THE WALRUS';
   const bufferToEncrypt = Buffer.from(input);
+  const bufferPassword = Buffer.from('password');
 
   let encryptedBuffer = crypto.publicEncrypt(rsaPubPem, bufferToEncrypt);
 
@@ -66,12 +67,12 @@ const decryptError = {
 
   encryptedBuffer = crypto.privateEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: bufferPassword
   }, bufferToEncrypt);
 
   decryptedBufferWithPassword = crypto.publicDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: bufferPassword
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
@@ -79,20 +80,20 @@ const decryptError = {
   encryptedBuffer = crypto.privateEncrypt({
     padding: crypto.constants.RSA_PKCS1_PADDING,
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: bufferPassword
   }, bufferToEncrypt);
 
   decryptedBufferWithPassword = crypto.publicDecrypt({
     padding: crypto.constants.RSA_PKCS1_PADDING,
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: bufferPassword
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
   // Omitting padding should be okay because RSA_PKCS1_PADDING is the default.
   decryptedBufferWithPassword = crypto.publicDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: bufferPassword
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
@@ -101,13 +102,13 @@ const decryptError = {
   encryptedBuffer = crypto.privateEncrypt({
     padding: crypto.constants.RSA_NO_PADDING,
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: bufferPassword
   }, Buffer.from(plaintext));
 
   decryptedBufferWithPassword = crypto.publicDecrypt({
     padding: crypto.constants.RSA_NO_PADDING,
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: bufferPassword
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), plaintext);
 

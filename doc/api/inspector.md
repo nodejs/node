@@ -52,6 +52,16 @@ parameter usage.
 
 Return the URL of the active inspector, or `undefined` if there is none.
 
+## inspector.waitForDebugger()
+<!-- YAML
+added: REPLACEME
+-->
+
+Blocks until a client (existing or connected later) has sent
+`Runtime.runIfWaitingForDebugger` command.
+
+An exception will be thrown if there is no active inspector.
+
 ## Class: inspector.Session
 
 The `inspector.Session` is used for dispatching messages to the V8 inspector
