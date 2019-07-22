@@ -1,0 +1,11 @@
+{
+  "resources": {
+    "../parent.js": {
+      "integrity": true,
+      "dependencies": true
+    },
+    "../dep.js": {
+      "integrity": true
+    }
+  }
+}
