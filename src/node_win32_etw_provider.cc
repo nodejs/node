@@ -26,6 +26,7 @@
 
 namespace node {
 
+using v8::Isolate;
 using v8::JitCodeEvent;
 using v8::V8;
 
@@ -127,11 +128,11 @@ void CodeAddressNotification(const JitCodeEvent* jevent) {
 void etw_events_change_async(uv_async_t* handle) {
   if (events_enabled > 0) {
     NODE_V8SYMBOL_RESET();
-    v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+    Isolate::GetCurrent()->SetJitCodeEventHandler(
         v8::kJitCodeEventEnumExisting,
         CodeAddressNotification);
   } else {
-    v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+    Isolate::GetCurrent()->SetJitCodeEventHandler(
         v8::kJitCodeEventDefault,
         nullptr);
   }
@@ -199,7 +200,7 @@ void shutdown_etw() {
   }
 
   events_enabled = 0;
-  v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+  Isolate::GetCurrent()->SetJitCodeEventHandler(
       v8::kJitCodeEventDefault,
       nullptr);
 
