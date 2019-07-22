@@ -806,6 +806,9 @@ UNAME_M=$(shell uname -m)
 ifeq ($(findstring x86_64,$(UNAME_M)),x86_64)
 DESTCPU ?= x64
 else
+ifeq ($(findstring amd64,$(UNAME_M)),amd64)
+DESTCPU ?= x64
+else
 ifeq ($(findstring ppc64,$(UNAME_M)),ppc64)
 DESTCPU ?= ppc64
 else
@@ -858,6 +861,7 @@ ifeq ($(DESTCPU),s390x)
 ARCH=s390x
 else
 ARCH=x86
+endif
 endif
 endif
 endif
