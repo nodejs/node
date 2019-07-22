@@ -1787,7 +1787,7 @@ and description of each available elliptic curve.
 added: v0.1.92
 changes:
   - version: REPLACEME
-    pr-url: ???
+    pr-url: https://github.com/nodejs/node/pull/28805
     description: The `hashSize` option was added for XOF hash functions.
 -->
 * `algorithm` {string}
