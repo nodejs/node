@@ -1185,6 +1185,13 @@ added: v0.0.2
 The `response.finished` property will be `true` if [`response.end()`][]
 has been called.
 
+### response.flushHeaders()
+<!-- YAML
+added: v1.6.0
+-->
+
+Flush the response headers.
+
 ### response.getHeader(name)
 <!-- YAML
 added: v0.4.0
