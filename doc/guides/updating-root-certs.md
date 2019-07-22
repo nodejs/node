@@ -31,7 +31,7 @@ version in the [tag list][].
 Update the tag in the commands below, and run:
 ```shell
 cd tools/
-./mk-ca-bundle -v 2>_before
+./mk-ca-bundle.pl -v 2>_before
 curl -O https://hg.mozilla.org/projects/nss/raw-file/NSS_3_41_RTM/lib/ckfw/builtins/certdata.txt
 ```
 
