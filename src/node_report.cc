@@ -334,13 +334,13 @@ static void PrintCpuInfo(JSONWriter* writer) {
     writer->json_arraystart("cpus");
     for (int i = 0; i < count; i++) {
       writer->json_start();
-      writer->json_keyvalue("model", cpu_info->model);
-      writer->json_keyvalue("speed", cpu_info->speed);
-      writer->json_keyvalue("user", cpu_info->cpu_times.user);
-      writer->json_keyvalue("nice", cpu_info->cpu_times.nice);
-      writer->json_keyvalue("sys", cpu_info->cpu_times.sys);
-      writer->json_keyvalue("idle", cpu_info->cpu_times.idle);
-      writer->json_keyvalue("irq", cpu_info->cpu_times.irq);
+      writer->json_keyvalue("model", cpu_info[i].model);
+      writer->json_keyvalue("speed", cpu_info[i].speed);
+      writer->json_keyvalue("user", cpu_info[i].cpu_times.user);
+      writer->json_keyvalue("nice", cpu_info[i].cpu_times.nice);
+      writer->json_keyvalue("sys", cpu_info[i].cpu_times.sys);
+      writer->json_keyvalue("idle", cpu_info[i].cpu_times.idle);
+      writer->json_keyvalue("irq", cpu_info[i].cpu_times.irq);
       writer->json_end();
     }
     writer->json_arrayend();
