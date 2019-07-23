@@ -103,7 +103,7 @@ process.stdout.on('resize', () => {
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28721
     description: The stream's write() callback and return value are exposed.
 -->
@@ -124,7 +124,7 @@ direction identified by `dir`.
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28721
     description: The stream's write() callback and return value are exposed.
 -->
@@ -149,7 +149,7 @@ is updated whenever the `'resize'` event is emitted.
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28721
     description: The stream's write() callback and return value are exposed.
 -->
@@ -249,7 +249,7 @@ A `boolean` that is always `true`.
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28721
     description: The stream's write() callback and return value are exposed.
 -->

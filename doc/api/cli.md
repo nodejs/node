@@ -150,7 +150,7 @@ Please see [customizing esm specifier resolution][] for example usage.
 
 ### `--experimental-exports`
 <!-- YAML
-added: REPLACEME
+added: v12.7.0
 -->
 
 Enable experimental resolution using the `exports` field in `package.json`.
@@ -459,7 +459,7 @@ developers may leverage to detect deprecated API usage.
 
 ### `--policy-integrity=sri`
 <!-- YAML
-added: REPLACEME
+added: v12.7.0
 -->
 
 > Stability: 1 - Experimental
