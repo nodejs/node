@@ -235,3 +235,38 @@ for (const { args, expected } of badargs) {
     code: 'ERR_OUT_OF_RANGE'
   });
 }
+
+{
+  // Regression test for https://github.com/nodejs/node/issues/28836.
+
+  function testParameter(name, value) {
+    let accessCount = 0;
+
+    // Find out how often the value is accessed.
+    crypto.scryptSync('', '', 1, {
+      get [name]() {
+        accessCount++;
+        return value;
+      }
+    });
+
+    // Try to crash the process on the last access.
+    common.expectsError(() => {
+      crypto.scryptSync('', '', 1, {
+        get [name]() {
+          if (--accessCount === 0)
+            return '';
+          return value;
+        }
+      });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }
+
+  [
+    ['N', 16384], ['cost', 16384],
+    ['r', 8], ['blockSize', 8],
+    ['p', 1], ['parallelization', 1]
+  ].forEach((arg) => testParameter(...arg));
+}
