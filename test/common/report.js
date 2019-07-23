@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const util = require('util');
+const cpus = os.cpus();
 
 function findReports(pid, dir) {
   // Default filenames are of the form
@@ -98,6 +99,7 @@ function _validateContent(report) {
   assert.strictEqual(typeof header.osVersion, 'string');
   assert.strictEqual(typeof header.osMachine, 'string');
   assert(Array.isArray(header.cpus));
+  assert.strictEqual(header.cpus.length, cpus.length);
   header.cpus.forEach((cpu) => {
     assert.strictEqual(typeof cpu.model, 'string');
     assert.strictEqual(typeof cpu.speed, 'number');
@@ -106,6 +108,9 @@ function _validateContent(report) {
     assert.strictEqual(typeof cpu.sys, 'number');
     assert.strictEqual(typeof cpu.idle, 'number');
     assert.strictEqual(typeof cpu.irq, 'number');
+    assert(cpus.some((c) => {
+      return c.model === cpu.model && c.speed === cpu.speed;
+    }));
   });
   assert.strictEqual(header.host, os.hostname());
 
