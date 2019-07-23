@@ -231,6 +231,10 @@ RESOLVE_BARE_SPECIFIER(DIR, X)
 3. return DIR/X
 ```
 
+`"exports"` is only honored when loading a package "name" as defined above. Any
+`"exports"` values within nested directories and packages must be declared by
+the `package.json` responsible for the "name".
+
 ## Caching
 
 <!--type=misc-->
