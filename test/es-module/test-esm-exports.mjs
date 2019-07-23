@@ -3,7 +3,7 @@
 import { mustCall } from '../common/index.mjs';
 import { ok, strictEqual } from 'assert';
 
-import { asdf, asdf2 } from '../fixtures/pkgexports.mjs';
+import { asdf, asdf2, space } from '../fixtures/pkgexports.mjs';
 import {
   loadMissing,
   loadFromNumber,
@@ -12,6 +12,7 @@ import {
 
 strictEqual(asdf, 'asdf');
 strictEqual(asdf2, 'asdf');
+strictEqual(space, 'encoded path');
 
 loadMissing().catch(mustCall((err) => {
   ok(err.message.toString().startsWith('Package exports'));

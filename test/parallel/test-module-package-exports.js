@@ -16,6 +16,8 @@ assert.strictEqual(fixtureRequire('baz/index'), 'eye catcher');
 
 assert.strictEqual(fixtureRequire('pkgexports/sub/asdf.js'), 'asdf');
 
+assert.strictEqual(fixtureRequire('pkgexports/space'), 'encoded path');
+
 assert.throws(
   () => fixtureRequire('pkgexports/not-a-known-entry'),
   (e) => {
