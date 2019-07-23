@@ -477,3 +477,22 @@ const { promisify } = require('util');
     { code: 'ERR_INVALID_CALLBACK' }
   );
 }
+
+{
+  const read = new Readable({
+    read() {}
+  });
+
+  const write = new Writable({
+    write(data, enc, cb) {
+      cb();
+    }
+  });
+
+  read.push(null);
+  pipeline(read, write, common.mustCall(err => {
+    // Should swallow unexpected errors.
+    read.emit('error', new Error());
+    write.emit('error', new Error());
+  }));
+}
