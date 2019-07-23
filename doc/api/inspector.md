@@ -54,7 +54,7 @@ Return the URL of the active inspector, or `undefined` if there is none.
 
 ## inspector.waitForDebugger()
 <!-- YAML
-added: REPLACEME
+added: v12.7.0
 -->
 
 Blocks until a client (existing or connected later) has sent

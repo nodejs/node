@@ -1087,7 +1087,7 @@ Is `true` if it is safe to call [`readable.read()`][stream-read].
 
 ##### readable.readableEncoding
 <!-- YAML
-added: REPLACEME
+added: v12.7.0
 -->
 
 * {null|string}

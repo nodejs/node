@@ -350,7 +350,7 @@ async function processLineByLine() {
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28674
     description: The stream's write() callback and return value are exposed.
 -->
@@ -372,7 +372,7 @@ in a specified direction identified by `dir`.
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28641
     description: The stream's write() callback and return value are exposed.
 -->
@@ -491,7 +491,7 @@ function completer(linePartial, callback) {
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28674
     description: The stream's write() callback and return value are exposed.
 -->
@@ -537,7 +537,7 @@ if (process.stdin.isTTY)
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28674
     description: The stream's write() callback and return value are exposed.
 -->

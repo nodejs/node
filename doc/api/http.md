@@ -1468,7 +1468,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 
 ### response.writableFinished
 <!-- YAML
-added: REPLACEME
+added: v12.7.0
 -->
 
 * {boolean}
