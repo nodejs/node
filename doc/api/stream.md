@@ -1126,6 +1126,15 @@ added: v12.7.0
 Getter for the property `encoding` of a given `Readable` stream. The `encoding`
 property can be set using the [`readable.setEncoding()`][] method.
 
+##### readable.readableEnded
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Becomes `true` when [`'end'`][] event is emitted.
+
 ##### readable.readableHighWaterMark
 <!-- YAML
 added: v9.3.0
