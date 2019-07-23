@@ -71,12 +71,13 @@ function test({
   };
   for (const [url, { body, match }] of Object.entries(resources)) {
     manifest.resources[url] = {
-      integrity: `sha256-${hash('sha256', match ? body : body + '\n')}`
+      integrity: `sha256-${hash('sha256', match ? body : body + '\n')}`,
+      dependencies: true
     };
     fs.writeFileSync(new URL(url, tmpdirURL.href), body);
   }
   fs.writeFileSync(policyFilepath, JSON.stringify(manifest, null, 2));
-  const { status } = spawnSync(process.execPath, [
+  const { status, stderr, stdout } = spawnSync(process.execPath, [
     '--experimental-policy', policyFilepath,
     ...preload.map((m) => ['-r', m]).flat(),
     entry
