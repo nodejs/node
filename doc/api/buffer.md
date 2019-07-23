@@ -59,8 +59,8 @@ differently based on what arguments are provided:
   entire `Buffer`. While this behavior is *intentional* to improve performance,
   development experience has demonstrated that a more explicit distinction is
   required between creating a fast-but-uninitialized `Buffer` versus creating a
-  slower-but-safer `Buffer`. Starting in Node.js 8.0.0, `Buffer(num)` and
-  `new Buffer(num)` will return a `Buffer` with initialized memory.
+  slower-but-safer `Buffer`. Since Node.js 8.0.0, `Buffer(num)` and `new
+  Buffer(num)` return a `Buffer` with initialized memory.
 * Passing a string, array, or `Buffer` as the first argument copies the
   passed object's data into the `Buffer`.
 * Passing an [`ArrayBuffer`][] or a [`SharedArrayBuffer`][] returns a `Buffer`
@@ -70,6 +70,19 @@ Because the behavior of `new Buffer()` is different depending on the type of the
 first argument, security and reliability issues can be inadvertently introduced
 into applications when argument validation or `Buffer` initialization is not
 performed.
+
+For example, if an attacker can cause an application to receive a number where
+a string is expected, the application may call `new Buffer(100)`
+instead of `new Buffer("100")`, it will allocate a 100 byte buffer instead
+of allocating a 3 byte buffer with content `"100"`. This is commonly possible
+using JSON API calls. Since JSON distinguishes between numeric and string types,
+it allows injection of numbers where a naive application might expect to always
+receive a string.  Before Node.js 8.0.0, the 100 byte buffer might contain
+arbitrary pre-existing in-memory data, so may be used to expose in-memory
+secrets to a remote attacker.  Since Node.js 8.0.0, exposure of memory cannot
+occur because the data is zero-filled. However, other attacks are still
+possible, such as causing very large buffers to be allocated by the server,
+leading to performance degradation or crashing on memory exhaustion.
 
 To make the creation of `Buffer` instances more reliable and less error-prone,
 the various forms of the `new Buffer()` constructor have been **deprecated**
@@ -92,7 +105,7 @@ to one of these new APIs.*
   initialized `Buffer` of the specified size. This method is slower than
   [`Buffer.allocUnsafe(size)`][`Buffer.allocUnsafe()`] but guarantees that newly
   created `Buffer` instances never contain old data that is potentially
-  sensitive.
+  sensitive. A `TypeError` will be thrown if `size` is not a number.
 * [`Buffer.allocUnsafe(size)`][`Buffer.allocUnsafe()`] and
   [`Buffer.allocUnsafeSlow(size)`][`Buffer.allocUnsafeSlow()`] each return a
   new uninitialized `Buffer` of the specified `size`. Because the `Buffer` is
@@ -111,7 +124,9 @@ added: v5.10.0
 
 Node.js can be started using the `--zero-fill-buffers` command line option to
 cause all newly allocated `Buffer` instances to be zero-filled upon creation by
-default, including buffers returned by `new Buffer(size)`,
+default. Before Node.js 8.0.0, this included buffers allocated by `new
+Buffer(size)`. Since Node.js 8.0.0, buffers allocated with `new` are always
+zero-filled, whether this option is used or not.
 [`Buffer.allocUnsafe()`][], [`Buffer.allocUnsafeSlow()`][], and `new
 SlowBuffer(size)`. Use of this flag can have a significant negative impact on
 performance. Use of the `--zero-fill-buffers` option is recommended only when
