@@ -2,6 +2,7 @@
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
+const net = require('net');
 const os = require('os');
 const path = require('path');
 const util = require('util');
@@ -73,7 +74,7 @@ function _validateContent(report) {
                         'componentVersions', 'release', 'osName', 'osRelease',
                         'osVersion', 'osMachine', 'cpus', 'host',
                         'glibcVersionRuntime', 'glibcVersionCompiler', 'cwd',
-                        'reportVersion'];
+                        'reportVersion', 'networkInterfaces'];
   checkForUnknownFields(header, headerFields);
   assert.strictEqual(header.reportVersion, 1);  // Increment as needed.
   assert.strictEqual(typeof header.event, 'string');
@@ -111,6 +112,28 @@ function _validateContent(report) {
     assert(cpus.some((c) => {
       return c.model === cpu.model;
     }));
+  });
+
+  assert(Array.isArray(header.networkInterfaces));
+  header.networkInterfaces.forEach((iface) => {
+    assert.strictEqual(typeof iface.name, 'string');
+    assert.strictEqual(typeof iface.internal, 'boolean');
+    assert(/^([0-9A-F][0-9A-F]:){5}[0-9A-F]{2}$/i.test(iface.mac));
+
+    if (iface.family === 'IPv4') {
+      assert.strictEqual(net.isIPv4(iface.address), true);
+      assert.strictEqual(net.isIPv4(iface.netmask), true);
+      assert.strictEqual(iface.scopeid, undefined);
+    } else if (iface.family === 'IPv6') {
+      assert.strictEqual(net.isIPv6(iface.address), true);
+      assert.strictEqual(net.isIPv6(iface.netmask), true);
+      assert(Number.isInteger(iface.scopeid));
+    } else {
+      assert.strictEqual(iface.family, 'unknown');
+      assert.strictEqual(iface.address, undefined);
+      assert.strictEqual(iface.netmask, undefined);
+      assert.strictEqual(iface.scopeid, undefined);
+    }
   });
   assert.strictEqual(header.host, os.hostname());
 

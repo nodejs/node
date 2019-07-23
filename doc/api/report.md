@@ -83,6 +83,16 @@ is provided below for reference.
         "irq": 0
       }
     ],
+    "networkInterfaces": [
+      {
+        "name": "en0",
+        "internal": false,
+        "mac": "13:10:de:ad:be:ef",
+        "address": "10.0.0.37",
+        "netmask": "255.255.255.0",
+        "family": "IPv4"
+      }
+    ],
     "host": "test_machine"
   },
   "javascriptStack": {

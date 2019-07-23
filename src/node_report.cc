@@ -67,6 +67,7 @@ static void PrintLoadedLibraries(JSONWriter* writer);
 static void PrintComponentVersions(JSONWriter* writer);
 static void PrintRelease(JSONWriter* writer);
 static void PrintCpuInfo(JSONWriter* writer);
+static void PrintNetworkInterfaceInfo(JSONWriter* writer);
 
 // External function to trigger a report, writing to file.
 // The 'name' parameter is in/out: an input filename is used
@@ -318,6 +319,7 @@ static void PrintVersionInformation(JSONWriter* writer) {
   }
 
   PrintCpuInfo(writer);
+  PrintNetworkInterfaceInfo(writer);
 
   char host[UV_MAXHOSTNAMESIZE];
   size_t host_size = sizeof(host);
@@ -345,6 +347,57 @@ static void PrintCpuInfo(JSONWriter* writer) {
     }
     writer->json_arrayend();
     uv_free_cpu_info(cpu_info, count);
+  }
+}
+
+static void PrintNetworkInterfaceInfo(JSONWriter* writer) {
+  uv_interface_address_t* interfaces;
+  char ip[INET6_ADDRSTRLEN];
+  char netmask[INET6_ADDRSTRLEN];
+  char mac[18];
+  int count;
+
+  if (uv_interface_addresses(&interfaces, &count) == 0) {
+    writer->json_arraystart("networkInterfaces");
+
+    for (int i = 0; i < count; i++) {
+      writer->json_start();
+      writer->json_keyvalue("name", interfaces[i].name);
+      writer->json_keyvalue("internal", !!interfaces[i].is_internal);
+      snprintf(mac,
+               sizeof(mac),
+               "%02x:%02x:%02x:%02x:%02x:%02x",
+               static_cast<unsigned char>(interfaces[i].phys_addr[0]),
+               static_cast<unsigned char>(interfaces[i].phys_addr[1]),
+               static_cast<unsigned char>(interfaces[i].phys_addr[2]),
+               static_cast<unsigned char>(interfaces[i].phys_addr[3]),
+               static_cast<unsigned char>(interfaces[i].phys_addr[4]),
+               static_cast<unsigned char>(interfaces[i].phys_addr[5]));
+      writer->json_keyvalue("mac", mac);
+
+      if (interfaces[i].address.address4.sin_family == AF_INET) {
+        uv_ip4_name(&interfaces[i].address.address4, ip, sizeof(ip));
+        uv_ip4_name(&interfaces[i].netmask.netmask4, netmask, sizeof(netmask));
+        writer->json_keyvalue("address", ip);
+        writer->json_keyvalue("netmask", netmask);
+        writer->json_keyvalue("family", "IPv4");
+      } else if (interfaces[i].address.address4.sin_family == AF_INET6) {
+        uv_ip6_name(&interfaces[i].address.address6, ip, sizeof(ip));
+        uv_ip6_name(&interfaces[i].netmask.netmask6, netmask, sizeof(netmask));
+        writer->json_keyvalue("address", ip);
+        writer->json_keyvalue("netmask", netmask);
+        writer->json_keyvalue("family", "IPv6");
+        writer->json_keyvalue("scopeid",
+                              interfaces[i].address.address6.sin6_scope_id);
+      } else {
+        writer->json_keyvalue("family", "unknown");
+      }
+
+      writer->json_end();
+    }
+
+    writer->json_arrayend();
+    uv_free_interface_addresses(interfaces, count);
   }
 }
 
