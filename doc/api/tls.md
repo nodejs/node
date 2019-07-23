@@ -1198,12 +1198,12 @@ changes:
     `object.passphrase` if provided, or `options.passphrase` if it is not.
   * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
     of `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified along with the
-    `secureProtocol` option, use one or the other.  **Default:** `'TLSv1.2'`.
+    `secureProtocol` option, use one or the other.  **Default:** [`tls.DEFAULT_MAX_VERSION`][].
   * `minVersion` {string} Optionally set the minimum TLS version to allow. One
     of `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified along with the
     `secureProtocol` option, use one or the other.  It is not recommended to use
     less than TLSv1.2, but it may be required for interoperability.
-    **Default:** `'TLSv1'`.
+    **Default:** [`tls.DEFAULT_MIN_VERSION`][].
   * `passphrase` {string} Shared passphrase used for a single private key and/or
     a PFX.
   * `pfx` {string|string[]|Buffer|Buffer[]|Object[]} PFX or PKCS12 encoded
@@ -1358,6 +1358,26 @@ changes:
 The default curve name to use for ECDH key agreement in a tls server. The
 default value is `'auto'`. See [`tls.createSecureContext()`] for further
 information.
+
+## tls.DEFAULT_MAX_VERSION
+<!-- YAML
+added: v10.6.0
+-->
+
+* {string} The default value of the `maxVersion` option of
+  [`tls.createSecureContext()`][]. It can be assigned any of the supported TLS
+  protocol versions, `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
+  **Default:** `'TLSv1.2'`.
+
+## tls.DEFAULT_MIN_VERSION
+<!-- YAML
+added: v10.6.0
+-->
+
+* {string} The default value of the `minVersion` option of
+  [`tls.createSecureContext()`][]. It can be assigned any of the supported TLS
+  protocol versions, `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
+  **Default:** `'TLSv1'`.
 
 ## Deprecated APIs
 
