@@ -1101,7 +1101,7 @@ assert.throws(() => { throw null; }, 'foo');
 assert.throws(
   () => assert.strictEqual([], []),
   {
-    message: 'Values identical but not reference-equal:\n\n[]\n'
+    message: 'Values have same structure but are not reference-equal:\n\n[]\n'
   }
 );
 
