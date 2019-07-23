@@ -77,7 +77,7 @@ function test({
     fs.writeFileSync(new URL(url, tmpdirURL.href), body);
   }
   fs.writeFileSync(policyFilepath, JSON.stringify(manifest, null, 2));
-  const { status, stderr, stdout } = spawnSync(process.execPath, [
+  const { status } = spawnSync(process.execPath, [
     '--experimental-policy', policyFilepath,
     ...preload.map((m) => ['-r', m]).flat(),
     entry
