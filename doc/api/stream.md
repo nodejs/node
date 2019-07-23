@@ -380,6 +380,15 @@ the `'drain'` event before destroying the stream.
 Implementors should not override this method,
 but instead implement [`writable._destroy()`][writable-_destroy].
 
+##### writable.destroyed
+<!-- YAML
+added: v8.0.0
+-->
+
+* {boolean}
+
+Is `true` after [`writable.destroy()`][writable-destroy] has been called.
+
 ##### writable.end([chunk][, encoding][, callback])
 <!-- YAML
 added: v0.9.4
@@ -915,6 +924,15 @@ stream will release any internal resources and subsequent calls to `push()`
 will be ignored.
 Implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
+
+##### readable.destroyed
+<!-- YAML
+added: v8.0.0
+-->
+
+* {boolean}
+
+Is `true` after [`readable.destroy()`][readable-destroy] has been called.
 
 ##### readable.isPaused()
 <!-- YAML
