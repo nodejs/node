@@ -487,7 +487,7 @@ added: v12.6.0
 
 * {boolean}
 
-Is `true` if after the [`'finish'`][] event has been emitted.
+Is set to `true` immediately before the [`'finish'`][] event is emitted.
 
 ##### writable.writableHighWaterMark
 <!-- YAML

@@ -1473,7 +1473,9 @@ added: REPLACEME
 
 * {boolean}
 
-Is `true` if all data has been flushed to the underlying system.
+Is `true` if all data has been flushed to the underlying system and
+immediately before the [`'finish'`][] event is emitted.
+
 
 ### response.writeContinue()
 <!-- YAML
@@ -2191,6 +2193,7 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`agent.createConnection()`]: #http_agent_createconnection_options_callback
 [`agent.getName()`]: #http_agent_getname_options
 [`destroy()`]: #http_agent_destroy
+[`'finish'`]: #http_event_finish
 [`getHeader(name)`]: #http_request_getheader_name
 [`http.Agent`]: #http_class_http_agent
 [`http.ClientRequest`]: #http_class_http_clientrequest
