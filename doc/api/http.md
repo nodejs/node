@@ -1473,7 +1473,7 @@ added: REPLACEME
 
 * {boolean}
 
-Is `true` if all data has been flushed to the underlying system.
+Becomes `true` when the [`'finish'`][] event is emitted.
 
 ### response.writeContinue()
 <!-- YAML
