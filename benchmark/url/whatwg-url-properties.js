@@ -14,7 +14,7 @@ function setAndGet(data, prop) {
   const len = data.length;
   var result = data[0][prop];
   bench.start();
-  for (var i = 0; i < len; ++i) {
+  for (let i = 0; i < len; ++i) {
     result = data[i][prop];
     data[i][prop] = result;
   }
@@ -26,7 +26,7 @@ function get(data, prop) {
   const len = data.length;
   var result = data[0][prop];
   bench.start();
-  for (var i = 0; i < len; ++i) {
+  for (let i = 0; i < len; ++i) {
     result = data[i][prop]; // get
   }
   bench.end(len);

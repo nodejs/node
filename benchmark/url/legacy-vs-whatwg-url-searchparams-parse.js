@@ -13,7 +13,7 @@ const bench = common.createBenchmark(main, {
 function useLegacy(n, input) {
   querystring.parse(input);
   bench.start();
-  for (var i = 0; i < n; i += 1) {
+  for (let i = 0; i < n; i += 1) {
     querystring.parse(input);
   }
   bench.end(n);
@@ -22,7 +22,7 @@ function useLegacy(n, input) {
 function useWHATWG(n, param) {
   new URLSearchParams(param);
   bench.start();
-  for (var i = 0; i < n; i += 1) {
+  for (let i = 0; i < n; i += 1) {
     new URLSearchParams(param);
   }
   bench.end(n);

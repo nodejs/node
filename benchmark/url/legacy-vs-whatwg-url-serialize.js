@@ -15,7 +15,7 @@ function useLegacy(data) {
   const len = data.length;
   var noDead = url.format(obj);
   bench.start();
-  for (var i = 0; i < len; i++) {
+  for (let i = 0; i < len; i++) {
     noDead = data[i].toString();
   }
   bench.end(len);
@@ -27,7 +27,7 @@ function useWHATWG(data) {
   const len = data.length;
   var noDead = obj.toString();
   bench.start();
-  for (var i = 0; i < len; i++) {
+  for (let i = 0; i < len; i++) {
     noDead = data[i].toString();
   }
   bench.end(len);
