@@ -847,8 +847,11 @@ Maybe<URL> PackageExportsResolve(Environment* env,
         std::string target(*target_utf8, target_utf8.length());
         if (target.back() == '/' && target.substr(0, 2) == "./") {
           std::string subpath = pkg_subpath.substr(best_match_str.length());
-          URL target_url(target + subpath, pjson_url);
-          return FinalizeResolution(env, target_url, base);
+          URL url_prefix(target, pjson_url);
+          URL target_url(subpath, url_prefix);
+          if (target_url.path().find(url_prefix.path()) == 0) {
+            return FinalizeResolution(env, target_url, base);
+          }
         }
       }
     }
