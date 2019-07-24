@@ -39,7 +39,7 @@ function main({ type, n }) {
   const array = getParams(input);
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     params[searchParams] = array.slice();
     params.sort();
   }

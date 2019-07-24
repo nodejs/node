@@ -19,7 +19,7 @@ function forEach(n) {
   };
 
   bench.start();
-  for (var i = 0; i < n; i += 1)
+  for (let i = 0; i < n; i += 1)
     params.forEach(cb);
   bench.end(n);
 
@@ -32,7 +32,7 @@ function iterator(n) {
   const noDead = [];
 
   bench.start();
-  for (var i = 0; i < n; i += 1) {
+  for (let i = 0; i < n; i += 1) {
     for (const pair of params) {
       noDead[0] = pair[0];
       noDead[1] = pair[1];

@@ -23,7 +23,7 @@ function main({ n, href, path }) {
   const p = paths[path];
 
   bench.start();
-  for (var i = 0; i < n; i += 1)
+  for (let i = 0; i < n; i += 1)
     url.resolve(h, p);
   bench.end(n);
 }
