@@ -734,6 +734,9 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   // Make sure InitializeNodeWithArgs() is called only once.
   CHECK(!init_called.exchange(true));
 
+  // Initialize node_start_time to get relative uptime.
+  per_process::node_start_time = uv_hrtime();
+
   // Register built-in modules
   binding::RegisterBuiltinModules();
 
@@ -913,7 +916,6 @@ void Init(int* argc,
 InitializationResult InitializeOncePerProcess(int argc, char** argv) {
   atexit(ResetStdio);
   PlatformInit();
-  per_process::node_start_time = uv_hrtime();
 
   CHECK_GT(argc, 0);
 
