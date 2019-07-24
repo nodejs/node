@@ -303,7 +303,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
   }
 
-  bool log_code_creation =
+  const bool log_code_creation =
       isolate->logger()->is_listening_to_code_events() ||
       isolate->is_profiling() ||
       isolate->code_event_dispatcher()->IsListeningToCodeEvents();
@@ -315,27 +315,28 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 #endif  // V8_TARGET_ARCH_ARM
 
   if (log_code_creation || FLAG_log_function_events) {
-    String name = ReadOnlyRoots(isolate).empty_string();
-    Script script = Script::cast(result->script());
-    Handle<Script> script_handle(script, isolate);
-    if (script->name()->IsString()) name = String::cast(script->name());
+    Handle<Script> script(Script::cast(result->script()), isolate);
+    Handle<String> name(script->name().IsString()
+                            ? String::cast(script->name())
+                            : ReadOnlyRoots(isolate).empty_string(),
+                        isolate);
     if (FLAG_log_function_events) {
       LOG(isolate,
           FunctionEvent("deserialize", script->id(),
                         timer.Elapsed().InMillisecondsF(),
-                        result->StartPosition(), result->EndPosition(), name));
+                        result->StartPosition(), result->EndPosition(), *name));
     }
     if (log_code_creation) {
-      Script::InitLineEnds(Handle<Script>(script, isolate));
+      Script::InitLineEnds(script);
       DisallowHeapAllocation no_gc;
-      SharedFunctionInfo::ScriptIterator iter(isolate, script);
+      SharedFunctionInfo::ScriptIterator iter(isolate, *script);
       for (i::SharedFunctionInfo info = iter.Next(); !info.is_null();
            info = iter.Next()) {
         if (info->is_compiled()) {
           int line_num = script->GetLineNumber(info->StartPosition()) + 1;
           int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
           PROFILE(isolate, CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
-                                           info->abstract_code(), info, name,
+                                           info->abstract_code(), info, *name,
                                            line_num, column_num));
         }
       }
