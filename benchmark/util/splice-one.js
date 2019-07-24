@@ -25,7 +25,7 @@ function main({ n, pos, size }) {
   }
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     spliceOne(arr, index);
     arr.push('');
   }
