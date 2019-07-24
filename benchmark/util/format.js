@@ -25,7 +25,7 @@ function main({ n, type }) {
   const [first, second] = inputs[type || 'string'];
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     util.format(first, second);
   }
   bench.end(n);
