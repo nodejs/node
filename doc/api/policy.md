@@ -38,7 +38,7 @@ node --experimental-policy=policy.json app.js
 The policy manifest will be used to enforce constraints on code loaded by
 Node.js.
 
-In order to mitigate tampering with policy files on disk, an integrity for
+To mitigate tampering with policy files on disk, an integrity for
 the policy file itself may be provided via `--policy-integrity`.
 This allows running `node` and asserting the policy file contents
 even if the file is changed on disk.
@@ -105,11 +105,11 @@ When loading resources the entire URL must match including search parameters
 and hash fragment. `./a.js?b` will not be used when attempting to load
 `./a.js` and vice versa.
 
-In order to generate integrity strings, a script such as
+To generate integrity strings, a script such as
 `printf "sha384-$(cat checked.js | openssl dgst -sha384 -binary | base64)"`
 can be used.
 
-Integrity can be specified as the boolean value `true` in order to accept any
+Integrity can be specified as the boolean value `true` to accept any
 body for the resource which can be useful for local development. It is not
 recommended in production since it would allow unexpected alteration of
 resources to be considered valid.
