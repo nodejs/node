@@ -1198,7 +1198,8 @@ changes:
     `object.passphrase` if provided, or `options.passphrase` if it is not.
   * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
     of `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified along with the
-    `secureProtocol` option, use one or the other.  **Default:** [`tls.DEFAULT_MAX_VERSION`][].
+    `secureProtocol` option, use one or the other.
+    **Default:** [`tls.DEFAULT_MAX_VERSION`][].
   * `minVersion` {string} Optionally set the minimum TLS version to allow. One
     of `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified along with the
     `secureProtocol` option, use one or the other.  It is not recommended to use
@@ -1505,6 +1506,8 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`server.setTicketKeys()`]: #tls_server_setticketkeys_keys
 [`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
+[`tls.DEFAULT_MAX_VERSION`]: #tls_tls_default_max_version
+[`tls.DEFAULT_MIN_VERSION`]: #tls_tls_default_min_version
 [`tls.Server`]: #tls_class_tls_server
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.TLSSocket.getSession()`]: #tls_tlssocket_getsession
