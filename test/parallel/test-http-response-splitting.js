@@ -21,14 +21,15 @@ const y = 'foo⠊Set-Cookie: foo=bar';
 let count = 0;
 const countdown = new Countdown(3, () => server.close());
 
-function test(res, code, key, value) {
+function test(res, code, key, value, char, index) {
   const header = { [key]: value };
   common.expectsError(
     () => res.writeHead(code, header),
     {
       code: 'ERR_INVALID_CHAR',
       type: TypeError,
-      message: `Invalid character in header content ["${key}"]`
+      message: 'Invalid character in header content ' + 
+          `["${key}"]: ${char} at index ${index}.`
     }
   );
 }
@@ -37,13 +38,13 @@ const server = http.createServer((req, res) => {
   switch (count++) {
     case 0:
       const loc = url.parse(req.url, true).query.lang;
-      test(res, 302, 'Location', `/foo?lang=${loc}`);
+      test(res, 302, 'Location', `/foo?lang=${loc}`, 'č', 13);
       break;
     case 1:
-      test(res, 200, 'foo', x);
+      test(res, 200, 'foo', x, 'ഊ', '3');
       break;
     case 2:
-      test(res, 200, 'foo', y);
+      test(res, 200, 'foo', y, '⠊', 3);
       break;
     default:
       assert.fail('should not get to here.');

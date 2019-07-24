@@ -55,7 +55,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_CHAR',
   type: TypeError,
-  message: 'Invalid character in header content ["200"]'
+  message: 'Invalid character in header content ["200"]: あ at index 0.'
 });
 
 // write

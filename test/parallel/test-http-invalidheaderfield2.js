@@ -67,11 +67,22 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
   '!@#$%^&*()-_=+\\;\':"[]{}<>,./?|~`'
 ].forEach(function(str) {
   assert.strictEqual(
-    _checkInvalidHeaderChar(str), false,
+    _checkInvalidHeaderChar(str), null,
     `_checkInvalidHeaderChar(${inspect(str)}) unexpectedly failed`);
 });
 
 // Bad header field values
+const output = [ 
+  { char: '\r', index: 3 },
+  { char: '\n', index: 3 },
+  { char: '\r', index: 3 },
+  { char: '中', index: 0 },
+  { char: '', index: 0 },
+  { char: '\u0000', index: 11 },
+  { char: '\u000b', index: 3 },
+  { char: '\u0007', index: 5 }
+];
+
 [
   'foo\rbar',
   'foo\nbar',
@@ -81,8 +92,8 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
   'Testing 123\x00',
   'foo\vbar',
   'Ding!\x07'
-].forEach(function(str) {
-  assert.strictEqual(
-    _checkInvalidHeaderChar(str), true,
+].forEach(function(str, i) {
+  assert.deepStrictEqual(
+    _checkInvalidHeaderChar(str), output[i],
     `_checkInvalidHeaderChar(${inspect(str)}) unexpectedly succeeded`);
 });

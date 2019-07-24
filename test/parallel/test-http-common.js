@@ -19,15 +19,18 @@ assert.strictEqual(checkIsHttpToken('あa'), false);
 assert.strictEqual(checkIsHttpToken('aaaaあaaaa'), false);
 
 // checkInvalidHeaderChar
-assert(checkInvalidHeaderChar('あ'));
-assert(checkInvalidHeaderChar('aaaaあaaaa'));
+assert.deepStrictEqual(checkInvalidHeaderChar('あ'), { char: 'あ', index: 0 });
+assert.deepStrictEqual(
+    checkInvalidHeaderChar('aaaaあaaaa'),
+    { char: 'あ', index: 2 }
+);
 
-assert.strictEqual(checkInvalidHeaderChar(''), false);
-assert.strictEqual(checkInvalidHeaderChar(1), false);
-assert.strictEqual(checkInvalidHeaderChar(' '), false);
-assert.strictEqual(checkInvalidHeaderChar(false), false);
-assert.strictEqual(checkInvalidHeaderChar('t'), false);
-assert.strictEqual(checkInvalidHeaderChar('tt'), false);
-assert.strictEqual(checkInvalidHeaderChar('ttt'), false);
-assert.strictEqual(checkInvalidHeaderChar('tttt'), false);
-assert.strictEqual(checkInvalidHeaderChar('ttttt'), false);
+assert.strictEqual(checkInvalidHeaderChar(''), null);
+assert.strictEqual(checkInvalidHeaderChar(1), null);
+assert.strictEqual(checkInvalidHeaderChar(' '), null);
+assert.strictEqual(checkInvalidHeaderChar(false), null);
+assert.strictEqual(checkInvalidHeaderChar('t'), null);
+assert.strictEqual(checkInvalidHeaderChar('tt'), null);
+assert.strictEqual(checkInvalidHeaderChar('ttt'), null);
+assert.strictEqual(checkInvalidHeaderChar('tttt'), null);
+assert.strictEqual(checkInvalidHeaderChar('ttttt'), null);
