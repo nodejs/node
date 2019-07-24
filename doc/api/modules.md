@@ -202,39 +202,6 @@ NODE_MODULES_PATHS(START)
 5. return DIRS
 ```
 
-If `--experimental-exports` is enabled,
-node allows packages loaded via `LOAD_NODE_MODULES` to explicitly declare
-which filepaths to expose and how they should be interpreted.
-This expands on the control packages already had using the `main` field.
-With this feature enabled, the `LOAD_NODE_MODULES` changes as follows:
-
-```txt
-LOAD_NODE_MODULES(X, START)
-1. let DIRS = NODE_MODULES_PATHS(START)
-2. for each DIR in DIRS:
-   a. let FILE_PATH = RESOLVE_BARE_SPECIFIER(DIR, X)
-   a. LOAD_AS_FILE(FILE_PATH)
-   b. LOAD_AS_DIRECTORY(FILE_PATH)
-
-RESOLVE_BARE_SPECIFIER(DIR, X)
-1. Try to interpret X as a combination of name and subpath where the name
-   may have a @scope/ prefix and the subpath begins with a slash (`/`).
-2. If X matches this pattern and DIR/name/package.json is a file:
-   a. Parse DIR/name/package.json, and look for "exports" field.
-   b. If "exports" is null or undefined, GOTO 3.
-   c. Find the longest key in "exports" that the subpath starts with.
-   d. If no such key can be found, throw "not exported".
-   e. If the key matches the subpath entirely, return DIR/name/${exports[key]}.
-   f. If either the key or exports[key] do not end with a slash (`/`),
-      throw "not exported".
-   g. Return DIR/name/${exports[key]}${subpath.slice(key.length)}.
-3. return DIR/X
-```
-
-`"exports"` is only honored when loading a package "name" as defined above. Any
-`"exports"` values within nested directories and packages must be declared by
-the `package.json` responsible for the "name".
-
 ## Caching
 
 <!--type=misc-->
