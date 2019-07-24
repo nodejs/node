@@ -1788,7 +1788,7 @@ added: v0.1.92
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/28805
-    description: The `hashSize` option was added for XOF hash functions.
+    description: The `outputLength` option was added for XOF hash functions.
 -->
 * `algorithm` {string}
 * `options` {Object} [`stream.transform` options][]
@@ -1796,7 +1796,7 @@ changes:
 
 Creates and returns a `Hash` object that can be used to generate hash digests
 using the given `algorithm`. Optional `options` argument controls stream
-behavior. For XOF hash functions such as `'shake256'`, the `hashSize` option
+behavior. For XOF hash functions such as `'shake256'`, the `outputLength` option
 can be used to specify the desired output length in bytes.
 
 The `algorithm` is dependent on the available algorithms supported by the
