@@ -6,23 +6,25 @@
 void add_returned_status(napi_env env,
                          const char* key,
                          napi_value object,
+                         char* expected_message,
                          napi_status expected_status,
                          napi_status actual_status) {
 
-  char p_napi_message[100] = "";
+  char napi_message_string[100] = "";
   napi_value prop_value;
 
-  if (actual_status == expected_status) {
-    snprintf(p_napi_message, 99, "Invalid argument");
-  } else {
-    snprintf(p_napi_message, 99, "Invalid status [%d]", actual_status);
+  if (actual_status != expected_status) {
+    snprintf(napi_message_string, sizeof(napi_message_string), "Invalid status [%d]", actual_status);
   }
 
   NAPI_CALL_RETURN_VOID(env,
-                        napi_create_string_utf8(env,
-                                                p_napi_message,
-                                                NAPI_AUTO_LENGTH,
-                                                &prop_value));
+                        napi_create_string_utf8(
+                            env,
+                            (actual_status == expected_status ?
+                                expected_message :
+                                napi_message_string),
+                            NAPI_AUTO_LENGTH,
+                            &prop_value));
   NAPI_CALL_RETURN_VOID(env,
                         napi_set_named_property(env,
                                                 object,

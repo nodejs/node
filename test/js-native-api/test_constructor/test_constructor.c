@@ -30,7 +30,12 @@ static napi_value TestDefineClass(napi_env env,
                              &property_descriptor,
                              &result);
 
-  add_returned_status(env, "envIsNull", return_value, napi_invalid_arg, status);
+  add_returned_status(env,
+                      "envIsNull",
+                      return_value,
+                      "Invalid argument",
+                      napi_invalid_arg,
+                      status);
 
   napi_define_class(env,
                     NULL,

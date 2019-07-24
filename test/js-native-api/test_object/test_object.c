@@ -352,7 +352,12 @@ static napi_value TestSetProperty(napi_env env,
 
   status = napi_set_property(NULL, object, key, value);
 
-  add_returned_status(env, "envIsNull", object, napi_invalid_arg, status);
+  add_returned_status(env,
+                      "envIsNull",
+                      object,
+                      "Invalid argument",
+                      napi_invalid_arg,
+                      status);
 
   napi_set_property(env, NULL, key, value);
 
@@ -381,7 +386,12 @@ static napi_value TestHasProperty(napi_env env,
 
   status = napi_has_property(NULL, object, key, &result);
 
-  add_returned_status(env, "envIsNull", object, napi_invalid_arg, status);
+  add_returned_status(env,
+                      "envIsNull",
+                      object,
+                      "Invalid argument",
+                      napi_invalid_arg,
+                      status);
 
   napi_has_property(env, NULL, key, &result);
 
@@ -411,7 +421,12 @@ static napi_value TestGetProperty(napi_env env,
 
   status = napi_get_property(NULL, object, key, &result);
 
-  add_returned_status(env, "envIsNull", object, napi_invalid_arg, status);
+  add_returned_status(env,
+                      "envIsNull",
+                      object,
+                      "Invalid argument",
+                      napi_invalid_arg,
+                      status);
 
   napi_get_property(env, NULL, key, &result);
 

@@ -1,3 +1,5 @@
+#include <js_native_api.h>
+
 // Empty value so that macros here are able to return NULL or void
 #define NAPI_RETVAL_NOTHING  // Intentionally blank #define
 
@@ -62,6 +64,7 @@
 void add_returned_status(napi_env env,
                          const char* key,
                          napi_value object,
+                         char* expected_message,
                          napi_status expected_status,
                          napi_status actual_status);
 
