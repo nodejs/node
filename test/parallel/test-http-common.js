@@ -22,7 +22,7 @@ assert.strictEqual(checkIsHttpToken('aaaaあaaaa'), false);
 assert.deepStrictEqual(checkInvalidHeaderChar('あ'), { char: 'あ', index: 0 });
 assert.deepStrictEqual(
   checkInvalidHeaderChar('aaaaあaaaa'),
-  { char: 'あ', index: 2 }
+  { char: 'あ', index: 4 }
 );
 
 assert.strictEqual(checkInvalidHeaderChar(''), null);
