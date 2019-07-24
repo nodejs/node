@@ -117,9 +117,9 @@ resources to be considered valid.
 ### Dependency Redirection
 
 An application may need to ship patched versions of modules or to prevent
-modules from allowing all modules access to all other modules. In order to
-do so redirection can be used by intercepting attempts to load the modules
-wishing to be replaced.
+modules from allowing all modules access to all other modules. Redirection
+can be used by intercepting attempts to load the modules wishing to be
+replaced.
 
 ```json
 {
