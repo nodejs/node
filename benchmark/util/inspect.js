@@ -30,7 +30,7 @@ const bench = common.createBenchmark(main, {
 
 function benchmark(n, obj, options) {
   bench.start();
-  for (var i = 0; i < n; i += 1) {
+  for (let i = 0; i < n; i += 1) {
     util.inspect(obj, options);
   }
   bench.end(n);
