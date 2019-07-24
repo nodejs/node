@@ -72,7 +72,7 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
 });
 
 // Bad header field values
-const output = [ 
+const output = [
   { char: '\r', index: 3 },
   { char: '\n', index: 3 },
   { char: '\r', index: 3 },
