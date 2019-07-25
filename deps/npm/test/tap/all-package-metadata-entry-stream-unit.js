@@ -6,7 +6,6 @@ const mkdirp = require('mkdirp')
 const mr = require('npm-registry-mock')
 const npm = require('../../')
 const path = require('path')
-const rimraf = require('rimraf')
 const Tacks = require('tacks')
 const test = require('tap').test
 
@@ -14,21 +13,27 @@ const {File} = Tacks
 
 const _createEntryStream = require('../../lib/search/all-package-metadata.js')._createEntryStream
 
-const PKG_DIR = common.pkg
-const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
-
 let server
 
+// this test uses a fresh cache for each test block
+// create them all in common.cache so that we can verify
+// them for root-owned files in sudotest
+let CACHE_DIR
+let cacheCounter = 1
 function setup () {
+  CACHE_DIR = common.cache + '/' + cacheCounter++
   mkdirp.sync(CACHE_DIR)
+  fixOwner(CACHE_DIR)
 }
 
-function cleanup () {
-  rimraf.sync(PKG_DIR)
-}
+const chownr = require('chownr')
+const fixOwner = (
+  process.getuid && process.getuid() === 0 &&
+  process.env.SUDO_UID && process.env.SUDO_GID
+) ? (path) => chownr.sync(path, +process.env.SUDO_UID, +process.env.SUDO_GID)
+  : () => {}
 
 test('setup', t => {
-  cleanup()
   mr({port: common.port, throwOnUnmatched: true}, (err, s) => {
     t.ifError(err, 'registry mocked successfully')
     npm.load({ cache: CACHE_DIR, registry: common.registry }, err => {
@@ -71,7 +76,6 @@ test('createEntryStream full request', t => {
       version: '1.0.0'
     }])
     server.done()
-    cleanup()
   })
 })
 
@@ -88,6 +92,7 @@ test('createEntryStream cache only', function (t) {
     other: { name: 'other', version: '1.0.0' }
   }))
   fixture.create(cachePath)
+  fixOwner(cachePath)
   return _createEntryStream(cachePath, 600, {
     registry: common.registry
   }).then(({
@@ -106,7 +111,6 @@ test('createEntryStream cache only', function (t) {
       'packages deduped and sorted'
     )
     server.done()
-    cleanup()
   })
 })
 
@@ -130,6 +134,7 @@ test('createEntryStream merged stream', function (t) {
     other: { name: 'other', version: '1.0.0' }
   }))
   fixture.create(cachePath)
+  fixOwner(cachePath)
   return _createEntryStream(cachePath, 600, {
     registry: common.registry
   }).then(({
@@ -156,7 +161,6 @@ test('createEntryStream merged stream', function (t) {
       version: '1.0.0'
     }, 'update stream version wins on dedupe even when the newer one has a lower semver.')
     server.done()
-    cleanup()
   })
 })
 
@@ -177,13 +181,10 @@ test('createEntryStream no sources', function (t) {
     t.match(err.message, /No search sources available/, 'useful error message')
   }).then(() => {
     server.done()
-    cleanup()
   })
 })
 
 test('cleanup', function (t) {
-  cleanup()
   server.close()
-  t.pass('all done')
   t.done()
 })

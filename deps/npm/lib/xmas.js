@@ -11,7 +11,7 @@ module.exports = function (args, cb) {
     '\u0020', '\u0020', '\u0020', '\u0020', '\u0020', '\u0020',
     '\u0020', '\u2E1B', '\u2042', '\u2E2E', '&', '@', '\uFF61'
   ]
-  var oc = [21, 33, 34, 35, 36, 37]
+  var oc = [33, 34, 35, 36, 37]
   var l = '\u005e'
 
   function w (s) { process.stderr.write(s) }
@@ -25,6 +25,7 @@ module.exports = function (args, cb) {
       var O = L * 2 - 2
       var S = (M - O) / 2
       for (i = 0; i < S; i++) w(' ')
+      w(x + '\u001b[21m')
       w(x + '\u001b[32m' + f)
       for (i = 0; i < O; i++) {
         w(
@@ -33,6 +34,7 @@ module.exports = function (args, cb) {
         )
       }
       w(x + '\u001b[32m' + b + '\n')
+      w(x + '\u001b[0m')
     }
     w(' ')
     for (i = 1; i < H; i++) w('\u001b[32m' + l)

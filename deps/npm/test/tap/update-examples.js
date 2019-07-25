@@ -2,7 +2,6 @@ var common = require('../common-tap.js')
 var test = require('tap').test
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
-var path = require('path')
 var mr = require('npm-registry-mock')
 
 var osenv = require('osenv')
@@ -10,7 +9,7 @@ var osenv = require('osenv')
 var requireInject = require('require-inject')
 
 var PKG_DIR = common.pkg
-var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
+var CACHE_DIR = common.cache
 
 // ** constant templates for mocks **
 var DEFAULT_PKG = {
@@ -84,9 +83,17 @@ function extend (a, b) {
   return a
 }
 
+const chownr = require('chownr')
+const fixOwner = (
+  process.getuid && process.getuid() === 0 &&
+  process.env.SUDO_UID && process.env.SUDO_GID
+) ? (path) => chownr.sync(path, +process.env.SUDO_UID, +process.env.SUDO_GID)
+  : () => {}
+
 function resetPackage (options) {
   rimraf.sync(CACHE_DIR)
   mkdirp.sync(CACHE_DIR)
+  fixOwner(CACHE_DIR)
 
   installAskedFor = undefined
 

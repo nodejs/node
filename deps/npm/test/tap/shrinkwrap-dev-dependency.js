@@ -12,7 +12,7 @@ var common = require('../common-tap.js')
 var pkg = common.pkg
 
 var opts = [
-  '--cache', path.resolve(pkg, 'cache'),
+  '--cache', common.cache,
   '--registry', common.registry
 ]
 

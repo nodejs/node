@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Change the cli shebang to point at the specified node
 # Useful for when the program is moved around after install.

@@ -2,14 +2,13 @@ var fs = require('graceful-fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 var npm = require('../../')
 var pkg = common.pkg
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 var npmrc = path.resolve(pkg, './.npmrc')
 var configContents = 'sign-git-commit=false\nsign-git-tag=false\n'
 
@@ -145,16 +144,11 @@ test('npm version <semver> execution order', function (t) {
   })
 })
 
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-  t.end()
-})
-
 function setup () {
+  process.chdir(__dirname)
+  rimraf.sync(pkg)
   mkdirp.sync(pkg)
   mkdirp.sync(path.join(pkg, 'node_modules'))
-  mkdirp.sync(cache)
   fs.writeFileSync(npmrc, configContents, 'ascii')
   process.chdir(pkg)
 }

@@ -6,7 +6,6 @@
 .RS 2
 .nf
 npm install \-\-save semver
-`
 .fi
 .RE
 .SH Usage
@@ -23,6 +22,7 @@ semver\.clean('  =v1\.2\.3   ') // '1\.2\.3'
 semver\.satisfies('1\.2\.3', '1\.x || >=2\.5\.0 || 5\.0\.0 \- 7\.2\.3') // true
 semver\.gt('1\.2\.3', '9\.8\.7') // false
 semver\.lt('1\.2\.3', '9\.8\.7') // true
+semver\.minVersion('>=1\.0\.0') // '1\.0\.0'
 semver\.valid(semver\.coerce('v2')) // '2\.0\.0'
 semver\.valid(semver\.coerce('42\.6\.7\.9\.3\-alpha')) // '42\.6\.7'
 .fi
@@ -34,7 +34,7 @@ As a command\-line utility:
 .nf
 $ semver \-h
 
-A JavaScript implementation of the http://semver\.org/ specification
+A JavaScript implementation of the https://semver\.org/ specification
 Copyright Isaac Z\. Schlueter
 
 Usage: semver [options] <version> [<version> [\.\.\.]]
@@ -76,7 +76,7 @@ multiple versions to the utility will just sort them\.
 .SH Versions
 .P
 A "version" is described by the \fBv2\.0\.0\fP specification found at
-http://semver\.org/\|\.
+https://semver\.org/\|\.
 .P
 A leading \fB"="\fP or \fB"v"\fP character is stripped off and ignored\.
 .SH Ranges
@@ -146,6 +146,13 @@ alpha/beta/rc versions\.  By including a prerelease tag in the range,
 the user is indicating that they are aware of the risk\.  However, it
 is still not appropriate to assume that they have opted into taking a
 similar risk on the \fInext\fR set of prerelease versions\.
+.P
+Note that this behavior can be suppressed (treating all prerelease
+versions as if they were normal versions, for the purpose of range
+matching) by setting the \fBincludePrerelease\fP flag on the options
+object to any
+functions \fIhttps://github\.com/npm/node\-semver#functions\fR that do
+range matching\.
 .SS Prerelease Identifiers
 .P
 The method \fB\|\.inc\fP takes an additional \fBidentifier\fP string argument that
@@ -372,7 +379,7 @@ strings that they parse\.
 \fBinc(v, release)\fP: Return the version incremented by the release
 type (\fBmajor\fP,   \fBpremajor\fP, \fBminor\fP, \fBpreminor\fP, \fBpatch\fP,
 \fBprepatch\fP, or \fBprerelease\fP), or null if it's not valid
-.RS 0
+.RS
 .IP \(bu 2
 \fBpremajor\fP in one call will bump the version up to the next major
 version and down to a prerelease of that major version\.
@@ -396,6 +403,9 @@ if none exist\. Example: \fBprerelease('1\.2\.3\-alpha\.1') \-> ['alpha', 1]\fP
 .IP \(bu 2
 \fBintersects(r1, r2, loose)\fP: Return true if the two supplied ranges
 or comparators intersect\.
+.IP \(bu 2
+\fBparse(v)\fP: Attempt to parse a string as a semantic version, returning either
+a \fBSemVer\fP object or \fBnull\fP\|\.
 
 .RE
 .SS Comparison
@@ -450,6 +460,9 @@ that satisfies the range, or \fBnull\fP if none of them do\.
 .IP \(bu 2
 \fBminSatisfying(versions, range)\fP: Return the lowest version in the list
 that satisfies the range, or \fBnull\fP if none of them do\.
+.IP \(bu 2
+\fBminVersion(range)\fP: Return the lowest version that can possibly match
+the given range\.
 .IP \(bu 2
 \fBgtr(version, range)\fP: Return \fBtrue\fP if version is greater than all the
 versions possible in the range\.

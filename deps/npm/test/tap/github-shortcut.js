@@ -48,7 +48,7 @@ test('github-shortcut', function (t) {
   })
 
   const opts = {
-    cache: path.resolve(pkg, 'cache'),
+    cache: common.cache,
     prefix: pkg,
     registry: common.registry,
     loglevel: 'silent'

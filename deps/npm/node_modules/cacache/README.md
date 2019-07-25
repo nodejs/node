@@ -1,12 +1,16 @@
-# cacache [![npm version](https://img.shields.io/npm/v/cacache.svg)](https://npm.im/cacache) [![license](https://img.shields.io/npm/l/cacache.svg)](https://npm.im/cacache) [![Travis](https://img.shields.io/travis/zkat/cacache.svg)](https://travis-ci.org/zkat/cacache) [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/zkat/cacache?svg=true)](https://ci.appveyor.com/project/zkat/cacache) [![Coverage Status](https://coveralls.io/repos/github/zkat/cacache/badge.svg?branch=latest)](https://coveralls.io/github/zkat/cacache?branch=latest)
+# cacache [![npm version](https://img.shields.io/npm/v/cacache.svg)](https://npm.im/cacache) [![license](https://img.shields.io/npm/l/cacache.svg)](https://npm.im/cacache) [![Travis](https://img.shields.io/travis/npm/cacache.svg)](https://travis-ci.org/npm/cacache) [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/npm/cacache?svg=true)](https://ci.appveyor.com/project/npm/cacache) [![Coverage Status](https://coveralls.io/repos/github/npm/cacache/badge.svg?branch=latest)](https://coveralls.io/github/npm/cacache?branch=latest)
 
-[`cacache`](https://github.com/zkat/cacache) is a Node.js library for managing
+[`cacache`](https://github.com/npm/cacache) is a Node.js library for managing
 local key and content address caches. It's really fast, really good at
 concurrency, and it will never give you corrupted data, even if cache files
 get corrupted or manipulated.
 
-It was originally written to be used as [npm](https://npm.im)'s local cache, but
-can just as easily be used on its own.
+On systems that support user and group settings on files, cacache will
+match the `uid` and `gid` values to the folder where the cache lives, even
+when running as `root`.
+
+It was written to be used as [npm](https://npm.im)'s local cache, but can
+just as easily be used on its own.
 
 _Translations: [español](README.es.md)_
 
@@ -414,13 +418,6 @@ may also use any anagram of `'modnar'` to use this feature.
 Currently only supports one algorithm at a time (i.e., an array length of
 exactly `1`). Has no effect if `opts.integrity` is present.
 
-##### `opts.uid`/`opts.gid`
-
-If provided, cacache will do its best to make sure any new files added to the
-cache use this particular `uid`/`gid` combination. This can be used,
-for example, to drop permissions when someone uses `sudo`, but cacache makes
-no assumptions about your needs here.
-
 ##### `opts.memoize`
 
 Default: null
@@ -498,10 +495,11 @@ Completely resets the in-memory entry cache.
 Returns a unique temporary directory inside the cache's `tmp` dir. This
 directory will use the same safe user assignment that all the other stuff use.
 
-Once the directory is made, it's the user's responsibility that all files within
-are made according to the same `opts.gid`/`opts.uid` settings that would be
-passed in. If not, you can ask cacache to do it for you by calling
-[`tmp.fix()`](#tmp-fix), which will fix all tmp directory permissions.
+Once the directory is made, it's the user's responsibility that all files
+within are given the appropriate `gid`/`uid` ownership settings to match
+the rest of the cache. If not, you can ask cacache to do it for you by
+calling [`tmp.fix()`](#tmp-fix), which will fix all tmp directory
+permissions.
 
 If you want automatic cleanup of this directory, use
 [`tmp.withTmp()`](#with-tpm)
@@ -511,6 +509,27 @@ If you want automatic cleanup of this directory, use
 ```javascript
 cacache.tmp.mkdir(cache).then(dir => {
   fs.writeFile(path.join(dir, 'blablabla'), Buffer#<1234>, ...)
+})
+```
+
+#### <a name="tmp-fix"></a> `> tmp.fix(cache) -> Promise`
+
+Sets the `uid` and `gid` properties on all files and folders within the tmp
+folder to match the rest of the cache.
+
+Use this after manually writing files into [`tmp.mkdir`](#tmp-mkdir) or
+[`tmp.withTmp`](#with-tmp).
+
+##### Example
+
+```javascript
+cacache.tmp.mkdir(cache).then(dir => {
+  writeFile(path.join(dir, 'file'), someData).then(() => {
+    // make sure we didn't just put a root-owned file in the cache
+    cacache.tmp.fix().then(() => {
+      // all uids and gids match now
+    })
+  })
 })
 ```
 
@@ -591,8 +610,6 @@ of entries removed, etc.
 
 ##### Options
 
-* `opts.uid` - uid to assign to cache and its contents
-* `opts.gid` - gid to assign to cache and its contents
 * `opts.filter` - receives a formatted entry. Return false to remove it.
                   Note: might be called more than once on the same entry.
 

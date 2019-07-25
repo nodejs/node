@@ -5,7 +5,6 @@ var osenv = require('osenv')
 var path = require('path')
 var fs = require('fs')
 var rimraf = require('rimraf')
-var mkdirp = require('mkdirp')
 const pkg = common.pkg
 var mr = require('npm-registry-mock')
 
@@ -26,8 +25,6 @@ test('cleanup', function (t) {
 })
 
 function setup () {
-  mkdirp.sync(pkg)
-  mkdirp.sync(path.resolve(pkg, 'cache'))
   fs.writeFileSync(path.resolve(pkg, 'package.json'), JSON.stringify({
     author: 'Evan Lucas',
     name: '404-parent-test',

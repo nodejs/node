@@ -11,11 +11,12 @@ function isOptional (node, seen) {
   if (seen.has(node) || node.requiredBy.length === 0) {
     return false
   }
-  seen = new Set(seen)
   seen.add(node)
   const swOptional = node.fromShrinkwrap && node.package._optional
-  return node.requiredBy.every(function (req) {
+  const result = node.requiredBy.every(function (req) {
     if (req.fakeChild && swOptional) return true
     return isOptDep(req, moduleName(node)) || isOptional(req, seen)
   })
+  seen.delete(node)
+  return result
 }

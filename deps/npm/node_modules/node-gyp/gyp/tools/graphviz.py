@@ -8,6 +8,8 @@
 generate input suitable for graphviz to render a dependency graph of
 targets."""
 
+from __future__ import print_function
+
 import collections
 import json
 import sys
@@ -50,9 +52,9 @@ def WriteGraph(edges):
     build_file, target_name, toolset = ParseTarget(src)
     files[build_file].append(src)
 
-  print 'digraph D {'
-  print '  fontsize=8'  # Used by subgraphs.
-  print '  node [fontsize=8]'
+  print('digraph D {')
+  print('  fontsize=8')  # Used by subgraphs.
+  print('  node [fontsize=8]')
 
   # Output nodes by file.  We must first write out each node within
   # its file grouping before writing out any edges that may refer
@@ -63,31 +65,31 @@ def WriteGraph(edges):
       # the display by making it a box without an internal node.
       target = targets[0]
       build_file, target_name, toolset = ParseTarget(target)
-      print '  "%s" [shape=box, label="%s\\n%s"]' % (target, filename,
-                                                     target_name)
+      print('  "%s" [shape=box, label="%s\\n%s"]' % (target, filename,
+                                                     target_name))
     else:
       # Group multiple nodes together in a subgraph.
-      print '  subgraph "cluster_%s" {' % filename
-      print '    label = "%s"' % filename
+      print('  subgraph "cluster_%s" {' % filename)
+      print('    label = "%s"' % filename)
       for target in targets:
         build_file, target_name, toolset = ParseTarget(target)
-        print '    "%s" [label="%s"]' % (target, target_name)
-      print '  }'
+        print('    "%s" [label="%s"]' % (target, target_name))
+      print('  }')
 
   # Now that we've placed all the nodes within subgraphs, output all
   # the edges between nodes.
   for src, dsts in edges.items():
     for dst in dsts:
-      print '  "%s" -> "%s"' % (src, dst)
+      print('  "%s" -> "%s"' % (src, dst))
 
-  print '}'
+  print('}')
 
 
 def main():
   if len(sys.argv) < 2:
-    print >>sys.stderr, __doc__
-    print >>sys.stderr
-    print >>sys.stderr, 'usage: %s target1 target2...' % (sys.argv[0])
+    print(__doc__, file=sys.stderr)
+    print(file=sys.stderr)
+    print('usage: %s target1 target2...' % (sys.argv[0]), file=sys.stderr)
     return 1
 
   edges = LoadEdges('dump.json', sys.argv[1:])

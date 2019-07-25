@@ -22,12 +22,13 @@ semver.clean(&#39;  =v1.2.3   &#39;) // &#39;1.2.3&#39;
 semver.satisfies(&#39;1.2.3&#39;, &#39;1.x || &gt;=2.5.0 || 5.0.0 - 7.2.3&#39;) // true
 semver.gt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // false
 semver.lt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // true
+semver.minVersion(&#39;&gt;=1.0.0&#39;) // &#39;1.0.0&#39;
 semver.valid(semver.coerce(&#39;v2&#39;)) // &#39;2.0.0&#39;
 semver.valid(semver.coerce(&#39;42.6.7.9.3-alpha&#39;)) // &#39;42.6.7&#39;</code></pre>
 <p>As a command-line utility:</p>
 <pre><code>$ semver -h
 
-A JavaScript implementation of the http://semver.org/ specification
+A JavaScript implementation of the https://semver.org/ specification
 Copyright Isaac Z. Schlueter
 
 Usage: semver [options] &lt;version&gt; [&lt;version&gt; [...]]
@@ -65,7 +66,7 @@ If no satisfying versions are found, then exits failure.
 Versions are printed in ascending order, so supplying
 multiple versions to the utility will just sort them.</code></pre><h2 id="versions">Versions</h2>
 <p>A &quot;version&quot; is described by the <code>v2.0.0</code> specification found at
-<a href="http://semver.org/">http://semver.org/</a>.</p>
+<a href="https://semver.org/">https://semver.org/</a>.</p>
 <p>A leading <code>&quot;=&quot;</code> or <code>&quot;v&quot;</code> character is stripped off and ignored.</p>
 <h2 id="ranges">Ranges</h2>
 <p>A <code>version range</code> is a set of <code>comparators</code> which specify versions
@@ -117,6 +118,12 @@ alpha/beta/rc versions.  By including a prerelease tag in the range,
 the user is indicating that they are aware of the risk.  However, it
 is still not appropriate to assume that they have opted into taking a
 similar risk on the <em>next</em> set of prerelease versions.</p>
+<p>Note that this behavior can be suppressed (treating all prerelease
+versions as if they were normal versions, for the purpose of range
+matching) by setting the <code>includePrerelease</code> flag on the options
+object to any
+<a href="https://github.com/npm/node-semver#functions">functions</a> that do
+range matching.</p>
 <h4 id="prerelease-identifiers">Prerelease Identifiers</h4>
 <p>The method <code>.inc</code> takes an additional <code>identifier</code> string argument that
 will append the value of the string as a prerelease identifier:</p>
@@ -279,6 +286,8 @@ if none exist. Example: <code>prerelease(&#39;1.2.3-alpha.1&#39;) -&gt; [&#39;al
 <li><code>patch(v)</code>: Return the patch version number.</li>
 <li><code>intersects(r1, r2, loose)</code>: Return true if the two supplied ranges
 or comparators intersect.</li>
+<li><code>parse(v)</code>: Attempt to parse a string as a semantic version, returning either
+a <code>SemVer</code> object or <code>null</code>.</li>
 </ul>
 <h3 id="comparison">Comparison</h3>
 <ul>
@@ -315,6 +324,8 @@ range.</li>
 that satisfies the range, or <code>null</code> if none of them do.</li>
 <li><code>minSatisfying(versions, range)</code>: Return the lowest version in the list
 that satisfies the range, or <code>null</code> if none of them do.</li>
+<li><code>minVersion(range)</code>: Return the lowest version that can possibly match
+the given range.</li>
 <li><code>gtr(version, range)</code>: Return <code>true</code> if version is greater than all the
 versions possible in the range.</li>
 <li><code>ltr(version, range)</code>: Return <code>true</code> if version is less than all the
@@ -361,5 +372,5 @@ higher value components are invalid (<code>9999999999999999.4.7.4</code> is like
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">semver &mdash; npm@6.10.0</p>
+<p id="footer">semver &mdash; npm@6.10.2</p>
 
