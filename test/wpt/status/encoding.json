@@ -52,5 +52,6 @@
     "fail": "No implementation of TextDecoderStream and TextEncoderStream"
   },
   "encodeInto.any.js": {
+    "requires": ["worker_threads"]
   }
 }
