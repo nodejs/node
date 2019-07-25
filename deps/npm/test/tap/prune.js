@@ -1,17 +1,14 @@
 var fs = require('fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap')
 var server
 
 var pkg = common.pkg
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 
 var json = {
   name: 'prune',
@@ -32,8 +29,6 @@ var EXEC_OPTS = {
 }
 
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(cache)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
@@ -122,12 +117,5 @@ test('pruduction: verify installs', function (t) {
 
 test('cleanup', function (t) {
   server.close()
-  cleanup()
-  t.pass('cleaned up')
   t.end()
 })
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

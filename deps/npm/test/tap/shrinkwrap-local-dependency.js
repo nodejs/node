@@ -9,7 +9,7 @@ var File = Tacks.File
 var Dir = Tacks.Dir
 
 var testdir = common.pkg
-var cachedir = path.resolve(testdir, 'cache')
+var cachedir = common.cache
 var config = ['--cache=' + cachedir, '--loglevel=error']
 
 var shrinkwrap = {

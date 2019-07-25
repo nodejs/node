@@ -9,6 +9,7 @@ node_js:
   - "7"
   - "8"
   - "9"
+  - "10"
 
 install:
   - PATH="`npm bin`:`npm bin -g`:$PATH"

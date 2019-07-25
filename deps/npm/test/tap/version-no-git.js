@@ -1,15 +1,13 @@
 var common = require('../common-tap.js')
 var test = require('tap').test
 var npm = require('../../')
-var osenv = require('osenv')
 var path = require('path')
 var fs = require('fs')
 var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 var requireInject = require('require-inject')
 
 var pkg = common.pkg
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 var gitDir = path.resolve(pkg, '.git')
 
 test('npm version <semver> in a git repo without the git binary', function (t) {
@@ -33,16 +31,7 @@ test('npm version <semver> in a git repo without the git binary', function (t) {
   })
 })
 
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-
-  rimraf.sync(pkg)
-  t.end()
-})
-
 function setup () {
-  mkdirp.sync(pkg)
-  mkdirp.sync(cache)
   mkdirp.sync(gitDir)
   fs.writeFileSync(path.resolve(pkg, 'package.json'), JSON.stringify({
     author: 'Terin Stock',

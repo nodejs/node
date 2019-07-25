@@ -9,16 +9,14 @@ const rimraf = BB.promisify(require('rimraf'))
 const uniqueFilename = require('unique-filename')
 
 const TmpOpts = figgyPudding({
-  tmpPrefix: {},
-  uid: {},
-  gid: {}
+  tmpPrefix: {}
 })
 
 module.exports.mkdir = mktmpdir
 function mktmpdir (cache, opts) {
   opts = TmpOpts(opts)
   const tmpTarget = uniqueFilename(path.join(cache, 'tmp'), opts.tmpPrefix)
-  return fixOwner.mkdirfix(tmpTarget, opts.uid, opts.gid).then(() => {
+  return fixOwner.mkdirfix(cache, tmpTarget).then(() => {
     return tmpTarget
   })
 }
@@ -34,7 +32,6 @@ function withTmp (cache, opts, cb) {
 }
 
 module.exports.fix = fixtmpdir
-function fixtmpdir (cache, opts) {
-  opts = TmpOpts(opts)
-  return fixOwner(path.join(cache, 'tmp'), opts.uid, opts.gid)
+function fixtmpdir (cache) {
+  return fixOwner(cache, path.join(cache, 'tmp'))
 }

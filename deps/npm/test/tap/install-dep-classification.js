@@ -9,7 +9,7 @@ const fs = require('fs')
 
 const basedir = common.pkg
 const testdir = path.join(basedir, 'testdir')
-const cachedir = path.join(basedir, 'cache')
+const cachedir = common.cache
 const globaldir = path.join(basedir, 'global')
 const tmpdir = path.join(basedir, 'tmp')
 const optionaldir = path.join(testdir, 'optional')

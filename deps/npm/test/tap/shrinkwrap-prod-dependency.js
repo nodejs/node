@@ -77,7 +77,7 @@ function setup (opts, cb) {
   process.chdir(pkg)
 
   var allOpts = {
-    cache: path.resolve(pkg, 'cache'),
+    cache: common.cache,
     registry: common.registry
   }
 

@@ -29,7 +29,7 @@ function handle (data) {
             _args[0][key] = e[key]
           })
         }
-        process.send({ idx: idx, child: child, args: _args })
+        process.send({ owner: 'farm', idx: idx, child: child, args: _args })
       }
     , exec
 
@@ -46,7 +46,11 @@ function handle (data) {
 
 
 process.on('message', function (data) {
+  if (data.owner !== 'farm') {
+    return;
+  }
+
   if (!$module) return $module = require(data.module)
-  if (data == 'die') return process.exit(0)
+  if (data.event == 'die') return process.exit(0)
   handle(data)
 })

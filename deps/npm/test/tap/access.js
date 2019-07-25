@@ -19,22 +19,18 @@ const scoped = {
 }
 
 test('setup', function (t) {
-  mkdirp(pkg, function (er) {
-    t.ifError(er, pkg + ' made successfully')
+  mr({port: common.port}, function (err, s) {
+    t.ifError(err, 'registry mocked successfully')
+    server = s
 
-    mr({port: common.port}, function (err, s) {
-      t.ifError(err, 'registry mocked successfully')
-      server = s
-
-      fs.writeFile(
-        path.join(pkg, 'package.json'),
-        JSON.stringify(scoped),
-        function (er) {
-          t.ifError(er, 'wrote package.json')
-          t.end()
-        }
-      )
-    })
+    fs.writeFile(
+      path.join(pkg, 'package.json'),
+      JSON.stringify(scoped),
+      function (er) {
+        t.ifError(er, 'wrote package.json')
+        t.end()
+      }
+    )
   })
 })
 

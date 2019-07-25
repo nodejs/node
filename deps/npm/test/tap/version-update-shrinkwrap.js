@@ -2,7 +2,6 @@ var fs = require('fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
@@ -10,11 +9,11 @@ var npm = require('../../')
 var common = require('../common-tap.js')
 
 var pkg = common.pkg
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 
 test('npm version <semver> updates shrinkwrap - no git', function (t) {
   setup()
-  npm.load({ cache: pkg + '/cache', registry: common.registry }, function () {
+  npm.load({ cache: cache, registry: common.registry }, function () {
     npm.commands.version(['patch'], function (err) {
       if (err) return t.fail('Error perform version patch')
       var shrinkwrap = require(path.resolve(pkg, 'npm-shrinkwrap.json'))
@@ -111,15 +110,10 @@ test('npm version <semver> updates shrinkwrap and updates git', function (t) {
   }
 })
 
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
 function setup () {
-  cleanup()
+  process.chdir(__dirname)
+  rimraf.sync(pkg)
   mkdirp.sync(pkg)
-  mkdirp.sync(cache)
   var contents = {
     author: 'Nathan Bowser && Faiq Raza',
     name: 'version-with-shrinkwrap-test',
@@ -130,11 +124,4 @@ function setup () {
   fs.writeFileSync(path.resolve(pkg, 'package.json'), JSON.stringify(contents), 'utf8')
   fs.writeFileSync(path.resolve(pkg, 'npm-shrinkwrap.json'), JSON.stringify(contents), 'utf8')
   process.chdir(pkg)
-}
-
-function cleanup () {
-  // windows fix for locked files
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(cache)
-  rimraf.sync(pkg)
 }

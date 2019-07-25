@@ -1,9 +1,9 @@
 language: node_js
 node_js:
-  - 4
   - 6
   - 8
-  - 9
+  - 10
+  - 12
 branches:
   only:
     - master
