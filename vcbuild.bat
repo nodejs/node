@@ -233,7 +233,7 @@ if %target_arch%==x86 if %msvs_host_arch%==x86 set vcvarsall_arg=x86
 :vs-set-2017
 if defined target_env if "%target_env%" NEQ "vs2017" goto vs-set-2019
 echo Looking for Visual Studio 2017
-call tools\msvs\vswhere_usability_wrapper.cmd
+call tools\msvs\vswhere_usability_wrapper.cmd "[15.0,16.0)"
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 if defined msi (
   echo Looking for WiX installation for Visual Studio 2017...
@@ -268,7 +268,7 @@ goto msbuild-found
 :vs-set-2019
 if defined target_env if "%target_env%" NEQ "vs2019" goto msbuild-not-found
 echo Looking for Visual Studio 2019
-call tools\msvs\vswhere_usability_wrapper.cmd
+call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)"
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 if defined msi (
   echo Looking for WiX installation for Visual Studio 2019...
@@ -283,7 +283,7 @@ if defined msi (
   )
 )
 @rem check if VS2019 is already setup, and for the requested arch
-if "_%VisualStudioVersion%_" == "_15.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2019
+if "_%VisualStudioVersion%_" == "_16.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2019
 @rem need to clear VSINSTALLDIR for vcvarsall to work as expected
 set "VSINSTALLDIR="
 @rem prevent VsDevCmd.bat from changing the current working directory
