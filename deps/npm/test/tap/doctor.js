@@ -14,7 +14,7 @@ const Dir = Tacks.Dir
 const File = Tacks.File
 
 const ROOT = common.pkg
-const CACHE = path.join(ROOT, 'cache')
+const CACHE = common.cache
 const TMP = path.join(ROOT, 'tmp')
 const PREFIX = path.join(ROOT, 'global-prefix')
 const PKG = path.join(ROOT, 'pkg')

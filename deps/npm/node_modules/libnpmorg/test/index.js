@@ -7,7 +7,7 @@ const tnock = require('./util/tnock.js')
 
 const org = require('../index.js')
 
-const OPTS = figgyPudding({registry: {}})({
+const OPTS = figgyPudding({ registry: {} })({
   registry: 'https://mock.reg/'
 })
 

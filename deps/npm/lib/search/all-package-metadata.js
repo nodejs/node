@@ -217,7 +217,7 @@ function extractUpdated (entryStream, label, opts) {
 // be output from it.
 module.exports._createCacheWriteStream = createCacheWriteStream
 function createCacheWriteStream (cacheFile, latest, opts) {
-  return _ensureCacheDirExists(cacheFile, opts).then(() => {
+  return _ensureCacheDirExists(cacheFile, opts).then(({uid, gid}) => {
     log.silly('all-package-metadata', 'creating output stream')
     const outStream = _createCacheOutStream()
     const cacheFileStream = writeStreamAtomic(cacheFile)
@@ -231,19 +231,31 @@ function createCacheWriteStream (cacheFile, latest, opts) {
     let errEmitted = false
     linkStreams(inputStream, outStream, () => { errEmitted = true })
 
-    cacheFileStream.on('close', () => !errEmitted && outStream.end())
+    cacheFileStream.on('close', () => {
+      if (!errEmitted) {
+        if (typeof uid === 'number' &&
+            typeof gid === 'number' &&
+            process.getuid &&
+            process.getgid &&
+            (process.getuid() !== uid || process.getgid() !== gid)) {
+          chownr.sync(cacheFile, uid, gid)
+        }
+        outStream.end()
+      }
+    })
 
     return ms.duplex.obj(inputStream, outStream)
   })
 }
 
+// return the {uid,gid} that the cache should have
 function _ensureCacheDirExists (cacheFile, opts) {
   var cacheBase = path.dirname(cacheFile)
   log.silly('all-package-metadata', 'making sure cache dir exists at', cacheBase)
   return correctMkdir(opts.cache).then(st => {
     return mkdir(cacheBase).then(made => {
       return chownr(made || cacheBase, st.uid, st.gid)
-    })
+    }).then(() => ({ uid: st.uid, gid: st.gid }))
   })
 }
 

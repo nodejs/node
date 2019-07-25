@@ -9,6 +9,7 @@ const path = require('path')
 const npm = require('../npm.js')
 const regFetch = require('libnpm/fetch')
 const uuid = require('uuid')
+const cacheFile = require('./cache-file.js')
 
 let inMetrics = false
 
@@ -51,9 +52,9 @@ function saveMetrics (itWorked) {
     }
   }
   try {
-    fs.writeFileSync(metricsFile, JSON.stringify(metrics))
+    cacheFile.write(metricsFile, JSON.stringify(metrics))
   } catch (ex) {
-    // we couldn't write the error metrics file, um, well, oh well.
+    // we couldn't write and/or chown the error metrics file, oh well.
   }
 }
 
@@ -72,6 +73,6 @@ function sendMetrics (metricsFile, metricsRegistry) {
   ).then(() => {
     fs.unlinkSync(metricsFile)
   }, err => {
-    fs.writeFileSync(path.join(path.dirname(metricsFile), 'last-send-metrics-error.txt'), err.stack)
+    cacheFile.write(path.join(path.dirname(metricsFile), 'last-send-metrics-error.txt'), err.stack)
   })
 }

@@ -10,7 +10,7 @@ var mockLog = {
 
 var actions
 test('setup', function (t) {
-  npm.load(function () {
+  npm.load({ 'unsafe-perm': true }, function () {
     log.disableProgress()
     actions = require('../../lib/install/actions.js').actions
     t.end()

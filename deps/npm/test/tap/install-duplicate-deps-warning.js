@@ -38,7 +38,7 @@ test('npm install with duplicate dependencies, different versions', function (t)
   t.plan(1)
   mr({ port: common.port }, function (er, s) {
     var opts = {
-      cache: path.resolve(pkg, 'cache'),
+      cache: common.cache,
       registry: common.registry
     }
 

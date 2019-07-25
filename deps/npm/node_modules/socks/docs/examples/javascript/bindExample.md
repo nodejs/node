@@ -26,7 +26,7 @@ const SocksClient = require('socks').SocksClient;
 
 const options = {
   proxy: {
-    ipaddress: '104.131.124.203',
+    host: '104.131.124.203',
     port: 1081,
     type: 5
   },

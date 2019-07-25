@@ -196,7 +196,10 @@ function auditCmd (args, cb) {
       } else if (err.statusCode === 404) {
         msg = `Your configured registry (${opts.registry}) does not support audit requests.`
       } else {
-        msg = `Your configured registry (${opts.registry}) does not support audit requests, or the audit endpoint is temporarily unavailable.`
+        msg = `Your configured registry (${opts.registry}) may not support audit requests, or the audit endpoint may be temporarily unavailable.`
+      }
+      if (err.body.length) {
+        msg += '\nThe server said: ' + err.body
       }
       const ne = new Error(msg)
       ne.code = 'ENOAUDIT'

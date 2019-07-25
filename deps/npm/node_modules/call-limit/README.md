@@ -4,17 +4,17 @@ call-limit
 Limit the number of simultaneous executions of a async function.
 
 ```javascript
-var fs = require('fs')
-var limit = require('call-limit')
-var limitedStat = limit(fs.stat, 5)
+const fs = require('fs')
+const limit = require('call-limit')
+const limitedStat = limit(fs.stat, 5)
 ```
 
 Or with promise returning functions:
 
 ```javascript
-var fs = Bluebird.promisifyAll(require('fs'))
-var limit = require('call-limit')
-var limitedStat = limit.promise(fs.statAsync, 5)
+const fs = Bluebird.promisifyAll(require('fs'))
+const limit = require('call-limit')
+const limitedStat = limit.promise(fs.statAsync, 5)
 ```
 
 ### USAGE:
@@ -22,7 +22,7 @@ var limitedStat = limit.promise(fs.statAsync, 5)
 Given that:
 
 ```javascript
-var limit = require('call-limit')
+const limit = require('call-limit')
 ```
 
 ### limit(func, maxRunning) → limitedFunc

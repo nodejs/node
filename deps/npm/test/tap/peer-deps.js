@@ -57,7 +57,7 @@ function setup (cb) {
   )
   process.chdir(pkg)
 
-  var opts = { cache: path.resolve(pkg, 'cache'), registry: common.registry }
+  var opts = { cache: common.cache, registry: common.registry }
   npm.load(opts, cb)
 }
 
