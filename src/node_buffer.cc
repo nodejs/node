@@ -56,6 +56,7 @@
 namespace node {
 namespace Buffer {
 
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferCreationMode;
 using v8::ArrayBufferView;
@@ -69,6 +70,7 @@ using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
@@ -1051,6 +1053,61 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[0]->IsArray());
+  CHECK(args[1]->IsUint8Array());
+
+  Local<Array> items = args[0].As<Array>();
+
+  Local<Uint8Array> dest = args[1].As<Uint8Array>();
+  Local<ArrayBuffer> buf = dest->Buffer();
+  char* write_result =
+      static_cast<char*>(buf->GetContents().Data()) + dest->ByteOffset();
+  size_t dest_length = dest->ByteLength();
+
+  size_t read = 0;
+  size_t written = 0;
+  for (size_t i = 0; i < items->Length(); i++) {
+    Local<String> item = items->Get(context, i).ToLocalChecked().As<String>();
+    size_t item_utf8Length = item->Utf8Length(isolate);
+    if (item_utf8Length > dest_length)
+      break;
+
+    read += item->Length();
+    written += item_utf8Length;
+
+    item->WriteUtf8(isolate,
+                    write_result,
+                    item_utf8Length,
+                    nullptr,
+                    String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
+
+    write_result += item_utf8Length;
+    dest_length -= item_utf8Length;
+  }
+
+  Local<Object> result = Object::New(isolate);
+  Local<String> read_string =
+      String::NewFromUtf8(isolate, "read", NewStringType::kNormal)
+      .ToLocalChecked();
+  Local<Value> read_value = Integer::New(isolate, read);
+
+  Local<String> written_string =
+      String::NewFromUtf8(isolate, "written", NewStringType::kNormal)
+      .ToLocalChecked();
+  Local<Value> written_value = Integer::New(isolate, written);
+
+  result->Set(context, read_string, read_value).FromJust();
+  result->Set(context, written_string, written_value).FromJust();
+
+  args.GetReturnValue().Set(result);
+}
+
+
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1082,6 +1139,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "swap32", Swap32);
   env->SetMethod(target, "swap64", Swap64);
 
+  env->SetMethod(target, "encodeInto", EncodeInto);
   env->SetMethodNoSideEffect(target, "encodeUtf8String", EncodeUtf8String);
 
   target->Set(env->context(),
