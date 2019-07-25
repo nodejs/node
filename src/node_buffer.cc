@@ -31,6 +31,8 @@
 #include "v8-profiler.h"
 #include "v8.h"
 
+#include <unicode/unistr.h>
+
 #include <cstring>
 #include <climits>
 
@@ -56,6 +58,7 @@
 namespace node {
 namespace Buffer {
 
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferCreationMode;
 using v8::ArrayBufferView;
@@ -1051,6 +1054,117 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsUint8Array());
+
+  size_t read = 0;
+  size_t written = 0;
+
+  Utf8Value src(isolate, args[0]);
+  const char* p = *src;
+
+  Local<Uint8Array> dest = args[1].As<Uint8Array>();
+  Local<ArrayBuffer> buf = dest->Buffer();
+  char* write_result =
+      static_cast<char*>(buf->GetContents().Data()) + dest->ByteOffset();
+  size_t dest_length = dest->ByteLength();
+
+  for (size_t i = 0; i < src.length(); ) {
+    uint32_t code = 0;
+
+    if ((p[i] & 0x80) == 0) {
+      code = p[i];
+      i += 1;
+    } else if ((p[i] & 0xE0) == 0xC0 && (i + 1 < src.length())) {
+      code = (p[i] & 0x1F) << 6;
+      code |= (p[i+1] & 0x3F);
+      i += 2;
+    } else if ((p[i] & 0xF0) == 0xE0 && (i + 2 < src.length())) {
+      code = (p[i] & 0xF) << 12;
+      code |= (p[i+1] & 0x3F) << 6;
+      code |= (p[i+2] & 0x3F);
+      i += 3;
+    } else if ((p[i] & 0xF8) == 0xF0 && (i + 3 < src.length())) {
+      code = (p[i] & 0x7) << 18;
+      code |= (p[i+1] & 0x3F) << 12;
+      code |= (p[i+2] & 0x3F) << 6;
+      code |= (p[i+3] & 0x3F);
+      i += 4;
+    } else if ((p[i] & 0xFC) == 0xF8 && (i + 4 < src.length())) {
+      code = (p[i] & 0x3) << 24;
+      code |= (p[i+1] & 0x3F) << 18;
+      code |= (p[i+2] & 0x3F) << 12;
+      code |= (p[i+3] & 0x3F) << 6;
+      code |= (p[i+4] & 0x3F);
+      i += 5;
+    } else if ((p[i] & 0xFE) == 0xFC && (i + 5 < src.length())) {
+      code = (p[i] & 0x1) << 30;
+      code |= (p[i+1] & 0x3F) << 24;
+      code |= (p[i+2] & 0x3F) << 18;
+      code |= (p[i+3] & 0x3F) << 12;
+      code |= (p[i+4] & 0x3F) << 6;
+      code |= (p[i+5] & 0x3F);
+      i += 6;
+    }
+
+    if (code <= 0x7F) {
+      if (dest_length < 1) break;
+
+      *write_result++ = static_cast<char>(code);
+      read += 1;
+      written += 1;
+      dest_length -= 1;
+    } else if (code <= 0x7FF) {
+      if (dest_length < 2) break;
+
+      *write_result++ = (0xC0 | (code >> 6));
+      *write_result++ = (0x80 | (code & 0x3F));
+      read += 1;
+      written += 2;
+      dest_length -= 2;
+    } else if (code <= 0xFFFF) {
+      if (dest_length < 3) break;
+
+      *write_result++ = (0xE0 | (code >> 12));
+      *write_result++ = (0x80 | ((code >> 6) & 0x3F));
+      *write_result++ = (0x80 | (code & 0x3F));
+      read += 1;
+      written += 3;
+      dest_length -= 3;
+    } else if (code <= 0x1FFFFF) {
+      if (dest_length < 4) break;
+
+      *write_result++ = (0xF0 | (code >> 18));
+      *write_result++ = (0x80 | ((code >> 12) & 0x3F));
+      *write_result++ = (0x80 | ((code >> 6) & 0x3F));
+      *write_result++ = (0x80 | (code & 0x3F));
+      read += 2;
+      written += 4;
+      dest_length -= 4;
+    } else {
+      // invalid unicode
+    }
+  }
+
+  Local<Object> result = Object::New(isolate);
+  if (result->Set(context,
+                  env->encoding_read_string(),
+                  Integer::New(isolate, read)).IsNothing() ||
+      result->Set(context,
+                  env->encoding_written_string(),
+                  Integer::New(isolate, written)).IsNothing()) {
+    return;
+  }
+
+  args.GetReturnValue().Set(result);
+}
+
+
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1082,6 +1196,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "swap32", Swap32);
   env->SetMethod(target, "swap64", Swap64);
 
+  env->SetMethod(target, "encodeInto", EncodeInto);
   env->SetMethodNoSideEffect(target, "encodeUtf8String", EncodeUtf8String);
 
   target->Set(env->context(),

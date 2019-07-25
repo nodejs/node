@@ -214,7 +214,9 @@ constexpr size_t kFsStatsBufferLength =
   V(dns_txt_string, "TXT")                                                     \
   V(duration_string, "duration")                                               \
   V(emit_warning_string, "emitWarning")                                        \
+  V(encoding_read_string, "read")                                              \
   V(encoding_string, "encoding")                                               \
+  V(encoding_written_string, "written")                                        \
   V(entries_string, "entries")                                                 \
   V(entry_type_string, "entryType")                                            \
   V(env_pairs_string, "envPairs")                                              \

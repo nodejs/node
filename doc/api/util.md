@@ -1073,6 +1073,25 @@ The `TextEncoder` class is also available on the global object.
 UTF-8 encodes the `input` string and returns a `Uint8Array` containing the
 encoded bytes.
 
+```js
+const encoder = new TextEncoder();
+const src = 'this is some data';
+const dest = new Uint8Array(10);
+const ret = encoder.encodeInto(src, dest);
+```
+
+### textEncoder.encodeInto(src, dest)
+
+
+* `src` {string} The text to encode.
+* `dest` {Uint8Array} the array to hold the encode result.
+* Returns: {Object}
+  * `read` {number} The read Unicode code units of src.
+  * `written` {number} The written UTF-8 bytes of dest.
+
+UTF-8 encodes the `src` string to `dest` Unit8Array and returns an object
+containing the read Unicode code units and written UTF-8 bytes.
+
 ### textEncoder.encoding
 
 * {string}
