@@ -8,7 +8,7 @@ var rimraf = require('rimraf')
 
 var pkg = common.pkg
 var tmp = join(pkg, 'tmp')
-var cache = join(pkg, 'cache')
+var cache = common.cache
 
 test('setup', function (t) {
   var n = 0

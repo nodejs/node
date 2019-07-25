@@ -18,23 +18,12 @@ const PENDING   = void 0;
 const FULFILLED = 1;
 const REJECTED  = 2;
 
-const TRY_CATCH_ERROR = { error: null };
-
 function selfFulfillment() {
   return new TypeError("You cannot resolve a promise with itself");
 }
 
 function cannotReturnOwn() {
   return new TypeError('A promises callback cannot return that same promise.');
-}
-
-function getThen(promise) {
-  try {
-    return promise.then;
-  } catch(error) {
-    TRY_CATCH_ERROR.error = error;
-    return TRY_CATCH_ERROR;
-  }
 }
 
 function tryThen(then, value, fulfillmentHandler, rejectionHandler) {
@@ -47,8 +36,8 @@ function tryThen(then, value, fulfillmentHandler, rejectionHandler) {
 
 function handleForeignThenable(promise, thenable, then) {
    asap(promise => {
-    var sealed = false;
-    var error = tryThen(then, thenable, value => {
+    let sealed = false;
+    let error = tryThen(then, thenable, value => {
       if (sealed) { return; }
       sealed = true;
       if (thenable !== value) {
@@ -87,10 +76,7 @@ function handleMaybeThenable(promise, maybeThenable, then) {
       maybeThenable.constructor.resolve === originalResolve) {
     handleOwnThenable(promise, maybeThenable);
   } else {
-    if (then === TRY_CATCH_ERROR) {
-      reject(promise, TRY_CATCH_ERROR.error);
-      TRY_CATCH_ERROR.error = null;
-    } else if (then === undefined) {
+    if (then === undefined) {
       fulfill(promise, maybeThenable);
     } else if (isFunction(then)) {
       handleForeignThenable(promise, maybeThenable, then);
@@ -104,7 +90,14 @@ function resolve(promise, value) {
   if (promise === value) {
     reject(promise, selfFulfillment());
   } else if (objectOrFunction(value)) {
-    handleMaybeThenable(promise, value, getThen(value));
+    let then;
+    try {
+      then = value.then;
+    } catch (error) {
+      reject(promise, error);
+      return;
+    }
+    handleMaybeThenable(promise, value, then);
   } else {
     fulfill(promise, value);
   }
@@ -174,46 +167,31 @@ function publish(promise) {
   promise._subscribers.length = 0;
 }
 
-
-function tryCatch(callback, detail) {
-  try {
-    return callback(detail);
-  } catch(e) {
-    TRY_CATCH_ERROR.error = e;
-    return TRY_CATCH_ERROR;
-  }
-}
-
 function invokeCallback(settled, promise, callback, detail) {
   let hasCallback = isFunction(callback),
-      value, error, succeeded, failed;
+      value, error, succeeded = true;
 
   if (hasCallback) {
-    value = tryCatch(callback, detail);
-
-    if (value === TRY_CATCH_ERROR) {
-      failed = true;
-      error = value.error;
-      value.error = null;
-    } else {
-      succeeded = true;
+    try {
+      value = callback(detail);
+    } catch (e) {
+      succeeded = false;
+      error = e;
     }
 
     if (promise === value) {
       reject(promise, cannotReturnOwn());
       return;
     }
-
   } else {
     value = detail;
-    succeeded = true;
   }
 
   if (promise._state !== PENDING) {
     // noop
   } else if (hasCallback && succeeded) {
     resolve(promise, value);
-  } else if (failed) {
+  } else if (succeeded === false) {
     reject(promise, error);
   } else if (settled === FULFILLED) {
     fulfill(promise, value);
@@ -249,7 +227,6 @@ function makePromise(promise) {
 export {
   nextId,
   makePromise,
-  getThen,
   noop,
   resolve,
   reject,

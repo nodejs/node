@@ -1,9 +1,7 @@
 var fs = require('graceful-fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -11,7 +9,7 @@ var npm = require('../../')
 
 // config
 var pkg = common.pkg
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 
 var json = {
   name: 'outdated-long',
@@ -23,8 +21,6 @@ var json = {
 }
 
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(cache)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
@@ -65,7 +61,7 @@ test('it should not throw', function (t) {
   mr({ port: common.port }, function (er, s) {
     npm.load(
       {
-        cache: 'cache',
+        cache: cache,
         loglevel: 'silent',
         parseable: true,
         registry: common.registry
@@ -94,12 +90,3 @@ test('it should not throw', function (t) {
     )
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  rimraf.sync(pkg)
-}

@@ -1,7 +1,9 @@
 'use strict'
 
-var test = require('tape')
-var install = require('../lib/install').test.install
+const test = require('tap').test
+const install = require('../lib/install').test.install
+
+require('npmlog').level = 'error' // we expect a warning
 
 test('EACCES retry once', function (t) {
   t.plan(3)
@@ -11,9 +13,8 @@ test('EACCES retry once', function (t) {
     var err = new Error()
     err.code = 'EACCES'
     cb(err)
-    t.ok(true);
+    t.ok(true)
   }
-
 
   var gyp = {}
   gyp.devDir = __dirname

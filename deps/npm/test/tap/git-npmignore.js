@@ -14,7 +14,6 @@ var Dir = Tacks.Dir
 var File = Tacks.File
 
 var fixture = new Tacks(Dir({
-  cache: Dir({}),
   deps: Dir({
     gitch: Dir({
       '.npmignore': File(
@@ -42,7 +41,7 @@ var fixture = new Tacks(Dir({
 }))
 
 var testdir = common.pkg
-var cachedir = resolve(testdir, 'cache')
+var cachedir = common.cache
 var dep = resolve(testdir, 'deps', 'gitch')
 var packname = 'gitch-1.0.0.tgz'
 var packed = resolve(testdir, packname)

@@ -262,7 +262,8 @@ command will error\.
 .P
 If the requested version is a \fBdist\-tag\fP and the given tag does not pass the
 \fB\-\-before\fP filter, the most recent version less than or equal to that tag will
-be used\. For example, \fBfoo@latest\fP might install \fBeven though\fPlatest\fBis\fP2\.0`\.
+be used\. For example, \fBfoo@latest\fP might install \fBfoo@1\.2\fP even though \fBlatest\fP
+is \fB2\.0\fP\|\.
 .SS bin\-links
 .RS 0
 .IP \(bu 2
@@ -947,7 +948,7 @@ Any "%s" in the message will be replaced with the version number\.
 .SS metrics\-registry
 .RS 0
 .IP \(bu 2
-Default: The value of  \fBregistry\fP (which defaults to "https://
+Default: The value of  \fBregistry\fP (which defaults to "https://registry\.npmjs\.org/")
 .IP \(bu 2
 Type: String
 
@@ -1203,7 +1204,7 @@ Rebuild bundled dependencies after installation\.
 .SS registry
 .RS 0
 .IP \(bu 2
-Default: https://
+Default: https://registry\.npmjs\.org/
 .IP \(bu 2
 Type: url
 

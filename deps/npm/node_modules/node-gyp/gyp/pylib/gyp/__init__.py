@@ -4,15 +4,24 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from __future__ import print_function
+
 import copy
 import gyp.input
-import optparse
+import argparse
 import os.path
 import re
 import shlex
 import sys
 import traceback
 from gyp.common import GypError
+
+try:
+    # Python 2
+    string_types = basestring
+except NameError:
+    # Python 3
+    string_types = str
 
 # Default debug modes for GYP
 debug = {}
@@ -34,8 +43,8 @@ def DebugOutput(mode, message, *args):
       pass
     if args:
       message %= args
-    print '%s:%s:%d:%s %s' % (mode.upper(), os.path.basename(ctx[0]),
-                              ctx[1], ctx[2], message)
+    print('%s:%s:%d:%s %s' % (mode.upper(), os.path.basename(ctx[0]),
+                              ctx[1], ctx[2], message))
 
 def FindBuildFiles():
   extension = '.gyp'
@@ -207,7 +216,7 @@ def RegenerateFlags(options):
   # We always want to ignore the environment when regenerating, to avoid
   # duplicate or changed flags in the environment at the time of regeneration.
   flags = ['--ignore-environment']
-  for name, metadata in options._regeneration_metadata.iteritems():
+  for name, metadata in options._regeneration_metadata.items():
     opt = metadata['opt']
     value = getattr(options, name)
     value_predicate = metadata['type'] == 'path' and FixPath or Noop
@@ -226,24 +235,24 @@ def RegenerateFlags(options):
           (action == 'store_false' and not value)):
         flags.append(opt)
       elif options.use_environment and env_name:
-        print >>sys.stderr, ('Warning: environment regeneration unimplemented '
+        print('Warning: environment regeneration unimplemented '
                              'for %s flag %r env_name %r' % (action, opt,
-                                                             env_name))
+                                                             env_name), file=sys.stderr)
     else:
-      print >>sys.stderr, ('Warning: regeneration unimplemented for action %r '
-                           'flag %r' % (action, opt))
+      print('Warning: regeneration unimplemented for action %r '
+                           'flag %r' % (action, opt), file=sys.stderr)
 
   return flags
 
-class RegeneratableOptionParser(optparse.OptionParser):
-  def __init__(self):
+class RegeneratableOptionParser(argparse.ArgumentParser):
+  def __init__(self, usage):
     self.__regeneratable_options = {}
-    optparse.OptionParser.__init__(self)
+    argparse.ArgumentParser.__init__(self, usage=usage)
 
-  def add_option(self, *args, **kw):
+  def add_argument(self, *args, **kw):
     """Add an option to the parser.
 
-    This accepts the same arguments as OptionParser.add_option, plus the
+    This accepts the same arguments as ArgumentParser.add_argument, plus the
     following:
       regenerate: can be set to False to prevent this option from being included
                   in regeneration.
@@ -260,7 +269,7 @@ class RegeneratableOptionParser(optparse.OptionParser):
       # it as a string.
       type = kw.get('type')
       if type == 'path':
-        kw['type'] = 'string'
+        kw['type'] = str
 
       self.__regeneratable_options[dest] = {
           'action': kw.get('action'),
@@ -269,50 +278,50 @@ class RegeneratableOptionParser(optparse.OptionParser):
           'opt': args[0],
         }
 
-    optparse.OptionParser.add_option(self, *args, **kw)
+    argparse.ArgumentParser.add_argument(self, *args, **kw)
 
   def parse_args(self, *args):
-    values, args = optparse.OptionParser.parse_args(self, *args)
+    values, args = argparse.ArgumentParser.parse_known_args(self, *args)
     values._regeneration_metadata = self.__regeneratable_options
     return values, args
 
 def gyp_main(args):
   my_name = os.path.basename(sys.argv[0])
+  usage = 'usage: %(prog)s [options ...] [build_file ...]'
 
-  parser = RegeneratableOptionParser()
-  usage = 'usage: %s [options ...] [build_file ...]'
-  parser.set_usage(usage.replace('%s', '%prog'))
-  parser.add_option('--build', dest='configs', action='append',
+
+  parser = RegeneratableOptionParser(usage=usage.replace('%s', '%(prog)s'))
+  parser.add_argument('--build', dest='configs', action='append',
                     help='configuration for build after project generation')
-  parser.add_option('--check', dest='check', action='store_true',
+  parser.add_argument('--check', dest='check', action='store_true',
                     help='check format of gyp files')
-  parser.add_option('--config-dir', dest='config_dir', action='store',
+  parser.add_argument('--config-dir', dest='config_dir', action='store',
                     env_name='GYP_CONFIG_DIR', default=None,
                     help='The location for configuration files like '
                     'include.gypi.')
-  parser.add_option('-d', '--debug', dest='debug', metavar='DEBUGMODE',
+  parser.add_argument('-d', '--debug', dest='debug', metavar='DEBUGMODE',
                     action='append', default=[], help='turn on a debugging '
                     'mode for debugging GYP.  Supported modes are "variables", '
                     '"includes" and "general" or "all" for all of them.')
-  parser.add_option('-D', dest='defines', action='append', metavar='VAR=VAL',
+  parser.add_argument('-D', dest='defines', action='append', metavar='VAR=VAL',
                     env_name='GYP_DEFINES',
                     help='sets variable VAR to value VAL')
-  parser.add_option('--depth', dest='depth', metavar='PATH', type='path',
+  parser.add_argument('--depth', dest='depth', metavar='PATH', type='path',
                     help='set DEPTH gyp variable to a relative path to PATH')
-  parser.add_option('-f', '--format', dest='formats', action='append',
+  parser.add_argument('-f', '--format', dest='formats', action='append',
                     env_name='GYP_GENERATORS', regenerate=False,
                     help='output formats to generate')
-  parser.add_option('-G', dest='generator_flags', action='append', default=[],
+  parser.add_argument('-G', dest='generator_flags', action='append', default=[],
                     metavar='FLAG=VAL', env_name='GYP_GENERATOR_FLAGS',
                     help='sets generator flag FLAG to VAL')
-  parser.add_option('--generator-output', dest='generator_output',
+  parser.add_argument('--generator-output', dest='generator_output',
                     action='store', default=None, metavar='DIR', type='path',
                     env_name='GYP_GENERATOR_OUTPUT',
                     help='puts generated build files under DIR')
-  parser.add_option('--ignore-environment', dest='use_environment',
+  parser.add_argument('--ignore-environment', dest='use_environment',
                     action='store_false', default=True, regenerate=False,
                     help='do not read options from environment variables')
-  parser.add_option('-I', '--include', dest='includes', action='append',
+  parser.add_argument('-I', '--include', dest='includes', action='append',
                     metavar='INCLUDE', type='path',
                     help='files to include in all loaded .gyp files')
   # --no-circular-check disables the check for circular relationships between
@@ -322,7 +331,7 @@ def gyp_main(args):
   # option allows the strict behavior to be used on Macs and the lenient
   # behavior to be used elsewhere.
   # TODO(mark): Remove this option when http://crbug.com/35878 is fixed.
-  parser.add_option('--no-circular-check', dest='circular_check',
+  parser.add_argument('--no-circular-check', dest='circular_check',
                     action='store_false', default=True, regenerate=False,
                     help="don't check for circular relationships between files")
   # --no-duplicate-basename-check disables the check for duplicate basenames
@@ -331,18 +340,18 @@ def gyp_main(args):
   # when duplicate basenames are passed into Make generator on Mac.
   # TODO(yukawa): Remove this option when these legacy generators are
   # deprecated.
-  parser.add_option('--no-duplicate-basename-check',
+  parser.add_argument('--no-duplicate-basename-check',
                     dest='duplicate_basename_check', action='store_false',
                     default=True, regenerate=False,
                     help="don't check for duplicate basenames")
-  parser.add_option('--no-parallel', action='store_true', default=False,
+  parser.add_argument('--no-parallel', action='store_true', default=False,
                     help='Disable multiprocessing')
-  parser.add_option('-S', '--suffix', dest='suffix', default='',
+  parser.add_argument('-S', '--suffix', dest='suffix', default='',
                     help='suffix to add to generated files')
-  parser.add_option('--toplevel-dir', dest='toplevel_dir', action='store',
+  parser.add_argument('--toplevel-dir', dest='toplevel_dir', action='store',
                     default=None, metavar='DIR', type='path',
                     help='directory to use as the root of the source tree')
-  parser.add_option('-R', '--root-target', dest='root_targets',
+  parser.add_argument('-R', '--root-target', dest='root_targets',
                     action='append', metavar='TARGET',
                     help='include only TARGET and its deep dependencies')
 
@@ -410,7 +419,7 @@ def gyp_main(args):
     for option, value in sorted(options.__dict__.items()):
       if option[0] == '_':
         continue
-      if isinstance(value, basestring):
+      if isinstance(value, string_types):
         DebugOutput(DEBUG_GENERAL, "  %s: '%s'", option, value)
       else:
         DebugOutput(DEBUG_GENERAL, "  %s: %s", option, value)
@@ -432,7 +441,7 @@ def gyp_main(args):
       build_file_dir = os.path.abspath(os.path.dirname(build_file))
       build_file_dir_components = build_file_dir.split(os.path.sep)
       components_len = len(build_file_dir_components)
-      for index in xrange(components_len - 1, -1, -1):
+      for index in range(components_len - 1, -1, -1):
         if build_file_dir_components[index] == 'src':
           options.depth = os.path.sep.join(build_file_dir_components)
           break
@@ -475,7 +484,7 @@ def gyp_main(args):
   if home_dot_gyp != None:
     default_include = os.path.join(home_dot_gyp, 'include.gypi')
     if os.path.exists(default_include):
-      print 'Using overrides found in ' + default_include
+      print('Using overrides found in ' + default_include)
       includes.append(default_include)
 
   # Command-line --include files come after the default include.
@@ -536,7 +545,7 @@ def gyp_main(args):
 def main(args):
   try:
     return gyp_main(args)
-  except GypError, e:
+  except GypError as e:
     sys.stderr.write("gyp: %s\n" % e)
     return 1
 

@@ -3,10 +3,8 @@
 const cacheFile = require('npm-cache-filename')
 const mkdirp = require('mkdirp')
 const mr = require('npm-registry-mock')
-const osenv = require('osenv')
 const path = require('path')
 const qs = require('querystring')
-const rimraf = require('rimraf')
 const Tacks = require('tacks')
 const test = require('tap').test
 
@@ -14,14 +12,21 @@ const {File} = Tacks
 
 const common = require('../common-tap.js')
 
-const PKG_DIR = common.pkg
-const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
+const CACHE_DIR = common.cache
 const cacheBase = cacheFile(CACHE_DIR)(common.registry + '/-/all')
 const cachePath = path.join(cacheBase, '.cache.json')
+const chownr = require('chownr')
+const fixOwner = (
+  process.getuid && process.getuid() === 0 &&
+  process.env.SUDO_UID && process.env.SUDO_GID
+) ? (path) => chownr.sync(path, +process.env.SUDO_UID, +process.env.SUDO_GID)
+  : () => {}
 
 let server
 
 test('setup', function (t) {
+  mkdirp.sync(cacheBase)
+  fixOwner(CACHE_DIR)
   mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
     t.ifError(err, 'registry mocked successfully')
     server = s
@@ -142,10 +147,10 @@ const searches = [
 // These test classic hand-matched searches
 searches.forEach(function (search) {
   test(search.description, function (t) {
-    setup()
     const query = qs.stringify({
       text: search.term,
       size: 20,
+      from: 0,
       quality: 0.65,
       popularity: 0.98,
       maintenance: 0.5
@@ -164,6 +169,7 @@ searches.forEach(function (search) {
     }
     const fixture = new Tacks(File(cacheContents))
     fixture.create(cachePath)
+    fixOwner(cachePath)
     common.npm([
       'search', search.term,
       '--registry', common.registry,
@@ -195,18 +201,7 @@ searches.forEach(function (search) {
 })
 
 test('cleanup', function (t) {
-  cleanup()
+  server.done()
   server.close()
   t.end()
 })
-
-function setup () {
-  cleanup()
-  mkdirp.sync(cacheBase)
-}
-
-function cleanup () {
-  server.done()
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(PKG_DIR)
-}

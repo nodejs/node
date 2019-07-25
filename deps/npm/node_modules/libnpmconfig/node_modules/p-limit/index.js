@@ -1,7 +1,7 @@
 'use strict';
 const pTry = require('p-try');
 
-module.exports = concurrency => {
+const pLimit = concurrency => {
 	if (concurrency < 1) {
 		throw new TypeError('Expected `concurrency` to be a number from 1 and up');
 	}
@@ -47,3 +47,6 @@ module.exports = concurrency => {
 
 	return generator;
 };
+
+module.exports = pLimit;
+module.exports.default = pLimit;

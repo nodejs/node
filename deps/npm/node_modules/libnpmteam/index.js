@@ -8,7 +8,7 @@ const validate = require('aproba')
 
 const TeamConfig = figgyPudding({
   description: {},
-  Promise: {default: () => Promise}
+  Promise: { default: () => Promise }
 })
 
 const cmd = module.exports = {}
@@ -16,12 +16,12 @@ const cmd = module.exports = {}
 cmd.create = (entity, opts) => {
   opts = TeamConfig(opts)
   return pwrap(opts, () => {
-    const {scope, team} = splitEntity(entity)
+    const { scope, team } = splitEntity(entity)
     validate('SSO', [scope, team, opts])
     return npmFetch.json(`/-/org/${eu(scope)}/team`, opts.concat({
       method: 'PUT',
       scope,
-      body: {name: team, description: opts.description}
+      body: { name: team, description: opts.description }
     }))
   })
 }
@@ -29,7 +29,7 @@ cmd.create = (entity, opts) => {
 cmd.destroy = (entity, opts) => {
   opts = TeamConfig(opts)
   return pwrap(opts, () => {
-    const {scope, team} = splitEntity(entity)
+    const { scope, team } = splitEntity(entity)
     validate('SSO', [scope, team, opts])
     return npmFetch.json(`/-/team/${eu(scope)}/${eu(team)}`, opts.concat({
       method: 'DELETE',
@@ -41,12 +41,12 @@ cmd.destroy = (entity, opts) => {
 cmd.add = (user, entity, opts) => {
   opts = TeamConfig(opts)
   return pwrap(opts, () => {
-    const {scope, team} = splitEntity(entity)
+    const { scope, team } = splitEntity(entity)
     validate('SSO', [scope, team, opts])
     return npmFetch.json(`/-/team/${eu(scope)}/${eu(team)}/user`, opts.concat({
       method: 'PUT',
       scope,
-      body: {user}
+      body: { user }
     }))
   })
 }
@@ -54,12 +54,12 @@ cmd.add = (user, entity, opts) => {
 cmd.rm = (user, entity, opts) => {
   opts = TeamConfig(opts)
   return pwrap(opts, () => {
-    const {scope, team} = splitEntity(entity)
+    const { scope, team } = splitEntity(entity)
     validate('SSO', [scope, team, opts])
     return npmFetch.json(`/-/team/${eu(scope)}/${eu(team)}/user`, opts.concat({
       method: 'DELETE',
       scope,
-      body: {user}
+      body: { user }
     }))
   })
 }
@@ -72,7 +72,7 @@ cmd.lsTeams.stream = (scope, opts) => {
   opts = TeamConfig(opts)
   validate('SO', [scope, opts])
   return npmFetch.json.stream(`/-/org/${eu(scope)}/team`, '.*', opts.concat({
-    query: {format: 'cli'}
+    query: { format: 'cli' }
   }))
 }
 
@@ -82,11 +82,11 @@ cmd.lsUsers = (entity, opts) => {
 }
 cmd.lsUsers.stream = (entity, opts) => {
   opts = TeamConfig(opts)
-  const {scope, team} = splitEntity(entity)
+  const { scope, team } = splitEntity(entity)
   validate('SSO', [scope, team, opts])
   const uri = `/-/team/${eu(scope)}/${eu(team)}/user`
   return npmFetch.json.stream(uri, '.*', opts.concat({
-    query: {format: 'cli'}
+    query: { format: 'cli' }
   }))
 }
 
@@ -96,7 +96,7 @@ cmd.edit = () => {
 
 function splitEntity (entity = '') {
   let [, scope, team] = entity.match(/^@?([^:]+):(.*)$/) || []
-  return {scope, team}
+  return { scope, team }
 }
 
 function pwrap (opts, fn) {

@@ -16,8 +16,6 @@ const PutOpts = figgyPudding({
   pickAlgorithm: {},
   size: {},
   tmpPrefix: {},
-  uid: {},
-  gid: {},
   single: {},
   sep: {},
   error: {},

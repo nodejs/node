@@ -1,5 +1,9 @@
 # Master
 
+# 4.2.5
+
+* remove old try/catch performance hacks, modern runtimes do not require these tricks
+
 # 4.2.4
 
 * [Fixes #305] Confuse webpack

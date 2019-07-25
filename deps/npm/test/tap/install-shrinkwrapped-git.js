@@ -116,7 +116,6 @@ function setup (cb) {
 function cleanup () {
   process.chdir(osenv.tmpdir())
   rimraf.sync(mockPath)
-  rimraf.sync(common['npm_config_cache'])
 }
 
 function prepareChildAndGetRefs (cb) {

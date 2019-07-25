@@ -1,11 +1,6 @@
 'use strict'
-var path = require('path')
-var mkdirp = require('mkdirp')
-
 var mr = require('npm-registry-mock')
 var npa = require('npm-package-arg')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -13,22 +8,11 @@ var npm = require('../../lib/npm.js')
 
 var pkg = common.pkg
 
-function setup (cb) {
-  cleanup()
-  mkdirp.sync(pkg)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
-
 test('setup', function (t) {
-  setup()
   process.chdir(pkg)
 
   var opts = {
-    cache: path.resolve(pkg, 'cache'),
+    cache: common.cache,
     registry: common.registry,
     // important to make sure devDependencies don't get stripped
     dev: true
@@ -61,9 +45,4 @@ test('fetch-package-metadata provides resolved metadata', function (t) {
     server.close()
     t.end()
   }
-})
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
 })

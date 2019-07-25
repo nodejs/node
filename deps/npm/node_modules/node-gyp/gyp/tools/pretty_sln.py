@@ -12,12 +12,14 @@
    Then it outputs a possible build order.
 """
 
-__author__ = 'nsylvain (Nicolas Sylvain)'
+from __future__ import print_function
 
 import os
 import re
 import sys
 import pretty_vcproj
+
+__author__ = 'nsylvain (Nicolas Sylvain)'
 
 def BuildProject(project, built, projects, deps):
   # if all dependencies are done, we can build it, otherwise we try to build the
@@ -26,7 +28,7 @@ def BuildProject(project, built, projects, deps):
   for dep in deps[project]:
     if dep not in built:
       BuildProject(dep, built, projects, deps)
-  print project
+  print(project)
   built.append(project)
 
 def ParseSolution(solution_file):
@@ -100,44 +102,44 @@ def ParseSolution(solution_file):
   return (projects, dependencies)
 
 def PrintDependencies(projects, deps):
-  print "---------------------------------------"
-  print "Dependencies for all projects"
-  print "---------------------------------------"
-  print "--                                   --"
+  print("---------------------------------------")
+  print("Dependencies for all projects")
+  print("---------------------------------------")
+  print("--                                   --")
 
   for (project, dep_list) in sorted(deps.items()):
-    print "Project : %s" % project
-    print "Path : %s" % projects[project][0]
+    print("Project : %s" % project)
+    print("Path : %s" % projects[project][0])
     if dep_list:
       for dep in dep_list:
-        print "  - %s" % dep
-    print ""
+        print("  - %s" % dep)
+    print("")
 
-  print "--                                   --"
+  print("--                                   --")
 
 def PrintBuildOrder(projects, deps):
-  print "---------------------------------------"
-  print "Build order                            "
-  print "---------------------------------------"
-  print "--                                   --"
+  print("---------------------------------------")
+  print("Build order                            ")
+  print("---------------------------------------")
+  print("--                                   --")
 
   built = []
   for (project, _) in sorted(deps.items()):
     if project not in built:
       BuildProject(project, built, projects, deps)
 
-  print "--                                   --"
+  print("--                                   --")
 
 def PrintVCProj(projects):
 
   for project in projects:
-    print "-------------------------------------"
-    print "-------------------------------------"
-    print project
-    print project
-    print project
-    print "-------------------------------------"
-    print "-------------------------------------"
+    print("-------------------------------------")
+    print("-------------------------------------")
+    print(project)
+    print(project)
+    print(project)
+    print("-------------------------------------")
+    print("-------------------------------------")
 
     project_path = os.path.abspath(os.path.join(os.path.dirname(sys.argv[1]),
                                                 projects[project][2]))
@@ -153,7 +155,7 @@ def PrintVCProj(projects):
 def main():
   # check if we have exactly 1 parameter.
   if len(sys.argv) < 2:
-    print 'Usage: %s "c:\\path\\to\\project.sln"' % sys.argv[0]
+    print('Usage: %s "c:\\path\\to\\project.sln"' % sys.argv[0])
     return 1
 
   (projects, deps) = ParseSolution(sys.argv[1])

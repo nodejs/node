@@ -19,7 +19,6 @@ module.exports = figgyPudding({
   'fetch-retry-mintimeout': {},
   'force-auth': {},
   forceAuth: 'force-auth',
-  'gid': {},
   'gzip': {},
   'headers': {},
   'https-proxy': {},
@@ -77,7 +76,6 @@ module.exports = figgyPudding({
   'spec': {},
   'strict-ssl': {},
   'timeout': {},
-  'uid': {},
   'user-agent': {
     default: `${
       pkg.name

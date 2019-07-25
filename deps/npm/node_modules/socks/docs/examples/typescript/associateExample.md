@@ -43,7 +43,7 @@ udpSocket.on('message', (message, rinfo) => {
 
 const options: SocksClientOptions = {
   proxy: {
-    ipaddress: '104.131.124.203',
+    host: '104.131.124.203',
     port: 1081,
     type: 5
   },

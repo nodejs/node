@@ -16,7 +16,7 @@ var minimist = path.join(pkg, 'minimist')
 
 var EXEC_OPTS = {
   cwd: path.join(pkg, 'minimist/node_modules'),
-  npm_config_cache: path.join(pkg, 'cache')
+  npm_config_cache: common.cache
 }
 
 var json = {

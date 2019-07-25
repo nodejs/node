@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="4.0.0"></a>
+# [4.0.0](https://github.com/zkat/cipm/compare/v3.0.3...v4.0.0) (2019-07-10)
+
+
+* npm-lifecycle@3.0.0 ([84b8d7e](https://github.com/zkat/cipm/commit/84b8d7e))
+
+
+### Bug Fixes
+
+* **lifecycle:** remove warning from bluebird ([#59](https://github.com/zkat/cipm/issues/59)) ([7af39e6](https://github.com/zkat/cipm/commit/7af39e6)), closes [#58](https://github.com/zkat/cipm/issues/58)
+
+
+### BREAKING CHANGES
+
+* requires updating node-gyp in npm/cli
+
+
+
 <a name="3.0.3"></a>
 ## [3.0.3](https://github.com/zkat/cipm/compare/v3.0.2...v3.0.3) (2019-01-22)
 

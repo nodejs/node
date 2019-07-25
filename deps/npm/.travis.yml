@@ -1,4 +1,4 @@
-sudo: false
+sudo: true
 # need to declare the language as well as the matrix below
 language: node_js
 # having top-level `env:` adds a phantom build
@@ -12,7 +12,8 @@ matrix:
       # only gather coverage info for LTS
       env: DEPLOY_VERSION=testing COVERALLS_REPO_TOKEN="$COVERALLS_OPTIONAL_TOKEN"
       script:
-        - "node . run tap-cover -- \"test/tap/*.js\""
+        # run the sudo tests, with coverage enabled
+        - "sudo PATH=$PATH $(which node) . run tap -- \"test/tap/*.js\" --coverage"
         - "unset COVERALLS_REPO_TOKEN ; node . run tap -- \"test/broken-under-*/*.js\""
     # previous LTS is next most important
     - node_js: "10"

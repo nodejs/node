@@ -14,7 +14,7 @@ const File = Tacks.File
 
 const testDir = common.pkg
 const tmp = path.join(testDir, 'tmp')
-const cache = path.join(testDir, 'cache')
+const cache = common.cache
 
 test('basic pack', (t) => {
   const fixture = new Tacks(new Dir({

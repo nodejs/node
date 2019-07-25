@@ -11,7 +11,7 @@ var path = require('path')
 var common = require('../common-tap')
 
 var pkg = common.pkg
-var cachedir = join(pkg, 'cache')
+var cachedir = common.cache
 var tmpdir = join(pkg, 'tmp')
 
 var env = {

@@ -2,15 +2,11 @@ var common = require('../common-tap.js')
 var fs = require('fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var npm = require('../../lib/npm.js')
 
 var pkg = common.pkg
-var cache = path.resolve(pkg, 'cache')
 var npmrc = path.resolve(pkg, '.npmrc')
 var packagePath = path.resolve(pkg, 'package.json')
 
@@ -54,21 +50,7 @@ test('npm version <semver> with message config', function (t) {
   })
 })
 
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  // windows fix for locked files
-  process.chdir(osenv.tmpdir())
-
-  rimraf.sync(pkg)
-}
-
 function setup () {
-  cleanup()
-  mkdirp.sync(cache)
   process.chdir(pkg)
 
   fs.writeFileSync(packagePath, JSON.stringify(json), 'utf8')

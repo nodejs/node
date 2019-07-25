@@ -205,7 +205,7 @@ class MsvsSettings(object):
     configs = spec['configurations']
     for field, default in supported_fields:
       setattr(self, field, {})
-      for configname, config in configs.iteritems():
+      for configname, config in configs.items():
         getattr(self, field)[configname] = config.get(field, default())
 
     self.msvs_cygwin_dirs = spec.get('msvs_cygwin_dirs', ['.'])
@@ -941,7 +941,7 @@ def ExpandMacros(string, expansions):
   """Expand $(Variable) per expansions dict. See MsvsSettings.GetVSMacroEnv
   for the canonical way to retrieve a suitable dict."""
   if '$' in string:
-    for old, new in expansions.iteritems():
+    for old, new in expansions.items():
       assert '$(' not in new, new
       string = string.replace(old, new)
   return string
@@ -985,7 +985,7 @@ def _FormatAsEnvironmentBlock(envvar_dict):
   CreateProcess documentation for more details."""
   block = ''
   nul = '\0'
-  for key, value in envvar_dict.iteritems():
+  for key, value in envvar_dict.items():
     block += key + '=' + value + nul
   block += nul
   return block

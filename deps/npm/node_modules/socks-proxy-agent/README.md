@@ -66,8 +66,7 @@ console.log('attempting to GET %j', endpoint);
 var opts = url.parse(endpoint);
 
 // create an instance of the `SocksProxyAgent` class with the proxy server information
-// NOTE: the `true` second argument! Means to use TLS encryption on the socket
-var agent = new SocksProxyAgent(proxy, true);
+var agent = new SocksProxyAgent(proxy);
 opts.agent = agent;
 
 https.get(opts, function (res) {

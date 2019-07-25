@@ -8,7 +8,7 @@ const common = require('../common-tap.js')
 
 const basedir = common.pkg
 const testdir = path.join(basedir, 'testdir')
-const cachedir = path.join(basedir, 'cache')
+const cachedir = common.cache
 const globaldir = path.join(basedir, 'global')
 const tmpdir = path.join(basedir, 'tmp')
 
@@ -54,12 +54,7 @@ const fixture = new Tacks(Dir({
 }))
 
 function setup () {
-  cleanup()
   fixture.create(basedir)
-}
-
-function cleanup () {
-  fixture.remove(basedir)
 }
 
 test('setup', t => {
@@ -90,6 +85,5 @@ test('discovers new versions in outdated', t => {
 
 test('cleanup', t => {
   common.fakeRegistry.close()
-  cleanup()
   t.done()
 })

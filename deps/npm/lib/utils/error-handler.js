@@ -11,11 +11,10 @@ var wroteLogFile = false
 var exitCode = 0
 var rollbacks = npm.rollbacks
 var chain = require('slide').chain
-var writeFileAtomic = require('write-file-atomic')
 var errorMessage = require('./error-message.js')
 var stopMetrics = require('./metrics.js').stop
-var mkdirp = require('mkdirp')
-var fs = require('graceful-fs')
+
+const cacheFile = require('./cache-file.js')
 
 var logFileName
 function getLogFile () {
@@ -40,7 +39,7 @@ process.on('exit', function (code) {
   if (npm.config.loaded && npm.config.get('timing')) {
     try {
       timings.logfile = getLogFile()
-      fs.appendFileSync(path.join(npm.config.get('cache'), '_timing.json'), JSON.stringify(timings) + '\n')
+      cacheFile.append('_timing.json', JSON.stringify(timings) + '\n')
     } catch (_) {
       // ignore
     }
@@ -228,7 +227,6 @@ function writeLogFile () {
   var os = require('os')
 
   try {
-    mkdirp.sync(path.resolve(npm.config.get('cache'), '_logs'))
     var logOutput = ''
     log.record.forEach(function (m) {
       var pref = [m.id, m.level]
@@ -241,7 +239,7 @@ function writeLogFile () {
         logOutput += line + os.EOL
       })
     })
-    writeFileAtomic.sync(getLogFile(), logOutput)
+    cacheFile.write(getLogFile(), logOutput)
 
     // truncate once it's been written.
     log.record.length = 0

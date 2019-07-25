@@ -8,7 +8,7 @@ var File = Tacks.File
 var Dir = Tacks.Dir
 
 var testdir = common.pkg
-var cachedir = path.join(testdir, 'cache')
+var cachedir = common.cache
 
 var fixture = new Tacks(Dir({
   cache: Dir(),

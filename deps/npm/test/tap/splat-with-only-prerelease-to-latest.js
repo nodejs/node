@@ -3,9 +3,6 @@
 const common = require('../common-tap.js')
 const mr = require('npm-registry-mock')
 const npm = require('../../lib/npm')
-const osenv = require('osenv')
-const path = require('path')
-const rimraf = require('rimraf')
 const test = require('tap').test
 
 const testdir = common.pkg
@@ -62,7 +59,7 @@ test('setup', (t) => {
     npm.load({
       loglevel: 'silent',
       registry: common.registry,
-      cache: path.join(testdir, 'cache')
+      cache: common.cache
     }, (err) => {
       if (err) { throw err }
       t.ok(true, 'npm loaded')
@@ -94,13 +91,5 @@ test('splat', (t) => {
       'tried to get tarball for `other` tag'
     )
     server.close()
-  })
-})
-
-test('cleanup', (t) => {
-  process.chdir(osenv.tmpdir())
-  rimraf(testdir, () => {
-    t.ok(true, 'cleaned up test dir')
-    t.done()
   })
 })

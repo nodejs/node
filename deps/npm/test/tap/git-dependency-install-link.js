@@ -14,7 +14,7 @@ var common = require('../common-tap.js')
 var pkg = common.pkg
 var repo = pkg + '-repo'
 var prefix = pkg + '-prefix'
-var cache = resolve(pkg, 'cache')
+var cache = common.cache
 
 var daemon
 var daemonPID

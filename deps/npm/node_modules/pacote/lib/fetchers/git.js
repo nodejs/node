@@ -157,7 +157,7 @@ function resolve (url, spec, name, opts) {
 function withTmp (opts, cb) {
   if (opts.cache) {
     // cacache has a special facility for working in a tmp dir
-    return cacache.tmp.withTmp(opts.cache, { tmpPrefix: 'git-clone', uid: opts.uid, gid: opts.gid }, cb)
+    return cacache.tmp.withTmp(opts.cache, { tmpPrefix: 'git-clone' }, cb)
   } else {
     const tmpDir = path.join(osenv.tmpdir(), 'pacote-git-tmp')
     const tmpName = uniqueFilename(tmpDir, 'git-clone')

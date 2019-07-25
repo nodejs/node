@@ -13,7 +13,7 @@ var root = common.pkg
 var pkg = path.resolve(root, 'pkg')
 var dep = path.resolve(root, 'dep')
 var target = path.resolve(pkg, 'node_modules', 'dep')
-var cache = path.resolve(root, 'cache')
+var cache = common.cache
 var globalPath = path.resolve(root, 'global')
 
 var pkgj = {

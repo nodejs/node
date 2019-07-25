@@ -22,9 +22,7 @@ const VerifyOpts = figgyPudding({
   filter: {},
   log: {
     default: { silly () {} }
-  },
-  uid: {},
-  gid: {}
+  }
 })
 
 module.exports = verify
@@ -67,9 +65,9 @@ function markEndTime (cache, opts) {
 
 function fixPerms (cache, opts) {
   opts.log.silly('verify', 'fixing cache permissions')
-  return fixOwner.mkdirfix(cache, opts.uid, opts.gid).then(() => {
+  return fixOwner.mkdirfix(cache, cache).then(() => {
     // TODO - fix file permissions too
-    return fixOwner.chownr(cache, opts.uid, opts.gid)
+    return fixOwner.chownr(cache, cache)
   }).then(() => null)
 }
 
@@ -195,8 +193,6 @@ function rebuildBucket (cache, bucket, stats, opts) {
       const content = contentPath(cache, entry.integrity)
       return fs.statAsync(content).then(() => {
         return index.insert(cache, entry.key, entry.integrity, {
-          uid: opts.uid,
-          gid: opts.gid,
           metadata: entry.metadata,
           size: entry.size
         }).then(() => { stats.totalEntries++ })
@@ -216,7 +212,11 @@ function cleanTmp (cache, opts) {
 function writeVerifile (cache, opts) {
   const verifile = path.join(cache, '_lastverified')
   opts.log.silly('verify', 'writing verifile to ' + verifile)
-  return fs.writeFileAsync(verifile, '' + (+(new Date())))
+  try {
+    return fs.writeFileAsync(verifile, '' + (+(new Date())))
+  } finally {
+    fixOwner.chownr.sync(cache, verifile)
+  }
 }
 
 module.exports.lastRun = lastRun

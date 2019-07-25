@@ -1,23 +1,9 @@
 var test = require('tap').test
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 var common = require('../common-tap.js')
 var mr = common.fakeRegistry.compat
 var server
 
-var testdir = common.pkg
-
-function setup () {
-  cleanup()
-  mkdirp.sync(testdir)
-}
-
-function cleanup () {
-  rimraf.sync(testdir)
-}
-
 test('setup', function (t) {
-  setup()
   mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
     t.ifError(err, 'registry mocked successfully')
     server = s
@@ -30,7 +16,7 @@ test('scoped package names not mangled on error with non-root registry', functio
   common.npm(
     [
       '--registry=' + common.registry,
-      '--cache=' + testdir,
+      '--cache=' + common.cache,
       'cache',
       'add',
       '@scope/foo@*',
@@ -43,14 +29,8 @@ test('scoped package names not mangled on error with non-root registry', functio
       t.match(stderr, /E404/, 'should notify the sort of error as a 404')
       t.match(stderr, /@scope(?:%2f|\/)foo/, 'should have package name in error')
       server.done()
+      server.close()
       t.end()
     }
   )
-})
-
-test('cleanup', function (t) {
-  server.close()
-  cleanup()
-  t.pass('cleaned up')
-  t.end()
 })

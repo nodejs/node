@@ -5,23 +5,29 @@ const getStream = require('get-stream')
 const npm = require('../../')
 const test = require('tap').test
 const mkdirp = require('mkdirp')
-const rimraf = require('rimraf')
 const path = require('path')
 const fs = require('fs')
 const ms = require('mississippi')
 
 const _createCacheWriteStream = require('../../lib/search/all-package-metadata.js')._createCacheWriteStream
 
-const PKG_DIR = common.pkg
-const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
-
+// this test uses a fresh cache for each test block
+// create them all in common.cache so that we can verify
+// them for root-owned files in sudotest
+let CACHE_DIR
+let cacheCounter = 1
 function setup () {
+  CACHE_DIR = common.cache + '/' + cacheCounter++
   mkdirp.sync(CACHE_DIR)
+  fixOwner(CACHE_DIR)
 }
 
-function cleanup () {
-  rimraf.sync(PKG_DIR)
-}
+const chownr = require('chownr')
+const fixOwner = (
+  process.getuid && process.getuid() === 0 &&
+  process.env.SUDO_UID && process.env.SUDO_GID
+) ? (path) => chownr.sync(path, +process.env.SUDO_UID, +process.env.SUDO_GID)
+  : () => {}
 
 function fromArray (array) {
   var idx = 0
@@ -74,7 +80,6 @@ test('createCacheEntryStream basic', function (t) {
         version: '1.0.0'
       }
     }, 'cache contents based on what was written')
-    cleanup()
   })
 })
 
@@ -94,7 +99,6 @@ test('createCacheEntryStream no entries', function (t) {
   }).then(() => {
     const fileData = JSON.parse(fs.readFileSync(cachePath))
     t.ok(fileData, 'cache file exists and has stuff in it')
-    cleanup()
   })
 })
 
@@ -117,6 +121,5 @@ test('createCacheEntryStream missing cache dir', function (t) {
     t.deepEquals(fileData, {
       '_updated': latest
     }, 'cache still contains `_updated`')
-    cleanup()
   })
 })

@@ -10,14 +10,13 @@ var common = require('../common-tap.js')
 
 var basedir = common.pkg
 var testdir = path.join(basedir, 'testdir')
-var cachedir = path.join(basedir, 'cache')
+var cachedir = common.cache
 var globaldir = path.join(basedir, 'global')
 var tmpdir = path.join(basedir, 'tmp')
 
 var conf = {
   cwd: testdir,
   env: Object.assign({}, process.env, {
-    npm_config_cache: cachedir,
     npm_config_tmp: tmpdir,
     npm_config_prefix: globaldir,
     npm_config_registry: common.registry,
@@ -26,7 +25,6 @@ var conf = {
 }
 
 var fixture = new Tacks(Dir({
-  cache: Dir(),
   global: Dir(),
   tmp: Dir(),
   testdir: Dir({
@@ -41,17 +39,8 @@ var fixture = new Tacks(Dir({
   })
 }))
 
-function setup () {
-  cleanup()
-  fixture.create(basedir)
-}
-
-function cleanup () {
-  fixture.remove(basedir)
-}
-
 test('setup', function (t) {
-  setup()
+  fixture.create(basedir)
   t.done()
 })
 
@@ -59,8 +48,9 @@ test('example', function (t) {
   common.npm(['run', 'false'], conf, function (err, code, stdout, stderr) {
     if (err) throw err
     t.is(code, 1, 'command errored')
-    var matches = stderr.match(/A complete log of this run can be found in:.*\nnpm ERR! {5,5}(.*)/)
-    t.ok(matches, 'debug log mentioned in error message')
+    const re = /A complete log of this run can be found in:.*\nnpm ERR! {5,5}(.*)/
+    const matches = stderr.match(re)
+    t.match(stderr, re, 'debug log mentioned in error message')
     if (matches) {
       var logfile = matches[1]
       t.matches(path.relative(cachedir, logfile), /^_logs/, 'debug log is inside the cache in _logs')
@@ -104,9 +94,4 @@ test('example', function (t) {
       })
     })
   })
-})
-
-test('cleanup', function (t) {
-  cleanup()
-  t.done()
 })

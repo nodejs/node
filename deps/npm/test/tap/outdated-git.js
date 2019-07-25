@@ -10,7 +10,7 @@ var npm = require('../../')
 
 // config
 var pkg = common.pkg
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 var json = {
   name: 'outdated-git',
   author: 'Rocko Artischocko',

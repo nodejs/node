@@ -79,13 +79,14 @@ function writableTests (t, writable) {
   writable(writableDir, function (er) {
     t.error(er, 'writable dir is writable')
   })
-  if (process.platform !== 'win32') {
-    // Windows folders cannot be set to be read-only.
+  if (process.platform === 'win32') {
+    t.pass('windows folders cannot be read-only')
+  } else if (process.getuid && process.getuid() === 0) {
+    t.pass('root is not blocked by read-only dirs')
+  } else {
     writable(nonWritableDir, function (er) {
       t.ok(er, 'non-writable dir resulted in an error')
     })
-  } else {
-    t.pass('windows folders cannot be read-only')
   }
 }
 

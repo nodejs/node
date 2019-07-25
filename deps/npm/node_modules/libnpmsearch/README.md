@@ -46,7 +46,7 @@ console.log(await search('libnpm'))
 The following opts are used directly by `libnpmsearch` itself:
 
 * `opts.limit` - Number of results to limit the query to. Default: 20
-* `opts.offset` - Offset number for results. Used with `opts.limit` for pagination. Default: 0
+* `opts.from` - Offset number for results. Used with `opts.limit` for pagination. Default: 0
 * `opts.detailed` - If true, returns an object with `package`, `score`, and `searchScore` fields, with `package` being what would usually be returned, and the other two containing details about how that package scored. Useful for UIs. Default: false
 * `opts.sortBy` - Used as a shorthand to set `opts.quality`, `opts.maintenance`, and `opts.popularity` with values that prioritize each one. Should be one of `'optimal'`, `'quality'`, `'maintenance'`, or `'popularity'`. Default: `'optimal'`
 * `opts.maintenance` - Decimal number between `0` and `1` that defines the weight of `maintenance` metrics when scoring and sorting packages. Default: `0.65` (same as `opts.sortBy: 'optimal'`)

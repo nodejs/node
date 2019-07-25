@@ -8,7 +8,7 @@ const common = require('../common-tap.js')
 
 const basedir = common.pkg
 const testdir = path.join(basedir, 'testdir')
-const cachedir = path.join(basedir, 'cache')
+const cachedir = common.cache
 const globaldir = path.join(basedir, 'global')
 const tmpdir = path.join(basedir, 'tmp')
 

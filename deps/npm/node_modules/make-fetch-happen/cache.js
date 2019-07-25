@@ -31,8 +31,6 @@ function cacheKey (req) {
 module.exports = class Cache {
   constructor (path, opts) {
     this._path = path
-    this._uid = opts && opts.uid
-    this._gid = opts && opts.gid
     this.Promise = (opts && opts.Promise) || Promise
   }
 
@@ -118,8 +116,6 @@ module.exports = class Cache {
         reqHeaders: req.headers.raw(),
         resHeaders: response.headers.raw()
       },
-      uid: this._uid,
-      gid: this._gid,
       size,
       memoize: fitInMemory && opts.memoize
     }

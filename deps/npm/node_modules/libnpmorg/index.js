@@ -7,7 +7,7 @@ const getStream = require('get-stream')
 const validate = require('aproba')
 
 const OrgConfig = figgyPudding({
-  Promise: {default: () => Promise}
+  Promise: { default: () => Promise }
 })
 
 // From https://github.com/npm/registry/blob/master/docs/orgs/memberships.md
@@ -26,7 +26,7 @@ cmd.set = (org, user, role, opts) => {
     org = org.replace(/^@?/, '')
     fetch.json(`/-/org/${eu(org)}/user`, opts.concat({
       method: 'PUT',
-      body: {user, role}
+      body: { user, role }
     })).then(resolve, reject)
   }).then(ret => Object.assign(new MembershipDetail(), ret))
 }
@@ -39,7 +39,7 @@ cmd.rm = (org, user, opts) => {
     org = org.replace(/^@?/, '')
     fetch(`/-/org/${eu(org)}/user`, opts.concat({
       method: 'DELETE',
-      body: {user},
+      body: { user },
       ignoreBody: true
     })).then(resolve, reject)
   }).then(() => null)

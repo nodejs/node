@@ -348,7 +348,7 @@ class Installer {
       .then(from => npa.resolve(dep.name, from))
       .then(from => { pkg._from = from.toString() })
       .then(() => writeFileAsync(depPkgPath, JSON.stringify(pkg, null, 2)))
-      .then(pkg)
+      .then(() => pkg)
   }
 
   updateInstallScript (dep, pkg) {
@@ -363,7 +363,7 @@ class Installer {
           pkg.scripts.install = 'node-gyp rebuild'
         }
       })
-      .then(pkg)
+      .then(() => pkg)
   }
 
   // A cute little mark-and-sweep collector!

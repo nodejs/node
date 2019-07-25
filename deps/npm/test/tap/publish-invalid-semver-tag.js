@@ -10,7 +10,7 @@ var mr = require('npm-registry-mock')
 var osenv = require('osenv')
 
 var PKG_DIR = common.pkg
-var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
+var CACHE_DIR = common.cache
 
 var DEFAULT_PKG = {
   'name': 'examples',
@@ -19,9 +19,17 @@ var DEFAULT_PKG = {
 
 var mockServer
 
+const chownr = require('chownr')
+const fixOwner = (
+  process.getuid && process.getuid() === 0 &&
+  process.env.SUDO_UID && process.env.SUDO_GID
+) ? (path) => chownr.sync(path, +process.env.SUDO_UID, +process.env.SUDO_GID)
+  : () => {}
+
 function resetPackage (options) {
   rimraf.sync(CACHE_DIR)
   mkdirp.sync(CACHE_DIR)
+  fixOwner(CACHE_DIR)
 
   fs.writeFileSync(path.resolve(PKG_DIR, 'package.json'), DEFAULT_PKG)
 }

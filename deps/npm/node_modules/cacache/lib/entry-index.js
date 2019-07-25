@@ -32,9 +32,7 @@ module.exports.NotFoundError = class NotFoundError extends Error {
 
 const IndexOpts = figgyPudding({
   metadata: {},
-  size: {},
-  uid: {},
-  gid: {}
+  size: {}
 })
 
 module.exports.insert = insert
@@ -49,7 +47,7 @@ function insert (cache, key, integrity, opts) {
     metadata: opts.metadata
   }
   return fixOwner.mkdirfix(
-    path.dirname(bucket), opts.uid, opts.gid
+    cache, path.dirname(bucket)
   ).then(() => {
     const stringified = JSON.stringify(entry)
     // NOTE - Cleverness ahoy!
@@ -63,7 +61,7 @@ function insert (cache, key, integrity, opts) {
       bucket, `\n${hashEntry(stringified)}\t${stringified}`
     )
   }).then(
-    () => fixOwner.chownr(bucket, opts.uid, opts.gid)
+    () => fixOwner.chownr(cache, bucket)
   ).catch({ code: 'ENOENT' }, () => {
     // There's a class of race conditions that happen when things get deleted
     // during fixOwner, or between the two mkdirfix/chownr calls.
@@ -86,13 +84,13 @@ function insertSync (cache, key, integrity, opts) {
     size: opts.size,
     metadata: opts.metadata
   }
-  fixOwner.mkdirfix.sync(path.dirname(bucket), opts.uid, opts.gid)
+  fixOwner.mkdirfix.sync(cache, path.dirname(bucket))
   const stringified = JSON.stringify(entry)
   fs.appendFileSync(
     bucket, `\n${hashEntry(stringified)}\t${stringified}`
   )
   try {
-    fixOwner.chownr.sync(bucket, opts.uid, opts.gid)
+    fixOwner.chownr.sync(cache, bucket)
   } catch (err) {
     if (err.code !== 'ENOENT') {
       throw err

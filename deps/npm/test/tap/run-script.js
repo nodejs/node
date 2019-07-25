@@ -8,7 +8,7 @@ var rimraf = require('rimraf')
 var common = require('../common-tap')
 
 var pkg = common.pkg
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 var tmp = path.resolve(pkg, 'tmp')
 
 var opts = { cwd: pkg }

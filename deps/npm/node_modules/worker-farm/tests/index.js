@@ -51,6 +51,22 @@ tape('simple, exports.fn test', function (t) {
 })
 
 
+tape('on child', function (t) {
+    t.plan(2)
+
+    let child = workerFarm({ onChild: function(subprocess) { childPid = subprocess.pid } }, childPath)
+      , childPid = null;
+
+    child(0, function(err, pid) {
+      t.equal(childPid, pid)
+    })
+
+    workerFarm.end(child, function () {
+      t.ok(true, 'workerFarm ended')
+    })
+})
+
+
 // use the returned pids to check that we're using a single child process
 // when maxConcurrentWorkers = 1
 tape('single worker', function (t) {
@@ -303,10 +319,12 @@ tape('multiple concurrent calls', function (t) {
       child(defer, function () {
         if (++cbc == count) {
           let time = Date.now() - start
-          // (defer * (count / callsPerWorker + 1)) - if precise it'd be count/callsPerWorker
+          let min = defer * 1.5
+          // (defer * (count / callsPerWorker + 2)) - if precise it'd be count/callsPerWorker
           // but accounting for IPC and other overhead, we need to give it a bit of extra time,
-          // hence the +1
-          t.ok(time > (defer * 1.5) && time < (defer * (count / callsPerWorker + 1)), 'processed tasks concurrently (' + time + 'ms)')
+          // hence the +2
+          let max = defer * (count / callsPerWorker + 2)
+          t.ok(time > min && time < max, 'processed tasks concurrently (' + time + ' > ' + min + ' && ' + time + ' < ' + max + ')')
           workerFarm.end(child, function () {
             t.ok(true, 'workerFarm ended')
           })
@@ -474,6 +492,40 @@ tape('test maxConcurrentCalls', function (t) {
 })
 
 
+tape('test maxConcurrentCalls + queue', function (t) {
+  t.plan(13)
+
+  let child = workerFarm({ maxConcurrentCalls: 4, maxConcurrentWorkers: 2, maxConcurrentCallsPerWorker: 1 }, childPath)
+
+  child(20, function (err) { console.log('ended short1'); t.notOk(err, 'no error, short call 1') })
+  child(20, function (err) { console.log('ended short2'); t.notOk(err, 'no error, short call 2') })
+  child(300, function (err) { t.notOk(err, 'no error, long call 1') })
+  child(300, function (err) { t.notOk(err, 'no error, long call 2') })
+  child(20, function (err) {
+    t.ok(err, 'short call 3 should error')
+    t.equal(err.type, 'MaxConcurrentCallsError', 'correct error type')
+  })
+  child(20, function (err) {
+    t.ok(err, 'short call 4 should error')
+    t.equal(err.type, 'MaxConcurrentCallsError', 'correct error type')
+  })
+
+  // cross fingers and hope the two short jobs have ended
+  setTimeout(function () {
+    child(20, function (err) { t.notOk(err, 'no error, delayed short call 1') })
+    child(20, function (err) { t.notOk(err, 'no error, delayed short call 2') })
+    child(20, function (err) {
+      t.ok(err, 'delayed short call 3 should error')
+      t.equal(err.type, 'MaxConcurrentCallsError', 'correct error type')
+    })
+
+    workerFarm.end(child, function () {
+      t.ok(true, 'workerFarm ended')
+    })
+  }, 250)
+})
+
+
 // this test should not keep the process running! if the test process
 // doesn't die then the problem is here
 tape('test timeout kill', function (t) {
@@ -529,12 +581,12 @@ tape('custom arguments can be passed to "fork"', function (t) {
   let cwd = fs.realpathSync(os.tmpdir())
     , workerOptions = {
         cwd      : cwd
-      , execArgv : ['--no-warnings']
+      , execArgv : ['--expose-gc']
     }
     , child = workerFarm({ maxConcurrentWorkers: 1, maxRetries: 5, workerOptions: workerOptions}, childPath, ['args'])
 
   child.args(function (err, result) {
-    t.equal(result.execArgv[0], '--no-warnings', 'flags passed (overridden default)')
+    t.equal(result.execArgv[0], '--expose-gc', 'flags passed (overridden default)')
     t.equal(result.cwd, cwd, 'correct cwd folder')
   })
 

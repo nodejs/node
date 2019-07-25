@@ -26,7 +26,8 @@ function andLogAndFinish (spec, tracker, done) {
   }
 }
 
-const CACHE = require('lru-cache')({
+const LRUCache = require('lru-cache')
+const CACHE = new LRUCache({
   max: 300 * 1024 * 1024,
   length: (p) => p._contentLength
 })

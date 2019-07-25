@@ -380,7 +380,7 @@ Agent.prototype.removeSocket = function removeSocket(s, options) {
 
   // [patch start]
   var freeLen = this.freeSockets[name] ? this.freeSockets[name].length : 0;
-  var sockLen = freeLen + this.sockets[name] ? this.sockets[name].length : 0;
+  var sockLen = freeLen + (this.sockets[name] ? this.sockets[name].length : 0);
   // [patch end]
 
   if (this.requests[name] && this.requests[name].length && sockLen < this.maxSockets) {

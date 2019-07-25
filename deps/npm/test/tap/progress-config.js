@@ -3,7 +3,7 @@ var test = require('tap').test
 var log = require('npmlog')
 var fs = require('graceful-fs')
 const common = require('../common-tap.js')
-var configName = common.pkg + '-npmrc'
+var configName = common.pkg + '/npmrc'
 
 // We use requireInject to get a fresh copy of
 // the npm singleton each time we require it.
@@ -84,9 +84,4 @@ test('unicode-false', function (t) {
     t.is(log.gauge._theme.hasUnicode, false, 'unicode will NOT be selected')
     t.done()
   })
-})
-
-test('cleanup', function (t) {
-  fs.unlinkSync(configName)
-  t.done()
 })

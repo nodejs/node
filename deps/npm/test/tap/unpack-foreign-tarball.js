@@ -13,7 +13,7 @@ var fixtures = path.resolve(__dirname, '..', 'fixtures')
 var pkg = common.pkg
 var nm = path.resolve(pkg, 'node_modules')
 var target = path.resolve(nm, 'npm-test-gitignore')
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 var tmp = path.resolve(pkg, 'tmp')
 
 var EXEC_OPTS = {

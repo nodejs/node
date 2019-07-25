@@ -10,6 +10,7 @@ const DEFAULT_OPTIONS = {
         , maxRetries                  : Infinity
         , forcedKillTime              : 100
         , autoStart                   : false
+        , onChild                     : function() {}
       }
 
 const fork                    = require('./fork')
@@ -29,8 +30,8 @@ function Farm (options, path) {
 Farm.prototype.mkhandle = function (method) {
   return function () {
     let args = Array.prototype.slice.call(arguments)
-    if (this.activeCalls >= this.options.maxConcurrentCalls) {
-      let err = new MaxConcurrentCallsError('Too many concurrent calls (' + this.activeCalls + ')')
+    if (this.activeCalls + this.callQueue.length >= this.options.maxConcurrentCalls) {
+      let err = new MaxConcurrentCallsError('Too many concurrent calls (active: ' + this.activeCalls + ', queued: ' + this.callQueue.length + ')')
       if (typeof args[args.length - 1] == 'function')
         return process.nextTick(args[args.length - 1].bind(null, err))
       throw err
@@ -113,7 +114,14 @@ Farm.prototype.startChild = function () {
         , exitCode    : null
       }
 
-  forked.child.on('message', this.receive.bind(this))
+  this.options.onChild(forked.child);
+
+  forked.child.on('message', function(data) {
+    if (data.owner !== 'farm') {
+      return;
+    }
+    this.receive(data);
+  }.bind(this))
   forked.child.once('exit', function (code) {
     c.exitCode = code
     this.onExit(id)
@@ -128,7 +136,7 @@ Farm.prototype.startChild = function () {
 Farm.prototype.stopChild = function (childId) {
   let child = this.children[childId]
   if (child) {
-    child.send('die')
+    child.send({owner: 'farm', event: 'die'})
     setTimeout(function () {
       if (child.exitCode === null)
         child.child.kill('SIGKILL')
@@ -234,7 +242,8 @@ Farm.prototype.send = function (childId, call) {
   this.activeCalls++
 
   child.send({
-      idx    : idx
+      owner  : 'farm'
+    , idx    : idx
     , child  : childId
     , method : call.method
     , args   : call.args

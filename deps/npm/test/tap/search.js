@@ -3,10 +3,8 @@
 const cacheFile = require('npm-cache-filename')
 const mkdirp = require('mkdirp')
 const mr = require('npm-registry-mock')
-const osenv = require('osenv')
 const path = require('path')
 const qs = require('querystring')
-const rimraf = require('rimraf')
 const test = require('tap').test
 
 const Tacks = require('tacks')
@@ -14,10 +12,27 @@ const File = Tacks.File
 
 const common = require('../common-tap.js')
 
-const PKG_DIR = common.pkg
-const CACHE_DIR = path.resolve(PKG_DIR, 'cache')
-const cacheBase = cacheFile(CACHE_DIR)(common.registry + '/-/all')
-const cachePath = path.join(cacheBase, '.cache.json')
+// this test uses a fresh cache for each test block
+// create them all in common.cache so that we can verify
+// them for root-owned files in sudotest
+let CACHE_DIR
+let cacheBase
+let cachePath
+let cacheCounter = 1
+function setup () {
+  CACHE_DIR = common.cache + '/' + cacheCounter++
+  cacheBase = cacheFile(CACHE_DIR)(common.registry + '/-/all')
+  cachePath = path.join(cacheBase, '.cache.json')
+  mkdirp.sync(cacheBase)
+  fixOwner(CACHE_DIR)
+}
+
+const chownr = require('chownr')
+const fixOwner = (
+  process.getuid && process.getuid() === 0 &&
+  process.env.SUDO_UID && process.env.SUDO_GID
+) ? (path) => chownr.sync(path, +process.env.SUDO_UID, +process.env.SUDO_GID)
+  : () => {}
 
 let server
 
@@ -35,6 +50,7 @@ test('notifies when there are no results', function (t) {
   const query = qs.stringify({
     text: 'none',
     size: 20,
+    from: 0,
     quality: 0.65,
     popularity: 0.98,
     maintenance: 0.5
@@ -45,7 +61,8 @@ test('notifies when there are no results', function (t) {
   common.npm([
     'search', 'none',
     '--registry', common.registry,
-    '--loglevel', 'error'
+    '--loglevel', 'error',
+    '--cache', CACHE_DIR
   ], {}, function (err, code, stdout, stderr) {
     if (err) throw err
     t.equal(stderr, '', 'no error output')
@@ -60,6 +77,7 @@ test('spits out a useful error when no cache nor network', function (t) {
   const query = qs.stringify({
     text: 'foo',
     size: 20,
+    from: 0,
     quality: 0.65,
     popularity: 0.98,
     maintenance: 0.5
@@ -69,6 +87,7 @@ test('spits out a useful error when no cache nor network', function (t) {
   const cacheContents = {}
   const fixture = new Tacks(File(cacheContents))
   fixture.create(cachePath)
+  fixOwner(cachePath)
   common.npm([
     'search', 'foo',
     '--registry', common.registry,
@@ -91,6 +110,7 @@ test('can switch to JSON mode', function (t) {
   const query = qs.stringify({
     text: 'oo',
     size: 20,
+    from: 0,
     quality: 0.65,
     popularity: 0.98,
     maintenance: 0.5
@@ -130,6 +150,7 @@ test('JSON mode does not notify on empty', function (t) {
   const query = qs.stringify({
     text: 'oo',
     size: 20,
+    from: 0,
     quality: 0.65,
     popularity: 0.98,
     maintenance: 0.5
@@ -157,6 +178,7 @@ test('can switch to tab separated mode', function (t) {
   const query = qs.stringify({
     text: 'oo',
     size: 20,
+    from: 0,
     quality: 0.65,
     popularity: 0.98,
     maintenance: 0.5
@@ -187,6 +209,7 @@ test('tab mode does not notify on empty', function (t) {
   const query = qs.stringify({
     text: 'oo',
     size: 20,
+    from: 0,
     quality: 0.65,
     popularity: 0.98,
     maintenance: 0.5
@@ -210,8 +233,8 @@ test('tab mode does not notify on empty', function (t) {
 })
 
 test('no arguments provided should error', function (t) {
-  cleanup()
-  common.npm(['search'], {}, function (err, code, stdout, stderr) {
+  setup()
+  common.npm(['search', '--cache', CACHE_DIR], {}, function (err, code, stdout, stderr) {
     if (err) throw err
     t.equal(code, 1, 'search finished unsuccessfully')
 
@@ -225,18 +248,7 @@ test('no arguments provided should error', function (t) {
 })
 
 test('cleanup', function (t) {
-  cleanup()
+  server.done()
   server.close()
   t.end()
 })
-
-function setup () {
-  cleanup()
-  mkdirp.sync(cacheBase)
-}
-
-function cleanup () {
-  server.done()
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(PKG_DIR)
-}

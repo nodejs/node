@@ -88,7 +88,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
     if not output_file in output_files:
       output_files[output_file] = input_file
 
-  for output_file, input_file in output_files.iteritems():
+  for output_file, input_file in output_files.items():
     output = open(output_file, 'w')
     pprint.pprint(data[input_file], output)
     output.close()

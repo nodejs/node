@@ -54,7 +54,7 @@ Type: `Function`
 
 Promise-returning/async function.
 
-#### ...args
+#### args
 
 Any arguments to pass through to `fn`.
 

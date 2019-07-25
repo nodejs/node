@@ -1,21 +1,28 @@
 var test = require('tap').test
 var path = require('path')
-var rimraf = require('rimraf')
-var mkdirp = require('mkdirp')
 var common = require('../common-tap.js')
 var pkg = common.pkg
 var tmp = path.join(pkg, 'tmp')
-var cache = path.join(pkg, 'cache')
+var cache = common.cache
 var fs = require('fs')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
 var packageJson = path.resolve(pkg, 'package.json')
 
-test('setup', function (t) {
-  setup()
-  t.pass('setup success')
-  t.done()
-})
+fs.writeFileSync(packageJson, JSON.stringify({
+  'name': 'sorted-package-json',
+  'version': '0.0.0',
+  'description': '',
+  'main': 'index.js',
+  'scripts': {
+    'test': 'echo \'Error: no test specified\' && exit 1'
+  },
+  'author': 'Rocko Artischocko',
+  'license': 'ISC',
+  'dependencies': {
+    'underscore': '^1.3.3',
+    'request': '^0.9.0'
+  }
+}, null, 2), 'utf8')
 
 test('sorting dependencies', function (t) {
   var before = JSON.parse(fs.readFileSync(packageJson).toString())
@@ -52,38 +59,3 @@ test('sorting dependencies', function (t) {
     })
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.pass('cleaned up')
-  t.end()
-})
-
-function setup () {
-  cleanup()
-  mkdirp.sync(pkg)
-
-  fs.writeFileSync(packageJson, JSON.stringify({
-    'name': 'sorted-package-json',
-    'version': '0.0.0',
-    'description': '',
-    'main': 'index.js',
-    'scripts': {
-      'test': 'echo \'Error: no test specified\' && exit 1'
-    },
-    'author': 'Rocko Artischocko',
-    'license': 'ISC',
-    'dependencies': {
-      'underscore': '^1.3.3',
-      'request': '^0.9.0'
-    }
-  }, null, 2), 'utf8')
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(cache)
-  rimraf.sync(pkg)
-  mkdirp.sync(cache)
-  mkdirp.sync(tmp)
-}

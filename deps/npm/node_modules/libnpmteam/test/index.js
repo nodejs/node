@@ -2,7 +2,7 @@
 
 const figgyPudding = require('figgy-pudding')
 const getStream = require('get-stream')
-const {test} = require('tap')
+const { test } = require('tap')
 const tnock = require('./util/tnock.js')
 
 const team = require('../index.js')
@@ -14,10 +14,10 @@ const OPTS = figgyPudding({})({
 
 test('create', t => {
   tnock(t, REG).put(
-    '/-/org/foo/team', {name: 'cli'}
-  ).reply(201, {name: 'cli'})
+    '/-/org/foo/team', { name: 'cli' }
+  ).reply(201, { name: 'cli' })
   return team.create('@foo:cli', OPTS).then(ret => {
-    t.deepEqual(ret, {name: 'cli'}, 'request succeeded')
+    t.deepEqual(ret, { name: 'cli' }, 'request succeeded')
   })
 })
 
@@ -39,11 +39,11 @@ test('create w/ description', t => {
   tnock(t, REG).put('/-/org/foo/team', {
     name: 'cli',
     description: 'just some cool folx'
-  }).reply(201, {name: 'cli'})
+  }).reply(201, { name: 'cli' })
   return team.create('@foo:cli', OPTS.concat({
     description: 'just some cool folx'
   })).then(ret => {
-    t.deepEqual(ret, {name: 'cli'}, 'no desc in return')
+    t.deepEqual(ret, { name: 'cli' }, 'no desc in return')
   })
 })
 
@@ -58,7 +58,7 @@ test('destroy', t => {
 
 test('add', t => {
   tnock(t, REG).put(
-    '/-/team/foo/cli/user', {user: 'zkat'}
+    '/-/team/foo/cli/user', { user: 'zkat' }
   ).reply(201, {})
   return team.add('zkat', '@foo:cli', OPTS).then(ret => {
     t.deepEqual(ret, {}, 'request succeeded')
@@ -67,7 +67,7 @@ test('add', t => {
 
 test('rm', t => {
   tnock(t, REG).delete(
-    '/-/team/foo/cli/user', {user: 'zkat'}
+    '/-/team/foo/cli/user', { user: 'zkat' }
   ).reply(204, {})
   return team.rm('zkat', '@foo:cli', OPTS).then(ret => {
     t.deepEqual(ret, {}, 'request succeeded')

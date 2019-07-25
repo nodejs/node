@@ -20,6 +20,7 @@ semver.clean('  =v1.2.3   ') // '1.2.3'
 semver.satisfies('1.2.3', '1.x || >=2.5.0 || 5.0.0 - 7.2.3') // true
 semver.gt('1.2.3', '9.8.7') // false
 semver.lt('1.2.3', '9.8.7') // true
+semver.minVersion('>=1.0.0') // '1.0.0'
 semver.valid(semver.coerce('v2')) // '2.0.0'
 semver.valid(semver.coerce('42.6.7.9.3-alpha')) // '42.6.7'
 ```
@@ -29,7 +30,7 @@ As a command-line utility:
 ```
 $ semver -h
 
-A JavaScript implementation of the http://semver.org/ specification
+A JavaScript implementation of the https://semver.org/ specification
 Copyright Isaac Z. Schlueter
 
 Usage: semver [options] <version> [<version> [...]]
@@ -71,7 +72,7 @@ multiple versions to the utility will just sort them.
 ## Versions
 
 A "version" is described by the `v2.0.0` specification found at
-<http://semver.org/>.
+<https://semver.org/>.
 
 A leading `"="` or `"v"` character is stripped off and ignored.
 
@@ -136,6 +137,13 @@ alpha/beta/rc versions.  By including a prerelease tag in the range,
 the user is indicating that they are aware of the risk.  However, it
 is still not appropriate to assume that they have opted into taking a
 similar risk on the *next* set of prerelease versions.
+
+Note that this behavior can be suppressed (treating all prerelease
+versions as if they were normal versions, for the purpose of range
+matching) by setting the `includePrerelease` flag on the options
+object to any
+[functions](https://github.com/npm/node-semver#functions) that do
+range matching.
 
 #### Prerelease Identifiers
 
@@ -325,6 +333,8 @@ strings that they parse.
 * `patch(v)`: Return the patch version number.
 * `intersects(r1, r2, loose)`: Return true if the two supplied ranges
   or comparators intersect.
+* `parse(v)`: Attempt to parse a string as a semantic version, returning either
+  a `SemVer` object or `null`.
 
 ### Comparison
 
@@ -361,6 +371,8 @@ strings that they parse.
   that satisfies the range, or `null` if none of them do.
 * `minSatisfying(versions, range)`: Return the lowest version in the list
   that satisfies the range, or `null` if none of them do.
+* `minVersion(range)`: Return the lowest version that can possibly match
+  the given range.
 * `gtr(version, range)`: Return `true` if version is greater than all the
   versions possible in the range.
 * `ltr(version, range)`: Return `true` if version is less than all the

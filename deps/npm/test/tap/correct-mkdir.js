@@ -8,11 +8,11 @@ var cache_dir = common.pkg
 test('correct-mkdir: no race conditions', function (t) {
   var mock_fs = {}
   var did_hook = false
-  mock_fs.stat = function (path, cb) {
+  mock_fs.lstat = function (path, cb) {
     if (path === cache_dir) {
       // Return a non-matching owner
       cb(null, {
-        uid: +process.uid + 1,
+        uid: +process.getuid() + 1,
         isDirectory: function () {
           return true
         }
@@ -35,7 +35,8 @@ test('correct-mkdir: no race conditions', function (t) {
   }
   var mocks = {
     'graceful-fs': mock_fs,
-    'chownr': mock_chownr
+    'chownr': mock_chownr,
+    'infer-owner': requireInject('infer-owner', { fs: mock_fs })
   }
   var correctMkdir = requireInject('../../lib/utils/correct-mkdir.js', mocks)
 
@@ -60,7 +61,7 @@ test('correct-mkdir: no race conditions', function (t) {
 
 test('correct-mkdir: ignore ENOENTs from chownr', function (t) {
   var mock_fs = {}
-  mock_fs.stat = function (path, cb) {
+  mock_fs.lstat = function (path, cb) {
     if (path === cache_dir) {
       cb(null, {
         isDirectory: function () {
@@ -99,7 +100,7 @@ test('correct-mkdir: SUDO_UID and SUDO_GID non-Windows', function (t) {
   process.getuid = function () { return 0 }
   process.getgid = function () { return 0 }
   var mock_fs = {}
-  mock_fs.stat = function (path, cb) {
+  mock_fs.lstat = function (path, cb) {
     if (path === cache_dir) {
       cb(null, {
         uid: 0,
@@ -134,7 +135,7 @@ test('correct-mkdir: SUDO_UID and SUDO_GID Windows', function (t) {
   delete process.getuid
   delete process.getgid
   var mock_fs = {}
-  mock_fs.stat = function (path, cb) {
+  mock_fs.lstat = function (path, cb) {
     if (path === cache_dir) {
       cb(null, {
         uid: 0,

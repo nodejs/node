@@ -99,9 +99,7 @@ function regFetch (uri, opts) {
       maxTimeout: opts['fetch-retry-maxtimeout']
     },
     strictSSL: !!opts['strict-ssl'],
-    timeout: opts.timeout,
-    uid: opts.uid,
-    gid: opts.gid
+    timeout: opts.timeout
   }).then(res => checkResponse(
     opts.method || 'GET', res, registry, startTime, opts
   )))

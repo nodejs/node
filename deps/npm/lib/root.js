@@ -1,7 +1,7 @@
 module.exports = root
 
-var npm = require('./npm.js')
-var output = require('./utils/output.js')
+const npm = require('./npm.js')
+const output = require('./utils/output.js')
 
 root.usage = 'npm root [-g]'
 

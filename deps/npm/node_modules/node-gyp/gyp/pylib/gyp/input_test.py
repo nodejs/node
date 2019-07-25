@@ -22,38 +22,38 @@ class TestFindCycles(unittest.TestCase):
     dependency.dependents.append(dependent)
 
   def test_no_cycle_empty_graph(self):
-    for label, node in self.nodes.iteritems():
-      self.assertEquals([], node.FindCycles())
+    for label, node in self.nodes.items():
+      self.assertEqual([], node.FindCycles())
 
   def test_no_cycle_line(self):
     self._create_dependency(self.nodes['a'], self.nodes['b'])
     self._create_dependency(self.nodes['b'], self.nodes['c'])
     self._create_dependency(self.nodes['c'], self.nodes['d'])
 
-    for label, node in self.nodes.iteritems():
-      self.assertEquals([], node.FindCycles())
+    for label, node in self.nodes.items():
+      self.assertEqual([], node.FindCycles())
 
   def test_no_cycle_dag(self):
     self._create_dependency(self.nodes['a'], self.nodes['b'])
     self._create_dependency(self.nodes['a'], self.nodes['c'])
     self._create_dependency(self.nodes['b'], self.nodes['c'])
 
-    for label, node in self.nodes.iteritems():
-      self.assertEquals([], node.FindCycles())
+    for label, node in self.nodes.items():
+      self.assertEqual([], node.FindCycles())
 
   def test_cycle_self_reference(self):
     self._create_dependency(self.nodes['a'], self.nodes['a'])
 
-    self.assertEquals([[self.nodes['a'], self.nodes['a']]],
+    self.assertEqual([[self.nodes['a'], self.nodes['a']]],
                       self.nodes['a'].FindCycles())
 
   def test_cycle_two_nodes(self):
     self._create_dependency(self.nodes['a'], self.nodes['b'])
     self._create_dependency(self.nodes['b'], self.nodes['a'])
 
-    self.assertEquals([[self.nodes['a'], self.nodes['b'], self.nodes['a']]],
+    self.assertEqual([[self.nodes['a'], self.nodes['b'], self.nodes['a']]],
                       self.nodes['a'].FindCycles())
-    self.assertEquals([[self.nodes['b'], self.nodes['a'], self.nodes['b']]],
+    self.assertEqual([[self.nodes['b'], self.nodes['a'], self.nodes['b']]],
                       self.nodes['b'].FindCycles())
 
   def test_two_cycles(self):
@@ -68,7 +68,7 @@ class TestFindCycles(unittest.TestCase):
        [self.nodes['a'], self.nodes['b'], self.nodes['a']] in cycles)
     self.assertTrue(
        [self.nodes['b'], self.nodes['c'], self.nodes['b']] in cycles)
-    self.assertEquals(2, len(cycles))
+    self.assertEqual(2, len(cycles))
 
   def test_big_cycle(self):
     self._create_dependency(self.nodes['a'], self.nodes['b'])
@@ -77,7 +77,7 @@ class TestFindCycles(unittest.TestCase):
     self._create_dependency(self.nodes['d'], self.nodes['e'])
     self._create_dependency(self.nodes['e'], self.nodes['a'])
 
-    self.assertEquals([[self.nodes['a'],
+    self.assertEqual([[self.nodes['a'],
                         self.nodes['b'],
                         self.nodes['c'],
                         self.nodes['d'],

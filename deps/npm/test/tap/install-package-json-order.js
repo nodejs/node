@@ -9,7 +9,7 @@ const common = require('../common-tap.js')
 var pkg = common.pkg
 var workdir = path.join(pkg, 'workdir')
 var tmp = path.join(pkg, 'tmp')
-var cache = path.join(pkg, 'cache')
+var cache = common.cache
 var fs = require('fs')
 var osenv = require('osenv')
 
