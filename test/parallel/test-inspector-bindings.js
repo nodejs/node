@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
@@ -86,7 +85,7 @@ function testSampleDebugSession() {
   }, TypeError);
   session.post('Debugger.enable', () => cbAsSecondArgCalled = true);
   session.post('Debugger.setBreakpointByUrl', {
-    'lineNumber': 14,
+    'lineNumber': 13,
     'url': pathToFileURL(path.resolve(__dirname, __filename)).toString(),
     'columnNumber': 0,
     'condition': ''

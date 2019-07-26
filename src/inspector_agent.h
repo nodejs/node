@@ -86,9 +86,16 @@ class Agent {
   std::unique_ptr<ParentInspectorHandle> GetParentHandle(
       int thread_id, const std::string& url);
 
-  // Called to create inspector sessions that can be used from the main thread.
+  // Called to create inspector sessions that can be used from the same thread.
   // The inspector responds by using the delegate to send messages back.
   std::unique_ptr<InspectorSession> Connect(
+      std::unique_ptr<InspectorSessionDelegate> delegate,
+      bool prevent_shutdown);
+
+  // Called from the worker to create inspector sessions that is connected
+  // to the main thread.
+  // The inspector responds by using the delegate to send messages back.
+  std::unique_ptr<InspectorSession> ConnectToMainThread(
       std::unique_ptr<InspectorSessionDelegate> delegate,
       bool prevent_shutdown);
 

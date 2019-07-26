@@ -1215,6 +1215,12 @@ The `inspector` module is not available for use.
 While using the `inspector` module, an attempt was made to use the inspector
 before it was connected.
 
+<a id="ERR_INSPECTOR_NOT_WORKER"></a>
+### ERR_INSPECTOR_NOT_WORKER
+
+An API was called on the main thread that can only be used from
+the worker thread.
+
 <a id="ERR_INVALID_ADDRESS_FAMILY"></a>
 ### ERR_INVALID_ADDRESS_FAMILY
 
