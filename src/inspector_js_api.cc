@@ -37,6 +37,29 @@ std::unique_ptr<StringBuffer> ToProtocolString(Isolate* isolate,
   return StringBuffer::create(StringView(*buffer, buffer.length()));
 }
 
+struct LocalConnection {
+  static std::unique_ptr<InspectorSession> Connect(
+      Agent* inspector, std::unique_ptr<InspectorSessionDelegate> delegate) {
+    return inspector->Connect(std::move(delegate), false);
+  }
+
+  static Local<String> GetClassName(Environment* env) {
+    return FIXED_ONE_BYTE_STRING(env->isolate(), "Connection");
+  }
+};
+
+struct MainThreadConnection {
+  static std::unique_ptr<InspectorSession> Connect(
+      Agent* inspector, std::unique_ptr<InspectorSessionDelegate> delegate) {
+    return inspector->ConnectToMainThread(std::move(delegate), true);
+  }
+
+  static Local<String> GetClassName(Environment* env) {
+    return FIXED_ONE_BYTE_STRING(env->isolate(), "MainThreadConnection");
+  }
+};
+
+template <typename ConnectionType>
 class JSBindingsConnection : public AsyncWrap {
  public:
   class JSBindingsSessionDelegate : public InspectorSessionDelegate {
@@ -70,12 +93,27 @@ class JSBindingsConnection : public AsyncWrap {
                        : AsyncWrap(env, wrap, PROVIDER_INSPECTORJSBINDING),
                          callback_(env->isolate(), callback) {
     Agent* inspector = env->inspector_agent();
-    session_ = inspector->Connect(std::make_unique<JSBindingsSessionDelegate>(
-        env, this), false);
+    session_ = ConnectionType::Connect(
+        inspector, std::make_unique<JSBindingsSessionDelegate>(env, this));
   }
 
   void OnMessage(Local<Value> value) {
     MakeCallback(callback_.Get(env()->isolate()), 1, &value);
+  }
+
+  static void Bind(Environment* env, Local<Object> target) {
+    Local<String> class_name = ConnectionType::GetClassName(env);
+    Local<FunctionTemplate> tmpl =
+        env->NewFunctionTemplate(JSBindingsConnection::New);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(1);
+    tmpl->SetClassName(class_name);
+    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    env->SetProtoMethod(tmpl, "dispatch", JSBindingsConnection::Dispatch);
+    env->SetProtoMethod(tmpl, "disconnect", JSBindingsConnection::Disconnect);
+    target->Set(env->context(),
+                class_name,
+                tmpl->GetFunction(env->context()).ToLocalChecked())
+        .ToChecked();
   }
 
   static void New(const FunctionCallbackInfo<Value>& info) {
@@ -300,18 +338,8 @@ void Initialize(Local<Object> target, Local<Value> unused,
   env->SetMethod(target, "registerAsyncHook", RegisterAsyncHookWrapper);
   env->SetMethodNoSideEffect(target, "isEnabled", IsEnabled);
 
-  auto conn_str = FIXED_ONE_BYTE_STRING(env->isolate(), "Connection");
-  Local<FunctionTemplate> tmpl =
-      env->NewFunctionTemplate(JSBindingsConnection::New);
-  tmpl->InstanceTemplate()->SetInternalFieldCount(1);
-  tmpl->SetClassName(conn_str);
-  tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetProtoMethod(tmpl, "dispatch", JSBindingsConnection::Dispatch);
-  env->SetProtoMethod(tmpl, "disconnect", JSBindingsConnection::Disconnect);
-  target
-      ->Set(env->context(), conn_str,
-            tmpl->GetFunction(env->context()).ToLocalChecked())
-      .ToChecked();
+  JSBindingsConnection<LocalConnection>::Bind(env, target);
+  JSBindingsConnection<MainThreadConnection>::Bind(env, target);
 }
 
 }  // namespace

@@ -828,6 +828,17 @@ std::unique_ptr<InspectorSession> Agent::Connect(
       new SameThreadInspectorSession(session_id, client_));
 }
 
+std::unique_ptr<InspectorSession> Agent::ConnectToMainThread(
+    std::unique_ptr<InspectorSessionDelegate> delegate,
+    bool prevent_shutdown) {
+  CHECK_NOT_NULL(parent_handle_);
+  CHECK_NOT_NULL(client_);
+  auto thread_safe_delegate =
+      client_->getThreadHandle()->MakeDelegateThreadSafe(std::move(delegate));
+  return parent_handle_->Connect(std::move(thread_safe_delegate),
+                                 prevent_shutdown);
+}
+
 void Agent::WaitForDisconnect() {
   CHECK_NOT_NULL(client_);
   bool is_worker = parent_handle_ != nullptr;
