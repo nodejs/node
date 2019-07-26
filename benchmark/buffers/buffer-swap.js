@@ -27,7 +27,7 @@ function swap(b, n, m) {
 Buffer.prototype.htons = function htons() {
   if (this.length % 2 !== 0)
     throw new RangeError();
-  for (var i = 0; i < this.length; i += 2) {
+  for (let i = 0; i < this.length; i += 2) {
     swap(this, i, i + 1);
   }
   return this;
@@ -46,7 +46,7 @@ Buffer.prototype.htonl = function htonl() {
 Buffer.prototype.htonll = function htonll() {
   if (this.length % 8 !== 0)
     throw new RangeError();
-  for (var i = 0; i < this.length; i += 8) {
+  for (let i = 0; i < this.length; i += 8) {
     swap(this, i, i + 7);
     swap(this, i + 1, i + 6);
     swap(this, i + 2, i + 5);
@@ -58,7 +58,7 @@ Buffer.prototype.htonll = function htonll() {
 function createBuffer(len, aligned) {
   len += aligned ? 0 : 1;
   const buf = Buffer.allocUnsafe(len);
-  for (var i = 1; i <= len; i++)
+  for (let i = 1; i <= len; i++)
     buf[i - 1] = i;
   return aligned ? buf : buf.slice(1);
 }

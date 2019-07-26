@@ -16,6 +16,6 @@ function main({ n, size }) {
   const b = Buffer.allocUnsafe(encodedSize);
   b.write(s, 0, encodedSize, 'base64');
   bench.start();
-  for (var i = 0; i < n; i += 1) b.base64Write(s, 0, s.length);
+  for (let i = 0; i < n; i += 1) b.base64Write(s, 0, s.length);
   bench.end(n);
 }

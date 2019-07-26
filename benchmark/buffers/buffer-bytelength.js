@@ -37,7 +37,7 @@ function main({ n, len, encoding }) {
   }
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     const index = n % strings.length;
     // Go!
     const r = Buffer.byteLength(strings[index], encoding);

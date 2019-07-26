@@ -8,12 +8,12 @@ const bench = common.createBenchmark(main, {
 });
 
 function compareUsingSlice(b0, b1, len, iter) {
-  for (var i = 0; i < iter; i++)
+  for (let i = 0; i < iter; i++)
     Buffer.compare(b0.slice(1, len), b1.slice(1, len));
 }
 
 function compareUsingOffset(b0, b1, len, iter) {
-  for (var i = 0; i < iter; i++)
+  for (let i = 0; i < iter; i++)
     b0.compare(b1, 1, len, 1, len);
 }
 

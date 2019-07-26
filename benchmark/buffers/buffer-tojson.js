@@ -11,7 +11,7 @@ function main({ n, len }) {
   const buf = Buffer.allocUnsafe(len);
 
   bench.start();
-  for (var i = 0; i < n; ++i)
+  for (let i = 0; i < n; ++i)
     buf.toJSON();
   bench.end(n);
 }

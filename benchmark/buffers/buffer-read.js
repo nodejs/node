@@ -33,7 +33,7 @@ function main({ n, buf, type }) {
   buff.writeDoubleLE(0, 0);
   bench.start();
 
-  for (var i = 0; i !== n; i++) {
+  for (let i = 0; i !== n; i++) {
     buff[fn](0);
   }
   bench.end(n);
