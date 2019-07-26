@@ -55,6 +55,13 @@ class ParentInspectorHandle {
                         std::shared_ptr<MainThreadHandle> parent_thread,
                         bool wait_for_connect);
   ~ParentInspectorHandle();
+  std::unique_ptr<ParentInspectorHandle> NewParentInspectorHandle(
+      int thread_id, const std::string& url) {
+    return std::make_unique<ParentInspectorHandle>(thread_id,
+                                                   url,
+                                                   parent_thread_,
+                                                   wait_);
+  }
   void WorkerStarted(std::shared_ptr<MainThreadHandle> worker_thread,
                      bool waiting);
   bool WaitForConnect() {
