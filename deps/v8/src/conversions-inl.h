@@ -110,6 +110,7 @@ int32_t DoubleToInt32(double x) {
 }
 
 bool DoubleToSmiInteger(double value, int* smi_int_value) {
+  if (std::isnan(value)) return false;
   if (!IsSmiDouble(value)) return false;
   *smi_int_value = FastD2I(value);
   DCHECK(Smi::IsValid(*smi_int_value));
