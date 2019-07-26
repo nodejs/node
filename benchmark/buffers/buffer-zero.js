@@ -14,6 +14,6 @@ function main({ n, type }) {
   const data = type === 'buffer' ? zeroBuffer : zeroString;
 
   bench.start();
-  for (var i = 0; i < n; i++) Buffer.from(data);
+  for (let i = 0; i < n; i++) Buffer.from(data);
   bench.end(n);
 }

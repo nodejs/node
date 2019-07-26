@@ -56,7 +56,7 @@ function benchInt(dv, fn, len, le) {
   const m = mod[fn];
   const method = dv[fn];
   bench.start();
-  for (var i = 0; i < len; i++) {
+  for (let i = 0; i < len; i++) {
     method.call(dv, 0, i % m, le);
   }
   bench.end(len);
@@ -65,7 +65,7 @@ function benchInt(dv, fn, len, le) {
 function benchFloat(dv, fn, len, le) {
   const method = dv[fn];
   bench.start();
-  for (var i = 0; i < len; i++) {
+  for (let i = 0; i < len; i++) {
     method.call(dv, 0, i * 0.1, le);
   }
   bench.end(len);

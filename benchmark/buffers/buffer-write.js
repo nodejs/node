@@ -89,7 +89,7 @@ function main({ n, buf, type }) {
 function benchBigInt(buff, fn, n) {
   const m = mod[fn];
   bench.start();
-  for (var i = 0n; i !== n; i++) {
+  for (let i = 0n; i !== n; i++) {
     buff[fn](i & m, 0);
   }
   bench.end(Number(n));
@@ -98,7 +98,7 @@ function benchBigInt(buff, fn, n) {
 function benchInt(buff, fn, n) {
   const m = mod[fn];
   bench.start();
-  for (var i = 0; i !== n; i++) {
+  for (let i = 0; i !== n; i++) {
     buff[fn](i & m, 0);
   }
   bench.end(n);
@@ -108,7 +108,7 @@ function benchSpecialInt(buff, fn, n) {
   const m = mod[fn];
   const byte = byteLength[fn];
   bench.start();
-  for (var i = 0; i !== n; i++) {
+  for (let i = 0; i !== n; i++) {
     buff[fn](i & m, 0, byte);
   }
   bench.end(n);
@@ -116,7 +116,7 @@ function benchSpecialInt(buff, fn, n) {
 
 function benchFloat(buff, fn, n) {
   bench.start();
-  for (var i = 0; i !== n; i++) {
+  for (let i = 0; i !== n; i++) {
     buff[fn](i, 0);
   }
   bench.end(n);

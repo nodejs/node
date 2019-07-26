@@ -31,7 +31,7 @@ function main({ encoding, n }) {
   const { normalizeEncoding } = require('internal/util');
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     normalizeEncoding(encoding);
   }
   bench.end(n);

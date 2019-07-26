@@ -15,7 +15,7 @@ function main({ n, value }) {
 
   let count = 0;
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     count += aliceBuffer.indexOf(value, 0, undefined);
   }
   bench.end(n);
