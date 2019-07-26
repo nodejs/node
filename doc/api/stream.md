@@ -1095,7 +1095,7 @@ added: REPLACEME
 Getter for the property `encoding` of a given `Readable` stream. The `encoding`
 property can be set using the [`readable.setEncoding()`][] method.
 
-##### readable.readableFinished
+##### readable.readableEnded
 <!-- YAML
 added: REPLACEME
 -->
