@@ -42,7 +42,7 @@ function main({ n, search, encoding, type }) {
   }
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     aliceBuffer.indexOf(search, 0, encoding);
   }
   bench.end(n);

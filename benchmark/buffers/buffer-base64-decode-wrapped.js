@@ -18,7 +18,7 @@ function main({ charsPerLine, linesCount, n }) {
   const buffer = Buffer.alloc(bytesCount, line, 'base64');
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     buffer.base64Write(data, 0, bytesCount);
   }
   bench.end(n);
