@@ -237,8 +237,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     tracing_agent_ =
         std::make_unique<protocol::TracingAgent>(env, main_thread_);
     tracing_agent_->Wire(node_dispatcher_.get());
-    worker_agent_ = std::make_unique<protocol::WorkerAgent>(worker_manager);
-    worker_agent_->Wire(node_dispatcher_.get());
+    if (worker_manager) {
+      worker_agent_ = std::make_unique<protocol::WorkerAgent>(worker_manager);
+      worker_agent_->Wire(node_dispatcher_.get());
+    }
     runtime_agent_ = std::make_unique<protocol::RuntimeAgent>();
     runtime_agent_->Wire(node_dispatcher_.get());
   }
@@ -246,8 +248,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   ~ChannelImpl() override {
     tracing_agent_->disable();
     tracing_agent_.reset();  // Dispose before the dispatchers
-    worker_agent_->disable();
-    worker_agent_.reset();  // Dispose before the dispatchers
+    if (worker_agent_) {
+      worker_agent_->disable();
+      worker_agent_.reset();  // Dispose before the dispatchers
+    }
     runtime_agent_->disable();
     runtime_agent_.reset();  // Dispose before the dispatchers
   }
@@ -670,6 +674,9 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   std::shared_ptr<WorkerManager> getWorkerManager() {
+    if (!is_main_) {
+      return nullptr;
+    }
     if (worker_manager_ == nullptr) {
       worker_manager_ =
           std::make_shared<WorkerManager>(getThreadHandle());
@@ -968,7 +975,11 @@ void Agent::SetParentHandle(
 
 std::unique_ptr<ParentInspectorHandle> Agent::GetParentHandle(
     int thread_id, const std::string& url) {
-  return client_->getWorkerManager()->NewParentHandle(thread_id, url);
+  if (!parent_handle_) {
+    return client_->getWorkerManager()->NewParentHandle(thread_id, url);
+  } else {
+    return parent_handle_->NewParentInspectorHandle(thread_id, url);
+  }
 }
 
 void Agent::WaitForConnect() {
