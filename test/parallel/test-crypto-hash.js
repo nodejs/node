@@ -191,6 +191,8 @@ common.expectsError(
   // Default outputLengths.
   assert.strictEqual(crypto.createHash('shake128').digest('hex'),
                      '7f9c2ba4e88f827d616045507605853e');
+  assert.strictEqual(crypto.createHash('shake128', null).digest('hex'),
+                     '7f9c2ba4e88f827d616045507605853e');
   assert.strictEqual(crypto.createHash('shake256').digest('hex'),
                      '46b9dd2b0ba88d13233b3feb743eeb24' +
                      '3fcd52ea62b81b82b50c27646ed5762f');
