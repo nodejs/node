@@ -181,7 +181,7 @@ const myURL = URL.from({
   fragment: 'app',
   query: 'el=%3Cdiv%20%2F%3E',
 });
-// http://root:1234@localhost:3000/main?el=%3Cdiv%20%2F%3E#app
+// -> "http://root:1234@localhost:3000/main?el=%3Cdiv%20%2F%3E#app"
 ```
 
 All properties are optional in case you want to build your `URL` object
@@ -189,7 +189,7 @@ gradually (note that you have to pass an empty object in this case anyway)
 
 ```js
 const myURL = URL.from({});
-// :
+// -> ":"
 ```
 
 #### url.hash
