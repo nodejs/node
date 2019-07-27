@@ -381,8 +381,8 @@ To include an ES module into CommonJS, use [`import()`][].
 
 ### <code>import</code> statements
 
-An `import` statement can reference either ES module or CommonJS JavaScript.
-Other file types such as JSON and Native modules are not supported. For those,
+An `import` statement can reference an ES module, a CommonJS module, or JSON.
+Other file types such as Native modules are not supported. For those,
 use [`module.createRequire()`][].
 
 `import` statements are permitted only in ES modules. For similar functionality
