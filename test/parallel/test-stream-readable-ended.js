@@ -15,7 +15,7 @@ const assert = require('assert');
   const readable = new Readable();
 
   readable._read = () => {
-    // The state finished should start in false.
+    // The state ended should start in false.
     assert.strictEqual(readable.readableEnded, false);
     readable.push('asd');
     assert.strictEqual(readable.readableEnded, false);
