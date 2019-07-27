@@ -153,6 +153,45 @@ myURL = new URL('foo:Example.com/', 'https://example.org/');
 // foo:Example.com/
 ```
 
+#### Class Method: URL.from(input)
+
+* `input` {Object}
+  * `protocol` {string} any valid protocol. See [`url.protocol`][].
+  * `username` {string} any valid username. See [`url.username`][].
+  * `password` {string} any valid password. See [`url.password`][].
+  * `host` {string} any valid host. See [`url.host`][].
+  * `port` {string|number} any valid port. See [`url.port`][].
+  * `query` {string} is a string representing the query.
+    It gets parsed into a valid [`URLSearchParams`][] and used inside of
+    the [`url.href`][] and [`url.search`][].
+  * `path` {string[]} unlike [`url.pathname`][] it is not a string,
+    but rather an array representing the path.
+  * `fragment` {string} represents the fragment (part after `#`).
+
+Creates a new `URL` instance based on the input object.
+
+```js
+const myURL = URL.from({
+  protocol: 'http',
+  username: 'root',
+  password: '1234',
+  port: '3000',
+  host: 'localhost',
+  path: ['main'],
+  fragment: 'app',
+  query: 'el=%3Cdiv%20%2F%3E',
+});
+// http://root:1234@localhost:3000/main?el=%3Cdiv%20%2F%3E#app
+```
+
+All properties are optional in case you want to build your url object
+gradually.
+
+```js
+const myURL = URL.from();
+// :
+```
+
 #### url.hash
 
 * {string}
@@ -523,45 +562,6 @@ const myURLs = [
 ];
 console.log(JSON.stringify(myURLs));
 // Prints ["https://www.example.com/","https://test.example.org/"]
-```
-
-#### Static: URL.from(input)
-
-* `input` {Object}
-  * `protocol` {string} any valid protocol. See [`url.protocol`][].
-  * `username` {string} any valid username. See [`url.username`][].
-  * `password` {string} any valid password. See [`url.password`][].
-  * `host` {string} any valid host. See [`url.host`][].
-  * `port` {string|number} any valid port. See [`url.port`][].
-  * `query` {string} is a string representing the query.
-    It gets parsed into a valid [`URLSearchParams`][] and used inside of
-    the [`url.href`][] and [`url.search`][].
-  * `path` {string[]} unlike [`url.pathname`][] it is not a string,
-    but rather an array representing the path.
-  * `fragment` {string} represents the fragment (part after `#`).
-
-Creates a new `URL` instance based on the input object.
-
-```js
-const myURL = URL.from({
-  protocol: 'http',
-  username: 'root',
-  password: '1234',
-  port: '3000',
-  host: 'localhost',
-  path: ['main'],
-  fragment: 'app',
-  query: 'el=%3Cdiv%20%2F%3E',
-});
-// http://root:1234@localhost:3000/main?el=%3Cdiv%20%2F%3E#app
-```
-
-All properties are optional in case you want to build your url object
-gradually.
-
-```js
-const myURL = URL.from();
-// :
 ```
 
 ### Class: URLSearchParams
