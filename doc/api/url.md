@@ -1362,6 +1362,12 @@ console.log(myURL.origin);
 [`url.format()`]: #url_url_format_urlobject
 [`url.href`]: #url_url_href
 [`url.parse()`]: #url_url_parse_urlstring_parsequerystring_slashesdenotehost
+[`url.protocol`]: #url_url_protocol
+[`url.username`]: #url_url_username
+[`url.password`]: #url_url_password
+[`url.host`]: #url_url_host
+[`url.port`]: #url_url_port
+[`url.pathname`]: #url_url_pathname
 [`url.search`]: #url_url_search
 [`url.toJSON()`]: #url_url_tojson
 [`url.toString()`]: #url_url_tostring
