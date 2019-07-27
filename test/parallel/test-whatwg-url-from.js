@@ -10,26 +10,38 @@ function t(expectedUrl, actualConfig) {
   assert.strictEqual(String(url), expectedUrl);
 }
 
+assert.throws(
+  () => { URL.from(); },
+  {
+    name: 'TypeError',
+  },
+  'when argument is ommited altogether'
+);
+
+[
+  ['undefined', undefined],
+  ['null', null],
+  ['false', false],
+  ['true', true],
+  ['0', 0],
+  ['42', 42],
+  ['NaN', NaN],
+  ['empty string', ''],
+  ['symbol', Symbol()],
+  ['class', class {}],
+  ['function', function() {}],
+  ['string', 'string'],
+].forEach(([desc, arg]) => {
+  assert.throws(
+    () => { URL.from(arg); },
+    {
+      name: 'TypeError',
+    },
+    `when ${desc} passed`
+  );
+});
+
 t(':', {});
-t(':', []);
-t(':', undefined);
-t(':', null);
-t(':', false);
-t(':', 0);
-t(':', 42);
-t(':', new Date());
-t(':', class {});
-t(':', 'str');
-t(':', new RegExp());
-t(':', Symbol());
-t('https://nodejs.org', new Proxy({}, {
-  get(target, p) {
-    if (p === 'protocol')
-      return 'https';
-    else if (p === 'host')
-      return 'nodejs.org';
-  }
-}));
 
 t('https://nodejs.org', {
   protocol: 'https',
@@ -89,3 +101,12 @@ t('http://root:1234@localhost:3000/main?el=%3Cdiv%20%2F%3E#app', {
   fragment: 'app',
   query: 'el=%3Cdiv%20%2F%3E'
 });
+
+t('https://nodejs.org', new Proxy({}, {
+  get(target, p) {
+    if (p === 'protocol')
+      return 'https';
+    else if (p === 'host')
+      return 'nodejs.org';
+  }
+}));
