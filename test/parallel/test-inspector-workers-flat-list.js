@@ -9,18 +9,19 @@ const MAX_DEPTH = 3;
 
 let rootWorker = null;
 
-function runTest() {
+const runTest = common.mustCall(function() {
   let reportedWorkersCount = 0;
   const session = new Session();
   session.connect();
-  session.on('NodeWorker.attachedToWorker', ({ params: { workerInfo } }) => {
-    console.log(`Worker ${workerInfo.title} was reported`);
-    if (++reportedWorkersCount === MAX_DEPTH) {
-      rootWorker.postMessage({ done: true });
-    }
-  });
+  session.on('NodeWorker.attachedToWorker', common.mustCall(
+    ({ params: { workerInfo } }) => {
+      console.log(`Worker ${workerInfo.title} was reported`);
+      if (++reportedWorkersCount === MAX_DEPTH) {
+        rootWorker.postMessage({ done: true });
+      }
+    }, MAX_DEPTH));
   session.post('NodeWorker.enable', { waitForDebuggerOnStart: false });
-}
+});
 
 function processMessage({ child }) {
   console.log(`Worker ${child} is running`);
@@ -44,7 +45,7 @@ function runMainThread() {
   rootWorker = startWorker(1, processMessage);
 }
 
-function runWorkerThread() {
+function runChildWorkerThread() {
   let worker = null;
   parentPort.on('message', ({ child, depth, done }) => {
     if (done) {
@@ -66,5 +67,5 @@ function runWorkerThread() {
 if (isMainThread) {
   runMainThread();
 } else {
-  runWorkerThread();
+  runChildWorkerThread();
 }
