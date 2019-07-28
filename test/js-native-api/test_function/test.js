@@ -37,8 +37,8 @@ tracked_function = null;
 global.gc();
 
 assert.deepStrictEqual(test_function.TestCreateFunctionParameters(), {
-  envIsNull: 'pass',
-  nameIsNull: 'pass',
-  cbIsNull: 'pass',
-  resultIsNull: 'pass'
+  envIsNull: 'Invalid argument',
+  nameIsNull: 'napi_ok',
+  cbIsNull: 'Invalid argument',
+  resultIsNull: 'Invalid argument'
 });
