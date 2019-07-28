@@ -140,7 +140,7 @@
   'conditions': [
     ['host_arch=="ia32" or host_arch=="x64" or \
       host_arch=="ppc" or host_arch=="ppc64" or \
-      host_arch=="s390" or host_arch=="s390x" or \
+      host_arch=="s390x" or \
       clang==1', {
       'variables': {
         'host_cxx_is_biarch%': 1,
@@ -151,7 +151,7 @@
       },
     }],
     ['target_arch=="ia32" or target_arch=="x64" or \
-      target_arch=="ppc" or target_arch=="ppc64" or target_arch=="s390" or \
+      target_arch=="ppc" or target_arch=="ppc64" or \
       target_arch=="s390x" or clang==1', {
       'variables': {
         'target_cxx_is_biarch%': 1,
@@ -302,7 +302,7 @@
           'V8_TARGET_ARCH_ARM64',
         ],
       }],
-      ['v8_target_arch=="s390" or v8_target_arch=="s390x"', {
+      ['v8_target_arch=="s390x"', {
         'defines': [
           'V8_TARGET_ARCH_S390',
         ],
@@ -320,7 +320,7 @@
             'cflags': [ '-march=z196' ],
           }],
           ],
-      }],  # s390
+      }],  # s390x
       ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
         'defines': [
           'V8_TARGET_ARCH_PPC',
@@ -1045,13 +1045,13 @@
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
          v8_target_arch=="mips" or v8_target_arch=="mipsel" or \
-         v8_target_arch=="ppc" or v8_target_arch=="s390")', {
+         v8_target_arch=="ppc")', {
         'target_conditions': [
           ['_toolset=="host"', {
             'conditions': [
               ['host_cxx_is_biarch==1', {
                 'conditions': [
-                  ['host_arch=="s390" or host_arch=="s390x"', {
+                  ['host_arch=="s390x"', {
                     'cflags': [ '-m31' ],
                     'ldflags': [ '-m31' ]
                   },{
@@ -1069,7 +1069,7 @@
             'conditions': [
               ['target_cxx_is_biarch==1', {
                 'conditions': [
-                  ['host_arch=="s390" or host_arch=="s390x"', {
+                  ['host_arch=="s390x"', {
                     'cflags': [ '-m31' ],
                     'ldflags': [ '-m31' ]
                   },{
