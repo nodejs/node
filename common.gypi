@@ -393,10 +393,6 @@
             'cflags': [ '-m64', '-mminimal-toc' ],
             'ldflags': [ '-m64' ],
           }],
-          [ 'target_arch=="s390"', {
-            'cflags': [ '-m31', '-march=z196' ],
-            'ldflags': [ '-m31', '-march=z196' ],
-          }],
           [ 'target_arch=="s390x"', {
             'cflags': [ '-m64', '-march=z196' ],
             'ldflags': [ '-m64', '-march=z196' ],

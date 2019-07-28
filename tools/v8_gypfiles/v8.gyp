@@ -653,7 +653,7 @@
             '<(V8_ROOT)/src/builtins/ppc/builtins-ppc.cc',
           ],
         }],
-        ['v8_target_arch=="s390" or v8_target_arch=="s390x"', {
+        ['v8_target_arch=="s390x"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/s390/builtins-s390.cc',
           ],
@@ -2187,7 +2187,7 @@
             '<(V8_ROOT)/src/wasm/baseline/ppc/liftoff-assembler-ppc.h',
           ],
         }],
-        ['v8_target_arch=="s390" or v8_target_arch=="s390x"', {
+        ['v8_target_arch=="s390x"', {
           'sources': [  ### gcmole(arch:s390) ###
             '<(V8_ROOT)/src/compiler/backend/s390/code-generator-s390.cc',
             '<(V8_ROOT)/src/compiler/backend/s390/instruction-codes-s390.h',
@@ -2298,7 +2298,7 @@
         }],
         # Platforms that don't have Compare-And-Swap (CAS) support need to link atomic library
         # to implement atomic memory access
-        ['v8_current_cpu in ["mips", "mipsel", "mips64", "mips64el", "ppc", "ppc64", "s390", "s390x"]', {
+        ['v8_current_cpu in ["mips", "mipsel", "mips64", "mips64el", "ppc", "ppc64", "s390x"]', {
           'link_settings': {
             'libraries': ['-latomic', ],
           },
