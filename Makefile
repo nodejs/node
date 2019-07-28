@@ -19,24 +19,24 @@ PWD = $(CURDIR)
 BUILD_WITH ?= make
 
 ifdef JOBS
-  PARALLEL_ARGS = -j $(JOBS)
+	PARALLEL_ARGS = -j $(JOBS)
 else
-  PARALLEL_ARGS = -J
+	PARALLEL_ARGS = -J
 endif
 
 ifdef ENABLE_V8_TAP
-  TAP_V8 := --junitout $(PWD)/v8-tap.xml
-  TAP_V8_INTL := --junitout $(PWD)/v8-intl-tap.xml
-  TAP_V8_BENCHMARKS := --junitout $(PWD)/v8-benchmarks-tap.xml
+	TAP_V8 := --junitout $(PWD)/v8-tap.xml
+	TAP_V8_INTL := --junitout $(PWD)/v8-intl-tap.xml
+	TAP_V8_BENCHMARKS := --junitout $(PWD)/v8-benchmarks-tap.xml
 endif
 
 V8_TEST_OPTIONS = $(V8_EXTRA_TEST_OPTIONS)
 ifdef DISABLE_V8_I18N
-  V8_BUILD_OPTIONS += i18nsupport=off
+	V8_BUILD_OPTIONS += i18nsupport=off
 endif
 
 ifeq ($(OSTYPE), darwin)
-  GCOV = xcrun llvm-cov gcov
+	GCOV = xcrun llvm-cov gcov
 endif
 
 BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[A-Z]' '[a-z]')
@@ -62,7 +62,7 @@ V ?= 0
 # Use -e to double check in case it's a broken link
 # Use $(PWD) so we can cd to anywhere before calling this
 available-node = \
-  if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
+	if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
 		$(PWD)/$(NODE) $(1); \
 	elif [ -x `which node` ] && [ -e `which node` ] && [ `which node` ]; then \
 		`which node` $(1); \
@@ -107,12 +107,12 @@ $(NODE_G_EXE): config.gypi out/Makefile
 else
 ifeq ($(BUILD_WITH), ninja)
 ifeq ($(V),1)
-  NINJA_ARGS := $(NINJA_ARGS) -v
+	NINJA_ARGS := $(NINJA_ARGS) -v
 endif
 ifdef JOBS
-  NINJA_ARGS := $(NINJA_ARGS) -j$(JOBS)
+	NINJA_ARGS := $(NINJA_ARGS) -j$(JOBS)
 else
-  NINJA_ARGS := $(NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
+	NINJA_ARGS := $(NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
 endif
 $(NODE_EXE): config.gypi out/Release/build.ninja
 	ninja -C out/Release $(NINJA_ARGS)
@@ -141,9 +141,9 @@ test-code-cache: with-code-cache
 	echo "'test-code-cache' target is a noop"
 
 out/Makefile: config.gypi common.gypi node.gyp \
-  deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp \
-  tools/v8_gypfiles/toolchain.gypi tools/v8_gypfiles/features.gypi \
-  tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
+	deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp \
+	tools/v8_gypfiles/toolchain.gypi tools/v8_gypfiles/features.gypi \
+	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
 	$(PYTHON) tools/gyp_node.py -f make
 
 config.gypi: configure configure.py
@@ -243,7 +243,7 @@ coverage-test: coverage-build
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/tracing/*.gcda
 	-NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage \
-                TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
+								TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
 	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
 		--gcov-exclude='.*usr' -v -r Release/obj.target \
@@ -261,7 +261,7 @@ COV_REPORT_OPTIONS = --reporter=html \
 	--resolve=./lib --exclude="benchmark/" --exclude="deps/" --exclude="test/" --exclude="tools/" \
 	--wrapper-length=0
 ifdef COV_ENFORCE_THRESHOLD
-  COV_REPORT_OPTIONS += --check-coverage --lines=$(COV_ENFORCE_THRESHOLD)
+	COV_REPORT_OPTIONS += --check-coverage --lines=$(COV_ENFORCE_THRESHOLD)
 endif
 
 .PHONY: coverage-report-js
@@ -299,7 +299,7 @@ coverage-run-js:
 	$(RM) -r out/$(BUILDTYPE)/.coverage
 	$(MAKE) coverage-build-js
 	-NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage CI_SKIP_TESTS=$(COV_SKIP_TESTS) \
-	        TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) jstest
+					TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) jstest
 	$(MAKE) coverage-report-js
 
 .PHONY: test
@@ -362,7 +362,7 @@ DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
 node_use_openssl = $(call available-node,"-p" \
-		   "process.versions.openssl != undefined")
+			 "process.versions.openssl != undefined")
 test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping .docbuildstamp (no crypto)"; \
@@ -387,9 +387,9 @@ ADDONS_PREREQS := config.gypi \
 
 define run_build_addons
 env npm_config_loglevel=$(LOGLEVEL) npm_config_nodedir="$$PWD" \
-  npm_config_python="$(PYTHON)" $(NODE) "$$PWD/tools/build-addons" \
-  "$$PWD/deps/npm/node_modules/node-gyp/bin/node-gyp.js" \
-  $1
+	npm_config_python="$(PYTHON)" $(NODE) "$$PWD/tools/build-addons" \
+	"$$PWD/deps/npm/node_modules/node-gyp/bin/node-gyp.js" \
+	$1
 touch $2
 endef
 
@@ -489,9 +489,9 @@ test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run a
 CI_NATIVE_SUITES ?= addons js-native-api node-api
 CI_JS_SUITES ?= default
 ifeq ($(node_use_openssl), false)
-  CI_DOC := doctool
+	CI_DOC := doctool
 else
-  CI_DOC =
+	CI_DOC =
 endif
 
 .PHONY: test-ci-native
@@ -659,21 +659,21 @@ ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 # Related CI job: node-test-commit-v8-linux
 test-v8: v8  ## Runs the V8 test suite on deps/v8.
 	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
-        --mode=$(BUILDTYPE_LOWER) $(V8_TEST_OPTIONS) \
+				--mode=$(BUILDTYPE_LOWER) $(V8_TEST_OPTIONS) \
 				mjsunit cctest debugger inspector message preparser \
-	      $(TAP_V8)
+				$(TAP_V8)
 	@echo Testing hash seed
 	$(MAKE) test-hash-seed
 
 test-v8-intl: v8
 	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
-        --mode=$(BUILDTYPE_LOWER) intl \
-        $(TAP_V8_INTL)
+				--mode=$(BUILDTYPE_LOWER) intl \
+				$(TAP_V8_INTL)
 
 test-v8-benchmarks: v8
 	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) \
-        benchmarks \
-	      $(TAP_V8_BENCHMARKS)
+				benchmarks \
+				$(TAP_V8_BENCHMARKS)
 
 test-v8-updates:
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) v8-updates
@@ -1185,8 +1185,8 @@ tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
 LINT_MD_TARGETS = src lib benchmark test tools/doc tools/icu
 LINT_MD_ROOT_DOCS := $(wildcard *.md)
 LINT_MD_MISC_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
-  ! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md') \
-  $(LINT_MD_ROOT_DOCS)
+	! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md') \
+	$(LINT_MD_ROOT_DOCS)
 run-lint-misc-md = tools/lint-md.js -q -f $(LINT_MD_MISC_FILES)
 # Lint other changed markdown files maintained by us
 tools/.miscmdlintstamp: $(LINT_MD_MISC_FILES)
@@ -1302,9 +1302,9 @@ else
 endif
 
 ifeq ($(V),1)
-  CPPLINT_QUIET =
+	CPPLINT_QUIET =
 else
-  CPPLINT_QUIET = --quiet
+	CPPLINT_QUIET = --quiet
 endif
 .PHONY: lint-cpp
 # Lints the C++ code with cpplint.py and check-imports.py.
