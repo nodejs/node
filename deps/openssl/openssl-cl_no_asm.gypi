@@ -10,8 +10,6 @@
       'includes': ['config/archs/linux-ppc64le/no-asm/openssl-cl.gypi'],
     }, 'target_arch=="ppc64" and OS=="linux"', {
       'includes': ['config/archs/linux-ppc64/no-asm/openssl-cl.gypi'],
-    }, 'target_arch=="s390" and OS=="linux"', {
-      'includes': ['config/archs/linux32-s390x/no-asm/openssl-cl.gypi'],
     }, 'target_arch=="s390x" and OS=="linux"', {
       'includes': ['config/archs/linux64-s390x/no-asm/openssl-cl.gypi'],
     }, 'target_arch=="arm" and OS=="linux"', {
