@@ -667,7 +667,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 <details>
 <summary>Resolver algorithm specification</summary>
 
-**ESM_RESOLVE(_specifier_, _parentURL_, _isMain_)**
+**ESM_RESOLVE**(_specifier_, _parentURL_, _isMain_)
 > 1. Let _resolvedURL_ be **undefined**.
 > 1. If _specifier_ is a valid URL, then
 >    1. Set _resolvedURL_ to the result of parsing and reserializing
@@ -687,7 +687,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 > 1. Let _format_ be the result of **ESM_FORMAT**(_resolvedURL_, _isMain_).
 > 1. Load _resolvedURL_ as module format, _format_.
 
-PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
+**PACKAGE_RESOLVE**(_packageSpecifier_, _parentURL_)
 > 1. Let _packageName_ be *undefined*.
 > 1. Let _packageSubpath_ be *undefined*.
 > 1. If _packageSpecifier_ is an empty string, then
@@ -726,7 +726,7 @@ PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 >       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
 > 1. Throw a _Module Not Found_ error.
 
-PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
+**PACKAGE_MAIN_RESOLVE**(_packageURL_, _pjson_)
 > 1. If _pjson_ is **null**, then
 >    1. Throw a _Module Not Found_ error.
 > 1. If _pjson.main_ is a String, then
@@ -743,7 +743,7 @@ PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
 >    1. Throw an _Unsupported File Extension_ error.
 > 1. Return _legacyMainURL_.
 
-**ESM_FORMAT(_url_, _isMain_)**
+**ESM_FORMAT**(_url_, _isMain_)
 > 1. Assert: _url_ corresponds to an existing file.
 > 1. Let _pjson_ be the result of **READ_PACKAGE_SCOPE**(_url_).
 > 1. If _url_ ends in _".mjs"_, then
@@ -760,7 +760,7 @@ PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
 >       1. Return _"commonjs"_.
 >    1. Throw an _Unsupported File Extension_ error.
 
-READ_PACKAGE_SCOPE(_url_)
+**READ_PACKAGE_SCOPE**(_url_)
 > 1. Let _scopeURL_ be _url_.
 > 1. While _scopeURL_ is not the file system root,
 >    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_scopeURL_).
@@ -769,7 +769,7 @@ READ_PACKAGE_SCOPE(_url_)
 >    1. Set _scopeURL_ to the parent URL of _scopeURL_.
 > 1. Return **null**.
 
-READ_PACKAGE_JSON(_packageURL_)
+**READ_PACKAGE_JSON**(_packageURL_)
 > 1. Let _pjsonURL_ be the resolution of _"package.json"_ within _packageURL_.
 > 1. If the file at _pjsonURL_ does not exist, then
 >    1. Return **null**.
