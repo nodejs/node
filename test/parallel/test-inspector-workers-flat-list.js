@@ -42,7 +42,7 @@ function workerCallback(message) {
 }
 
 function startWorker(depth, messageCallback) {
-  const worker = new Worker(__filename, {'launched by test'});
+  const worker = new Worker(__filename, { workerData: 'launched by test' });
   worker.on('message', messageCallback);
   worker.postMessage({ depth });
   return worker;
