@@ -1780,6 +1780,9 @@ cause a lot of issues. See <https://github.com/nodejs/node/issues/14328>.
 ### DEP0089: require('assert')
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28892
+    description: Deprecation revoked.
   - version:
       - v9.9.0
       - v10.0.0
@@ -1787,11 +1790,11 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Deprecation revoked
 
-Importing assert directly is not recommended as the exposed functions will use
-loose equality checks. Use `require('assert').strict` instead. The API is the
-same as the legacy assert but it will always use strict equality checks.
+Importing assert directly was not recommended as the exposed functions use
+loose equality checks. The deprecation was revoked because use of the `assert`
+module is not discouraged, and the deprecation caused end user confusion.
 
 <a id="DEP0090"></a>
 ### DEP0090: Invalid GCM authentication tag lengths
