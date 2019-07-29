@@ -108,9 +108,7 @@ function _validateContent(report) {
     assert.strictEqual(typeof cpu.sys, 'number');
     assert.strictEqual(typeof cpu.idle, 'number');
     assert.strictEqual(typeof cpu.irq, 'number');
-    assert(cpus.some((c) => {
-      return c.model === cpu.model && c.speed === cpu.speed;
-    }));
+    assert(cpus.some((c) => c.model === cpu.model));
   });
   assert.strictEqual(header.host, os.hostname());
 
