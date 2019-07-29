@@ -23,6 +23,7 @@
     'node_v8_options%': '',
     'node_core_target_name%': 'node',
     'node_lib_target_name%': 'libnode',
+    'node_lib_internal_target_name': 'libnode_internal',
     'node_intermediate_lib_type%': 'static_library',
     'library_files': [
       'lib/internal/bootstrap/environment.js',
@@ -666,6 +667,8 @@
         '<@(library_files)',
         # node.gyp is added by default, common.gypi is added for change detection
         'common.gypi',
+        '<(SHARED_INTERMEDIATE_DIR)/node_code_cache.cc',
+        'src/node_snapshot_stub.cc'
       ],
 
       'variables': {
@@ -1165,11 +1168,128 @@
     # So generate_code_cache -> mkcodecache -> node_lib_base,
     #    node_lib -> node_lib_base & generate_code_cache
     {
+      'target_name': '<(node_lib_internal_target_name)',
+      'type': 'static_library',
+      'includes': [
+        'node.gypi',
+      ],
+
+      'include_dirs': [
+        'src',
+        '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
+      ],
+
+      'dependencies': [ 'deps/histogram/histogram.gyp:histogram' ],
+
+      'defines': [ 
+        'NODE_ARCH="<(target_arch)"',
+        'NODE_PLATFORM="<(OS)"',
+        'NODE_WANT_INTERNALS=1',
+        'HAVE_INSPECTOR=0',
+        'NODE_OPENSSL_SYSTEM_CERT_PATH=""',
+      ],
+
+      'sources': [
+        'src/api/async_resource.cc',
+        'src/api/callback.cc',
+        'src/api/encoding.cc',
+        'src/api/environment.cc',
+        'src/api/exceptions.cc',
+        'src/api/hooks.cc',
+        'src/api/utils.cc',
+        'src/async_wrap.cc',
+        'src/cares_wrap.cc',
+        'src/connect_wrap.cc',
+        'src/connection_wrap.cc',
+        'src/debug_utils.cc',
+        'src/env.cc',
+        'src/fs_event_wrap.cc',
+        'src/handle_wrap.cc',
+        'src/heap_utils.cc',
+        'src/js_native_api_v8.cc',
+        'src/js_native_api_v8.h',
+        'src/js_stream.cc',
+        'src/module_wrap.cc',
+        'src/node.cc',
+        'src/node_api.cc',
+        'src/node_binding.cc',
+        'src/node_buffer.cc',
+        'src/node_config.cc',
+        'src/node_constants.cc',
+        'src/node_contextify.cc',
+        'src/node_credentials.cc',
+        'src/node_domain.cc',
+        'src/node_env_var.cc',
+        'src/node_errors.cc',
+        'src/node_file.cc',
+        'src/node_http_parser_llhttp.cc',
+        'src/node_http_parser_traditional.cc',
+        'src/node_http2.cc',
+        'src/node_i18n.cc',
+        'src/node_main_instance.cc',
+        'src/node_messaging.cc',
+        'src/node_metadata.cc',
+        'src/node_native_module.cc',
+        'src/node_native_module_env.cc',
+        'src/node_options.cc',
+        'src/node_os.cc',
+        'src/node_perf.cc',
+        'src/node_platform.cc',
+        'src/node_postmortem_metadata.cc',
+        'src/node_process_events.cc',
+        'src/node_process_methods.cc',
+        'src/node_process_object.cc',
+        'src/node_serdes.cc',
+        'src/node_stat_watcher.cc',
+        'src/node_symbols.cc',
+        'src/node_task_queue.cc',
+        'src/node_trace_events.cc',
+        'src/node_types.cc',
+        'src/node_url.cc',
+        'src/node_util.cc',
+        'src/node_v8.cc',
+        'src/node_watchdog.cc',
+        'src/node_worker.cc',
+        'src/node_zlib.cc',
+        'src/pipe_wrap.cc',
+        'src/process_wrap.cc',
+        'src/sharedarraybuffer_metadata.cc',
+        'src/signal_wrap.cc',
+        'src/spawn_sync.cc',
+        'src/stream_base.cc',
+        'src/stream_pipe.cc',
+        'src/stream_wrap.cc',
+        'src/string_bytes.cc',
+        'src/string_decoder.cc',
+        'src/tcp_wrap.cc',
+        'src/timers.cc',
+        'src/tracing/agent.cc',
+        'src/tracing/node_trace_buffer.cc',
+        'src/tracing/node_trace_writer.cc',
+        'src/tracing/trace_event.cc',
+        'src/tracing/traced_value.cc',
+        'src/tty_wrap.cc',
+        'src/udp_wrap.cc',
+        'src/util.cc',
+        'src/uv.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
+      ],
+      'conditions': [
+        [ 'node_use_openssl=="true"', {
+          'sources': [
+            'src/node_crypto.cc',
+            'src/node_crypto_bio.cc',
+            'src/node_crypto_clienthello.cc',
+            'src/tls_wrap.cc',
+          ],
+        }],
+      ]
+    }, {
       'target_name': 'mkcodecache',
       'type': 'executable',
 
       'dependencies': [
-        '<(node_lib_target_name)',
+        '<(node_lib_internal_target_name)',
         'deps/histogram/histogram.gyp:histogram',
       ],
 
@@ -1212,7 +1332,7 @@
       'type': 'executable',
 
       'dependencies': [
-        '<(node_lib_target_name)',
+        '<(node_lib_internal_target_name)',
         'deps/histogram/histogram.gyp:histogram',
       ],
 
