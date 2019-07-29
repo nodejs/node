@@ -2,8 +2,6 @@
 
 const common = require('../common');
 
-// Test should fail in Node.js 5.4.1 and pass in later versions.
-
 const assert = require('assert');
 const cluster = require('cluster');
 
