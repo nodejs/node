@@ -1,6 +1,8 @@
 'use strict';
 const common = require('../common');
+
 common.skipIfInspectorDisabled();
+common.skipIfWorker();
 
 const { Session } = require('inspector');
 const { Worker, isMainThread, parentPort } = require('worker_threads');
