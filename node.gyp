@@ -427,56 +427,6 @@
             },
           },
          }],
-        ['want_separate_host_toolset==0', {
-          'dependencies': [
-            'mkcodecache',
-          ],
-          'actions': [
-            {
-              'action_name': 'run_mkcodecache',
-              'process_outputs_as_sources': 1,
-              'inputs': [
-                '<(mkcodecache_exec)',
-              ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_code_cache.cc',
-              ],
-              'action': [
-                '<@(_inputs)',
-                '<@(_outputs)',
-              ],
-            },
-          ],
-        }, {
-          'sources': [
-            'src/node_code_cache_stub.cc'
-          ],
-        }],
-        ['node_use_node_snapshot=="true"', {
-          'dependencies': [
-            'node_mksnapshot',
-          ],
-          'actions': [
-            {
-              'action_name': 'node_mksnapshot',
-              'process_outputs_as_sources': 1,
-              'inputs': [
-                '<(node_mksnapshot_exec)',
-              ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
-              ],
-              'action': [
-                '<@(_inputs)',
-                '<@(_outputs)',
-              ],
-            },
-          ],
-        }, {
-          'sources': [
-            'src/node_snapshot_stub.cc'
-          ],
-        }],
       ],
     }, # node_core_target_name
     {
@@ -667,8 +617,7 @@
         '<@(library_files)',
         # node.gyp is added by default, common.gypi is added for change detection
         'common.gypi',
-        '<(SHARED_INTERMEDIATE_DIR)/node_code_cache.cc',
-        'src/node_snapshot_stub.cc'
+        '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
       ],
 
       'variables': {
@@ -689,6 +638,56 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
+        ['want_separate_host_toolset==0', {
+          'dependencies': [
+            'mkcodecache',
+          ],
+          'actions': [
+            {
+              'action_name': 'run_mkcodecache',
+              'process_outputs_as_sources': 1,
+              'inputs': [
+                '<(mkcodecache_exec)',
+              ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/node_code_cache.cc',
+              ],
+              'action': [
+                '<@(_inputs)',
+                '<@(_outputs)',
+              ],
+            },
+          ],
+        }, {
+          'sources': [
+            'src/node_code_cache_stub.cc'
+          ],
+        }],
+        ['node_use_node_snapshot=="true"', {
+          'dependencies': [
+            'node_mksnapshot',
+          ],
+          'actions': [
+            {
+              'action_name': 'node_mksnapshot',
+              'process_outputs_as_sources': 1,
+              'inputs': [
+                '<(node_mksnapshot_exec)',
+              ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
+              ],
+              'action': [
+                '<@(_inputs)',
+                '<@(_outputs)',
+              ],
+            },
+          ],
+        }, {
+          'sources': [
+            'src/node_snapshot_stub.cc'
+          ],
+        }],
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
           'product_extension': '<(shlib_suffix)',
           'xcode_settings': {
@@ -868,37 +867,6 @@
             },
           ],
         }],
-      ],
-      'actions': [
-        {
-          'action_name': 'node_js2c',
-          'process_outputs_as_sources': 1,
-          'inputs': [
-            # Put the code first so it's a dependency and can be used for invocation.
-            'tools/js2c.py',
-            '<@(library_files)',
-            'config.gypi',
-            'tools/js2c_macros/check_macros.py'
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
-          ],
-          'conditions': [
-            [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
-              'inputs': [ 'tools/js2c_macros/notrace_macros.py' ]
-            }],
-            [ 'node_debug_lib=="false"', {
-              'inputs': [ 'tools/js2c_macros/nodcheck_macros.py' ]
-            }],
-            [ 'node_debug_lib=="true"', {
-              'inputs': [ 'tools/js2c_macros/dcheck_macros.py' ]
-            }]
-          ],
-          'action': [
-            'python', '<@(_inputs)',
-            '--target', '<@(_outputs)',
-          ],
-        },
       ],
     }, # node_lib_target_name
     {
@@ -1087,8 +1055,6 @@
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
       'sources': [
-        'src/node_snapshot_stub.cc',
-        'src/node_code_cache_stub.cc',
         'test/cctest/gtest/gtest-all.cc',
         'test/cctest/gtest/gtest_main.cc',
         'test/cctest/node_test_fixture.cc',
@@ -1272,7 +1238,6 @@
         'src/udp_wrap.cc',
         'src/util.cc',
         'src/uv.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
       ],
       'conditions': [
         [ 'node_use_openssl=="true"', {
@@ -1283,7 +1248,38 @@
             'src/tls_wrap.cc',
           ],
         }],
-      ]
+      ],
+      'actions': [
+        {
+          'action_name': 'node_js2c',
+          'process_outputs_as_sources': 1,
+          'inputs': [
+            # Put the code first so it's a dependency and can be used for invocation.
+            'tools/js2c.py',
+            '<@(library_files)',
+            'config.gypi',
+            'tools/js2c_macros/check_macros.py'
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
+          ],
+          'conditions': [
+            [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
+              'inputs': [ 'tools/js2c_macros/notrace_macros.py' ]
+            }],
+            [ 'node_debug_lib=="false"', {
+              'inputs': [ 'tools/js2c_macros/nodcheck_macros.py' ]
+            }],
+            [ 'node_debug_lib=="true"', {
+              'inputs': [ 'tools/js2c_macros/dcheck_macros.py' ]
+            }]
+          ],
+          'action': [
+            'python', '<@(_inputs)',
+            '--target', '<@(_outputs)',
+          ],
+        },
+      ],
     }, {
       'target_name': 'mkcodecache',
       'type': 'executable',
