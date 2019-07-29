@@ -2,10 +2,15 @@
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
-common.skipIfWorker();
+
+const { Worker, isMainThread, parentPort, workerData } =
+  require('worker_threads');
+
+if (isMainThread || workerData !== 'launched by test') {
+  common.skipIfWorker();
+}
 
 const { Session } = require('inspector');
-const { Worker, isMainThread, parentPort } = require('worker_threads');
 
 const MAX_DEPTH = 3;
 
@@ -37,7 +42,7 @@ function workerCallback(message) {
 }
 
 function startWorker(depth, messageCallback) {
-  const worker = new Worker(__filename);
+  const worker = new Worker(__filename, {'launched by test'});
   worker.on('message', messageCallback);
   worker.postMessage({ depth });
   return worker;
