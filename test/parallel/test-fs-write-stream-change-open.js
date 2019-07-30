@@ -46,6 +46,7 @@ fs.close = function(fd) {
   assert.ok(fd, 'fs.close must not be called with an undefined fd.');
   fs.close = _fs_close;
   fs.open = _fs_open;
+  fs.closeSync(fd);
 };
 
 stream.write('foo');

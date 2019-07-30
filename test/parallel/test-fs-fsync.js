@@ -46,6 +46,7 @@ fs.open(fileTemp, 'a', 0o777, common.mustCall(function(err, fd) {
     assert.ifError(err);
     fs.fsync(fd, common.mustCall(function(err) {
       assert.ifError(err);
+      fs.closeSync(fd);
     }));
   }));
 }));

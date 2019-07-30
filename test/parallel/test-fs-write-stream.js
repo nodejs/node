@@ -38,6 +38,7 @@ tmpdir.refresh();
   fs.close = function(fd) {
     assert.ok(fd, 'fs.close must not be called without an undefined fd.');
     fs.close = _fs_close;
+    fs.closeSync(fd);
   };
   stream.destroy();
 }

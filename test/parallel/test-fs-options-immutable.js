@@ -70,6 +70,6 @@ if (common.canCreateSymLink()) {
 {
   const fileName = path.resolve(tmpdir.path, 'streams');
   fs.WriteStream(fileName, options).once('open', common.mustCall(() => {
-    fs.ReadStream(fileName, options);
-  }));
+    fs.ReadStream(fileName, options).destroy();
+  })).end();
 }

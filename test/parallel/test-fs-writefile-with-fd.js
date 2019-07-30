@@ -30,6 +30,9 @@ tmpdir.refresh();
 
   /* New content should be written at position five, instead of zero. */
   assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'HelloWorld');
+
+  /* Close the file descriptor. */
+  fs.closeSync(fd);
 }
 
 {
@@ -52,6 +55,9 @@ tmpdir.refresh();
 
         /* New content should be written at position five, instead of zero. */
         assert.deepStrictEqual(fs.readFileSync(file).toString(), 'HelloWorld');
+
+        /* Close the file descriptor. */
+        fs.closeSync(fd);
       }));
     }));
   }));

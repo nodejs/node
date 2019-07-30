@@ -26,6 +26,8 @@ async function validateRead() {
   const readAsyncHandle = await fileHandle.read(Buffer.alloc(11), 0, 11, 0);
   assert.deepStrictEqual(buffer.length, readAsyncHandle.bytesRead);
   assert.deepStrictEqual(buffer, readAsyncHandle.buffer);
+
+  await fileHandle.close();
 }
 
 async function validateEmptyRead() {
@@ -38,6 +40,8 @@ async function validateEmptyRead() {
   fs.closeSync(fd);
   const readAsyncHandle = await fileHandle.read(Buffer.alloc(11), 0, 11, 0);
   assert.deepStrictEqual(buffer.length, readAsyncHandle.bytesRead);
+
+  await fileHandle.close();
 }
 
 async function validateLargeRead() {

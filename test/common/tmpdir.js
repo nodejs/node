@@ -61,6 +61,9 @@ function rimrafSync(pathname, { spawn = true } = {}) {
     }
     rmdirSync(pathname, e);
   }
+
+  if (fs.existsSync(pathname))
+    throw new Error(`Unable to rimraf ${pathname}`);
 }
 
 function rmdirSync(p, originalEr) {
@@ -80,7 +83,9 @@ function rmdirSync(p, originalEr) {
         }
       });
       fs.rmdirSync(p);
+      return;
     }
+    throw e;
   }
 }
 
@@ -93,9 +98,27 @@ const tmpdirName = '.tmp.' +
   (process.env.TEST_SERIAL_ID || process.env.TEST_THREAD_ID || '0');
 const tmpPath = path.join(testRoot, tmpdirName);
 
+let firstRefresh = true;
 function refresh(opts = {}) {
   rimrafSync(this.path, opts);
   fs.mkdirSync(this.path);
+
+  if (firstRefresh) {
+    firstRefresh = false;
+    // Clean only when a test uses refresh. This allows for child processes to
+    // use the tmpdir and only the parent will clean on exit.
+    process.on('exit', () => {
+      try {
+        // Change dit to avoid possible EBUSY
+        process.chdir(testRoot);
+        rimrafSync(tmpPath, { spawn: false });
+      } catch (e) {
+        console.error('Can\'t clean tmpdir:', tmpPath);
+        console.error('Files blocking:', fs.readdirSync(tmpPath));
+        throw e;
+      }
+    });
+  }
 }
 
 module.exports = {

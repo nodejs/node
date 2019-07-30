@@ -82,6 +82,7 @@ fs.readdir(readdirDir, {
 // Check for correct types when the binding returns unknowns
 const UNKNOWN = constants.UV_DIRENT_UNKNOWN;
 const oldReaddir = binding.readdir;
+process.on('beforeExit', () => { binding.readdir = oldReaddir; });
 binding.readdir = common.mustCall((path, encoding, types, req, ctx) => {
   if (req) {
     const oldCb = req.oncomplete;

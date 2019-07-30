@@ -42,6 +42,9 @@ async function testSimpleDestroy() {
     expectedLines.splice(1);
 
     assert.deepStrictEqual(iteratedLines, expectedLines);
+
+    rli.close();
+    readable.destroy();
   }
 }
 
@@ -72,6 +75,9 @@ async function testMutualDestroy() {
     }
 
     assert.deepStrictEqual(iteratedLines, expectedLines);
+
+    rli.close();
+    readable.destroy();
   }
 }
 

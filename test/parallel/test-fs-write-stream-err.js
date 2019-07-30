@@ -56,6 +56,7 @@ fs.write = function() {
 fs.close = common.mustCall(function(fd_, cb) {
   console.error('fs.close', fd_, stream.fd);
   assert.strictEqual(fd_, stream.fd);
+  fs.closeSync(fd_);
   process.nextTick(cb);
 });
 

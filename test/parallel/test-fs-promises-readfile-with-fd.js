@@ -28,6 +28,8 @@ async function readFileTest() {
 
   /* readFile() should read from position five, instead of zero. */
   assert.deepStrictEqual((await handle.readFile()).toString(), ' World');
+
+  await handle.close();
 }
 
 
