@@ -712,7 +712,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >    module, then
 >    1. Return the string _"node:"_ concatenated with _packageSpecifier_.
 > 1. While _parentURL_ is not the file system root,
->    1. Let _packageURL_ be the URL resolution of "node_modules/"
+>    1. Let _packageURL_ be the URL resolution of _"node_modules/"_
 >       concatenated with _packageSpecifier_, relative to _parentURL_.
 >    1. Set _parentURL_ to the parent folder URL of _parentURL_.
 >    1. If the folder at _packageURL_ does not exist, then
@@ -723,7 +723,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >       1. Return the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_,
 >          _pjson_).
 >    1. Otherwise,
->       1. If _pjson_ is not **null** and _pjson_ has an "exports" key, then
+>       1. If _pjson_ is not **null** and _pjson_ has an _"exports"_ key, then
 >          1. Let _exports_ be _pjson.exports_.
 >          1. If _exports_ is not **null** or **undefined**, then
 >             1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_,
