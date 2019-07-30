@@ -27,6 +27,7 @@ const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 
+tmpdir.refresh();
 const FILENAME = path.join(tmpdir.path, 'watch-me');
 const TIMEOUT = 1300;
 

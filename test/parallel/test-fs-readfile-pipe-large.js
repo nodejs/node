@@ -43,7 +43,3 @@ exec(cmd, { maxBuffer: 1000000 }, common.mustCall((err, stdout, stderr) => {
   );
   console.log('ok');
 }));
-
-process.on('exit', function() {
-  fs.unlinkSync(filename);
-});

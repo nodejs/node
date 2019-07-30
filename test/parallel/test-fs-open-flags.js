@@ -94,5 +94,8 @@ if (common.isLinux || common.isOSX) {
   tmpdir.refresh();
   const file = path.join(tmpdir.path, 'a.js');
   fs.copyFileSync(fixtures.path('a.js'), file);
-  fs.open(file, O_DSYNC, common.mustCall(assert.ifError));
+  fs.open(file, O_DSYNC, common.mustCall((err, fd) => {
+    assert.ifError(err);
+    fs.closeSync(fd);
+  }));
 }

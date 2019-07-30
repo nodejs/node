@@ -22,6 +22,8 @@ async function validateWrite() {
   await fileHandle.write(buffer, 0, buffer.length);
   const readFileData = fs.readFileSync(filePathForHandle);
   assert.deepStrictEqual(buffer, readFileData);
+
+  await fileHandle.close();
 }
 
 async function validateEmptyWrite() {
@@ -32,6 +34,8 @@ async function validateEmptyWrite() {
   await fileHandle.write(buffer, 0, buffer.length);
   const readFileData = fs.readFileSync(filePathForHandle);
   assert.deepStrictEqual(buffer, readFileData);
+
+  await fileHandle.close();
 }
 
 async function validateNonUint8ArrayWrite() {
@@ -42,6 +46,8 @@ async function validateNonUint8ArrayWrite() {
   await fileHandle.write(buffer, 0, buffer.length);
   const readFileData = fs.readFileSync(filePathForHandle);
   assert.deepStrictEqual(Buffer.from(buffer, 'utf8'), readFileData);
+
+  await fileHandle.close();
 }
 
 async function validateNonStringValuesWrite() {
@@ -55,6 +61,8 @@ async function validateNonStringValuesWrite() {
   const readFileData = fs.readFileSync(filePathForHandle);
   const expected = ['123', '[object Object]', '[object Map]'].join('');
   assert.deepStrictEqual(Buffer.from(expected, 'utf8'), readFileData);
+
+  await fileHandle.close();
 }
 
 Promise.all([

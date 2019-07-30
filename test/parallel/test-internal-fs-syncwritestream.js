@@ -38,6 +38,8 @@ const filename = path.join(tmpdir.path, 'sync-write-stream.txt');
 
   assert.strictEqual(stream._write(chunk, null, common.mustCall(1)), true);
   assert.strictEqual(fs.readFileSync(filename).equals(chunk), true);
+
+  fs.closeSync(fd);
 }
 
 // Verify that the stream will unset the fd after destroy().

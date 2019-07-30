@@ -46,10 +46,6 @@ const filenameThree = 'charm'; // Because the third time is
 const filenameFour = 'get';
 
 process.on('exit', function() {
-  fs.unlinkSync(filepathOne);
-  fs.unlinkSync(filepathTwoAbs);
-  fs.unlinkSync(filenameThree);
-  fs.unlinkSync(filenameFour);
   assert.strictEqual(watchSeenOne, 1);
   assert.strictEqual(watchSeenTwo, 2);
   assert.strictEqual(watchSeenThree, 1);
@@ -57,6 +53,7 @@ process.on('exit', function() {
 });
 
 
+tmpdir.refresh();
 fs.writeFileSync(filepathOne, 'hello');
 
 assert.throws(

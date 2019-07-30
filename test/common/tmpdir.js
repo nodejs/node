@@ -5,6 +5,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { debuglog } = require('util');
+const { isMainThread } = require('worker_threads');
 
 const debug = debuglog('test/tmpdir');
 
@@ -61,6 +62,9 @@ function rimrafSync(pathname, { spawn = true } = {}) {
     }
     rmdirSync(pathname, e);
   }
+
+  if (fs.existsSync(pathname))
+    throw new Error(`Unable to rimraf ${pathname}`);
 }
 
 function rmdirSync(p, originalEr) {
@@ -80,7 +84,9 @@ function rmdirSync(p, originalEr) {
         }
       });
       fs.rmdirSync(p);
+      return;
     }
+    throw e;
   }
 }
 
@@ -93,9 +99,42 @@ const tmpdirName = '.tmp.' +
   (process.env.TEST_SERIAL_ID || process.env.TEST_THREAD_ID || '0');
 const tmpPath = path.join(testRoot, tmpdirName);
 
+let firstRefresh = true;
 function refresh(opts = {}) {
   rimrafSync(this.path, opts);
   fs.mkdirSync(this.path);
+
+  if (firstRefresh) {
+    firstRefresh = false;
+    // Clean only when a test uses refresh. This allows for child processes to
+    // use the tmpdir and only the parent will clean on exit.
+    process.on('exit', onexit);
+  }
+}
+
+function onexit() {
+  // Change directory to avoid possible EBUSY
+  if (isMainThread)
+    process.chdir(testRoot);
+
+  try {
+    rimrafSync(tmpPath, { spawn: false });
+  } catch (e) {
+    console.error('Can\'t clean tmpdir:', tmpPath);
+
+    const files = fs.readdirSync(tmpPath);
+    console.error('Files blocking:', files);
+
+    if (files.some((f) => f.startsWith('.nfs'))) {
+      // Warn about NFS "silly rename"
+      console.error('Note: ".nfs*" might be files that were open and ' +
+                    'unlinked but not closed.');
+      console.error('See http://nfs.sourceforge.net/#faq_d2 for details.');
+    }
+
+    console.error();
+    throw e;
+  }
 }
 
 module.exports = {

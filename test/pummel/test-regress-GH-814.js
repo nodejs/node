@@ -37,6 +37,8 @@ function newBuffer(size, value) {
 }
 
 const fs = require('fs');
+
+tmpdir.refresh();
 const testFileName = require('path').join(tmpdir.path, 'GH-814_testFile.txt');
 const testFileFD = fs.openSync(testFileName, 'w');
 console.log(testFileName);

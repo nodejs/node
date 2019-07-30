@@ -71,6 +71,8 @@ function tempFdSync(callback) {
 
     /* readFileSync() should read from position five, instead of zero. */
     assert.deepStrictEqual(fs.readFileSync(fd).toString(), ' World');
+
+    fs.closeSync(fd);
   }
 
   {
@@ -89,6 +91,8 @@ function tempFdSync(callback) {
           assert.ifError(err);
           /* readFile() should read from position five, instead of zero. */
           assert.deepStrictEqual(data.toString(), ' World');
+
+          fs.closeSync(fd);
         }));
       }));
     }));

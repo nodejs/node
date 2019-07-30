@@ -102,10 +102,3 @@ fs.open(filename4, 'w+', common.mustCall(function(e, fd) {
     }));
   }));
 }));
-
-process.on('exit', function() {
-  fs.unlinkSync(filename);
-  fs.unlinkSync(filename2);
-  fs.unlinkSync(filename3);
-  fs.unlinkSync(filename4);
-});

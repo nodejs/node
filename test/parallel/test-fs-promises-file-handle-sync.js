@@ -20,6 +20,7 @@ async function validateSync() {
   const ret = await handle.read(Buffer.alloc(11), 0, 11, 0);
   assert.strictEqual(ret.bytesRead, 11);
   assert.deepStrictEqual(ret.buffer, buf);
+  await handle.close();
 }
 
 validateSync();
