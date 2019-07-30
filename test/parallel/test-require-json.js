@@ -26,4 +26,7 @@ const fixtures = require('../common/fixtures');
 
 assert.throws(function() {
   require(fixtures.path('invalid.json'));
-}, SyntaxError);
+}, {
+  name: 'SyntaxError',
+  message: /test[/\\]fixtures[/\\]invalid\.json: /,
+});
