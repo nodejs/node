@@ -318,7 +318,7 @@ myEmitter.on('event', function firstListener() {
 });
 // Second listener
 myEmitter.on('event', function secondListener(arg1, arg2) {
-  console.log(`event with parameters ${arg1}, ${arg2}, in second listener`);
+  console.log(`event with parameters ${arg1}, ${arg2} in second listener`);
 });
 // Third listener
 myEmitter.on('event', function thirdListener(...args) {
