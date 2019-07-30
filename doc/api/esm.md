@@ -723,6 +723,8 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >       1. Return the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_,
 >          _pjson_).
 >    1. Otherwise,
+>       1. If _pjson_ is not **null* and _pjson.exports_ is *falsy*, then
+>          1. Throw a _Module Not Found_ error.
 >       1. If _pjson_ is not **null** and _pjson.exports_ is an Object, then
 >          1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _packagePath_,
 >             _pjson_).
