@@ -155,6 +155,15 @@ const { promisify } = require('util');
   rs.resume();
 }
 
+{
+  const streamLike = new EE();
+  streamLike.readableEnded = true;
+  streamLike.readable = true;
+  finished(streamLike, common.mustCall);
+  checkListeners(streamLike, 'legacy');
+  streamLike.emit('close');
+}
+
 // Test that calling returned function removes listeners
 {
   const ws = new Writable({
@@ -163,14 +172,18 @@ const { promisify } = require('util');
     }
   });
   const removeListener = finished(ws, common.mustNotCall());
+  checkListeners(ws);
   removeListener();
+  checkListeners(ws, 'none');
   ws.end();
 }
 
 {
   const rs = new Readable();
   const removeListeners = finished(rs, common.mustNotCall());
+  checkListeners(rs);
   removeListeners();
+  checkListeners(rs, 'none');
 
   rs.emit('close');
   rs.push(null);
@@ -178,9 +191,69 @@ const { promisify } = require('util');
 }
 
 {
+  const req = Object.assign(new EE(), {
+    setHeader() {},
+    abort() {}
+  });
+  const removeListeners = finished(req, common.mustNotCall());
+  checkListeners(req, 'legacyrequest');
+  removeListeners();
+  checkListeners(req, 'none');
+}
+
+{
   const streamLike = new EE();
   streamLike.readableEnded = true;
   streamLike.readable = true;
-  finished(streamLike, common.mustCall);
-  streamLike.emit('close');
+  const removeListeners = finished(streamLike, common.mustCall);
+  checkListeners(streamLike);
+  removeListeners();
+  checkListeners(streamLike, 'none');
+}
+
+{
+  const streamLike = new EE();
+  streamLike.readableEnded = true;
+  streamLike.writable = true;
+  const removeListeners = finished(streamLike, common.mustCall);
+  checkListeners(streamLike, 'legacywritable');
+  removeListeners();
+  checkListeners(streamLike, 'none');
+}
+
+function checkListeners(stream, type) {
+  if (type === 'legacyrequest') {
+    assert.strictEqual(stream.listenerCount('complete'), 1);
+    assert.strictEqual(stream.listenerCount('abort'), 1);
+    assert.strictEqual(stream.listenerCount('request'), 1);
+    assert.strictEqual(stream.listenerCount('close'), 1);
+    assert.strictEqual(stream.listenerCount('finish'), 1);
+    assert.strictEqual(stream.listenerCount('end'), 0);
+    assert.strictEqual(stream.listenerCount('request'), 1);
+  } else if (type === 'legacywritable') {
+    assert.strictEqual(stream.listenerCount('complete'), 0);
+    assert.strictEqual(stream.listenerCount('abort'), 0);
+    assert.strictEqual(stream.listenerCount('request'), 0);
+    assert.strictEqual(stream.listenerCount('close'), 2);
+    assert.strictEqual(stream.listenerCount('finish'), 1);
+    assert.strictEqual(stream.listenerCount('end'), 1);
+  } else if (type === 'none') {
+    assert.strictEqual(stream.listenerCount('complete'), 0);
+    assert.strictEqual(stream.listenerCount('abort'), 0);
+    assert.strictEqual(stream.listenerCount('request'), 0);
+    assert.strictEqual(stream.listenerCount('close'), 0);
+    assert.strictEqual(stream.listenerCount('end'), 0);
+    assert.strictEqual(stream.listenerCount('finish'), 0);
+  } else {
+    assert.strictEqual(stream.listenerCount('complete'), 0);
+    assert.strictEqual(stream.listenerCount('abort'), 0);
+    assert.strictEqual(stream.listenerCount('request'), 0);
+    assert.strictEqual(stream.listenerCount('close'), 1);
+    if (stream.writable) {
+      assert.strictEqual(stream.listenerCount('finish'), 1);
+    }
+    if (stream.readable) {
+      assert.strictEqual(stream.listenerCount('end'), 1);
+    }
+  }
 }
