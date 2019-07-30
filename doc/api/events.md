@@ -322,12 +322,8 @@ myEmitter.on('event', function secondListener(arg1, arg2) {
 });
 // Third listener
 myEmitter.on('event', function thirdListener(...args) {
-  let parameters = '';
-  args.forEach((arg) => {
-    parameters += `${arg}, `;
-  }
-  );
-  console.log(`event with parameters ${parameters}in third listener`);
+  const parameters = args.join(', ');
+  console.log(`event with parameters ${parameters} in third listener`);
 });
 
 console.log(myEmitter.listeners('event'));
