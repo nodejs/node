@@ -88,7 +88,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
       ['https://example.org', 'https://example.com']
     ];
 
-    const countdown = new Countdown(2, () => {
+    const countdown = new Countdown(3, () => {
       client.close();
       server.close();
     });
@@ -101,7 +101,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
       countdown.dec();
     }, 2));
 
-    client.request().on('close', mustCall()).resume();
+    client.request().on('close', mustCall(() => countdown.dec())).resume();
   }));
 }
 
@@ -119,15 +119,19 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
     const originSet = [`https://localhost:${server.address().port}`];
     const client = connect(originSet[0], { ca });
 
+    const countdown = new Countdown(2, () => {
+      client.close();
+      server.close();
+    });
+
     client.on('origin', mustCall((origins) => {
       originSet.push(...check);
       deepStrictEqual(originSet, client.originSet);
       deepStrictEqual(origins, check);
-      client.close();
-      server.close();
+      countdown.dec();
     }));
 
-    client.request().on('close', mustCall()).resume();
+    client.request().on('close', mustCall(() => countdown.dec())).resume();
   }));
 }
 
