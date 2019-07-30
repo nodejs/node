@@ -332,14 +332,13 @@ myEmitter.emit('event', 1, 2, 3, 4, 5);
 
 // Prints:
 // [
-//  [Function: firstListener],
-//  [Function: secondListener],
-//  [Function: thirdListener]
+//   [Function: firstListener],
+//   [Function: secondListener],
+//   [Function: thirdListener]
 // ]
-
 // Helloooo! first listener
-// event with parameters 1, 2, in second listener
-// event with parameters 1, 2, 3, 4, 5, in third listener
+// event with parameters 1, 2 in second listener
+// event with parameters 1, 2, 3, 4, 5 in third listener
 ```
 
 ### emitter.eventNames()
