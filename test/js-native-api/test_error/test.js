@@ -60,24 +60,14 @@ assert.throws(() => {
   test_error.throwTypeError();
 }, /^TypeError: type error$/);
 
-function testThrowArbitrary(value) {
-  assert.throws(
+[42, {}, [], Symbol('xyzzy'), true, 'ball', undefined, null, NaN]
+  .forEach((value) => assert.throws(
     () => test_error.throwArbitrary(value),
     (err) => {
       assert.strictEqual(err, value);
       return true;
-    });
-}
-
-testThrowArbitrary(42);
-testThrowArbitrary({});
-testThrowArbitrary([]);
-testThrowArbitrary(Symbol('xyzzy'));
-testThrowArbitrary(true);
-testThrowArbitrary('ball');
-testThrowArbitrary(undefined);
-testThrowArbitrary(null);
-testThrowArbitrary(NaN);
+    }
+  ));
 
 common.expectsError(
   () => test_error.throwErrorCode(),
