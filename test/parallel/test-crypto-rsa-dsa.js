@@ -193,6 +193,11 @@ test_rsa('RSA_PKCS1_OAEP_PADDING', undefined, 'sha1');
 test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha1', undefined);
 test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha256', 'sha256');
 test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha512', 'sha512');
+common.expectsError(() => {
+  test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha256', 'sha512');
+}, {
+  code: 'ERR_OSSL_RSA_OAEP_DECODING_ERROR'
+});
 
 // The following RSA-OAEP test cases were created using the WebCrypto API to
 // ensure compatibility when using non-SHA1 hash functions.
