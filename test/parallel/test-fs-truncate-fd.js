@@ -21,7 +21,7 @@ fs.truncate(fd, 5, common.mustCall((err) => {
   assert.strictEqual(fs.readFileSync(filename, 'utf8'), 'hello');
 }));
 
-process.on('beforeExit', () => {
+process.once('beforeExit', () => {
   fs.closeSync(fd);
   fs.unlinkSync(filename);
   console.log('ok');

@@ -5,6 +5,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { debuglog } = require('util');
+const { isMainThread } = require('worker_threads');
 
 const debug = debuglog('test/tmpdir');
 
@@ -110,7 +111,8 @@ function refresh(opts = {}) {
     process.on('exit', () => {
       try {
         // Change dit to avoid possible EBUSY
-        process.chdir(testRoot);
+        if (isMainThread)
+          process.chdir(testRoot);
         rimrafSync(tmpPath, { spawn: false });
       } catch (e) {
         console.error('Can\'t clean tmpdir:', tmpPath);
