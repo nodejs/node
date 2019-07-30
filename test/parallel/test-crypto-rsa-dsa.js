@@ -255,7 +255,9 @@ for (const fn of [crypto.publicEncrypt, crypto.privateDecrypt]) {
       key: rsaPubPem,
       oaepHash: 'Hello world'
     }, Buffer.alloc(10));
-  }, /^Error: Unknown OAEP message digest$/);
+  }, {
+    code: 'ERR_OSSL_EVP_INVALID_DIGEST'
+  });
 
   for (const oaepHash of [0, false, null, Symbol(), () => {}]) {
     common.expectsError(() => {
