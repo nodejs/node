@@ -31,7 +31,7 @@ function main(conf) {
 function onListening() {
   setTimeout(done, dur * 1000);
   bench.start();
-  for (var i = 0; i < concurrency; i++)
+  for (let i = 0; i < concurrency; i++)
     makeConnection();
 }
 
