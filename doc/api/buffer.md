@@ -919,6 +919,51 @@ const buf = Buffer.from(new Foo(), 'utf8');
 A `TypeError` will be thrown if `object` has not mentioned methods or is not of
 other type appropriate for `Buffer.from()` variants.
 
+### Class Method: Buffer.harden([options])
+<!-- YAML
+added: TODO
+-->
+
+* `options` {Object}
+  * `zeroFill` {boolean}
+    If `true`, all future `Buffer` instances, even the ones created with
+    `Buffer.allocUnsafe`, will be zero-filled by default.
+    **Default:** `true`.
+  * `disablePool` {boolean}
+    If `true`, all future `Buffer` allocations will not be pooled and their
+    underlying `ArrayBuffer` will have the same size as `Buffer` instance.
+     **Default:** `true`.
+  * `throwOnUnsafe` {boolean}
+    If `true`, unsafe `Buffer(arg)` API will throw instead of showing a
+    deprecation warning.
+    Otherwise, if `false`, first call to unsafe `Buffer(arg)` will trigger a
+    deprecation warning, regardless of whether it was called from inside of
+    `node_modules` directory or not (unlike the default warning).
+    **Default:** `true`.
+  * `freeze` {boolean}
+    If `true`, `Buffer` and `require('buffer')` objects are frozen and can
+    not be monkey-patched.
+    `Buffer.prototype` is not frozen for compatibility reasons.
+    **Default:** `true`.
+
+Calling `Buffer.harden()` enables additional security measures for Buffer API,
+disabling some trade-offs between security and performance/compatibility that
+are present by default.
+
+This method has effect only of subsequent Buffer API usage, Buffer instances
+created before `Buffer.harden()` is called are not affected.
+
+Warning: for ecosystem compatibility and security reasons `Buffer.harden()` can
+be called only once and only from the top-level application code. Attempting to
+call it from a library in `node_modules` will throw.
+
+By default, it enables mandratory zero fill, disables Buffer pooling, disables
+deprecated unsafe Buffer API, freezes `Buffer` and `require('buffer')` objects.
+
+The exact behaviour could be fine-tuned: for example, to still allow unsafe
+Buffer API for compatibility reasons (e.g. if that us required by application
+dependencies), `Buffer.haden({ throwOnUnsafe: false })` could be used.
+
 ### Class Method: Buffer.from(string[, encoding])
 <!-- YAML
 added: v5.10.0
