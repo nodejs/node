@@ -13,7 +13,7 @@ function main({ n }) {
     if (j === n)
       bench.end(n);
   }
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     setTimeout(cb, 1);
   }
 }

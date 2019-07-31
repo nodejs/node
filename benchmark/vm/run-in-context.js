@@ -20,7 +20,7 @@ function main({ n, breakOnSigint, withSigintListener }) {
   const contextifiedSandbox = vm.createContext();
 
   bench.start();
-  for (var i = 0; i < n; i++)
+  for (let i = 0; i < n; i++)
     vm.runInContext('0', contextifiedSandbox, options);
   bench.end(n);
 }

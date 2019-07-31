@@ -10,7 +10,7 @@ function main({ n }) {
       bench.end(n);
   }
 
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     if (i % 4 === 0)
       process.nextTick(onNextTick, i, true, 10, 'test');
     else if (i % 3 === 0)

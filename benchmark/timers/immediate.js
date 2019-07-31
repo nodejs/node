@@ -66,7 +66,7 @@ function breadth(N) {
     if (n === N)
       bench.end(N);
   }
-  for (var i = 0; i < N; i++) {
+  for (let i = 0; i < N; i++) {
     setImmediate(cb);
   }
 }
@@ -80,7 +80,7 @@ function breadth1(N) {
     if (n === N)
       bench.end(n);
   }
-  for (var i = 0; i < N; i++) {
+  for (let i = 0; i < N; i++) {
     setImmediate(cb, 1);
   }
 }
@@ -95,7 +95,7 @@ function breadth4(N) {
     if (n === N)
       bench.end(n);
   }
-  for (var i = 0; i < N; i++) {
+  for (let i = 0; i < N; i++) {
     setImmediate(cb, 1, 2, 3, 4);
   }
 }
@@ -107,7 +107,7 @@ function clear(N) {
     if (a1 === 2)
       bench.end(N);
   }
-  for (var i = 0; i < N; i++) {
+  for (let i = 0; i < N; i++) {
     clearImmediate(setImmediate(cb, 1));
   }
   setImmediate(cb, 2);

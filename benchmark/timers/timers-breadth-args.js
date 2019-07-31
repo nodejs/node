@@ -32,7 +32,7 @@ function main({ n }) {
   }
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     if (i % 4 === 0)
       setTimeout(cb4, 1, 3.14, 1024, true, false);
     else if (i % 3 === 0)
