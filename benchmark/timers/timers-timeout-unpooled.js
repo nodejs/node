@@ -27,7 +27,7 @@ function main({ n }) {
       bench.end(n);
   }
 
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     // unref().ref() will cause each of these timers to
     // allocate their own handle
     setTimeout(i % 2 ? cb : cb2, 1).unref().ref();

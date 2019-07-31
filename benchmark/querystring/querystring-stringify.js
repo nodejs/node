@@ -38,7 +38,7 @@ function main({ type, n }) {
     querystring.stringify(inputs[name]);
 
   bench.start();
-  for (var i = 0; i < n; i += 1)
+  for (let i = 0; i < n; i += 1)
     querystring.stringify(input);
   bench.end(n);
 }

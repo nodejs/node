@@ -32,7 +32,7 @@ function main({ n, workers, sendsPerBroadcast: sends, payload: payloadType }) {
 
   const workerObjs = [];
 
-  for (var i = 0; i < workers; ++i) {
+  for (let i = 0; i < workers; ++i) {
     const worker = new Worker(workerPath);
     workerObjs.push(worker);
     worker.on('online', onOnline);

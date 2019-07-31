@@ -10,7 +10,7 @@ function main({ n }) {
       bench.end(n);
   }
 
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     process.nextTick(onNextTick, i);
   }
 
