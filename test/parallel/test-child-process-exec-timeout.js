@@ -30,6 +30,10 @@ cp.exec(cmd, { timeout: 1 }, common.mustCall((err, stdout, stderr) => {
   // See: https://github.com/libuv/libuv/issues/1226
   if (common.isOSX)
     assert.ok(err.signal === 'SIGTERM' || err.signal === 'SIGKILL');
+  else if (common.isFreeBSD)
+    // Triggers SIGSEGV instead as there is no signal handler
+    // support on V8 for this platform
+    console.log('no signal handler support');
   else
     assert.strictEqual(err.signal, sigterm);
   assert.strictEqual(err.cmd, cmd);
