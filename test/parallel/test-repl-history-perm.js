@@ -38,12 +38,15 @@ const replHistoryPath = path.join(tmpdir.path, '.node_repl_history');
 const checkResults = common.mustCall(function(err, r) {
   assert.ifError(err);
 
-  r.input.end();
   const stat = fs.statSync(replHistoryPath);
   const fileMode = stat.mode & 0o777;
   assert.strictEqual(
     fileMode, 0o600,
     `REPL history file should be mode 0600 but was 0${fileMode.toString(8)}`);
+
+  // Close the REPL
+  r.input.emit('keypress', '', { ctrl: true, name: 'd' });
+  r.input.end();
 });
 
 repl.createInternalRepl(
