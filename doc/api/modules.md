@@ -223,10 +223,10 @@ RESOLVE_BARE_SPECIFIER(DIR, X)
    a. Parse DIR/name/package.json, and look for "exports" field.
    b. If "exports" is null or undefined, GOTO 3.
    c. Find the longest key in "exports" that the subpath starts with.
-   d. If no such key can be found, throw "not exported".
+   d. If no such key can be found, throw "not found".
    e. If the key matches the subpath entirely, return DIR/name/${exports[key]}.
    f. If either the key or exports[key] do not end with a slash (`/`),
-      throw "not exported".
+      throw "not found".
    g. Return DIR/name/${exports[key]}${subpath.slice(key.length)}.
 3. return DIR/X
 ```
