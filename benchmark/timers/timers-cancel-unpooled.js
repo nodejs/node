@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
 function main({ n, direction }) {
 
   const timersList = [];
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     timersList.push(setTimeout(cb, i + 1));
   }
 
