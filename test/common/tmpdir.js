@@ -108,18 +108,32 @@ function refresh(opts = {}) {
     firstRefresh = false;
     // Clean only when a test uses refresh. This allows for child processes to
     // use the tmpdir and only the parent will clean on exit.
-    process.on('exit', () => {
-      try {
-        // Change dit to avoid possible EBUSY
-        if (isMainThread)
-          process.chdir(testRoot);
-        rimrafSync(tmpPath, { spawn: false });
-      } catch (e) {
-        console.error('Can\'t clean tmpdir:', tmpPath);
-        console.error('Files blocking:', fs.readdirSync(tmpPath));
-        throw e;
-      }
-    });
+    process.on('exit', onexit);
+  }
+}
+
+function onexit() {
+  // Change directory to avoid possible EBUSY
+  if (isMainThread)
+    process.chdir(testRoot);
+
+  try {
+    rimrafSync(tmpPath, { spawn: false });
+  } catch (e) {
+    console.error('Can\'t clean tmpdir:', tmpPath);
+
+    const files = fs.readdirSync(tmpPath);
+    console.error('Files blocking:', files);
+
+    if (files.some((f) => f.startsWith('.nfs'))) {
+      // Warn about NFS "silly rename"
+      console.error('Note: ".nfs*" might be files that were open and ' +
+                    'unlinked but not closed.');
+      console.error('See http://nfs.sourceforge.net/#faq_d2 for details.');
+    }
+
+    console.error();
+    throw e;
   }
 }
 
