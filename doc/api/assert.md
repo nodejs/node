@@ -116,8 +116,6 @@ This will also deactivate the colors in the REPL.
 
 ## Legacy mode
 
-> Stability: 0 - Deprecated: Use strict mode instead.
-
 Legacy mode uses the [Abstract Equality Comparison][] in:
 
 * [`assert.deepEqual()`][]
