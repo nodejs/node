@@ -859,7 +859,7 @@ Maybe<URL> PackageExportsResolve(Environment* env,
   std::string msg = "Package exports for '" +
       URL(".", pjson_url).ToFilePath() + "' do not define a '" + pkg_subpath +
       "' subpath, imported from " + base.ToFilePath();
-  node::THROW_ERR_PATH_NOT_EXPORTED(env, msg.c_str());
+  node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
   return Nothing<URL>();
 }
 
