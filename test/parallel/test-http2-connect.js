@@ -69,6 +69,20 @@ const { connect: netConnect } = require('net');
   connect(authority).on('error', () => {});
 }
 
+// Check for error for init settings error
+{
+  createServer(function() {
+    connect(`http://localhost:${this.address().port}`, {
+      settings: {
+        maxFrameSize: 1   // An incorrect settings
+      }
+    }).on('error', expectsError({
+      code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
+      type: RangeError
+    }));
+  });
+}
+
 // Check for error for an invalid protocol (not http or https)
 {
   const authority = 'ssh://localhost';
