@@ -19,7 +19,7 @@ function main({ ext, cache, files }) {
     `${benchmarkDirectory}/a.js`,
     'module.exports = {};'
   );
-  for (var i = 0; i <= files; i++) {
+  for (let i = 0; i <= files; i++) {
     fs.mkdirSync(`${benchmarkDirectory}/${i}`);
     fs.writeFileSync(
       `${benchmarkDirectory}/${i}/package.json`,

@@ -21,7 +21,7 @@ const bench = common.createBenchmark(main, {
 function main({ n, name, cache, files, dir }) {
   tmpdir.refresh();
   fs.mkdirSync(benchmarkDirectory);
-  for (var i = 0; i <= files; i++) {
+  for (let i = 0; i <= files; i++) {
     fs.mkdirSync(`${benchmarkDirectory}${i}`);
     fs.writeFileSync(
       `${benchmarkDirectory}${i}/package.json`,

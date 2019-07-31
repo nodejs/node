@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
 function main({ n }) {
 
   var timer = setTimeout(() => {}, 1);
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     setTimeout(cb, 1);
   }
   var next = timer._idlePrev;
@@ -17,7 +17,7 @@ function main({ n }) {
 
   bench.start();
 
-  for (var j = 0; j < n; j++) {
+  for (let j = 0; j < n; j++) {
     timer = next;
     next = timer._idlePrev;
     clearTimeout(timer);
