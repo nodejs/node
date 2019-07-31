@@ -29,7 +29,7 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
 
   // There's no such export - so there's nothing to do.
   loadFixture('pkgexports/missing').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_PATH_NOT_EXPORTED');
+    strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
     assertStartsWith(err.message, 'Package exports');
     assertIncludes(err.message, 'do not define a \'./missing\' subpath');
   }));
@@ -37,7 +37,7 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
   // The file exists but isn't exported. The exports is a number which counts
   // as a non-null value without any properties, just like `{}`.
   loadFixture('pkgexports-number/hidden.js').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_PATH_NOT_EXPORTED');
+    strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
     assertStartsWith(err.message, 'Package exports');
     assertIncludes(err.message, 'do not define a \'./hidden.js\' subpath');
   }));
@@ -57,7 +57,7 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
   // Even though 'pkgexports/sub/asdf.js' works, alternate "path-like" variants
   // do not to prevent confusion and accidental loopholes.
   loadFixture('pkgexports/sub/./../asdf.js').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_PATH_NOT_EXPORTED');
+    strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
     assertStartsWith(err.message, 'Package exports');
     assertIncludes(err.message,
                    'do not define a \'./sub/./../asdf.js\' subpath');
