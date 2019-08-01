@@ -62,7 +62,8 @@ if (params.sourceMap) {
   sourceMap = SourceMap.load(params.sourceMap);
 }
 var tickProcessor = new TickProcessor(
-  new (entriesProviders[params.platform])(params.nm, params.targetRootFS),
+  new (entriesProviders[params.platform])(params.nm, params.targetRootFS,
+                                          params.apkEmbeddedLibrary),
   params.separateIc,
   params.separateBytecodes,
   params.separateBuiltins,

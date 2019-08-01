@@ -7,10 +7,10 @@
 
 #include "src/objects/shared-function-info.h"
 
-#include "src/feedback-vector-inl.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/templates.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -47,14 +47,14 @@ byte PreparseData::get(int index) const {
   DCHECK_LE(0, index);
   DCHECK_LT(index, data_length());
   int offset = kDataStartOffset + index * kByteSize;
-  return READ_BYTE_FIELD(*this, offset);
+  return ReadField<byte>(offset);
 }
 
 void PreparseData::set(int index, byte value) {
   DCHECK_LE(0, index);
   DCHECK_LT(index, data_length());
   int offset = kDataStartOffset + index * kByteSize;
-  WRITE_BYTE_FIELD(*this, offset, value);
+  WriteField<byte>(offset, value);
 }
 
 void PreparseData::copy_in(int index, const byte* buffer, int length) {
@@ -128,6 +128,9 @@ ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
 ACCESSORS(SharedFunctionInfo, script_or_debug_info, Object,
           kScriptOrDebugInfoOffset)
 
+#if V8_SFI_HAS_UNIQUE_ID
+INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
+#endif
 UINT16_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
                  kFormalParameterCountOffset)
@@ -139,8 +142,8 @@ RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 
 bool SharedFunctionInfo::HasSharedName() const {
   Object value = name_or_scope_info();
-  if (value->IsScopeInfo()) {
-    return ScopeInfo::cast(value)->HasSharedFunctionName();
+  if (value.IsScopeInfo()) {
+    return ScopeInfo::cast(value).HasSharedFunctionName();
   }
   return value != kNoSharedNameSentinel;
 }
@@ -148,9 +151,9 @@ bool SharedFunctionInfo::HasSharedName() const {
 String SharedFunctionInfo::Name() const {
   if (!HasSharedName()) return GetReadOnlyRoots().empty_string();
   Object value = name_or_scope_info();
-  if (value->IsScopeInfo()) {
-    if (ScopeInfo::cast(value)->HasFunctionName()) {
-      return String::cast(ScopeInfo::cast(value)->FunctionName());
+  if (value.IsScopeInfo()) {
+    if (ScopeInfo::cast(value).HasFunctionName()) {
+      return String::cast(ScopeInfo::cast(value).FunctionName());
     }
     return GetReadOnlyRoots().empty_string();
   }
@@ -159,10 +162,10 @@ String SharedFunctionInfo::Name() const {
 
 void SharedFunctionInfo::SetName(String name) {
   Object maybe_scope_info = name_or_scope_info();
-  if (maybe_scope_info->IsScopeInfo()) {
-    ScopeInfo::cast(maybe_scope_info)->SetFunctionName(name);
+  if (maybe_scope_info.IsScopeInfo()) {
+    ScopeInfo::cast(maybe_scope_info).SetFunctionName(name);
   } else {
-    DCHECK(maybe_scope_info->IsString() ||
+    DCHECK(maybe_scope_info.IsString() ||
            maybe_scope_info == kNoSharedNameSentinel);
     set_name_or_scope_info(name);
   }
@@ -335,7 +338,7 @@ bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
 
 ScopeInfo SharedFunctionInfo::scope_info() const {
   Object maybe_scope_info = name_or_scope_info();
-  if (maybe_scope_info->IsScopeInfo()) {
+  if (maybe_scope_info.IsScopeInfo()) {
     return ScopeInfo::cast(maybe_scope_info);
   }
   return ScopeInfo::Empty(GetIsolate());
@@ -345,14 +348,14 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo scope_info,
                                         WriteBarrierMode mode) {
   // Move the existing name onto the ScopeInfo.
   Object name = name_or_scope_info();
-  if (name->IsScopeInfo()) {
-    name = ScopeInfo::cast(name)->FunctionName();
+  if (name.IsScopeInfo()) {
+    name = ScopeInfo::cast(name).FunctionName();
   }
-  DCHECK(name->IsString() || name == kNoSharedNameSentinel);
+  DCHECK(name.IsString() || name == kNoSharedNameSentinel);
   // Only set the function name for function scopes.
-  scope_info->SetFunctionName(name);
-  if (HasInferredName() && inferred_name()->length() != 0) {
-    scope_info->SetInferredFunctionName(inferred_name());
+  scope_info.SetFunctionName(name);
+  if (HasInferredName() && inferred_name().length() != 0) {
+    scope_info.SetInferredFunctionName(inferred_name());
   }
   WRITE_FIELD(*this, kNameOrScopeInfoOffset, scope_info);
   CONDITIONAL_WRITE_BARRIER(*this, kNameOrScopeInfoOffset, scope_info, mode);
@@ -370,31 +373,31 @@ HeapObject SharedFunctionInfo::outer_scope_info() const {
 bool SharedFunctionInfo::HasOuterScopeInfo() const {
   ScopeInfo outer_info;
   if (!is_compiled()) {
-    if (!outer_scope_info()->IsScopeInfo()) return false;
+    if (!outer_scope_info().IsScopeInfo()) return false;
     outer_info = ScopeInfo::cast(outer_scope_info());
   } else {
-    if (!scope_info()->HasOuterScopeInfo()) return false;
-    outer_info = scope_info()->OuterScopeInfo();
+    if (!scope_info().HasOuterScopeInfo()) return false;
+    outer_info = scope_info().OuterScopeInfo();
   }
-  return outer_info->length() > 0;
+  return outer_info.length() > 0;
 }
 
 ScopeInfo SharedFunctionInfo::GetOuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
   if (!is_compiled()) return ScopeInfo::cast(outer_scope_info());
-  return scope_info()->OuterScopeInfo();
+  return scope_info().OuterScopeInfo();
 }
 
 void SharedFunctionInfo::set_outer_scope_info(HeapObject value,
                                               WriteBarrierMode mode) {
   DCHECK(!is_compiled());
-  DCHECK(raw_outer_scope_info_or_feedback_metadata()->IsTheHole());
-  DCHECK(value->IsScopeInfo() || value->IsTheHole());
+  DCHECK(raw_outer_scope_info_or_feedback_metadata().IsTheHole());
+  DCHECK(value.IsScopeInfo() || value.IsTheHole());
   set_raw_outer_scope_info_or_feedback_metadata(value, mode);
 }
 
 bool SharedFunctionInfo::HasFeedbackMetadata() const {
-  return raw_outer_scope_info_or_feedback_metadata()->IsFeedbackMetadata();
+  return raw_outer_scope_info_or_feedback_metadata().IsFeedbackMetadata();
 }
 
 FeedbackMetadata SharedFunctionInfo::feedback_metadata() const {
@@ -405,14 +408,14 @@ FeedbackMetadata SharedFunctionInfo::feedback_metadata() const {
 void SharedFunctionInfo::set_feedback_metadata(FeedbackMetadata value,
                                                WriteBarrierMode mode) {
   DCHECK(!HasFeedbackMetadata());
-  DCHECK(value->IsFeedbackMetadata());
+  DCHECK(value.IsFeedbackMetadata());
   set_raw_outer_scope_info_or_feedback_metadata(value, mode);
 }
 
 bool SharedFunctionInfo::is_compiled() const {
   Object data = function_data();
   return data != Smi::FromEnum(Builtins::kCompileLazy) &&
-         !data->IsUncompiledData();
+         !data.IsUncompiledData();
 }
 
 IsCompiledScope SharedFunctionInfo::is_compiled_scope() const {
@@ -421,19 +424,19 @@ IsCompiledScope SharedFunctionInfo::is_compiled_scope() const {
 
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
                                  Isolate* isolate)
-    : retain_bytecode_(shared->HasBytecodeArray()
-                           ? handle(shared->GetBytecodeArray(), isolate)
+    : retain_bytecode_(shared.HasBytecodeArray()
+                           ? handle(shared.GetBytecodeArray(), isolate)
                            : MaybeHandle<BytecodeArray>()),
-      is_compiled_(shared->is_compiled()) {
+      is_compiled_(shared.is_compiled()) {
   DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
 }
 
 bool SharedFunctionInfo::has_simple_parameters() {
-  return scope_info()->HasSimpleParameters();
+  return scope_info().HasSimpleParameters();
 }
 
 bool SharedFunctionInfo::IsApiFunction() const {
-  return function_data()->IsFunctionTemplateInfo();
+  return function_data().IsFunctionTemplateInfo();
 }
 
 FunctionTemplateInfo SharedFunctionInfo::get_api_func_data() {
@@ -442,40 +445,40 @@ FunctionTemplateInfo SharedFunctionInfo::get_api_func_data() {
 }
 
 bool SharedFunctionInfo::HasBytecodeArray() const {
-  return function_data()->IsBytecodeArray() ||
-         function_data()->IsInterpreterData();
+  return function_data().IsBytecodeArray() ||
+         function_data().IsInterpreterData();
 }
 
 BytecodeArray SharedFunctionInfo::GetBytecodeArray() const {
   DCHECK(HasBytecodeArray());
-  if (HasDebugInfo() && GetDebugInfo()->HasInstrumentedBytecodeArray()) {
-    return GetDebugInfo()->OriginalBytecodeArray();
-  } else if (function_data()->IsBytecodeArray()) {
+  if (HasDebugInfo() && GetDebugInfo().HasInstrumentedBytecodeArray()) {
+    return GetDebugInfo().OriginalBytecodeArray();
+  } else if (function_data().IsBytecodeArray()) {
     return BytecodeArray::cast(function_data());
   } else {
-    DCHECK(function_data()->IsInterpreterData());
-    return InterpreterData::cast(function_data())->bytecode_array();
+    DCHECK(function_data().IsInterpreterData());
+    return InterpreterData::cast(function_data()).bytecode_array();
   }
 }
 
 BytecodeArray SharedFunctionInfo::GetDebugBytecodeArray() const {
   DCHECK(HasBytecodeArray());
-  DCHECK(HasDebugInfo() && GetDebugInfo()->HasInstrumentedBytecodeArray());
-  if (function_data()->IsBytecodeArray()) {
+  DCHECK(HasDebugInfo() && GetDebugInfo().HasInstrumentedBytecodeArray());
+  if (function_data().IsBytecodeArray()) {
     return BytecodeArray::cast(function_data());
   } else {
-    DCHECK(function_data()->IsInterpreterData());
-    return InterpreterData::cast(function_data())->bytecode_array();
+    DCHECK(function_data().IsInterpreterData());
+    return InterpreterData::cast(function_data()).bytecode_array();
   }
 }
 
 void SharedFunctionInfo::SetDebugBytecodeArray(BytecodeArray bytecode) {
   DCHECK(HasBytecodeArray());
-  if (function_data()->IsBytecodeArray()) {
+  if (function_data().IsBytecodeArray()) {
     set_function_data(bytecode);
   } else {
-    DCHECK(function_data()->IsInterpreterData());
-    interpreter_data()->set_bytecode_array(bytecode);
+    DCHECK(function_data().IsInterpreterData());
+    interpreter_data().set_bytecode_array(bytecode);
   }
 }
 
@@ -497,22 +500,22 @@ bool SharedFunctionInfo::ShouldFlushBytecode(BytecodeFlushMode mode) {
   // check if it is old. Note, this is done this way since this function can be
   // called by the concurrent marker.
   Object data = function_data();
-  if (!data->IsBytecodeArray()) return false;
+  if (!data.IsBytecodeArray()) return false;
 
   if (mode == BytecodeFlushMode::kStressFlushBytecode) return true;
 
   BytecodeArray bytecode = BytecodeArray::cast(data);
 
-  return bytecode->IsOld();
+  return bytecode.IsOld();
 }
 
 Code SharedFunctionInfo::InterpreterTrampoline() const {
   DCHECK(HasInterpreterData());
-  return interpreter_data()->interpreter_trampoline();
+  return interpreter_data().interpreter_trampoline();
 }
 
 bool SharedFunctionInfo::HasInterpreterData() const {
-  return function_data()->IsInterpreterData();
+  return function_data().IsInterpreterData();
 }
 
 InterpreterData SharedFunctionInfo::interpreter_data() const {
@@ -527,7 +530,7 @@ void SharedFunctionInfo::set_interpreter_data(
 }
 
 bool SharedFunctionInfo::HasAsmWasmData() const {
-  return function_data()->IsAsmWasmData();
+  return function_data().IsAsmWasmData();
 }
 
 AsmWasmData SharedFunctionInfo::asm_wasm_data() const {
@@ -542,7 +545,7 @@ void SharedFunctionInfo::set_asm_wasm_data(AsmWasmData data) {
 }
 
 bool SharedFunctionInfo::HasBuiltinId() const {
-  return function_data()->IsSmi();
+  return function_data().IsSmi();
 }
 
 int SharedFunctionInfo::builtin_id() const {
@@ -558,7 +561,7 @@ void SharedFunctionInfo::set_builtin_id(int builtin_id) {
 }
 
 bool SharedFunctionInfo::HasUncompiledData() const {
-  return function_data()->IsUncompiledData();
+  return function_data().IsUncompiledData();
 }
 
 UncompiledData SharedFunctionInfo::uncompiled_data() const {
@@ -568,12 +571,12 @@ UncompiledData SharedFunctionInfo::uncompiled_data() const {
 
 void SharedFunctionInfo::set_uncompiled_data(UncompiledData uncompiled_data) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy));
-  DCHECK(uncompiled_data->IsUncompiledData());
+  DCHECK(uncompiled_data.IsUncompiledData());
   set_function_data(uncompiled_data);
 }
 
 bool SharedFunctionInfo::HasUncompiledDataWithPreparseData() const {
-  return function_data()->IsUncompiledDataWithPreparseData();
+  return function_data().IsUncompiledDataWithPreparseData();
 }
 
 UncompiledDataWithPreparseData
@@ -585,13 +588,12 @@ SharedFunctionInfo::uncompiled_data_with_preparse_data() const {
 void SharedFunctionInfo::set_uncompiled_data_with_preparse_data(
     UncompiledDataWithPreparseData uncompiled_data_with_preparse_data) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy));
-  DCHECK(
-      uncompiled_data_with_preparse_data->IsUncompiledDataWithPreparseData());
+  DCHECK(uncompiled_data_with_preparse_data.IsUncompiledDataWithPreparseData());
   set_function_data(uncompiled_data_with_preparse_data);
 }
 
 bool SharedFunctionInfo::HasUncompiledDataWithoutPreparseData() const {
-  return function_data()->IsUncompiledDataWithoutPreparseData();
+  return function_data().IsUncompiledDataWithoutPreparseData();
 }
 
 void SharedFunctionInfo::ClearPreparseData() {
@@ -610,12 +612,12 @@ void SharedFunctionInfo::ClearPreparseData() {
                 UncompiledDataWithPreparseData::kSize);
   STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize ==
                 UncompiledData::kSize);
-  data->synchronized_set_map(
+  data.synchronized_set_map(
       GetReadOnlyRoots().uncompiled_data_without_preparse_data_map());
 
   // Fill the remaining space with filler.
   heap->CreateFillerObjectAt(
-      data->address() + UncompiledDataWithoutPreparseData::kSize,
+      data.address() + UncompiledDataWithoutPreparseData::kSize,
       UncompiledDataWithPreparseData::kSize -
           UncompiledDataWithoutPreparseData::kSize,
       ClearRecordedSlots::kNo);
@@ -624,23 +626,19 @@ void SharedFunctionInfo::ClearPreparseData() {
   DCHECK(HasUncompiledDataWithoutPreparseData());
 }
 
-OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfoWithID, SharedFunctionInfo)
-CAST_ACCESSOR(SharedFunctionInfoWithID)
-INT_ACCESSORS(SharedFunctionInfoWithID, unique_id, kUniqueIdOffset)
-
 // static
 void UncompiledData::Initialize(
     UncompiledData data, String inferred_name, int start_position,
     int end_position, int function_literal_id,
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
-  data->set_inferred_name(inferred_name);
+  data.set_inferred_name(inferred_name);
   gc_notify_updated_slot(
-      data, data->RawField(UncompiledData::kInferredNameOffset), inferred_name);
-  data->set_start_position(start_position);
-  data->set_end_position(end_position);
-  data->set_function_literal_id(function_literal_id);
-  data->clear_padding();
+      data, data.RawField(UncompiledData::kInferredNameOffset), inferred_name);
+  data.set_start_position(start_position);
+  data.set_end_position(end_position);
+  data.set_function_literal_id(function_literal_id);
+  data.clear_padding();
 }
 
 void UncompiledDataWithPreparseData::Initialize(
@@ -651,9 +649,9 @@ void UncompiledDataWithPreparseData::Initialize(
         gc_notify_updated_slot) {
   UncompiledData::Initialize(data, inferred_name, start_position, end_position,
                              function_literal_id, gc_notify_updated_slot);
-  data->set_preparse_data(scope_data);
+  data.set_preparse_data(scope_data);
   gc_notify_updated_slot(
-      data, data->RawField(UncompiledDataWithPreparseData::kPreparseDataOffset),
+      data, data.RawField(UncompiledDataWithPreparseData::kPreparseDataOffset),
       scope_data);
 }
 
@@ -662,28 +660,36 @@ bool UncompiledData::has_function_literal_id() {
 }
 
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
-  return function_data()->IsWasmExportedFunctionData();
+  return function_data().IsWasmExportedFunctionData();
+}
+
+bool SharedFunctionInfo::HasWasmJSFunctionData() const {
+  return function_data().IsWasmJSFunctionData();
+}
+
+bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
+  return function_data().IsWasmCapiFunctionData();
 }
 
 Object SharedFunctionInfo::script() const {
   Object maybe_script = script_or_debug_info();
-  if (maybe_script->IsDebugInfo()) {
-    return DebugInfo::cast(maybe_script)->script();
+  if (maybe_script.IsDebugInfo()) {
+    return DebugInfo::cast(maybe_script).script();
   }
   return maybe_script;
 }
 
 void SharedFunctionInfo::set_script(Object script) {
   Object maybe_debug_info = script_or_debug_info();
-  if (maybe_debug_info->IsDebugInfo()) {
-    DebugInfo::cast(maybe_debug_info)->set_script(script);
+  if (maybe_debug_info.IsDebugInfo()) {
+    DebugInfo::cast(maybe_debug_info).set_script(script);
   } else {
     set_script_or_debug_info(script);
   }
 }
 
 bool SharedFunctionInfo::HasDebugInfo() const {
-  return script_or_debug_info()->IsDebugInfo();
+  return script_or_debug_info().IsDebugInfo();
 }
 
 DebugInfo SharedFunctionInfo::GetDebugInfo() const {
@@ -693,37 +699,37 @@ DebugInfo SharedFunctionInfo::GetDebugInfo() const {
 
 void SharedFunctionInfo::SetDebugInfo(DebugInfo debug_info) {
   DCHECK(!HasDebugInfo());
-  DCHECK_EQ(debug_info->script(), script_or_debug_info());
+  DCHECK_EQ(debug_info.script(), script_or_debug_info());
   set_script_or_debug_info(debug_info);
 }
 
 bool SharedFunctionInfo::HasInferredName() {
   Object scope_info = name_or_scope_info();
-  if (scope_info->IsScopeInfo()) {
-    return ScopeInfo::cast(scope_info)->HasInferredFunctionName();
+  if (scope_info.IsScopeInfo()) {
+    return ScopeInfo::cast(scope_info).HasInferredFunctionName();
   }
   return HasUncompiledData();
 }
 
 String SharedFunctionInfo::inferred_name() {
   Object maybe_scope_info = name_or_scope_info();
-  if (maybe_scope_info->IsScopeInfo()) {
+  if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo scope_info = ScopeInfo::cast(maybe_scope_info);
-    if (scope_info->HasInferredFunctionName()) {
-      Object name = scope_info->InferredFunctionName();
-      if (name->IsString()) return String::cast(name);
+    if (scope_info.HasInferredFunctionName()) {
+      Object name = scope_info.InferredFunctionName();
+      if (name.IsString()) return String::cast(name);
     }
   } else if (HasUncompiledData()) {
-    return uncompiled_data()->inferred_name();
+    return uncompiled_data().inferred_name();
   }
   return GetReadOnlyRoots().empty_string();
 }
 
 bool SharedFunctionInfo::IsUserJavaScript() {
   Object script_obj = script();
-  if (script_obj->IsUndefined()) return false;
+  if (script_obj.IsUndefined()) return false;
   Script script = Script::cast(script_obj);
-  return script->IsUserJavaScript();
+  return script.IsUserJavaScript();
 }
 
 bool SharedFunctionInfo::IsSubjectToDebugging() {

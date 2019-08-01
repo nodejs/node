@@ -9,15 +9,15 @@
 
 #include <algorithm>
 
-#include "src/allocation.h"
 #include "src/base/logging.h"
-#include "src/char-predicates.h"
-#include "src/globals.h"
-#include "src/message-template.h"
+#include "src/common/globals.h"
+#include "src/execution/message-template.h"
+#include "src/parsing/literal-buffer.h"
 #include "src/parsing/token.h"
-#include "src/pointer-with-payload.h"
-#include "src/unicode-decoder.h"
-#include "src/unicode.h"
+#include "src/strings/char-predicates.h"
+#include "src/strings/unicode.h"
+#include "src/utils/allocation.h"
+#include "src/utils/pointer-with-payload.h"
 
 namespace v8 {
 namespace internal {
@@ -345,7 +345,7 @@ class V8_EXPORT_PRIVATE Scanner {
     if (peek_location().length() != N + 1) return false;
 
     Vector<const uint8_t> next = next_literal_one_byte_string();
-    const char* chars = reinterpret_cast<const char*>(next.start());
+    const char* chars = reinterpret_cast<const char*>(next.begin());
     return next.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
   }
 
@@ -355,7 +355,7 @@ class V8_EXPORT_PRIVATE Scanner {
     if (!is_literal_one_byte()) return false;
 
     Vector<const uint8_t> current = literal_one_byte_string();
-    const char* chars = reinterpret_cast<const char*>(current.start());
+    const char* chars = reinterpret_cast<const char*>(current.begin());
     return current.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
   }
 
@@ -406,12 +406,6 @@ class V8_EXPORT_PRIVATE Scanner {
 
   bool FoundHtmlComment() const { return found_html_comment_; }
 
-  bool allow_harmony_private_fields() const {
-    return allow_harmony_private_fields_;
-  }
-  void set_allow_harmony_private_fields(bool allow) {
-    allow_harmony_private_fields_ = allow;
-  }
   bool allow_harmony_numeric_separator() const {
     return allow_harmony_numeric_separator_;
   }
@@ -429,92 +423,6 @@ class V8_EXPORT_PRIVATE Scanner {
   // This is used for tagged template literals, in which normally forbidden
   // escape sequences are allowed.
   class ErrorState;
-
-  // LiteralBuffer -  Collector of chars of literals.
-  class LiteralBuffer {
-   public:
-    LiteralBuffer() : backing_store_(), position_(0), is_one_byte_(true) {}
-
-    ~LiteralBuffer() { backing_store_.Dispose(); }
-
-    V8_INLINE void AddChar(char code_unit) {
-      DCHECK(IsValidAscii(code_unit));
-      AddOneByteChar(static_cast<byte>(code_unit));
-    }
-
-    V8_INLINE void AddChar(uc32 code_unit) {
-      if (is_one_byte()) {
-        if (code_unit <= static_cast<uc32>(unibrow::Latin1::kMaxChar)) {
-          AddOneByteChar(static_cast<byte>(code_unit));
-          return;
-        }
-        ConvertToTwoByte();
-      }
-      AddTwoByteChar(code_unit);
-    }
-
-    bool is_one_byte() const { return is_one_byte_; }
-
-    bool Equals(Vector<const char> keyword) const {
-      return is_one_byte() && keyword.length() == position_ &&
-             (memcmp(keyword.start(), backing_store_.start(), position_) == 0);
-    }
-
-    Vector<const uint16_t> two_byte_literal() const {
-      DCHECK(!is_one_byte());
-      DCHECK_EQ(position_ & 0x1, 0);
-      return Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(backing_store_.start()),
-          position_ >> 1);
-    }
-
-    Vector<const uint8_t> one_byte_literal() const {
-      DCHECK(is_one_byte());
-      return Vector<const uint8_t>(
-          reinterpret_cast<const uint8_t*>(backing_store_.start()), position_);
-    }
-
-    int length() const { return is_one_byte() ? position_ : (position_ >> 1); }
-
-    void Start() {
-      position_ = 0;
-      is_one_byte_ = true;
-    }
-
-    Handle<String> Internalize(Isolate* isolate) const;
-
-   private:
-    static const int kInitialCapacity = 16;
-    static const int kGrowthFactor = 4;
-    static const int kMaxGrowth = 1 * MB;
-
-    inline bool IsValidAscii(char code_unit) {
-      // Control characters and printable characters span the range of
-      // valid ASCII characters (0-127). Chars are unsigned on some
-      // platforms which causes compiler warnings if the validity check
-      // tests the lower bound >= 0 as it's always true.
-      return iscntrl(code_unit) || isprint(code_unit);
-    }
-
-    V8_INLINE void AddOneByteChar(byte one_byte_char) {
-      DCHECK(is_one_byte());
-      if (position_ >= backing_store_.length()) ExpandBuffer();
-      backing_store_[position_] = one_byte_char;
-      position_ += kOneByteSize;
-    }
-
-    void AddTwoByteChar(uc32 code_unit);
-    int NewCapacity(int min_capacity);
-    void ExpandBuffer();
-    void ConvertToTwoByte();
-
-    Vector<byte> backing_store_;
-    int position_;
-
-    bool is_one_byte_;
-
-    DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
-  };
 
   // The current and look-ahead token.
   struct TokenDesc {
@@ -813,7 +721,6 @@ class V8_EXPORT_PRIVATE Scanner {
   bool found_html_comment_;
 
   // Harmony flags to allow ESNext features.
-  bool allow_harmony_private_fields_;
   bool allow_harmony_numeric_separator_;
 
   const bool is_module_;

@@ -19,6 +19,19 @@ enum class ExecutionTier : int8_t {
   kTurbofan,
 };
 
+inline const char* ExecutionTierToString(ExecutionTier tier) {
+  switch (tier) {
+    case ExecutionTier::kTurbofan:
+      return "turbofan";
+    case ExecutionTier::kLiftoff:
+      return "liftoff";
+    case ExecutionTier::kInterpreter:
+      return "interpreter";
+    case ExecutionTier::kNone:
+      return "none";
+  }
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

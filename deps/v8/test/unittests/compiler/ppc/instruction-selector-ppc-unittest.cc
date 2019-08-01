@@ -4,7 +4,7 @@
 
 #include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 
 namespace v8 {
 namespace internal {

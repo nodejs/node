@@ -9,6 +9,12 @@
 #include "src/tracing/trace-event.h"
 #include "test/cctest/cctest.h"
 
+#ifdef V8_USE_PERFETTO
+#include "perfetto/trace/chrome/chrome_trace_event.pb.h"
+#include "perfetto/trace/chrome/chrome_trace_packet.pb.h"
+#include "src/libplatform/tracing/trace-event-listener.h"
+#endif
+
 namespace v8 {
 namespace platform {
 namespace tracing {
@@ -68,7 +74,9 @@ class ConvertableToTraceFormatMock : public v8::ConvertableToTraceFormat {
 class MockTraceWriter : public TraceWriter {
  public:
   void AppendTraceEvent(TraceObject* trace_event) override {
-    events_.push_back(trace_event->name());
+    // TraceObject might not have been initialized.
+    const char* name = trace_event->name() ? trace_event->name() : "";
+    events_.push_back(name);
   }
 
   void Flush() override {}
@@ -142,6 +150,10 @@ void PopulateJSONWriter(TraceWriter* writer) {
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
   tracing_controller->Initialize(ring_buffer);
+#ifdef V8_USE_PERFETTO
+  std::ostringstream sstream;
+  tracing_controller->InitializeForPerfetto(&sstream);
+#endif
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory("v8-cat");
   tracing_controller->StartTracing(trace_config);
@@ -209,6 +221,10 @@ TEST(TestTracingController) {
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
   tracing_controller->Initialize(ring_buffer);
+#ifdef V8_USE_PERFETTO
+  std::ostringstream sstream;
+  tracing_controller->InitializeForPerfetto(&sstream);
+#endif
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory("v8");
   tracing_controller->StartTracing(trace_config);
@@ -241,7 +257,7 @@ void GetJSONStrings(std::vector<std::string>& ret, std::string str,
 }
 
 TEST(TestTracingControllerMultipleArgsAndCopy) {
-  std::ostringstream stream;
+  std::ostringstream stream, perfetto_stream;
   uint64_t aa = 11;
   unsigned int bb = 22;
   uint16_t cc = 33;
@@ -280,47 +296,52 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
     TraceBuffer* ring_buffer =
         TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
     tracing_controller->Initialize(ring_buffer);
+#ifdef V8_USE_PERFETTO
+    tracing_controller->InitializeForPerfetto(&perfetto_stream);
+#endif
     TraceConfig* trace_config = new TraceConfig();
     trace_config->AddIncludedCategory("v8");
     tracing_controller->StartTracing(trace_config);
 
-    TRACE_EVENT1("v8", "v8.Test.aa", "aa", aa);
-    TRACE_EVENT1("v8", "v8.Test.bb", "bb", bb);
-    TRACE_EVENT1("v8", "v8.Test.cc", "cc", cc);
-    TRACE_EVENT1("v8", "v8.Test.dd", "dd", dd);
-    TRACE_EVENT1("v8", "v8.Test.ee", "ee", ee);
-    TRACE_EVENT1("v8", "v8.Test.ff", "ff", ff);
-    TRACE_EVENT1("v8", "v8.Test.gg", "gg", gg);
-    TRACE_EVENT1("v8", "v8.Test.hh", "hh", hh);
-    TRACE_EVENT1("v8", "v8.Test.ii", "ii1", ii1);
-    TRACE_EVENT1("v8", "v8.Test.ii", "ii2", ii2);
-    TRACE_EVENT1("v8", "v8.Test.jj1", "jj1", jj1);
-    TRACE_EVENT1("v8", "v8.Test.jj2", "jj2", jj2);
-    TRACE_EVENT1("v8", "v8.Test.jj3", "jj3", jj3);
-    TRACE_EVENT1("v8", "v8.Test.jj4", "jj4", jj4);
-    TRACE_EVENT1("v8", "v8.Test.jj5", "jj5", jj5);
-    TRACE_EVENT1("v8", "v8.Test.kk", "kk", kk);
-    TRACE_EVENT1("v8", "v8.Test.ll", "ll", ll);
-    TRACE_EVENT1("v8", "v8.Test.mm", "mm", TRACE_STR_COPY(mmm.c_str()));
+    {
+      TRACE_EVENT1("v8", "v8.Test.aa", "aa", aa);
+      TRACE_EVENT1("v8", "v8.Test.bb", "bb", bb);
+      TRACE_EVENT1("v8", "v8.Test.cc", "cc", cc);
+      TRACE_EVENT1("v8", "v8.Test.dd", "dd", dd);
+      TRACE_EVENT1("v8", "v8.Test.ee", "ee", ee);
+      TRACE_EVENT1("v8", "v8.Test.ff", "ff", ff);
+      TRACE_EVENT1("v8", "v8.Test.gg", "gg", gg);
+      TRACE_EVENT1("v8", "v8.Test.hh", "hh", hh);
+      TRACE_EVENT1("v8", "v8.Test.ii", "ii1", ii1);
+      TRACE_EVENT1("v8", "v8.Test.ii", "ii2", ii2);
+      TRACE_EVENT1("v8", "v8.Test.jj1", "jj1", jj1);
+      TRACE_EVENT1("v8", "v8.Test.jj2", "jj2", jj2);
+      TRACE_EVENT1("v8", "v8.Test.jj3", "jj3", jj3);
+      TRACE_EVENT1("v8", "v8.Test.jj4", "jj4", jj4);
+      TRACE_EVENT1("v8", "v8.Test.jj5", "jj5", jj5);
+      TRACE_EVENT1("v8", "v8.Test.kk", "kk", kk);
+      TRACE_EVENT1("v8", "v8.Test.ll", "ll", ll);
+      TRACE_EVENT1("v8", "v8.Test.mm", "mm", TRACE_STR_COPY(mmm.c_str()));
 
-    TRACE_EVENT2("v8", "v8.Test2.1", "aa", aa, "ll", ll);
-    TRACE_EVENT2("v8", "v8.Test2.2", "mm1", TRACE_STR_COPY(mm.c_str()), "mm2",
-                 TRACE_STR_COPY(mmm.c_str()));
+      TRACE_EVENT2("v8", "v8.Test2.1", "aa", aa, "ll", ll);
+      TRACE_EVENT2("v8", "v8.Test2.2", "mm1", TRACE_STR_COPY(mm.c_str()), "mm2",
+                   TRACE_STR_COPY(mmm.c_str()));
 
-    // Check copies are correct.
-    TRACE_EVENT_COPY_INSTANT0("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD);
-    TRACE_EVENT_COPY_INSTANT2("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD, "mm1",
-                              mm.c_str(), "mm2", mmm.c_str());
-    mm = "CHANGED";
-    mmm = "CHANGED";
+      // Check copies are correct.
+      TRACE_EVENT_COPY_INSTANT0("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD);
+      TRACE_EVENT_COPY_INSTANT2("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD,
+                                "mm1", mm.c_str(), "mm2", mmm.c_str());
+      mm = "CHANGED";
+      mmm = "CHANGED";
 
-    TRACE_EVENT_INSTANT1("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
-                         new ConvertableToTraceFormatMock(42));
-    std::unique_ptr<ConvertableToTraceFormatMock> trace_event_arg(
-        new ConvertableToTraceFormatMock(42));
-    TRACE_EVENT_INSTANT2("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
-                         std::move(trace_event_arg), "a2",
-                         new ConvertableToTraceFormatMock(123));
+      TRACE_EVENT_INSTANT1("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
+                           new ConvertableToTraceFormatMock(42));
+      std::unique_ptr<ConvertableToTraceFormatMock> trace_event_arg(
+          new ConvertableToTraceFormatMock(42));
+      TRACE_EVENT_INSTANT2("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
+                           std::move(trace_event_arg), "a2",
+                           new ConvertableToTraceFormatMock(123));
+    }
 
     tracing_controller->StopTracing();
 
@@ -395,6 +416,10 @@ TEST(TracingObservers) {
       v8::platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(1,
                                                                       writer);
   tracing_controller->Initialize(ring_buffer);
+#ifdef V8_USE_PERFETTO
+  std::ostringstream sstream;
+  tracing_controller->InitializeForPerfetto(&sstream);
+#endif
   v8::platform::tracing::TraceConfig* trace_config =
       new v8::platform::tracing::TraceConfig();
   trace_config->AddIncludedCategory("v8");
@@ -451,18 +476,21 @@ class TraceWritingThread : public base::Thread {
         tracing_controller_(tracing_controller) {}
 
   void Run() override {
-    for (int i = 0; i < 1000; i++) {
+    running_.store(true);
+    while (running_.load()) {
       TRACE_EVENT0("v8", "v8.Test");
       tracing_controller_->AddTraceEvent('A', nullptr, "v8", "", 1, 1, 0,
                                          nullptr, nullptr, nullptr, nullptr, 0);
       tracing_controller_->AddTraceEventWithTimestamp('A', nullptr, "v8", "", 1,
                                                       1, 0, nullptr, nullptr,
                                                       nullptr, nullptr, 0, 0);
-      base::OS::Sleep(base::TimeDelta::FromMilliseconds(1));
     }
   }
 
+  void Stop() { running_.store(false); }
+
  private:
+  std::atomic_bool running_{false};
   v8::platform::tracing::TracingController* tracing_controller_;
 };
 
@@ -481,20 +509,180 @@ TEST(AddTraceEventMultiThreaded) {
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
   tracing_controller->Initialize(ring_buffer);
+#ifdef V8_USE_PERFETTO
+  std::ostringstream sstream;
+  tracing_controller->InitializeForPerfetto(&sstream);
+#endif
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory("v8");
   tracing_controller->StartTracing(trace_config);
 
   TraceWritingThread thread(tracing_controller);
   thread.StartSynchronously();
+  TRACE_EVENT0("v8", "v8.Test2");
+  TRACE_EVENT0("v8", "v8.Test2");
 
-  base::OS::Sleep(base::TimeDelta::FromMilliseconds(100));
+  base::OS::Sleep(base::TimeDelta::FromMilliseconds(10));
   tracing_controller->StopTracing();
 
+  thread.Stop();
   thread.Join();
 
   i::V8::SetPlatformForTesting(old_platform);
 }
+
+#ifdef V8_USE_PERFETTO
+
+struct TraceEvent {
+  std::string name;
+  int64_t timestamp;
+  int32_t phase;
+  int32_t thread_id;
+  int64_t duration;
+  int64_t thread_duration;
+  std::string scope;
+  uint64_t id;
+  uint32_t flags;
+  std::string category_group_name;
+  int32_t process_id;
+  int64_t thread_timestamp;
+  uint64_t bind_id;
+};
+
+class TestListener : public TraceEventListener {
+ public:
+  void ProcessPacket(
+      const ::perfetto::protos::ChromeTracePacket& packet) override {
+    for (const ::perfetto::protos::ChromeTraceEvent& event :
+         packet.chrome_events().trace_events()) {
+      TraceEvent trace_event{event.name(),       event.timestamp(),
+                             event.phase(),      event.thread_id(),
+                             event.duration(),   event.thread_duration(),
+                             event.scope(),      event.id(),
+                             event.flags(),      event.category_group_name(),
+                             event.process_id(), event.thread_timestamp(),
+                             event.bind_id()};
+      events_.push_back(trace_event);
+    }
+  }
+
+  TraceEvent* get_event(size_t index) { return &events_.at(index); }
+
+  size_t events_size() const { return events_.size(); }
+
+ private:
+  std::vector<TraceEvent> events_;
+};
+
+class TracingTestHarness {
+ public:
+  TracingTestHarness() {
+    old_platform_ = i::V8::GetCurrentPlatform();
+    default_platform_ = v8::platform::NewDefaultPlatform();
+    i::V8::SetPlatformForTesting(default_platform_.get());
+
+    auto tracing =
+        base::make_unique<v8::platform::tracing::TracingController>();
+    tracing_controller_ = tracing.get();
+    static_cast<v8::platform::DefaultPlatform*>(default_platform_.get())
+        ->SetTracingController(std::move(tracing));
+
+    MockTraceWriter* writer = new MockTraceWriter();
+    TraceBuffer* ring_buffer =
+        TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
+    tracing_controller_->Initialize(ring_buffer);
+    tracing_controller_->InitializeForPerfetto(&perfetto_json_stream_);
+    tracing_controller_->SetTraceEventListenerForTesting(&listener_);
+  }
+
+  ~TracingTestHarness() { i::V8::SetPlatformForTesting(old_platform_); }
+
+  void StartTracing() {
+    TraceConfig* trace_config = new TraceConfig();
+    trace_config->AddIncludedCategory("v8");
+    tracing_controller_->StartTracing(trace_config);
+  }
+
+  void StopTracing() { tracing_controller_->StopTracing(); }
+
+  TraceEvent* get_event(size_t index) { return listener_.get_event(index); }
+  size_t events_size() const { return listener_.events_size(); }
+
+  std::string perfetto_json_stream() { return perfetto_json_stream_.str(); }
+
+ private:
+  std::unique_ptr<v8::Platform> default_platform_;
+  v8::Platform* old_platform_;
+  v8::platform::tracing::TracingController* tracing_controller_;
+  TestListener listener_;
+  std::ostringstream perfetto_json_stream_;
+};
+
+TEST(Perfetto) {
+  TracingTestHarness harness;
+  harness.StartTracing();
+
+  uint64_t uint64_arg = 1024;
+  const char* str_arg = "str_arg";
+
+  {
+    TRACE_EVENT0("v8", "test1");
+    TRACE_EVENT1("v8", "test2", "arg1", uint64_arg);
+    TRACE_EVENT2("v8", "test3", "arg1", uint64_arg, "arg2", str_arg);
+  }
+  TRACE_EVENT_INSTANT0("v8", "final event not captured",
+                       TRACE_EVENT_SCOPE_THREAD);
+
+  harness.StopTracing();
+
+  TraceEvent* event = harness.get_event(0);
+  int32_t thread_id = event->thread_id;
+  int32_t process_id = event->process_id;
+  CHECK_EQ("test1", event->name);
+  CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase);
+  int64_t timestamp = event->timestamp;
+
+  event = harness.get_event(1);
+  CHECK_EQ("test2", event->name);
+  CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase);
+  CHECK_EQ(thread_id, event->thread_id);
+  CHECK_EQ(process_id, event->process_id);
+  CHECK_GE(event->timestamp, timestamp);
+  timestamp = event->timestamp;
+
+  event = harness.get_event(2);
+  CHECK_EQ("test3", event->name);
+  CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase);
+  CHECK_EQ(thread_id, event->thread_id);
+  CHECK_EQ(process_id, event->process_id);
+  CHECK_GE(event->timestamp, timestamp);
+  timestamp = event->timestamp;
+
+  event = harness.get_event(3);
+  CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase);
+  CHECK_EQ(thread_id, event->thread_id);
+  CHECK_EQ(process_id, event->process_id);
+  CHECK_GE(event->timestamp, timestamp);
+  timestamp = event->timestamp;
+
+  event = harness.get_event(4);
+  CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase);
+  CHECK_EQ(thread_id, event->thread_id);
+  CHECK_EQ(process_id, event->process_id);
+  CHECK_GE(event->timestamp, timestamp);
+  timestamp = event->timestamp;
+
+  event = harness.get_event(5);
+  CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase);
+  CHECK_EQ(thread_id, event->thread_id);
+  CHECK_EQ(process_id, event->process_id);
+  CHECK_GE(event->timestamp, timestamp);
+  timestamp = event->timestamp;
+
+  CHECK_EQ(6, harness.events_size());
+}
+
+#endif  // V8_USE_PERFETTO
 
 }  // namespace tracing
 }  // namespace platform

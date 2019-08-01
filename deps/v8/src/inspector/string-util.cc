@@ -4,11 +4,12 @@
 
 #include "src/inspector/string-util.h"
 
+#include <cinttypes>
 #include <cmath>
 
 #include "src/base/platform/platform.h"
-#include "src/conversions.h"
 #include "src/inspector/protocol/Protocol.h"
+#include "src/numbers/conversions.h"
 
 namespace v8_inspector {
 

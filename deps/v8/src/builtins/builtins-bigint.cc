@@ -4,9 +4,9 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/conversions.h"
-#include "src/counters.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions.h"
+#include "src/objects/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif
@@ -83,8 +83,8 @@ MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
   if (value->IsJSValue()) {
     // 2a. Assert: value.[[BigIntData]] is a BigInt value.
     // 2b. Return value.[[BigIntData]].
-    Object data = JSValue::cast(*value)->value();
-    if (data->IsBigInt()) return handle(BigInt::cast(data), isolate);
+    Object data = JSValue::cast(*value).value();
+    if (data.IsBigInt()) return handle(BigInt::cast(data), isolate);
   }
   // 3. Throw a TypeError exception.
   THROW_NEW_ERROR(

@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
@@ -55,8 +55,8 @@ HEAP_TEST(InvalidatedSlotsNoInvalidatedRanges) {
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   InvalidatedSlotsFilter filter(page);
   for (ByteArray byte_array : byte_arrays) {
-    Address start = byte_array->address() + ByteArray::kHeaderSize;
-    Address end = byte_array->address() + byte_array->Size();
+    Address start = byte_array.address() + ByteArray::kHeaderSize;
+    Address end = byte_array.address() + byte_array.Size();
     for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(filter.IsValid(addr));
     }
@@ -71,13 +71,13 @@ HEAP_TEST(InvalidatedSlotsSomeInvalidatedRanges) {
   // Register every second byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i += 2) {
     page->RegisterObjectWithInvalidatedSlots(byte_arrays[i],
-                                             byte_arrays[i]->Size());
+                                             byte_arrays[i].Size());
   }
   InvalidatedSlotsFilter filter(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     ByteArray byte_array = byte_arrays[i];
-    Address start = byte_array->address() + ByteArray::kHeaderSize;
-    Address end = byte_array->address() + byte_array->Size();
+    Address start = byte_array.address() + ByteArray::kHeaderSize;
+    Address end = byte_array.address() + byte_array.Size();
     for (Address addr = start; addr < end; addr += kTaggedSize) {
       if (i % 2 == 0) {
         CHECK(!filter.IsValid(addr));
@@ -96,13 +96,13 @@ HEAP_TEST(InvalidatedSlotsAllInvalidatedRanges) {
   // Register the all byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     page->RegisterObjectWithInvalidatedSlots(byte_arrays[i],
-                                             byte_arrays[i]->Size());
+                                             byte_arrays[i].Size());
   }
   InvalidatedSlotsFilter filter(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     ByteArray byte_array = byte_arrays[i];
-    Address start = byte_array->address() + ByteArray::kHeaderSize;
-    Address end = byte_array->address() + byte_array->Size();
+    Address start = byte_array.address() + ByteArray::kHeaderSize;
+    Address end = byte_array.address() + byte_array.Size();
     for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(!filter.IsValid(addr));
     }
@@ -118,16 +118,16 @@ HEAP_TEST(InvalidatedSlotsAfterTrimming) {
   // Register the all byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     page->RegisterObjectWithInvalidatedSlots(byte_arrays[i],
-                                             byte_arrays[i]->Size());
+                                             byte_arrays[i].Size());
   }
   // Trim byte arrays and check that the slots outside the byte arrays are
   // considered invalid if the old space page was swept.
   InvalidatedSlotsFilter filter(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     ByteArray byte_array = byte_arrays[i];
-    Address start = byte_array->address() + ByteArray::kHeaderSize;
-    Address end = byte_array->address() + byte_array->Size();
-    heap->RightTrimFixedArray(byte_array, byte_array->length());
+    Address start = byte_array.address() + ByteArray::kHeaderSize;
+    Address end = byte_array.address() + byte_array.Size();
+    heap->RightTrimFixedArray(byte_array, byte_array.length());
     for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK_EQ(filter.IsValid(addr), page->SweepingDone());
     }
@@ -146,14 +146,14 @@ HEAP_TEST(InvalidatedSlotsEvacuationCandidate) {
   // candidate.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     page->RegisterObjectWithInvalidatedSlots(byte_arrays[i],
-                                             byte_arrays[i]->Size());
+                                             byte_arrays[i].Size());
   }
   // All slots must still be valid.
   InvalidatedSlotsFilter filter(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     ByteArray byte_array = byte_arrays[i];
-    Address start = byte_array->address() + ByteArray::kHeaderSize;
-    Address end = byte_array->address() + byte_array->Size();
+    Address start = byte_array.address() + ByteArray::kHeaderSize;
+    Address end = byte_array.address() + byte_array.Size();
     for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(filter.IsValid(addr));
     }
@@ -166,18 +166,18 @@ HEAP_TEST(InvalidatedSlotsResetObjectRegression) {
   std::vector<ByteArray> byte_arrays;
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   // Ensure that the first array has smaller size then the rest.
-  heap->RightTrimFixedArray(byte_arrays[0], byte_arrays[0]->length() - 8);
+  heap->RightTrimFixedArray(byte_arrays[0], byte_arrays[0].length() - 8);
   // Register the all byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     page->RegisterObjectWithInvalidatedSlots(byte_arrays[i],
-                                             byte_arrays[i]->Size());
+                                             byte_arrays[i].Size());
   }
   // All slots must still be invalid.
   InvalidatedSlotsFilter filter(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     ByteArray byte_array = byte_arrays[i];
-    Address start = byte_array->address() + ByteArray::kHeaderSize;
-    Address end = byte_array->address() + byte_array->Size();
+    Address start = byte_array.address() + ByteArray::kHeaderSize;
+    Address end = byte_array.address() + byte_array.Size();
     for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(!filter.IsValid(addr));
     }
@@ -326,7 +326,7 @@ HEAP_TEST(InvalidatedSlotsFastToSlow) {
   {
     AlwaysAllocateScope always_allocate(isolate);
     Handle<JSFunction> function = factory->NewFunctionForTest(name);
-    function->shared()->set_expected_nof_properties(3);
+    function->shared().set_expected_nof_properties(3);
     obj = factory->NewJSObject(function, AllocationType::kOld);
   }
   // Start incremental marking.

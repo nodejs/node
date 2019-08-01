@@ -13,24 +13,25 @@
 #include <string>
 #include <vector>
 
-#include "src/api-inl.h"
-#include "src/global-handles.h"
+#include "src/api/api-inl.h"
+#include "src/execution/isolate.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-locale-inl.h"
 #include "src/objects/js-number-format-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
 #include "src/objects/string.h"
-#include "src/property-descriptor.h"
-#include "src/string-case.h"
+#include "src/strings/string-case.h"
 #include "unicode/basictz.h"
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"
 #include "unicode/coll.h"
 #include "unicode/datefmt.h"
 #include "unicode/decimfmt.h"
+#include "unicode/formattedvalue.h"
 #include "unicode/locid.h"
 #include "unicode/normalizer2.h"
 #include "unicode/numfmt.h"
@@ -153,7 +154,7 @@ void ToUpperWithSharpS(const Vector<const Char>& src,
 
 inline int FindFirstUpperOrNonAscii(String s, int length) {
   for (int index = 0; index < length; ++index) {
-    uint16_t ch = s->Get(index);
+    uint16_t ch = s.Get(index);
     if (V8_UNLIKELY(IsASCIIUpper(ch) || ch & ~0x7F)) {
       return index;
     }
@@ -168,11 +169,11 @@ const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
   if (flat.IsOneByte()) {
     if (!*dest) {
       dest->reset(NewArray<uc16>(length));
-      CopyChars(dest->get(), flat.ToOneByteVector().start(), length);
+      CopyChars(dest->get(), flat.ToOneByteVector().begin(), length);
     }
     return reinterpret_cast<const UChar*>(dest->get());
   } else {
-    return reinterpret_cast<const UChar*>(flat.ToUC16Vector().start());
+    return reinterpret_cast<const UChar*>(flat.ToUC16Vector().begin());
   }
 }
 
@@ -192,15 +193,23 @@ const uint8_t* Intl::ToLatin1LowerTable() { return &kToLower[0]; }
 
 icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
                                             Handle<String> string) {
-  string = String::Flatten(isolate, string);
-  {
-    DisallowHeapAllocation no_gc;
-    std::unique_ptr<uc16[]> sap;
-    return icu::UnicodeString(
-        GetUCharBufferFromFlat(string->GetFlatContent(no_gc), &sap,
-                               string->length()),
-        string->length());
+  DCHECK(string->IsFlat());
+  DisallowHeapAllocation no_gc;
+  std::unique_ptr<uc16[]> sap;
+  // Short one-byte strings can be expanded on the stack to avoid allocating a
+  // temporary buffer.
+  constexpr int kShortStringSize = 80;
+  UChar short_string_buffer[kShortStringSize];
+  const UChar* uchar_buffer = nullptr;
+  const String::FlatContent& flat = string->GetFlatContent(no_gc);
+  int32_t length = string->length();
+  if (flat.IsOneByte() && length <= kShortStringSize) {
+    CopyChars(short_string_buffer, flat.ToOneByteVector().begin(), length);
+    uchar_buffer = short_string_buffer;
+  } else {
+    uchar_buffer = GetUCharBufferFromFlat(flat, &sap, length);
   }
+  return icu::UnicodeString(uchar_buffer, length);
 }
 
 namespace {
@@ -254,19 +263,19 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
 // one-byte sliced string with a two-byte parent string.
 // Called from TF builtins.
 String Intl::ConvertOneByteToLower(String src, String dst) {
-  DCHECK_EQ(src->length(), dst->length());
-  DCHECK(src->IsOneByteRepresentation());
-  DCHECK(src->IsFlat());
-  DCHECK(dst->IsSeqOneByteString());
+  DCHECK_EQ(src.length(), dst.length());
+  DCHECK(src.IsOneByteRepresentation());
+  DCHECK(src.IsFlat());
+  DCHECK(dst.IsSeqOneByteString());
 
   DisallowHeapAllocation no_gc;
 
-  const int length = src->length();
-  String::FlatContent src_flat = src->GetFlatContent(no_gc);
-  uint8_t* dst_data = SeqOneByteString::cast(dst)->GetChars(no_gc);
+  const int length = src.length();
+  String::FlatContent src_flat = src.GetFlatContent(no_gc);
+  uint8_t* dst_data = SeqOneByteString::cast(dst).GetChars(no_gc);
 
   if (src_flat.IsOneByte()) {
-    const uint8_t* src_data = src_flat.ToOneByteVector().start();
+    const uint8_t* src_data = src_flat.ToOneByteVector().begin();
 
     bool has_changed_character = false;
     int index_to_first_unprocessed =
@@ -288,7 +297,7 @@ String Intl::ConvertOneByteToLower(String src, String dst) {
     int index_to_first_unprocessed = FindFirstUpperOrNonAscii(src, length);
     if (index_to_first_unprocessed == length) return src;
 
-    const uint16_t* src_data = src_flat.ToUC16Vector().start();
+    const uint16_t* src_data = src_flat.ToUC16Vector().begin();
     CopyChars(dst_data, src_data, index_to_first_unprocessed);
     for (int index = index_to_first_unprocessed; index < length; ++index) {
       dst_data[index] = ToLatin1Lower(static_cast<uint16_t>(src_data[index]));
@@ -347,7 +356,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
         bool has_changed_character = false;
         int index_to_first_unprocessed = FastAsciiConvert<false>(
             reinterpret_cast<char*>(result->GetChars(no_gc)),
-            reinterpret_cast<const char*>(src.start()), length,
+            reinterpret_cast<const char*>(src.begin()), length,
             &has_changed_character);
         if (index_to_first_unprocessed == length) {
           return has_changed_character ? result : s;
@@ -968,7 +977,7 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
 
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(
-          isolate->context()->native_context()->intl_collator_function()),
+          isolate->context().native_context().intl_collator_function()),
       isolate);
 
   Handle<JSCollator> collator;
@@ -978,10 +987,9 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultCollator,
-        std::static_pointer_cast<icu::UObject>(
-            collator->icu_collator()->get()));
+        std::static_pointer_cast<icu::UMemory>(collator->icu_collator().get()));
   }
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  icu::Collator* icu_collator = collator->icu_collator().raw();
   return Intl::CompareStrings(isolate, *icu_collator, string1, string2);
 }
 
@@ -991,6 +999,21 @@ Handle<Object> Intl::CompareStrings(Isolate* isolate,
                                     Handle<String> string1,
                                     Handle<String> string2) {
   Factory* factory = isolate->factory();
+
+  // Early return for identical strings.
+  if (string1.is_identical_to(string2)) {
+    return factory->NewNumberFromInt(UCollationResult::UCOL_EQUAL);
+  }
+
+  // Early return for empty strings.
+  if (string1->length() == 0) {
+    return factory->NewNumberFromInt(string2->length() == 0
+                                         ? UCollationResult::UCOL_EQUAL
+                                         : UCollationResult::UCOL_LESS);
+  }
+  if (string2->length() == 0) {
+    return factory->NewNumberFromInt(UCollationResult::UCOL_GREATER);
+  }
 
   string1 = String::Flatten(isolate, string1);
   string2 = String::Flatten(isolate, string2);
@@ -1025,9 +1048,10 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   bool can_cache =
       locales->IsUndefined(isolate) && options->IsUndefined(isolate);
   if (can_cache) {
-    icu::NumberFormat* cached_number_format =
-        static_cast<icu::NumberFormat*>(isolate->get_cached_icu_object(
-            Isolate::ICUObjectCacheType::kDefaultNumberFormat));
+    icu::number::LocalizedNumberFormatter* cached_number_format =
+        static_cast<icu::number::LocalizedNumberFormatter*>(
+            isolate->get_cached_icu_object(
+                Isolate::ICUObjectCacheType::kDefaultNumberFormat));
     // We may use the cached icu::NumberFormat for a fast path.
     if (cached_number_format != nullptr) {
       return JSNumberFormat::FormatNumeric(isolate, *cached_number_format,
@@ -1037,7 +1061,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
 
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(
-          isolate->context()->native_context()->intl_number_format_function()),
+          isolate->context().native_context().intl_number_format_function()),
       isolate);
   Handle<JSNumberFormat> number_format;
   // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
@@ -1048,13 +1072,13 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultNumberFormat,
-        std::static_pointer_cast<icu::UObject>(
-            number_format->icu_number_format()->get()));
+        std::static_pointer_cast<icu::UMemory>(
+            number_format->icu_number_formatter().get()));
   }
 
   // Return FormatNumber(numberFormat, x).
-  icu::NumberFormat* icu_number_format =
-      number_format->icu_number_format()->raw();
+  icu::number::LocalizedNumberFormatter* icu_number_format =
+      number_format->icu_number_formatter().raw();
   return JSNumberFormat::FormatNumeric(isolate, *icu_number_format,
                                        numeric_obj);
 }
@@ -1116,19 +1140,17 @@ Maybe<int> GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
 
 }  // namespace
 
-Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
-                                              icu::DecimalFormat* number_format,
-                                              Handle<JSReceiver> options,
-                                              int mnfd_default,
-                                              int mxfd_default) {
-  CHECK_NOT_NULL(number_format);
+Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
+    Isolate* isolate, Handle<JSReceiver> options, int mnfd_default,
+    int mxfd_default) {
+  Intl::NumberFormatDigitOptions digit_options;
 
   // 5. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
   // 1).
   int mnid;
   if (!GetNumberOption(isolate, options, "minimumIntegerDigits", 1, 21, 1)
            .To(&mnid)) {
-    return Nothing<bool>();
+    return Nothing<NumberFormatDigitOptions>();
   }
 
   // 6. Let mnfd be ? GetNumberOption(options, "minimumFractionDigits", 0, 20,
@@ -1137,7 +1159,7 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
   if (!GetNumberOption(isolate, options, "minimumFractionDigits", 0, 20,
                        mnfd_default)
            .To(&mnfd)) {
-    return Nothing<bool>();
+    return Nothing<NumberFormatDigitOptions>();
   }
 
   // 7. Let mxfdActualDefault be max( mnfd, mxfdDefault ).
@@ -1149,7 +1171,7 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
   if (!GetNumberOption(isolate, options, "maximumFractionDigits", mnfd, 20,
                        mxfd_actual_default)
            .To(&mxfd)) {
-    return Nothing<bool>();
+    return Nothing<NumberFormatDigitOptions>();
   }
 
   // 9.  Let mnsd be ? Get(options, "minimumSignificantDigits").
@@ -1158,7 +1180,7 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
       isolate->factory()->minimumSignificantDigits_string();
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mnsd_obj, JSReceiver::GetProperty(isolate, options, mnsd_str),
-      Nothing<bool>());
+      Nothing<NumberFormatDigitOptions>());
 
   // 10. Let mxsd be ? Get(options, "maximumSignificantDigits").
   Handle<Object> mxsd_obj;
@@ -1166,45 +1188,43 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
       isolate->factory()->maximumSignificantDigits_string();
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mxsd_obj, JSReceiver::GetProperty(isolate, options, mxsd_str),
-      Nothing<bool>());
+      Nothing<NumberFormatDigitOptions>());
 
   // 11. Set intlObj.[[MinimumIntegerDigits]] to mnid.
-  number_format->setMinimumIntegerDigits(mnid);
+  digit_options.minimum_integer_digits = mnid;
 
   // 12. Set intlObj.[[MinimumFractionDigits]] to mnfd.
-  number_format->setMinimumFractionDigits(mnfd);
+  digit_options.minimum_fraction_digits = mnfd;
 
   // 13. Set intlObj.[[MaximumFractionDigits]] to mxfd.
-  number_format->setMaximumFractionDigits(mxfd);
+  digit_options.maximum_fraction_digits = mxfd;
 
-  bool significant_digits_used = false;
   // 14. If mnsd is not undefined or mxsd is not undefined, then
   if (!mnsd_obj->IsUndefined(isolate) || !mxsd_obj->IsUndefined(isolate)) {
     // 14. a. Let mnsd be ? DefaultNumberOption(mnsd, 1, 21, 1).
     int mnsd;
     if (!DefaultNumberOption(isolate, mnsd_obj, 1, 21, 1, mnsd_str).To(&mnsd)) {
-      return Nothing<bool>();
+      return Nothing<NumberFormatDigitOptions>();
     }
 
     // 14. b. Let mxsd be ? DefaultNumberOption(mxsd, mnsd, 21, 21).
     int mxsd;
     if (!DefaultNumberOption(isolate, mxsd_obj, mnsd, 21, 21, mxsd_str)
              .To(&mxsd)) {
-      return Nothing<bool>();
+      return Nothing<NumberFormatDigitOptions>();
     }
 
-    significant_digits_used = true;
-
     // 14. c. Set intlObj.[[MinimumSignificantDigits]] to mnsd.
-    number_format->setMinimumSignificantDigits(mnsd);
+    digit_options.minimum_significant_digits = mnsd;
 
     // 14. d. Set intlObj.[[MaximumSignificantDigits]] to mxsd.
-    number_format->setMaximumSignificantDigits(mxsd);
+    digit_options.maximum_significant_digits = mxsd;
+  } else {
+    digit_options.minimum_significant_digits = 0;
+    digit_options.maximum_significant_digits = 0;
   }
 
-  number_format->setSignificantDigitsUsed(significant_digits_used);
-  number_format->setRoundingMode(icu::DecimalFormat::kRoundHalfUp);
-  return Just(true);
+  return Just(digit_options);
 }
 
 namespace {
@@ -1447,28 +1467,30 @@ MaybeHandle<JSObject> Intl::SupportedLocalesOf(
 }
 
 namespace {
+
 template <typename T>
 bool IsValidExtension(const icu::Locale& locale, const char* key,
                       const std::string& value) {
+  const char* legacy_type = uloc_toLegacyType(key, value.c_str());
+  if (legacy_type == nullptr) {
+    return false;
+  }
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::StringEnumeration> enumeration(
       T::getKeywordValuesForLocale(key, icu::Locale(locale.getBaseName()),
                                    false, status));
-  if (U_SUCCESS(status)) {
-    int32_t length;
-    std::string legacy_type(uloc_toLegacyType(key, value.c_str()));
-    for (const char* item = enumeration->next(&length, status); item != nullptr;
-         item = enumeration->next(&length, status)) {
-      if (U_SUCCESS(status) && legacy_type == item) {
-        return true;
-      }
+  if (U_FAILURE(status)) {
+    return false;
+  }
+  int32_t length;
+  for (const char* item = enumeration->next(&length, status);
+       U_SUCCESS(status) && item != nullptr;
+       item = enumeration->next(&length, status)) {
+    if (strcmp(legacy_type, item) == 0) {
+      return true;
     }
   }
   return false;
-}
-
-bool IsValidCalendar(const icu::Locale& locale, const std::string& value) {
-  return IsValidExtension<icu::Calendar>(locale, "calendar", value);
 }
 
 bool IsValidCollation(const icu::Locale& locale, const std::string& value) {
@@ -1476,6 +1498,15 @@ bool IsValidCollation(const icu::Locale& locale, const std::string& value) {
   if (invalid_values.find(value) != invalid_values.end()) return false;
   return IsValidExtension<icu::Collator>(locale, "collation", value);
 }
+
+}  // namespace
+
+bool Intl::IsValidCalendar(const icu::Locale& locale,
+                           const std::string& value) {
+  return IsValidExtension<icu::Calendar>(locale, "calendar", value);
+}
+
+namespace {
 
 bool IsValidNumberingSystem(const std::string& value) {
   std::set<std::string> invalid_values = {"native", "traditio", "finance"};
@@ -1527,7 +1558,7 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
       bool is_valid_value = false;
       // 8.h.ii.1.a If keyLocaleData contains requestedValue, then
       if (strcmp("ca", bcp47_key) == 0) {
-        is_valid_value = IsValidCalendar(*icu_locale, bcp47_value);
+        is_valid_value = Intl::IsValidCalendar(*icu_locale, bcp47_value);
       } else if (strcmp("co", bcp47_key) == 0) {
         is_valid_value = IsValidCollation(*icu_locale, bcp47_value);
       } else if (strcmp("hc", bcp47_key) == 0) {
@@ -1649,6 +1680,7 @@ Intl::ResolvedLocale Intl::ResolveLocale(
 
 Managed<icu::UnicodeString> Intl::SetTextToBreakIterator(
     Isolate* isolate, Handle<String> text, icu::BreakIterator* break_iterator) {
+  text = String::Flatten(isolate, text);
   icu::UnicodeString* u_text =
       (icu::UnicodeString*)(Intl::ToICUUnicodeString(isolate, text).clone());
 
@@ -1858,6 +1890,29 @@ Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
       Intl::MatcherOption::kLookup);
 }
 
+Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
+                                     Handle<JSReceiver> options,
+                                     const char* method,
+                                     std::unique_ptr<char[]>* result) {
+  const std::vector<const char*> empty_values = {};
+  Maybe<bool> maybe = Intl::GetStringOption(isolate, options, "numberingSystem",
+                                            empty_values, method, result);
+  MAYBE_RETURN(maybe, Nothing<bool>());
+  if (maybe.FromJust() && *result != nullptr) {
+    if (!IsValidNumberingSystem(result->get())) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(
+              MessageTemplate::kInvalid,
+              isolate->factory()->numberingSystem_string(),
+              isolate->factory()->NewStringFromAsciiChecked(result->get())),
+          Nothing<bool>());
+    }
+    return Just(true);
+  }
+  return Just(false);
+}
+
 Intl::HourCycle Intl::ToHourCycle(const std::string& hc) {
   if (hc == "h11") return Intl::HourCycle::kH11;
   if (hc == "h12") return Intl::HourCycle::kH12;
@@ -1928,10 +1983,26 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
       UNREACHABLE();
       return Handle<String>();
 
+    case UNUM_COMPACT_FIELD:
+      return isolate->factory()->compact_string();
+    case UNUM_MEASURE_UNIT_FIELD:
+      return isolate->factory()->unit_string();
+
     default:
       UNREACHABLE();
       return Handle<String>();
   }
+}
+
+// A helper function to convert the FormattedValue for several Intl objects.
+MaybeHandle<String> Intl::FormattedToString(
+    Isolate* isolate, const icu::FormattedValue& formatted) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString result = formatted.toString(status);
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
+  }
+  return Intl::ToString(isolate, result);
 }
 
 }  // namespace internal

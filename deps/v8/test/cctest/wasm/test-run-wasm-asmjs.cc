@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/assembler-inl.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/codegen/assembler-inl.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"

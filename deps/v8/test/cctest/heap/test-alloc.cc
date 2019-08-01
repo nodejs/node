@@ -25,15 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/accessors.h"
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
+#include "src/builtins/accessors.h"
 #include "src/heap/heap-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
-#include "src/property.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -54,12 +54,12 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
       heap->AllocateRaw(size, AllocationType::kYoung).ToObjectChecked();
   // In order to pass heap verification on Isolate teardown, mark the
   // allocated area as a filler.
-  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
 
   // Old generation.
   heap::SimulateFullSpace(heap->old_space());
   obj = heap->AllocateRaw(size, AllocationType::kOld).ToObjectChecked();
-  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
 
   // Large object space.
   static const size_t kLargeObjectSpaceFillerLength =
@@ -71,23 +71,23 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
     obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, AllocationType::kOld)
               .ToObjectChecked();
-    heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
   }
   obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, AllocationType::kOld)
             .ToObjectChecked();
-  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
 
   // Map space.
   heap::SimulateFullSpace(heap->map_space());
   obj = heap->AllocateRaw(Map::kSize, AllocationType::kMap).ToObjectChecked();
-  heap->CreateFillerObjectAt(obj->address(), Map::kSize,
+  heap->CreateFillerObjectAt(obj.address(), Map::kSize,
                              ClearRecordedSlots::kNo);
 
   // Code space.
   heap::SimulateFullSpace(heap->code_space());
-  size = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal)->Size();
+  size = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal).Size();
   obj = heap->AllocateRaw(size, AllocationType::kCode).ToObjectChecked();
-  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
   return CcTest::i_isolate()->factory()->true_value();
 }
 
@@ -135,7 +135,7 @@ TEST(StressJS) {
       factory->function_string(), isolate->sloppy_function_map(),
       Builtins::kEmptyFunction);
   Handle<JSFunction> function = factory->NewFunction(args);
-  CHECK(!function->shared()->construct_as_builtin());
+  CHECK(!function->shared().construct_as_builtin());
 
   // Force the creation of an initial map.
   factory->NewJSObject(function);

@@ -11,6 +11,7 @@ function thrower() {
   if (x == 5)  %OptimizeOsr(1);
   if (x == 10) throw "terminate";
 }
+%PrepareFunctionForOptimization(thrower);
 
 %NeverOptimizeFunction(thrower);  // Don't want to inline the thrower.
 %NeverOptimizeFunction(test);     // Don't want to inline the func into test.
@@ -25,18 +26,22 @@ function test(func) {
 function n1() {
   while (true) thrower();
 }
+%PrepareFunctionForOptimization(n1);
 
 function n2() {
   while (true) while (true) thrower();
 }
+%PrepareFunctionForOptimization(n2);
 
 function n3() {
   while (true) while (true) while (true) thrower();
 }
+%PrepareFunctionForOptimization(n3);
 
 function n4() {
   while (true) while (true) while (true) while (true) thrower();
 }
+%PrepareFunctionForOptimization(n4);
 
 function b1(a) {
   while (true) {
@@ -44,6 +49,7 @@ function b1(a) {
     if (a) break
   }
 }
+%PrepareFunctionForOptimization(b1);
 
 
 function b2(a) {
@@ -54,6 +60,7 @@ function b2(a) {
     }
   }
 }
+%PrepareFunctionForOptimization(b2);
 
 
 function b3(a) {
@@ -67,6 +74,7 @@ function b3(a) {
     }
   }
 }
+%PrepareFunctionForOptimization(b3);
 
 
 test(n1);

@@ -28,16 +28,16 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/double.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
-#include "src/ostreams.h"
-#include "src/simulator.h"
+#include "src/numbers/double.h"
+#include "src/utils/ostreams.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 
@@ -54,12 +54,12 @@ namespace internal {
 // with GCC.  A different convention is used on 64-bit windows,
 // where the first four integer arguments are passed in RCX, RDX, R8 and R9.
 
-typedef int(F0)();
-typedef int(F1)(int64_t x);
-typedef int(F2)(int64_t x, int64_t y);
-typedef unsigned(F3)(double x);
-typedef uint64_t(F4)(uint64_t* x, uint64_t* y);
-typedef uint64_t(F5)(uint64_t x);
+using F0 = int();
+using F1 = int(int64_t x);
+using F2 = int(int64_t x, int64_t y);
+using F3 = unsigned(double x);
+using F4 = uint64_t(uint64_t* x, uint64_t* y);
+using F5 = uint64_t(uint64_t x);
 
 #ifdef _WIN64
 static const Register arg1 = rcx;
@@ -477,7 +477,7 @@ TEST(AssemblerX64TestlOperations) {
 }
 
 TEST(AssemblerX64TestwOperations) {
-  typedef uint16_t(F)(uint16_t * x);
+  using F = uint16_t(uint16_t * x);
   CcTest::InitializeVM();
   auto buffer = AllocateAssemblerBuffer();
   Assembler masm(AssemblerOptions{}, buffer->CreateView());
@@ -743,8 +743,7 @@ TEST(AssemblerMultiByteNop) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F0>::FromCode(*code);
   int res = f.Call();
@@ -800,8 +799,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F0>::FromCode(*code);
   int res = f.Call();
@@ -865,8 +863,7 @@ TEST(AssemblerX64Extractps) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -879,7 +876,7 @@ TEST(AssemblerX64Extractps) {
   CHECK_EQ(0x87654321u, f.Call(uint64_to_double(value2)));
 }
 
-typedef int(F6)(float x, float y);
+using F6 = int(float x, float y);
 TEST(AssemblerX64SSE) {
   CcTest::InitializeVM();
 
@@ -902,8 +899,7 @@ TEST(AssemblerX64SSE) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -933,8 +929,7 @@ TEST(AssemblerX64SSE3) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -944,7 +939,7 @@ TEST(AssemblerX64SSE3) {
   CHECK_EQ(4, f.Call(1.0, 2.0));
 }
 
-typedef int(F7)(double x, double y, double z);
+using F7 = int(double x, double y, double z);
 TEST(AssemblerX64FMA_sd) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(FMA3)) return;
@@ -963,7 +958,7 @@ TEST(AssemblerX64FMA_sd) {
     __ mulsd(xmm3, xmm1);
     __ addsd(xmm3, xmm2);  // Expected result in xmm3
 
-    __ subq(rsp, Immediate(kDoubleSize));  // For memory operand
+    __ AllocateStackSpace(kDoubleSize);  // For memory operand
     // vfmadd132sd
     __ movl(rax, Immediate(1));  // Test number
     __ movaps(xmm8, xmm0);
@@ -1158,8 +1153,7 @@ TEST(AssemblerX64FMA_sd) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1170,7 +1164,7 @@ TEST(AssemblerX64FMA_sd) {
       0, f.Call(0.000092662107262076, -2.460774966188315, -1.0958787393627414));
 }
 
-typedef int(F8)(float x, float y, float z);
+using F8 = int(float x, float y, float z);
 TEST(AssemblerX64FMA_ss) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(FMA3)) return;
@@ -1189,7 +1183,7 @@ TEST(AssemblerX64FMA_ss) {
     __ mulss(xmm3, xmm1);
     __ addss(xmm3, xmm2);  // Expected result in xmm3
 
-    __ subq(rsp, Immediate(kDoubleSize));  // For memory operand
+    __ AllocateStackSpace(kDoubleSize);  // For memory operand
     // vfmadd132ss
     __ movl(rax, Immediate(1));  // Test number
     __ movaps(xmm8, xmm0);
@@ -1384,8 +1378,7 @@ TEST(AssemblerX64FMA_ss) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1460,8 +1453,7 @@ TEST(AssemblerX64SSE_ss) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1546,8 +1538,7 @@ TEST(AssemblerX64AVX_ss) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1786,8 +1777,7 @@ TEST(AssemblerX64AVX_sd) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1978,8 +1968,7 @@ TEST(AssemblerX64BMI1) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -2038,8 +2027,7 @@ TEST(AssemblerX64LZCNT) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -2098,8 +2086,7 @@ TEST(AssemblerX64POPCNT) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -2361,8 +2348,7 @@ TEST(AssemblerX64BMI2) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -2405,8 +2391,7 @@ TEST(AssemblerX64JumpTables1) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2453,8 +2438,7 @@ TEST(AssemblerX64JumpTables2) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2485,7 +2469,7 @@ TEST(AssemblerX64PslldWithXmm15) {
   CHECK_EQ(uint64_t{0x22446688AACCEF10}, result);
 }
 
-typedef float(F9)(float x, float y);
+using F9 = float(float x, float y);
 TEST(AssemblerX64vmovups) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(AVX)) return;
@@ -2500,7 +2484,7 @@ TEST(AssemblerX64vmovups) {
     __ shufps(xmm0, xmm0, 0x0);  // brocast first argument
     __ shufps(xmm1, xmm1, 0x0);  // brocast second argument
     // copy xmm1 to xmm0 through the stack to test the "vmovups reg, mem".
-    __ subq(rsp, Immediate(kSimd128Size));
+    __ AllocateStackSpace(kSimd128Size);
     __ vmovups(Operand(rsp, 0), xmm1);
     __ vmovups(xmm0, Operand(rsp, 0));
     __ addq(rsp, Immediate(kSimd128Size));
@@ -2510,8 +2494,7 @@ TEST(AssemblerX64vmovups) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);

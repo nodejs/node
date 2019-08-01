@@ -11,8 +11,8 @@ include_rules = [
 specific_include_rules = {
   "trap-handler.h": [
     "+src/base/build_config.h",
-    "+src/globals.h",
-    "+src/flags.h",
+    "+src/common/globals.h",
+    "+src/flags/flags.h",
   ],
   "handler-inside-posix.h": [
     # To access V8_OS_LINUX. This file is already included in build_config.h.

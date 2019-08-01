@@ -35,6 +35,7 @@ function foo() {
   }
   return result;
 }
+%PrepareFunctionForOptimization(foo);
 
 test(1, foo);
 
@@ -54,5 +55,6 @@ function smo() {
   }
   return result;
 }
+%PrepareFunctionForOptimization(smo);
 
 test(11, smo);

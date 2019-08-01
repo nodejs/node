@@ -8,9 +8,8 @@ namespace proxy {
 
   // Proxy Revocation Functions
   // https://tc39.github.io/ecma262/#sec-proxy-revocation-functions
-  // TODO(v8:9007) remove receiver in argument since we don't use it
   transitioning javascript builtin
-  ProxyRevoke(context: Context, receiver: Object): Undefined {
+  ProxyRevoke(implicit context: Context)(): Undefined {
     // 1. Let p be F.[[RevocableProxy]].
     const proxyObject: Object = context[PROXY_SLOT];
 

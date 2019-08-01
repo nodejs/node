@@ -103,6 +103,16 @@ Running test: testArrayBuffer
   1 own number 16843009
   __proto__ own object undefined
 
+Running test: testDetachedArrayBuffer
+[[Int8Array]]
+  __proto__ own object undefined
+[[Uint8Array]]
+  __proto__ own object undefined
+[[Int16Array]]
+  __proto__ own object undefined
+[[Int32Array]]
+  __proto__ own object undefined
+
 Running test: testArrayBufferWithBrokenUintCtor
   [[Int8Array]] own object undefined
   [[Uint8Array]] own object undefined

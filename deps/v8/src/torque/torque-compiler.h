@@ -16,10 +16,13 @@ namespace internal {
 namespace torque {
 
 struct TorqueCompilerOptions {
-  std::string output_directory;
-  bool verbose;
-  bool collect_language_server_data;
-  bool abort_on_lint_errors;
+  std::string output_directory = "";
+  bool collect_language_server_data = false;
+
+  // assert(...) are only generated for debug builds. The provide
+  // language server support for statements inside asserts, this flag
+  // can force generate them.
+  bool force_assert_statements = false;
 };
 
 struct TorqueCompilerResult {
@@ -32,9 +35,8 @@ struct TorqueCompilerResult {
   // Set the corresponding options flag to enable.
   LanguageServerData language_server_data;
 
-  // If any error occurred during either parsing or compilation,
-  // this field will be set.
-  base::Optional<TorqueError> error;
+  // Errors collected during compilation.
+  std::vector<TorqueMessage> messages;
 };
 
 V8_EXPORT_PRIVATE TorqueCompilerResult

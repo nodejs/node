@@ -9,9 +9,9 @@
 # Compared x64,ignition with x64,ignition_turbo
 #
 # Flags of x64,ignition:
---abort-on-stack-or-string-length-overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345 --turbo-filter=~ --noopt --liftoff --no-wasm-tier-up
+--correctness-fuzzer-suppressions --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345 --turbo-filter=~ --noopt --liftoff --no-wasm-tier-up
 # Flags of x64,ignition_turbo:
---abort-on-stack-or-string-length-overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345 --stress-scavenge=100
+--correctness-fuzzer-suppressions --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345 --stress-scavenge=100
 #
 # Difference:
 - unknown

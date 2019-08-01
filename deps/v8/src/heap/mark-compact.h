@@ -33,7 +33,7 @@ template <typename ConcreteState, AccessMode access_mode>
 class MarkingStateBase {
  public:
   V8_INLINE MarkBit MarkBitFrom(HeapObject obj) {
-    return MarkBitFrom(MemoryChunk::FromHeapObject(obj), obj->ptr());
+    return MarkBitFrom(MemoryChunk::FromHeapObject(obj), obj.ptr());
   }
 
   // {addr} may be tagged or aligned.
@@ -601,7 +601,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void AbortCompaction();
 
   static inline bool IsOnEvacuationCandidate(Object obj) {
-    return Page::FromAddress(obj->ptr())->IsEvacuationCandidate();
+    return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
   }
 
   static bool IsOnEvacuationCandidate(MaybeObject obj);
@@ -619,6 +619,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
                                    HeapObject target);
   V8_INLINE static void RecordSlot(HeapObject object, HeapObjectSlot slot,
                                    HeapObject target);
+  V8_INLINE static void RecordSlot(MemoryChunk* source_page,
+                                   HeapObjectSlot slot, HeapObject target);
   void RecordLiveSlotsOnPage(Page* page);
 
   void UpdateSlots(SlotsBuffer* buffer);
@@ -701,7 +703,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 #ifdef VERIFY_HEAP
   void VerifyValidStoreAndSlotsBufferEntries();
   void VerifyMarkbitsAreClean();
-  void VerifyMarkbitsAreDirty(PagedSpace* space);
+  void VerifyMarkbitsAreDirty(ReadOnlySpace* space);
   void VerifyMarkbitsAreClean(PagedSpace* space);
   void VerifyMarkbitsAreClean(NewSpace* space);
   void VerifyMarkbitsAreClean(LargeObjectSpace* space);
@@ -907,9 +909,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
-  // Counts the number of mark-compact collections. This is used for marking
-  // descriptor arrays. See NumberOfMarkedDescriptors. Only lower two bits are
-  // used, so it is okay if this counter overflows and wraps around.
+  // Counts the number of major mark-compact collections. The counter is
+  // incremented right after marking. This is used for:
+  // - marking descriptor arrays. See NumberOfMarkedDescriptors. Only the lower
+  //   two bits are used, so it is okay if this counter overflows and wraps
+  //   around.
   unsigned epoch_ = 0;
 
   friend class FullEvacuator;

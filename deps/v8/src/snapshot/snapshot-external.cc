@@ -7,9 +7,8 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/base/platform/mutex.h"
+#include "src/init/v8.h"  // for V8::Initialize
 #include "src/snapshot/snapshot-source-sink.h"
-#include "src/v8.h"  // for V8::Initialize
-
 
 #ifndef V8_USE_EXTERNAL_STARTUP_DATA
 #error snapshot-external.cc is used only for the external snapshot build.

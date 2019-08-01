@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 load('../base.js');
 load('tagged-template.js');
+load('array-indexof-includes.js');
+load('spread-call.js');
 
 function PrintResult(name, result) {
   console.log(name);

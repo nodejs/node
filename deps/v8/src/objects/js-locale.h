@@ -9,11 +9,11 @@
 #ifndef V8_OBJECTS_JS_LOCALE_H_
 #define V8_OBJECTS_JS_LOCALE_H_
 
-#include "src/global-handles.h"
+#include "src/execution/isolate.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -58,12 +58,8 @@ class JSLocale : public JSObject {
   DECL_VERIFIER(JSLocale)
 
   // Layout description.
-#define JS_LOCALE_FIELDS(V)        \
-  V(kICULocaleOffset, kTaggedSize) \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_LOCALE_FIELDS)
-#undef JS_LOCALE_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSLOCALE_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSLocale, JSObject);
 };

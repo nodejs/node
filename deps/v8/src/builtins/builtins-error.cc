@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/accessors.h"
+#include "src/builtins/accessors.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
-#include "src/isolate-inl.h"
-#include "src/messages.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/execution/messages.h"
+#include "src/logging/counters.h"
 #include "src/objects/api-callbacks.h"
-#include "src/property-descriptor.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
 
 namespace v8 {
 namespace internal {

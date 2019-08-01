@@ -5,7 +5,7 @@
 #ifndef V8_INTERPRETER_BYTECODE_FLAGS_H_
 #define V8_INTERPRETER_BYTECODE_FLAGS_H_
 
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

@@ -4,10 +4,10 @@
 
 #include "test/unittests/test-utils.h"
 
+#include "src/codegen/machine-type.h"
+#include "src/codegen/signature.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/machine-type.h"
-#include "src/signature.h"
 #include "src/wasm/value-type.h"
 
 namespace v8 {

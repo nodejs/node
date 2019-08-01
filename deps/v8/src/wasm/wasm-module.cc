@@ -5,17 +5,17 @@
 #include <functional>
 #include <memory>
 
-#include "src/api-inl.h"
-#include "src/assembler-inl.h"
+#include "src/api/api-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/interface-types.h"
-#include "src/frames-inl.h"
-#include "src/objects.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/simulator.h"
+#include "src/init/v8.h"
 #include "src/objects/js-array-inl.h"
-#include "src/property-descriptor.h"
-#include "src/simulator.h"
+#include "src/objects/objects.h"
+#include "src/objects/property-descriptor.h"
 #include "src/snapshot/snapshot.h"
-#include "src/v8.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-js.h"
@@ -40,6 +40,22 @@ WireBytesRef WasmModule::LookupFunctionName(const ModuleWireBytes& wire_bytes,
   auto it = function_names->find(function_index);
   if (it == function_names->end()) return WireBytesRef();
   return it->second;
+}
+
+// static
+int MaxNumExportWrappers(const WasmModule* module) {
+  // For each signature there may exist a wrapper, both for imported and
+  // internal functions.
+  return static_cast<int>(module->signature_map.size()) * 2;
+}
+
+// static
+int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
+                          bool is_import) {
+  int result = module->signature_map.Find(*sig);
+  CHECK_GE(result, 0);
+  result += is_import ? module->signature_map.size() : 0;
+  return result;
 }
 
 void WasmModule::AddFunctionNameForTesting(int function_index,
@@ -67,9 +83,9 @@ WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   os << "#" << name.function_->func_index;
   if (!name.name_.empty()) {
-    if (name.name_.start()) {
+    if (name.name_.begin()) {
       os << ":";
-      os.write(name.name_.start(), name.name_.length());
+      os.write(name.name_.begin(), name.name_.length());
     }
   } else {
     os << "?";
@@ -242,7 +258,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   Vector<const uint8_t> wire_bytes =
       module_object->native_module()->wire_bytes();
   std::vector<CustomSectionOffset> custom_sections =
-      DecodeCustomSections(wire_bytes.start(), wire_bytes.end());
+      DecodeCustomSections(wire_bytes.begin(), wire_bytes.end());
 
   std::vector<Handle<Object>> matching_sections;
 
@@ -267,7 +283,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
         isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared);
     constexpr bool is_external = false;
     JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size);
-    memcpy(memory, wire_bytes.start() + section.payload.offset(),
+    memcpy(memory, wire_bytes.begin() + section.payload.offset(),
            section.payload.length());
 
     matching_sections.push_back(buffer);
@@ -291,7 +307,7 @@ Handle<FixedArray> DecodeLocalNames(Isolate* isolate,
   Vector<const uint8_t> wire_bytes =
       module_object->native_module()->wire_bytes();
   LocalNames decoded_locals;
-  DecodeLocalNames(wire_bytes.start(), wire_bytes.end(), &decoded_locals);
+  DecodeLocalNames(wire_bytes.begin(), wire_bytes.end(), &decoded_locals);
   Handle<FixedArray> locals_names =
       isolate->factory()->NewFixedArray(decoded_locals.max_function_index + 1);
   for (LocalNamesPerFunction& func : decoded_locals.names) {

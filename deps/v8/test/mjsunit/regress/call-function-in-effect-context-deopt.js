@@ -35,6 +35,7 @@ function f(deopt, osr) {
   return result;
 }
 
+%PrepareFunctionForOptimization(f);
 assertEquals("result", f(3, false));
 assertEquals("result", f(3, false));
 %OptimizeFunctionOnNextCall(f);

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
 #include "src/debug/interface-types.h"
-#include "src/log.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/logging/log.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -67,7 +67,7 @@ void LogTimerEvent(Isolate* isolate, BuiltinArguments args,
   HandleScope scope(isolate);
   std::unique_ptr<char[]> name;
   const char* raw_name = "default";
-  if (args.length() > 1 && args[1]->IsString()) {
+  if (args.length() > 1 && args[1].IsString()) {
     // Try converting the first argument to a string.
     name = args.at<String>(1)->ToCString();
     raw_name = name.get();
@@ -119,9 +119,9 @@ void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
       name_string, builtin_id, i::LanguageMode::kSloppy);
   Handle<JSFunction> fun = factory->NewFunction(args);
 
-  fun->shared()->set_native(true);
-  fun->shared()->DontAdaptArguments();
-  fun->shared()->set_length(1);
+  fun->shared().set_native(true);
+  fun->shared().DontAdaptArguments();
+  fun->shared().set_length(1);
 
   JSObject::AddProperty(isolate, fun, factory->console_context_id_symbol(),
                         handle(Smi::FromInt(context_id), isolate), NONE);

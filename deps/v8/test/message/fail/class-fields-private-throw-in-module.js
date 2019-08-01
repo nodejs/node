@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 //
 // MODULE
-// Flags: --harmony-private-fields
 
 class X {
   constructor() {

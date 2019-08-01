@@ -72,6 +72,8 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
       return ReduceSelect(node);
     case IrOpcode::kSwitch:
       return ReduceSwitch(node);
+    case IrOpcode::kStaticAssert:
+      return ReduceStaticAssert(node);
     default:
       break;
   }
@@ -457,6 +459,18 @@ Reduction CommonOperatorReducer::ReduceSwitch(Node* node) {
     return Replace(dead());
   }
   return NoChange();
+}
+
+Reduction CommonOperatorReducer::ReduceStaticAssert(Node* node) {
+  DCHECK_EQ(IrOpcode::kStaticAssert, node->opcode());
+  Node* const cond = node->InputAt(0);
+  Decision decision = DecideCondition(broker(), cond);
+  if (decision == Decision::kTrue) {
+    RelaxEffectsAndControls(node);
+    return Changed(node);
+  } else {
+    return NoChange();
+  }
 }
 
 Reduction CommonOperatorReducer::Change(Node* node, Operator const* op,

@@ -4,12 +4,12 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/conversions.h"
-#include "src/counters.h"
+#include "src/handles/maybe-handles-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/maybe-handles-inl.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -43,7 +43,7 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
   SharedFlag shared_flag =
-      (*target == target->native_context()->array_buffer_fun())
+      (*target == target->native_context().array_buffer_fun())
           ? SharedFlag::kNotShared
           : SharedFlag::kShared;
   if (!JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer>::cast(result),
@@ -61,12 +61,12 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
 BUILTIN(ArrayBufferConstructor) {
   HandleScope scope(isolate);
   Handle<JSFunction> target = args.target();
-  DCHECK(*target == target->native_context()->array_buffer_fun() ||
-         *target == target->native_context()->shared_array_buffer_fun());
+  DCHECK(*target == target->native_context().array_buffer_fun() ||
+         *target == target->native_context().shared_array_buffer_fun());
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              handle(target->shared()->Name(), isolate)));
+                              handle(target->shared().Name(), isolate)));
   }
   // [[Construct]]
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
@@ -120,7 +120,7 @@ BUILTIN(ArrayBufferIsView) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
   Object arg = args[1];
-  return isolate->heap()->ToBoolean(arg->IsJSArrayBufferView());
+  return isolate->heap()->ToBoolean(arg.IsJSArrayBufferView());
 }
 
 static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
@@ -203,7 +203,7 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
 
     Handle<Object> new_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, new_obj, Execution::New(isolate, ctor, argc, argv.start()));
+        isolate, new_obj, Execution::New(isolate, ctor, argc, argv.begin()));
 
     new_ = Handle<JSReceiver>::cast(new_obj);
   }

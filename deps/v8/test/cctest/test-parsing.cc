@@ -31,18 +31,18 @@
 
 #include <memory>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/base/enum-set.h"
-#include "src/compiler.h"
-#include "src/execution.h"
-#include "src/flags.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/codegen/compiler.h"
+#include "src/execution/execution.h"
+#include "src/execution/isolate.h"
+#include "src/flags/flags.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/parsing.h"
@@ -1044,14 +1044,14 @@ TEST(ScopeUsesArgumentsSuperThis) {
            (source_data[i].expected == NONE)) && j != 2) {
         continue;
       }
-      int kProgramByteSize = i::StrLength(surroundings[j].prefix) +
-                             i::StrLength(surroundings[j].suffix) +
-                             i::StrLength(source_data[i].body);
+      int kProgramByteSize = static_cast<int>(strlen(surroundings[j].prefix) +
+                                              strlen(surroundings[j].suffix) +
+                                              strlen(source_data[i].body));
       i::ScopedVector<char> program(kProgramByteSize + 1);
       i::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
                   source_data[i].body, surroundings[j].suffix);
       i::Handle<i::String> source =
-          factory->NewStringFromUtf8(i::CStrVector(program.start()))
+          factory->NewStringFromUtf8(i::CStrVector(program.begin()))
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
       i::ParseInfo info(isolate, script);
@@ -1412,9 +1412,9 @@ TEST(ScopePositions) {
     int kPrefixLen = Utf8LengthHelper(source_data[i].outer_prefix);
     int kInnerLen = Utf8LengthHelper(source_data[i].inner_source);
     int kSuffixLen = Utf8LengthHelper(source_data[i].outer_suffix);
-    int kPrefixByteLen = i::StrLength(source_data[i].outer_prefix);
-    int kInnerByteLen = i::StrLength(source_data[i].inner_source);
-    int kSuffixByteLen = i::StrLength(source_data[i].outer_suffix);
+    int kPrefixByteLen = static_cast<int>(strlen(source_data[i].outer_prefix));
+    int kInnerByteLen = static_cast<int>(strlen(source_data[i].inner_source));
+    int kSuffixByteLen = static_cast<int>(strlen(source_data[i].outer_suffix));
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
     i::ScopedVector<char> program(kProgramByteSize + 1);
@@ -1424,8 +1424,9 @@ TEST(ScopePositions) {
                          source_data[i].outer_suffix);
 
     // Parse program source.
-    i::Handle<i::String> source = factory->NewStringFromUtf8(
-        i::CStrVector(program.start())).ToHandleChecked();
+    i::Handle<i::String> source =
+        factory->NewStringFromUtf8(i::CStrVector(program.begin()))
+            .ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
     i::ParseInfo info(isolate, script);
@@ -1525,10 +1526,7 @@ const char* ReadString(unsigned* start) {
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
-  kAllowHarmonyPublicFields,
-  kAllowHarmonyPrivateFields,
   kAllowHarmonyPrivateMethods,
-  kAllowHarmonyStaticFields,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
   kAllowHarmonyNumericSeparator
@@ -1542,10 +1540,7 @@ enum ParserSyncTestResult {
 
 void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.contains(kAllowNatives);
-  i::FLAG_harmony_public_fields = flags.contains(kAllowHarmonyPublicFields);
-  i::FLAG_harmony_private_fields = flags.contains(kAllowHarmonyPrivateFields);
   i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
-  i::FLAG_harmony_static_fields = flags.contains(kAllowHarmonyStaticFields);
   i::FLAG_harmony_dynamic_import = flags.contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_numeric_separator =
@@ -1554,14 +1549,8 @@ void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
 
 void SetParserFlags(i::PreParser* parser, base::EnumSet<ParserFlag> flags) {
   parser->set_allow_natives(flags.contains(kAllowNatives));
-  parser->set_allow_harmony_public_fields(
-      flags.contains(kAllowHarmonyPublicFields));
-  parser->set_allow_harmony_private_fields(
-      flags.contains(kAllowHarmonyPrivateFields));
   parser->set_allow_harmony_private_methods(
       flags.contains(kAllowHarmonyPrivateMethods));
-  parser->set_allow_harmony_static_fields(
-      flags.contains(kAllowHarmonyStaticFields));
   parser->set_allow_harmony_dynamic_import(
       flags.contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
@@ -1756,12 +1745,13 @@ TEST(ParserSync) {
   for (int i = 0; context_data[i][0] != nullptr; ++i) {
     for (int j = 0; statement_data[j] != nullptr; ++j) {
       for (int k = 0; termination_data[k] != nullptr; ++k) {
-        int kPrefixLen = i::StrLength(context_data[i][0]);
-        int kStatementLen = i::StrLength(statement_data[j]);
-        int kTerminationLen = i::StrLength(termination_data[k]);
-        int kSuffixLen = i::StrLength(context_data[i][1]);
-        int kProgramSize = kPrefixLen + kStatementLen + kTerminationLen
-            + kSuffixLen + i::StrLength("label: for (;;) {  }");
+        int kPrefixLen = static_cast<int>(strlen(context_data[i][0]));
+        int kStatementLen = static_cast<int>(strlen(statement_data[j]));
+        int kTerminationLen = static_cast<int>(strlen(termination_data[k]));
+        int kSuffixLen = static_cast<int>(strlen(context_data[i][1]));
+        int kProgramSize = kPrefixLen + kStatementLen + kTerminationLen +
+                           kSuffixLen +
+                           static_cast<int>(strlen("label: for (;;) {  }"));
 
         // Plug the source code pieces together.
         i::ScopedVector<char> program(kProgramSize + 1);
@@ -1772,7 +1762,7 @@ TEST(ParserSync) {
             termination_data[k],
             context_data[i][1]);
         CHECK_EQ(length, kProgramSize);
-        TestParserSync(program.start(), nullptr, 0);
+        TestParserSync(program.begin(), nullptr, 0);
       }
     }
   }
@@ -1858,9 +1848,9 @@ void RunParserSyncTest(
   }
   for (int i = 0; context_data[i][0] != nullptr; ++i) {
     for (int j = 0; statement_data[j] != nullptr; ++j) {
-      int kPrefixLen = i::StrLength(context_data[i][0]);
-      int kStatementLen = i::StrLength(statement_data[j]);
-      int kSuffixLen = i::StrLength(context_data[i][1]);
+      int kPrefixLen = static_cast<int>(strlen(context_data[i][0]));
+      int kStatementLen = static_cast<int>(strlen(statement_data[j]));
+      int kSuffixLen = static_cast<int>(strlen(context_data[i][1]));
       int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
 
       // Plug the source code pieces together.
@@ -1870,9 +1860,9 @@ void RunParserSyncTest(
                                context_data[i][0],
                                statement_data[j],
                                context_data[i][1]);
-      PrintF("%s\n", program.start());
+      PrintF("%s\n", program.begin());
       CHECK_EQ(length, kProgramSize);
-      TestParserSync(program.start(), flags, flags_len, result,
+      TestParserSync(program.begin(), flags, flags_len, result,
                      always_true_flags, always_true_len, always_false_flags,
                      always_false_len, is_module, test_preparser,
                      ignore_error_msg);
@@ -3215,7 +3205,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
 
   i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
   i::SNPrintF(program, "%s", src);
-  i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
+  i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
@@ -3232,7 +3222,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      isolate, &zone, context->scope_info(), script_scope, &avf,
+      isolate, &zone, context.scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
   CHECK_NOT_NULL(name);
@@ -3265,7 +3255,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
 
   i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
   i::SNPrintF(program, "%s", src);
-  i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
+  i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
   i::Zone zone(isolate->allocator(), ZONE_NAME);
@@ -3281,7 +3271,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      isolate, &zone, context->scope_info(), script_scope, &avf,
+      isolate, &zone, context.scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
 
@@ -3426,8 +3416,8 @@ TEST(InnerAssignment) {
 
         std::unique_ptr<i::ParseInfo> info;
         if (lazy) {
-          printf("%s\n", program.start());
-          v8::Local<v8::Value> v = CompileRun(program.start());
+          printf("%s\n", program.begin());
+          v8::Local<v8::Value> v = CompileRun(program.begin());
           i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
           i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
           i::Handle<i::SharedFunctionInfo> shared =
@@ -3437,7 +3427,7 @@ TEST(InnerAssignment) {
           CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
         } else {
           i::Handle<i::String> source =
-              factory->InternalizeUtf8String(program.start());
+              factory->InternalizeUtf8String(program.begin());
           source->PrintOn(stdout);
           printf("\n");
           i::Handle<i::Script> script = factory->NewScript(source);
@@ -3537,8 +3527,8 @@ TEST(MaybeAssignedParameters) {
                                     Utf8LengthHelper(suffix) + 1);
       i::SNPrintF(program, "%s%s", source, suffix);
       std::unique_ptr<i::ParseInfo> info;
-      printf("%s\n", program.start());
-      v8::Local<v8::Value> v = CompileRun(program.start());
+      printf("%s\n", program.begin());
+      v8::Local<v8::Value> v = CompileRun(program.begin());
       i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
       i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
       i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);
@@ -4195,7 +4185,7 @@ i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
   i::DeclarationScope* script_scope =
       new (zone) i::DeclarationScope(zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      isolate, zone, f->context()->scope_info(), script_scope, &avf,
+      isolate, zone, f->context().scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   return s;
 }
@@ -5282,15 +5272,7 @@ TEST(StaticClassFieldsNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    always_flags, arraysize(always_flags));
-
-  // Without the static flag, all of these are errors
-  static const ParserFlag no_static_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    no_static_flags, arraysize(no_static_flags));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(ClassFieldsNoErrors) {
@@ -5374,14 +5356,7 @@ TEST(ClassFieldsNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    always_flags, arraysize(always_flags));
-
-  static const ParserFlag static_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    static_flags, arraysize(static_flags));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(PrivateMethodsNoErrors) {
@@ -5471,8 +5446,7 @@ TEST(PrivateMethodsNoErrors) {
 
   RunParserSyncTest(context_data, class_body_data, kError);
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateFields,
-                                               kAllowHarmonyPrivateMethods};
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
   RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
                     private_methods, arraysize(private_methods));
 }
@@ -5531,7 +5505,6 @@ TEST(PrivateMethodsAndFieldsNoErrors) {
   RunParserSyncTest(context_data, class_body_data, kError);
 
   static const ParserFlag private_methods_and_fields[] = {
-      kAllowHarmonyPrivateFields, kAllowHarmonyPublicFields,
       kAllowHarmonyPrivateMethods};
   RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
                     private_methods_and_fields,
@@ -5594,8 +5567,7 @@ TEST(PrivateMethodsErrors) {
 
   RunParserSyncTest(context_data, class_body_data, kError);
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateFields,
-                                               kAllowHarmonyPrivateMethods};
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
   RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     private_methods, arraysize(private_methods));
 }
@@ -5628,8 +5600,7 @@ TEST(PrivateMembersInNonClassNoErrors) {
 
   RunParserSyncTest(context_data, class_body_data, kError);
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateFields,
-                                               kAllowHarmonyPrivateMethods};
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
   RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     private_methods, arraysize(private_methods));
 }
@@ -5694,11 +5665,7 @@ TEST(PrivateClassFieldsNoErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_fields, arraysize(private_fields));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(StaticClassFieldsErrors) {
@@ -5743,14 +5710,7 @@ TEST(StaticClassFieldsErrors) {
   };
   // clang-format on
 
-  static const ParserFlag no_static_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    no_static_flags, arraysize(no_static_flags));
-
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data, class_body_data, kError);
 }
 
 TEST(ClassFieldsErrors) {
@@ -5794,14 +5754,7 @@ TEST(ClassFieldsErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    always_flags, arraysize(always_flags));
-
-  static const ParserFlag static_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    static_flags, arraysize(static_flags));
+  RunParserSyncTest(context_data, class_body_data, kError);
 }
 
 TEST(PrivateClassFieldsErrors) {
@@ -5879,10 +5832,6 @@ TEST(PrivateClassFieldsErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_fields, arraysize(private_fields));
 }
 
 TEST(PrivateStaticClassFieldsNoErrors) {
@@ -5947,18 +5896,7 @@ TEST(PrivateStaticClassFieldsNoErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag public_static_fields[] = {kAllowHarmonyPublicFields,
-                                                    kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    public_static_fields, arraysize(public_static_fields));
-
-  static const ParserFlag private_static_fields[] = {
-      kAllowHarmonyPublicFields, kAllowHarmonyStaticFields,
-      kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_static_fields, arraysize(private_static_fields));
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr);
 }
 
 TEST(PrivateStaticClassFieldsErrors) {
@@ -6059,17 +5997,6 @@ TEST(PrivateStaticClassFieldsErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag public_static_fields[] = {kAllowHarmonyPublicFields,
-                                                    kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    public_static_fields, arraysize(public_static_fields));
-
-  static const ParserFlag private_static_fields[] = {
-      kAllowHarmonyPublicFields, kAllowHarmonyStaticFields,
-      kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_static_fields, arraysize(private_static_fields));
 }
 
 TEST(PrivateNameResolutionErrors) {
@@ -6117,10 +6044,6 @@ TEST(PrivateNameResolutionErrors) {
 
   // clang-format on
   RunParserSyncTest(context_data, statement_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0,
-                    private_fields, arraysize(private_fields));
 }
 
 TEST(PrivateNameErrors) {
@@ -6169,10 +6092,6 @@ TEST(PrivateNameErrors) {
 
   // clang-format on
   RunParserSyncTest(context_data, statement_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0,
-                    private_fields, arraysize(private_fields));
 }
 
 TEST(ClassExpressionErrors) {
@@ -6184,8 +6103,6 @@ TEST(ClassExpressionErrors) {
       "class name extends",
       "class extends",
       "class {",
-      "class { m }",
-      "class { m; n }",
       "class { m: 1 }",
       "class { m(); n() }",
       "class { get m }",
@@ -6208,8 +6125,6 @@ TEST(ClassDeclarationErrors) {
       "class name extends",
       "class extends",
       "class name {",
-      "class name { m }",
-      "class name { m; n }",
       "class name { m: 1 }",
       "class name { m(); n() }",
       "class name { get x }",
@@ -6583,6 +6498,34 @@ TEST(ForOfMultipleDeclarationsError) {
   RunParserSyncTest(context_data, data, kError);
 }
 
+TEST(ForInOfLetExpression) {
+  const char* sloppy_context_data[][2] = {
+      {"", ""}, {"function foo(){", "}"}, {nullptr, nullptr}};
+
+  const char* strict_context_data[][2] = {
+      {"'use strict';", ""},
+      {"function foo(){ 'use strict';", "}"},
+      {nullptr, nullptr}};
+
+  const char* async_context_data[][2] = {
+      {"async function foo(){", "}"},
+      {"async function foo(){ 'use strict';", "}"},
+      {nullptr, nullptr}};
+
+  const char* for_let_in[] = {"for (let.x in {}) {}", nullptr};
+
+  const char* for_let_of[] = {"for (let.x of []) {}", nullptr};
+
+  const char* for_await_let_of[] = {"for await (let.x of []) {}", nullptr};
+
+  // The only place `let.x` is legal as a left-hand side expression
+  // is in sloppy mode in a for-in loop.
+  RunParserSyncTest(sloppy_context_data, for_let_in, kSuccess);
+  RunParserSyncTest(strict_context_data, for_let_in, kError);
+  RunParserSyncTest(sloppy_context_data, for_let_of, kError);
+  RunParserSyncTest(strict_context_data, for_let_of, kError);
+  RunParserSyncTest(async_context_data, for_await_let_of, kError);
+}
 
 TEST(ForInNoDeclarationsError) {
   const char* context_data[][2] = {{"", ""},
@@ -10551,7 +10494,7 @@ TEST(NoPessimisticContextAllocation) {
           "%s", suffix);
 
       i::Handle<i::String> source =
-          factory->InternalizeUtf8String(program.start());
+          factory->InternalizeUtf8String(program.begin());
       source->PrintOn(stdout);
       printf("\n");
 
@@ -11109,8 +11052,8 @@ TEST(LexicalLoopVariable) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
-  typedef std::function<void(const i::ParseInfo& info, i::DeclarationScope*)>
-      TestCB;
+  using TestCB =
+      std::function<void(const i::ParseInfo& info, i::DeclarationScope*)>;
   auto TestProgram = [isolate](const char* program, TestCB test) {
     i::Factory* const factory = isolate->factory();
     i::Handle<i::String> source =
@@ -11362,8 +11305,6 @@ TEST(PrivateNamesSyntaxErrorEarly) {
 
       nullptr};
 
-  static const ParserFlag flags[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1);
   RunParserSyncTest(context_data, statement_data, kError);
 }
 

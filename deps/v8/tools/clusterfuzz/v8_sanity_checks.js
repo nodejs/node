@@ -17,6 +17,5 @@ print("https://crbug.com/935800");
     function baz() {}
     return {bar: baz};
   }
-  // TODO(mstarzinger): Uncomment once https://crbug.com/935800 is resolved.
-  // print(Object.getOwnPropertyNames(foo().bar));
+  print(Object.getOwnPropertyNames(foo().bar));
 })();

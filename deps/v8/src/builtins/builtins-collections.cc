@@ -4,9 +4,9 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

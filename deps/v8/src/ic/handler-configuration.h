@@ -5,13 +5,13 @@
 #ifndef V8_IC_HANDLER_CONFIGURATION_H_
 #define V8_IC_HANDLER_CONFIGURATION_H_
 
-#include "src/elements-kind.h"
-#include "src/field-index.h"
-#include "src/globals.h"
-#include "src/maybe-handles.h"
-#include "src/objects.h"
+#include "src/common/globals.h"
+#include "src/handles/maybe-handles.h"
 #include "src/objects/data-handler.h"
-#include "src/utils.h"
+#include "src/objects/elements-kind.h"
+#include "src/objects/field-index.h"
+#include "src/objects/objects.h"
+#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

@@ -13,6 +13,7 @@
 #include <memory>
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
@@ -38,7 +39,7 @@
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
-#include "test/cctest/compiler/graph-builder-tester.h"
+#include "test/cctest/compiler/graph-and-builders.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
 
@@ -169,7 +170,7 @@ class TestingModuleBuilder {
   void SetMaxMemPages(uint32_t maximum_pages) {
     test_module_->maximum_pages = maximum_pages;
     if (instance_object()->has_memory_object()) {
-      instance_object()->memory_object()->set_maximum_pages(maximum_pages);
+      instance_object()->memory_object().set_maximum_pages(maximum_pages);
     }
   }
 
@@ -177,6 +178,10 @@ class TestingModuleBuilder {
 
   enum FunctionType { kImport, kWasm };
   uint32_t AddFunction(FunctionSig* sig, const char* name, FunctionType type);
+
+  // Freezes the signature map of the module and allocates the storage for
+  // export wrappers.
+  void FreezeSignatureMapAndInitializeWrapperCache();
 
   // Wrap the code so it can be called as a JS function.
   Handle<JSFunction> WrapCode(uint32_t index);
@@ -379,6 +384,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
                                     const char* name = nullptr) {
     functions_.emplace_back(
         new WasmFunctionCompiler(&zone_, sig, &builder_, name));
+    builder().AddSignature(sig);
     return *functions_.back();
   }
 
@@ -521,7 +527,7 @@ class WasmRunner : public WasmRunnerBase {
       jsfuncs_[function_index] = builder_.WrapCode(function_index);
     }
     Handle<JSFunction> jsfunc = jsfuncs_[function_index];
-    Handle<Object> global(isolate->context()->global_object(), isolate);
+    Handle<Object> global(isolate->context().global_object(), isolate);
     MaybeHandle<Object> retval =
         Execution::TryCall(isolate, jsfunc, global, count, buffer,
                            Execution::MessageHandling::kReport, nullptr);
@@ -534,7 +540,7 @@ class WasmRunner : public WasmRunnerBase {
         CHECK_EQ(expected, Smi::ToInt(*result));
       } else {
         CHECK(result->IsHeapNumber());
-        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result)->value());
+        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result).value());
       }
     }
 

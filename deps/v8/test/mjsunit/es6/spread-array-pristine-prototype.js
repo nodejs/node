@@ -157,6 +157,7 @@ function id(v) {
   function f() {
     return [...'abc'];
   }
+  %PrepareFunctionForOptimization(f);
   assertArrayEquals(['a', 'b', 'c'], f());
   %OptimizeFunctionOnNextCall(f);
   assertArrayEquals(['a', 'b', 'c'], f());

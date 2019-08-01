@@ -5,11 +5,11 @@
 #ifndef V8_OBJECTS_CODE_H_
 #define V8_OBJECTS_CODE_H_
 
-#include "src/contexts.h"
-#include "src/handler-table.h"
-#include "src/objects.h"
+#include "src/codegen/handler-table.h"
+#include "src/objects/contexts.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/objects.h"
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -22,7 +22,6 @@ class ByteArray;
 class BytecodeArray;
 class CodeDataContainer;
 class CodeDesc;
-class MaybeObject;
 
 namespace interpreter {
 class Register;
@@ -43,6 +42,7 @@ class Code : public HeapObject {
   V(BUILTIN)                \
   V(REGEXP)                 \
   V(WASM_FUNCTION)          \
+  V(WASM_TO_CAPI_FUNCTION)  \
   V(WASM_TO_JS_FUNCTION)    \
   V(JS_TO_WASM_FUNCTION)    \
   V(WASM_INTERPRETER_ENTRY) \
@@ -948,25 +948,22 @@ class DeoptimizationData : public FixedArray {
   OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray);
 };
 
-class SourcePositionTableWithFrameCache : public Tuple2 {
+class SourcePositionTableWithFrameCache : public Struct {
  public:
   DECL_ACCESSORS(source_position_table, ByteArray)
   DECL_ACCESSORS(stack_frame_cache, SimpleNumberDictionary)
 
   DECL_CAST(SourcePositionTableWithFrameCache)
 
-// Layout description.
-#define SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS(V) \
-  V(kSourcePositionTableIndex, kTaggedSize)        \
-  V(kStackFrameCacheIndex, kTaggedSize)            \
-  /* Total size. */                                \
-  V(kSize, 0)
+  DECL_PRINTER(SourcePositionTableWithFrameCache)
+  DECL_VERIFIER(SourcePositionTableWithFrameCache)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
-                                SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS)
-#undef SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+    Struct::kHeaderSize,
+    TORQUE_GENERATED_SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_FIELDS)
 
-  OBJECT_CONSTRUCTORS(SourcePositionTableWithFrameCache, Tuple2);
+  OBJECT_CONSTRUCTORS(SourcePositionTableWithFrameCache, Struct);
 };
 
 }  // namespace internal

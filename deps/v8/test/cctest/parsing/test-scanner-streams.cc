@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/heap/factory-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
 #include "test/cctest/cctest.h"

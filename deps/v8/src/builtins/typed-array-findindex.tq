@@ -11,7 +11,9 @@ namespace typed_array_findindex {
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
       thisArg: Object): Number {
     let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
-    const length: Smi = Convert<Smi>(witness.Get().length);
+    // TODO(v8:4153): Support huge TypedArrays here.
+    const length =
+        Cast<Smi>(Convert<Number>(witness.Get().length)) otherwise unreachable;
     for (let k: Smi = 0; k < length; k++) {
       // BUG(4895): We should throw on detached buffers rather than simply exit.
       witness.Recheck() otherwise break;

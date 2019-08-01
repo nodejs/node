@@ -7,11 +7,11 @@
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
 #include "src/base/template-utils.h"
-#include "src/counters.h"
-#include "src/flags.h"
-#include "src/objects-inl.h"
-#include "src/ostreams.h"
-#include "src/v8.h"
+#include "src/flags/flags.h"
+#include "src/init/v8.h"
+#include "src/logging/counters.h"
+#include "src/objects/objects-inl.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/wasm-engine.h"
@@ -122,6 +122,8 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
       return kWasmF64;
     case WasmInitExpr::kRefNullConst:
       return kWasmNullRef;
+    case WasmInitExpr::kRefFuncConst:
+      return kWasmAnyFunc;
     default:
       UNREACHABLE();
   }
@@ -284,12 +286,12 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
     // File are named `HASH.{ok,failed}.wasm`.
-    size_t hash = base::hash_range(module_bytes.start(), module_bytes.end());
+    size_t hash = base::hash_range(module_bytes.begin(), module_bytes.end());
     EmbeddedVector<char, 32> buf;
     SNPrintF(buf, "%016zx.%s.wasm", hash, ok() ? "ok" : "failed");
-    std::string name(buf.start());
+    std::string name(buf.begin());
     if (FILE* wasm_file = base::OS::FOpen((path + name).c_str(), "wb")) {
-      if (fwrite(module_bytes.start(), module_bytes.length(), 1, wasm_file) !=
+      if (fwrite(module_bytes.begin(), module_bytes.length(), 1, wasm_file) !=
           1) {
         OFStream os(stderr);
         os << "Error while dumping wasm file" << std::endl;
@@ -365,8 +367,7 @@ class ModuleDecoderImpl : public Decoder {
     if (failed()) return;
     Reset(bytes, offset);
     TRACE("Section: %s\n", SectionName(section_code));
-    TRACE("Decode Section %p - %p\n", static_cast<const void*>(bytes.begin()),
-          static_cast<const void*>(bytes.end()));
+    TRACE("Decode Section %p - %p\n", bytes.begin(), bytes.end());
 
     // Check if the section is out-of-order.
     if (section_code < next_ordered_section_ &&
@@ -807,7 +808,8 @@ class ModuleDecoderImpl : public Decoder {
           errorf(pos, "out of bounds table index %u", table_index);
           break;
         }
-        if (module_->tables[table_index].type != kWasmAnyFunc) {
+        if (!ValueTypes::IsSubType(module_->tables[table_index].type,
+                                   kWasmAnyFunc)) {
           errorf(pos,
                  "Invalid element segment. Table %u is not of type AnyFunc",
                  table_index);
@@ -815,7 +817,7 @@ class ModuleDecoderImpl : public Decoder {
         }
       } else {
         ValueType type = consume_reference_type();
-        if (type != kWasmAnyFunc) {
+        if (!ValueTypes::IsSubType(type, kWasmAnyFunc)) {
           error(pc_ - 1, "invalid element segment type");
           break;
         }
@@ -1011,17 +1013,16 @@ class ModuleDecoderImpl : public Decoder {
     // Decode sequence of compilation hints.
     if (decoder.ok()) {
       module_->compilation_hints.reserve(hint_count);
-      module_->num_lazy_compilation_hints = 0;
     }
     for (uint32_t i = 0; decoder.ok() && i < hint_count; i++) {
       TRACE("DecodeCompilationHints[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
 
       // Compilation hints are encoded in one byte each.
-      // +-------+----------+---------------+------------------+
-      // | 2 bit | 2 bit    | 2 bit         | 2 bit            |
-      // | ...   | Top tier | Baseline tier | Lazy compilation |
-      // +-------+----------+---------------+------------------+
+      // +-------+----------+---------------+----------+
+      // | 2 bit | 2 bit    | 2 bit         | 2 bit    |
+      // | ...   | Top tier | Baseline tier | Strategy |
+      // +-------+----------+---------------+----------+
       uint8_t hint_byte = decoder.consume_u8("compilation hint");
       if (!decoder.ok()) break;
 
@@ -1033,13 +1034,6 @@ class ModuleDecoderImpl : public Decoder {
           static_cast<WasmCompilationHintTier>(hint_byte >> 2 & 0x3);
       hint.top_tier =
           static_cast<WasmCompilationHintTier>(hint_byte >> 4 & 0x3);
-
-      // Check strategy.
-      if (hint.strategy > WasmCompilationHintStrategy::kEager) {
-        decoder.errorf(decoder.pc(),
-                       "Invalid compilation hint %#x (unknown strategy)",
-                       hint_byte);
-      }
 
       // Ensure that the top tier never downgrades a compilation result.
       // If baseline and top tier are the same compilation will be invoked only
@@ -1053,9 +1047,6 @@ class ModuleDecoderImpl : public Decoder {
 
       // Happily accept compilation hint.
       if (decoder.ok()) {
-        if (hint.strategy == WasmCompilationHintStrategy::kLazy) {
-          module_->num_lazy_compilation_hints++;
-        }
         module_->compilation_hints.push_back(std::move(hint));
       }
     }
@@ -1063,7 +1054,6 @@ class ModuleDecoderImpl : public Decoder {
     // If section was invalid reset compilation hints.
     if (decoder.failed()) {
       module_->compilation_hints.clear();
-      module_->num_lazy_compilation_hints = 0;
     }
 
     // @TODO(frgossen) Skip the whole compilation hints section in the outer
@@ -1317,9 +1307,8 @@ class ModuleDecoderImpl : public Decoder {
                           const WasmModule* module, WasmFunction* function) {
     WasmFunctionName func_name(function,
                                wire_bytes.GetNameOrNull(function, module));
-    if (FLAG_trace_wasm_decoder || FLAG_trace_wasm_decode_time) {
-      StdoutStream os;
-      os << "Verifying wasm function " << func_name << std::endl;
+    if (FLAG_trace_wasm_decoder) {
+      StdoutStream{} << "Verifying wasm function " << func_name << std::endl;
     }
     FunctionBody body = {
         function->sig, function->code.offset(),
@@ -1547,6 +1536,16 @@ class ModuleDecoderImpl : public Decoder {
         if (enabled_features_.anyref || enabled_features_.eh) {
           expr.kind = WasmInitExpr::kRefNullConst;
           len = 0;
+          break;
+        }
+        V8_FALLTHROUGH;
+      }
+      case kExprRefFunc: {
+        if (enabled_features_.anyref) {
+          FunctionIndexImmediate<Decoder::kValidate> imm(this, pc() - 1);
+          expr.kind = WasmInitExpr::kRefFuncConst;
+          expr.val.function_index = imm.index;
+          len = imm.length;
           break;
         }
         V8_FALLTHROUGH;

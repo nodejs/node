@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/accessors.h"
-#include "src/arguments-inl.h"
-#include "src/compiler.h"
-#include "src/counters.h"
+#include "src/builtins/accessors.h"
+#include "src/codegen/compiler.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/isolate-inl.h"
+#include "src/logging/counters.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -20,8 +20,8 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
 
   if (function->IsJSFunction()) {
-    Handle<Object> script(
-        Handle<JSFunction>::cast(function)->shared()->script(), isolate);
+    Handle<Object> script(Handle<JSFunction>::cast(function)->shared().script(),
+                          isolate);
     if (script->IsScript()) return Handle<Script>::cast(script)->source();
   }
   return ReadOnlyRoots(isolate).undefined_value();
@@ -33,8 +33,8 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
 
   if (function->IsJSFunction()) {
-    Handle<Object> script(
-        Handle<JSFunction>::cast(function)->shared()->script(), isolate);
+    Handle<Object> script(Handle<JSFunction>::cast(function)->shared().script(),
+                          isolate);
     if (script->IsScript()) {
       return Smi::FromInt(Handle<Script>::cast(script)->id());
     }
@@ -60,7 +60,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
-  int pos = fun->shared()->StartPosition();
+  int pos = fun.shared().StartPosition();
   return Smi::FromInt(pos);
 }
 
@@ -70,7 +70,7 @@ RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(JSFunction, f, 0);
-  return isolate->heap()->ToBoolean(f->shared()->IsApiFunction());
+  return isolate->heap()->ToBoolean(f.shared().IsApiFunction());
 }
 
 
@@ -85,7 +85,7 @@ RUNTIME_FUNCTION(Runtime_Call) {
     argv[i] = args.at(2 + i);
   }
   RETURN_RESULT_OR_FAILURE(
-      isolate, Execution::Call(isolate, target, receiver, argc, argv.start()));
+      isolate, Execution::Call(isolate, target, receiver, argc, argv.begin()));
 }
 
 
@@ -93,7 +93,7 @@ RUNTIME_FUNCTION(Runtime_IsFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, object, 0);
-  return isolate->heap()->ToBoolean(object->IsFunction());
+  return isolate->heap()->ToBoolean(object.IsFunction());
 }
 
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -620,35 +620,19 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kArm64LdrW;
       immediate_mode = kLoadStoreImm32;
       break;
-#ifdef V8_COMPRESS_POINTERS
-    case MachineRepresentation::kTaggedSigned:
-      opcode = kArm64LdrDecompressTaggedSigned;
-      immediate_mode = kLoadStoreImm32;
-      break;
-    case MachineRepresentation::kTaggedPointer:
-      opcode = kArm64LdrDecompressTaggedPointer;
-      immediate_mode = kLoadStoreImm32;
-      break;
-    case MachineRepresentation::kTagged:
-      opcode = kArm64LdrDecompressAnyTagged;
-      immediate_mode = kLoadStoreImm32;
-      break;
-    case MachineRepresentation::kCompressedSigned:
-    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
+#ifdef V8_COMPRESS_POINTERS
       opcode = kArm64LdrW;
       immediate_mode = kLoadStoreImm32;
       break;
 #else
-    case MachineRepresentation::kCompressedSigned:   // Fall through.
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
-    case MachineRepresentation::kCompressed:
       UNREACHABLE();
-      return;
+#endif
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:         // Fall through.
-#endif
     case MachineRepresentation::kWord64:
       opcode = kArm64Ldr;
       immediate_mode = kLoadStoreImm64;
@@ -659,7 +643,6 @@ void InstructionSelector::VisitLoad(Node* node) {
       break;
     case MachineRepresentation::kNone:
       UNREACHABLE();
-      return;
   }
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
@@ -688,7 +671,7 @@ void InstructionSelector::VisitStore(Node* node) {
 
   // TODO(arm64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier) {
-    DCHECK(CanBeTaggedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
     size_t input_count = 0;
@@ -706,12 +689,10 @@ void InstructionSelector::VisitStore(Node* node) {
     inputs[input_count++] = g.UseUniqueRegister(value);
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-    size_t const temp_count = arraysize(temps);
     InstructionCode code = kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
     code |= MiscField::encode(static_cast<int>(record_write_mode));
-    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
+    Emit(code, 0, nullptr, input_count, inputs);
   } else {
     InstructionOperand inputs[4];
     size_t input_count = 0;
@@ -739,29 +720,19 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kArm64StrW;
         immediate_mode = kLoadStoreImm32;
         break;
-#ifdef V8_COMPRESS_POINTERS
-      case MachineRepresentation::kTaggedSigned:
-      case MachineRepresentation::kTaggedPointer:
-      case MachineRepresentation::kTagged:
-        opcode = kArm64StrCompressTagged;
-        immediate_mode = kLoadStoreImm32;
-        break;
-      case MachineRepresentation::kCompressedSigned:
-      case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kCompressedSigned:   // Fall through.
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
+#ifdef V8_COMPRESS_POINTERS
         opcode = kArm64StrW;
         immediate_mode = kLoadStoreImm32;
         break;
 #else
-      case MachineRepresentation::kCompressedSigned:   // Fall through.
-      case MachineRepresentation::kCompressedPointer:  // Fall through.
-      case MachineRepresentation::kCompressed:
         UNREACHABLE();
-        return;
+#endif
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
       case MachineRepresentation::kTagged:         // Fall through.
-#endif
       case MachineRepresentation::kWord64:
         opcode = kArm64Str;
         immediate_mode = kLoadStoreImm64;
@@ -772,7 +743,6 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
       case MachineRepresentation::kNone:
         UNREACHABLE();
-        return;
     }
 
     inputs[0] = g.UseRegisterOrImmediateZero(value);
@@ -1240,8 +1210,6 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   V(Float64RoundTiesAway, kArm64Float64RoundTiesAway)         \
   V(Float32RoundTiesEven, kArm64Float32RoundTiesEven)         \
   V(Float64RoundTiesEven, kArm64Float64RoundTiesEven)         \
-  V(Float32Neg, kArm64Float32Neg)                             \
-  V(Float64Neg, kArm64Float64Neg)                             \
   V(Float64ExtractLowWord32, kArm64Float64ExtractLowWord32)   \
   V(Float64ExtractHighWord32, kArm64Float64ExtractHighWord32) \
   V(Float64SilenceNaN, kArm64Float64SilenceNaN)
@@ -1259,8 +1227,6 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   V(Float64Add, kArm64Float64Add) \
   V(Float32Sub, kArm64Float32Sub) \
   V(Float64Sub, kArm64Float64Sub) \
-  V(Float32Mul, kArm64Float32Mul) \
-  V(Float64Mul, kArm64Float64Mul) \
   V(Float32Div, kArm64Float32Div) \
   V(Float64Div, kArm64Float64Div) \
   V(Float32Max, kArm64Float32Max) \
@@ -1735,36 +1701,41 @@ void InstructionSelector::EmitPrepareArguments(
   // `arguments` includes alignment "holes". This means that slots bigger than
   // kSystemPointerSize, e.g. Simd128, will span across multiple arguments.
   int claim_count = static_cast<int>(arguments->size());
+  bool needs_padding = claim_count % 2 != 0;
   int slot = claim_count - 1;
   claim_count = RoundUp(claim_count, 2);
-  // Bump the stack pointer(s).
+  // Bump the stack pointer.
   if (claim_count > 0) {
     // TODO(titzer): claim and poke probably take small immediates.
     // TODO(titzer): it would be better to bump the sp here only
     //               and emit paired stores with increment for non c frames.
     Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(claim_count));
-  }
 
-  if (claim_count > 0) {
-    // Store padding, which might be overwritten.
-    Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
-         g.TempImmediate(claim_count - 1));
+    if (needs_padding) {
+      Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
+           g.TempImmediate(claim_count - 1));
+    }
   }
 
   // Poke the arguments into the stack.
   while (slot >= 0) {
-    Node* input_node = (*arguments)[slot].node;
-    // Skip any alignment holes in pushed nodes.
-    if (input_node != nullptr) {
-      Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input_node),
+    PushParameter input0 = (*arguments)[slot];
+    PushParameter input1 = slot > 0 ? (*arguments)[slot - 1] : PushParameter();
+    // Emit a poke-pair if consecutive parameters have the same type.
+    // TODO(arm): Support consecutive Simd128 parameters.
+    if (input0.node != nullptr && input1.node != nullptr &&
+        input0.location.GetType() == input1.location.GetType()) {
+      Emit(kArm64PokePair, g.NoOutput(), g.UseRegister(input0.node),
+           g.UseRegister(input1.node), g.TempImmediate(slot));
+      slot -= 2;
+    } else if (input0.node != nullptr) {
+      Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input0.node),
            g.TempImmediate(slot));
+      slot--;
+    } else {
+      // Skip any alignment holes in pushed nodes.
+      slot--;
     }
-    slot--;
-    // TODO(ahaas): Poke arguments in pairs if two subsequent arguments have the
-    //              same type.
-    // Emit(kArm64PokePair, g.NoOutput(), g.UseRegister((*arguments)[slot]),
-    //      g.UseRegister((*arguments)[slot - 1]), g.TempImmediate(slot));
-    // slot -= 2;
   }
 }
 
@@ -1905,7 +1876,6 @@ void MaybeReplaceCmpZeroWithFlagSettingBinop(InstructionSelector* selector,
       break;
     default:
       UNREACHABLE();
-      return;
   }
   if (selector->CanCover(*node, binop)) {
     // The comparison is the only user of the add or and, so we can generate
@@ -2656,6 +2626,38 @@ void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
   VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
 }
 
+void InstructionSelector::VisitFloat32Neg(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* in = node->InputAt(0);
+  if (in->opcode() == IrOpcode::kFloat32Mul && CanCover(node, in)) {
+    Float32BinopMatcher m(in);
+    Emit(kArm64Float32Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.left().node()), g.UseRegister(m.right().node()));
+    return;
+  }
+  VisitRR(this, kArm64Float32Neg, node);
+}
+
+void InstructionSelector::VisitFloat32Mul(Node* node) {
+  Arm64OperandGenerator g(this);
+  Float32BinopMatcher m(node);
+
+  if (m.left().IsFloat32Neg() && CanCover(node, m.left().node())) {
+    Emit(kArm64Float32Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.left().node()->InputAt(0)),
+         g.UseRegister(m.right().node()));
+    return;
+  }
+
+  if (m.right().IsFloat32Neg() && CanCover(node, m.right().node())) {
+    Emit(kArm64Float32Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.right().node()->InputAt(0)),
+         g.UseRegister(m.left().node()));
+    return;
+  }
+  return VisitRRR(this, kArm64Float32Mul, node);
+}
+
 void InstructionSelector::VisitFloat32Equal(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat32Compare(this, node, &cont);
@@ -2721,6 +2723,38 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
+void InstructionSelector::VisitFloat64Neg(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* in = node->InputAt(0);
+  if (in->opcode() == IrOpcode::kFloat64Mul && CanCover(node, in)) {
+    Float64BinopMatcher m(in);
+    Emit(kArm64Float64Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.left().node()), g.UseRegister(m.right().node()));
+    return;
+  }
+  VisitRR(this, kArm64Float64Neg, node);
+}
+
+void InstructionSelector::VisitFloat64Mul(Node* node) {
+  Arm64OperandGenerator g(this);
+  Float64BinopMatcher m(node);
+
+  if (m.left().IsFloat64Neg() && CanCover(node, m.left().node())) {
+    Emit(kArm64Float64Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.left().node()->InputAt(0)),
+         g.UseRegister(m.right().node()));
+    return;
+  }
+
+  if (m.right().IsFloat64Neg() && CanCover(node, m.right().node())) {
+    Emit(kArm64Float64Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.right().node()->InputAt(0)),
+         g.UseRegister(m.left().node()));
+    return;
+  }
+  return VisitRRR(this, kArm64Float64Mul, node);
+}
+
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   ArchOpcode opcode = kArchNop;
@@ -2738,7 +2772,6 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicLoad(this, node, opcode);
 }
@@ -2761,7 +2794,6 @@ void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicLoad(this, node, opcode);
 }
@@ -2781,7 +2813,6 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicStore(this, node, opcode);
 }
@@ -2804,7 +2835,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicStore(this, node, opcode);
 }

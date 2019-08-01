@@ -5,7 +5,7 @@
 #ifndef V8_ZONE_ZONE_SEGMENT_H_
 #define V8_ZONE_ZONE_SEGMENT_H_
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 // Segments represent chunks of memory: They have starting address
 // (encoded in the this pointer) and a size in bytes. Segments are

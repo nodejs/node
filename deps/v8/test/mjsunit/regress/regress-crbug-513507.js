@@ -16,8 +16,10 @@ function makeFun() {
       if (i == osr_fuse) %OptimizeOsr();
     }
   }
+  %PrepareFunctionForOptimization(fun);
   return fun;
 }
+%PrepareFunctionForOptimization(makeFun);
 
 makeFun()(7);  // Warm up.
 makeFun()(4);  // Optimize once.

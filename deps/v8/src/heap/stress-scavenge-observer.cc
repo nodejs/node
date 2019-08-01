@@ -5,9 +5,9 @@
 #include "src/heap/stress-scavenge-observer.h"
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

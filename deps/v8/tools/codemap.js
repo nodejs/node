@@ -178,15 +178,6 @@ CodeMap.prototype.findInTree_ = function(tree, addr) {
   return node && this.isAddressBelongsTo_(addr, node) ? node : null;
 };
 
-/**
- * Embedded builtins are located in the shared library but should be attributed
- * according to the dynamically generated code-create events.
- *
- * @private
- */
-CodeMap.prototype.isIsolateIndependentBuiltin_ = function(entry) {
-  return entry.type == "CPP" && /v8_\w*embedded_blob_/.test(entry.name);
-};
 
 /**
  * Finds a code entry that contains the specified address. Both static and
@@ -205,10 +196,7 @@ CodeMap.prototype.findAddress = function(addr) {
       result = this.findInTree_(this.libraries_, addr);
       if (!result) return null;
     }
-    if (!this.isIsolateIndependentBuiltin_(result.value)) {
-      // Embedded builtins are handled in the following dynamic section.
-      return { entry : result.value, offset : addr - result.key };
-    }
+    return { entry : result.value, offset : addr - result.key };
   }
   var min = this.dynamics_.findMin();
   var max = this.dynamics_.findMax();

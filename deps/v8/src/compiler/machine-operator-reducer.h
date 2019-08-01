@@ -6,9 +6,9 @@
 #define V8_COMPILER_MACHINE_OPERATOR_REDUCER_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/machine-operator.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

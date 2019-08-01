@@ -19,12 +19,14 @@ class TypeOracle : public ContextualClass<TypeOracle> {
  public:
   static const AbstractType* GetAbstractType(
       const Type* parent, std::string name, bool transient,
-      std::string generated,
-      base::Optional<const AbstractType*> non_constexpr_version) {
+      std::string generated, const AbstractType* non_constexpr_version) {
     AbstractType* result =
         new AbstractType(parent, transient, std::move(name),
                          std::move(generated), non_constexpr_version);
     Get().nominal_types_.push_back(std::unique_ptr<AbstractType>(result));
+    if (non_constexpr_version) {
+      non_constexpr_version->SetConstexprVersion(result);
+    }
     return result;
   }
 
@@ -35,11 +37,11 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   }
 
   static ClassType* GetClassType(const Type* parent, const std::string& name,
-                                 bool is_extern, bool generate_print,
-                                 bool transient, const std::string& generates) {
-    ClassType* result =
-        new ClassType(parent, CurrentNamespace(), name, is_extern,
-                      generate_print, transient, generates);
+                                 ClassFlags flags, const std::string& generates,
+                                 ClassDeclaration* decl,
+                                 const TypeAlias* alias) {
+    ClassType* result = new ClassType(parent, CurrentNamespace(), name, flags,
+                                      generates, decl, alias);
     Get().struct_types_.push_back(std::unique_ptr<ClassType>(result));
     return result;
   }
@@ -185,12 +187,20 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(FLOAT64_TYPE_STRING);
   }
 
+  static const Type* GetConstFloat64Type() {
+    return Get().GetBuiltinType(CONST_FLOAT64_TYPE_STRING);
+  }
+
   static const Type* GetNeverType() {
     return Get().GetBuiltinType(NEVER_TYPE_STRING);
   }
 
   static const Type* GetConstInt31Type() {
     return Get().GetBuiltinType(CONST_INT31_TYPE_STRING);
+  }
+
+  static const Type* GetConstInt32Type() {
+    return Get().GetBuiltinType(CONST_INT32_TYPE_STRING);
   }
 
   static bool IsImplicitlyConvertableFrom(const Type* to, const Type* from) {
@@ -207,6 +217,8 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return false;
   }
 
+  static void FinalizeClassTypes();
+
  private:
   const Type* GetBuiltinType(const std::string& name) {
     return Declarations::LookupGlobalType(name);
@@ -217,7 +229,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   Deduplicator<UnionType> union_types_;
   Deduplicator<ReferenceType> reference_types_;
   std::vector<std::unique_ptr<Type>> nominal_types_;
-  std::vector<std::unique_ptr<Type>> struct_types_;
+  std::vector<std::unique_ptr<AggregateType>> struct_types_;
   std::vector<std::unique_ptr<Type>> top_types_;
 };
 

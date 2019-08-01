@@ -5,10 +5,10 @@
 #ifndef V8_REGEXP_REGEXP_AST_H_
 #define V8_REGEXP_REGEXP_AST_H_
 
-#include "src/objects.h"
 #include "src/objects/js-regexp.h"
+#include "src/objects/objects.h"
 #include "src/objects/string.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 

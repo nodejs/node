@@ -5,13 +5,13 @@
 #ifndef V8_COMPILER_JS_GRAPH_H_
 #define V8_COMPILER_JS_GRAPH_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-graph.h"
 #include "src/compiler/node-properties.h"
-#include "src/globals.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 
 namespace v8 {
 namespace internal {

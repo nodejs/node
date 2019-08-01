@@ -7,7 +7,7 @@
 #include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/node-properties.h"
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
+#include "src/objects/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
 #include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
@@ -25,7 +25,6 @@ GraphTest::GraphTest(int num_parameters)
   graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
   broker()->SetNativeContextRef();
 }
-
 
 GraphTest::~GraphTest() = default;
 

@@ -4,10 +4,10 @@
 
 #include <vector>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -17,7 +17,7 @@ namespace heap {
 static Address AllocateLabBackingStore(Heap* heap, intptr_t size_in_bytes) {
   AllocationResult result = heap->old_space()->AllocateRaw(
       static_cast<int>(size_in_bytes), kDoubleAligned);
-  Address adr = result.ToObjectChecked()->address();
+  Address adr = result.ToObjectChecked().address();
   return adr;
 }
 
@@ -30,10 +30,10 @@ static void VerifyIterable(v8::internal::Address base,
   size_t counter = 0;
   while (base < limit) {
     object = HeapObject::FromAddress(base);
-    CHECK(object->IsFiller());
+    CHECK(object.IsFiller());
     CHECK_LT(counter, expected_size.size());
-    CHECK_EQ(expected_size[counter], object->Size());
-    base += object->Size();
+    CHECK_EQ(expected_size[counter], object.Size());
+    base += object.Size();
     counter++;
   }
 }
@@ -46,7 +46,7 @@ static bool AllocateFromLab(Heap* heap, LocalAllocationBuffer* lab,
   AllocationResult result =
       lab->AllocateRawAligned(static_cast<int>(size_in_bytes), alignment);
   if (result.To(&obj)) {
-    heap->CreateFillerObjectAt(obj->address(), static_cast<int>(size_in_bytes),
+    heap->CreateFillerObjectAt(obj.address(), static_cast<int>(size_in_bytes),
                                ClearRecordedSlots::kNo);
     return true;
   }

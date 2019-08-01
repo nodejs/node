@@ -29,7 +29,7 @@ class CodeAssemblerState;
 #define TF_BUILTIN(Name, AssemblerBase)                                 \
   class Name##Assembler : public AssemblerBase {                        \
    public:                                                              \
-    typedef Builtin_##Name##_InterfaceDescriptor Descriptor;            \
+    using Descriptor = Builtin_##Name##_InterfaceDescriptor;            \
                                                                         \
     explicit Name##Assembler(compiler::CodeAssemblerState* state)       \
         : AssemblerBase(state) {}                                       \

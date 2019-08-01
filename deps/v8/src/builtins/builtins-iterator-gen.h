@@ -5,20 +5,19 @@
 #ifndef V8_BUILTINS_BUILTINS_ITERATOR_GEN_H_
 #define V8_BUILTINS_BUILTINS_ITERATOR_GEN_H_
 
-#include "src/code-stub-assembler.h"
-#include "torque-generated/builtins-base-from-dsl-gen.h"
-#include "torque-generated/builtins-iterator-from-dsl-gen.h"
+#include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
 
 using compiler::Node;
 
-class IteratorBuiltinsAssembler : public CodeStubAssembler,
-                                  public IteratorBuiltinsFromDSLAssembler {
+class IteratorBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit IteratorBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state), IteratorBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state) {}
+
+  using IteratorRecord = TorqueStructIteratorRecord;
 
   // Returns object[Symbol.iterator].
   TNode<Object> GetIteratorMethod(Node* context, Node* object);

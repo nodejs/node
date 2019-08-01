@@ -14,9 +14,9 @@
 #include <string>
 
 #include "src/base/timezone-cache.h"
-#include "src/contexts.h"
-#include "src/objects.h"
+#include "src/objects/contexts.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects.h"
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
@@ -25,10 +25,10 @@
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
 class Collator;
-class DecimalFormat;
+class FormattedValue;
 class SimpleDateFormat;
 class UnicodeString;
-}
+}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
@@ -171,9 +171,16 @@ class Intl {
       Handle<Object> options);
 
   // ecma402/#sec-setnfdigitoptions
-  V8_WARN_UNUSED_RESULT static Maybe<bool> SetNumberFormatDigitOptions(
-      Isolate* isolate, icu::DecimalFormat* number_format,
-      Handle<JSReceiver> options, int mnfd_default, int mxfd_default);
+  struct NumberFormatDigitOptions {
+    int minimum_integer_digits;
+    int minimum_fraction_digits;
+    int maximum_fraction_digits;
+    int minimum_significant_digits;
+    int maximum_significant_digits;
+  };
+  V8_WARN_UNUSED_RESULT static Maybe<NumberFormatDigitOptions>
+  SetNumberFormatDigitOptions(Isolate* isolate, Handle<JSReceiver> options,
+                              int mnfd_default, int mxfd_default);
 
   static icu::Locale CreateICULocale(const std::string& bcp47_locale);
 
@@ -185,6 +192,10 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
       Isolate* isolate, const icu::UnicodeString& string, int32_t begin,
       int32_t end);
+
+  // Helper function to convert a FormattedValue to String
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormattedToString(
+      Isolate* isolate, const icu::FormattedValue& formatted);
 
   // Helper function to convert number field id to type string.
   static Handle<String> NumberFieldToType(Isolate* isolate,
@@ -243,6 +254,15 @@ class Intl {
   // Shared function to read the "localeMatcher" option.
   V8_WARN_UNUSED_RESULT static Maybe<MatcherOption> GetLocaleMatcher(
       Isolate* isolate, Handle<JSReceiver> options, const char* method);
+
+  // Shared function to read the "numberingSystem" option.
+  V8_WARN_UNUSED_RESULT static Maybe<bool> GetNumberingSystem(
+      Isolate* isolate, Handle<JSReceiver> options, const char* method,
+      std::unique_ptr<char[]>* result);
+
+  // Check the calendar is valid or not for that locale.
+  static bool IsValidCalendar(const icu::Locale& locale,
+                              const std::string& value);
 
   struct ResolvedLocale {
     std::string locale;

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-json-stringify
-
 // Test JSON.stringify for cases that hit
 // JsonStringifier::SerializeString_.
 

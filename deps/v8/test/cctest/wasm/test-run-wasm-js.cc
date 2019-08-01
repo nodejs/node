@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/api-inl.h"
-#include "src/assembler-inl.h"
+#include "src/api/api-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -64,7 +64,7 @@ ManuallyImportedJSFunction CreateJSSelector(FunctionSig* sig, int which) {
 
   Handle<JSFunction> js_function =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-          *v8::Local<v8::Function>::Cast(CompileRun(source.start()))));
+          *v8::Local<v8::Function>::Cast(CompileRun(source.begin()))));
   ManuallyImportedJSFunction import = {sig, js_function};
 
   return import;
@@ -141,14 +141,15 @@ WASM_EXEC_TEST(Run_IndirectCallJSFunction) {
 
   WasmFunctionCompiler& rc_fn = r.NewFunction(sigs.i_i(), "rc");
 
-  r.builder().AddSignature(sigs.i_iii());
+  byte sig_index = r.builder().AddSignature(sigs.i_iii());
   uint16_t indirect_function_table[] = {static_cast<uint16_t>(js_index)};
 
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
 
-  BUILD(rc_fn, WASM_CALL_INDIRECT3(0, WASM_I32V(js_index), WASM_I32V(left),
-                                   WASM_I32V(right), WASM_GET_LOCAL(0)));
+  BUILD(rc_fn,
+        WASM_CALL_INDIRECT3(sig_index, WASM_I32V(js_index), WASM_I32V(left),
+                            WASM_I32V(right), WASM_GET_LOCAL(0)));
 
   Handle<Object> args_left[] = {isolate->factory()->NewNumber(1)};
   r.CheckCallApplyViaJS(left, rc_fn.function_index(), args_left, 1);
@@ -538,15 +539,15 @@ void RunPickerTest(ExecutionTier tier, bool indirect) {
   WasmFunctionCompiler& rc_fn = r.NewFunction(sigs.i_i(), "rc");
 
   if (indirect) {
-    r.builder().AddSignature(sigs.i_iii());
+    byte sig_index = r.builder().AddSignature(sigs.i_iii());
     uint16_t indirect_function_table[] = {static_cast<uint16_t>(js_index)};
 
     r.builder().AddIndirectFunctionTable(indirect_function_table,
                                          arraysize(indirect_function_table));
 
-    BUILD(rc_fn,
-          WASM_RETURN_CALL_INDIRECT(0, WASM_I32V(js_index), WASM_I32V(left),
-                                    WASM_I32V(right), WASM_GET_LOCAL(0)));
+    BUILD(rc_fn, WASM_RETURN_CALL_INDIRECT(sig_index, WASM_I32V(js_index),
+                                           WASM_I32V(left), WASM_I32V(right),
+                                           WASM_GET_LOCAL(0)));
   } else {
     BUILD(rc_fn,
           WASM_RETURN_CALL_FUNCTION(js_index, WASM_I32V(left), WASM_I32V(right),

@@ -22,6 +22,7 @@ int WrappedMain(int argc, const char** argv) {
   TorqueFileList::Scope files_scope;
   LanguageServerData::Scope server_data_scope;
   SourceFileMap::Scope source_file_map_scope;
+  DiagnosticsFiles::Scope diagnostics_files_scope;
 
   for (int i = 1; i < argc; ++i) {
     if (!strcmp("-l", argv[i])) {

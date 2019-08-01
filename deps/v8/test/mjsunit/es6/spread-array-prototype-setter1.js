@@ -13,6 +13,7 @@
     return ['a', ...['b', 'c', 'd'], 'e']
   }
 
+  %PrepareFunctionForOptimization(f);
   assertArrayEquals(['a', 'b', 'c', 'd', 'e'], f());
   %OptimizeFunctionOnNextCall(f);
   assertArrayEquals(['a', 'b', 'c', 'd', 'e'], f());

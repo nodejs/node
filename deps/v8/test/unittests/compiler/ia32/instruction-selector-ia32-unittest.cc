@@ -4,7 +4,7 @@
 
 #include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -195,10 +195,8 @@ static const MemoryAccess kMemoryAccesses[] = {
 
 }  // namespace
 
-
-typedef InstructionSelectorTestWithParam<MemoryAccess>
-    InstructionSelectorMemoryAccessTest;
-
+using InstructionSelectorMemoryAccessTest =
+    InstructionSelectorTestWithParam<MemoryAccess>;
 
 TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
   const MemoryAccess memacc = GetParam();
@@ -508,9 +506,7 @@ const MultParam kMultParams[] = {{-1, false, kMode_None},
 
 }  // namespace
 
-
-typedef InstructionSelectorTestWithParam<MultParam> InstructionSelectorMultTest;
-
+using InstructionSelectorMultTest = InstructionSelectorTestWithParam<MultParam>;
 
 static unsigned InputCountForLea(AddressingMode mode) {
   switch (mode) {

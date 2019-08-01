@@ -4,7 +4,7 @@
 
 #include "src/wasm/signature-map.h"
 
-#include "src/signature.h"
+#include "src/codegen/signature.h"
 
 namespace v8 {
 namespace internal {

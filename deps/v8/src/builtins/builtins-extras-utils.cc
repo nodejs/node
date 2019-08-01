@@ -4,10 +4,10 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/elements.h"
+#include "src/objects/elements.h"
 
-#include "src/counters.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -39,7 +39,7 @@ BUILTIN(ExtrasUtilsUncurryThis) {
 
   DCHECK_EQ(2, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(1);
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
+  Handle<NativeContext> native_context(isolate->context().native_context(),
                                        isolate);
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
       native_context,
@@ -64,7 +64,7 @@ BUILTIN(ExtrasUtilsUncurryThis) {
 BUILTIN(ExtrasUtilsCallReflectApply) {
   HandleScope scope(isolate);
   Handle<Context> context(isolate->context(), isolate);
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
+  Handle<NativeContext> native_context(isolate->context().native_context(),
                                        isolate);
   Handle<JSFunction> function(
       JSFunction::cast(context->get(

@@ -549,7 +549,18 @@ class UnitTest(unittest.TestCase):
                 '//out/Default', 'base_unittests'], mbw=mbw, ret=0)
 
   def test_lookup(self):
-    self.check(['lookup', '-c', 'debug_goma'], ret=0)
+    self.check(['lookup', '-c', 'debug_goma'], ret=0,
+               out=('\n'
+                    'Writing """\\\n'
+                    'is_debug = true\n'
+                    'use_goma = true\n'
+                    '""" to _path_/args.gn.\n\n'
+                    '/fake_src/buildtools/linux64/gn gen _path_\n'))
+
+  def test_quiet_lookup(self):
+    self.check(['lookup', '-c', 'debug_goma', '--quiet'], ret=0,
+               out=('is_debug = true\n'
+                    'use_goma = true\n'))
 
   def test_lookup_goma_dir_expansion(self):
     self.check(['lookup', '-c', 'rel_bot', '-g', '/foo'], ret=0,
@@ -596,6 +607,19 @@ class UnitTest(unittest.TestCase):
     mbw = self.check(['lookup', '-m', 'fake_master', '-b', 'fake_multi_phase',
                       '--phase', 'phase_2'], ret=0)
     self.assertIn('phase = 2', mbw.out)
+
+  def test_recursive_lookup(self):
+    files = {
+        '/fake_src/build/args/fake.gn': (
+          'enable_doom_melon = true\n'
+          'enable_antidoom_banana = true\n'
+        )
+    }
+    self.check(['lookup', '-m', 'fake_master', '-b', 'fake_args_file',
+                '--recursive'], files=files, ret=0,
+               out=('enable_antidoom_banana = true\n'
+                    'enable_doom_melon = true\n'
+                    'use_goma = true\n'))
 
   def test_validate(self):
     mbw = self.fake_mbw()

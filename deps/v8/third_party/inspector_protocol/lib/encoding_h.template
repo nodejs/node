@@ -10,6 +10,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -25,13 +27,11 @@ namespace {{namespace}} {
 // span - sequence of bytes
 // =============================================================================
 
-// This template is similar to std::span, which will be included in C++20.  Like
-// std::span it uses ptrdiff_t, which is signed (and thus a bit annoying
-// sometimes when comparing with size_t), but other than this it's much simpler.
+// This template is similar to std::span, which will be included in C++20.
 template <typename T>
 class span {
  public:
-  using index_type = std::ptrdiff_t;
+  using index_type = size_t;
 
   span() : data_(nullptr), size_(0) {}
   span(const T* data, index_type size) : data_(data), size_(size) {}
@@ -62,15 +62,27 @@ class span {
 };
 
 template <typename T>
-span<T> SpanFromVector(const std::vector<T>& v) {
+span<T> SpanFrom(const std::vector<T>& v) {
   return span<T>(v.data(), v.size());
 }
 
-inline span<uint8_t> SpanFromStdString(const std::string& v) {
+template <size_t N>
+span<uint8_t> SpanFrom(const char (&str)[N]) {
+  return span<uint8_t>(reinterpret_cast<const uint8_t*>(str), N - 1);
+}
+
+inline span<uint8_t> SpanFrom(const char* str) {
+  return str ? span<uint8_t>(reinterpret_cast<const uint8_t*>(str), strlen(str))
+             : span<uint8_t>();
+}
+
+inline span<uint8_t> SpanFrom(const std::string& v) {
   return span<uint8_t>(reinterpret_cast<const uint8_t*>(v.data()), v.size());
 }
 
-// Error codes.
+// =============================================================================
+// Status and Error codes
+// =============================================================================
 enum class Error {
   OK = 0,
   // JSON parsing errors - json_parser.{h,cc}.
@@ -102,24 +114,30 @@ enum class Error {
   CBOR_UNEXPECTED_EOF_IN_MAP = 0x19,
   CBOR_INVALID_MAP_KEY = 0x1a,
   CBOR_STACK_LIMIT_EXCEEDED = 0x1b,
-  CBOR_STRING8_MUST_BE_7BIT = 0x1c,
-  CBOR_TRAILING_JUNK = 0x1d,
-  CBOR_MAP_START_EXPECTED = 0x1e,
-  CBOR_MAP_STOP_EXPECTED = 0x1f,
-  CBOR_ENVELOPE_SIZE_LIMIT_EXCEEDED = 0x20,
+  CBOR_TRAILING_JUNK = 0x1c,
+  CBOR_MAP_START_EXPECTED = 0x1d,
+  CBOR_MAP_STOP_EXPECTED = 0x1e,
+  CBOR_ENVELOPE_SIZE_LIMIT_EXCEEDED = 0x1f,
 };
 
 // A status value with position that can be copied. The default status
 // is OK. Usually, error status values should come with a valid position.
 struct Status {
-  static constexpr std::ptrdiff_t npos() { return -1; }
+  static constexpr size_t npos() { return std::numeric_limits<size_t>::max(); }
 
   bool ok() const { return error == Error::OK; }
 
   Error error = Error::OK;
-  std::ptrdiff_t pos = npos();
-  Status(Error error, std::ptrdiff_t pos) : error(error), pos(pos) {}
+  size_t pos = npos();
+  Status(Error error, size_t pos) : error(error), pos(pos) {}
   Status() = default;
+
+  // Returns a 7 bit US-ASCII string, either "OK" or an error message
+  // that includes the position.
+  std::string ToASCIIString() const;
+
+ private:
+  std::string ToASCIIString(const char* msg) const;
 };
 
 // Handler interface for parser events emitted by a streaming parser.
@@ -257,7 +275,7 @@ class EnvelopeEncoder {
   bool EncodeStop(std::string* out);
 
  private:
-  std::size_t byte_size_pos_ = 0;
+  size_t byte_size_pos_ = 0;
 };
 
 // =============================================================================
@@ -381,13 +399,13 @@ class CBORTokenizer {
 
  private:
   void ReadNextToken(bool enter_envelope);
-  void SetToken(CBORTokenTag token, std::ptrdiff_t token_byte_length);
+  void SetToken(CBORTokenTag token, size_t token_byte_length);
   void SetError(Error error);
 
   span<uint8_t> bytes_;
   CBORTokenTag token_tag_;
   struct Status status_;
-  std::ptrdiff_t token_byte_length_;
+  size_t token_byte_length_;
   MajorType token_start_type_;
   uint64_t token_start_internal_value_;
 };
@@ -486,7 +504,13 @@ Status ConvertJSONToCBOR(const Platform& platform,
                          span<uint8_t> json,
                          std::vector<uint8_t>* cbor);
 Status ConvertJSONToCBOR(const Platform& platform,
+                         span<uint16_t> json,
+                         std::vector<uint8_t>* cbor);
+Status ConvertJSONToCBOR(const Platform& platform,
                          span<uint8_t> json,
+                         std::string* cbor);
+Status ConvertJSONToCBOR(const Platform& platform,
+                         span<uint16_t> json,
                          std::string* cbor);
 }  // namespace json
 

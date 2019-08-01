@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arguments-inl.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
-#include "src/conversions-inl.h"
-#include "src/counters.h"
+#include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -361,7 +361,7 @@ Object GetModifySetValueInBuffer(Arguments args, Isolate* isolate) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                        BigInt::FromObject(isolate, value_obj));
     // SharedArrayBuffers are not detachable.
-    CHECK_LT(index, NumberToSize(sta->length()));
+    CHECK_LT(index, sta->length());
     if (sta->type() == kExternalBigInt64Array) {
       return Op<int64_t>::Do(isolate, source, index, bigint);
     }
@@ -373,7 +373,7 @@ Object GetModifySetValueInBuffer(Arguments args, Isolate* isolate) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value_obj));
   // SharedArrayBuffers are not detachable.
-  CHECK_LT(index, NumberToSize(sta->length()));
+  CHECK_LT(index, sta->length());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
@@ -403,7 +403,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
   // SharedArrayBuffers are not detachable.
-  CHECK_LT(index, NumberToSize(sta->length()));
+  CHECK_LT(index, sta->length());
   if (sta->type() == kExternalBigInt64Array) {
     return Load<int64_t>::Do(isolate, source, index);
   }
@@ -429,7 +429,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
   // SharedArrayBuffers are not detachable.
-  CHECK_LT(index, NumberToSize(sta->length()));
+  CHECK_LT(index, sta->length());
   if (sta->type() == kExternalBigInt64Array) {
     Store<int64_t>::Do(isolate, source, index, bigint);
     return *bigint;
@@ -451,7 +451,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   CONVERT_ARG_HANDLE_CHECKED(Object, old_value_obj, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, new_value_obj, 3);
   CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, NumberToSize(sta->length()));
+  CHECK_LT(index, sta->length());
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -464,7 +464,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, new_bigint, BigInt::FromObject(isolate, new_value_obj));
     // SharedArrayBuffers are not detachable.
-    CHECK_LT(index, NumberToSize(sta->length()));
+    CHECK_LT(index, sta->length());
     if (sta->type() == kExternalBigInt64Array) {
       return DoCompareExchange<int64_t>(isolate, source, index, old_bigint,
                                         new_bigint);
@@ -481,7 +481,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, new_value,
                                      Object::ToInteger(isolate, new_value_obj));
   // SharedArrayBuffers are not detachable.
-  CHECK_LT(index, NumberToSize(sta->length()));
+  CHECK_LT(index, sta->length());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype)                  \

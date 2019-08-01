@@ -5,7 +5,7 @@
 // The common functionality when building with internal or external natives.
 
 #include "src/heap/heap.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/snapshot/natives.h"
 
 namespace v8 {
@@ -19,7 +19,7 @@ NativesExternalStringResource::NativesExternalStringResource(NativeType type,
   CHECK_EQ(EXTRAS, type_);
   DCHECK(index < ExtraNatives::GetBuiltinsCount());
   source = ExtraNatives::GetScriptSource(index);
-  data_ = source.start();
+  data_ = source.begin();
   length_ = source.length();
 }
 

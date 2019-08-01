@@ -4,8 +4,6 @@
 
 ---
 wrap: yes
-public fields: yes
-static fields: yes
 
 ---
 snippet: "

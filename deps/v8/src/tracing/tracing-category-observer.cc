@@ -5,9 +5,9 @@
 #include "src/tracing/tracing-category-observer.h"
 
 #include "src/base/atomic-utils.h"
-#include "src/counters.h"
+#include "src/init/v8.h"
+#include "src/logging/counters.h"
 #include "src/tracing/trace-event.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace tracing {
@@ -40,6 +40,11 @@ void TracingCategoryObserver::OnTraceEnabled() {
     i::TracingFlags::runtime_stats.fetch_or(ENABLED_BY_SAMPLING,
                                             std::memory_order_relaxed);
   }
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                                     &enabled);
+  if (enabled) {
+    i::TracingFlags::gc.fetch_or(ENABLED_BY_TRACING, std::memory_order_relaxed);
+  }
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"),
                                      &enabled);
   if (enabled) {
@@ -57,6 +62,8 @@ void TracingCategoryObserver::OnTraceEnabled() {
 void TracingCategoryObserver::OnTraceDisabled() {
   i::TracingFlags::runtime_stats.fetch_and(
       ~(ENABLED_BY_TRACING | ENABLED_BY_SAMPLING), std::memory_order_relaxed);
+
+  i::TracingFlags::gc.fetch_and(~ENABLED_BY_TRACING, std::memory_order_relaxed);
 
   i::TracingFlags::gc_stats.fetch_and(~ENABLED_BY_TRACING,
                                       std::memory_order_relaxed);

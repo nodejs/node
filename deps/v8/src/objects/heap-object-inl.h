@@ -9,7 +9,7 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 // TODO(jkummerow): Get rid of this by moving NROSO::GetIsolate elsewhere.
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,20 +17,11 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(HeapObject, Object)
-CAST_ACCESSOR(HeapObject)
-
 HeapObject::HeapObject(Address ptr, AllowInlineSmiStorage allow_smi)
     : Object(ptr) {
   SLOW_DCHECK(
       (allow_smi == AllowInlineSmiStorage::kAllowBeingASmi && IsSmi()) ||
       IsHeapObject());
-}
-
-// static
-HeapObject HeapObject::FromAddress(Address address) {
-  DCHECK_TAG_ALIGNED(address);
-  return HeapObject(address + kHeapObjectTag);
 }
 
 // static

@@ -43,7 +43,8 @@ class Declarable {
   virtual ~Declarable() = default;
   enum Kind {
     kNamespace,
-    kMacro,
+    kTorqueMacro,
+    kExternMacro,
     kMethod,
     kBuiltin,
     kRuntimeFunction,
@@ -55,8 +56,10 @@ class Declarable {
   };
   Kind kind() const { return kind_; }
   bool IsNamespace() const { return kind() == kNamespace; }
-  bool IsMacro() const { return kind() == kMacro || kind() == kMethod; }
+  bool IsMacro() const { return IsTorqueMacro() || IsExternMacro(); }
+  bool IsTorqueMacro() const { return kind() == kTorqueMacro || IsMethod(); }
   bool IsMethod() const { return kind() == kMethod; }
+  bool IsExternMacro() const { return kind() == kExternMacro; }
   bool IsIntrinsic() const { return kind() == kIntrinsic; }
   bool IsBuiltin() const { return kind() == kBuiltin; }
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
@@ -72,7 +75,28 @@ class Declarable {
   }
   virtual const char* type_name() const { return "<<unknown>>"; }
   Scope* ParentScope() const { return parent_scope_; }
-  const SourcePosition& pos() const { return pos_; }
+
+  // The SourcePosition of the whole declarable. For example, for a macro
+  // this will encompass not only the signature, but also the body.
+  SourcePosition Position() const { return position_; }
+  void SetPosition(const SourcePosition& position) { position_ = position; }
+
+  // The SourcePosition of the identifying name of the declarable. For example,
+  // for a macro this will be the SourcePosition of the name.
+  // Note that this SourcePosition might not make sense for all kinds of
+  // declarables, in that case, the default SourcePosition is returned.
+  SourcePosition IdentifierPosition() const {
+    return identifier_position_.source.IsValid() ? identifier_position_
+                                                 : position_;
+  }
+  void SetIdentifierPosition(const SourcePosition& position) {
+    identifier_position_ = position;
+  }
+
+  bool IsUserDefined() const { return is_user_defined_; }
+  void SetIsUserDefined(bool is_user_defined) {
+    is_user_defined_ = is_user_defined;
+  }
 
  protected:
   explicit Declarable(Kind kind) : kind_(kind) {}
@@ -80,7 +104,9 @@ class Declarable {
  private:
   const Kind kind_;
   Scope* const parent_scope_ = CurrentScope::Get();
-  SourcePosition pos_ = CurrentSourcePosition::Get();
+  SourcePosition position_ = CurrentSourcePosition::Get();
+  SourcePosition identifier_position_ = SourcePosition::Invalid();
+  bool is_user_defined_ = true;
 };
 
 #define DECLARE_DECLARABLE_BOILERPLATE(x, y)                  \
@@ -155,9 +181,6 @@ class Namespace : public Scope {
   explicit Namespace(const std::string& name)
       : Scope(Declarable::kNamespace), name_(name) {}
   const std::string& name() const { return name_; }
-  std::string ExternalName() const {
-    return CamelifyString(name()) + "BuiltinsFromDSLAssembler";
-  }
   bool IsDefaultNamespace() const;
   bool IsTestNamespace() const;
   std::ostream& source_stream() { return source_stream_; }
@@ -208,18 +231,19 @@ class NamespaceConstant : public Value {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(NamespaceConstant, constant)
 
-  Expression* body() { return body_; }
-  std::string ExternalAssemblerName() const {
-    return Namespace::cast(ParentScope())->ExternalName();
-  }
+  const std::string& external_name() const { return external_name_; }
+  Expression* body() const { return body_; }
 
  private:
   friend class Declarations;
-  explicit NamespaceConstant(Identifier* constant_name, const Type* type,
+  explicit NamespaceConstant(Identifier* constant_name,
+                             std::string external_name, const Type* type,
                              Expression* body)
       : Value(Declarable::kNamespaceConstant, type, constant_name),
+        external_name_(std::move(external_name)),
         body_(body) {}
 
+  std::string external_name_;
   Expression* body_;
 };
 
@@ -288,39 +312,73 @@ class Macro : public Callable {
         if (type->IsStructType()) return true;
       }
     }
+    // Intrinsics that are used internally in Torque and implemented as torque
+    // code should be inlined and not generate C++ definitions.
+    if (ReadableName()[0] == '%') return true;
     return Callable::ShouldBeInlined();
   }
+
+ protected:
+  Macro(Declarable::Kind kind, std::string external_name,
+        std::string readable_name, const Signature& signature,
+        bool transitioning, base::Optional<Statement*> body)
+      : Callable(kind, std::move(external_name), std::move(readable_name),
+                 signature, transitioning, body) {
+    if (signature.parameter_types.var_args) {
+      ReportError("Varargs are not supported for macros.");
+    }
+  }
+};
+
+class ExternMacro : public Macro {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(ExternMacro, ExternMacro)
 
   const std::string& external_assembler_name() const {
     return external_assembler_name_;
   }
 
- protected:
-  Macro(Declarable::Kind kind, std::string external_name,
-        std::string readable_name, std::string external_assembler_name,
-        const Signature& signature, bool transitioning,
-        base::Optional<Statement*> body)
-      : Callable(kind, std::move(external_name), std::move(readable_name),
-                 signature, transitioning, body),
-        external_assembler_name_(std::move(external_assembler_name)) {
-    if (signature.parameter_types.var_args) {
-      ReportError("Varargs are not supported for macros.");
-    }
-  }
-
  private:
   friend class Declarations;
-  Macro(std::string external_name, std::string readable_name,
-        std::string external_assembler_name, const Signature& signature,
-        bool transitioning, base::Optional<Statement*> body)
-      : Macro(Declarable::kMacro, std::move(external_name),
-              std::move(readable_name), external_assembler_name, signature,
-              transitioning, body) {}
+  ExternMacro(const std::string& name, std::string external_assembler_name,
+              Signature signature, bool transitioning)
+      : Macro(Declarable::kExternMacro, name, name, std::move(signature),
+              transitioning, base::nullopt),
+        external_assembler_name_(std::move(external_assembler_name)) {}
 
   std::string external_assembler_name_;
 };
 
-class Method : public Macro {
+class TorqueMacro : public Macro {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(TorqueMacro, TorqueMacro)
+  bool IsExportedToCSA() const { return exported_to_csa_; }
+
+ protected:
+  TorqueMacro(Declarable::Kind kind, std::string external_name,
+              std::string readable_name, const Signature& signature,
+              bool transitioning, base::Optional<Statement*> body,
+              bool is_user_defined, bool exported_to_csa)
+      : Macro(kind, std::move(external_name), std::move(readable_name),
+              signature, transitioning, body),
+        exported_to_csa_(exported_to_csa) {
+    SetIsUserDefined(is_user_defined);
+  }
+
+ private:
+  friend class Declarations;
+  TorqueMacro(std::string external_name, std::string readable_name,
+              const Signature& signature, bool transitioning,
+              base::Optional<Statement*> body, bool is_user_defined,
+              bool exported_to_csa)
+      : TorqueMacro(Declarable::kTorqueMacro, std::move(external_name),
+                    std::move(readable_name), signature, transitioning, body,
+                    is_user_defined, exported_to_csa) {}
+
+  bool exported_to_csa_ = false;
+};
+
+class Method : public TorqueMacro {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Method, Method)
   bool ShouldBeInlined() const override {
@@ -334,11 +392,11 @@ class Method : public Macro {
  private:
   friend class Declarations;
   Method(AggregateType* aggregate_type, std::string external_name,
-         std::string readable_name, std::string external_assembler_name,
-         const Signature& signature, bool transitioning, Statement* body)
-      : Macro(Declarable::kMethod, std::move(external_name),
-              std::move(readable_name), std::move(external_assembler_name),
-              signature, transitioning, body),
+         std::string readable_name, const Signature& signature,
+         bool transitioning, Statement* body)
+      : TorqueMacro(Declarable::kMethod, std::move(external_name),
+                    std::move(readable_name), signature, transitioning, body,
+                    true, false),
         aggregate_type_(aggregate_type) {}
   AggregateType* aggregate_type_;
 };
@@ -437,7 +495,11 @@ class TypeAlias : public Declarable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(TypeAlias, type_alias)
 
-  const Type* type() const { return type_; }
+  const Type* type() const {
+    if (type_) return *type_;
+    return Resolve();
+  }
+  const Type* Resolve() const;
   bool IsRedeclaration() const { return redeclaration_; }
   SourcePosition GetDeclarationPosition() const {
     return declaration_position_;
@@ -445,6 +507,8 @@ class TypeAlias : public Declarable {
 
  private:
   friend class Declarations;
+  friend class TypeVisitor;
+
   explicit TypeAlias(
       const Type* type, bool redeclaration,
       SourcePosition declaration_position = SourcePosition::Invalid())
@@ -452,8 +516,17 @@ class TypeAlias : public Declarable {
         type_(type),
         redeclaration_(redeclaration),
         declaration_position_(declaration_position) {}
+  explicit TypeAlias(
+      TypeDeclaration* type, bool redeclaration,
+      SourcePosition declaration_position = SourcePosition::Invalid())
+      : Declarable(Declarable::kTypeAlias),
+        delayed_(type),
+        redeclaration_(redeclaration),
+        declaration_position_(declaration_position) {}
 
-  const Type* type_;
+  mutable bool being_resolved_ = false;
+  mutable base::Optional<TypeDeclaration*> delayed_;
+  mutable base::Optional<const Type*> type_;
   bool redeclaration_;
   const SourcePosition declaration_position_;
 };

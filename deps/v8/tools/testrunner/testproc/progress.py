@@ -7,11 +7,17 @@ from __future__ import print_function
 
 import json
 import os
+import platform
+import subprocess
 import sys
 import time
 
 from . import base
-from ..local import junit_output
+
+
+# Base dir of the build products for Release and Debug.
+OUT_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..', '..', 'out'))
 
 
 def print_failure_header(test):
@@ -121,11 +127,27 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
     self._print('Done running %s %s: %s' % (
       test, test.variant or 'default', outcome))
 
+  # TODO(machenbach): Remove this platform specific hack and implement a proper
+  # feedback channel from the workers, providing which tests are currently run.
+  def _print_processes_linux(self):
+    if platform.system() == 'Linux':
+      try:
+        cmd = 'ps -aux | grep "%s"' % OUT_DIR
+        output = subprocess.check_output(cmd, shell=True)
+        self._print('List of processes:')
+        for line in (output or '').splitlines():
+          # Show command with pid, but other process info cut off.
+          self._print('pid: %s cmd: %s' %
+                      (line.split()[1], line[line.index(OUT_DIR):]))
+      except:
+        pass
+
   def _on_heartbeat(self):
     if time.time() - self._last_printed_time > 30:
       # Print something every 30 seconds to not get killed by an output
       # timeout.
       self._print('Still working...')
+      self._print_processes_linux()
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):
@@ -257,45 +279,6 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 
   def _clear_line(self, last_length):
     print(("\r" + (" " * last_length) + "\r"), end='')
-
-
-class JUnitTestProgressIndicator(ProgressIndicator):
-  def __init__(self, junitout, junittestsuite):
-    super(JUnitTestProgressIndicator, self).__init__()
-    self._requirement = base.DROP_PASS_STDOUT
-
-    self.outputter = junit_output.JUnitTestOutput(junittestsuite)
-    if junitout:
-      self.outfile = open(junitout, "w")
-    else:
-      self.outfile = sys.stdout
-
-  def _on_result_for(self, test, result):
-    # TODO(majeski): Support for dummy/grouped results
-    fail_text = ""
-    output = result.output
-    if result.has_unexpected_output:
-      stdout = output.stdout.strip()
-      if len(stdout):
-        fail_text += "stdout:\n%s\n" % stdout
-      stderr = output.stderr.strip()
-      if len(stderr):
-        fail_text += "stderr:\n%s\n" % stderr
-      fail_text += "Command: %s" % result.cmd.to_string()
-      if output.HasCrashed():
-        fail_text += "exit code: %d\n--- CRASHED ---" % output.exit_code
-      if output.HasTimedOut():
-        fail_text += "--- TIMEOUT ---"
-    self.outputter.HasRunTest(
-        test_name=str(test),
-        test_cmd=result.cmd.to_string(relative=True),
-        test_duration=output.duration,
-        test_failure=fail_text)
-
-  def finished(self):
-    self.outputter.FinishAndWrite(self.outfile)
-    if self.outfile != sys.stdout:
-      self.outfile.close()
 
 
 class JsonTestProgressIndicator(ProgressIndicator):

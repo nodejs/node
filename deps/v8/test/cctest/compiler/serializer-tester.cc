@@ -8,10 +8,10 @@
 
 #include "test/cctest/compiler/serializer-tester.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/serializer-for-background-compilation.h"
 #include "src/compiler/zone-stats.h"
-#include "src/optimized-compilation-info.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -30,6 +30,7 @@ SerializerTester::SerializerTester(const char* source)
   FLAG_always_opt = false;
   // We need allocation of executable memory for the compilation.
   FLAG_jitless = false;
+  FLAG_allow_natives_syntax = true;
 
   std::string function_string = "(function() { ";
   function_string += source;
@@ -45,11 +46,12 @@ SerializerTester::SerializerTester(const char* source)
                    i::OptimizedCompilationInfo::kSplittingEnabled |
                    i::OptimizedCompilationInfo::kAnalyzeEnvironmentLiveness;
   Optimize(function, main_zone(), main_isolate(), flags, &broker_);
-  function_ = JSFunctionRef(broker_, function);
+  function_ = JSFunctionRef(broker(), function);
 }
 
 TEST(SerializeEmptyFunction) {
-  SerializerTester tester("function f() {}; return f;");
+  SerializerTester tester(
+      "function f() {}; %EnsureFeedbackVectorForFunction(f); return f;");
   CHECK(tester.function().IsSerializedForCompilation());
 }
 
@@ -79,32 +81,45 @@ void CheckForSerializedInlinee(const char* source, int argc = 0,
 TEST(SerializeInlinedClosure) {
   CheckForSerializedInlinee(
       "function f() {"
-      "  return (function g(){ return g; })();"
-      "}; f(); return f;");
+      "  function g(){ return g; }"
+      "  %EnsureFeedbackVectorForFunction(g);"
+      "  return g();"
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(); return f;");
 }
 
 TEST(SerializeInlinedFunction) {
   CheckForSerializedInlinee(
       "function g() {};"
+      "%EnsureFeedbackVectorForFunction(g);"
       "function f() {"
       "  g(); return g;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(); return f;");
 }
 
 TEST(SerializeCallUndefinedReceiver) {
   CheckForSerializedInlinee(
       "function g(a,b,c) {};"
+      "%EnsureFeedbackVectorForFunction(g);"
       "function f() {"
       "  g(1,2,3); return g;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(); return f;");
 }
 
 TEST(SerializeCallUndefinedReceiver2) {
   CheckForSerializedInlinee(
       "function g(a,b) {};"
+      "%EnsureFeedbackVectorForFunction(g);"
       "function f() {"
       "  g(1,2); return g;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(); return f;");
 }
 
 TEST(SerializeCallProperty) {
@@ -112,9 +127,12 @@ TEST(SerializeCallProperty) {
       "let obj = {"
       "  g: function g(a,b,c) {}"
       "};"
+      "%EnsureFeedbackVectorForFunction(obj.g);"
       "function f() {"
       "  obj.g(1,2,3); return obj.g;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(); return f;");
 }
 
 TEST(SerializeCallProperty2) {
@@ -122,9 +140,12 @@ TEST(SerializeCallProperty2) {
       "let obj = {"
       "  g: function g(a,b) {}"
       "};"
+      "%EnsureFeedbackVectorForFunction(obj.g);"
       "function f() {"
       "  obj.g(1,2); return obj.g;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(); return f;");
 }
 
 TEST(SerializeCallAnyReceiver) {
@@ -132,21 +153,26 @@ TEST(SerializeCallAnyReceiver) {
       "let obj = {"
       "  g: function g() {}"
       "};"
+      "%EnsureFeedbackVectorForFunction(obj.g);"
       "function f() {"
       "  with(obj) {"
       "    g(); return g;"
       "  };"
       "};"
+      "%EnsureFeedbackVectorForFunction(f);"
       "f(); return f;");
 }
 
 TEST(SerializeCallWithSpread) {
   CheckForSerializedInlinee(
       "function g(args) {};"
+      "%EnsureFeedbackVectorForFunction(g);"
       "const arr = [1,2,3];"
       "function f() {"
       "  g(...arr); return g;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(); return f;");
 }
 
 // The following test causes the CallIC of `g` to turn megamorphic,
@@ -157,38 +183,53 @@ TEST(SerializeCallArguments) {
       "function g(callee) { callee(); };"
       "function h() {};"
       "function i() {};"
+      "%EnsureFeedbackVectorForFunction(g);"
       "g(h); g(i);"
       "function f() {"
       "  function j() {};"
       "  g(j);"
       "  return j;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "var j = f();"
+      "%EnsureFeedbackVectorForFunction(j);"
+      "f(); return f;");
 }
 
 TEST(SerializeConstruct) {
   CheckForSerializedInlinee(
       "function g() {};"
+      "%EnsureFeedbackVectorForFunction(g);"
       "function f() {"
       "  new g(); return g;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(); return f;");
 }
 
 TEST(SerializeConstructWithSpread) {
   CheckForSerializedInlinee(
       "function g(a, b, c) {};"
+      "%EnsureFeedbackVectorForFunction(g);"
       "const arr = [1, 2];"
       "function f() {"
       "  new g(0, ...arr); return g;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(); return f;");
 }
 
 TEST(SerializeConstructSuper) {
   CheckForSerializedInlinee(
       "class A {};"
       "class B extends A { constructor() { super(); } };"
+      "%EnsureFeedbackVectorForFunction(A);"
+      "%EnsureFeedbackVectorForFunction(B);"
       "function f() {"
       "  new B(); return A;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(); return f;");
 }
 
 TEST(SerializeConditionalJump) {
@@ -196,13 +237,18 @@ TEST(SerializeConditionalJump) {
       "function g(callee) { callee(); };"
       "function h() {};"
       "function i() {};"
+      "%EnsureFeedbackVectorForFunction(g);"
       "let a = true;"
       "g(h); g(i);"
       "function f() {"
       "  function q() {};"
       "  if (a) g(q);"
       "  return q;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "var q = f();"
+      "%EnsureFeedbackVectorForFunction(q);"
+      "f(); return f;");
 }
 
 TEST(SerializeUnconditionalJump) {
@@ -210,6 +256,9 @@ TEST(SerializeUnconditionalJump) {
       "function g(callee) { callee(); };"
       "function h() {};"
       "function i() {};"
+      "%EnsureFeedbackVectorForFunction(g);"
+      "%EnsureFeedbackVectorForFunction(h);"
+      "%EnsureFeedbackVectorForFunction(i);"
       "let a = false;"
       "g(h); g(i);"
       "function f() {"
@@ -218,7 +267,11 @@ TEST(SerializeUnconditionalJump) {
       "  if (a) g(q);"
       "  else g(p);"
       "  return p;"
-      "}; f(); return f;");
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "var p = f();"
+      "%EnsureFeedbackVectorForFunction(p);"
+      "f(); return f;");
 }
 
 }  // namespace compiler

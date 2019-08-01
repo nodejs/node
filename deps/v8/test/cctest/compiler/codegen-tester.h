@@ -5,11 +5,11 @@
 #ifndef V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 #define V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
-#include "src/optimized-compilation-info.h"
-#include "src/simulator.h"
+#include "src/execution/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 
@@ -216,11 +216,11 @@ template <typename CType, bool use_result_buffer>
 class BinopTester {
  public:
   explicit BinopTester(RawMachineAssemblerTester<int32_t>* tester,
-                       MachineType rep)
+                       MachineType type)
       : T(tester),
-        param0(T->LoadFromPointer(&p0, rep)),
-        param1(T->LoadFromPointer(&p1, rep)),
-        rep(rep),
+        param0(T->LoadFromPointer(&p0, type)),
+        param1(T->LoadFromPointer(&p1, type)),
+        type(type),
         p0(static_cast<CType>(0)),
         p1(static_cast<CType>(0)),
         result(static_cast<CType>(0)) {}
@@ -242,7 +242,7 @@ class BinopTester {
 
   void AddReturn(Node* val) {
     if (use_result_buffer) {
-      T->Store(rep.representation(), T->PointerConstant(&result),
+      T->Store(type.representation(), T->PointerConstant(&result),
                T->Int32Constant(0), val, kNoWriteBarrier);
       T->Return(T->Int32Constant(CHECK_VALUE));
     } else {
@@ -262,7 +262,7 @@ class BinopTester {
   }
 
  protected:
-  MachineType rep;
+  MachineType type;
   CType p0;
   CType p1;
   CType result;

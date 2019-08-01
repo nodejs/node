@@ -6,9 +6,9 @@
 #define V8_COMPILER_FRAME_STATES_H_
 
 #include "src/builtins/builtins.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects/shared-function-info.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -160,6 +160,10 @@ Node* CreateJavaScriptBuiltinContinuationFrameState(
     Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode);
+
+Node* CreateGenericLazyDeoptContinuationFrameState(
+    JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
+    Node* context, Node* receiver, Node* outer_frame_state);
 
 }  // namespace compiler
 }  // namespace internal

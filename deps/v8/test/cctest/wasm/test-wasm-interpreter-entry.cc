@@ -4,9 +4,9 @@
 
 #include <cstdint>
 
-#include "src/assembler-inl.h"
 #include "src/base/overflowing-math.h"
-#include "src/objects-inl.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -59,7 +59,7 @@ class ArgPassingHelper {
     Handle<Object> arg_objs[] = {isolate_->factory()->NewNumber(args)...};
 
     uint64_t num_interpreted_before = debug_info_->NumInterpretedCalls();
-    Handle<Object> global(isolate_->context()->global_object(), isolate_);
+    Handle<Object> global(isolate_->context().global_object(), isolate_);
     MaybeHandle<Object> retval = Execution::Call(
         isolate_, main_fun_wrapper_, global, arraysize(arg_objs), arg_objs);
     uint64_t num_interpreted_after = debug_info_->NumInterpretedCalls();

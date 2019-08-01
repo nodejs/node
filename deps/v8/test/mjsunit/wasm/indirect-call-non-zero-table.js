@@ -68,11 +68,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   // We want to crash if we call through the table with index 0.
   builder.addElementSegment(placeholder, 0, false,
-    [f_unreachable, f_unreachable, f_unreachable], false);
-  builder.addElementSegment(table1, 0, false, [f1, f2, f3], false);
+    [f_unreachable, f_unreachable, f_unreachable]);
+  builder.addElementSegment(table1, 0, false, [f1, f2, f3]);
   // Keep one slot in table2 uninitialized. We should trap if we call it.
   builder.addElementSegment(table2, 1, false,
-    [f_unreachable, f_unreachable, f4, f5], false);
+    [f_unreachable, f_unreachable, f4, f5]);
 
   const instance = builder.instantiate();
 
@@ -126,7 +126,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       kExprCallIndirect, sig_index, t1])
     .exportAs('call');
 
-  builder.addElementSegment(t1, g, true, [f1.index], true);
+  builder.addElementSegment(t1, g, true, [f1.index]);
   const base1 = 3;
   const base2 = 5;
 

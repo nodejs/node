@@ -5,10 +5,10 @@
 #ifndef V8_AST_PRETTYPRINTER_H_
 #define V8_AST_PRETTYPRINTER_H_
 
-#include "src/allocation.h"
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
-#include "src/function-kind.h"
+#include "src/utils/allocation.h"
+#include "src/objects/function-kind.h"
 
 namespace v8 {
 namespace internal {

@@ -23,6 +23,7 @@ function listener(event, exec_state, event_data, data) {
   break_count++;
 }
 
+%PrepareFunctionForOptimization(g);
 g();
 g();
 %OptimizeFunctionOnNextCall(g);

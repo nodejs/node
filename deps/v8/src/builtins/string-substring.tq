@@ -1,0 +1,50 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace string_substring {
+
+  extern macro SubString(String, intptr, intptr): String;
+
+  transitioning macro ToSmiBetweenZeroAnd(implicit context: Context)(
+      value: Object, limit: Smi): Smi {
+    const valueInt: Number =
+        ToInteger_Inline(context, value, kTruncateMinusZero);
+    typeswitch (valueInt) {
+      case (valueSmi: Smi): {
+        if (SmiAbove(valueSmi, limit)) {
+          return valueSmi < 0 ? 0 : limit;
+        }
+        return valueSmi;
+      }
+      // {value} is a heap number - in this case, it is definitely out of
+      // bounds.
+      case (hn: HeapNumber): {
+        const valueFloat: float64 = LoadHeapNumberValue(hn);
+        return valueFloat < 0. ? 0 : limit;
+      }
+    }
+  }
+
+  // ES6 #sec-string.prototype.substring
+  transitioning javascript builtin StringPrototypeSubstring(
+      implicit context: Context)(receiver: Object, ...arguments): String {
+    // Check that {receiver} is coercible to Object and convert it to a String.
+    const string: String = ToThisString(receiver, 'String.prototype.substring');
+    const length = string.length_smi;
+
+    // Conversion and bounds-checks for {start}.
+    let start: Smi = ToSmiBetweenZeroAnd(arguments[0], length);
+
+    // Conversion and bounds-checks for {end}.
+    let end: Smi = arguments[1] == Undefined ?
+        length :
+        ToSmiBetweenZeroAnd(arguments[1], length);
+    if (end < start) {
+      const tmp: Smi = end;
+      end = start;
+      start = tmp;
+    }
+    return SubString(string, SmiUntag(start), SmiUntag(end));
+  }
+}

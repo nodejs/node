@@ -12,8 +12,8 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/functional.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -284,7 +284,6 @@ ConstantArrayBuilder::OperandSizeToSlice(OperandSize operand_size) const {
   switch (operand_size) {
     case OperandSize::kNone:
       UNREACHABLE();
-      break;
     case OperandSize::kByte:
       slice = idx_slice_[0];
       break;

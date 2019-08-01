@@ -12,7 +12,9 @@
 
   function foo(o) { return o.x; }
   %PrepareFunctionForOptimization(foo);
-  foo(new O(1));
+  // We need to keep an instance around to make the GC stress testing work.
+  const o1 = new O(1);
+  foo(o1);
   foo(new O(2));
   %OptimizeFunctionOnNextCall(foo);
   foo(new O(3));
@@ -29,7 +31,9 @@
 
   function foo(o) { o.x = 0; }
   %PrepareFunctionForOptimization(foo);
-  foo(new O(1));
+  // We need to keep an instance around to make the GC stress testing work.
+  const o1 = new O(1);
+  foo(o1);
   foo(new O(2));
   %OptimizeFunctionOnNextCall(foo);
   foo(new O(3));
@@ -46,7 +50,9 @@
 
   function foo(o) { return o.x; }
   %PrepareFunctionForOptimization(foo);
-  foo(new O(null));
+  // We need to keep an instance around to make the GC stress testing work.
+  const onull = new O(null);
+  foo(onull);
   foo(new O("Hello"));
   %OptimizeFunctionOnNextCall(foo);
   foo(new O({}));
@@ -63,7 +69,9 @@
 
   function foo(o) { o.x = true; }
   %PrepareFunctionForOptimization(foo);
-  foo(new O(null));
+  // We need to keep an instance around to make the GC stress testing work.
+  const onull = new O(null);
+  foo(onull);
   foo(new O("Hello"));
   %OptimizeFunctionOnNextCall(foo);
   foo(new O({}));

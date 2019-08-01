@@ -6,12 +6,12 @@
 
 #include <iomanip>
 
-#include "src/assembler-inl.h"
 #include "src/base/adapters.h"
 #include "src/base/small-vector.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/compiler/linkage.h"
-#include "src/string-stream.h"
-#include "src/vector.h"
+#include "src/strings/string-stream.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -2093,7 +2093,6 @@ int LiveRangeBuilder::FixedFPLiveRangeID(int index, MachineRepresentation rep) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return result;
 }

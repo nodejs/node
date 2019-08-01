@@ -5,11 +5,11 @@
 #ifndef V8_BUILTINS_BUILTINS_UTILS_H_
 #define V8_BUILTINS_BUILTINS_UTILS_H_
 
-#include "src/arguments.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
+#include "src/execution/arguments.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -66,31 +66,31 @@ class BuiltinArguments : public Arguments {
 // through the BuiltinArguments object args.
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
-#define BUILTIN(name)                                                        \
-  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                   \
-      BuiltinArguments args, Isolate* isolate);                              \
-                                                                             \
-  V8_NOINLINE static Address Builtin_Impl_Stats_##name(                      \
-      int args_length, Address* args_object, Isolate* isolate) {             \
-    BuiltinArguments args(args_length, args_object);                         \
-    RuntimeCallTimerScope timer(isolate,                                     \
-                                RuntimeCallCounterId::kBuiltin_##name);      \
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                    \
-                 "V8.Builtin_" #name);                                       \
-    return Builtin_Impl_##name(args, isolate)->ptr();                        \
-  }                                                                          \
-                                                                             \
-  V8_WARN_UNUSED_RESULT Address Builtin_##name(                              \
-      int args_length, Address* args_object, Isolate* isolate) {             \
-    DCHECK(isolate->context().is_null() || isolate->context()->IsContext()); \
-    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {             \
-      return Builtin_Impl_Stats_##name(args_length, args_object, isolate);   \
-    }                                                                        \
-    BuiltinArguments args(args_length, args_object);                         \
-    return Builtin_Impl_##name(args, isolate)->ptr();                        \
-  }                                                                          \
-                                                                             \
-  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                   \
+#define BUILTIN(name)                                                       \
+  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
+      BuiltinArguments args, Isolate* isolate);                             \
+                                                                            \
+  V8_NOINLINE static Address Builtin_Impl_Stats_##name(                     \
+      int args_length, Address* args_object, Isolate* isolate) {            \
+    BuiltinArguments args(args_length, args_object);                        \
+    RuntimeCallTimerScope timer(isolate,                                    \
+                                RuntimeCallCounterId::kBuiltin_##name);     \
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                   \
+                 "V8.Builtin_" #name);                                      \
+    return Builtin_Impl_##name(args, isolate).ptr();                        \
+  }                                                                         \
+                                                                            \
+  V8_WARN_UNUSED_RESULT Address Builtin_##name(                             \
+      int args_length, Address* args_object, Isolate* isolate) {            \
+    DCHECK(isolate->context().is_null() || isolate->context().IsContext()); \
+    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {            \
+      return Builtin_Impl_Stats_##name(args_length, args_object, isolate);  \
+    }                                                                       \
+    BuiltinArguments args(args_length, args_object);                        \
+    return Builtin_Impl_##name(args, isolate).ptr();                        \
+  }                                                                         \
+                                                                            \
+  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
       BuiltinArguments args, Isolate* isolate)
 
 // ----------------------------------------------------------------------------

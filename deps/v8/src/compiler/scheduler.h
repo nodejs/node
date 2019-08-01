@@ -6,11 +6,11 @@
 #define V8_COMPILER_SCHEDULER_H_
 
 #include "src/base/flags.h"
+#include "src/common/globals.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/zone-stats.h"
-#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

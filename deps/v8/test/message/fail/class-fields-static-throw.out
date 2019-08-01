@@ -1,6 +1,6 @@
-*%(basename)s:10: ReferenceError: foo is not defined
+*%(basename)s:8: ReferenceError: foo is not defined
   static x = foo();
              ^
 ReferenceError: foo is not defined
-    at Function.<static_fields_initializer> (*%(basename)s:10:14)
+    at Function.<static_fields_initializer> (*%(basename)s:8:14)
     at *%(basename)s:1:1

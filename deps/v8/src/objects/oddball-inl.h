@@ -7,9 +7,9 @@
 
 #include "src/objects/oddball.h"
 
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/string-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -18,32 +18,19 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Oddball, HeapObject)
-
-CAST_ACCESSOR(Oddball)
-
-double Oddball::to_number_raw() const {
-  return READ_DOUBLE_FIELD(*this, kToNumberRawOffset);
-}
-
-void Oddball::set_to_number_raw(double value) {
-  WRITE_DOUBLE_FIELD(*this, kToNumberRawOffset, value);
-}
+TQ_OBJECT_CONSTRUCTORS_IMPL(Oddball)
 
 void Oddball::set_to_number_raw_as_bits(uint64_t bits) {
-  WRITE_UINT64_FIELD(*this, kToNumberRawOffset, bits);
+  // Bug(v8:8875): HeapNumber's double may be unaligned.
+  WriteUnalignedValue<uint64_t>(field_address(kToNumberRawOffset), bits);
 }
 
-ACCESSORS(Oddball, to_string, String, kToStringOffset)
-ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
-ACCESSORS(Oddball, type_of, String, kTypeOfOffset)
-
 byte Oddball::kind() const {
-  return Smi::ToInt(READ_FIELD(*this, kKindOffset));
+  return Smi::ToInt(TorqueGeneratedOddball::kind());
 }
 
 void Oddball::set_kind(byte value) {
-  WRITE_FIELD(*this, kKindOffset, Smi::FromInt(value));
+  TorqueGeneratedOddball::set_kind(Smi::FromInt(value));
 }
 
 // static
@@ -53,7 +40,7 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
 
 bool HeapObject::IsBoolean() const {
   return IsOddball() &&
-         ((Oddball::cast(*this)->kind() & Oddball::kNotBooleanMask) == 0);
+         ((Oddball::cast(*this).kind() & Oddball::kNotBooleanMask) == 0);
 }
 
 }  // namespace internal

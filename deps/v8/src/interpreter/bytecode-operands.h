@@ -5,8 +5,8 @@
 #ifndef V8_INTERPRETER_BYTECODE_OPERANDS_H_
 #define V8_INTERPRETER_BYTECODE_OPERANDS_H_
 
-#include "src/globals.h"
-#include "src/utils.h"
+#include "src/common/globals.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

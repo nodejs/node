@@ -7,17 +7,17 @@
 #include <limits>
 
 #include "src/base/overflowing-math.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/x64/assembler-x64.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
-#include "src/macro-assembler.h"
 #include "src/objects/smi.h"
-#include "src/optimized-compilation-info.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
-#include "src/x64/assembler-x64.h"
 
 namespace v8 {
 namespace internal {
@@ -201,7 +201,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
         zone_(gen->zone()) {}
 
   void Generate() final {
-    __ subq(rsp, Immediate(kDoubleSize));
+    __ AllocateStackSpace(kDoubleSize);
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                       kDoubleSize);
     __ Movsd(MemOperand(rsp, 0), input_);
@@ -246,6 +246,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
+    }
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTaggedPointer(value_, value_);
     }
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, zero,
@@ -322,8 +325,7 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       __ near_call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
       ReferenceMap* reference_map =
           new (gen_->zone()) ReferenceMap(gen_->zone());
-      gen_->RecordSafepoint(reference_map, Safepoint::kSimple,
-                            Safepoint::kNoLazyDeopt);
+      gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
     }
   }
@@ -612,7 +614,7 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
 namespace {
 
-void AdjustStackPointerForTailCall(Assembler* assembler,
+void AdjustStackPointerForTailCall(TurboAssembler* assembler,
                                    FrameAccessState* state,
                                    int new_slot_above_sp,
                                    bool allow_shrinkage = true) {
@@ -620,7 +622,7 @@ void AdjustStackPointerForTailCall(Assembler* assembler,
                           StandardFrameConstants::kFixedSlotCountAboveFp;
   int stack_slot_delta = new_slot_above_sp - current_sp_offset;
   if (stack_slot_delta > 0) {
-    assembler->subq(rsp, Immediate(stack_slot_delta * kSystemPointerSize));
+    assembler->AllocateStackSpace(stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
     assembler->addq(rsp, Immediate(-stack_slot_delta * kSystemPointerSize));
@@ -899,6 +901,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
+      Label return_location;
+      if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
+        // Put the return address in a stack slot.
+        __ leaq(kScratchRegister, Operand(&return_location, 0));
+        __ movq(MemOperand(rbp, WasmExitFrameConstants::kCallingPCOffset),
+                kScratchRegister);
+      }
       if (HasImmediateInput(instr, 0)) {
         ExternalReference ref = i.InputExternalReference(0);
         __ CallCFunction(ref, num_parameters);
@@ -906,6 +915,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters);
       }
+      __ bind(&return_location);
+      RecordSafepoint(instr->reference_map(), Safepoint::kNoLazyDeopt);
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -1018,6 +1029,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           OutOfLineRecordWrite(this, object, operand, value, scratch0, scratch1,
                                mode, DetermineStubCallMode());
       __ StoreTaggedField(operand, value);
+      if (COMPRESS_POINTERS_BOOL) {
+        __ DecompressTaggedPointer(object, object);
+      }
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
@@ -1354,7 +1368,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Movapd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     case kSSEFloat64Mod: {
-      __ subq(rsp, Immediate(kDoubleSize));
+      __ AllocateStackSpace(kDoubleSize);
       unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                        kDoubleSize);
       // Move values to st(0) and st(1).
@@ -1955,42 +1969,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64DecompressSigned: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_MOVX(movsxlq);
+      ASSEMBLE_MOVX(DecompressTaggedSigned);
       break;
     }
     case kX64DecompressPointer: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_MOVX(movsxlq);
-      __ addq(i.OutputRegister(), kRootRegister);
+      ASSEMBLE_MOVX(DecompressTaggedPointer);
       break;
     }
     case kX64DecompressAny: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_MOVX(movsxlq);
-      // TODO(solanes): Do branchful compute?
-      // Branchlessly compute |masked_root|:
-      STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
-      Register masked_root = kScratchRegister;
-      __ movl(masked_root, i.OutputRegister());
-      __ andl(masked_root, Immediate(kSmiTagMask));
-      __ negq(masked_root);
-      __ andq(masked_root, kRootRegister);
-      // Now this add operation will either leave the value unchanged if it is a
-      // smi or add the isolate root if it is a heap object.
-      __ addq(i.OutputRegister(), masked_root);
+      ASSEMBLE_MOVX(DecompressAnyTagged);
       break;
     }
-    // TODO(solanes): Combine into one Compress? They seem to be identical.
-    // TODO(solanes): We might get away with doing a no-op in these three cases.
-    // The movl instruction is the conservative way for the moment.
-    case kX64CompressSigned: {
-      ASSEMBLE_MOVX(movl);
-      break;
-    }
-    case kX64CompressPointer: {
-      ASSEMBLE_MOVX(movl);
-      break;
-    }
+    case kX64CompressSigned:   // Fall through.
+    case kX64CompressPointer:  // Fall through.
     case kX64CompressAny: {
       ASSEMBLE_MOVX(movl);
       break;
@@ -2184,14 +2177,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else if (instr->InputAt(0)->IsFloatRegister() ||
                  instr->InputAt(0)->IsDoubleRegister()) {
         // TODO(titzer): use another machine instruction?
-        __ subq(rsp, Immediate(kDoubleSize));
+        __ AllocateStackSpace(kDoubleSize);
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kDoubleSize);
         __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
       } else if (instr->InputAt(0)->IsSimd128Register()) {
         // TODO(titzer): use another machine instruction?
-        __ subq(rsp, Immediate(kSimd128Size));
+        __ AllocateStackSpace(kSimd128Size);
         frame_access_state()->IncreaseSPDelta(kSimd128Size /
                                               kSystemPointerSize);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
@@ -2208,7 +2201,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK(instr->InputAt(0)->IsSimd128StackSlot());
         __ Movups(kScratchDoubleReg, i.InputOperand(0));
         // TODO(titzer): use another machine instruction?
-        __ subq(rsp, Immediate(kSimd128Size));
+        __ AllocateStackSpace(kSimd128Size);
         frame_access_state()->IncreaseSPDelta(kSimd128Size /
                                               kSystemPointerSize);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
@@ -3750,7 +3743,8 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(info()->GetOutputStackFrameType());
       if (call_descriptor->IsWasmFunctionCall()) {
         __ pushq(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper()) {
+      } else if (call_descriptor->IsWasmImportWrapper() ||
+                 call_descriptor->IsWasmCapiFunction()) {
         // WASM import wrappers are passed a tuple in the place of the instance.
         // Unpack the tuple into the instance and the target callable.
         // This must be done here in the codegen because it cannot be expressed
@@ -3762,6 +3756,10 @@ void CodeGenerator::AssembleConstructFrame() {
             kWasmInstanceRegister,
             FieldOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
         __ pushq(kWasmInstanceRegister);
+        if (call_descriptor->IsWasmCapiFunction()) {
+          // Reserve space for saving the PC later.
+          __ AllocateStackSpace(kSystemPointerSize);
+        }
       }
     }
 
@@ -3813,8 +3811,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ near_call(wasm::WasmCode::kWasmStackOverflow,
                    RelocInfo::WASM_STUB_CALL);
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
-      RecordSafepoint(reference_map, Safepoint::kSimple,
-                      Safepoint::kNoLazyDeopt);
+      RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
       __ bind(&done);
     }
@@ -3825,7 +3822,7 @@ void CodeGenerator::AssembleConstructFrame() {
                       (kQuadWordSize / kSystemPointerSize);
     required_slots -= frame()->GetReturnSlotCount();
     if (required_slots > 0) {
-      __ subq(rsp, Immediate(required_slots * kSystemPointerSize));
+      __ AllocateStackSpace(required_slots * kSystemPointerSize);
     }
   }
 
@@ -3833,7 +3830,7 @@ void CodeGenerator::AssembleConstructFrame() {
     const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
     const int stack_size = saves_fp_count * kQuadWordSize;
     // Adjust the stack pointer.
-    __ subq(rsp, Immediate(stack_size));
+    __ AllocateStackSpace(stack_size);
     // Store the registers on the stack.
     int slot_idx = 0;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
@@ -3853,7 +3850,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   // Allocate return slots (located after callee-saved).
   if (frame()->GetReturnSlotCount() > 0) {
-    __ subq(rsp, Immediate(frame()->GetReturnSlotCount() * kSystemPointerSize));
+    __ AllocateStackSpace(frame()->GetReturnSlotCount() * kSystemPointerSize);
   }
 }
 
@@ -4194,7 +4191,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     }
     default:
       UNREACHABLE();
-      break;
   }
 }
 

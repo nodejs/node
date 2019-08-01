@@ -55,6 +55,7 @@ function throwInlinedUncaughtError() {
   function inlinedWrapper() {
     throwUserException();
   }
+  %PrepareFunctionForOptimization(inlinedWrapper);
   %OptimizeFunctionOnNextCall(inlinedWrapper);
   inlinedWrapper();
 }
@@ -63,6 +64,7 @@ function syncDOMBreakpointWithInlinedUserFrame() {
   function inlinedWrapper() {
     userFunction();
   }
+  %PrepareFunctionForOptimization(inlinedWrapper);
   %OptimizeFunctionOnNextCall(inlinedWrapper);
   inlinedWrapper();
 }

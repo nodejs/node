@@ -5,7 +5,7 @@
 #ifndef V8_IC_ACCESSOR_ASSEMBLER_H_
 #define V8_IC_ACCESSOR_ASSEMBLER_H_
 
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -296,10 +296,6 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                              Representation representation, Node* value,
                              Label* bailout);
 
-  void BranchIfPrototypeShouldbeFast(Node* receiver_map,
-                                     Label* prototype_not_fast,
-                                     Label* prototype_fast);
-
   // Extends properties backing store by JSObject::kFieldsAdded elements,
   // returns updated properties backing store.
   Node* ExtendPropertiesBackingStore(Node* object, Node* index);
@@ -311,7 +307,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void EmitFastElementsBoundsCheck(Node* object, Node* elements,
                                    Node* intptr_index,
                                    Node* is_jsarray_condition, Label* miss);
-  void EmitElementLoad(Node* object, Node* elements, Node* elements_kind,
+  void EmitElementLoad(Node* object, Node* elements_kind,
                        SloppyTNode<IntPtrT> key, Node* is_jsarray_condition,
                        Label* if_hole, Label* rebox_double,
                        Variable* var_double_value,

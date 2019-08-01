@@ -6,13 +6,13 @@
 
 #include "src/regexp/x64/regexp-macro-assembler-x64.h"
 
+#include "src/codegen/macro-assembler.h"
 #include "src/heap/factory.h"
-#include "src/log.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/logging/log.h"
+#include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/unicode.h"
+#include "src/strings/unicode.h"
 
 namespace v8 {
 namespace internal {
@@ -746,7 +746,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ bind(&stack_ok);
 
   // Allocate space on stack for registers.
-  __ subq(rsp, Immediate(num_registers_ * kSystemPointerSize));
+  __ AllocateStackSpace(num_registers_ * kSystemPointerSize);
   // Load string length.
   __ movq(rsi, Operand(rbp, kInputEnd));
   // Load input position.
@@ -765,18 +765,6 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ movq(Operand(rbp, kStringStartMinusOne), rax);
-
-#if V8_OS_WIN
-  // Ensure that we have written to each stack page, in order. Skipping a page
-  // on Windows can cause segmentation faults. Assuming page size is 4k.
-  const int kPageSize = 4096;
-  const int kRegistersPerPage = kPageSize / kSystemPointerSize;
-  for (int i = num_saved_registers_ + kRegistersPerPage - 1;
-      i < num_registers_;
-      i += kRegistersPerPage) {
-    __ movq(register_location(i), rax);  // One write every page.
-  }
-#endif  // V8_OS_WIN
 
   // Initialize code object pointer.
   __ Move(code_object_pointer(), masm_.CodeObject());
@@ -1006,8 +994,9 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   CodeDesc code_desc;
   Isolate* isolate = this->isolate();
   masm_.GetCode(isolate, &code_desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(code_desc, Code::REGEXP, masm_.CodeObject());
+  Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, Code::REGEXP)
+                          .set_self_reference(masm_.CodeObject())
+                          .Build();
   PROFILE(isolate, RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
 }

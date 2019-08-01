@@ -63,6 +63,10 @@ declare_args() {
 
   # Expose symbols for dynamic linking.
   v8_expose_symbols = false
+
+  # Use Perfetto (https://perfetto.dev) as the default TracingController. Not
+  # currently implemented.
+  v8_use_perfetto = false
 }
 
 if (v8_use_external_startup_data == "") {

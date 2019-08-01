@@ -685,11 +685,12 @@ CppEntriesProvider.prototype.parseNextLine = function() {
 };
 
 
-function UnixCppEntriesProvider(nmExec, targetRootFS) {
+function UnixCppEntriesProvider(nmExec, targetRootFS, apkEmbeddedLibrary) {
   this.symbols = [];
   this.parsePos = 0;
   this.nmExec = nmExec;
   this.targetRootFS = targetRootFS;
+  this.apkEmbeddedLibrary = apkEmbeddedLibrary;
   this.FUNC_RE = /^([0-9a-fA-F]{8,16}) ([0-9a-fA-F]{8,16} )?[tTwW] (.*)$/;
 };
 inherits(UnixCppEntriesProvider, CppEntriesProvider);
@@ -697,6 +698,9 @@ inherits(UnixCppEntriesProvider, CppEntriesProvider);
 
 UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
   this.parsePos = 0;
+  if (this.apkEmbeddedLibrary && libName.endsWith('.apk')) {
+    libName = this.apkEmbeddedLibrary;
+  }
   libName = this.targetRootFS + libName;
   try {
     this.symbols = [
@@ -735,8 +739,8 @@ UnixCppEntriesProvider.prototype.parseNextLine = function() {
 };
 
 
-function MacCppEntriesProvider(nmExec, targetRootFS) {
-  UnixCppEntriesProvider.call(this, nmExec, targetRootFS);
+function MacCppEntriesProvider(nmExec, targetRootFS, apkEmbeddedLibrary) {
+  UnixCppEntriesProvider.call(this, nmExec, targetRootFS, apkEmbeddedLibrary);
   // Note an empty group. It is required, as UnixCppEntriesProvider expects 3 groups.
   this.FUNC_RE = /^([0-9a-fA-F]{8,16})() (.*)$/;
 };
@@ -758,7 +762,8 @@ MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
 };
 
 
-function WindowsCppEntriesProvider(_ignored_nmExec, targetRootFS) {
+function WindowsCppEntriesProvider(_ignored_nmExec, targetRootFS,
+                                   _ignored_apkEmbeddedLibrary) {
   this.targetRootFS = targetRootFS;
   this.symbols = '';
   this.parsePos = 0;
@@ -882,6 +887,8 @@ class ArgumentsProcessor extends BaseArgumentsProcessor {
           'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)'],
       '--target': ['targetRootFS', '',
           'Specify the target root directory for cross environment'],
+      '--apk-embedded-library': ['apkEmbeddedLibrary', '',
+          'Specify the path of the embedded library for Android traces'],
       '--range': ['range', 'auto,auto',
           'Specify the range limit as [start],[end]'],
       '--distortion': ['distortion', 0,

@@ -7,7 +7,7 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 #include "src/wasm/value-type.h"
 
 namespace v8 {
@@ -112,11 +112,11 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
       assm->pushq(reg.gp());
       break;
     case kWasmF32:
-      assm->subq(rsp, Immediate(kSystemPointerSize));
+      assm->AllocateStackSpace(kSystemPointerSize);
       assm->Movss(Operand(rsp, 0), reg.fp());
       break;
     case kWasmF64:
-      assm->subq(rsp, Immediate(kSystemPointerSize));
+      assm->AllocateStackSpace(kSystemPointerSize);
       assm->Movsd(Operand(rsp, 0), reg.fp());
       break;
     default:
@@ -131,11 +131,14 @@ inline void SpillRegisters(LiftoffAssembler* assm, Regs... regs) {
   }
 }
 
+constexpr int kSubSpSize = 7;  // 7 bytes for "subq rsp, <imm32>"
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
   int offset = pc_offset();
   sub_sp_32(0);
+  DCHECK_EQ(liftoff::kSubSpSize, pc_offset() - offset);
   return offset;
 }
 
@@ -149,7 +152,30 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
   Assembler patching_assembler(
       AssemblerOptions{},
       ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
+#if V8_OS_WIN
+  if (bytes > kStackPageSize) {
+    // Generate OOL code (at the end of the function, where the current
+    // assembler is pointing) to do the explicit stack limit check (see
+    // https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-studio-6.0/aa227153(v=vs.60)).
+    // At the function start, emit a jump to that OOL code (from {offset} to
+    // {pc_offset()}).
+    int ool_offset = pc_offset() - offset;
+    patching_assembler.jmp_rel(ool_offset);
+    DCHECK_GE(liftoff::kSubSpSize, patching_assembler.pc_offset());
+    patching_assembler.Nop(liftoff::kSubSpSize -
+                           patching_assembler.pc_offset());
+
+    // Now generate the OOL code.
+    AllocateStackSpace(bytes);
+    // Jump back to the start of the function (from {pc_offset()} to {offset +
+    // kSubSpSize}).
+    int func_start_offset = offset + liftoff::kSubSpSize - pc_offset();
+    jmp_rel(func_start_offset);
+    return;
+  }
+#endif
   patching_assembler.sub_sp_32(bytes);
+  DCHECK_EQ(liftoff::kSubSpSize, patching_assembler.pc_offset());
 }
 
 void LiftoffAssembler::FinishCode() {}
@@ -469,6 +495,14 @@ void EmitCommutativeBinOp(LiftoffAssembler* assm, Register dst, Register lhs,
     (assm->*op)(dst, rhs);
   }
 }
+
+template <void (Assembler::*op)(Register, Immediate),
+          void (Assembler::*mov)(Register, Register)>
+void EmitCommutativeBinOpImm(LiftoffAssembler* assm, Register dst, Register lhs,
+                             int32_t imm) {
+  if (dst != lhs) (assm->*mov)(dst, lhs);
+  (assm->*op)(dst, Immediate(imm));
+}
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
@@ -592,14 +626,29 @@ void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, Register rhs) {
                                                                     lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::andl, &Assembler::movl>(
+      this, dst, lhs, imm);
+}
+
 void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::orl, &Assembler::movl>(this, dst,
                                                                    lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::orl, &Assembler::movl>(this, dst,
+                                                                      lhs, imm);
+}
+
 void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::xorl, &Assembler::movl>(this, dst,
                                                                     lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::xorl, &Assembler::movl>(
+      this, dst, lhs, imm);
 }
 
 namespace liftoff {
@@ -778,16 +827,34 @@ void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst.gp(), lhs.gp(), rhs.gp());
 }
 
+void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::andq, &Assembler::movq>(
+      this, dst.gp(), lhs.gp(), imm);
+}
+
 void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
                                    LiftoffRegister rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::orq, &Assembler::movq>(
       this, dst.gp(), lhs.gp(), rhs.gp());
 }
 
+void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
+                                   int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::orq, &Assembler::movq>(
+      this, dst.gp(), lhs.gp(), imm);
+}
+
 void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::xorq, &Assembler::movq>(
       this, dst.gp(), lhs.gp(), rhs.gp());
+}
+
+void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::xorq, &Assembler::movq>(
+      this, dst.gp(), lhs.gp(), imm);
 }
 
 void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
@@ -1452,7 +1519,7 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList fp_regs = regs & kFpCacheRegList;
   unsigned num_fp_regs = fp_regs.GetNumRegsSet();
   if (num_fp_regs) {
-    subq(rsp, Immediate(num_fp_regs * kStackSlotSize));
+    AllocateStackSpace(num_fp_regs * kStackSlotSize);
     unsigned offset = 0;
     while (!fp_regs.is_empty()) {
       LiftoffRegister reg = fp_regs.GetFirstRegSet();
@@ -1493,7 +1560,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
                              const LiftoffRegister* rets,
                              ValueType out_argument_type, int stack_bytes,
                              ExternalReference ext_ref) {
-  subq(rsp, Immediate(stack_bytes));
+  AllocateStackSpace(stack_bytes);
 
   int arg_bytes = 0;
   for (ValueType param_type : sig->parameters()) {
@@ -1555,7 +1622,7 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  subq(rsp, Immediate(size));
+  AllocateStackSpace(size);
   movq(addr, rsp);
 }
 

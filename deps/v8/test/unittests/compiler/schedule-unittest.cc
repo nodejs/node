@@ -14,8 +14,7 @@ namespace internal {
 namespace compiler {
 namespace schedule_unittest {
 
-typedef TestWithIsolateAndZone BasicBlockTest;
-
+using BasicBlockTest = TestWithIsolateAndZone;
 
 TEST_F(BasicBlockTest, Constructor) {
   int const id = random_number_generator()->NextInt();
@@ -68,9 +67,7 @@ TEST_F(BasicBlockTest, GetCommonDominator3) {
   EXPECT_EQ(&b0, BasicBlock::GetCommonDominator(&b3, &b1));
 }
 
-
-typedef TestWithZone ScheduleTest;
-
+using ScheduleTest = TestWithZone;
 
 const Operator kCallOperator(IrOpcode::kCall, Operator::kNoProperties,
                              "MockCall", 0, 0, 0, 0, 0, 0);

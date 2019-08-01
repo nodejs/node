@@ -80,9 +80,22 @@ v8_header_set("inspector_test_headers") {
   ]
 }
 
+v8_source_set("inspector_string_conversions") {
+  sources = [
+    "v8-string-conversions.cc",
+    "v8-string-conversions.h",
+  ]
+  configs = [ "../..:internal_config_base" ]
+  deps = [
+    "../..:v8_libbase",
+  ]
+}
+
 v8_source_set("inspector") {
   deps = [
+    ":inspector_string_conversions",
     "../..:v8_version",
+    "../../third_party/inspector_protocol:encoding",
   ]
 
   public_deps = [
@@ -130,6 +143,8 @@ v8_source_set("inspector") {
     "v8-heap-profiler-agent-impl.h",
     "v8-inspector-impl.cc",
     "v8-inspector-impl.h",
+    "v8-inspector-protocol-encoding.cc",
+    "v8-inspector-protocol-encoding.h",
     "v8-inspector-session-impl.cc",
     "v8-inspector-session-impl.h",
     "v8-profiler-agent-impl.cc",

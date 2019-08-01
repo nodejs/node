@@ -4,11 +4,11 @@
 
 #include "test/common/wasm/wasm-module-runner.h"
 
-#include "src/handles.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/property-descriptor.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-interpreter.h"
@@ -26,14 +26,21 @@ uint32_t GetInitialMemSize(const WasmModule* module) {
   return kWasmPageSize * module->initial_pages;
 }
 
-MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes) {
+MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
+                                                ErrorThrower* thrower,
+                                                const ModuleWireBytes& bytes) {
   auto enabled_features = WasmFeaturesFromIsolate(isolate);
   MaybeHandle<WasmModuleObject> module = isolate->wasm_engine()->SyncCompile(
       isolate, enabled_features, thrower, bytes);
   DCHECK_EQ(thrower->error(), module.is_null());
-  if (module.is_null()) return {};
+  return module;
+}
 
+MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
+    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes) {
+  MaybeHandle<WasmModuleObject> module =
+      CompileForTesting(isolate, thrower, bytes);
+  if (module.is_null()) return {};
   return isolate->wasm_engine()->SyncInstantiate(
       isolate, thrower, module.ToHandleChecked(), {}, {});
 }
@@ -254,7 +261,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
     return Smi::ToInt(*result);
   }
   if (result->IsHeapNumber()) {
-    return static_cast<int32_t>(HeapNumber::cast(*result)->value());
+    return static_cast<int32_t>(HeapNumber::cast(*result).value());
   }
   thrower->RuntimeError(
       "Calling exported wasm function failed: Return value should be number");

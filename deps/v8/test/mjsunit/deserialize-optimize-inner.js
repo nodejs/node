@@ -6,6 +6,7 @@
 
 function f(x, y) { return x + y; }
 
+%PrepareFunctionForOptimization(f);
 assertEquals(1, f(0, 1));
 assertEquals(5, f(2, 3));
 %OptimizeFunctionOnNextCall(f);

@@ -5,8 +5,8 @@
 // Tests v8::internal::Scanner. Note that presently most unit tests for the
 // Scanner are in cctest/test-parsing.cc, rather than here.
 
-#include "src/handles-inl.h"
-#include "src/objects-inl.h"
+#include "src/handles/handles-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
 #include "test/cctest/cctest.h"

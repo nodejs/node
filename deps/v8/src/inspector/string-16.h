@@ -30,6 +30,7 @@ class String16 {
   String16(const char* characters);   // NOLINT(runtime/explicit)
   String16(const char* characters, size_t size);
   explicit String16(const std::basic_string<UChar>& impl);
+  explicit String16(std::basic_string<UChar>&& impl);
 
   String16& operator=(const String16&) V8_NOEXCEPT = default;
   String16& operator=(String16&&) V8_NOEXCEPT = default;

@@ -527,7 +527,6 @@ namespace data_view {
 
   extern macro ToNumber(Context, Object): Number;
   extern macro ToBigInt(Context, Object): BigInt;
-  extern macro TruncateFloat64ToFloat32(float64): float32;
   extern macro TruncateFloat64ToWord32(float64): uint32;
 
   extern macro DataViewBuiltinsAssembler::StoreWord8(RawPtr, uintptr, uint32):

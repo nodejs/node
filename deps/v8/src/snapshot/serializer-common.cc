@@ -4,9 +4,9 @@
 
 #include "src/snapshot/serializer-common.h"
 
-#include "src/external-reference-table.h"
-#include "src/objects-inl.h"
+#include "src/codegen/external-reference-table.h"
 #include "src/objects/foreign-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 
 namespace v8 {
@@ -120,28 +120,28 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
     // and eventually terminates the cache with undefined.
     visitor->VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
                               FullObjectSlot(&cache->at(i)));
-    if (cache->at(i)->IsUndefined(isolate)) break;
+    if (cache->at(i).IsUndefined(isolate)) break;
   }
 }
 
 bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
-  return !o->IsString() && !o->IsScript() && !o->IsJSTypedArray();
+  return !o.IsString() && !o.IsScript() && !o.IsJSTypedArray();
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(
     const std::vector<AccessorInfo>& accessor_infos) {
   // Restore wiped accessor infos.
   for (AccessorInfo info : accessor_infos) {
-    Foreign::cast(info->js_getter())
-        ->set_foreign_address(info->redirected_getter());
+    Foreign::cast(info.js_getter())
+        .set_foreign_address(info.redirected_getter());
   }
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(
     const std::vector<CallHandlerInfo>& call_handler_infos) {
   for (CallHandlerInfo info : call_handler_infos) {
-    Foreign::cast(info->js_callback())
-        ->set_foreign_address(info->redirected_callback());
+    Foreign::cast(info.js_callback())
+        .set_foreign_address(info.redirected_callback());
   }
 }
 

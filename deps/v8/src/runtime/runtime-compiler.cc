@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arguments-inl.h"
 #include "src/asmjs/asm-js.h"
+#include "src/codegen/compiler.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
-#include "src/compiler.h"
-#include "src/deoptimizer.h"
-#include "src/frames-inl.h"
-#include "src/isolate-inl.h"
-#include "src/message-template.h"
+#include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/execution/message-template.h"
+#include "src/execution/v8threads.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/runtime/runtime-utils.h"
-#include "src/v8threads.h"
-#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +25,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
 #ifdef DEBUG
-  if (FLAG_trace_lazy && !function->shared()->is_compiled()) {
+  if (FLAG_trace_lazy && !function->shared().is_compiled()) {
     PrintF("[unoptimized: ");
     function->PrintName();
     PrintF("]\n");
@@ -66,14 +66,14 @@ RUNTIME_FUNCTION(Runtime_FunctionFirstExecution) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  DCHECK_EQ(function->feedback_vector()->optimization_marker(),
+  DCHECK_EQ(function->feedback_vector().optimization_marker(),
             OptimizationMarker::kLogFirstExecution);
   DCHECK(FLAG_log_function_events);
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
   LOG(isolate, FunctionEvent(
-                   "first-execution", Script::cast(sfi->script())->id(), 0,
+                   "first-execution", Script::cast(sfi->script()).id(), 0,
                    sfi->StartPosition(), sfi->EndPosition(), sfi->DebugName()));
-  function->feedback_vector()->ClearOptimizationMarker();
+  function->feedback_vector().ClearOptimizationMarker();
   // Return the code to continue execution, we don't care at this point whether
   // this is for lazy compilation or has been eagerly complied.
   return function->code();
@@ -99,9 +99,9 @@ RUNTIME_FUNCTION(Runtime_EvictOptimizedCodeSlot) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
-  DCHECK(function->shared()->is_compiled());
+  DCHECK(function->shared().is_compiled());
 
-  function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
+  function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
       function->shared(), "Runtime_EvictOptimizedCodeSlot");
   return function->code();
 }
@@ -112,18 +112,18 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
   Handle<JSReceiver> stdlib;
-  if (args[1]->IsJSReceiver()) {
+  if (args[1].IsJSReceiver()) {
     stdlib = args.at<JSReceiver>(1);
   }
   Handle<JSReceiver> foreign;
-  if (args[2]->IsJSReceiver()) {
+  if (args[2].IsJSReceiver()) {
     foreign = args.at<JSReceiver>(2);
   }
   Handle<JSArrayBuffer> memory;
-  if (args[3]->IsJSArrayBuffer()) {
+  if (args[3].IsJSArrayBuffer()) {
     memory = args.at<JSArrayBuffer>(3);
   }
-  if (function->shared()->HasAsmWasmData()) {
+  if (function->shared().HasAsmWasmData()) {
     Handle<SharedFunctionInfo> shared(function->shared(), isolate);
     Handle<AsmWasmData> data(shared->asm_wasm_data(), isolate);
     MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
@@ -134,11 +134,11 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   }
   // Remove wasm data, mark as broken for asm->wasm, replace function code with
   // UncompiledData, and return a smi 0 to indicate failure.
-  if (function->shared()->HasAsmWasmData()) {
+  if (function->shared().HasAsmWasmData()) {
     SharedFunctionInfo::DiscardCompiled(isolate,
                                         handle(function->shared(), isolate));
   }
-  function->shared()->set_is_asm_wasm_broken(true);
+  function->shared().set_is_asm_wasm_broken(true);
   DCHECK(function->code() ==
          isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
   function->set_code(isolate->builtins()->builtin(Builtins::kCompileLazy));
@@ -184,7 +184,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function) {
   // Keep track of whether we've succeeded in optimizing.
-  if (function->shared()->optimization_disabled()) return false;
+  if (function->shared().optimization_disabled()) return false;
   // If we are trying to do OSR when there are already optimized
   // activations of the function, it means (a) the function is directly or
   // indirectly recursive and (b) an optimized invocation has been
@@ -209,8 +209,8 @@ BailoutId DetermineEntryAndDisarmOSRForInterpreter(JavaScriptFrame* frame) {
   // representing the entry point will be valid for any copy of the bytecode.
   Handle<BytecodeArray> bytecode(iframe->GetBytecodeArray(), iframe->isolate());
 
-  DCHECK(frame->LookupCode()->is_interpreter_trampoline_builtin());
-  DCHECK(frame->function()->shared()->HasBytecodeArray());
+  DCHECK(frame->LookupCode().is_interpreter_trampoline_builtin());
+  DCHECK(frame->function().shared().HasBytecodeArray());
   DCHECK(frame->is_interpreted());
 
   // Reset the OSR loop nesting depth to disarm back edges.
@@ -258,11 +258,11 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
     DeoptimizationData data =
         DeoptimizationData::cast(result->deoptimization_data());
 
-    if (data->OsrPcOffset()->value() >= 0) {
-      DCHECK(BailoutId(data->OsrBytecodeOffset()->value()) == ast_id);
+    if (data.OsrPcOffset().value() >= 0) {
+      DCHECK(BailoutId(data.OsrBytecodeOffset().value()) == ast_id);
       if (FLAG_trace_osr) {
         PrintF("[OSR - Entry at AST id %d, offset %d in optimized code]\n",
-               ast_id.ToInt(), data->OsrPcOffset()->value());
+               ast_id.ToInt(), data.OsrPcOffset().value());
       }
 
       DCHECK(result->is_turbofanned());
@@ -289,7 +289,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   }
 
   if (!function->IsOptimized()) {
-    function->set_code(function->shared()->GetCode());
+    function->set_code(function->shared().GetCode());
   }
   return Object();
 }
@@ -303,7 +303,7 @@ static Object CompileGlobalEval(Isolate* isolate, Handle<String> source,
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
-  if (native_context->allow_code_gen_from_strings()->IsFalse(isolate) &&
+  if (native_context->allow_code_gen_from_strings().IsFalse(isolate) &&
       !Compiler::CodeGenerationFromStringsAllowed(isolate, native_context,
                                                   source)) {
     Handle<Object> error_message =
@@ -340,14 +340,14 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
   // execution default to an indirect call to eval, which will also return
   // the first argument without doing anything).
   if (*callee != isolate->native_context()->global_eval_fun() ||
-      !args[1]->IsString()) {
+      !args[1].IsString()) {
     return *callee;
   }
 
-  DCHECK(args[3]->IsSmi());
+  DCHECK(args[3].IsSmi());
   DCHECK(is_valid_language_mode(args.smi_at(3)));
   LanguageMode language_mode = static_cast<LanguageMode>(args.smi_at(3));
-  DCHECK(args[4]->IsSmi());
+  DCHECK(args[4].IsSmi());
   Handle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
                                         isolate);
   return CompileGlobalEval(isolate, args.at<String>(1), outer_info,

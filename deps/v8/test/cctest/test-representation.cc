@@ -27,7 +27,7 @@
 
 #include "test/cctest/cctest.h"
 
-#include "src/property-details.h"
+#include "src/objects/property-details.h"
 
 namespace v8 {
 namespace internal {

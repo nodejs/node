@@ -405,12 +405,27 @@ for (test in tests) {
     return true;
   }
 
-  var ary = [0,1,2,3];
+  var ary = [0, 1, 2, '3'];
   function testArray(ary) {
     assertTrue(test(ary, 1));
     assertTrue(test(ary, 1));
   }
   testArray(ary);
+  // Packed
+  // Non-extensible
+  var b =  Object.preventExtensions(ary);
+  testArray(b);
+
+  // Sealed
+  var c =  Object.seal(ary);
+  testArray(c);
+
+  // Frozen
+  var d =  Object.freeze(ary);
+  testArray(d);
+
+  // Holey
+  var ary = [, 0, 1, 2, '3'];
   // Non-extensible
   var b =  Object.preventExtensions(ary);
   testArray(b);
@@ -430,7 +445,7 @@ for (test in tests) {
   assertFalse(test(str, 0));
 })();
 
-const heap_constant_ary = [0,1,2,3];
+const heap_constant_ary = [0,1,2,'3'];
 
 function testHeapConstantArray(heap_constant_ary) {
 
@@ -450,6 +465,7 @@ function testHeapConstantArray(heap_constant_ary) {
 }
 testHeapConstantArray(heap_constant_ary);
 
+// Packed
 // Non-extensible
 var b =  Object.preventExtensions(heap_constant_ary);
 testHeapConstantArray(b);
@@ -460,4 +476,18 @@ testHeapConstantArray(c);
 
 // Frozen
 var d =  Object.freeze(heap_constant_ary);
+testHeapConstantArray(d);
+
+// Holey
+const holey_heap_constant_ary = [,0,1,2,'3'];
+// Non-extensible
+var b =  Object.preventExtensions(holey_heap_constant_ary);
+testHeapConstantArray(b);
+
+// Sealed
+var c =  Object.seal(holey_heap_constant_ary);
+testHeapConstantArray(c);
+
+// Frozen
+var d =  Object.freeze(holey_heap_constant_ary);
 testHeapConstantArray(d);

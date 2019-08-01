@@ -5,7 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_MATH_GEN_H_
 #define V8_BUILTINS_BUILTINS_MATH_GEN_H_
 
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -19,9 +19,6 @@ class MathBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   void MathRoundingOperation(
-      Node* context, Node* x,
-      TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>));
-  void MathUnaryOperation(
       Node* context, Node* x,
       TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>));
   void MathMaxMin(Node* context, Node* argc,

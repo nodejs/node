@@ -39,7 +39,7 @@ class PromiseReactionJobTask : public Microtask {
   // Dispatched behavior.
   DECL_CAST(PromiseReactionJobTask)
   DECL_VERIFIER(PromiseReactionJobTask)
-
+  static const int kSizeOfAllPromiseReactionJobTasks = kHeaderSize;
   OBJECT_CONSTRUCTORS(PromiseReactionJobTask, Microtask);
 };
 
@@ -51,6 +51,11 @@ class PromiseFulfillReactionJobTask : public PromiseReactionJobTask {
   DECL_PRINTER(PromiseFulfillReactionJobTask)
   DECL_VERIFIER(PromiseFulfillReactionJobTask)
 
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      PromiseReactionJobTask::kHeaderSize,
+      TORQUE_GENERATED_PROMISE_FULFILL_REACTION_JOB_TASK_FIELDS)
+  STATIC_ASSERT(kSize == kSizeOfAllPromiseReactionJobTasks);
+
   OBJECT_CONSTRUCTORS(PromiseFulfillReactionJobTask, PromiseReactionJobTask);
 };
 
@@ -61,6 +66,11 @@ class PromiseRejectReactionJobTask : public PromiseReactionJobTask {
   DECL_CAST(PromiseRejectReactionJobTask)
   DECL_PRINTER(PromiseRejectReactionJobTask)
   DECL_VERIFIER(PromiseRejectReactionJobTask)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      PromiseReactionJobTask::kHeaderSize,
+      TORQUE_GENERATED_PROMISE_REJECT_REACTION_JOB_TASK_FIELDS)
+  STATIC_ASSERT(kSize == kSizeOfAllPromiseReactionJobTasks);
 
   OBJECT_CONSTRUCTORS(PromiseRejectReactionJobTask, PromiseReactionJobTask);
 };

@@ -9,7 +9,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/typer.h"
-#include "src/conversions-inl.h"
+#include "src/numbers/conversions-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
@@ -1414,6 +1414,39 @@ TEST_F(MachineOperatorReducerTest, Int32AddWithInt32SubWithConstantZero) {
   EXPECT_THAT(r2.replacement(), IsInt32Sub(p0, p1));
 }
 
+TEST_F(MachineOperatorReducerTest, Int32AddMergeConstants) {
+  Node* const p0 = Parameter(0);
+
+  Reduction const r1 = Reduce(graph()->NewNode(
+      machine()->Int32Add(),
+      graph()->NewNode(machine()->Int32Add(), p0, Int32Constant(1)),
+      Int32Constant(2)));
+  ASSERT_TRUE(r1.Changed());
+  EXPECT_THAT(r1.replacement(), IsInt32Add(p0, IsInt32Constant(3)));
+
+  Reduction const r2 = Reduce(graph()->NewNode(
+      machine()->Int32Add(), Int32Constant(2),
+      graph()->NewNode(machine()->Int32Add(), p0, Int32Constant(1))));
+  ASSERT_TRUE(r2.Changed());
+  EXPECT_THAT(r2.replacement(), IsInt32Add(p0, IsInt32Constant(3)));
+}
+
+TEST_F(MachineOperatorReducerTest, Int64AddMergeConstants) {
+  Node* const p0 = Parameter(0);
+
+  Reduction const r1 = Reduce(graph()->NewNode(
+      machine()->Int64Add(),
+      graph()->NewNode(machine()->Int64Add(), p0, Int64Constant(1)),
+      Int64Constant(2)));
+  ASSERT_TRUE(r1.Changed());
+  EXPECT_THAT(r1.replacement(), IsInt64Add(p0, IsInt64Constant(3)));
+
+  Reduction const r2 = Reduce(graph()->NewNode(
+      machine()->Int64Add(), Int64Constant(2),
+      graph()->NewNode(machine()->Int64Add(), p0, Int64Constant(1))));
+  ASSERT_TRUE(r2.Changed());
+  EXPECT_THAT(r2.replacement(), IsInt64Add(p0, IsInt64Constant(3)));
+}
 
 // -----------------------------------------------------------------------------
 // Int32AddWithOverflow

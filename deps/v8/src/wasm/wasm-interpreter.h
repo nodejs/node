@@ -138,6 +138,9 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     WasmValue GetReturnValue(int index = 0);
     TrapReason GetTrapReason();
 
+    uint32_t GetGlobalCount();
+    WasmValue GetGlobalValue(uint32_t index);
+
     // Returns true if the thread executed an instruction which may produce
     // nondeterministic results, e.g. float div, float sqrt, and float mul,
     // where the sign bit of a NaN is nondeterministic.

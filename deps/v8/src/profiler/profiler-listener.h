@@ -8,7 +8,8 @@
 #include <memory>
 #include <vector>
 
-#include "src/code-events.h"
+#include "include/v8-profiler.h"
+#include "src/logging/code-events.h"
 #include "src/profiler/profile-generator.h"
 
 namespace v8 {
@@ -25,7 +26,8 @@ class CodeEventObserver {
 
 class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
  public:
-  ProfilerListener(Isolate*, CodeEventObserver*);
+  ProfilerListener(Isolate*, CodeEventObserver*,
+                   CpuProfilingNamingMode mode = kDebugNaming);
   ~ProfilerListener() override;
 
   void CallbackEvent(Name name, Address entry_point) override;
@@ -70,6 +72,8 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
   void set_observer(CodeEventObserver* observer) { observer_ = observer; }
 
  private:
+  const char* GetFunctionName(SharedFunctionInfo);
+
   void AttachDeoptInlinedFrames(Code code, CodeDeoptEventRecord* rec);
   Name InferScriptName(Name name, SharedFunctionInfo info);
   V8_INLINE void DispatchCodeEvent(const CodeEventsContainer& evt_rec) {
@@ -79,6 +83,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
   Isolate* isolate_;
   CodeEventObserver* observer_;
   StringsStorage function_and_resource_names_;
+  const CpuProfilingNamingMode naming_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfilerListener);
 };

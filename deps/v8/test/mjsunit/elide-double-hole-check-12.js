@@ -10,6 +10,7 @@ function f1(a, i) {
 
 var other_realm = Realm.create();
 var arr = [,0.0,2.5];
+%PrepareFunctionForOptimization(f1);
 assertEquals(0.5, f1(arr, 1));
 assertEquals(0.5, f1(arr, 1));
 %OptimizeFunctionOnNextCall(f1);

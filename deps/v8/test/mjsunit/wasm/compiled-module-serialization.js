@@ -239,7 +239,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   builder.addImportedTable("z", "table", kTableSize, kTableSize);
-  builder.addElementSegment(0, 1, false, [f2.index], true);
+  builder.addElementSegment(0, 1, false, [f2.index]);
   var m2_bytes = builder.toBuffer();
   var m2 = new WebAssembly.Module(m2_bytes);
 

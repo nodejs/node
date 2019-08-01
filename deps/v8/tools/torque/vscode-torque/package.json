@@ -41,13 +41,13 @@
                 "torque.trace.server": {
                     "type": "string",
                     "enum": [
-                      "off",
-                      "messages",
-                      "verbose"
+                        "off",
+                        "messages",
+                        "verbose"
                     ],
                     "default": "off",
                     "description": "Trace the communication with the Torque language server from VSCode."
-                  }
+                }
             }
         },
         "languages": [

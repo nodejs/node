@@ -4,17 +4,17 @@
 
 #include "src/interpreter/interpreter-intrinsics-generator.h"
 
-#include "src/allocation.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
-#include "src/frames.h"
+#include "src/codegen/code-factory.h"
+#include "src/execution/frames.h"
 #include "src/heap/factory-inl.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/module.h"
+#include "src/utils/allocation.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -159,12 +159,6 @@ Node* IntrinsicsGenerator::IsArray(
   return IsInstanceType(input, JS_ARRAY_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsTypedArray(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_TYPED_ARRAY_TYPE);
-}
-
 Node* IntrinsicsGenerator::IsSmi(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   Node* input = __ LoadRegisterFromRegisterList(args, 0);
@@ -194,6 +188,13 @@ Node* IntrinsicsGenerator::IntrinsicAsBuiltinCall(
   return IntrinsicAsStubCall(args, context, callable);
 }
 
+Node* IntrinsicsGenerator::CopyDataProperties(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsStubCall(
+      args, context,
+      Builtins::CallableFor(isolate(), Builtins::kCopyDataProperties));
+}
+
 Node* IntrinsicsGenerator::CreateIterResultObject(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
@@ -207,7 +208,7 @@ Node* IntrinsicsGenerator::HasProperty(
       args, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
 }
 
-Node* IntrinsicsGenerator::ToString(
+Node* IntrinsicsGenerator::ToStringRT(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
       args, context, Builtins::CallableFor(isolate(), Builtins::kToString));

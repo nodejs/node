@@ -7,8 +7,8 @@
 
 #include <memory>
 
+#include "src/codegen/register-configuration.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/register-configuration.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -27,7 +27,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   static constexpr MachineRepresentation kSimd128 =
       MachineRepresentation::kSimd128;
 
-  typedef RpoNumber Rpo;
+  using Rpo = RpoNumber;
 
   struct VReg {
     VReg() : value_(kNoValue) {}
@@ -38,7 +38,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
     MachineRepresentation rep_ = kNoRep;
   };
 
-  typedef std::pair<VReg, VReg> VRegPair;
+  using VRegPair = std::pair<VReg, VReg>;
 
   enum TestOperandType {
     kInvalid,
@@ -272,9 +272,9 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
     int expected_blocks_;
   };
 
-  typedef std::vector<LoopData> LoopBlocks;
-  typedef std::map<int, const Instruction*> Instructions;
-  typedef std::vector<BlockCompletion> Completions;
+  using LoopBlocks = std::vector<LoopData>;
+  using Instructions = std::map<int, const Instruction*>;
+  using Completions = std::vector<BlockCompletion>;
 
   std::unique_ptr<RegisterConfiguration> config_;
   InstructionSequence* sequence_;

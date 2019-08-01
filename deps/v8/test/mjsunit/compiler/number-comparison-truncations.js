@@ -32,6 +32,7 @@
 (function() {
   // Produce a SpeculativeNumberEqual with Number feedback.
   function bar(x, y) { return x === y; }
+  %EnsureFeedbackVectorForFunction(bar);
   bar(0.1, 0.5);
   bar(-0, 100);
 
@@ -83,6 +84,7 @@
 (function() {
   // Produce a SpeculativeNumberLessThan with Number feedback.
   function bar(x, y) { return x < y; }
+  %EnsureFeedbackVectorForFunction(bar);
   bar(0.1, 0.5);
   bar(-0, 100);
 
@@ -134,6 +136,7 @@
 (function() {
   // Produce a SpeculativeNumberLessThanOrEqual with Number feedback.
   function bar(x, y) { return x <= y; }
+  %EnsureFeedbackVectorForFunction(bar);
   bar(0.1, 0.5);
   bar(-0, 100);
 

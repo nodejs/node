@@ -9,7 +9,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -464,7 +464,8 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   V(LoopExitEffect, Operator::kNoThrow, 0, 1, 1, 0, 1, 0)                     \
   V(Checkpoint, Operator::kKontrol, 0, 1, 1, 0, 1, 0)                         \
   V(FinishRegion, Operator::kKontrol, 1, 1, 0, 1, 1, 0)                       \
-  V(Retain, Operator::kKontrol, 1, 1, 0, 0, 1, 0)
+  V(Retain, Operator::kKontrol, 1, 1, 0, 0, 1, 0)                             \
+  V(StaticAssert, Operator::kFoldable, 1, 1, 0, 0, 1, 0)
 
 #define CACHED_BRANCH_LIST(V)   \
   V(None, CriticalSafetyCheck)  \

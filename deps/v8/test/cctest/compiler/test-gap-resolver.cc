@@ -110,8 +110,8 @@ class InterpreterState {
   };
 
   // Internally, the state is a normalized permutation of Value pairs.
-  typedef Key Value;
-  typedef std::map<Key, Value> OperandMap;
+  using Value = Key;
+  using OperandMap = std::map<Key, Value>;
 
   Value read(const InstructionOperand& op) const {
     OperandMap::const_iterator it = values_.find(KeyFor(op));

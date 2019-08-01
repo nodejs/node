@@ -9,8 +9,8 @@
 #ifndef V8_OBJECTS_JS_COLLATOR_INL_H_
 #define V8_OBJECTS_JS_COLLATOR_INL_H_
 
-#include "src/objects-inl.h"
 #include "src/objects/js-collator.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

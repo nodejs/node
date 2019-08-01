@@ -4,10 +4,10 @@
 
 #include "src/builtins/constants-table-builder.h"
 
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
-#include "src/isolate.h"
 #include "src/objects/oddball-inl.h"
-#include "src/roots-inl.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -72,7 +72,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
   DCHECK(isolate_->IsGeneratingEmbeddedBuiltins());
 
   DCHECK(self_reference->IsOddball());
-  DCHECK(Oddball::cast(*self_reference)->kind() ==
+  DCHECK(Oddball::cast(*self_reference).kind() ==
          Oddball::kSelfReferenceMarker);
 #endif
 
@@ -101,20 +101,20 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
     uint32_t index = *it.entry();
     Object value = it.key();
-    if (value->IsCode() && Code::cast(value)->kind() == Code::BUILTIN) {
+    if (value.IsCode() && Code::cast(value).kind() == Code::BUILTIN) {
       // Replace placeholder code objects with the real builtin.
       // See also: SetupIsolateDelegate::PopulateWithPlaceholders.
       // TODO(jgruber): Deduplicate placeholders and their corresponding
       // builtin.
-      value = builtins->builtin(Code::cast(value)->builtin_index());
+      value = builtins->builtin(Code::cast(value).builtin_index());
     }
-    DCHECK(value->IsHeapObject());
+    DCHECK(value.IsHeapObject());
     table->set(index, value);
   }
 
 #ifdef DEBUG
   for (int i = 0; i < map_.size(); i++) {
-    DCHECK(table->get(i)->IsHeapObject());
+    DCHECK(table->get(i).IsHeapObject());
     DCHECK_NE(ReadOnlyRoots(isolate_).undefined_value(), table->get(i));
     DCHECK_NE(ReadOnlyRoots(isolate_).self_reference_marker(), table->get(i));
   }

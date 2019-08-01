@@ -5,7 +5,7 @@
 #ifndef V8_WASM_JUMP_TABLE_ASSEMBLER_H_
 #define V8_WASM_JUMP_TABLE_ASSEMBLER_H_
 
-#include "src/macro-assembler.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {

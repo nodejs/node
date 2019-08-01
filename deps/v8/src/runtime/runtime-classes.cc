@@ -7,14 +7,14 @@
 #include <stdlib.h>
 #include <limits>
 
-#include "src/accessors.h"
-#include "src/arguments-inl.h"
-#include "src/counters.h"
+#include "src/builtins/accessors.h"
 #include "src/debug/debug.h"
-#include "src/elements.h"
-#include "src/isolate-inl.h"
-#include "src/log.h"
-#include "src/message-template.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/execution/message-template.h"
+#include "src/logging/counters.h"
+#include "src/logging/log.h"
+#include "src/objects/elements.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/smi.h"
@@ -37,7 +37,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
-  Handle<String> name(constructor->shared()->Name(), isolate);
+  Handle<String> name(constructor->shared().Name(), isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kConstructorNonCallable, name));
 }
@@ -70,8 +70,8 @@ Object ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
                                 Handle<JSFunction> function) {
   Handle<String> super_name;
   if (constructor->IsJSFunction()) {
-    super_name = handle(Handle<JSFunction>::cast(constructor)->shared()->Name(),
-                        isolate);
+    super_name =
+        handle(Handle<JSFunction>::cast(constructor)->shared().Name(), isolate);
   } else if (constructor->IsOddball()) {
     DCHECK(constructor->IsNull(isolate));
     super_name = isolate->factory()->null_string();
@@ -82,7 +82,7 @@ Object ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
   if (super_name->length() == 0) {
     super_name = isolate->factory()->null_string();
   }
-  Handle<String> function_name(function->shared()->Name(), isolate);
+  Handle<String> function_name(function->shared().Name(), isolate);
   // anonymous class
   if (function_name->length() == 0) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -129,14 +129,14 @@ Handle<Name> KeyToName<NumberDictionary>(Isolate* isolate, Handle<Object> key) {
 
 inline void SetHomeObject(Isolate* isolate, JSFunction method,
                           JSObject home_object) {
-  if (method->shared()->needs_home_object()) {
+  if (method.shared().needs_home_object()) {
     const int kPropertyIndex = JSFunction::kMaybeHomeObjectDescriptorIndex;
-    CHECK_EQ(method->map()->instance_descriptors()->GetKey(kPropertyIndex),
+    CHECK_EQ(method.map().instance_descriptors().GetKey(kPropertyIndex),
              ReadOnlyRoots(isolate).home_object_symbol());
 
     FieldIndex field_index =
-        FieldIndex::ForDescriptor(method->map(), kPropertyIndex);
-    method->RawFastPropertyAtPut(field_index, home_object);
+        FieldIndex::ForDescriptor(method.map(), kPropertyIndex);
+    method.RawFastPropertyAtPut(field_index, home_object);
   }
 }
 
@@ -163,7 +163,7 @@ MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
 
   SetHomeObject(isolate, *method, *home_object);
 
-  if (!method->shared()->HasSharedName()) {
+  if (!method->shared().HasSharedName()) {
     // TODO(ishell): method does not have a shared name at this point only if
     // the key is a computed property name. However, the bytecode generator
     // explicitly generates ToName bytecodes to ensure that the computed
@@ -200,7 +200,7 @@ Object GetMethodWithSharedNameAndSetHomeObject(Isolate* isolate,
 
   SetHomeObject(isolate, *method, home_object);
 
-  DCHECK(method->shared()->HasSharedName());
+  DCHECK(method->shared().HasSharedName());
   return *method;
 }
 
@@ -215,7 +215,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object value = dictionary->ValueAt(i);
-    if (value->IsAccessorPair()) {
+    if (value.IsAccessorPair()) {
       Handle<AccessorPair> pair(AccessorPair::cast(value), isolate);
       pair = AccessorPair::Copy(isolate, pair);
       dictionary->ValueAtPut(i, *pair);
@@ -245,7 +245,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
     if (value->IsAccessorPair()) {
       Handle<AccessorPair> pair = Handle<AccessorPair>::cast(value);
       Object tmp = pair->getter();
-      if (tmp->IsSmi()) {
+      if (tmp.IsSmi()) {
         Handle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, result,
@@ -256,7 +256,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
         pair->set_getter(*result);
       }
       tmp = pair->setter();
-      if (tmp->IsSmi()) {
+      if (tmp.IsSmi()) {
         Handle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, result,
@@ -297,56 +297,51 @@ bool AddDescriptorsByTemplate(
           : ShallowCopyDictionaryTemplate(isolate,
                                           elements_dictionary_template);
 
-  Handle<PropertyArray> property_array =
-      isolate->factory()->empty_property_array();
-  if (FLAG_track_constant_fields) {
-    // If we store constants in instances, count the number of properties
-    // that must be in the instance and create the property array to
-    // hold the constants.
-    int count = 0;
-    for (int i = 0; i < nof_descriptors; i++) {
-      PropertyDetails details = descriptors_template->GetDetails(i);
-      if (details.location() == kDescriptor && details.kind() == kData) {
-        count++;
-      }
+  // Count the number of properties that must be in the instance and
+  // create the property array to hold the constants.
+  int count = 0;
+  for (int i = 0; i < nof_descriptors; i++) {
+    PropertyDetails details = descriptors_template->GetDetails(i);
+    if (details.location() == kDescriptor && details.kind() == kData) {
+      count++;
     }
-    property_array = isolate->factory()->NewPropertyArray(count);
   }
+  Handle<PropertyArray> property_array =
+      isolate->factory()->NewPropertyArray(count);
 
   // Read values from |descriptors_template| and store possibly post-processed
   // values into "instantiated" |descriptors| array.
   int field_index = 0;
   for (int i = 0; i < nof_descriptors; i++) {
     Object value = descriptors_template->GetStrongValue(i);
-    if (value->IsAccessorPair()) {
+    if (value.IsAccessorPair()) {
       Handle<AccessorPair> pair = AccessorPair::Copy(
           isolate, handle(AccessorPair::cast(value), isolate));
       value = *pair;
     }
     DisallowHeapAllocation no_gc;
     Name name = descriptors_template->GetKey(i);
-    DCHECK(name->IsUniqueName());
+    DCHECK(name.IsUniqueName());
     PropertyDetails details = descriptors_template->GetDetails(i);
     if (details.location() == kDescriptor) {
       if (details.kind() == kData) {
-        if (value->IsSmi()) {
+        if (value.IsSmi()) {
           value = GetMethodWithSharedNameAndSetHomeObject(isolate, args, value,
                                                           *receiver);
         }
-        details =
-            details.CopyWithRepresentation(value->OptimalRepresentation());
+        details = details.CopyWithRepresentation(value.OptimalRepresentation());
       } else {
         DCHECK_EQ(kAccessor, details.kind());
-        if (value->IsAccessorPair()) {
+        if (value.IsAccessorPair()) {
           AccessorPair pair = AccessorPair::cast(value);
-          Object tmp = pair->getter();
-          if (tmp->IsSmi()) {
-            pair->set_getter(GetMethodWithSharedNameAndSetHomeObject(
+          Object tmp = pair.getter();
+          if (tmp.IsSmi()) {
+            pair.set_getter(GetMethodWithSharedNameAndSetHomeObject(
                 isolate, args, tmp, *receiver));
           }
-          tmp = pair->setter();
-          if (tmp->IsSmi()) {
-            pair->set_setter(GetMethodWithSharedNameAndSetHomeObject(
+          tmp = pair.setter();
+          if (tmp.IsSmi()) {
+            pair.set_setter(GetMethodWithSharedNameAndSetHomeObject(
                 isolate, args, tmp, *receiver));
           }
         }
@@ -354,10 +349,8 @@ bool AddDescriptorsByTemplate(
     } else {
       UNREACHABLE();
     }
-    DCHECK(value->FitsRepresentation(details.representation()));
-    // With constant field tracking, we store the values in the instance.
-    if (FLAG_track_constant_fields && details.location() == kDescriptor &&
-        details.kind() == kData) {
+    DCHECK(value.FitsRepresentation(details.representation()));
+    if (details.location() == kDescriptor && details.kind() == kData) {
       details = PropertyDetails(details.kind(), details.attributes(), kField,
                                 PropertyConstness::kConst,
                                 details.representation(), field_index)
@@ -407,8 +400,8 @@ bool AddDescriptorsByTemplate(
   Handle<NumberDictionary> elements_dictionary =
       ShallowCopyDictionaryTemplate(isolate, elements_dictionary_template);
 
-  typedef ClassBoilerplate::ValueKind ValueKind;
-  typedef ClassBoilerplate::ComputedEntryFlags ComputedEntryFlags;
+  using ValueKind = ClassBoilerplate::ValueKind;
+  using ComputedEntryFlags = ClassBoilerplate::ComputedEntryFlags;
 
   // Merge computed properties with properties and elements dictionary
   // templates.
@@ -469,26 +462,14 @@ bool AddDescriptorsByTemplate(
 }
 
 Handle<JSObject> CreateClassPrototype(Isolate* isolate) {
-  Factory* factory = isolate->factory();
+  // For constant tracking we want to avoid the hassle of handling
+  // in-object properties, so create a map with no in-object
+  // properties.
 
-  const int kInobjectFields = 0;
-
-  Handle<Map> map;
-  if (FLAG_track_constant_fields) {
-    // For constant tracking we want to avoid tha hassle of handling
-    // in-object properties, so create a map with no in-object
-    // properties.
-
-    // TODO(ishell) Support caching of zero in-object properties map
-    // by ObjectLiteralMapFromCache().
-    map = Map::Create(isolate, 0);
-  } else {
-    // Just use some JSObject map of certain size.
-    map = factory->ObjectLiteralMapFromCache(isolate->native_context(),
-                                             kInobjectFields);
-  }
-
-  return factory->NewJSObjectFromMap(map);
+  // TODO(ishell) Support caching of zero in-object properties map
+  // by ObjectLiteralMapFromCache().
+  Handle<Map> map = Map::Create(isolate, 0);
+  return isolate->factory()->NewJSObjectFromMap(map);
 }
 
 bool InitClassPrototype(Isolate* isolate,
@@ -607,7 +588,7 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
     } else if (super_class->IsConstructor()) {
       DCHECK(!super_class->IsJSFunction() ||
              !IsResumableFunction(
-                 Handle<JSFunction>::cast(super_class)->shared()->kind()));
+                 Handle<JSFunction>::cast(super_class)->shared().kind()));
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype_parent,
           Runtime::GetObjectProperty(isolate, super_class,
@@ -647,7 +628,7 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
   if (FLAG_trace_maps) {
     LOG(isolate,
         MapEvent("InitialMap", Map(), constructor->map(),
-                 "init class constructor", constructor->shared()->DebugName()));
+                 "init class constructor", constructor->shared().DebugName()));
     LOG(isolate, MapEvent("InitialMap", Map(), prototype->map(),
                           "init class prototype"));
   }

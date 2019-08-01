@@ -47,11 +47,11 @@ ACCESSORS_CHECKED(Script, wasm_module_object, Object,
                   this->type() == TYPE_WASM)
 
 bool Script::is_wrapped() const {
-  return eval_from_shared_or_wrapped_arguments()->IsFixedArray();
+  return eval_from_shared_or_wrapped_arguments().IsFixedArray();
 }
 
 bool Script::has_eval_from_shared() const {
-  return eval_from_shared_or_wrapped_arguments()->IsSharedFunctionInfo();
+  return eval_from_shared_or_wrapped_arguments().IsSharedFunctionInfo();
 }
 
 void Script::set_eval_from_shared(SharedFunctionInfo shared,
@@ -104,13 +104,13 @@ void Script::set_origin_options(ScriptOriginOptions origin_options) {
 
 bool Script::HasValidSource() {
   Object src = this->source();
-  if (!src->IsString()) return true;
+  if (!src.IsString()) return true;
   String src_str = String::cast(src);
   if (!StringShape(src_str).IsExternal()) return true;
-  if (src_str->IsOneByteRepresentation()) {
-    return ExternalOneByteString::cast(src)->resource() != nullptr;
-  } else if (src_str->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(src)->resource() != nullptr;
+  if (src_str.IsOneByteRepresentation()) {
+    return ExternalOneByteString::cast(src).resource() != nullptr;
+  } else if (src_str.IsTwoByteRepresentation()) {
+    return ExternalTwoByteString::cast(src).resource() != nullptr;
   }
   return true;
 }

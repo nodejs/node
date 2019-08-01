@@ -28,13 +28,13 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
-#include "src/disasm.h"
-#include "src/disassembler.h"
-#include "src/frames-inl.h"
-#include "src/macro-assembler.h"
+#include "src/diagnostics/disasm.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/execution/frames-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -47,13 +47,13 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 
   disasm.InstructionDecode(disasm_buffer, pc);
 
-  if (strcmp(compare_string, disasm_buffer.start()) != 0) {
+  if (strcmp(compare_string, disasm_buffer.begin()) != 0) {
     fprintf(stderr,
             "expected: \n"
             "%s\n"
             "disassembled: \n"
             "%s\n\n",
-            compare_string, disasm_buffer.start());
+            compare_string, disasm_buffer.begin());
     return false;
   }
   return true;
@@ -90,9 +90,9 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 
 // Verify that all invocations of the COMPARE macro passed successfully.
 // Exit with a failure if at least one of the tests failed.
-#define VERIFY_RUN()                                                  \
-  if (failure) {                                                      \
-    V8_Fatal(__FILE__, __LINE__, "PPC Disassembler tests failed.\n"); \
+#define VERIFY_RUN()                           \
+  if (failure) {                               \
+    FATAL("PPC Disassembler tests failed.\n"); \
   }
 
 TEST(DisasmPPC) {

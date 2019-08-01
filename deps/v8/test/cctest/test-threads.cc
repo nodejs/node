@@ -27,7 +27,7 @@
 
 #include "test/cctest/cctest.h"
 
-#include "src/thread-id.h"
+#include "src/execution/thread-id.h"
 
 namespace v8 {
 namespace internal {

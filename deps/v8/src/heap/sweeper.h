@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "src/base/platform/semaphore.h"
-#include "src/cancelable-task.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {
@@ -24,7 +24,7 @@ enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
 class Sweeper {
  public:
   using IterabilityList = std::vector<Page*>;
-  using SweepingList = std::deque<Page*>;
+  using SweepingList = std::vector<Page*>;
   using SweptList = std::vector<Page*>;
 
   // Pauses the sweeper tasks or completes sweeping.

@@ -1,0 +1,238 @@
+// Copyright 2019 the V8 project authors. All rights reserved. Use of this
+// source code is governed by a BSD-style license that can be found in the
+// LICENSE file.
+
+namespace math {
+  // ES6 #sec-math.acos
+  extern macro Float64Acos(float64): float64;
+
+  transitioning javascript builtin
+  MathAcos(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Acos(value));
+  }
+
+  // ES6 #sec-math.acosh
+  extern macro Float64Acosh(float64): float64;
+
+  transitioning javascript builtin
+  MathAcosh(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Acosh(value));
+  }
+
+  // ES6 #sec-math.asin
+  extern macro Float64Asin(float64): float64;
+
+  transitioning javascript builtin
+  MathAsin(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Asin(value));
+  }
+
+  // ES6 #sec-math.asinh
+  extern macro Float64Asinh(float64): float64;
+
+  transitioning javascript builtin
+  MathAsinh(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Asinh(value));
+  }
+
+  // ES6 #sec-math.atan
+  extern macro Float64Atan(float64): float64;
+
+  transitioning javascript builtin
+  MathAtan(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Atan(value));
+  }
+
+  // ES6 #sec-math.atan2
+  extern macro Float64Atan2(float64, float64): float64;
+
+  transitioning javascript builtin
+  MathAtan2(context: Context, receiver: Object, y: Object, x: Object): Number {
+    const yValue = Convert<float64>(ToNumber_Inline(context, y));
+    const xValue = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Atan2(yValue, xValue));
+  }
+
+  // ES6 #sec-math.atanh
+  extern macro Float64Atanh(float64): float64;
+
+  transitioning javascript builtin
+  MathAtanh(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Atanh(value));
+  }
+
+  // ES6 #sec-math.cbrt
+  extern macro Float64Cbrt(float64): float64;
+
+  transitioning javascript builtin
+  MathCbrt(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Cbrt(value));
+  }
+
+  // ES6 #sec-math.clz32
+  extern macro Word32Clz(int32): int32;
+
+  transitioning javascript builtin
+  MathClz32(context: Context, receiver: Object, x: Object): Number {
+    const num = ToNumber_Inline(context, x);
+
+    let value: int32;
+    typeswitch (num) {
+      case (s: Smi): {
+        value = Convert<int32>(s);
+      }
+      case (h: HeapNumber): {
+        value = TruncateHeapNumberValueToWord32(h);
+      }
+    }
+
+    return Convert<Number>(Word32Clz(value));
+  }
+
+  // ES6 #sec-math.cos
+  extern macro Float64Cos(float64): float64;
+
+  transitioning javascript builtin
+  MathCos(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Cos(value));
+  }
+
+  // ES6 #sec-math.cosh
+  extern macro Float64Cosh(float64): float64;
+
+  transitioning javascript builtin
+  MathCosh(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Cosh(value));
+  }
+
+  // ES6 #sec-math.exp
+  extern macro Float64Exp(float64): float64;
+
+  transitioning javascript builtin
+  MathExp(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Exp(value));
+  }
+
+  // ES6 #sec-math.expm1
+  extern macro Float64Expm1(float64): float64;
+
+  transitioning javascript builtin
+  MathExpm1(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Expm1(value));
+  }
+
+  // ES6 #sec-math.fround
+  transitioning javascript builtin
+  MathFround(context: Context, receiver: Object, x: Object): Number {
+    const x32 = Convert<float32>(ToNumber_Inline(context, x));
+    const x64 = Convert<float64>(x32);
+    return Convert<Number>(x64);
+  }
+
+  // ES6 #sec-math.log
+  extern macro Float64Log(float64): float64;
+
+  transitioning javascript builtin
+  MathLog(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Log(value));
+  }
+
+  // ES6 #sec-math.log1p
+  extern macro Float64Log1p(float64): float64;
+
+  transitioning javascript builtin
+  MathLog1p(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Log1p(value));
+  }
+
+  // ES6 #sec-math.log10
+  extern macro Float64Log10(float64): float64;
+
+  transitioning javascript builtin
+  MathLog10(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Log10(value));
+  }
+
+  // ES6 #sec-math.log2
+  extern macro Float64Log2(float64): float64;
+
+  transitioning javascript builtin
+  MathLog2(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Log2(value));
+  }
+
+  // ES6 #sec-math.sin
+  extern macro Float64Sin(float64): float64;
+
+  transitioning javascript builtin
+  MathSin(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Sin(value));
+  }
+
+  // ES6 #sec-math.sign
+  transitioning javascript builtin
+  MathSign(context: Context, receiver: Object, x: Object): Number {
+    const num = ToNumber_Inline(context, x);
+    const value = Convert<float64>(num);
+
+    if (value < 0) {
+      return -1;
+    } else if (value > 0) {
+      return 1;
+    } else {
+      return num;
+    }
+  }
+
+  // ES6 #sec-math.sinh
+  extern macro Float64Sinh(float64): float64;
+
+  transitioning javascript builtin
+  MathSinh(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Sinh(value));
+  }
+
+  // ES6 #sec-math.sqrt
+  extern macro Float64Sqrt(float64): float64;
+
+  transitioning javascript builtin
+  MathSqrt(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Sqrt(value));
+  }
+
+  // ES6 #sec-math.tan
+  extern macro Float64Tan(float64): float64;
+
+  transitioning javascript builtin
+  MathTan(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Tan(value));
+  }
+
+  // ES6 #sec-math.tanh
+  extern macro Float64Tanh(float64): float64;
+
+  transitioning javascript builtin
+  MathTanh(context: Context, receiver: Object, x: Object): Number {
+    const value = Convert<float64>(ToNumber_Inline(context, x));
+    return Convert<Number>(Float64Tanh(value));
+  }
+}

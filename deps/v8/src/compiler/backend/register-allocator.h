@@ -7,11 +7,11 @@
 
 #include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
+#include "src/codegen/register-configuration.h"
+#include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/flags.h"
-#include "src/globals.h"
-#include "src/ostreams.h"
-#include "src/register-configuration.h"
+#include "src/flags/flags.h"
+#include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

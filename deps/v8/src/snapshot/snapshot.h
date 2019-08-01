@@ -8,8 +8,7 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/startup-serializer.h"
 
-#include "src/objects-inl.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -163,7 +162,12 @@ class Snapshot : public AllStatic {
 // mksnapshot.
 V8_EXPORT_PRIVATE v8::StartupData CreateSnapshotDataBlobInternal(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
-    const char* embedded_source);
+    const char* embedded_source, v8::Isolate* isolate = nullptr);
+
+// Convenience wrapper around snapshot data blob warmup used e.g. by tests and
+// mksnapshot.
+V8_EXPORT_PRIVATE v8::StartupData WarmUpSnapshotDataBlobInternal(
+    v8::StartupData cold_snapshot_blob, const char* warmup_source);
 
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
 void SetSnapshotFromFile(StartupData* snapshot_blob);

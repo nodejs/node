@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arguments-inl.h"
-#include "src/counters.h"
+#include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -48,14 +48,14 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
-  CHECK_IMPLIES(IsAsyncFunction(function->shared()->kind()),
-                IsAsyncGeneratorFunction(function->shared()->kind()));
-  CHECK(IsResumableFunction(function->shared()->kind()));
+  CHECK_IMPLIES(IsAsyncFunction(function->shared().kind()),
+                IsAsyncGeneratorFunction(function->shared().kind()));
+  CHECK(IsResumableFunction(function->shared().kind()));
 
   // Underlying function needs to have bytecode available.
-  DCHECK(function->shared()->HasBytecodeArray());
-  int size = function->shared()->internal_formal_parameter_count() +
-             function->shared()->GetBytecodeArray()->register_count();
+  DCHECK(function->shared().HasBytecodeArray());
+  int size = function->shared().internal_formal_parameter_count() +
+             function->shared().GetBytecodeArray().register_count();
   Handle<FixedArray> parameters_and_registers =
       isolate->factory()->NewFixedArray(size);
 
@@ -129,7 +129,7 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSAsyncGeneratorObject, generator, 0);
 
-  int state = generator->continuation();
+  int state = generator.continuation();
   DCHECK_NE(state, JSAsyncGeneratorObject::kGeneratorExecuting);
 
   // If state is 0 ("suspendedStart"), there is guaranteed to be no catch
@@ -137,11 +137,11 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
   // not reach a catch handler.
   if (state < 1) return ReadOnlyRoots(isolate).false_value();
 
-  SharedFunctionInfo shared = generator->function()->shared();
-  DCHECK(shared->HasBytecodeArray());
-  HandlerTable handler_table(shared->GetBytecodeArray());
+  SharedFunctionInfo shared = generator.function().shared();
+  DCHECK(shared.HasBytecodeArray());
+  HandlerTable handler_table(shared.GetBytecodeArray());
 
-  int pc = Smi::cast(generator->input_or_debug_pos())->value();
+  int pc = Smi::cast(generator.input_or_debug_pos()).value();
   HandlerTable::CatchPrediction catch_prediction = HandlerTable::ASYNC_AWAIT;
   handler_table.LookupRange(pc, nullptr, &catch_prediction);
   return isolate->heap()->ToBoolean(catch_prediction == HandlerTable::CAUGHT);

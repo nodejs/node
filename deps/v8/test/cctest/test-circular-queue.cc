@@ -27,7 +27,7 @@
 //
 // Tests of the circular queue.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/profiler/circular-queue-inl.h"
 #include "test/cctest/cctest.h"
@@ -36,7 +36,7 @@ using i::SamplingCircularQueue;
 
 
 TEST(SamplingCircularQueue) {
-  typedef v8::base::AtomicWord Record;
+  using Record = v8::base::AtomicWord;
   const int kMaxRecordsInQueue = 4;
   SamplingCircularQueue<Record, kMaxRecordsInQueue> scq;
 
@@ -100,8 +100,8 @@ TEST(SamplingCircularQueue) {
 
 namespace {
 
-typedef v8::base::AtomicWord Record;
-typedef SamplingCircularQueue<Record, 12> TestSampleQueue;
+using Record = v8::base::AtomicWord;
+using TestSampleQueue = SamplingCircularQueue<Record, 12>;
 
 class ProducerThread: public v8::base::Thread {
  public:

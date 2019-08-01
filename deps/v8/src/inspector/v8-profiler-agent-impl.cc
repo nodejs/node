@@ -303,8 +303,8 @@ Response V8ProfilerAgentImpl::startPreciseCoverage(Maybe<bool> callCount,
   // coverage data if it exists (at the time of writing, that's the case for
   // each function recompiled after the BlockCount mode has been set); and
   // function-granularity coverage data otherwise.
-  typedef v8::debug::Coverage C;
-  typedef v8::debug::CoverageMode Mode;
+  using C = v8::debug::Coverage;
+  using Mode = v8::debug::CoverageMode;
   Mode mode = callCountValue
                   ? (detailedValue ? Mode::kBlockCount : Mode::kPreciseCount)
                   : (detailedValue ? Mode::kBlockBinary : Mode::kPreciseBinary);

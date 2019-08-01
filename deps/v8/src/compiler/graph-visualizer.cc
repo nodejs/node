@@ -8,6 +8,8 @@
 #include <sstream>
 #include <string>
 
+#include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/source-position.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/backend/register-allocator.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -23,10 +25,8 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
-#include "src/optimized-compilation-info.h"
-#include "src/ostreams.h"
-#include "src/source-position.h"
-#include "src/vector.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -102,9 +102,9 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
   if (!script.is_null() && !script->IsUndefined(isolate) && !shared.is_null()) {
     Object source_name = script->name();
     os << ", \"sourceName\": \"";
-    if (source_name->IsString()) {
+    if (source_name.IsString()) {
       std::ostringstream escaped_name;
-      escaped_name << String::cast(source_name)->ToCString().get();
+      escaped_name << String::cast(source_name).ToCString().get();
       os << JSONEscaped(escaped_name);
     }
     os << "\"";
@@ -173,7 +173,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   JsonPrintFunctionSource(os, -1,
                           info->shared_info().is_null()
                               ? std::unique_ptr<char[]>(new char[1]{0})
-                              : info->shared_info()->DebugName()->ToCString(),
+                              : info->shared_info()->DebugName().ToCString(),
                           script, isolate, info->shared_info(), true);
   const auto& inlined = info->inlined_functions();
   SourceIdAssigner id_assigner(info->inlined_functions().size());
@@ -181,7 +181,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
     os << ", ";
     Handle<SharedFunctionInfo> shared = inlined[id].shared_info;
     const int source_id = id_assigner.GetIdFor(shared);
-    JsonPrintFunctionSource(os, source_id, shared->DebugName()->ToCString(),
+    JsonPrintFunctionSource(os, source_id, shared->DebugName().ToCString(),
                             handle(Script::cast(shared->script()), isolate),
                             isolate, shared, true);
   }
@@ -216,19 +216,19 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
   if (FLAG_trace_file_names && info->has_shared_info() &&
-      info->shared_info()->script()->IsScript()) {
-    Object source_name = Script::cast(info->shared_info()->script())->name();
-    if (source_name->IsString()) {
+      info->shared_info()->script().IsScript()) {
+    Object source_name = Script::cast(info->shared_info()->script()).name();
+    if (source_name.IsString()) {
       String str = String::cast(source_name);
-      if (str->length() > 0) {
-        SNPrintF(source_file, "%s", str->ToCString().get());
-        std::replace(source_file.start(),
-                     source_file.start() + source_file.length(), '/', '_');
+      if (str.length() > 0) {
+        SNPrintF(source_file, "%s", str.ToCString().get());
+        std::replace(source_file.begin(),
+                     source_file.begin() + source_file.length(), '/', '_');
         source_available = true;
       }
     }
   }
-  std::replace(filename.start(), filename.start() + filename.length(), ' ',
+  std::replace(filename.begin(), filename.begin() + filename.length(), ' ',
                '_');
 
   EmbeddedVector<char, 256> base_dir;
@@ -241,21 +241,21 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
 
   EmbeddedVector<char, 256> full_filename;
   if (phase == nullptr && !source_available) {
-    SNPrintF(full_filename, "%s%s.%s", base_dir.start(), filename.start(),
+    SNPrintF(full_filename, "%s%s.%s", base_dir.begin(), filename.begin(),
              suffix);
   } else if (phase != nullptr && !source_available) {
-    SNPrintF(full_filename, "%s%s-%s.%s", base_dir.start(), filename.start(),
+    SNPrintF(full_filename, "%s%s-%s.%s", base_dir.begin(), filename.begin(),
              phase, suffix);
   } else if (phase == nullptr && source_available) {
-    SNPrintF(full_filename, "%s%s_%s.%s", base_dir.start(), filename.start(),
-             source_file.start(), suffix);
+    SNPrintF(full_filename, "%s%s_%s.%s", base_dir.begin(), filename.begin(),
+             source_file.begin(), suffix);
   } else {
-    SNPrintF(full_filename, "%s%s_%s-%s.%s", base_dir.start(), filename.start(),
-             source_file.start(), phase, suffix);
+    SNPrintF(full_filename, "%s%s_%s-%s.%s", base_dir.begin(), filename.begin(),
+             source_file.begin(), phase, suffix);
   }
 
   char* buffer = new char[full_filename.length() + 1];
-  memcpy(buffer, full_filename.start(), full_filename.length());
+  memcpy(buffer, full_filename.begin(), full_filename.length());
   buffer[full_filename.length()] = '\0';
   return std::unique_ptr<char[]>(buffer);
 }

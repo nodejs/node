@@ -37,6 +37,7 @@ function f1() {
   assertEquals(1, x)
   assertEquals(undefined, y)
 }
+%PrepareFunctionForOptimization(f1);
 for (var j = 0; j < 5; ++j) f1();
 %OptimizeFunctionOnNextCall(f1);
 f1();
@@ -85,6 +86,7 @@ function f3(one) {
     assertEquals(8, b.foo());
   }
 }
+%PrepareFunctionForOptimization(f3);
 for (var j = 0; j < 5; ++j) f3(1);
 %OptimizeFunctionOnNextCall(f3);
 f3(1);

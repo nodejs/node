@@ -6,7 +6,7 @@
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/ppc/frame-constants-ppc.h"
+#include "src/execution/ppc/frame-constants-ppc.h"
 
 namespace v8 {
 namespace internal {
@@ -215,7 +215,6 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
-      return;
   }
 
   if (node->opcode() == IrOpcode::kPoisonedLoad &&

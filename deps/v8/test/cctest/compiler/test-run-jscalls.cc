@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/contexts.h"
-#include "src/flags.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/flags/flags.h"
+#include "src/objects/contexts.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -165,7 +165,7 @@ TEST(RuntimeCallInline) {
 
 TEST(EvalCall) {
   FunctionTester T("(function(a,b) { return eval(a); })");
-  Handle<JSObject> g(T.function->context()->global_object()->global_proxy(),
+  Handle<JSObject> g(T.function->context().global_object().global_proxy(),
                      T.isolate);
 
   T.CheckCall(T.Val(23), T.Val("17 + 6"), T.undefined());
@@ -190,7 +190,7 @@ TEST(ReceiverPatching) {
   // patches an undefined receiver to the global receiver. If this starts to
   // fail once we fix the calling protocol, just remove this test.
   FunctionTester T("(function(a) { return this; })");
-  Handle<JSObject> g(T.function->context()->global_object()->global_proxy(),
+  Handle<JSObject> g(T.function->context().global_object().global_proxy(),
                      T.isolate);
   T.CheckCall(g, T.undefined());
 }

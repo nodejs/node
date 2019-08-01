@@ -37,6 +37,7 @@ function get(obj, key) {
   return obj[key];
 }
 
+%PrepareFunctionForOptimization(get);
 assertEquals("bar", get(o, s));
 get(o, s);
 get(o, s);

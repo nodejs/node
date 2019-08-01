@@ -4,8 +4,8 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
-#include "src/frame-constants.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/execution/frame-constants.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/descriptor-array.h"
 

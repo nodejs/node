@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "src/codegen/machine-type.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
@@ -13,11 +15,9 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/machine-type.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
-#include "src/optimized-compilation-info.h"
-#include "src/simulator.h"
+#include "src/execution/simulator.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
@@ -246,7 +246,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   std::shared_ptr<wasm::NativeModule> module =
       AllocateNativeModule(i_isolate, code->raw_instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  byte* code_start = module->AddCodeForTesting(code)->instructions().start();
+  byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
   // Generate wrapper.
   int expect = 0;
 

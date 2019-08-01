@@ -7,7 +7,9 @@
 
 #include <initializer_list>
 
-#include "src/assembler.h"
+#include "src/base/type-traits.h"
+#include "src/codegen/assembler.h"
+#include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -16,10 +18,9 @@
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/globals.h"
+#include "src/compiler/write-barrier-kind.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/type-traits.h"
 
 namespace v8 {
 namespace internal {
@@ -126,45 +127,87 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // Memory Operations.
-  Node* Load(MachineType rep, Node* base,
-             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    return Load(rep, base, IntPtrConstant(0), needs_poisoning);
-  }
-  Node* Load(MachineType rep, Node* base, Node* index,
-             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    // change_op is used below to change to the correct Tagged representation
-    const Operator* change_op = nullptr;
-#ifdef V8_COMPRESS_POINTERS
-    switch (rep.representation()) {
-      case MachineRepresentation::kTaggedPointer:
-        rep = MachineType::CompressedPointer();
-        change_op = machine()->ChangeCompressedPointerToTaggedPointer();
-        break;
-      case MachineRepresentation::kTaggedSigned:
-        rep = MachineType::CompressedSigned();
-        change_op = machine()->ChangeCompressedSignedToTaggedSigned();
-        break;
-      case MachineRepresentation::kTagged:
-        rep = MachineType::AnyCompressed();
-        change_op = machine()->ChangeCompressedToTagged();
-        break;
-      default:
-        break;
+  std::pair<MachineType, const Operator*> InsertDecompressionIfNeeded(
+      MachineType type) {
+    const Operator* decompress_op = nullptr;
+    if (COMPRESS_POINTERS_BOOL) {
+      switch (type.representation()) {
+        case MachineRepresentation::kTaggedPointer:
+          type = MachineType::CompressedPointer();
+          decompress_op = machine()->ChangeCompressedPointerToTaggedPointer();
+          break;
+        case MachineRepresentation::kTaggedSigned:
+          type = MachineType::CompressedSigned();
+          decompress_op = machine()->ChangeCompressedSignedToTaggedSigned();
+          break;
+        case MachineRepresentation::kTagged:
+          type = MachineType::AnyCompressed();
+          decompress_op = machine()->ChangeCompressedToTagged();
+          break;
+        default:
+          break;
+      }
     }
-#endif
-
-    const Operator* op = machine()->Load(rep);
+    return std::make_pair(type, decompress_op);
+  }
+  Node* Load(MachineType type, Node* base,
+             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    return Load(type, base, IntPtrConstant(0), needs_poisoning);
+  }
+  Node* Load(MachineType type, Node* base, Node* index,
+             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    const Operator* decompress_op;
+    std::tie(type, decompress_op) = InsertDecompressionIfNeeded(type);
+    const Operator* op = machine()->Load(type);
     CHECK_NE(PoisoningMitigationLevel::kPoisonAll, poisoning_level_);
     if (needs_poisoning == LoadSensitivity::kCritical &&
         poisoning_level_ == PoisoningMitigationLevel::kPoisonCriticalOnly) {
-      op = machine()->PoisonedLoad(rep);
+      op = machine()->PoisonedLoad(type);
     }
 
     Node* load = AddNode(op, base, index);
-    if (change_op != nullptr) {
-      load = AddNode(change_op, load);
+    if (decompress_op != nullptr) {
+      load = AddNode(decompress_op, load);
     }
     return load;
+  }
+  Node* LoadFromObject(
+      MachineType type, Node* base, Node* offset,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    const Operator* decompress_op;
+    std::tie(type, decompress_op) = InsertDecompressionIfNeeded(type);
+    CHECK_EQ(needs_poisoning, LoadSensitivity::kSafe);
+    ObjectAccess access = {type, WriteBarrierKind::kNoWriteBarrier};
+    Node* load = AddNode(simplified()->LoadFromObject(access), base, offset);
+    if (decompress_op != nullptr) {
+      load = AddNode(decompress_op, load);
+    }
+    return load;
+  }
+
+  std::pair<MachineRepresentation, Node*> InsertCompressionIfNeeded(
+      MachineRepresentation rep, Node* value) {
+    if (COMPRESS_POINTERS_BOOL) {
+      switch (rep) {
+        case MachineRepresentation::kTaggedPointer:
+          rep = MachineRepresentation::kCompressedPointer;
+          value = AddNode(machine()->ChangeTaggedPointerToCompressedPointer(),
+                          value);
+          break;
+        case MachineRepresentation::kTaggedSigned:
+          rep = MachineRepresentation::kCompressedSigned;
+          value =
+              AddNode(machine()->ChangeTaggedSignedToCompressedSigned(), value);
+          break;
+        case MachineRepresentation::kTagged:
+          rep = MachineRepresentation::kCompressed;
+          value = AddNode(machine()->ChangeTaggedToCompressed(), value);
+          break;
+        default:
+          break;
+      }
+    }
+    return std::make_pair(rep, value);
   }
   Node* Store(MachineRepresentation rep, Node* base, Node* value,
               WriteBarrierKind write_barrier) {
@@ -172,11 +215,20 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* Store(MachineRepresentation rep, Node* base, Node* index, Node* value,
               WriteBarrierKind write_barrier) {
+    std::tie(rep, value) = InsertCompressionIfNeeded(rep, value);
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
                    base, index, value);
   }
+  void StoreToObject(MachineRepresentation rep, Node* object, Node* offset,
+                     Node* value, WriteBarrierKind write_barrier) {
+    std::tie(rep, value) = InsertCompressionIfNeeded(rep, value);
+    ObjectAccess access = {MachineType::TypeForRepresentation(rep),
+                           write_barrier};
+    AddNode(simplified()->StoreToObject(access), object, offset, value);
+  }
   void OptimizedStoreField(MachineRepresentation rep, Node* object, int offset,
                            Node* value, WriteBarrierKind write_barrier) {
+    std::tie(rep, value) = InsertCompressionIfNeeded(rep, value);
     AddNode(simplified()->StoreField(FieldAccess(
                 BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
                 MaybeHandle<Map>(), Type::Any(),
@@ -184,18 +236,27 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
             object, value);
   }
   void OptimizedStoreMap(Node* object, Node* value) {
+    if (COMPRESS_POINTERS_BOOL) {
+      DCHECK(AccessBuilder::ForMap().machine_type.IsCompressedPointer());
+      value =
+          AddNode(machine()->ChangeTaggedPointerToCompressedPointer(), value);
+    }
     AddNode(simplified()->StoreField(AccessBuilder::ForMap()), object, value);
   }
   Node* Retain(Node* value) { return AddNode(common()->Retain(), value); }
 
-  Node* OptimizedAllocate(Node* size, AllocationType allocation);
+  Node* OptimizedAllocate(Node* size, AllocationType allocation,
+                          AllowLargeObjects allow_large_objects);
 
   // Unaligned memory operations
   Node* UnalignedLoad(MachineType type, Node* base) {
     return UnalignedLoad(type, base, IntPtrConstant(0));
   }
   Node* UnalignedLoad(MachineType type, Node* base, Node* index) {
-    if (machine()->UnalignedLoadSupported(type.representation())) {
+    MachineRepresentation rep = type.representation();
+    // Tagged or compressed should never be unaligned
+    DCHECK(!(IsAnyTagged(rep) || IsAnyCompressed(rep)));
+    if (machine()->UnalignedLoadSupported(rep)) {
       return AddNode(machine()->Load(type), base, index);
     } else {
       return AddNode(machine()->UnalignedLoad(type), base, index);
@@ -206,6 +267,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* UnalignedStore(MachineRepresentation rep, Node* base, Node* index,
                        Node* value) {
+    // Tagged or compressed should never be unaligned
+    DCHECK(!(IsAnyTagged(rep) || IsAnyCompressed(rep)));
     if (machine()->UnalignedStoreSupported(rep)) {
       return AddNode(machine()->Store(StoreRepresentation(
                          rep, WriteBarrierKind::kNoWriteBarrier)),
@@ -249,21 +312,21 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     DCHECK_NULL(value_high);
     return AddNode(machine()->Word32AtomicStore(rep), base, index, value);
   }
-#define ATOMIC_FUNCTION(name)                                               \
-  Node* Atomic##name(MachineType rep, Node* base, Node* index, Node* value, \
-                     Node* value_high) {                                    \
-    if (rep.representation() == MachineRepresentation::kWord64) {           \
-      if (machine()->Is64()) {                                              \
-        DCHECK_NULL(value_high);                                            \
-        return AddNode(machine()->Word64Atomic##name(rep), base, index,     \
-                       value);                                              \
-      } else {                                                              \
-        return AddNode(machine()->Word32AtomicPair##name(), base, index,    \
-                       VALUE_HALVES);                                       \
-      }                                                                     \
-    }                                                                       \
-    DCHECK_NULL(value_high);                                                \
-    return AddNode(machine()->Word32Atomic##name(rep), base, index, value); \
+#define ATOMIC_FUNCTION(name)                                                \
+  Node* Atomic##name(MachineType type, Node* base, Node* index, Node* value, \
+                     Node* value_high) {                                     \
+    if (type.representation() == MachineRepresentation::kWord64) {           \
+      if (machine()->Is64()) {                                               \
+        DCHECK_NULL(value_high);                                             \
+        return AddNode(machine()->Word64Atomic##name(type), base, index,     \
+                       value);                                               \
+      } else {                                                               \
+        return AddNode(machine()->Word32AtomicPair##name(), base, index,     \
+                       VALUE_HALVES);                                        \
+      }                                                                      \
+    }                                                                        \
+    DCHECK_NULL(value_high);                                                 \
+    return AddNode(machine()->Word32Atomic##name(type), base, index, value); \
   }
   ATOMIC_FUNCTION(Exchange)
   ATOMIC_FUNCTION(Add)
@@ -274,15 +337,15 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 #undef ATOMIC_FUNCTION
 #undef VALUE_HALVES
 
-  Node* AtomicCompareExchange(MachineType rep, Node* base, Node* index,
+  Node* AtomicCompareExchange(MachineType type, Node* base, Node* index,
                               Node* old_value, Node* old_value_high,
                               Node* new_value, Node* new_value_high) {
-    if (rep.representation() == MachineRepresentation::kWord64) {
+    if (type.representation() == MachineRepresentation::kWord64) {
       if (machine()->Is64()) {
         DCHECK_NULL(old_value_high);
         DCHECK_NULL(new_value_high);
-        return AddNode(machine()->Word64AtomicCompareExchange(rep), base, index,
-                       old_value, new_value);
+        return AddNode(machine()->Word64AtomicCompareExchange(type), base,
+                       index, old_value, new_value);
       } else {
         return AddNode(machine()->Word32AtomicPairCompareExchange(), base,
                        index, old_value, old_value_high, new_value,
@@ -291,7 +354,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     }
     DCHECK_NULL(old_value_high);
     DCHECK_NULL(new_value_high);
-    return AddNode(machine()->Word32AtomicCompareExchange(rep), base, index,
+    return AddNode(machine()->Word32AtomicCompareExchange(type), base, index,
                    old_value, new_value);
   }
 
@@ -852,15 +915,15 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Parameter(size_t index);
 
   // Pointer utilities.
-  Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
-    return Load(rep, PointerConstant(address), Int32Constant(offset));
+  Node* LoadFromPointer(void* address, MachineType type, int32_t offset = 0) {
+    return Load(type, PointerConstant(address), Int32Constant(offset));
   }
   Node* StoreToPointer(void* address, MachineRepresentation rep, Node* node) {
     return Store(rep, PointerConstant(address), node, kNoWriteBarrier);
   }
-  Node* UnalignedLoadFromPointer(void* address, MachineType rep,
+  Node* UnalignedLoadFromPointer(void* address, MachineType type,
                                  int32_t offset = 0) {
-    return UnalignedLoad(rep, PointerConstant(address), Int32Constant(offset));
+    return UnalignedLoad(type, PointerConstant(address), Int32Constant(offset));
   }
   Node* UnalignedStoreToPointer(void* address, MachineRepresentation rep,
                                 Node* node) {
@@ -957,6 +1020,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void DebugBreak();
   void Unreachable();
   void Comment(const std::string& msg);
+  void StaticAssert(Node* value);
 
 #if DEBUG
   void Bind(RawMachineLabel* label, AssemblerDebugInfo info);

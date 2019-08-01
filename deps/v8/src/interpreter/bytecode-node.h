@@ -7,7 +7,7 @@
 
 #include <algorithm>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/bytecodes.h"
 

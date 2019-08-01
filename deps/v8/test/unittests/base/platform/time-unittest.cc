@@ -426,7 +426,7 @@ TEST(TimeTicks, TimerPerformance) {
   // Note:  This is a somewhat arbitrary test.
   const int kLoops = 10000;
 
-  typedef TimeTicks (*TestFunc)();
+  using TestFunc = TimeTicks (*)();
   struct TestCase {
     TestFunc func;
     const char *description;

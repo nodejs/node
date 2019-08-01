@@ -105,6 +105,8 @@ function get_standard_literal() {
   return literal;
 }
 
+%PrepareFunctionForOptimization(get_standard_literal);
+
 // Case: [1,2,3] as allocation site
 obj = fastliteralcase(get_standard_literal(), 1);
 assertKind(elements_kind.fast_smi_only, obj);
@@ -321,6 +323,8 @@ function instanceof_check2(type) {
   assertTrue(new type(1,2,3) instanceof type);
 }
 
+%PrepareFunctionForOptimization(instanceof_check);
+
 var realmBArray = Realm.eval(realmB, "Array");
 // Two calls with Array because ES6 instanceof desugars into a load of Array,
 // and load has a premonomorphic state.
@@ -354,10 +358,12 @@ assertOptimized(instanceof_check);
 // Try to optimize again, but first clear all type feedback, and allow it
 // to be monomorphic on first call. Only after optimizing do we introduce
 // realmBArray. This should deopt the method.
+  %PrepareFunctionForOptimization(instanceof_check);
   %DeoptimizeFunction(instanceof_check);
   %ClearFunctionFeedback(instanceof_check);
 instanceof_check(Array);
 instanceof_check(Array);
+  %PrepareFunctionForOptimization(instanceof_check);
   %OptimizeFunctionOnNextCall(instanceof_check);
 instanceof_check(Array);
 assertOptimized(instanceof_check);

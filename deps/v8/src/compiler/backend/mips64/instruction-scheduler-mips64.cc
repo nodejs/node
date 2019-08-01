@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/macro-assembler.h"
 #include "src/compiler/backend/instruction-scheduler.h"
-#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

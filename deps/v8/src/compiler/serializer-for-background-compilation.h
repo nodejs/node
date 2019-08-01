@@ -7,9 +7,9 @@
 
 #include "src/base/optional.h"
 #include "src/compiler/access-info.h"
-#include "src/handles.h"
-#include "src/maybe-handles.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
+#include "src/handles/handles.h"
+#include "src/handles/maybe-handles.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -189,6 +189,7 @@ namespace compiler {
   V(StaGlobal)                       \
   V(StaInArrayLiteral)               \
   V(StaKeyedProperty)                \
+  V(StaNamedOwnProperty)             \
   V(StaNamedProperty)                \
   V(Star)                            \
   V(TestIn)                          \
@@ -262,25 +263,37 @@ class Hints {
   MapsSet maps_;
   BlueprintsSet function_blueprints_;
 };
-
 using HintsVector = ZoneVector<Hints>;
+
+enum class SerializerForBackgroundCompilationFlag : uint8_t {
+  kBailoutOnUninitialized = 1 << 0,
+  kCollectSourcePositions = 1 << 1,
+  kOsr = 1 << 2,
+};
+using SerializerForBackgroundCompilationFlags =
+    base::Flags<SerializerForBackgroundCompilationFlag>;
 
 // The SerializerForBackgroundCompilation makes sure that the relevant function
 // data such as bytecode, SharedFunctionInfo and FeedbackVector, used by later
 // optimizations in the compiler, is copied to the heap broker.
 class SerializerForBackgroundCompilation {
  public:
-  SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
-                                     Handle<JSFunction> closure);
+  SerializerForBackgroundCompilation(
+      JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
+      Handle<JSFunction> closure,
+      SerializerForBackgroundCompilationFlags flags);
   Hints Run();  // NOTE: Returns empty for an already-serialized function.
 
   class Environment;
 
  private:
-  SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
-                                     CompilationSubject function,
-                                     base::Optional<Hints> new_target,
-                                     const HintsVector& arguments);
+  SerializerForBackgroundCompilation(
+      JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
+      CompilationSubject function, base::Optional<Hints> new_target,
+      const HintsVector& arguments,
+      SerializerForBackgroundCompilationFlags flags);
+
+  bool BailoutOnUninitialized(FeedbackSlot slot);
 
   void TraverseBytecode();
 
@@ -307,10 +320,12 @@ class SerializerForBackgroundCompilation {
                                   FeedbackSlot slot, AccessMode mode);
 
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
-  void ProcessFeedbackForKeyedPropertyAccess(FeedbackSlot slot,
-                                             AccessMode mode);
-  void ProcessFeedbackForNamedPropertyAccess(FeedbackSlot slot,
-                                             NameRef const& name);
+  NamedAccessFeedback const* ProcessFeedbackMapsForNamedAccess(
+      const MapHandles& maps, AccessMode mode, NameRef const& name);
+  ElementAccessFeedback const* ProcessFeedbackMapsForElementAccess(
+      const MapHandles& maps, AccessMode mode);
+  void ProcessFeedbackForPropertyAccess(FeedbackSlot slot, AccessMode mode,
+                                        base::Optional<NameRef> static_name);
   void ProcessMapForNamedPropertyAccess(MapRef const& map, NameRef const& name);
 
   Hints RunChildSerializer(CompilationSubject function,
@@ -318,13 +333,17 @@ class SerializerForBackgroundCompilation {
                            const HintsVector& arguments, bool with_spread);
 
   JSHeapBroker* broker() const { return broker_; }
+  CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   Environment* environment() const { return environment_; }
+  SerializerForBackgroundCompilationFlags flags() const { return flags_; }
 
   JSHeapBroker* const broker_;
+  CompilationDependencies* const dependencies_;
   Zone* const zone_;
   Environment* const environment_;
   ZoneUnorderedMap<int, Environment*> stashed_environments_;
+  SerializerForBackgroundCompilationFlags const flags_;
 };
 
 }  // namespace compiler

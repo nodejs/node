@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api-arguments-inl.h"
-#include "src/api-natives.h"
+#include "src/api/api-arguments-inl.h"
+#include "src/api/api-natives.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
-#include "src/log.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/logging/log.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/prototype.h"
 #include "src/objects/templates.h"
-#include "src/prototype.h"
-#include "src/visitors.h"
+#include "src/objects/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -23,23 +23,23 @@ namespace {
 // TODO(dcarney): CallOptimization duplicates this logic, merge.
 JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo info,
                                  JSReceiver receiver) {
-  Object recv_type = info->signature();
+  Object recv_type = info.signature();
   // No signature, return holder.
-  if (!recv_type->IsFunctionTemplateInfo()) return receiver;
+  if (!recv_type.IsFunctionTemplateInfo()) return receiver;
   // A Proxy cannot have been created from the signature template.
-  if (!receiver->IsJSObject()) return JSReceiver();
+  if (!receiver.IsJSObject()) return JSReceiver();
 
   JSObject js_obj_receiver = JSObject::cast(receiver);
   FunctionTemplateInfo signature = FunctionTemplateInfo::cast(recv_type);
 
   // Check the receiver. Fast path for receivers with no hidden prototypes.
-  if (signature->IsTemplateFor(js_obj_receiver)) return receiver;
-  if (!js_obj_receiver->map()->has_hidden_prototype()) return JSReceiver();
+  if (signature.IsTemplateFor(js_obj_receiver)) return receiver;
+  if (!js_obj_receiver.map().has_hidden_prototype()) return JSReceiver();
   for (PrototypeIterator iter(isolate, js_obj_receiver, kStartAtPrototype,
                               PrototypeIterator::END_AT_NON_HIDDEN);
        !iter.IsAtEnd(); iter.Advance()) {
     JSObject current = iter.GetCurrent<JSObject>();
-    if (signature->IsTemplateFor(current)) return current;
+    if (signature.IsTemplateFor(current)) return current;
   }
   return JSReceiver();
 }
@@ -53,7 +53,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
   JSReceiver raw_holder;
   if (is_construct) {
     DCHECK(args.receiver()->IsTheHole(isolate));
-    if (fun_data->GetInstanceTemplate()->IsUndefined(isolate)) {
+    if (fun_data->GetInstanceTemplate().IsUndefined(isolate)) {
       v8::Local<ObjectTemplate> templ =
           ObjectTemplate::New(reinterpret_cast<v8::Isolate*>(isolate),
                               ToApiHandle<v8::FunctionTemplate>(fun_data));
@@ -98,10 +98,10 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
   }
 
   Object raw_call_data = fun_data->call_code();
-  if (!raw_call_data->IsUndefined(isolate)) {
-    DCHECK(raw_call_data->IsCallHandlerInfo());
+  if (!raw_call_data.IsUndefined(isolate)) {
+    DCHECK(raw_call_data.IsCallHandlerInfo());
     CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
-    Object data_obj = call_data->data();
+    Object data_obj = call_data.data();
 
     FunctionCallbackArguments custom(isolate, data_obj, *function, raw_holder,
                                      *new_target, args.address_of_arg_at(1),
@@ -129,7 +129,7 @@ BUILTIN(HandleApiCall) {
   Handle<JSFunction> function = args.target();
   Handle<Object> receiver = args.receiver();
   Handle<HeapObject> new_target = args.new_target();
-  Handle<FunctionTemplateInfo> fun_data(function->shared()->get_api_func_data(),
+  Handle<FunctionTemplateInfo> fun_data(function->shared().get_api_func_data(),
                                         isolate);
   if (new_target->IsJSReceiver()) {
     RETURN_RESULT_OR_FAILURE(
@@ -171,12 +171,12 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
                               RuntimeCallCounterId::kInvokeApiFunction);
   DCHECK(function->IsFunctionTemplateInfo() ||
          (function->IsJSFunction() &&
-          JSFunction::cast(*function)->shared()->IsApiFunction()));
+          JSFunction::cast(*function).shared().IsApiFunction()));
 
   // Do proper receiver conversion for non-strict mode api functions.
   if (!is_construct && !receiver->IsJSReceiver()) {
     if (function->IsFunctionTemplateInfo() ||
-        is_sloppy(JSFunction::cast(*function)->shared()->language_mode())) {
+        is_sloppy(JSFunction::cast(*function).shared().language_mode())) {
       ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
                                  Object::ConvertReceiver(isolate, receiver),
                                  Object);
@@ -191,7 +191,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   Handle<FunctionTemplateInfo> fun_data =
       function->IsFunctionTemplateInfo()
           ? Handle<FunctionTemplateInfo>::cast(function)
-          : handle(JSFunction::cast(*function)->shared()->get_api_func_data(),
+          : handle(JSFunction::cast(*function).shared().get_api_func_data(),
                    isolate);
   // Construct BuiltinArguments object:
   // new target, function, arguments reversed, receiver.
@@ -211,8 +211,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   }
   DCHECK_EQ(cursor, BuiltinArguments::kPaddingOffset);
   argv[BuiltinArguments::kPaddingOffset] =
-      ReadOnlyRoots(isolate).the_hole_value()->ptr();
-  argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc)->ptr();
+      ReadOnlyRoots(isolate).the_hole_value().ptr();
+  argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc).ptr();
   argv[BuiltinArguments::kTargetOffset] = function->ptr();
   argv[BuiltinArguments::kNewTargetOffset] = new_target->ptr();
   MaybeHandle<Object> result;
@@ -254,12 +254,12 @@ V8_WARN_UNUSED_RESULT static Object HandleApiCallAsFunctionOrConstructor(
 
   // Get the invocation callback from the function descriptor that was
   // used to create the called object.
-  DCHECK(obj->map()->is_callable());
-  JSFunction constructor = JSFunction::cast(obj->map()->GetConstructor());
-  DCHECK(constructor->shared()->IsApiFunction());
+  DCHECK(obj.map().is_callable());
+  JSFunction constructor = JSFunction::cast(obj.map().GetConstructor());
+  DCHECK(constructor.shared().IsApiFunction());
   Object handler =
-      constructor->shared()->get_api_func_data()->GetInstanceCallHandler();
-  DCHECK(!handler->IsUndefined(isolate));
+      constructor.shared().get_api_func_data().GetInstanceCallHandler();
+  DCHECK(!handler.IsUndefined(isolate));
   CallHandlerInfo call_data = CallHandlerInfo::cast(handler);
 
   // Get the data for the call and perform the callback.
@@ -267,7 +267,7 @@ V8_WARN_UNUSED_RESULT static Object HandleApiCallAsFunctionOrConstructor(
   {
     HandleScope scope(isolate);
     LOG(isolate, ApiObjectAccess("call non-function", obj));
-    FunctionCallbackArguments custom(isolate, call_data->data(), constructor,
+    FunctionCallbackArguments custom(isolate, call_data.data(), constructor,
                                      obj, new_target, args.address_of_arg_at(1),
                                      args.length() - 1);
     Handle<Object> result_handle = custom.Call(call_data);

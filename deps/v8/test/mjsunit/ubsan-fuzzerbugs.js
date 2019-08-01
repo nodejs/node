@@ -72,21 +72,3 @@ float_array[0] = 1e51;
   %OptimizeFunctionOnNextCall(f);
   f();
 })();
-
-// crbug.com/935133
-(function() {
-  var called_has = false;
-  var proxy = new Proxy({}, {
-    has: function(x, p) {
-      called_has = true;
-      throw "The test may finish now";
-    },
-  });
-  proxy.length = 2147483648;
-  try {
-    Array.prototype.sort.call(proxy);
-  } catch(e) {
-    assertTrue(e === "The test may finish now");
-  }
-  assertTrue(called_has);
-})();
