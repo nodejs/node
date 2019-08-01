@@ -1250,6 +1250,7 @@ class Environment : public MemoryRetainer {
   const uint64_t timer_base_;
   std::shared_ptr<KVStore> env_vars_;
   bool printed_error_ = false;
+  bool trace_sync_io_ = false;
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;
   size_t async_callback_scope_depth_ = 0;
