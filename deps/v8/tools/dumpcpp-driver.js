@@ -39,7 +39,8 @@ if (params.sourceMap) {
 }
 
 var cppProcessor = new CppProcessor(
-  new (entriesProviders[params.platform])(params.nm, params.targetRootFS),
+  new (entriesProviders[params.platform])(params.nm, params.targetRootFS,
+                                          params.apkEmbeddedLibrary),
   params.timedRange, params.pairwiseTimedRange);
 cppProcessor.processLogFile(params.logFileName);
 cppProcessor.dumpCppSymbols();

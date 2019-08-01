@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_DESCRIPTOR_ARRAY_H_
 #define V8_OBJECTS_DESCRIPTOR_ARRAY_H_
 
-#include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/objects.h"
 #include "src/objects/struct.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -139,20 +139,9 @@ class DescriptorArray : public HeapObject {
   static const int kNotFound = -1;
 
   // Layout description.
-#define DESCRIPTOR_ARRAY_FIELDS(V)                    \
-  V(kNumberOfAllDescriptorsOffset, kUInt16Size)       \
-  V(kNumberOfDescriptorsOffset, kUInt16Size)          \
-  V(kRawNumberOfMarkedDescriptorsOffset, kUInt16Size) \
-  V(kFiller16BitsOffset, kUInt16Size)                 \
-  V(kPointersStartOffset, 0)                          \
-  V(kEnumCacheOffset, kTaggedSize)                    \
-  V(kHeaderSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                DESCRIPTOR_ARRAY_FIELDS)
-#undef DESCRIPTOR_ARRAY_FIELDS
-
-  STATIC_ASSERT(IsAligned(kPointersStartOffset, kTaggedSize));
+                                TORQUE_GENERATED_DESCRIPTOR_ARRAY_FIELDS)
+  STATIC_ASSERT(IsAligned(kStartOfWeakFieldsOffset, kTaggedSize));
   STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
 
   // Garbage collection support.
@@ -174,7 +163,13 @@ class DescriptorArray : public HeapObject {
   inline ObjectSlot GetKeySlot(int descriptor);
   inline MaybeObjectSlot GetValueSlot(int descriptor);
 
-  using BodyDescriptor = FlexibleWeakBodyDescriptor<kPointersStartOffset>;
+  static_assert(kEndOfStrongFieldsOffset == kStartOfWeakFieldsOffset,
+                "Weak fields follow strong fields.");
+  static_assert(kEndOfWeakFieldsOffset == kHeaderSize,
+                "Weak fields extend up to the end of the header.");
+  // We use this visitor to also visitor to also visit the enum_cache, which is
+  // the only tagged field in the header, and placed at the end of the header.
+  using BodyDescriptor = FlexibleWeakBodyDescriptor<kStartOfStrongFieldsOffset>;
 
   // Layout of descriptor.
   // Naming is consistent with Dictionary classes for easy templating.

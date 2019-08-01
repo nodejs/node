@@ -8,7 +8,7 @@
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug-scopes.h"
-#include "src/frames.h"
+#include "src/execution/frames.h"
 
 namespace v8 {
 namespace internal {

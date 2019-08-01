@@ -12,16 +12,17 @@
 #include <set>
 #include <string>
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace U_ICU_NAMESPACE {
+class DecimalFormat;
 class PluralRules;
 }  //  namespace U_ICU_NAMESPACE
 
@@ -69,16 +70,8 @@ class JSPluralRules : public JSObject {
   STATIC_ASSERT(Type::ORDINAL <= TypeBits::kMax);
 
 // Layout description.
-#define JS_PLURAL_RULES_FIELDS(V)         \
-  V(kLocaleOffset, kTaggedSize)           \
-  V(kFlagsOffset, kTaggedSize)            \
-  V(kICUPluralRulesOffset, kTaggedSize)   \
-  V(kICUDecimalFormatOffset, kTaggedSize) \
-  /* Total size. */                       \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_PLURAL_RULES_FIELDS)
-#undef JS_PLURAL_RULES_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSPLURAL_RULES_FIELDS)
 
   DECL_ACCESSORS(locale, String)
   DECL_INT_ACCESSORS(flags)

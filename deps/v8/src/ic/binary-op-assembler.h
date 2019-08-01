@@ -6,7 +6,7 @@
 #define V8_IC_BINARY_OP_ASSEMBLER_H_
 
 #include <functional>
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {

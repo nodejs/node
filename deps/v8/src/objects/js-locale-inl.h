@@ -9,9 +9,9 @@
 #ifndef V8_OBJECTS_JS_LOCALE_INL_H_
 #define V8_OBJECTS_JS_LOCALE_INL_H_
 
-#include "src/api-inl.h"
-#include "src/objects-inl.h"
+#include "src/api/api-inl.h"
 #include "src/objects/js-locale.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,7 +21,7 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(JSLocale, JSObject)
 
-ACCESSORS(JSLocale, icu_locale, Managed<icu::Locale>, kICULocaleOffset)
+ACCESSORS(JSLocale, icu_locale, Managed<icu::Locale>, kIcuLocaleOffset)
 
 CAST_ACCESSOR(JSLocale)
 

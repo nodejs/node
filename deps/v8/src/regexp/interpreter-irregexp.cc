@@ -7,12 +7,12 @@
 #include "src/regexp/interpreter-irregexp.h"
 
 #include "src/ast/ast.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/regexp/bytecodes-irregexp.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
-#include "src/unicode.h"
-#include "src/utils.h"
+#include "src/strings/unicode.h"
+#include "src/utils/utils.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
@@ -176,7 +176,7 @@ IrregexpInterpreter::Result HandleInterrupts(Isolate* isolate,
     result = isolate->stack_guard()->HandleInterrupts();
   }
 
-  if (result->IsException(isolate)) {
+  if (result.IsException(isolate)) {
     return IrregexpInterpreter::EXCEPTION;
   }
 

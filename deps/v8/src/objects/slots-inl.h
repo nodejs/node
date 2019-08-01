@@ -8,11 +8,12 @@
 #include "src/objects/slots.h"
 
 #include "src/base/atomic-utils.h"
-#include "src/memcopy.h"
-#include "src/objects.h"
-#include "src/objects/heap-object-inl.h"
+#include "src/common/ptr-compr-inl.h"
+#include "src/objects/compressed-slots.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/maybe-object.h"
-#include "src/ptr-compr-inl.h"
+#include "src/objects/objects.h"
+#include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {
@@ -30,7 +31,7 @@ bool FullObjectSlot::contains_value(Address raw_value) const {
 
 const Object FullObjectSlot::operator*() const { return Object(*location()); }
 
-void FullObjectSlot::store(Object value) const { *location() = value->ptr(); }
+void FullObjectSlot::store(Object value) const { *location() = value.ptr(); }
 
 Object FullObjectSlot::Acquire_Load() const {
   return Object(base::AsAtomicPointer::Acquire_Load(location()));
@@ -41,16 +42,16 @@ Object FullObjectSlot::Relaxed_Load() const {
 }
 
 void FullObjectSlot::Relaxed_Store(Object value) const {
-  base::AsAtomicPointer::Relaxed_Store(location(), value->ptr());
+  base::AsAtomicPointer::Relaxed_Store(location(), value.ptr());
 }
 
 void FullObjectSlot::Release_Store(Object value) const {
-  base::AsAtomicPointer::Release_Store(location(), value->ptr());
+  base::AsAtomicPointer::Release_Store(location(), value.ptr());
 }
 
 Object FullObjectSlot::Release_CompareAndSwap(Object old, Object target) const {
   Address result = base::AsAtomicPointer::Release_CompareAndSwap(
-      location(), old->ptr(), target->ptr());
+      location(), old.ptr(), target.ptr());
   return Object(result);
 }
 
@@ -98,7 +99,7 @@ HeapObject FullHeapObjectSlot::ToHeapObject() const {
 }
 
 void FullHeapObjectSlot::StoreHeapObject(HeapObject value) const {
-  *location() = value->ptr();
+  *location() = value.ptr();
 }
 
 //

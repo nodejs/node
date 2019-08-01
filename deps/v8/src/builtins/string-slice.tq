@@ -1,0 +1,35 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace string_slice {
+
+  extern macro SubString(String, intptr, intptr): String;
+
+  // ES6 #sec-string.prototype.slice ( start, end )
+  // https://tc39.github.io/ecma262/#sec-string.prototype.slice
+  transitioning javascript builtin StringPrototypeSlice(
+      implicit context: Context)(receiver: Object, ...arguments): String {
+    // 1. Let O be ? RequireObjectCoercible(this value).
+    // 2. Let S be ? ToString(O).
+    const string: String = ToThisString(receiver, 'String.prototype.slice');
+
+    // 3. Let len be the number of elements in S.
+    const length: intptr = string.length_intptr;
+
+    // Convert {start} to a relative index.
+    const start: intptr = ConvertToRelativeIndex(arguments[0], length);
+
+    // 5. If end is undefined, let intEnd be len;
+    // else Convert {end} to a relative index.
+    const temp = arguments[1];
+    const end: intptr =
+        temp == Undefined ? length : ConvertToRelativeIndex(temp, length);
+
+    if (end <= start) {
+      return kEmptyString;
+    }
+
+    return SubString(string, start, end);
+  }
+}

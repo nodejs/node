@@ -6,7 +6,7 @@
 #define V8_COMPILER_OPERATOR_PROPERTIES_H_
 
 #include "src/base/macros.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

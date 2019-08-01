@@ -6,7 +6,7 @@
 #define V8_WASM_JS_TO_WASM_WRAPPER_CACHE_H_
 
 #include "src/compiler/wasm-compiler.h"
-#include "src/counters.h"
+#include "src/logging/counters.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 

@@ -20,6 +20,7 @@
     return maxWithZero(x, y);
   }
 
+  %PrepareFunctionForOptimization(testMax);
   testMax(1, 2);
   testMax(1, 2);
   %OptimizeFunctionOnNextCall(testMax);

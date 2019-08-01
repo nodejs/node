@@ -6,14 +6,14 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/property-descriptor-object.h"
+#include "src/objects/property-details.h"
 #include "src/objects/shared-function-info.h"
-#include "src/property-details.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +21,7 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // ES6 section 19.1 Object Objects
 
-typedef compiler::Node Node;
+using Node = compiler::Node;
 template <class T>
 using TNode = CodeStubAssembler::TNode<T>;
 
@@ -48,9 +48,6 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
   Node* IsSpecialReceiverMap(SloppyTNode<Map> map);
 
   TNode<Word32T> IsStringWrapperElementsKind(TNode<Map> map);
-
-  void ObjectAssignFast(TNode<Context> context, TNode<JSReceiver> to,
-                        TNode<Object> from, Label* slow);
 };
 
 class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
@@ -190,8 +187,8 @@ TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyKindData(
 
 TNode<Uint32T> ObjectEntriesValuesBuiltinsAssembler::HasHiddenPrototype(
     TNode<Map> map) {
-  TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
-  return DecodeWord32<Map::HasHiddenPrototypeBit>(bit_field3);
+  TNode<Uint32T> bit_field2 = Unsigned(LoadMapBitField2(map));
+  return DecodeWord32<Map::HasHiddenPrototypeBit>(bit_field2);
 }
 
 void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
@@ -499,18 +496,8 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   //    second argument.
   // 4. For each element nextSource of sources, in ascending index order,
   args.ForEach(
-      [=](Node* next_source_) {
-        TNode<Object> next_source = CAST(next_source_);
-        Label slow(this), cont(this);
-        ObjectAssignFast(context, to, next_source, &slow);
-        Goto(&cont);
-
-        BIND(&slow);
-        {
-          CallRuntime(Runtime::kSetDataProperties, context, to, next_source);
-          Goto(&cont);
-        }
-        BIND(&cont);
+      [=](Node* next_source) {
+        CallBuiltin(Builtins::kSetDataProperties, context, to, next_source);
       },
       IntPtrConstant(1));
   Goto(&done);
@@ -518,53 +505,6 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   // 5. Return to.
   BIND(&done);
   args.PopAndReturn(to);
-}
-
-// This function mimics what FastAssign() function does for C++ implementation.
-void ObjectBuiltinsAssembler::ObjectAssignFast(TNode<Context> context,
-                                               TNode<JSReceiver> to,
-                                               TNode<Object> from,
-                                               Label* slow) {
-  Label done(this);
-
-  // Non-empty strings are the only non-JSReceivers that need to be handled
-  // explicitly by Object.assign.
-  GotoIf(TaggedIsSmi(from), &done);
-  TNode<Map> from_map = LoadMap(CAST(from));
-  TNode<Int32T> from_instance_type = LoadMapInstanceType(from_map);
-  {
-    Label cont(this);
-    GotoIf(IsJSReceiverInstanceType(from_instance_type), &cont);
-    GotoIfNot(IsStringInstanceType(from_instance_type), &done);
-    {
-      Branch(
-          Word32Equal(LoadStringLengthAsWord32(CAST(from)), Int32Constant(0)),
-          &done, slow);
-    }
-    BIND(&cont);
-  }
-
-  // If the target is deprecated, the object will be updated on first store. If
-  // the source for that store equals the target, this will invalidate the
-  // cached representation of the source. Handle this case in runtime.
-  TNode<Map> to_map = LoadMap(to);
-  GotoIf(IsDeprecatedMap(to_map), slow);
-  TNode<BoolT> to_is_simple_receiver = IsSimpleObjectMap(to_map);
-
-  GotoIfNot(IsJSObjectInstanceType(from_instance_type), slow);
-  GotoIfNot(IsEmptyFixedArray(LoadElements(CAST(from))), slow);
-
-  ForEachEnumerableOwnProperty(
-      context, from_map, CAST(from), kEnumerationOrder,
-      [=](TNode<Name> key, TNode<Object> value) {
-        KeyedStoreGenericGenerator::SetProperty(state(), context, to,
-                                                to_is_simple_receiver, key,
-                                                value, LanguageMode::kStrict);
-      },
-      slow);
-
-  Goto(&done);
-  BIND(&done);
 }
 
 // ES #sec-object.keys

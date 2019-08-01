@@ -12,9 +12,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .addBody([kExprGetLocal, 0,
                    kExprGetLocal, 0,
                    kExprCallFunction, 0])
-         .giveCompilationHint(kCompilationHintStrategyDefault,
-                              kCompilationHintTierInterpreter,
-                              kCompilationHintTierInterpreter)
+         .setCompilationHint(kCompilationHintStrategyDefault,
+                             kCompilationHintTierInterpreter,
+                             kCompilationHintTierInterpreter)
          .exportFunc();
   let instance = builder.instantiate({mod: {pow: Math.pow}});
   assertEquals(27, instance.exports.upow(3))

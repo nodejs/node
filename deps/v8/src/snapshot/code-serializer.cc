@@ -4,17 +4,17 @@
 
 #include "src/snapshot/code-serializer.h"
 
-#include "src/counters.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
-#include "src/log.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/logging/log.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/visitors.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
-#include "src/version.h"
-#include "src/visitors.h"
+#include "src/utils/version.h"
 
 namespace v8 {
 namespace internal {
@@ -50,14 +50,12 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   Handle<Script> script(Script::cast(info->script()), isolate);
   if (FLAG_trace_serializer) {
     PrintF("[Serializing from");
-    script->name()->ShortPrint();
+    script->name().ShortPrint();
     PrintF("]\n");
   }
   // TODO(7110): Enable serialization of Asm modules once the AsmWasmData is
   // context independent.
   if (script->ContainsAsmModule()) return nullptr;
-
-  isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
 
   // Serialize code object.
   Handle<String> source(String::cast(script->source()), isolate);
@@ -104,7 +102,7 @@ bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj) {
   // For objects in RO_SPACE, never serialize the object, but instead create a
   // back reference that encodes the page number as the chunk_index and the
   // offset within the page as the chunk_offset.
-  Address address = obj->address();
+  Address address = obj.address();
   Page* page = Page::FromAddress(address);
   uint32_t chunk_index = 0;
   for (Page* p : *read_only_space) {
@@ -114,7 +112,7 @@ bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj) {
   uint32_t chunk_offset = static_cast<uint32_t>(page->Offset(address));
   SerializerReference back_reference =
       SerializerReference::BackReference(RO_SPACE, chunk_index, chunk_offset);
-  reference_map()->Add(reinterpret_cast<void*>(obj->ptr()), back_reference);
+  reference_map()->Add(reinterpret_cast<void*>(obj.ptr()), back_reference);
   CHECK(SerializeBackReference(obj));
   return true;
 }
@@ -128,60 +126,60 @@ void CodeSerializer::SerializeObject(HeapObject obj) {
 
   if (SerializeReadOnlyObject(obj)) return;
 
-  CHECK(!obj->IsCode());
+  CHECK(!obj.IsCode());
 
   ReadOnlyRoots roots(isolate());
   if (ElideObject(obj)) {
     return SerializeObject(roots.undefined_value());
   }
 
-  if (obj->IsScript()) {
+  if (obj.IsScript()) {
     Script script_obj = Script::cast(obj);
-    DCHECK_NE(script_obj->compilation_type(), Script::COMPILATION_TYPE_EVAL);
+    DCHECK_NE(script_obj.compilation_type(), Script::COMPILATION_TYPE_EVAL);
     // We want to differentiate between undefined and uninitialized_symbol for
     // context_data for now. It is hack to allow debugging for scripts that are
     // included as a part of custom snapshot. (see debug::Script::IsEmbedded())
-    Object context_data = script_obj->context_data();
+    Object context_data = script_obj.context_data();
     if (context_data != roots.undefined_value() &&
         context_data != roots.uninitialized_symbol()) {
-      script_obj->set_context_data(roots.undefined_value());
+      script_obj.set_context_data(roots.undefined_value());
     }
     // We don't want to serialize host options to avoid serializing unnecessary
     // object graph.
-    FixedArray host_options = script_obj->host_defined_options();
-    script_obj->set_host_defined_options(roots.empty_fixed_array());
+    FixedArray host_options = script_obj.host_defined_options();
+    script_obj.set_host_defined_options(roots.empty_fixed_array());
     SerializeGeneric(obj);
-    script_obj->set_host_defined_options(host_options);
-    script_obj->set_context_data(context_data);
+    script_obj.set_host_defined_options(host_options);
+    script_obj.set_context_data(context_data);
     return;
   }
 
-  if (obj->IsSharedFunctionInfo()) {
+  if (obj.IsSharedFunctionInfo()) {
     SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
     // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
     // is context independent.
-    DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
+    DCHECK(!sfi.IsApiFunction() && !sfi.HasAsmWasmData());
 
     DebugInfo debug_info;
     BytecodeArray debug_bytecode_array;
-    if (sfi->HasDebugInfo()) {
+    if (sfi.HasDebugInfo()) {
       // Clear debug info.
-      debug_info = sfi->GetDebugInfo();
-      if (debug_info->HasInstrumentedBytecodeArray()) {
-        debug_bytecode_array = debug_info->DebugBytecodeArray();
-        sfi->SetDebugBytecodeArray(debug_info->OriginalBytecodeArray());
+      debug_info = sfi.GetDebugInfo();
+      if (debug_info.HasInstrumentedBytecodeArray()) {
+        debug_bytecode_array = debug_info.DebugBytecodeArray();
+        sfi.SetDebugBytecodeArray(debug_info.OriginalBytecodeArray());
       }
-      sfi->set_script_or_debug_info(debug_info->script());
+      sfi.set_script_or_debug_info(debug_info.script());
     }
-    DCHECK(!sfi->HasDebugInfo());
+    DCHECK(!sfi.HasDebugInfo());
 
     SerializeGeneric(obj);
 
     // Restore debug info
     if (!debug_info.is_null()) {
-      sfi->set_script_or_debug_info(debug_info);
+      sfi.set_script_or_debug_info(debug_info);
       if (!debug_bytecode_array.is_null()) {
-        sfi->SetDebugBytecodeArray(debug_bytecode_array);
+        sfi.SetDebugBytecodeArray(debug_bytecode_array);
       }
     }
     return;
@@ -194,24 +192,24 @@ void CodeSerializer::SerializeObject(HeapObject obj) {
   // --interpreted-frames-native-stack is on. See v8:9122 for more context
 #ifndef V8_TARGET_ARCH_ARM
   if (V8_UNLIKELY(FLAG_interpreted_frames_native_stack) &&
-      obj->IsInterpreterData()) {
-    obj = InterpreterData::cast(obj)->bytecode_array();
+      obj.IsInterpreterData()) {
+    obj = InterpreterData::cast(obj).bytecode_array();
   }
 #endif  // V8_TARGET_ARCH_ARM
 
-  if (obj->IsBytecodeArray()) {
+  if (obj.IsBytecodeArray()) {
     // Clear the stack frame cache if present
-    BytecodeArray::cast(obj)->ClearFrameCacheFromSourcePositionTable();
+    BytecodeArray::cast(obj).ClearFrameCacheFromSourcePositionTable();
   }
 
   // Past this point we should not see any (context-specific) maps anymore.
-  CHECK(!obj->IsMap());
+  CHECK(!obj.IsMap());
   // There should be no references to the global object embedded.
-  CHECK(!obj->IsJSGlobalProxy() && !obj->IsJSGlobalObject());
+  CHECK(!obj.IsJSGlobalProxy() && !obj.IsJSGlobalObject());
   // Embedded FixedArrays that need rehashing must support rehashing.
-  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
+  CHECK_IMPLIES(obj.NeedsRehashing(), obj.CanBeRehashed());
   // We expect no instantiated function objects or contexts.
-  CHECK(!obj->IsJSFunction() && !obj->IsContext());
+  CHECK(!obj.IsJSFunction() && !obj.IsContext());
 
   SerializeGeneric(obj);
 }
@@ -233,13 +231,13 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
   Script script = Script::cast(sfi->script());
   Handle<Script> script_handle(script, isolate);
   String name = ReadOnlyRoots(isolate).empty_string();
-  if (script->name()->IsString()) name = String::cast(script->name());
+  if (script.name().IsString()) name = String::cast(script.name());
   Handle<String> name_handle(name, isolate);
 
   SharedFunctionInfo::ScriptIterator iter(isolate, script);
   for (SharedFunctionInfo info = iter.Next(); !info.is_null();
        info = iter.Next()) {
-    if (!info->HasBytecodeArray()) continue;
+    if (!info.HasBytecodeArray()) continue;
     Handle<Code> code = isolate->factory()->CopyCode(Handle<Code>::cast(
         isolate->factory()->interpreter_entry_trampoline_for_profiling()));
 
@@ -247,15 +245,15 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
         Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
             INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
-    interpreter_data->set_bytecode_array(info->GetBytecodeArray());
+    interpreter_data->set_bytecode_array(info.GetBytecodeArray());
     interpreter_data->set_interpreter_trampoline(*code);
 
-    info->set_interpreter_data(*interpreter_data);
+    info.set_interpreter_data(*interpreter_data);
 
     if (!log_code_creation) continue;
     Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
-    int line_num = script->GetLineNumber(info->StartPosition()) + 1;
-    int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
+    int line_num = script.GetLineNumber(info.StartPosition()) + 1;
+    int column_num = script.GetColumnNumber(info.StartPosition()) + 1;
     PROFILE(isolate,
             CodeCreateEvent(CodeEventListener::INTERPRETED_FUNCTION_TAG,
                             *abstract_code, info, *name_handle, line_num,
@@ -320,6 +318,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
                             ? String::cast(script->name())
                             : ReadOnlyRoots(isolate).empty_string(),
                         isolate);
+
     if (FLAG_log_function_events) {
       LOG(isolate,
           FunctionEvent("deserialize", script->id(),
@@ -328,15 +327,16 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     }
     if (log_code_creation) {
       Script::InitLineEnds(script);
+
       DisallowHeapAllocation no_gc;
       SharedFunctionInfo::ScriptIterator iter(isolate, *script);
       for (i::SharedFunctionInfo info = iter.Next(); !info.is_null();
            info = iter.Next()) {
-        if (info->is_compiled()) {
-          int line_num = script->GetLineNumber(info->StartPosition()) + 1;
-          int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
+        if (info.is_compiled()) {
+          int line_num = script->GetLineNumber(info.StartPosition()) + 1;
+          int column_num = script->GetColumnNumber(info.StartPosition()) + 1;
           PROFILE(isolate, CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
-                                           info->abstract_code(), info, *name,
+                                           info.abstract_code(), info, *name,
                                            line_num, column_num));
         }
       }

@@ -5,8 +5,8 @@
 #ifndef V8_TEST_COMMON_ASSEMBLER_TESTER_H_
 #define V8_TEST_COMMON_ASSEMBLER_TESTER_H_
 
-#include "src/assembler.h"
-#include "src/code-desc.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/code-desc.h"
 
 namespace v8 {
 namespace internal {

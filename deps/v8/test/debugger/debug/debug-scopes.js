@@ -457,6 +457,7 @@ function with_7() {
     debugger;
   }
 }
+%PrepareFunctionForOptimization(with_7);
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.With,
@@ -825,6 +826,7 @@ listener_delegate = function(exec_state) {
   CheckScopeChainNames(
       ["closure_11", "closure_10", undefined, undefined], exec_state);
 };
+%PrepareFunctionForOptimization(closure_10);
 begin_test_count++; closure_10(5); end_test_count++;
 begin_test_count++; closure_10(5); end_test_count++;
 %OptimizeFunctionOnNextCall(closure_10);
@@ -1152,6 +1154,7 @@ function catch_block_7() {
     debugger;
   }
 };
+%PrepareFunctionForOptimization(catch_block_7);
 
 
 listener_delegate = function(exec_state) {

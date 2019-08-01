@@ -4,9 +4,9 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
 #include "src/heap/heap-inl.h"  // For public_symbol_table().
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -56,11 +56,11 @@ BUILTIN(SymbolKeyFor) {
   Object result;
   if (symbol->is_public()) {
     result = symbol->name();
-    DCHECK(result->IsString());
+    DCHECK(result.IsString());
   } else {
     result = ReadOnlyRoots(isolate).undefined_value();
   }
-  DCHECK_EQ(isolate->heap()->public_symbol_table()->SlowReverseLookup(*symbol),
+  DCHECK_EQ(isolate->heap()->public_symbol_table().SlowReverseLookup(*symbol),
             result);
   return result;
 }

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arguments.h"
-#include "src/counters.h"
+#include "src/execution/arguments.h"
+#include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/isolate-inl.h"
+#include "src/logging/counters.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -45,7 +45,7 @@ RUNTIME_FUNCTION(Runtime_StrictEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(Object, x, 0);
   CONVERT_ARG_CHECKED(Object, y, 1);
-  return isolate->heap()->ToBoolean(x->StrictEquals(y));
+  return isolate->heap()->ToBoolean(x.StrictEquals(y));
 }
 
 RUNTIME_FUNCTION(Runtime_StrictNotEqual) {
@@ -53,7 +53,7 @@ RUNTIME_FUNCTION(Runtime_StrictNotEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(Object, x, 0);
   CONVERT_ARG_CHECKED(Object, y, 1);
-  return isolate->heap()->ToBoolean(!x->StrictEquals(y));
+  return isolate->heap()->ToBoolean(!x.StrictEquals(y));
 }
 
 RUNTIME_FUNCTION(Runtime_LessThan) {

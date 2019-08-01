@@ -26,6 +26,8 @@
   }
 
   assertPromiseResult((async () => {
+    %PrepareFunctionForOptimization(one);
+    %PrepareFunctionForOptimization(two);
     await test(one);
     await test(one);
     %OptimizeFunctionOnNextCall(two);
@@ -57,6 +59,8 @@
   }
 
   assertPromiseResult((async() => {
+    %PrepareFunctionForOptimization(one);
+    %PrepareFunctionForOptimization(two);
     await test(one);
     await test(one);
     %OptimizeFunctionOnNextCall(two);
@@ -92,6 +96,8 @@
   }
 
   assertPromiseResult((async() => {
+    %PrepareFunctionForOptimization(one);
+    %PrepareFunctionForOptimization(two);
     await test(one);
     await test(one);
     %OptimizeFunctionOnNextCall(two);
@@ -131,6 +137,8 @@
   }
 
   assertPromiseResult((async() => {
+    %PrepareFunctionForOptimization(callOne);
+    %PrepareFunctionForOptimization(callTwo);
     await test(callOne);
     await test(callOne);
     %OptimizeFunctionOnNextCall(callTwo);
@@ -164,6 +172,8 @@
   }
 
   assertPromiseResult((async() => {
+    %PrepareFunctionForOptimization(one);
+    %PrepareFunctionForOptimization(two);
     await test(one);
     await test(one);
     %OptimizeFunctionOnNextCall(two);
@@ -196,6 +206,8 @@
   }
 
   assertPromiseResult((async () => {
+    %PrepareFunctionForOptimization(one);
+    %PrepareFunctionForOptimization(two);
     await test(one);
     await test(one);
     %OptimizeFunctionOnNextCall(two);
@@ -228,6 +240,8 @@
   }
 
   assertPromiseResult((async () => {
+    %PrepareFunctionForOptimization(one);
+    %PrepareFunctionForOptimization(two);
     await test(one);
     await test(one);
     %OptimizeFunctionOnNextCall(two);
@@ -260,6 +274,8 @@
   }
 
   assertPromiseResult((async () => {
+    %PrepareFunctionForOptimization(one);
+    %PrepareFunctionForOptimization(two);
     await test(one);
     await test(one);
     %OptimizeFunctionOnNextCall(two);
@@ -291,6 +307,8 @@
   }
 
   assertPromiseResult((async () => {
+    %PrepareFunctionForOptimization(one);
+    %PrepareFunctionForOptimization(two);
     await test(one);
     await test(one);
     %OptimizeFunctionOnNextCall(two);

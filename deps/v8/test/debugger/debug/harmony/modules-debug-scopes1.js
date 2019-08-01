@@ -678,6 +678,7 @@ function catch_block_7() {
   }
 };
 
+%PrepareFunctionForOptimization(catch_block_7);
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Catch,

@@ -5,9 +5,9 @@
 #ifndef V8_PARSING_SCANNER_INL_H_
 #define V8_PARSING_SCANNER_INL_H_
 
-#include "src/char-predicates-inl.h"
 #include "src/parsing/keywords-gen.h"
 #include "src/parsing/scanner.h"
+#include "src/strings/char-predicates-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -296,7 +296,7 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
         if (!CanBeKeyword(scan_flags)) return Token::IDENTIFIER;
         // Could be a keyword or identifier.
         Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
-        return KeywordOrIdentifierToken(chars.start(), chars.length());
+        return KeywordOrIdentifierToken(chars.begin(), chars.length());
       }
 
       can_be_keyword = CanBeKeyword(scan_flags);

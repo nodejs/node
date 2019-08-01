@@ -33,6 +33,9 @@
   # https://code.google.com/p/v8/issues/detail?id=7481
   'collator/check-kf-option': [FAIL],
   'collator/check-kn-option': [FAIL],
+
+  # Slow tests.
+  'regress-903566': [PASS, SLOW],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {
@@ -64,6 +67,12 @@
   # 'bn' locale is not included in Android.
   'relative-time-format/resolved-options-nu-extended': [FAIL],
 }],  # 'system == android'
+
+##############################################################################
+['variant == stress', {
+  # Too slow.
+  'regress-903566': [SKIP],
+}],  # 'variant == stress'
 
 ##############################################################################
 ['variant == jitless and not embedded_builtins', {

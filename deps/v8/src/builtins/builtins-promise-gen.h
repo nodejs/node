@@ -5,15 +5,13 @@
 #ifndef V8_BUILTINS_BUILTINS_PROMISE_GEN_H_
 #define V8_BUILTINS_BUILTINS_PROMISE_GEN_H_
 
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/objects/promise.h"
-#include "torque-generated/builtins-base-from-dsl-gen.h"
-#include "torque-generated/builtins-iterator-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
 
-typedef compiler::CodeAssemblerState CodeAssemblerState;
+using CodeAssemblerState = compiler::CodeAssemblerState;
 
 class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
  public:
@@ -115,8 +113,10 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                                             Node* receiver_map, Label* if_fast,
                                             Label* if_slow);
 
-  Node* InvokeResolve(Node* native_context, Node* constructor, Node* value,
-                      Label* if_exception, Variable* var_exception);
+  // If resolve is Undefined, we use the builtin %PromiseResolve%
+  // intrinsic, otherwise we use the given resolve function.
+  Node* CallResolve(Node* native_context, Node* constructor, Node* resolve,
+                    Node* value, Label* if_exception, Variable* var_exception);
   template <typename... TArgs>
   Node* InvokeThen(Node* native_context, Node* receiver, TArgs... args);
 
@@ -131,14 +131,14 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
-  typedef std::function<TNode<Object>(TNode<Context> context, TNode<Smi> index,
-                                      TNode<NativeContext> native_context,
-                                      TNode<PromiseCapability> capability)>
-      PromiseAllResolvingElementFunction;
+  using PromiseAllResolvingElementFunction =
+      std::function<TNode<Object>(TNode<Context> context, TNode<Smi> index,
+                                  TNode<NativeContext> native_context,
+                                  TNode<PromiseCapability> capability)>;
 
   Node* PerformPromiseAll(
       Node* context, Node* constructor, Node* capability,
-      const IteratorBuiltinsFromDSLAssembler::IteratorRecord& record,
+      const TorqueStructIteratorRecord& record,
       const PromiseAllResolvingElementFunction& create_resolve_element_function,
       const PromiseAllResolvingElementFunction& create_reject_element_function,
       Label* if_exception, Variable* var_exception);
@@ -170,10 +170,10 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       const PromiseAllResolvingElementFunction& create_resolve_element_function,
       const PromiseAllResolvingElementFunction& create_reject_element_function);
 
-  typedef std::function<TNode<Object>(TNode<Context> context,
-                                      TNode<NativeContext> native_context,
-                                      TNode<Object> value)>
-      CreatePromiseAllResolveElementFunctionValue;
+  using CreatePromiseAllResolveElementFunctionValue =
+      std::function<TNode<Object>(TNode<Context> context,
+                                  TNode<NativeContext> native_context,
+                                  TNode<Object> value)>;
 
   void Generate_PromiseAllResolveElementClosure(
       TNode<Context> context, TNode<Object> value, TNode<JSFunction> function,

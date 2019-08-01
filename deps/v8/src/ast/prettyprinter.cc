@@ -9,10 +9,10 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
-#include "src/globals.h"
-#include "src/objects-inl.h"
-#include "src/string-builder-inl.h"
-#include "src/vector.h"
+#include "src/common/globals.h"
+#include "src/objects/objects-inl.h"
+#include "src/strings/string-builder-inl.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -756,7 +756,7 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info, Variable* var,
                  reinterpret_cast<void*>(var), VariableMode2String(var->mode()),
                  var->maybe_assigned() == kMaybeAssigned ? "true" : "false");
     SNPrintF(buf + pos, ")");
-    PrintLiteralIndented(buf.start(), value, true);
+    PrintLiteralIndented(buf.begin(), value, true);
   }
 }
 
@@ -1054,12 +1054,19 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
   if (node->extends() != nullptr) {
     PrintIndentedVisit("EXTENDS", node->extends());
   }
+  Scope* outer = node->constructor()->scope()->outer_scope();
+  if (outer->is_class_scope()) {
+    Variable* brand = outer->AsClassScope()->brand();
+    if (brand != nullptr) {
+      PrintLiteralWithModeIndented("BRAND", brand, brand->raw_name());
+    }
+  }
   if (node->static_fields_initializer() != nullptr) {
     PrintIndentedVisit("STATIC FIELDS INITIALIZER",
                        node->static_fields_initializer());
   }
   if (node->instance_members_initializer_function() != nullptr) {
-    PrintIndentedVisit("INSTANCE ELEMENTS INITIALIZER",
+    PrintIndentedVisit("INSTANCE MEMBERS INITIALIZER",
                        node->instance_members_initializer_function());
   }
   PrintClassProperties(node->properties());
@@ -1067,7 +1074,7 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
 
 void AstPrinter::VisitInitializeClassMembersStatement(
     InitializeClassMembersStatement* node) {
-  IndentedScope indent(this, "INITIALIZE CLASS ELEMENTS", node->position());
+  IndentedScope indent(this, "INITIALIZE CLASS MEMBERS", node->position());
   PrintClassProperties(node->fields());
 }
 
@@ -1093,7 +1100,7 @@ void AstPrinter::PrintClassProperties(
     EmbeddedVector<char, 128> buf;
     SNPrintF(buf, "PROPERTY%s%s - %s", property->is_static() ? " - STATIC" : "",
              property->is_private() ? " - PRIVATE" : " - PUBLIC", prop_kind);
-    IndentedScope prop(this, buf.start());
+    IndentedScope prop(this, buf.begin());
     PrintIndentedVisit("KEY", properties->at(i)->key());
     PrintIndentedVisit("VALUE", properties->at(i)->value());
   }
@@ -1137,7 +1144,7 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   if (node->flags() & RegExp::kSticky) buf[i++] = 'y';
   buf[i] = '\0';
   PrintIndented("FLAGS ");
-  Print("%s", buf.start());
+  Print("%s", buf.begin());
   Print("\n");
 }
 
@@ -1177,7 +1184,7 @@ void AstPrinter::PrintObjectProperties(
     }
     EmbeddedVector<char, 128> buf;
     SNPrintF(buf, "PROPERTY - %s", prop_kind);
-    IndentedScope prop(this, buf.start());
+    IndentedScope prop(this, buf.begin());
     PrintIndentedVisit("KEY", properties->at(i)->key());
     PrintIndentedVisit("VALUE", properties->at(i)->value());
   }
@@ -1201,7 +1208,7 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
 
   if (!node->is_resolved()) {
     SNPrintF(buf + pos, " unresolved");
-    PrintLiteralWithModeIndented(buf.start(), nullptr, node->raw_name());
+    PrintLiteralWithModeIndented(buf.begin(), nullptr, node->raw_name());
   } else {
     Variable* var = node->var();
     switch (var->location()) {
@@ -1224,7 +1231,7 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
         SNPrintF(buf + pos, " module");
         break;
     }
-    PrintLiteralWithModeIndented(buf.start(), var, node->raw_name());
+    PrintLiteralWithModeIndented(buf.begin(), var, node->raw_name());
   }
 }
 
@@ -1242,21 +1249,21 @@ void AstPrinter::VisitCompoundAssignment(CompoundAssignment* node) {
 void AstPrinter::VisitYield(Yield* node) {
   EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "YIELD");
-  IndentedScope indent(this, buf.start(), node->position());
+  IndentedScope indent(this, buf.begin(), node->position());
   Visit(node->expression());
 }
 
 void AstPrinter::VisitYieldStar(YieldStar* node) {
   EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "YIELD_STAR");
-  IndentedScope indent(this, buf.start(), node->position());
+  IndentedScope indent(this, buf.begin(), node->position());
   Visit(node->expression());
 }
 
 void AstPrinter::VisitAwait(Await* node) {
   EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "AWAIT");
-  IndentedScope indent(this, buf.start(), node->position());
+  IndentedScope indent(this, buf.begin(), node->position());
   Visit(node->expression());
 }
 
@@ -1268,7 +1275,7 @@ void AstPrinter::VisitThrow(Throw* node) {
 void AstPrinter::VisitProperty(Property* node) {
   EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "PROPERTY");
-  IndentedScope indent(this, buf.start(), node->position());
+  IndentedScope indent(this, buf.begin(), node->position());
 
   Visit(node->obj());
   AssignType property_kind = Property::GetAssignType(node);
@@ -1285,7 +1292,7 @@ void AstPrinter::VisitProperty(Property* node) {
 void AstPrinter::VisitResolvedProperty(ResolvedProperty* node) {
   EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "RESOLVED-PROPERTY");
-  IndentedScope indent(this, buf.start(), node->position());
+  IndentedScope indent(this, buf.begin(), node->position());
 
   PrintIndentedVisit("RECEIVER", node->object());
   PrintIndentedVisit("PROPERTY", node->property());
@@ -1294,7 +1301,7 @@ void AstPrinter::VisitResolvedProperty(ResolvedProperty* node) {
 void AstPrinter::VisitCall(Call* node) {
   EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "CALL");
-  IndentedScope indent(this, buf.start());
+  IndentedScope indent(this, buf.begin());
 
   Visit(node->expression());
   PrintArguments(node->arguments());
@@ -1312,7 +1319,7 @@ void AstPrinter::VisitCallRuntime(CallRuntime* node) {
   EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "CALL RUNTIME %s%s", node->debug_name(),
            node->is_jsruntime() ? " (JS function)" : "");
-  IndentedScope indent(this, buf.start(), node->position());
+  IndentedScope indent(this, buf.begin(), node->position());
   PrintArguments(node->arguments());
 }
 
@@ -1327,7 +1334,7 @@ void AstPrinter::VisitCountOperation(CountOperation* node) {
   EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "%s %s", (node->is_prefix() ? "PRE" : "POST"),
            Token::Name(node->op()));
-  IndentedScope indent(this, buf.start(), node->position());
+  IndentedScope indent(this, buf.begin(), node->position());
   Visit(node->expression());
 }
 

@@ -30,6 +30,10 @@ class V8_PLATFORM_EXPORT DefaultWorkerThreadsTaskRunner
 
   double MonotonicallyIncreasingTime();
 
+  // It is only valid to call this method on a task runner with a single worker
+  // thread. True if the current thread is the worker thread.
+  bool RunsTasksOnCurrentThread() const;
+
   // v8::TaskRunner implementation.
   void PostTask(std::unique_ptr<Task> task) override;
 
@@ -64,6 +68,8 @@ class V8_PLATFORM_EXPORT DefaultWorkerThreadsTaskRunner
   DelayedTaskQueue queue_;
   std::vector<std::unique_ptr<WorkerThread>> thread_pool_;
   TimeFunction time_function_;
+  std::atomic_int single_worker_thread_id_{0};
+  uint32_t thread_pool_size_;
 };
 
 }  // namespace platform

@@ -4,9 +4,9 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
-#include "src/hash-seed-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/isolate-inl.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/zone/zone.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"

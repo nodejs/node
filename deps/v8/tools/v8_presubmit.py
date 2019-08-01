@@ -476,7 +476,10 @@ class SourceProcessor(SourceFileProcessor):
                        'zlib.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
 
-  IGNORE_COPYRIGHTS_DIRECTORY = "test/test262/local-tests"
+  IGNORE_COPYRIGHTS_DIRECTORIES = [
+      "test/test262/local-tests",
+      "test/mjsunit/wasm/bulk-memory-spec",
+  ]
 
   def EndOfDeclaration(self, line):
     return line == "}" or line == "};"
@@ -494,7 +497,8 @@ class SourceProcessor(SourceFileProcessor):
         print("%s contains tabs" % name)
         result = False
     if not base in SourceProcessor.IGNORE_COPYRIGHTS and \
-        not SourceProcessor.IGNORE_COPYRIGHTS_DIRECTORY in name:
+        not any(ignore_dir in name for ignore_dir
+                in SourceProcessor.IGNORE_COPYRIGHTS_DIRECTORIES):
       if not COPYRIGHT_HEADER_PATTERN.search(contents):
         print("%s is missing a correct copyright header." % name)
         result = False

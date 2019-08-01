@@ -9,8 +9,8 @@
 #ifndef V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_INL_H_
 #define V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_INL_H_
 
-#include "src/objects-inl.h"
 #include "src/objects/js-relative-time-format.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,7 +23,7 @@ OBJECT_CONSTRUCTORS_IMPL(JSRelativeTimeFormat, JSObject)
 // Base relative time format accessors.
 ACCESSORS(JSRelativeTimeFormat, locale, String, kLocaleOffset)
 ACCESSORS(JSRelativeTimeFormat, icu_formatter,
-          Managed<icu::RelativeDateTimeFormatter>, kICUFormatterOffset)
+          Managed<icu::RelativeDateTimeFormatter>, kIcuFormatterOffset)
 SMI_ACCESSORS(JSRelativeTimeFormat, flags, kFlagsOffset)
 
 inline void JSRelativeTimeFormat::set_style(Style style) {

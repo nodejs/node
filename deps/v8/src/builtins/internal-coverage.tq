@@ -1,0 +1,64 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-regexp-gen.h'
+
+namespace internal_coverage {
+
+  const kHasCoverageInfo:
+      constexpr int31 generates 'DebugInfo::kHasCoverageInfo';
+
+  const kFirstSlotIndex:
+      constexpr int31 generates 'CoverageInfo::kFirstSlotIndex';
+  const kSlotBlockCountIndex:
+      constexpr int31 generates 'CoverageInfo::kSlotBlockCountIndex';
+  const kSlotIndexCountLog2:
+      constexpr int31 generates 'CoverageInfo::kSlotIndexCountLog2';
+  const kSlotIndexCountMask:
+      constexpr int31 generates 'CoverageInfo::kSlotIndexCountMask';
+
+  macro GetCoverageInfo(implicit context: Context)(function: JSFunction):
+      CoverageInfo labels IfNoCoverageInfo {
+    const shared: SharedFunctionInfo = function.shared_function_info;
+    const debugInfo = Cast<DebugInfo>(shared.script_or_debug_info)
+        otherwise goto IfNoCoverageInfo;
+
+    if ((debugInfo.flags & kHasCoverageInfo) == 0) goto IfNoCoverageInfo;
+    return UnsafeCast<CoverageInfo>(debugInfo.coverage_info);
+  }
+
+  macro SlotCount(coverageInfo: CoverageInfo): Smi {
+    assert(kFirstSlotIndex == 0);  // Otherwise we'd have to consider it below.
+    assert(kFirstSlotIndex == (coverageInfo.length & kSlotIndexCountMask));
+    return coverageInfo.length >> kSlotIndexCountLog2;
+  }
+
+  macro FirstIndexForSlot(implicit context: Context)(slot: Smi): Smi {
+    assert(kFirstSlotIndex == 0);  // Otherwise we'd have to consider it below.
+    return slot << kSlotIndexCountLog2;
+  }
+
+  macro IncrementBlockCount(implicit context: Context)(
+      coverageInfo: CoverageInfo, slot: Smi) {
+    assert(slot < SlotCount(coverageInfo));
+    const slotStart: Smi = FirstIndexForSlot(slot);
+    const index: Smi = slotStart + kSlotBlockCountIndex;
+    coverageInfo.objects[index] =
+        UnsafeCast<Smi>(coverageInfo.objects[index]) + 1;
+  }
+
+  builtin IncBlockCounter(implicit context: Context)(
+      function: JSFunction, coverageArraySlotIndex: Smi): Object {
+    // It's quite possible that a function contains IncBlockCounter bytecodes,
+    // but no coverage info exists. This happens e.g. by selecting the
+    // best-effort coverage collection mode, which triggers deletion of all
+    // coverage infos in order to avoid memory leaks.
+
+    const coverageInfo: CoverageInfo =
+        GetCoverageInfo(function) otherwise return Undefined;
+    IncrementBlockCount(coverageInfo, coverageArraySlotIndex);
+    return Undefined;
+  }
+
+}  // namespace internal_coverage

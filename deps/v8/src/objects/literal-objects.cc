@@ -4,13 +4,13 @@
 
 #include "src/objects/literal-objects.h"
 
-#include "src/accessors.h"
 #include "src/ast/ast.h"
+#include "src/builtins/accessors.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct-inl.h"
 
@@ -113,7 +113,7 @@ void AddToDescriptorArrayTemplate(
              value_kind == ClassBoilerplate::kSetter);
       Object raw_accessor = descriptor_array_template->GetStrongValue(entry);
       AccessorPair pair;
-      if (raw_accessor->IsAccessorPair()) {
+      if (raw_accessor.IsAccessorPair()) {
         pair = AccessorPair::cast(raw_accessor);
       } else {
         Handle<AccessorPair> new_pair = isolate->factory()->NewAccessorPair();
@@ -122,9 +122,9 @@ void AddToDescriptorArrayTemplate(
         descriptor_array_template->Set(entry, &d);
         pair = *new_pair;
       }
-      pair->set(value_kind == ClassBoilerplate::kGetter ? ACCESSOR_GETTER
-                                                        : ACCESSOR_SETTER,
-                *value);
+      pair.set(value_kind == ClassBoilerplate::kGetter ? ACCESSOR_GETTER
+                                                       : ACCESSOR_SETTER,
+               *value);
     }
   }
 }
@@ -165,7 +165,7 @@ constexpr int ComputeEnumerationIndex(int value_index) {
 }
 
 inline int GetExistingValueIndex(Object value) {
-  return value->IsSmi() ? Smi::ToInt(value) : -1;
+  return value.IsSmi() ? Smi::ToInt(value) : -1;
 }
 
 template <typename Dictionary, typename Key>
@@ -215,13 +215,13 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
     Object existing_value = dictionary->ValueAt(entry);
     if (value_kind == ClassBoilerplate::kData) {
       // Computed value is a normal method.
-      if (existing_value->IsAccessorPair()) {
+      if (existing_value.IsAccessorPair()) {
         AccessorPair current_pair = AccessorPair::cast(existing_value);
 
         int existing_getter_index =
-            GetExistingValueIndex(current_pair->getter());
+            GetExistingValueIndex(current_pair.getter());
         int existing_setter_index =
-            GetExistingValueIndex(current_pair->setter());
+            GetExistingValueIndex(current_pair.setter());
         // At least one of the accessors must already be defined.
         DCHECK(existing_getter_index >= 0 || existing_setter_index >= 0);
         if (existing_getter_index < key_index &&
@@ -243,7 +243,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
             // and then it was overwritten by the current computed method which
             // in turn was later overwritten by the setter method. So we clear
             // the getter.
-            current_pair->set_getter(*isolate->factory()->null_value());
+            current_pair.set_getter(*isolate->factory()->null_value());
 
           } else if (existing_setter_index < key_index) {
             DCHECK_LT(key_index, existing_getter_index);
@@ -251,19 +251,18 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
             // and then it was overwritten by the current computed method which
             // in turn was later overwritten by the getter method. So we clear
             // the setter.
-            current_pair->set_setter(*isolate->factory()->null_value());
+            current_pair.set_setter(*isolate->factory()->null_value());
           }
         }
       } else {
         // Overwrite existing value if it was defined before the computed one
         // (AccessorInfo "length" property is always defined before).
-        DCHECK_IMPLIES(!existing_value->IsSmi(),
-                       existing_value->IsAccessorInfo());
-        DCHECK_IMPLIES(!existing_value->IsSmi(),
-                       AccessorInfo::cast(existing_value)->name() ==
+        DCHECK_IMPLIES(!existing_value.IsSmi(),
+                       existing_value.IsAccessorInfo());
+        DCHECK_IMPLIES(!existing_value.IsSmi(),
+                       AccessorInfo::cast(existing_value).name() ==
                            *isolate->factory()->length_string());
-        if (!existing_value->IsSmi() ||
-            Smi::ToInt(existing_value) < key_index) {
+        if (!existing_value.IsSmi() || Smi::ToInt(existing_value) < key_index) {
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
                                   enum_order);
           dictionary->DetailsAtPut(isolate, entry, details);
@@ -274,14 +273,14 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
       AccessorComponent component = value_kind == ClassBoilerplate::kGetter
                                         ? ACCESSOR_GETTER
                                         : ACCESSOR_SETTER;
-      if (existing_value->IsAccessorPair()) {
+      if (existing_value.IsAccessorPair()) {
         // Update respective component of existing AccessorPair.
         AccessorPair current_pair = AccessorPair::cast(existing_value);
 
         int existing_component_index =
-            GetExistingValueIndex(current_pair->get(component));
+            GetExistingValueIndex(current_pair.get(component));
         if (existing_component_index < key_index) {
-          current_pair->set(component, value);
+          current_pair.set(component, value);
         }
 
       } else {
@@ -380,7 +379,7 @@ class ObjectDescriptor {
       AddToDictionaryTemplate(isolate, properties_dictionary_template_, name,
                               value_index, value_kind, value);
     } else {
-      *temp_handle_.location() = value->ptr();
+      *temp_handle_.location() = value.ptr();
       AddToDescriptorArrayTemplate(isolate, descriptor_array_template_, name,
                                    value_kind, temp_handle_);
     }
@@ -525,6 +524,11 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
 
   for (int i = 0; i < expr->properties()->length(); i++) {
     ClassLiteral::Property* property = expr->properties()->at(i);
+
+    // Private members are not processed using the class boilerplate.
+    if (property->is_private()) {
+      continue;
+    }
 
     ClassBoilerplate::ValueKind value_kind;
     switch (property->kind()) {

@@ -5,7 +5,7 @@
 #ifndef V8_WASM_OBJECT_ACCESS_H_
 #define V8_WASM_OBJECT_ACCESS_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/shared-function-info.h"

@@ -8,8 +8,8 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/enum-set.h"
 #include "src/base/flags.h"
-#include "src/globals.h"
-#include "src/machine-type.h"
+#include "src/codegen/machine-type.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -645,9 +645,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // atomic-or [base + index], value
   const Operator* Word32AtomicOr(MachineType type);
   // atomic-xor [base + index], value
-  const Operator* Word32AtomicXor(MachineType rep);
+  const Operator* Word32AtomicXor(MachineType type);
   // atomic-add [base + index], value
-  const Operator* Word64AtomicAdd(MachineType rep);
+  const Operator* Word64AtomicAdd(MachineType type);
   // atomic-sub [base + index], value
   const Operator* Word64AtomicSub(MachineType type);
   // atomic-and [base + index], value
@@ -655,7 +655,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // atomic-or [base + index], value
   const Operator* Word64AtomicOr(MachineType type);
   // atomic-xor [base + index], value
-  const Operator* Word64AtomicXor(MachineType rep);
+  const Operator* Word64AtomicXor(MachineType type);
   // atomic-pair-load [base + index]
   const Operator* Word32AtomicPairLoad();
   // atomic-pair-sub [base + index], value_high, value-low

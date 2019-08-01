@@ -5,9 +5,9 @@
 #include "src/wasm/wasm-text.h"
 
 #include "src/debug/interface-types.h"
-#include "src/objects-inl.h"
-#include "src/ostreams.h"
-#include "src/vector.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/vector.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module.h"
@@ -49,7 +49,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
   WasmName fun_name = wire_bytes.GetNameOrNull(fun, module);
   if (IsValidFunctionName(fun_name)) {
     os << " $";
-    os.write(fun_name.start(), fun_name.length());
+    os.write(fun_name.begin(), fun_name.length());
   }
   if (fun->sig->parameter_count()) {
     os << " (param";

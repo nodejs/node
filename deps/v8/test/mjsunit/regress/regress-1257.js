@@ -31,4 +31,5 @@ function foo () {
     };
 }
 
+%PrepareFunctionForOptimization(foo);
 foo();

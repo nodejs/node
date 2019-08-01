@@ -5,7 +5,7 @@
 #ifndef V8_CCTEST_UNICODE_HELPERS_H_
 #define V8_CCTEST_UNICODE_HELPERS_H_
 
-#include "src/unicode.h"
+#include "src/strings/unicode.h"
 
 int Ucs2CharLength(unibrow::uchar c);
 int Utf8LengthHelper(const char* s);

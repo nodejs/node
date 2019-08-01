@@ -9,20 +9,20 @@
 
 #include "builtins-generated/bytecodes-builtins-list.h"
 #include "src/ast/prettyprinter.h"
-#include "src/bootstrapper.h"
-#include "src/compiler.h"
-#include "src/counters-inl.h"
+#include "src/codegen/compiler.h"
+#include "src/codegen/unoptimized-compilation-info.h"
+#include "src/init/bootstrapper.h"
+#include "src/init/setup-isolate.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
-#include "src/ostreams.h"
+#include "src/objects/visitors.h"
 #include "src/parsing/parse-info.h"
-#include "src/setup-isolate.h"
 #include "src/snapshot/snapshot.h"
-#include "src/unoptimized-compilation-info.h"
-#include "src/visitors.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -86,9 +86,9 @@ Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
                                      OperandScale operand_scale, Code handler) {
-  DCHECK(handler->kind() == Code::BYTECODE_HANDLER);
+  DCHECK(handler.kind() == Code::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
-  dispatch_table_[index] = handler->InstructionStart();
+  dispatch_table_[index] = handler.InstructionStart();
 }
 
 // static
@@ -130,7 +130,7 @@ void Interpreter::IterateDispatchTable(RootVisitor* v) {
     Code old_code = code;
     v->VisitRootPointer(Root::kDispatchTable, nullptr, FullObjectSlot(&code));
     if (code != old_code) {
-      dispatch_table_[i] = code->entry();
+      dispatch_table_[i] = code.entry();
     }
   }
 }
@@ -291,10 +291,9 @@ bool Interpreter::IsDispatchTableInitialized() const {
 
 const char* Interpreter::LookupNameOfBytecodeHandler(const Code code) {
 #ifdef ENABLE_DISASSEMBLER
-#define RETURN_NAME(Name, ...)                                 \
-  if (dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] == \
-      code->entry()) {                                         \
-    return #Name;                                              \
+#define RETURN_NAME(Name, ...)                                                 \
+  if (dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] == code.entry()) { \
+    return #Name;                                                              \
   }
   BYTECODE_LIST(RETURN_NAME)
 #undef RETURN_NAME

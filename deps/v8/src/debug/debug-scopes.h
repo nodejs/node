@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "src/debug/debug-frames.h"
-#include "src/frames.h"
+#include "src/execution/frames.h"
 
 namespace v8 {
 namespace internal {

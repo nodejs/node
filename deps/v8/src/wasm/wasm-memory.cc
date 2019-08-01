@@ -4,10 +4,10 @@
 
 #include <limits>
 
-#include "src/counters.h"
 #include "src/heap/heap-inl.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-memory.h"
@@ -84,10 +84,10 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
     // We are over the address space limit. Fail.
     //
     // When running under the correctness fuzzer (i.e.
-    // --abort-on-stack-or-string-length-overflow is preset), we crash
+    // --correctness-fuzzer-suppressions is preset), we crash
     // instead so it is not incorrectly reported as a correctness
     // violation. See https://crbug.com/828293#c4
-    if (FLAG_abort_on_stack_or_string_length_overflow) {
+    if (FLAG_correctness_fuzzer_suppressions) {
       FATAL("could not allocate wasm memory");
     }
     AddAllocationStatusSample(
@@ -137,7 +137,7 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
 #if V8_TARGET_ARCH_MIPS64
 // MIPS64 has a user space of 2^40 bytes on most processors,
 // address space limits needs to be smaller.
-constexpr size_t kAddressSpaceLimit = 0x4000000000L;  // 256 GiB
+constexpr size_t kAddressSpaceLimit = 0x8000000000L;  // 512 GiB
 #elif V8_TARGET_ARCH_64_BIT
 constexpr size_t kAddressSpaceLimit = 0x10100000000L;  // 1 TiB + 4 GiB
 #else
@@ -260,8 +260,8 @@ bool WasmMemoryTracker::IsWasmMemoryGrowable(Handle<JSArrayBuffer> buffer) {
   return allocation->second.is_growable;
 }
 
-bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(Isolate* isolate,
-                                                 const void* buffer_start) {
+bool WasmMemoryTracker::FreeWasmMemory(Isolate* isolate,
+                                       const void* buffer_start) {
   base::MutexGuard scope_lock(&mutex_);
   const auto& result = allocations_.find(buffer_start);
   if (result == allocations_.end()) return false;
@@ -280,7 +280,9 @@ bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(Isolate* isolate,
 
 void WasmMemoryTracker::RegisterWasmMemoryAsShared(
     Handle<WasmMemoryObject> object, Isolate* isolate) {
-  const void* backing_store = object->array_buffer()->backing_store();
+  // Only register with the tracker if shared grow is enabled.
+  if (!FLAG_wasm_grow_shared_memory) return;
+  const void* backing_store = object->array_buffer().backing_store();
   // TODO(V8:8810): This should be a DCHECK, currently some tests do not
   // use a full WebAssembly.Memory, and fail on registering so return early.
   if (!IsWasmMemory(backing_store)) return;
@@ -323,9 +325,9 @@ void WasmMemoryTracker::UpdateSharedMemoryInstances(Isolate* isolate) {
 
 void WasmMemoryTracker::RegisterSharedWasmMemory_Locked(
     Handle<WasmMemoryObject> object, Isolate* isolate) {
-  DCHECK(object->array_buffer()->is_shared());
+  DCHECK(object->array_buffer().is_shared());
 
-  void* backing_store = object->array_buffer()->backing_store();
+  void* backing_store = object->array_buffer().backing_store();
   // The allocation of a WasmMemoryObject should always be registered with the
   // WasmMemoryTracker.
   const auto& result = allocations_.find(backing_store);
@@ -426,11 +428,11 @@ void WasmMemoryTracker::UpdateMemoryObjectsForIsolate_Locked(
       HandleScope scope(isolate);
       Handle<WasmMemoryObject> memory_object = memory_obj_state.memory_object;
       DCHECK(memory_object->IsWasmMemoryObject());
-      DCHECK(memory_object->array_buffer()->is_shared());
+      DCHECK(memory_object->array_buffer().is_shared());
       // Permissions adjusted, but create a new buffer with new size
       // and old attributes. Buffer has already been allocated,
       // just create a new buffer with same backing store.
-      bool is_external = memory_object->array_buffer()->is_external();
+      bool is_external = memory_object->array_buffer().is_external();
       Handle<JSArrayBuffer> new_buffer = SetupArrayBuffer(
           isolate, backing_store, new_size, is_external, SharedFlag::kShared);
       memory_obj_state.memory_object->update_instances(isolate, new_buffer);
@@ -465,14 +467,7 @@ bool WasmMemoryTracker::CanFreeSharedMemory_Locked(const void* backing_store) {
   const auto& value = isolates_per_buffer_.find(backing_store);
   // If no isolates share this buffer, backing store can be freed.
   // Erase the buffer entry.
-  if (value == isolates_per_buffer_.end()) return true;
-  if (value->second.empty()) {
-    // If no isolates share this buffer, the global handles to memory objects
-    // associated with this buffer should have been destroyed.
-    // DCHECK(shared_memory_map_.find(backing_store) ==
-    // shared_memory_map_.end());
-    return true;
-  }
+  if (value == isolates_per_buffer_.end() || value->second.empty()) return true;
   return false;
 }
 

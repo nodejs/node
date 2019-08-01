@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_FRAME_ARRAY_H_
 #define V8_OBJECTS_FRAME_ARRAY_H_
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/wasm/wasm-objects.h"
 
 // Has to be the last include (doesn't have include guards):

@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-result.h"

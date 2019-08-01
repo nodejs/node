@@ -24,6 +24,7 @@ function f4() {
 
 
 function optimize(f) {
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);

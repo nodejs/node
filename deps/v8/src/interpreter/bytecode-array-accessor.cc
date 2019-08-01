@@ -4,11 +4,11 @@
 
 #include "src/interpreter/bytecode-array-accessor.h"
 
-#include "src/feedback-vector.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
-#include "src/objects-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/feedback-vector.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -198,7 +198,7 @@ Runtime::FunctionId BytecodeArrayAccessor::GetIntrinsicIdOperand(
 }
 
 Object BytecodeArrayAccessor::GetConstantAtIndex(int index) const {
-  return bytecode_array()->constant_pool()->get(index);
+  return bytecode_array()->constant_pool().get(index);
 }
 
 Object BytecodeArrayAccessor::GetConstantForIndexOperand(
@@ -216,7 +216,7 @@ int BytecodeArrayAccessor::GetJumpTargetOffset() const {
     return GetAbsoluteOffset(relative_offset);
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
     Smi smi = Smi::cast(GetConstantForIndexOperand(0));
-    return GetAbsoluteOffset(smi->value());
+    return GetAbsoluteOffset(smi.value());
   } else {
     UNREACHABLE();
   }
@@ -318,15 +318,15 @@ void JumpTableTargetOffsets::iterator::UpdateAndAdvanceToValid() {
   if (table_offset_ >= table_end_) return;
 
   Object current = accessor_->GetConstantAtIndex(table_offset_);
-  while (!current->IsSmi()) {
-    DCHECK(current->IsTheHole());
+  while (!current.IsSmi()) {
+    DCHECK(current.IsTheHole());
     ++table_offset_;
     ++index_;
     if (table_offset_ >= table_end_) break;
     current = accessor_->GetConstantAtIndex(table_offset_);
   }
   // Make sure we haven't reached the end of the table with a hole in current.
-  if (current->IsSmi()) {
+  if (current.IsSmi()) {
     current_ = Smi::cast(current);
   }
 }

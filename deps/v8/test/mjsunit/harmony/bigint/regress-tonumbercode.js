@@ -9,6 +9,7 @@ function f(x, b) {
     else return Math.trunc(Number(x))
 }
 
+%PrepareFunctionForOptimization(f);
 f("1", true);
 f("2", true);
 f("2", false);

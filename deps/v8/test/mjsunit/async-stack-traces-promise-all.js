@@ -28,6 +28,8 @@
   }
 
   assertPromiseResult((async () => {
+    %PrepareFunctionForOptimization(thrower);
+    %PrepareFunctionForOptimization(driver);
     await test(driver);
     await test(driver);
     %OptimizeFunctionOnNextCall(thrower);

@@ -27,10 +27,10 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/base/platform/platform.h"
-#include "src/bignum.h"
+#include "src/numbers/bignum.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -40,14 +40,12 @@ namespace test_bignum {
 static const int kBufferSize = 1024;
 
 static void AssignHexString(Bignum* bignum, const char* str) {
-  bignum->AssignHexString(Vector<const char>(str, StrLength(str)));
+  bignum->AssignHexString(CStrVector(str));
 }
-
 
 static void AssignDecimalString(Bignum* bignum, const char* str) {
-  bignum->AssignDecimalString(Vector<const char>(str, StrLength(str)));
+  bignum->AssignDecimalString(CStrVector(str));
 }
-
 
 TEST(Assign) {
   char buffer[kBufferSize];

@@ -8,10 +8,10 @@
 #include <map>
 #include <stack>
 
-#include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/objects/heap-object.h"
-#include "src/utils.h"
+#include "src/utils/allocation.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

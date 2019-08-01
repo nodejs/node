@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "test/cctest/unicode-helpers.h"
-#include "src/unicode-inl.h"
+#include "src/strings/unicode-inl.h"
 
 int Ucs2CharLength(unibrow::uchar c) {
   if (c == unibrow::Utf8::kIncomplete || c == unibrow::Utf8::kBufferEmpty) {

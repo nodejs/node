@@ -47,6 +47,10 @@ Object.defineProperty(O.prototype, Symbol.toStringTag, {
 var obj1 = new O;
 var obj2 = new O;
 
+%PrepareFunctionForOptimization(le);
+%PrepareFunctionForOptimization(lt);
+%PrepareFunctionForOptimization(ge);
+%PrepareFunctionForOptimization(gt);
 assertTrue(%HaveSameMap(obj1, obj2));
 test(obj1, obj2);
 test(obj1, obj2);

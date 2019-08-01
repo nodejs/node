@@ -7,10 +7,10 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/compiler/types.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1124,7 +1124,7 @@ Type OperationTyper::ToPrimitive(Type type) {
 
 Type OperationTyper::Invert(Type type) {
   DCHECK(type.Is(Type::Boolean()));
-  DCHECK(!type.IsNone());
+  CHECK(!type.IsNone());
   if (type.Is(singleton_false())) return singleton_true();
   if (type.Is(singleton_true())) return singleton_false();
   return type;
@@ -1187,7 +1187,16 @@ Type OperationTyper::SameValue(Type lhs, Type rhs) {
   return Type::Boolean();
 }
 
+Type OperationTyper::SameValueNumbersOnly(Type lhs, Type rhs) {
+  // SameValue and SamevalueNumbersOnly only differ in treatment of
+  // strings and biginits. Since the SameValue typer does not do anything
+  // special about strings or bigints, we can just use it here.
+  return SameValue(lhs, rhs);
+}
+
 Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
+  CHECK(!lhs.IsNone());
+  CHECK(!rhs.IsNone());
   if (!JSType(lhs).Maybe(JSType(rhs))) return singleton_false();
   if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return singleton_false();
   if (lhs.Is(Type::Number()) && rhs.Is(Type::Number()) &&

@@ -4,12 +4,12 @@
 
 #include "src/debug/debug-property-iterator.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/base/flags.h"
-#include "src/keys.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/property-descriptor.h"
-#include "src/property-details.h"
+#include "src/objects/keys.h"
+#include "src/objects/property-descriptor.h"
+#include "src/objects/property-details.h"
 
 namespace v8 {
 
@@ -148,8 +148,13 @@ void DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
   bool has_exotic_indices = receiver->IsJSTypedArray();
   if (stage_ == kExoticIndices) {
     if (!has_exotic_indices) return;
-    exotic_length_ = static_cast<uint32_t>(
-        Handle<JSTypedArray>::cast(receiver)->length_value());
+    Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(receiver);
+    if (typed_array->WasDetached()) {
+      exotic_length_ = 0;
+    } else {
+      // TODO(bmeurer, v8:4153): Change this to size_t later.
+      exotic_length_ = static_cast<uint32_t>(typed_array->length());
+    }
     return;
   }
   bool skip_indices = has_exotic_indices;

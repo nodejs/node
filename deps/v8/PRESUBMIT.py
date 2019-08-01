@@ -433,6 +433,8 @@ def _CheckMacroUndefs(input_api, output_api):
 
         undef_match = undef_pattern.match(line)
         if undef_match:
+          if "// NOLINT" in line:
+            continue
           name = undef_match.group(1)
           if not name in defined_macros:
             errors.append('{}:{}: Macro named \'{}\' was not defined before.'

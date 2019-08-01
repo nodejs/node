@@ -8,8 +8,8 @@
 #include "src/objects/debug-objects.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -37,7 +37,7 @@ ACCESSORS(DebugInfo, script, Object, kScriptOffset)
 ACCESSORS(DebugInfo, original_bytecode_array, Object,
           kOriginalBytecodeArrayOffset)
 ACCESSORS(DebugInfo, debug_bytecode_array, Object, kDebugBytecodeArrayOffset)
-ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateOffset)
+ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsOffset)
 ACCESSORS(DebugInfo, coverage_info, Object, kCoverageInfoOffset)
 
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, side_effect_state,
@@ -56,9 +56,9 @@ SMI_ACCESSORS(BreakPoint, id, kIdOffset)
 ACCESSORS(BreakPoint, condition, String, kConditionOffset)
 
 bool DebugInfo::HasInstrumentedBytecodeArray() {
-  DCHECK_EQ(debug_bytecode_array()->IsBytecodeArray(),
-            original_bytecode_array()->IsBytecodeArray());
-  return debug_bytecode_array()->IsBytecodeArray();
+  DCHECK_EQ(debug_bytecode_array().IsBytecodeArray(),
+            original_bytecode_array().IsBytecodeArray());
+  return debug_bytecode_array().IsBytecodeArray();
 }
 
 BytecodeArray DebugInfo::OriginalBytecodeArray() {
@@ -68,7 +68,7 @@ BytecodeArray DebugInfo::OriginalBytecodeArray() {
 
 BytecodeArray DebugInfo::DebugBytecodeArray() {
   DCHECK(HasInstrumentedBytecodeArray());
-  DCHECK_EQ(shared()->GetDebugBytecodeArray(), debug_bytecode_array());
+  DCHECK_EQ(shared().GetDebugBytecodeArray(), debug_bytecode_array());
   return BytecodeArray::cast(debug_bytecode_array());
 }
 

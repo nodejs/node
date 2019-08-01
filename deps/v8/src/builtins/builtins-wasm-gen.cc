@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/code-stub-assembler.h"
-#include "src/objects-inl.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -103,6 +103,14 @@ TF_BUILTIN(WasmThrow, WasmBuiltinsAssembler) {
   TNode<Code> centry = LoadCEntryFromInstance(instance);
   TNode<Object> context = LoadContextFromInstance(instance);
   TailCallRuntimeWithCEntry(Runtime::kThrow, centry, context, exception);
+}
+
+TF_BUILTIN(WasmRethrow, WasmBuiltinsAssembler) {
+  TNode<Object> exception = UncheckedParameter(Descriptor::kException);
+  TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Code> centry = LoadCEntryFromInstance(instance);
+  TNode<Object> context = LoadContextFromInstance(instance);
+  TailCallRuntimeWithCEntry(Runtime::kReThrow, centry, context, exception);
 }
 
 TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {

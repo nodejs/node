@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"

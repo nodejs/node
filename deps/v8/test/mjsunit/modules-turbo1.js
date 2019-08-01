@@ -7,6 +7,7 @@
 
 export let x = 0;
 function foo() { x++ };
+%PrepareFunctionForOptimization(foo);
 foo();
 %OptimizeFunctionOnNextCall(foo);
 foo();

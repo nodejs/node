@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 
 #include "src/compiler/linkage.h"
 
@@ -220,7 +220,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   // The target for C calls is always an address (i.e. machine pointer).
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
-  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  CallDescriptor::Flags flags = CallDescriptor::kNoAllocate;
   if (set_initialize_root_flag) {
     flags |= CallDescriptor::kInitializeRootRegister;
   }

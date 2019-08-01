@@ -6,8 +6,8 @@
 #define V8_COMPILER_COMMON_OPERATOR_REDUCER_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -42,6 +42,7 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
   Reduction ReduceReturn(Node* node);
   Reduction ReduceSelect(Node* node);
   Reduction ReduceSwitch(Node* node);
+  Reduction ReduceStaticAssert(Node* node);
 
   Reduction Change(Node* node, Operator const* op, Node* a);
   Reduction Change(Node* node, Operator const* op, Node* a, Node* b);

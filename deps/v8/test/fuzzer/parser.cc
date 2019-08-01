@@ -10,8 +10,8 @@
 #include <list>
 
 #include "include/v8.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"

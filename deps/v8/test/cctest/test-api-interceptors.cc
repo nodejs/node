@@ -7,16 +7,16 @@
 #include "test/cctest/test-api.h"
 
 #include "include/v8-util.h"
-#include "src/api-inl.h"
-#include "src/arguments.h"
+#include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
-#include "src/compilation-cache.h"
-#include "src/execution.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/codegen/compilation-cache.h"
+#include "src/execution/arguments.h"
+#include "src/execution/execution.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/runtime/runtime.h"
-#include "src/unicode-inl.h"
-#include "src/utils.h"
+#include "src/strings/unicode-inl.h"
+#include "src/utils/utils.h"
 
 using ::v8::Boolean;
 using ::v8::BooleanObject;
@@ -1339,9 +1339,9 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
       v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
   CHECK(global_proxy->IsJSGlobalProxy());
   i::Handle<i::JSGlobalObject> global(
-      i::JSGlobalObject::cast(global_proxy->map()->prototype()),
+      i::JSGlobalObject::cast(global_proxy->map().prototype()),
       global_proxy->GetIsolate());
-  CHECK(global->map()->has_named_interceptor());
+  CHECK(global->map().has_named_interceptor());
 
   v8::Local<Value> value = CompileRun(
       "var f = function() { "
@@ -1403,9 +1403,9 @@ THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
       v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
   CHECK(global_proxy->IsJSGlobalProxy());
   i::Handle<i::JSGlobalObject> global(
-      i::JSGlobalObject::cast(global_proxy->map()->prototype()),
+      i::JSGlobalObject::cast(global_proxy->map().prototype()),
       global_proxy->GetIsolate());
-  CHECK(global->map()->has_named_interceptor());
+  CHECK(global->map().has_named_interceptor());
 
   ExpectInt32(
       "(function() {"
@@ -3962,6 +3962,7 @@ THREADED_TEST(InterceptorCallICConstantFunctionNotNeededWrapped) {
       "  }"
       "  return result;"
       "};"
+      "%PrepareFunctionForOptimization(test);"
       "test();"
       "test();"
       "test();"
@@ -4491,6 +4492,7 @@ THREADED_TEST(Regress256330) {
   CompileRun(
       "\"use strict\"; var o = new Bug;"
       "function f(o) { o.x = 10; };"
+      "%PrepareFunctionForOptimization(f);"
       "f(o); f(o); f(o);"
       "%OptimizeFunctionOnNextCall(f);"
       "f(o);");
@@ -4519,6 +4521,7 @@ THREADED_TEST(OptimizedInterceptorSetter) {
       "function getter() { return this.accessor_age; };"
       "function setAge(i) { obj.age = i; };"
       "Object.defineProperty(obj, 'age', { get:getter, set:setter });"
+      "%PrepareFunctionForOptimization(setAge);"
       "setAge(1);"
       "setAge(2);"
       "setAge(3);"
@@ -4547,6 +4550,7 @@ THREADED_TEST(OptimizedInterceptorGetter) {
       "function getter() { return this.accessor_age; };"
       "function getAge() { return obj.interceptor_age; };"
       "Object.defineProperty(obj, 'interceptor_age', { get:getter });"
+      "%PrepareFunctionForOptimization(getAge);"
       "getAge();"
       "getAge();"
       "getAge();"
@@ -4569,7 +4573,8 @@ THREADED_TEST(OptimizedInterceptorFieldRead) {
       "var obj = new Obj;"
       "obj.__proto__.interceptor_age = 42;"
       "obj.age = 100;"
-      "function getAge() { return obj.interceptor_age; };");
+      "function getAge() { return obj.interceptor_age; };"
+      "%PrepareFunctionForOptimization(getAge);");
   ExpectInt32("getAge();", 100);
   ExpectInt32("getAge();", 100);
   ExpectInt32("getAge();", 100);
@@ -4592,6 +4597,7 @@ THREADED_TEST(OptimizedInterceptorFieldWrite) {
       "var obj = new Obj;"
       "obj.age = 100000;"
       "function setAge(i) { obj.age = i };"
+      "%PrepareFunctionForOptimization(setAge);"
       "setAge(100);"
       "setAge(101);"
       "setAge(102);"

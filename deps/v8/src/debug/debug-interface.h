@@ -9,8 +9,8 @@
 #include "include/v8-util.h"
 #include "include/v8.h"
 
+#include "src/common/globals.h"
 #include "src/debug/interface-types.h"
-#include "src/globals.h"
 
 namespace v8 {
 
@@ -56,6 +56,12 @@ MaybeLocal<Array> GetInternalProperties(Isolate* isolate, Local<Value> value);
  */
 V8_EXPORT_PRIVATE MaybeLocal<Array> GetPrivateFields(Local<Context> context,
                                                      Local<Object> value);
+
+/**
+ * Forwards to v8::Object::CreationContext, but with special handling for
+ * JSGlobalProxy objects.
+ */
+Local<Context> GetCreationContext(Local<Object> value);
 
 enum ExceptionBreakState {
   NoBreakOnException = 0,
@@ -141,6 +147,7 @@ class V8_EXPORT_PRIVATE Script {
                        LiveEditResult* result) const;
   bool SetBreakpoint(v8::Local<v8::String> condition, debug::Location* location,
                      BreakpointId* id) const;
+  bool SetBreakpointOnScriptEntry(BreakpointId* id) const;
 };
 
 // Specialization for wasm Scripts.
@@ -482,13 +489,13 @@ class PostponeInterruptsScope {
 
 class WeakMap : public v8::Object {
  public:
-  V8_WARN_UNUSED_RESULT v8::MaybeLocal<v8::Value> Get(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT v8::MaybeLocal<v8::Value> Get(
       v8::Local<v8::Context> context, v8::Local<v8::Value> key);
-  V8_WARN_UNUSED_RESULT v8::MaybeLocal<WeakMap> Set(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT v8::MaybeLocal<WeakMap> Set(
       v8::Local<v8::Context> context, v8::Local<v8::Value> key,
       v8::Local<v8::Value> value);
 
-  static Local<WeakMap> New(v8::Isolate* isolate);
+  V8_EXPORT_PRIVATE static Local<WeakMap> New(v8::Isolate* isolate);
   V8_INLINE static WeakMap* Cast(Value* obj);
 
  private:

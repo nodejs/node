@@ -25,13 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/disassembler.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/s390/assembler-s390-inl.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/macro-assembler.h"
-#include "src/s390/assembler-s390-inl.h"
-#include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 
@@ -63,8 +63,7 @@ TEST(0) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -102,8 +101,7 @@ TEST(1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -153,8 +151,7 @@ TEST(2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -208,8 +205,7 @@ TEST(3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -486,8 +482,7 @@ TEST(10) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -540,8 +535,7 @@ TEST(11) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -594,8 +588,7 @@ TEST(12) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -605,6 +598,341 @@ TEST(12) {
   CHECK_EQ(0, static_cast<int>(res));
 }
 
+// vector basics
+TEST(13) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+
+  // vector loads, replicate, and arithmetics
+  __ vrepi(d2, Operand(100), Condition(2));
+  __ lay(sp, MemOperand(sp, -4));
+  __ sty(r3, MemOperand(sp));
+  __ vlrep(d3, MemOperand(sp), Condition(2));
+  __ lay(sp, MemOperand(sp, 4));
+  __ vlvg(d4, r2, MemOperand(r0, 2), Condition(2));
+  __ vrep(d4, d4, Operand(2), Condition(2));
+  __ lay(sp, MemOperand(sp, -kSimd128Size));
+  __ vst(d4, MemOperand(sp), Condition(0));
+  __ va(d2, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vl(d3, MemOperand(sp), Condition(0));
+  __ lay(sp, MemOperand(sp, kSimd128Size));
+  __ vs(d2, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vml(d3, d3, d2, Condition(0), Condition(0), Condition(2));
+  __ lay(sp, MemOperand(sp, -4));
+  __ vstef(d3, MemOperand(sp), Condition(3));
+  __ vlef(d2, MemOperand(sp), Condition(0));
+  __ lay(sp, MemOperand(sp, 4));
+  __ vlgv(r2, d2, MemOperand(r0, 0), Condition(2));
+  __ cfi(r2, Operand(15000));
+  __ bne(&error);
+  __ vrepi(d2, Operand(-30), Condition(3));
+  __ vlc(d2, d2, Condition(0), Condition(0), Condition(3));
+  __ vlgv(r2, d2, MemOperand(r0, 1), Condition(3));
+  __ lgfi(r1, Operand(-30));
+  __ lcgr(r1, r1);
+  __ cgr(r1, r2);
+  __ bne(&error);
+  __ lgfi(r2, Operand(0));
+  __ b(&done);
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ bind(&done);
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(50, 250, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+
+// vector sum, packs, unpacks
+TEST(14) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+
+  // vector sum word and doubleword
+  __ vrepi(d2, Operand(100), Condition(2));
+  __ vsumg(d1, d2, d2, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(3));
+  __ cfi(r2, Operand(300));
+  __ bne(&error);
+  __ vrepi(d1, Operand(0), Condition(1));
+  __ vrepi(d2, Operand(75), Condition(1));
+  __ vsum(d1, d2, d1, Condition(0), Condition(0), Condition(1));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ cfi(r2, Operand(150));
+  __ bne(&error);
+  // vector packs
+  __ vrepi(d1, Operand(200), Condition(2));
+  __ vpk(d1, d1, d1, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 5), Condition(1));
+  __ cfi(r2, Operand(200));
+  __ bne(&error);
+  __ vrepi(d2, Operand(30), Condition(1));
+  __ vpks(d1, d1, d2, Condition(0), Condition(1));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(0));
+  __ vlgv(r3, d1, MemOperand(r0, 8), Condition(0));
+  __ ar(r2, r3);
+  __ cfi(r2, Operand(157));
+  __ bne(&error);
+  __ vrepi(d1, Operand(270), Condition(1));
+  __ vrepi(d2, Operand(-30), Condition(1));
+  __ vpkls(d1, d1, d2, Condition(0), Condition(1));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(0));
+  __ vlgv(r3, d1, MemOperand(r0, 8), Condition(0));
+  __ cfi(r2, Operand(255));
+  __ bne(&error);
+  __ cfi(r3, Operand(255));
+  __ bne(&error);
+  // vector unpacks
+  __ vrepi(d1, Operand(50), Condition(2));
+  __ lgfi(r1, Operand(10));
+  __ lgfi(r2, Operand(20));
+  __ vlvg(d1, r1, MemOperand(r0, 0), Condition(2));
+  __ vlvg(d1, r2, MemOperand(r0, 2), Condition(2));
+  __ vuph(d2, d1, Condition(0), Condition(0), Condition(2));
+  __ vupl(d1, d1, Condition(0), Condition(0), Condition(2));
+  __ va(d1, d1, d2, Condition(0), Condition(0), Condition(3));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(3));
+  __ vlgv(r3, d1, MemOperand(r0, 1), Condition(3));
+  __ ar(r2, r3);
+  __ cfi(r2, Operand(130));
+  __ bne(&error);
+  __ vrepi(d1, Operand(-100), Condition(2));
+  __ vuplh(d2, d1, Condition(0), Condition(0), Condition(2));
+  __ vupll(d1, d1, Condition(0), Condition(0), Condition(2));
+  __ va(d1, d1, d1, Condition(0), Condition(0), Condition(3));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(3));
+  __ cfi(r2, Operand(0x1ffffff38));
+  __ bne(&error);
+  __ lgfi(r2, Operand(0));
+  __ b(&done);
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ bind(&done);
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+// vector comparisons
+TEST(15) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+
+  // vector max and min
+  __ vrepi(d2, Operand(-50), Condition(2));
+  __ vrepi(d3, Operand(40), Condition(2));
+  __ vmx(d1, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r1, d1, MemOperand(r0, 0), Condition(2));
+  __ vmnl(d1, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ cgr(r1, r2);
+  __ vmxl(d1, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r1, d1, MemOperand(r0, 0), Condition(2));
+  __ vmn(d1, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ cgr(r1, r2);
+  __ bne(&error);
+  // vector comparisons
+  __ vlr(d4, d3, Condition(0), Condition(0), Condition(0));
+  __ vceq(d1, d3, d4, Condition(0), Condition(2));
+  __ vlgv(r1, d1, MemOperand(r0, 0), Condition(2));
+  __ vch(d1, d2, d3, Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ vchl(d1, d2, d3, Condition(0), Condition(2));
+  __ vlgv(r3, d1, MemOperand(r0, 0), Condition(2));
+  __ ar(r2, r3);
+  __ cgr(r1, r2);
+  __ bne(&error);
+  // vector bitwise ops
+  __ vrepi(d2, Operand(0), Condition(2));
+  __ vn(d1, d2, d3, Condition(0), Condition(0), Condition(0));
+  __ vceq(d1, d1, d2, Condition(0), Condition(2));
+  __ vlgv(r1, d1, MemOperand(r0, 0), Condition(2));
+  __ vo(d1, d2, d3, Condition(0), Condition(0), Condition(0));
+  __ vx(d1, d1, d2, Condition(0), Condition(0), Condition(0));
+  __ vceq(d1, d1, d3, Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ cgr(r1, r2);
+  __ bne(&error);
+  // vector bitwise shift
+  __ vceq(d1, d1, d1, Condition(0), Condition(2));
+  __ vesra(d1, d1, MemOperand(r0, 5), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ cgr(r3, r2);
+  __ bne(&error);
+  __ lgfi(r1, Operand(0xfffff895));
+  __ vlvg(d1, r1, MemOperand(r0, 0), Condition(3));
+  __ vrep(d1, d1, Operand(0), Condition(3));
+  __ slag(r1, r1, Operand(10));
+  __ vesl(d1, d1, MemOperand(r0, 10), Condition(3));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(3));
+  __ cgr(r1, r2);
+  __ bne(&error);
+  __ srlg(r1, r1, Operand(10));
+  __ vesrl(d1, d1, MemOperand(r0, 10), Condition(3));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(3));
+  __ cgr(r1, r2);
+  __ bne(&error);
+  __ lgfi(r2, Operand(0));
+  __ b(&done);
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ bind(&done);
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+// vector select and test mask
+TEST(16) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+
+  // vector select
+  __ vrepi(d1, Operand(0x1011), Condition(1));
+  __ vrepi(d2, Operand(0x4343), Condition(1));
+  __ vrepi(d3, Operand(0x3434), Condition(1));
+  __ vsel(d1, d2, d3, d1, Condition(0), Condition(0));
+  __ vlgv(r2, d1, MemOperand(r0, 2), Condition(1));
+  __ cfi(r2, Operand(0x2425));
+  __ bne(&error);
+  // vector test mask
+  __ vtm(d2, d1, Condition(0), Condition(0), Condition(0));
+  __ b(Condition(0x1), &error);
+  __ b(Condition(0x8), &error);
+  __ lgfi(r2, Operand(0));
+  __ b(&done);
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ bind(&done);
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+// vector fp instructions
+TEST(17) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+
+  // vector fp arithmetics
+  __ cdgbr(d1, r3);
+  __ ldr(d2, d1);
+  __ vfa(d1, d1, d2, Condition(0), Condition(0), Condition(3));
+  __ cdgbr(d3, r2);
+  __ vfm(d1, d1, d3, Condition(0), Condition(0), Condition(3));
+  __ vfs(d1, d1, d2, Condition(0), Condition(0), Condition(3));
+  __ vfd(d1, d1, d3, Condition(0), Condition(0), Condition(3));
+  __ vfsq(d1, d1, Condition(0), Condition(0), Condition(3));
+  __ cgdbr(Condition(4), r2, d1);
+  __ cgfi(r2, Operand(0x8));
+  __ bne(&error);
+  // vector fp comparisons
+  __ cdgbra(Condition(4), d1, r3);
+  __ ldr(d2, d1);
+  __ vfa(d1, d1, d2, Condition(0), Condition(0), Condition(3));
+#ifdef VECTOR_ENHANCE_FACILITY_1
+  __ vfmin(d3, d1, d2, Condition(1), Condition(0), Condition(3));
+  __ vfmax(d4, d1, d2, Condition(1), Condition(0), Condition(3));
+#else
+  __ vlr(d3, d2, Condition(0), Condition(0), Condition(0));
+  __ vlr(d4, d1, Condition(0), Condition(0), Condition(0));
+#endif
+  __ vfch(d5, d4, d3, Condition(0), Condition(0), Condition(3));
+  __ vfche(d3, d3, d4, Condition(0), Condition(0), Condition(3));
+  __ vfce(d4, d1, d4, Condition(0), Condition(0), Condition(3));
+  __ va(d3, d3, d4, Condition(0), Condition(0), Condition(3));
+  __ vs(d3, d3, d5, Condition(0), Condition(0), Condition(3));
+  __ vlgv(r2, d3, MemOperand(r0, 0), Condition(3));
+  // vector fp sign ops
+  __ lgfi(r1, Operand(-0x50));
+  __ cdgbra(Condition(4), d1, r1);
+  __ vfpso(d1, d1, Condition(0), Condition(0), Condition(3));
+  __ vfi(d1, d1, Condition(5), Condition(0), Condition(3));
+  __ vlgv(r1, d1, MemOperand(r0, 0), Condition(3));
+  __ agr(r2, r1);
+  __ srlg(r2, r2, Operand(32));
+  __ cgfi(r2, Operand(0x40540000));
+  __ bne(&error);
+  __ lgfi(r2, Operand(0));
+  __ b(&done);
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ bind(&done);
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0x2, 0x30, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
 
 #undef __
 

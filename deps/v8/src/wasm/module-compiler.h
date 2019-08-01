@@ -9,10 +9,11 @@
 #include <functional>
 #include <memory>
 
-#include "src/cancelable-task.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/tasks/cancelable-task.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
+#include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
@@ -46,12 +47,25 @@ V8_EXPORT_PRIVATE
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
                              Handle<FixedArray> export_wrappers);
 
+// Compiles the wrapper for this (kind, sig) pair and sets the corresponding
+// cache entry. Assumes the key already exists in the cache but has not been
+// compiled yet.
+V8_EXPORT_PRIVATE
+WasmCode* CompileImportWrapper(
+    WasmEngine* wasm_engine, NativeModule* native_module, Counters* counters,
+    compiler::WasmImportCallKind kind, FunctionSig* sig,
+    WasmImportWrapperCache::ModificationScope* cache_scope);
+
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
     Isolate* isolate, const ModuleWireBytes& wire_bytes,
     const std::string& source_map_url);
 
-// Triggered by the WasmCompileLazy builtin.
-void CompileLazy(Isolate*, NativeModule*, uint32_t func_index);
+// Triggered by the WasmCompileLazy builtin. The return value indicates whether
+// compilation was successful. Lazy compilation can fail only if validation is
+// also lazy.
+bool CompileLazy(Isolate*, NativeModule*, int func_index);
+
+int GetMaxBackgroundTasks();
 
 // Encapsulates all the state and steps of an asynchronous compilation.
 // An asynchronous compile job consists of a number of tasks that are executed
@@ -64,7 +78,7 @@ class AsyncCompileJob {
  public:
   AsyncCompileJob(Isolate* isolate, const WasmFeatures& enabled_features,
                   std::unique_ptr<byte[]> bytes_copy, size_t length,
-                  Handle<Context> context,
+                  Handle<Context> context, const char* api_method_name,
                   std::shared_ptr<CompilationResultResolver> resolver);
   ~AsyncCompileJob();
 
@@ -146,7 +160,9 @@ class AsyncCompileJob {
   void NextStep(Args&&... args);
 
   Isolate* const isolate_;
+  const char* const api_method_name_;
   const WasmFeatures enabled_features_;
+  const bool wasm_lazy_compilation_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
   std::unique_ptr<byte[]> bytes_copy_;

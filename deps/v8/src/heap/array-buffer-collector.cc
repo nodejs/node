@@ -5,11 +5,11 @@
 #include "src/heap/array-buffer-collector.h"
 
 #include "src/base/template-utils.h"
-#include "src/cancelable-task.h"
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
-#include "src/task-utils.h"
+#include "src/tasks/cancelable-task.h"
+#include "src/tasks/task-utils.h"
 
 namespace v8 {
 namespace internal {

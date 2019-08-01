@@ -12,10 +12,10 @@
 #include <set>
 #include <string>
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects.h"
 #include "unicode/uversion.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -105,15 +105,8 @@ class JSListFormat : public JSObject {
   DECL_VERIFIER(JSListFormat)
 
   // Layout description.
-#define JS_LIST_FORMAT_FIELDS(V)      \
-  V(kLocaleOffset, kTaggedSize)       \
-  V(kICUFormatterOffset, kTaggedSize) \
-  V(kFlagsOffset, kTaggedSize)        \
-  /* Header size. */                  \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_LIST_FORMAT_FIELDS)
-#undef JS_LIST_FORMAT_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSLIST_FORMAT_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSListFormat, JSObject);
 };

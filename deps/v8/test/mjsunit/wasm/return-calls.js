@@ -133,7 +133,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const sig_i_iii = builder.addType(kSig_i_iii);
 
   let pick = builder.addImport("q", "pick", sig_i_iii);
-  const tableIndex = 3; // Arbitrary location of import
+  builder.addTable(kWasmAnyFunc, 4);
+  // Arbitrary location in the table.
+  const tableIndex = 3;
 
   builder.addElementSegment(0, tableIndex,false,[pick]);
 

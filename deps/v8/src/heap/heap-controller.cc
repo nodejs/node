@@ -4,11 +4,54 @@
 
 #include "src/heap/heap-controller.h"
 
+#include "src/execution/isolate-inl.h"
 #include "src/heap/spaces.h"
-#include "src/isolate-inl.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename Trait>
+double MemoryController<Trait>::GrowingFactor(Heap* heap, size_t max_heap_size,
+                                              double gc_speed,
+                                              double mutator_speed) {
+  const double max_factor = MaxGrowingFactor(max_heap_size);
+  const double factor =
+      DynamicGrowingFactor(gc_speed, mutator_speed, max_factor);
+  if (FLAG_trace_gc_verbose) {
+    Isolate::FromHeap(heap)->PrintWithTimestamp(
+        "[%s] factor %.1f based on mu=%.3f, speed_ratio=%.f "
+        "(gc=%.f, mutator=%.f)\n",
+        Trait::kName, factor, Trait::kTargetMutatorUtilization,
+        gc_speed / mutator_speed, gc_speed, mutator_speed);
+  }
+  return factor;
+}
+
+template <typename Trait>
+double MemoryController<Trait>::MaxGrowingFactor(size_t max_heap_size) {
+  constexpr double kMinSmallFactor = 1.3;
+  constexpr double kMaxSmallFactor = 2.0;
+  constexpr double kHighFactor = 4.0;
+
+  size_t max_size_in_mb = max_heap_size / MB;
+  max_size_in_mb = Max(max_size_in_mb, Trait::kMinSize);
+
+  // If we are on a device with lots of memory, we allow a high heap
+  // growing factor.
+  if (max_size_in_mb >= Trait::kMaxSize) {
+    return kHighFactor;
+  }
+
+  DCHECK_GE(max_size_in_mb, Trait::kMinSize);
+  DCHECK_LT(max_size_in_mb, Trait::kMaxSize);
+
+  // On smaller devices we linearly scale the factor: (X-A)/(B-A)*(D-C)+C
+  double factor = (max_size_in_mb - Trait::kMinSize) *
+                      (kMaxSmallFactor - kMinSmallFactor) /
+                      (Trait::kMaxSize - Trait::kMinSize) +
+                  kMinSmallFactor;
+  return factor;
+}
 
 // Given GC speed in bytes per ms, the allocation throughput in bytes per ms
 // (mutator speed), this function returns the heap growing factor that will
@@ -49,72 +92,29 @@ namespace internal {
 //   F * (1 - MU / (R * (1 - MU))) = 1
 //   F * (R * (1 - MU) - MU) / (R * (1 - MU)) = 1
 //   F = R * (1 - MU) / (R * (1 - MU) - MU)
-double MemoryController::GrowingFactor(double gc_speed, double mutator_speed,
-                                       double max_factor) {
-  DCHECK_LE(min_growing_factor_, max_factor);
-  DCHECK_GE(max_growing_factor_, max_factor);
+template <typename Trait>
+double MemoryController<Trait>::DynamicGrowingFactor(double gc_speed,
+                                                     double mutator_speed,
+                                                     double max_factor) {
+  DCHECK_LE(Trait::kMinGrowingFactor, max_factor);
+  DCHECK_GE(Trait::kMaxGrowingFactor, max_factor);
   if (gc_speed == 0 || mutator_speed == 0) return max_factor;
 
   const double speed_ratio = gc_speed / mutator_speed;
 
-  const double a = speed_ratio * (1 - target_mutator_utilization_);
-  const double b = speed_ratio * (1 - target_mutator_utilization_) -
-                   target_mutator_utilization_;
+  const double a = speed_ratio * (1 - Trait::kTargetMutatorUtilization);
+  const double b = speed_ratio * (1 - Trait::kTargetMutatorUtilization) -
+                   Trait::kTargetMutatorUtilization;
 
   // The factor is a / b, but we need to check for small b first.
   double factor = (a < b * max_factor) ? a / b : max_factor;
   factor = Min(factor, max_factor);
-  factor = Max(factor, min_growing_factor_);
+  factor = Max(factor, Trait::kMinGrowingFactor);
   return factor;
 }
 
-size_t MemoryController::CalculateAllocationLimit(
-    size_t curr_size, size_t max_size, double max_factor, double gc_speed,
-    double mutator_speed, size_t new_space_capacity,
-    Heap::HeapGrowingMode growing_mode) {
-  double factor = GrowingFactor(gc_speed, mutator_speed, max_factor);
-
-  if (FLAG_trace_gc_verbose) {
-    Isolate::FromHeap(heap_)->PrintWithTimestamp(
-        "%s factor %.1f based on mu=%.3f, speed_ratio=%.f "
-        "(gc=%.f, mutator=%.f)\n",
-        ControllerName(), factor, target_mutator_utilization_,
-        gc_speed / mutator_speed, gc_speed, mutator_speed);
-  }
-
-  if (growing_mode == Heap::HeapGrowingMode::kConservative ||
-      growing_mode == Heap::HeapGrowingMode::kSlow) {
-    factor = Min(factor, conservative_growing_factor_);
-  }
-
-  if (growing_mode == Heap::HeapGrowingMode::kMinimal) {
-    factor = min_growing_factor_;
-  }
-
-  if (FLAG_heap_growing_percent > 0) {
-    factor = 1.0 + FLAG_heap_growing_percent / 100.0;
-  }
-
-  CHECK_LT(1.0, factor);
-  CHECK_LT(0, curr_size);
-  uint64_t limit = static_cast<uint64_t>(curr_size * factor);
-  limit = Max(limit, static_cast<uint64_t>(curr_size) +
-                         MinimumAllocationLimitGrowingStep(growing_mode));
-  limit += new_space_capacity;
-  uint64_t halfway_to_the_max =
-      (static_cast<uint64_t>(curr_size) + max_size) / 2;
-  size_t result = static_cast<size_t>(Min(limit, halfway_to_the_max));
-
-  if (FLAG_trace_gc_verbose) {
-    Isolate::FromHeap(heap_)->PrintWithTimestamp(
-        "%s Limit: old size: %" PRIuS " KB, new limit: %" PRIuS " KB (%.1f)\n",
-        ControllerName(), curr_size / KB, result / KB, factor);
-  }
-
-  return result;
-}
-
-size_t MemoryController::MinimumAllocationLimitGrowingStep(
+template <typename Trait>
+size_t MemoryController<Trait>::MinimumAllocationLimitGrowingStep(
     Heap::HeapGrowingMode growing_mode) {
   const size_t kRegularAllocationLimitGrowingStep = 8;
   const size_t kLowMemoryAllocationLimitGrowingStep = 2;
@@ -124,30 +124,53 @@ size_t MemoryController::MinimumAllocationLimitGrowingStep(
                       : kRegularAllocationLimitGrowingStep);
 }
 
-double HeapController::MaxGrowingFactor(size_t curr_max_size) {
-  const double min_small_factor = 1.3;
-  const double max_small_factor = 2.0;
-  const double high_factor = 4.0;
-
-  size_t max_size_in_mb = curr_max_size / MB;
-  max_size_in_mb = Max(max_size_in_mb, kMinSize);
-
-  // If we are on a device with lots of memory, we allow a high heap
-  // growing factor.
-  if (max_size_in_mb >= kMaxSize) {
-    return high_factor;
+template <typename Trait>
+size_t MemoryController<Trait>::CalculateAllocationLimit(
+    Heap* heap, size_t current_size, size_t max_size, size_t new_space_capacity,
+    double factor, Heap::HeapGrowingMode growing_mode) {
+  switch (growing_mode) {
+    case Heap::HeapGrowingMode::kConservative:
+    case Heap::HeapGrowingMode::kSlow:
+      factor = Min(factor, Trait::kConservativeGrowingFactor);
+      break;
+    case Heap::HeapGrowingMode::kMinimal:
+      factor = Trait::kMinGrowingFactor;
+      break;
+    case Heap::HeapGrowingMode::kDefault:
+      break;
   }
 
-  DCHECK_GE(max_size_in_mb, kMinSize);
-  DCHECK_LT(max_size_in_mb, kMaxSize);
+  if (FLAG_heap_growing_percent > 0) {
+    factor = 1.0 + FLAG_heap_growing_percent / 100.0;
+  }
 
-  // On smaller devices we linearly scale the factor: (X-A)/(B-A)*(D-C)+C
-  double factor = (max_size_in_mb - kMinSize) *
-                      (max_small_factor - min_small_factor) /
-                      (kMaxSize - kMinSize) +
-                  min_small_factor;
-  return factor;
+  if (FLAG_heap_growing_percent > 0) {
+    factor = 1.0 + FLAG_heap_growing_percent / 100.0;
+  }
+
+  CHECK_LT(1.0, factor);
+  CHECK_LT(0, current_size);
+  const uint64_t limit =
+      Max(static_cast<uint64_t>(current_size * factor),
+          static_cast<uint64_t>(current_size) +
+              MinimumAllocationLimitGrowingStep(growing_mode)) +
+      new_space_capacity;
+  const uint64_t halfway_to_the_max =
+      (static_cast<uint64_t>(current_size) + max_size) / 2;
+  const size_t result = static_cast<size_t>(Min(limit, halfway_to_the_max));
+  if (FLAG_trace_gc_verbose) {
+    Isolate::FromHeap(heap)->PrintWithTimestamp(
+        "[%s] Limit: old size: %zu KB, new limit: %zu KB (%.1f)\n",
+        Trait::kName, current_size / KB, result / KB, factor);
+  }
+  return result;
 }
+
+template class V8_EXPORT_PRIVATE MemoryController<V8HeapTrait>;
+template class V8_EXPORT_PRIVATE MemoryController<GlobalMemoryTrait>;
+
+const char* V8HeapTrait::kName = "HeapController";
+const char* GlobalMemoryTrait::kName = "GlobalMemoryController";
 
 }  // namespace internal
 }  // namespace v8

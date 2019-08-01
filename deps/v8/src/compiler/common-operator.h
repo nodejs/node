@@ -6,13 +6,13 @@
 #define V8_COMPILER_COMMON_OPERATOR_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/reloc-info.h"
+#include "src/codegen/string-constants.h"
+#include "src/common/globals.h"
 #include "src/compiler/frame-states.h"
-#include "src/deoptimize-reason.h"
-#include "src/globals.h"
-#include "src/machine-type.h"
-#include "src/reloc-info.h"
-#include "src/string-constants.h"
-#include "src/vector-slot-pair.h"
+#include "src/compiler/vector-slot-pair.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-handle-set.h"
 
@@ -454,6 +454,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Dead();
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();
+  const Operator* StaticAssert();
   const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone,
                          IsSafetyCheck = IsSafetyCheck::kSafetyCheck);

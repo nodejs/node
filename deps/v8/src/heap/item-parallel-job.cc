@@ -5,8 +5,8 @@
 #include "src/heap/item-parallel-job.h"
 
 #include "src/base/platform/semaphore.h"
-#include "src/counters.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
+#include "src/logging/counters.h"
 
 namespace v8 {
 namespace internal {

@@ -4,14 +4,14 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
-#include "src/compiler.h"
-#include "src/conversions.h"
-#include "src/counters.h"
-#include "src/lookup.h"
-#include "src/objects-inl.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/compiler.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions.h"
 #include "src/objects/api-callbacks.h"
-#include "src/string-builder-inl.h"
+#include "src/objects/lookup.h"
+#include "src/objects/objects-inl.h"
+#include "src/strings/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -90,7 +90,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         Execution::Call(isolate, function, target_global_proxy, 0, nullptr),
         Object);
     function = Handle<JSFunction>::cast(result);
-    function->shared()->set_name_should_print_as_anonymous(true);
+    function->shared().set_name_should_print_as_anonymous(true);
   }
 
   // If new.target is equal to target then the function created
@@ -149,7 +149,7 @@ BUILTIN(AsyncFunctionConstructor) {
   // determined after the function is resumed.
   Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
   Handle<Script> script =
-      handle(Script::cast(func->shared()->script()), isolate);
+      handle(Script::cast(func->shared().script()), isolate);
   int position = Script::GetEvalPosition(isolate, script);
   USE(position);
 
@@ -168,7 +168,7 @@ BUILTIN(AsyncGeneratorFunctionConstructor) {
   // determined after the function is resumed.
   Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
   Handle<Script> script =
-      handle(Script::cast(func->shared()->script()), isolate);
+      handle(Script::cast(func->shared().script()), isolate);
   int position = Script::GetEvalPosition(isolate, script);
   USE(position);
 
@@ -279,7 +279,7 @@ BUILTIN(FunctionPrototypeToString) {
   // With the revised toString behavior, all callable objects are valid
   // receivers for this method.
   if (receiver->IsJSReceiver() &&
-      JSReceiver::cast(*receiver)->map()->is_callable()) {
+      JSReceiver::cast(*receiver).map().is_callable()) {
     return ReadOnlyRoots(isolate).function_native_code_string();
   }
   THROW_NEW_ERROR_RETURN_FAILURE(

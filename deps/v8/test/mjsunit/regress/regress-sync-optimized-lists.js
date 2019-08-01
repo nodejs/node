@@ -19,7 +19,7 @@ function get_closure() {
     return x;
   }
 }
-
+%PrepareFunctionForOptimization(get_closure);
 var f1 = get_closure();
 f1(new Ctor(), false);
 f1(new Ctor(), false);

@@ -4,18 +4,17 @@
 
 #include "src/snapshot/startup-serializer.h"
 
-#include "src/api.h"
-#include "src/code-tracer.h"
-#include "src/contexts.h"
-#include "src/deoptimizer.h"
-#include "src/global-handles.h"
+#include "src/api/api.h"
+#include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/v8threads.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
-#include "src/objects-inl.h"
+#include "src/objects/contexts.h"
 #include "src/objects/foreign-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/read-only-serializer.h"
-#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {
@@ -37,25 +36,25 @@ StartupSerializer::~StartupSerializer() {
 namespace {
 
 bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
-  if (!obj->IsCode()) return false;
+  if (!obj.IsCode()) return false;
 
   Code code = Code::cast(obj);
 
   // TODO(v8:8768): Deopt entry code should not be serialized.
-  if (code->kind() == Code::STUB && isolate->deoptimizer_data() != nullptr) {
+  if (code.kind() == Code::STUB && isolate->deoptimizer_data() != nullptr) {
     if (isolate->deoptimizer_data()->IsDeoptEntryCode(code)) return false;
   }
 
-  if (code->kind() == Code::REGEXP) return false;
-  if (!code->is_builtin()) return true;
+  if (code.kind() == Code::REGEXP) return false;
+  if (!code.is_builtin()) return true;
   if (!FLAG_embedded_builtins) return false;
-  if (code->is_off_heap_trampoline()) return false;
+  if (code.is_off_heap_trampoline()) return false;
 
   // An on-heap builtin. We only expect this for the interpreter entry
   // trampoline copy stored on the root list and transitively called builtins.
   // See Heap::interpreter_entry_trampoline_for_profiling.
 
-  switch (code->builtin_index()) {
+  switch (code.builtin_index()) {
     case Builtins::kAbort:
     case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
     case Builtins::kInterpreterEntryTrampoline:
@@ -72,16 +71,7 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
 #endif  // DEBUG
 
 void StartupSerializer::SerializeObject(HeapObject obj) {
-#ifdef DEBUG
-  if (obj.IsJSFunction()) {
-    v8::base::OS::PrintError("Reference stack:\n");
-    PrintStack(std::cerr);
-    obj.Print(std::cerr);
-    FATAL(
-        "JSFunction should be added through the context snapshot instead of "
-        "the isolate snapshot");
-  }
-#endif  // DEBUG
+  DCHECK(!obj.IsJSFunction());
   DCHECK(!IsUnexpectedCodeObject(isolate(), obj));
 
   if (SerializeHotObject(obj)) return;
@@ -94,26 +84,25 @@ void StartupSerializer::SerializeObject(HeapObject obj) {
   use_simulator = true;
 #endif
 
-  if (use_simulator && obj->IsAccessorInfo()) {
+  if (use_simulator && obj.IsAccessorInfo()) {
     // Wipe external reference redirects in the accessor info.
     AccessorInfo info = AccessorInfo::cast(obj);
-    Address original_address = Foreign::cast(info->getter())->foreign_address();
-    Foreign::cast(info->js_getter())->set_foreign_address(original_address);
+    Address original_address = Foreign::cast(info.getter()).foreign_address();
+    Foreign::cast(info.js_getter()).set_foreign_address(original_address);
     accessor_infos_.push_back(info);
-  } else if (use_simulator && obj->IsCallHandlerInfo()) {
+  } else if (use_simulator && obj.IsCallHandlerInfo()) {
     CallHandlerInfo info = CallHandlerInfo::cast(obj);
-    Address original_address =
-        Foreign::cast(info->callback())->foreign_address();
-    Foreign::cast(info->js_callback())->set_foreign_address(original_address);
+    Address original_address = Foreign::cast(info.callback()).foreign_address();
+    Foreign::cast(info.js_callback()).set_foreign_address(original_address);
     call_handler_infos_.push_back(info);
-  } else if (obj->IsScript() && Script::cast(obj)->IsUserJavaScript()) {
-    Script::cast(obj)->set_context_data(
+  } else if (obj.IsScript() && Script::cast(obj).IsUserJavaScript()) {
+    Script::cast(obj).set_context_data(
         ReadOnlyRoots(isolate()).uninitialized_symbol());
-  } else if (obj->IsSharedFunctionInfo()) {
+  } else if (obj.IsSharedFunctionInfo()) {
     // Clear inferred name for native functions.
     SharedFunctionInfo shared = SharedFunctionInfo::cast(obj);
-    if (!shared->IsSubjectToDebugging() && shared->HasUncompiledData()) {
-      shared->uncompiled_data()->set_inferred_name(
+    if (!shared.IsSubjectToDebugging() && shared.HasUncompiledData()) {
+      shared.uncompiled_data().set_inferred_name(
           ReadOnlyRoots(isolate()).empty_string());
     }
   }
@@ -160,7 +149,7 @@ SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,
     : isolate_(isolate) {
   AddToSet(isolate->heap()->serialized_objects());
   for (auto const& context : *contexts) {
-    AddToSet(context->serialized_objects());
+    AddToSet(context.serialized_objects());
   }
 }
 
@@ -177,8 +166,8 @@ void StartupSerializer::SerializeUsingPartialSnapshotCache(
 }
 
 void SerializedHandleChecker::AddToSet(FixedArray serialized) {
-  int length = serialized->length();
-  for (int i = 0; i < length; i++) serialized_.insert(serialized->get(i));
+  int length = serialized.length();
+  for (int i = 0; i < length; i++) serialized_.insert(serialized.get(i));
 }
 
 void SerializedHandleChecker::VisitRootPointers(Root root,
@@ -189,7 +178,7 @@ void SerializedHandleChecker::VisitRootPointers(Root root,
     if (serialized_.find(*p) != serialized_.end()) continue;
     PrintF("%s handle not serialized: ",
            root == Root::kGlobalHandles ? "global" : "eternal");
-    (*p)->Print();
+    (*p).Print();
     ok_ = false;
   }
 }

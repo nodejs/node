@@ -39,6 +39,7 @@ function Turbo(count = 10000) {
   return sum;
 }
 
+%PrepareFunctionForOptimization(Turbo);
 Turbo(10);
 Turbo(10);
 %OptimizeFunctionOnNextCall(Turbo);

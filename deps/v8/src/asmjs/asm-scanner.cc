@@ -4,10 +4,12 @@
 
 #include "src/asmjs/asm-scanner.h"
 
-#include "src/char-predicates-inl.h"
-#include "src/conversions.h"
-#include "src/flags.h"
+#include <cinttypes>
+
+#include "src/flags/flags.h"
+#include "src/numbers/conversions.h"
 #include "src/parsing/scanner.h"
+#include "src/strings/char-predicates-inl.h"
 
 namespace v8 {
 namespace internal {

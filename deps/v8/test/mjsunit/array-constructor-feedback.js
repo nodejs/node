@@ -67,6 +67,7 @@ function assertKind(expected, obj, name_opt) {
   function bar0(t) {
     return new t();
   }
+  %PrepareFunctionForOptimization(bar0);
   a = bar0(Array);
   a[0] = 3.5;
   b = bar0(Array);
@@ -77,7 +78,8 @@ function assertKind(expected, obj, name_opt) {
   assertOptimized(bar0);
   // bar0 should deopt
   b = bar0(Object);
-  assertUnoptimized(bar0)
+  assertUnoptimized(bar0);
+  %PrepareFunctionForOptimization(bar0);
   // When it's re-optimized, we should call through the full stub
   bar0(Array);
   %OptimizeFunctionOnNextCall(bar0);
@@ -99,6 +101,7 @@ function assertKind(expected, obj, name_opt) {
   function bar() {
     return new Array();
   }
+  %PrepareFunctionForOptimization(bar);
   a = bar();
   bar();
   %OptimizeFunctionOnNextCall(bar);
@@ -115,6 +118,7 @@ function assertKind(expected, obj, name_opt) {
 // map for Array in that context will be used.
 (function() {
   function bar() { return new Array(); }
+  %PrepareFunctionForOptimization(bar);
   bar();
   bar();
   %OptimizeFunctionOnNextCall(bar);
@@ -134,6 +138,7 @@ function assertKind(expected, obj, name_opt) {
 // should deal with arguments that create holey arrays.
 (function() {
   function bar(len) { return new Array(len); }
+  %PrepareFunctionForOptimization(bar);
   bar(0);
   bar(0);
   %OptimizeFunctionOnNextCall(bar);
@@ -153,6 +158,7 @@ function assertKind(expected, obj, name_opt) {
 // Test: Make sure that crankshaft continues with feedback for large arrays.
 (function() {
   function bar(len) { return new Array(len); }
+  %PrepareFunctionForOptimization(bar);
   var size = 100001;
   // Perform a gc, because we are allocating a very large array and if a gc
   // happens during the allocation we could lose our memento.

@@ -4,40 +4,16 @@
 
 #include "src/runtime/runtime-utils.h"
 
-#include "src/arguments-inl.h"
-#include "src/counters.h"
-#include "src/elements.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/isolate-inl.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/objects/elements.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
-
-
-RUNTIME_FUNCTION(Runtime_IsJSProxy) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSProxy());
-}
-
-
-RUNTIME_FUNCTION(Runtime_JSProxyGetHandler) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
-  return proxy->handler();
-}
-
-
-RUNTIME_FUNCTION(Runtime_JSProxyGetTarget) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
-  return proxy->target();
-}
 
 
 RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
@@ -98,7 +74,7 @@ RUNTIME_FUNCTION(Runtime_CheckProxyGetSetTrapResult) {
                                         JSProxy::AccessKind(access_kind)));
 }
 
-RUNTIME_FUNCTION(Runtime_CheckProxyHasTrap) {
+RUNTIME_FUNCTION(Runtime_CheckProxyHasTrapResult) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(2, args.length());

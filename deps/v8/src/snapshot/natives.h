@@ -6,8 +6,8 @@
 #define V8_SNAPSHOT_NATIVES_H_
 
 #include "include/v8.h"
-#include "src/objects.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
+#include "src/objects/objects.h"
 
 namespace v8 { class StartupData; }  // Forward declaration.
 

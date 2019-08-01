@@ -5,11 +5,6 @@
 // Flags: --allow-natives-syntax --opt --no-always-opt
 
 var global = this;
-
-// TODO(ishell): update the test once const->mutable migration does not
-// create a new map.
-var IS_INPLACE_MAP_MODIFICATION_SUPPORTED = false;
-
 var unique_id = 0;
 // Creates a function with unique SharedFunctionInfo to ensure the feedback
 // vector is unique for each test case.
@@ -42,40 +37,21 @@ function TestLoadFromConstantFieldOfAConstantObject(the_value, other_value) {
   // {constant_object} is known to the compiler via global property cell
   // tracking.
   var load = MakeFunctionWithUniqueSFI("return constant_object.a.v;");
+  %PrepareFunctionForOptimization(load);
   load();
   load();
   %OptimizeFunctionOnNextCall(load);
   assertEquals(the_value, load());
   assertOptimized(load);
-  if (IS_INPLACE_MAP_MODIFICATION_SUPPORTED) {
-    var a = new A(other_value);
-    assertTrue(%HaveSameMap(a, the_object.a));
-    // Make constant field mutable by assigning another value
-    // to some other instance of A.
-    new A(the_value).v = other_value;
-    assertTrue(%HaveSameMap(a, new A(the_value)));
-    assertTrue(%HaveSameMap(a, the_object.a));
-    assertUnoptimized(load);
-    assertEquals(the_value, load());
-  } else {
-    var a = new A(other_value);
-    assertTrue(%HaveSameMap(a, the_object.a));
-    // Make constant field mutable by assigning another value
-    // to some other instance of A.
-    new A(the_value).v = other_value;
-    assertOptimized(load);
-    assertTrue(!%HaveSameMap(a, new A(the_value)));
-
-    assertTrue(%HaveSameMap(a, the_object.a));
-    // Ensure the {the_object.a} migrated to an up-to date version of a map
-    // by loading a property through IC.
-    assertEquals(the_value, the_object.a.v);
-    assertTrue(!%HaveSameMap(a, the_object.a));
-    assertOptimized(load);
-
-    // Now attempt to call load should deoptimize because of failed map check.
-    assertEquals(the_value, load());
-  }
+  var a = new A(other_value);
+  assertTrue(%HaveSameMap(a, the_object.a));
+  // Make constant field mutable by assigning another value
+  // to some other instance of A.
+  new A(the_value).v = other_value;
+  assertTrue(%HaveSameMap(a, new A(the_value)));
+  assertTrue(%HaveSameMap(a, the_object.a));
+  assertUnoptimized(load);
+  assertEquals(the_value, load());
   assertUnoptimized(load);
   assertEquals(the_value, load());
 }
@@ -123,6 +99,7 @@ function TestLoadFromConstantFieldOfAPrototype(the_value, other_value) {
 
   // Ensure O.prototype is in fast mode by loading from its field.
   function warmup() { return new O().v; }
+  %EnsureFeedbackVectorForFunction(warmup);
   warmup(); warmup(); warmup();
   assertTrue(%HasFastProperties(O.prototype));
 
@@ -130,20 +107,15 @@ function TestLoadFromConstantFieldOfAPrototype(the_value, other_value) {
   // map and therefore the compiler knows the prototype object and can
   // optimize load of "v".
   var load = MakeFunctionWithUniqueSFI("o", "return o.v;");
+  %PrepareFunctionForOptimization(load);
   load(new O());
   load(new O());
   %OptimizeFunctionOnNextCall(load);
   assertEquals(the_value, load(new O()));
   assertOptimized(load);
-  if (IS_INPLACE_MAP_MODIFICATION_SUPPORTED) {
-    // Invalidation of mutability should trigger deoptimization with a
-    // "field-owner" reason.
-    the_prototype.v = other_value;
-  } else {
-    // Invalidation of mutability should trigger deoptimization with a
-    // "prototype-check" (stability) reason.
-    the_prototype.v = other_value;
-  }
+  // Invalidation of mutability should trigger deoptimization with a
+  // "field-owner" reason.
+  the_prototype.v = other_value;
   assertUnoptimized(load);
 }
 
@@ -199,6 +171,7 @@ function TestStoreToConstantFieldOfConstantObject(the_value, other_value) {
   // {constant_object} is known to the compiler via global property cell
   // tracking.
   var store = MakeFunctionWithUniqueSFI("v", "constant_object.a.v = v;");
+  %PrepareFunctionForOptimization(store);
   store(the_value);
   store(the_value);
   %OptimizeFunctionOnNextCall(store);
@@ -210,32 +183,25 @@ function TestStoreToConstantFieldOfConstantObject(the_value, other_value) {
   assertEquals(the_value, constant_object.a.v);
   assertOptimized(store);
 
-  if (IS_INPLACE_MAP_MODIFICATION_SUPPORTED) {
-    var a = new A(other_value);
+  var a = new A(other_value);
 
-    if (typeof the_value == "function" || typeof the_value == "object") {
-      // For heap object fields "field-owner" dependency is installed for
-      // any access of the field, therefore making constant field mutable by
-      // assigning other value to some other instance of A should already
-      // trigger deoptimization.
-      assertTrue(%HaveSameMap(a, the_object.a));
-      new A(the_value).v = other_value;
-      assertTrue(%HaveSameMap(a, new A(the_value)));
-      assertTrue(%HaveSameMap(a, the_object.a));
-      assertUnoptimized(store);
-    } else {
-      assertOptimized(store);
-    }
-    // Storing other value deoptimizes because of failed value check.
-    store(other_value);
+  if (typeof the_value == "function" || typeof the_value == "object") {
+    // For heap object fields "field-owner" dependency is installed for
+    // any access of the field, therefore making constant field mutable by
+    // assigning other value to some other instance of A should already
+    // trigger deoptimization.
+    assertTrue(%HaveSameMap(a, the_object.a));
+    new A(the_value).v = other_value;
+    assertTrue(%HaveSameMap(a, new A(the_value)));
+    assertTrue(%HaveSameMap(a, the_object.a));
     assertUnoptimized(store);
-    assertEquals(other_value, constant_object.a.v);
   } else {
-    // Storing other value deoptimizes because of failed value check.
-    store(other_value);
-    assertUnoptimized(store);
-    assertEquals(other_value, constant_object.a.v);
+    assertOptimized(store);
   }
+  // Storing other value deoptimizes because of failed value check.
+  store(other_value);
+  assertUnoptimized(store);
+  assertEquals(other_value, constant_object.a.v);
 }
 
 // Test constant tracking with Smi values.

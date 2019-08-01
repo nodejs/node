@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(TemplateObjectDescription, Tuple2)
+OBJECT_CONSTRUCTORS_IMPL(TemplateObjectDescription, Struct)
 OBJECT_CONSTRUCTORS_IMPL(CachedTemplateObject, Tuple3)
 
 CAST_ACCESSOR(TemplateObjectDescription)

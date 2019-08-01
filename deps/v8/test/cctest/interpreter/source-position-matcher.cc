@@ -4,8 +4,8 @@
 
 #include "test/cctest/interpreter/source-position-matcher.h"
 
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

@@ -30,22 +30,22 @@
 #include <sstream>
 
 #include "include/v8.h"
-#include "src/api-inl.h"
-#include "src/assembler-arch.h"
+#include "src/api/api-inl.h"
 #include "src/ast/ast.h"
-#include "src/char-predicates-inl.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
-#include "src/ostreams.h"
+#include "src/codegen/assembler-arch.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/init/v8.h"
+#include "src/objects/objects-inl.h"
 #include "src/regexp/interpreter-irregexp.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-parser.h"
-#include "src/splay-tree-inl.h"
-#include "src/string-stream.h"
-#include "src/unicode-inl.h"
-#include "src/v8.h"
+#include "src/strings/char-predicates-inl.h"
+#include "src/strings/string-stream.h"
+#include "src/strings/unicode-inl.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/splay-tree-inl.h"
 #include "src/zone/zone-list-inl.h"
 
 #if V8_TARGET_ARCH_ARM
@@ -588,8 +588,8 @@ static void Execute(const char* input, bool multiline, bool unicode,
 
 class TestConfig {
  public:
-  typedef int Key;
-  typedef int Value;
+  using Key = int;
+  using Value = int;
   static const int kNoKey;
   static int NoValue() { return 0; }
   static inline int Compare(int a, int b) {
@@ -674,7 +674,7 @@ TEST(DispatchTableConstruction) {
     for (int j = 0; j < 2 * kRangeSize; j++) {
       range[j] = PseudoRandom(i + 25, j + 87) % kLimit;
     }
-    range.Sort();
+    std::sort(range.begin(), range.end());
     for (int j = 1; j < 2 * kRangeSize; j++) {
       CHECK(range[j-1] <= range[j]);
     }
@@ -733,23 +733,23 @@ TEST(ParsePossessiveRepetition) {
 // Tests of interpreter.
 
 #if V8_TARGET_ARCH_IA32
-typedef RegExpMacroAssemblerIA32 ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerIA32;
 #elif V8_TARGET_ARCH_X64
-typedef RegExpMacroAssemblerX64 ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerX64;
 #elif V8_TARGET_ARCH_ARM
-typedef RegExpMacroAssemblerARM ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerARM;
 #elif V8_TARGET_ARCH_ARM64
-typedef RegExpMacroAssemblerARM64 ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerARM64;
 #elif V8_TARGET_ARCH_S390
-typedef RegExpMacroAssemblerS390 ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerS390;
 #elif V8_TARGET_ARCH_PPC
-typedef RegExpMacroAssemblerPPC ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerPPC;
 #elif V8_TARGET_ARCH_MIPS
-typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
 #elif V8_TARGET_ARCH_MIPS64
-typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
 #elif V8_TARGET_ARCH_X87
-typedef RegExpMacroAssemblerX87 ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerX87;
 #endif
 
 class ContextInitializer {

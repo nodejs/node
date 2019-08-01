@@ -14,6 +14,9 @@
 
   # Bad OOM timing on noembed builds (https://crbug.com/v8/8494).
   'debugger/pause-on-oom': [PASS, ['embedded_builtins == False', SKIP]],
+
+  # https://crbug.com/v8/9029
+  'debugger/script-on-after-compile-snapshot': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

@@ -10,7 +10,7 @@
 
 #include "include/libplatform/libplatform.h"
 
-#include "src/flags.h"
+#include "src/flags/flags.h"
 
 namespace v8_fuzzer {
 

@@ -11,22 +11,124 @@ namespace regexp_replace {
   extern builtin
   SubString(implicit context: Context)(String, Smi, Smi): String;
 
-  extern transitioning macro
-  RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
-      implicit context: Context)(JSRegExp, String, Callable): String;
-  extern macro
-  RegExpBuiltinsAssembler::AdvanceStringIndexFast(String, Number, bool): Smi;
-
+  extern runtime RegExpExecMultiple(implicit context: Context)(
+      JSRegExp, String, RegExpMatchInfo, JSArray): Null | JSArray;
   extern transitioning runtime
   RegExpReplaceRT(Context, JSReceiver, String, Object): String;
+  extern transitioning runtime
+  StringBuilderConcat(implicit context: Context)(JSArray, Smi, String): String;
   extern transitioning runtime
   StringReplaceNonGlobalRegExpWithFunction(implicit context: Context)(
       String, JSRegExp, Callable): String;
 
   extern macro
+  RegExpBuiltinsAssembler::AdvanceStringIndexFast(String, Number, bool): Smi;
+  extern macro
   RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResultFast(
       implicit context: Context)(JSReceiver, String):
       RegExpMatchInfo labels IfDidNotMatch;
+
+  transitioning macro RegExpReplaceCallableNoExplicitCaptures(implicit context:
+                                                                  Context)(
+      matchesElements: FixedArray, matchesLength: intptr, string: String,
+      replaceFn: Callable) {
+    let matchStart: Smi = 0;
+    for (let i: intptr = 0; i < matchesLength; i++) {
+      typeswitch (matchesElements.objects[i]) {
+        // Element represents a slice.
+        case (elSmi: Smi): {
+          // The slice's match start and end is either encoded as one or two
+          // smis. A positive smi indicates a single smi encoding (see
+          // ReplacementStringBuilder::AddSubjectSlice()).
+          if (elSmi > 0) {
+            // For single smi encoding, see
+            // StringBuilderSubstringLength::encode() and
+            // StringBuilderSubstringPosition::encode().
+            const elInt: intptr = Convert<intptr>(elSmi);
+            const newMatchStart: intptr = (elInt >> 11) + (elInt & 0x7FF);
+            matchStart = Convert<Smi>(newMatchStart);
+          } else {
+            // For two smi encoding, the length is negative followed by the
+            // match start.
+            const nextEl: Smi = UnsafeCast<Smi>(matchesElements.objects[++i]);
+            matchStart = nextEl - elSmi;
+          }
+        }
+        // Element represents the matched substring, which is then passed to the
+        // replace function.
+        case (elString: String): {
+          const replacementObj: Object =
+              Call(context, replaceFn, Undefined, elString, matchStart, string);
+          const replacement: String = ToString_Inline(context, replacementObj);
+          matchesElements.objects[i] = replacement;
+          matchStart += elString.length_smi;
+        }
+        case (Object): deferred {
+          unreachable;
+        }
+      }
+    }
+  }
+
+  transitioning macro
+  RegExpReplaceCallableWithExplicitCaptures(implicit context: Context)(
+      matchesElements: FixedArray, matchesLength: intptr, string: String,
+      replaceFn: Callable) {
+    for (let i: intptr = 0; i < matchesLength; i++) {
+      const elArray =
+          Cast<JSArray>(matchesElements.objects[i]) otherwise continue;
+
+      // The JSArray is expanded into the function args by Reflect.apply().
+      // TODO(jgruber): Remove indirection through Call->ReflectApply.
+      const replacementObj: Object = Call(
+          context, GetReflectApply(), Undefined, replaceFn, Undefined, elArray);
+
+      // Overwrite the i'th element in the results with the string
+      // we got back from the callback function.
+      matchesElements.objects[i] = ToString_Inline(context, replacementObj);
+    }
+  }
+
+  transitioning macro RegExpReplaceFastGlobalCallable(implicit context:
+                                                          Context)(
+      regexp: FastJSRegExp, string: String, replaceFn: Callable): String {
+    regexp.lastIndex = 0;
+
+    const kInitialCapacity: Smi = 16;
+    const kInitialLength: Smi = 0;
+    const result: Null | JSArray = RegExpExecMultiple(
+        regexp, string, GetRegExpLastMatchInfo(),
+        AllocateJSArray(
+            PACKED_ELEMENTS, GetFastPackedElementsJSArrayMap(),
+            kInitialCapacity, kInitialLength));
+
+    regexp.lastIndex = 0;
+
+    // If no matches, return the subject string.
+    if (result == Null) return string;
+
+    const matches: JSArray = UnsafeCast<JSArray>(result);
+    const matchesLength: Smi = Cast<Smi>(matches.length) otherwise unreachable;
+    const matchesLengthInt: intptr = Convert<intptr>(matchesLength);
+    const matchesElements: FixedArray =
+        UnsafeCast<FixedArray>(matches.elements);
+
+    // Reload last match info since it might have changed.
+    const nofCaptures: Smi = GetRegExpLastMatchInfo().NumberOfCaptures();
+
+    // If the number of captures is two then there are no explicit captures in
+    // the regexp, just the implicit capture that captures the whole match. In
+    // this case we can simplify quite a bit and end up with something faster.
+    if (nofCaptures == 2) {
+      RegExpReplaceCallableNoExplicitCaptures(
+          matchesElements, matchesLengthInt, string, replaceFn);
+    } else {
+      RegExpReplaceCallableWithExplicitCaptures(
+          matchesElements, matchesLengthInt, string, replaceFn);
+    }
+
+    return StringBuilderConcat(matches, matchesLength, string);
+  }
 
   transitioning macro RegExpReplaceFastString(implicit context: Context)(
       regexp: FastJSRegExp, string: String, replaceString: String): String {
@@ -80,7 +182,7 @@ namespace regexp_replace {
     typeswitch (replaceValue) {
       case (replaceFn: Callable): {
         return regexp.global ?
-            ReplaceGlobalCallableFastPath(regexp, string, replaceFn) :
+            RegExpReplaceFastGlobalCallable(regexp, string, replaceFn) :
             StringReplaceNonGlobalRegExpWithFunction(string, regexp, replaceFn);
       }
       case (Object): {
@@ -116,7 +218,7 @@ namespace regexp_replace {
     // if (IsCallable(replace)) {
     //   if (IsGlobal(receiver)) {
     //     // Called 'fast-path' but contains several runtime calls.
-    //     ReplaceGlobalCallableFastPath()
+    //     RegExpReplaceFastGlobalCallable()
     //   } else {
     //     CallRuntime(StringReplaceNonGlobalRegExpWithFunction)
     //   }
@@ -124,7 +226,7 @@ namespace regexp_replace {
     //   if (replace.contains("$")) {
     //     CallRuntime(RegExpReplace)
     //   } else {
-    //     ReplaceSimpleStringFastPath()
+    //     RegExpReplaceFastString()
     //   }
     // }
 

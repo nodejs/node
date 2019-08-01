@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/backend/instruction.h"
-#include "src/register-configuration.h"
+#include "src/codegen/register-configuration.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest-support.h"
 

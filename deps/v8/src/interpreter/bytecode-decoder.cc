@@ -6,9 +6,9 @@
 
 #include <iomanip>
 
-#include "src/contexts.h"
 #include "src/interpreter/interpreter-intrinsics.h"
-#include "src/objects-inl.h"
+#include "src/objects/contexts.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

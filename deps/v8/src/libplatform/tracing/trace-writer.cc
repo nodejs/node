@@ -109,7 +109,6 @@ void JSONTraceWriter::AppendArgValue(uint8_t type,
       break;
     default:
       UNREACHABLE();
-      break;
   }
 }
 

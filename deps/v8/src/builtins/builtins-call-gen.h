@@ -5,7 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_CALL_GEN_H_
 #define V8_BUILTINS_BUILTINS_CALL_GEN_H_
 
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {

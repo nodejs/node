@@ -537,7 +537,7 @@ function checkStack(stack, expected_lines) {
   const builder1 = new WasmModuleBuilder();
   builder1.addFunction('main', kSig_i_v).addBody([kExprUnreachable]);
   builder1.addImportedTable('z', 'table');
-  builder1.addElementSegment(0, 0, false, [0], true);
+  builder1.addElementSegment(0, 0, false, [0]);
   const module1 = new WebAssembly.Module(builder1.toBuffer());
   const instance1 =
       new WebAssembly.Instance(module1, {z: {table: instance0.exports.table}});

@@ -4,9 +4,9 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
-#include "src/objects-inl.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 
 namespace v8 {
@@ -131,7 +131,7 @@ TF_BUILTIN(ToName, CodeStubAssembler) {
     {
       // We don't have a fast-path for BigInt currently, so just
       // tail call to the %ToString runtime function here for now.
-      TailCallRuntime(Runtime::kToString, context, input);
+      TailCallRuntime(Runtime::kToStringRT, context, input);
     }
 
     BIND(&if_inputisname);
@@ -209,14 +209,6 @@ TF_BUILTIN(NumberToString, CodeStubAssembler) {
   TNode<Number> input = CAST(Parameter(Descriptor::kArgument));
 
   Return(NumberToString(input));
-}
-
-// ES section #sec-tostring
-TF_BUILTIN(ToString, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* input = Parameter(Descriptor::kArgument);
-
-  Return(ToString(context, input));
 }
 
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint )

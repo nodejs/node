@@ -89,6 +89,7 @@ function start_process() {
     ignoreUnknown: false,
     separateIc: true,
     targetRootFS: '',
+    apkEmbeddedLibrary: '',
     nm: 'nm'
   };
 
@@ -100,7 +101,7 @@ function start_process() {
 
   var tickProcessor = new TickProcessor(
     new (entriesProviders[DEFAULTS.platform])(
-        DEFAULTS.nm, DEFAULTS.targetRootFS),
+        DEFAULTS.nm, DEFAULTS.targetRootFS, DEFAULTS.apkEmbeddedLibrary),
     DEFAULTS.separateIc, DEFAULTS.callGraphSize,
     DEFAULTS.ignoreUnknown, DEFAULTS.stateFilter);
 

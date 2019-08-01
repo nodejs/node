@@ -29,9 +29,9 @@
 #define V8_TEST_CCTEST_TYPES_H_
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -135,8 +135,8 @@ class Types {
 
   Type Integer;
 
-  typedef std::vector<Type> TypeVector;
-  typedef std::vector<Handle<i::Object> > ValueVector;
+  using TypeVector = std::vector<Type>;
+  using ValueVector = std::vector<Handle<i::Object> >;
 
   TypeVector types;
   ValueVector values;

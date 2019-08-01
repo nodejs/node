@@ -8,10 +8,10 @@
 #include "src/objects/js-collection.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
-#include "src/roots-inl.h"
+#include "src/roots/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -63,8 +63,8 @@ CAST_ACCESSOR(JSWeakSet)
 Object JSMapIterator::CurrentValue() {
   OrderedHashMap table = OrderedHashMap::cast(this->table());
   int index = Smi::ToInt(this->index());
-  Object value = table->ValueAt(index);
-  DCHECK(!value->IsTheHole());
+  Object value = table.ValueAt(index);
+  DCHECK(!value.IsTheHole());
   return value;
 }
 

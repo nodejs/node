@@ -4,11 +4,11 @@
 
 #include "src/debug/debug-scope-iterator.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
-#include "src/frames-inl.h"
-#include "src/isolate.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/isolate.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/wasm/wasm-objects-inl.h"
 

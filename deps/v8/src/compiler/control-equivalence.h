@@ -6,9 +6,9 @@
 #define V8_COMPILER_CONTROL_EQUIVALENCE_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
-#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

@@ -5,14 +5,14 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_COMMON_H_
 #define V8_SNAPSHOT_SERIALIZER_COMMON_H_
 
-#include "src/address-map.h"
 #include "src/base/bits.h"
-#include "src/external-reference-table.h"
-#include "src/globals.h"
-#include "src/msan.h"
+#include "src/codegen/external-reference-table.h"
+#include "src/common/globals.h"
+#include "src/common/v8memory.h"
+#include "src/objects/visitors.h"
+#include "src/sanitizer/msan.h"
 #include "src/snapshot/references.h"
-#include "src/v8memory.h"
-#include "src/visitors.h"
+#include "src/utils/address-map.h"
 
 namespace v8 {
 namespace internal {
@@ -370,13 +370,19 @@ class Checksum {
 #ifdef MEMORY_SANITIZER
     // Computing the checksum includes padding bytes for objects like strings.
     // Mark every object as initialized in the code serializer.
-    MSAN_MEMORY_IS_INITIALIZED(payload.start(), payload.length());
+    MSAN_MEMORY_IS_INITIALIZED(payload.begin(), payload.length());
 #endif  // MEMORY_SANITIZER
     // Fletcher's checksum. Modified to reduce 64-bit sums to 32-bit.
     uintptr_t a = 1;
     uintptr_t b = 0;
-    const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.start());
+    // TODO(jgruber, v8:9171): The following DCHECK should ideally hold since we
+    // access payload through an uintptr_t pointer later on; and some
+    // architectures, e.g. arm, may generate instructions that expect correct
+    // alignment. However, we do not control alignment for external snapshots.
+    // DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload.begin()),
+    //                  kIntptrSize));
     DCHECK(IsAligned(payload.length(), kIntptrSize));
+    const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.begin());
     const uintptr_t* end = cur + payload.length() / kIntptrSize;
     while (cur < end) {
       // Unsigned overflow expected and intended.

@@ -25,9 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/flags.h"
-#include "src/isolate.h"
-#include "src/v8.h"
+#include "src/execution/isolate.h"
+#include "src/flags/flags.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 #include "src/base/utils/random-number-generator.h"

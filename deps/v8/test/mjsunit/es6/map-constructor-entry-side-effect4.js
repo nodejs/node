@@ -38,6 +38,7 @@ function TestMapConstructorEntrySideEffect(ctor) {
   assertEquals(3, col.get(k3));
 }
 
+%PrepareFunctionForOptimization(TestMapConstructorEntrySideEffect);
 TestMapConstructorEntrySideEffect(Map);
 TestMapConstructorEntrySideEffect(Map);
 TestMapConstructorEntrySideEffect(Map);
@@ -45,7 +46,9 @@ TestMapConstructorEntrySideEffect(Map);
 TestMapConstructorEntrySideEffect(Map);
 assertOptimized(TestMapConstructorEntrySideEffect);
 
+// This call would deopt
 TestMapConstructorEntrySideEffect(WeakMap);
+%PrepareFunctionForOptimization(TestMapConstructorEntrySideEffect);
 TestMapConstructorEntrySideEffect(WeakMap);
 TestMapConstructorEntrySideEffect(WeakMap);
 %OptimizeFunctionOnNextCall(TestMapConstructorEntrySideEffect);

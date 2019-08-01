@@ -10,8 +10,9 @@ function test() {
   try {
     assertEquals({}, spread());
   } catch (e) {}
-}
+};
 
+%PrepareFunctionForOptimization(test);
 test();
 test();
 test();

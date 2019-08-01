@@ -4,7 +4,7 @@
 
 #include "src/compiler/state-values-utils.h"
 
-#include "src/bit-vector.h"
+#include "src/utils/bit-vector.h"
 
 namespace v8 {
 namespace internal {

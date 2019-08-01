@@ -1,0 +1,63 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-proxy-gen.h'
+
+namespace proxy {
+
+  extern transitioning runtime
+  GetPropertyWithReceiver(implicit context: Context)(Object, Name, Object, Smi):
+      Object;
+
+  // ES #sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
+  // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
+  transitioning builtin
+  ProxyGetProperty(implicit context: Context)(
+      proxy: JSProxy, name: Name, receiverValue: Object,
+      onNonExistent: Smi): Object {
+    // 1. Assert: IsPropertyKey(P) is true.
+    assert(TaggedIsNotSmi(name));
+    assert(IsName(name));
+    assert(!IsPrivateSymbol(name));
+
+    // 2. Let handler be O.[[ProxyHandler]].
+    const handler: Object = proxy.handler;
+
+    // 3. If handler is null, throw a TypeError exception.
+    if (handler == Null) {
+      ThrowTypeError(kProxyRevoked, 'get');
+    }
+
+    // 4. Assert: Type(handler) is Object.
+    const handlerJSReceiver = UnsafeCast<JSReceiver>(handler);
+
+    // 5. Let target be O.[[ProxyTarget]].
+    const target = proxy.target;
+
+    // 6. Let trap be ? GetMethod(handler, "get").
+    // 7. If trap is undefined, then (see 7.a below).
+    // 7.a. Return ? target.[[Get]](P, Receiver).
+    // TODO(mslekova): Introduce GetPropertyWithReceiver stub
+    const trap: Callable = GetMethod(handlerJSReceiver, 'get')
+        otherwise return GetPropertyWithReceiver(
+        target, name, receiverValue, onNonExistent);
+
+    // 8. Let trapResult be ? Call(trap, handler, « target, P, Receiver »).
+    const trapResult =
+        Call(context, trap, handlerJSReceiver, target, name, receiverValue);
+
+    // 9. Let targetDesc be ? target.[[GetOwnProperty]](P).
+    // 10. If targetDesc is not undefined and targetDesc.[[Configurable]] is
+    // false, then
+    //    a. If IsDataDescriptor(targetDesc) is true and targetDesc.[[Writable]]
+    //    is false, then
+    //      i. If SameValue(trapResult, targetDesc.[[Value]]) is false, throw a
+    //      TypeError exception.
+    //    b. If IsAccessorDescriptor(targetDesc) is true and targetDesc.[[Get]]
+    //    is undefined, then
+    //      i. If trapResult is not undefined, throw a TypeError exception.
+    // 11. Return trapResult.
+    return CheckGetSetTrapResult(target, proxy, name, trapResult, kProxyGet);
+  }
+}

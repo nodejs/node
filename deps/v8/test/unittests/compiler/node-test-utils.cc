@@ -10,9 +10,9 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/handles-inl.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/handles/handles-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 
 using testing::_;
 using testing::MakeMatcher;

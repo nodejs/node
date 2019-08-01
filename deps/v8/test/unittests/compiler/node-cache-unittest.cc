@@ -14,7 +14,7 @@ namespace internal {
 namespace compiler {
 namespace node_cache_unittest {
 
-typedef GraphTest NodeCacheTest;
+using NodeCacheTest = GraphTest;
 
 TEST_F(NodeCacheTest, Int32Constant_back_to_back) {
   Int32NodeCache cache;

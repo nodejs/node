@@ -8,12 +8,12 @@
 #include <atomic>
 #include <queue>
 
-#include "src/allocation.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
-#include "src/flags.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/flags/flags.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

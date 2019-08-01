@@ -27,16 +27,16 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
-#include "src/disasm.h"
-#include "src/disassembler.h"
-#include "src/frames-inl.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
-#include "src/ostreams.h"
+#include "src/diagnostics/disasm.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/execution/frames-inl.h"
+#include "src/utils/ostreams.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -969,8 +969,7 @@ TEST(DisasmX64) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   USE(code);
 #ifdef OBJECT_PRINT
   StdoutStream os;

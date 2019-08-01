@@ -71,10 +71,8 @@ for (var constructor of typedArrayConstructors) {
   assertEquals("1,2,3", o1.join());
   assertEquals("1,2,3", o1.toString());
   assertThrows(function() { o1.toLocaleString() }, TypeError);
-  // TODO(littledan): Use the same function for TypedArray as for
-  // Array, as the spec says (but Firefox doesn't do either).
-  // Currently, using the same method leads to a bootstrap failure.
-  // assertEquals(o1.toString, Array.prototype.toString);
+
+  assertEquals(o1.toString, Array.prototype.toString);
 
   // Redefining length does not change result
   var a5 = new constructor([1, 2, 3])

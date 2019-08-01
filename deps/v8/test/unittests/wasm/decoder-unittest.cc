@@ -5,7 +5,7 @@
 #include "test/unittests/test-utils.h"
 
 #include "src/base/overflowing-math.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/decoder.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 

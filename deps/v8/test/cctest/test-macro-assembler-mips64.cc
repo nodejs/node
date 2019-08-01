@@ -28,14 +28,15 @@
 #include <stdlib.h>
 #include <iostream>  // NOLINT(readability/streams)
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/execution/simulator.h"
 #include "src/objects/heap-number.h"
-#include "src/simulator.h"
+#include "src/utils/ostreams.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -107,8 +108,7 @@ TEST(BYTESWAP) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   for (size_t i = 0; i < arraysize(test_values); i++) {
@@ -162,8 +162,7 @@ TEST(LoadConstants) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<FV>::FromCode(*code);
   (void)f.Call(reinterpret_cast<int64_t>(result), 0, 0, 0, 0);
@@ -205,8 +204,7 @@ TEST(LoadAddress) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<FV>::FromCode(*code);
   (void)f.Call(0, 0, 0, 0, 0);
@@ -262,8 +260,7 @@ TEST(jump_tables4) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -303,8 +300,6 @@ TEST(jump_tables5) {
 
   {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 6 + 1);
-    PredictableCodeSizeScope predictable(
-        masm, kNumCases * kPointerSize + ((6 + 1) * kInstrSize));
 
     __ addiupc(at, 6 + 1);
     __ Dlsa(at, at, a0, 3);
@@ -334,8 +329,7 @@ TEST(jump_tables5) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -423,8 +417,7 @@ TEST(jump_tables6) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -448,8 +441,7 @@ static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
 
   CodeDesc desc;
   assembler.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F1>::FromCode(*code);
 
@@ -528,8 +520,7 @@ static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
 
   CodeDesc desc;
   assembler.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<FV>::FromCode(*code);
 
@@ -664,7 +655,7 @@ static const std::vector<int64_t> cvt_trunc_int64_test_values() {
 
 template <typename RET_TYPE, typename IN_TYPE, typename Func>
 RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
-  typedef RET_TYPE(F_CVT)(IN_TYPE x0, int x1, int x2, int x3, int x4);
+  using F_CVT = RET_TYPE(IN_TYPE x0, int x1, int x2, int x3, int x4);
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -678,8 +669,7 @@ RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F_CVT>::FromCode(*code);
 
@@ -854,7 +844,7 @@ TEST(OverflowInstructions) {
       CodeDesc desc;
       masm->GetCode(isolate, &desc);
       Handle<Code> code =
-          isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+          Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
       auto f = GeneratedCode<F3>::FromCode(*code);
       t.lhs = ii;
       t.rhs = jj;
@@ -976,8 +966,7 @@ TEST(min_max_nan) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputsa[i];
@@ -997,7 +986,7 @@ TEST(min_max_nan) {
 template <typename IN_TYPE, typename Func>
 bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
                    IN_TYPE value, Func GenerateUnalignedInstructionFunc) {
-  typedef int32_t(F_CVT)(char* x0, int x1, int x2, int x3, int x4);
+  using F_CVT = int32_t(char* x0, int x1, int x2, int x3, int x4);
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -1011,8 +1000,7 @@ bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F_CVT>::FromCode(*code);
 
@@ -1362,7 +1350,7 @@ static const std::vector<uint64_t> sltu_test_values() {
 
 template <typename Func>
 bool run_Sltu(uint64_t rs, uint64_t rd, Func GenerateSltuInstructionFunc) {
-  typedef int64_t(F_CVT)(uint64_t x0, uint64_t x1, int x2, int x3, int x4);
+  using F_CVT = int64_t(uint64_t x0, uint64_t x1, int x2, int x3, int x4);
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -1375,8 +1363,7 @@ bool run_Sltu(uint64_t rs, uint64_t rd, Func GenerateSltuInstructionFunc) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F_CVT>::FromCode(*code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(rs, rd, 0, 0, 0));
@@ -1470,7 +1457,7 @@ static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler* masm) {
   CodeDesc desc;
   masm->GetCode(masm->isolate(), &desc);
   Handle<Code> code =
-      masm->isolate()->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+      Factory::CodeBuilder(masm->isolate(), desc, Code::STUB).Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -1611,7 +1598,7 @@ static GeneratedCode<F4> GenerateMacroFloat64MinMax(MacroAssembler* masm) {
   CodeDesc desc;
   masm->GetCode(masm->isolate(), &desc);
   Handle<Code> code =
-      masm->isolate()->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+      Factory::CodeBuilder(masm->isolate(), desc, Code::STUB).Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);

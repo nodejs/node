@@ -5,11 +5,11 @@
 #ifndef V8_REGEXP_JSREGEXP_H_
 #define V8_REGEXP_JSREGEXP_H_
 
-#include "src/allocation.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects/js-regexp.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp-macro-assembler.h"
+#include "src/utils/allocation.h"
 #include "src/zone/zone-splay-tree.h"
 
 namespace v8 {

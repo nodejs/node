@@ -12,7 +12,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -111,6 +111,26 @@ base::Optional<MapRef> GetStableMapFromObjectType(JSHeapBroker* broker,
     if (object_map.is_stable()) return object_map;
   }
   return {};
+}
+
+Node* ResolveSameValueRenames(Node* node) {
+  while (true) {
+    switch (node->opcode()) {
+      case IrOpcode::kCheckHeapObject:
+      case IrOpcode::kCheckNumber:
+      case IrOpcode::kCheckSmi:
+      case IrOpcode::kFinishRegion:
+      case IrOpcode::kTypeGuard:
+        if (node->IsDead()) {
+          return node;
+        } else {
+          node = node->InputAt(0);
+          continue;
+        }
+      default:
+        return node;
+    }
+  }
 }
 
 }  // namespace
@@ -309,6 +329,12 @@ Reduction TypedOptimization::ReducePhi(Node* node) {
   // after lowering based on types, i.e. a SpeculativeNumberAdd has a more
   // precise type than the JSAdd that was in the graph when the Typer was run.
   DCHECK_EQ(IrOpcode::kPhi, node->opcode());
+  // Prevent new types from being propagated through loop-related Phis for now.
+  // This is to avoid slow convergence of type narrowing when we learn very
+  // precise information about loop variables.
+  if (NodeProperties::GetControlInput(node, 0)->opcode() == IrOpcode::kLoop) {
+    return NoChange();
+  }
   int arity = node->op()->ValueInputCount();
   Type type = NodeProperties::GetType(node->InputAt(0));
   for (int i = 1; i < arity; ++i) {
@@ -507,7 +533,10 @@ Reduction TypedOptimization::ReduceSameValue(Node* node) {
   Node* const rhs = NodeProperties::GetValueInput(node, 1);
   Type const lhs_type = NodeProperties::GetType(lhs);
   Type const rhs_type = NodeProperties::GetType(rhs);
-  if (lhs == rhs) {
+  if (ResolveSameValueRenames(lhs) == ResolveSameValueRenames(rhs)) {
+    if (NodeProperties::GetType(node).IsNone()) {
+      return NoChange();
+    }
     // SameValue(x,x) => #true
     return Replace(jsgraph()->TrueConstant());
   } else if (lhs_type.Is(Type::Unique()) && rhs_type.Is(Type::Unique())) {

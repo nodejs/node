@@ -728,6 +728,9 @@ function assertAccessorDescriptor(object, name) {
   function invoke_constructor() { A() }
   function call_constructor() { A.call() }
   function apply_constructor() { A.apply() }
+  %PrepareFunctionForOptimization(invoke_constructor);
+  %PrepareFunctionForOptimization(call_constructor);
+  %PrepareFunctionForOptimization(apply_constructor);
 
   for (var i=0; i<3; i++) {
     assertThrows(invoke_constructor);
@@ -1106,6 +1109,7 @@ function testClassRestrictedProperties(C) {
       " return new clazz(i); })";
 
   let fn = eval(evalString);
+  %PrepareFunctionForOptimization(fn);
   assertEquals(fn(1).value, 1);
   assertEquals(fn(2).value, 2);
   assertEquals(fn(3).value, 3);
@@ -1138,6 +1142,7 @@ function testClassRestrictedProperties(C) {
 
   let fn = eval(evalString);
 
+  %PrepareFunctionForOptimization(fn);
   assertEquals(fn(1).value, 1);
   assertEquals(fn(2).value, 2);
   assertEquals(fn(3).value, 3);
@@ -1174,6 +1179,7 @@ function testClassRestrictedProperties(C) {
       " return (new clazz(i)); })";
 
   let fn = eval(evalString);
+  %PrepareFunctionForOptimization(fn);
   assertEquals(fn(1).value, 1);
   assertEquals(fn(2).value, 2);
   assertEquals(fn(3).value, 3);

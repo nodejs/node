@@ -35,7 +35,7 @@ namespace array_reverse {
   StoreElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
       elements: FixedArrayBase, index: Smi, value: Smi) {
     const elems: FixedArray = UnsafeCast<FixedArray>(elements);
-    StoreFixedArrayElementSmi(elems, index, value, SKIP_WRITE_BARRIER);
+    StoreFixedArrayElement(elems, index, value, SKIP_WRITE_BARRIER);
   }
 
   StoreElement<array::FastPackedObjectElements, Object>(

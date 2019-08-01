@@ -56,18 +56,36 @@ function MainTest() {
 }
 MainTest();
 
+// Packed
 // Non-extensible, sealed, frozen
 a0 = Object.preventExtensions([]);
-a2 = Object.seal([1,2]);
-a5 = Object.freeze([1,2,3,4,5]);
+a2 = Object.seal([1,'2']);
+a5 = Object.freeze([1,2,'3',4,5]);
 MainTest();
 
 a0 = Object.seal([]);
-a2 = Object.freeze([1,2]);
-a5 = Object.preventExtensions([1,2,3,4,5]);
+a2 = Object.freeze([1,'2']);
+a5 = Object.preventExtensions([1,2,'3',4,5]);
 MainTest();
 
 a0 = Object.freeze([]);
-a2 = Object.preventExtensions([1,2]);
-a5 = Object.seal([1,2,3,4,5]);
+a2 = Object.preventExtensions([1,'2']);
+a5 = Object.seal([1,2,'3',4,5]);
+MainTest();
+
+// Holey
+// Non-extensible, sealed, frozen
+a0 = Object.preventExtensions([]);
+a2 = Object.seal([,'2']);
+a5 = Object.freeze([,2,'3',4,5]);
+MainTest();
+
+a0 = Object.seal([]);
+a2 = Object.freeze([,'2']);
+a5 = Object.preventExtensions([,2,'3',4,5]);
+MainTest();
+
+a0 = Object.freeze([]);
+a2 = Object.preventExtensions([,'2']);
+a5 = Object.seal([,2,3,4,5]);
 MainTest();

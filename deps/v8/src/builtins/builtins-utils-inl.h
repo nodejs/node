@@ -7,7 +7,7 @@
 
 #include "src/builtins/builtins-utils.h"
 
-#include "src/arguments-inl.h"
+#include "src/execution/arguments-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -85,6 +85,7 @@ function variable_bound() {
 }
 
 function test(f) {
+  %PrepareFunctionForOptimization(f);
   f();
   assertTrue(f());
   %OptimizeFunctionOnNextCall(f);

@@ -6,7 +6,7 @@
 #include "src/objects/cell.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/script.h"
-#include "src/roots-inl.h"
+#include "src/roots/roots-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -14,7 +14,7 @@ namespace internal {
 
 namespace {
 AllocationSpace GetSpaceFromObject(Object object) {
-  DCHECK(object->IsHeapObject());
+  DCHECK(object.IsHeapObject());
   return MemoryChunk::FromHeapObject(HeapObject::cast(object))
       ->owner()
       ->identity();

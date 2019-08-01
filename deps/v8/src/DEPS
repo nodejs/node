@@ -8,6 +8,7 @@ include_rules = [
   "+src/compiler/code-assembler.h",
   "+src/compiler/wasm-compiler.h",
   "-src/heap",
+  "+src/heap/combined-heap.h",
   "+src/heap/embedder-tracing.h",
   "+src/heap/factory.h",
   "+src/heap/factory-inl.h",

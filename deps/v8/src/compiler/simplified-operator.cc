@@ -8,10 +8,10 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
-#include "src/handles-inl.h"
-#include "src/objects-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -78,7 +78,7 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   }
 #endif
   os << access.type << ", " << access.machine_type << ", "
-     << access.write_barrier_kind;
+     << access.write_barrier_kind << ", " << access.constness;
   if (FLAG_untrusted_code_mitigations) {
     os << ", " << access.load_sensitivity;
   }
@@ -113,7 +113,6 @@ size_t hash_value(ElementAccess const& access) {
                             access.machine_type);
 }
 
-
 std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   os << access.base_is_tagged << ", " << access.header_size << ", "
      << access.type << ", " << access.machine_type << ", "
@@ -124,6 +123,20 @@ std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   return os;
 }
 
+bool operator==(ObjectAccess const& lhs, ObjectAccess const& rhs) {
+  return lhs.machine_type == rhs.machine_type &&
+         lhs.write_barrier_kind == rhs.write_barrier_kind;
+}
+
+size_t hash_value(ObjectAccess const& access) {
+  return base::hash_combine(access.machine_type, access.write_barrier_kind);
+}
+
+std::ostream& operator<<(std::ostream& os, ObjectAccess const& access) {
+  os << access.machine_type << ", " << access.write_barrier_kind;
+  return os;
+}
+
 const FieldAccess& FieldAccessOf(const Operator* op) {
   DCHECK_NOT_NULL(op);
   DCHECK(op->opcode() == IrOpcode::kLoadField ||
@@ -131,12 +144,18 @@ const FieldAccess& FieldAccessOf(const Operator* op) {
   return OpParameter<FieldAccess>(op);
 }
 
-
 const ElementAccess& ElementAccessOf(const Operator* op) {
   DCHECK_NOT_NULL(op);
   DCHECK(op->opcode() == IrOpcode::kLoadElement ||
          op->opcode() == IrOpcode::kStoreElement);
   return OpParameter<ElementAccess>(op);
+}
+
+const ObjectAccess& ObjectAccessOf(const Operator* op) {
+  DCHECK_NOT_NULL(op);
+  DCHECK(op->opcode() == IrOpcode::kLoadFromObject ||
+         op->opcode() == IrOpcode::kStoreToObject);
+  return OpParameter<ObjectAccess>(op);
 }
 
 ExternalArrayType ExternalArrayTypeOf(const Operator* op) {
@@ -547,19 +566,23 @@ bool operator==(AllocateParameters const& lhs, AllocateParameters const& rhs) {
          lhs.type() == rhs.type();
 }
 
+const AllocateParameters& AllocateParametersOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kAllocate ||
+         op->opcode() == IrOpcode::kAllocateRaw);
+  return OpParameter<AllocateParameters>(op);
+}
+
 AllocationType AllocationTypeOf(const Operator* op) {
   if (op->opcode() == IrOpcode::kNewDoubleElements ||
       op->opcode() == IrOpcode::kNewSmiOrObjectElements) {
     return OpParameter<AllocationType>(op);
   }
-  DCHECK(op->opcode() == IrOpcode::kAllocate ||
-         op->opcode() == IrOpcode::kAllocateRaw);
-  return OpParameter<AllocateParameters>(op).allocation_type();
+  return AllocateParametersOf(op).allocation_type();
 }
 
 Type AllocateTypeOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
-  return OpParameter<AllocateParameters>(op).type();
+  return AllocateParametersOf(op).type();
 }
 
 UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
@@ -736,6 +759,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(ObjectIsInteger, Operator::kNoProperties, 1, 0)                \
   V(ConvertTaggedHoleToUndefined, Operator::kNoProperties, 1, 0)   \
   V(SameValue, Operator::kCommutative, 2, 0)                       \
+  V(SameValueNumbersOnly, Operator::kCommutative, 2, 0)            \
   V(NumberSameValue, Operator::kCommutative, 2, 0)                 \
   V(ReferenceEqual, Operator::kCommutative, 2, 0)                  \
   V(StringEqual, Operator::kCommutative, 2, 0)                     \
@@ -1103,39 +1127,6 @@ struct SimplifiedOperatorGlobalCache final {
   };
   LoadFieldByIndexOperator kLoadFieldByIndex;
 
-  struct LoadStackArgumentOperator final : public Operator {
-    LoadStackArgumentOperator()
-        : Operator(                          // --
-              IrOpcode::kLoadStackArgument,  // opcode
-              Operator::kNoDeopt | Operator::kNoThrow |
-                  Operator::kNoWrite,  // flags
-              "LoadStackArgument",     // name
-              2, 1, 1, 1, 1, 0) {}     // counts
-  };
-  LoadStackArgumentOperator kLoadStackArgument;
-
-  struct LoadMessageOperator final : public Operator {
-    LoadMessageOperator()
-        : Operator(                    // --
-              IrOpcode::kLoadMessage,  // opcode
-              Operator::kNoDeopt | Operator::kNoThrow |
-                  Operator::kNoWrite,  // flags
-              "LoadMessage",           // name
-              1, 1, 1, 1, 1, 0) {}     // counts
-  };
-  LoadMessageOperator kLoadMessage;
-
-  struct StoreMessageOperator final : public Operator {
-    StoreMessageOperator()
-        : Operator(                     // --
-              IrOpcode::kStoreMessage,  // opcode
-              Operator::kNoDeopt | Operator::kNoThrow |
-                  Operator::kNoRead,  // flags
-              "StoreMessage",         // name
-              2, 1, 1, 0, 1, 0) {}    // counts
-  };
-  StoreMessageOperator kStoreMessage;
-
 #define SPECULATIVE_NUMBER_BINOP(Name)                                      \
   template <NumberOperationHint kHint>                                      \
   struct Name##Operator final : public Operator1<NumberOperationHint> {     \
@@ -1405,7 +1396,7 @@ const Operator* SimplifiedOperatorBuilder::CompareMaps(
   DCHECK_LT(0, maps.size());
   return new (zone()) Operator1<ZoneHandleSet<Map>>(  // --
       IrOpcode::kCompareMaps,                         // opcode
-      Operator::kEliminatable,                        // flags
+      Operator::kNoThrow | Operator::kNoWrite,        // flags
       "CompareMaps",                                  // name
       1, 1, 1, 1, 1, 0,                               // counts
       maps);                                          // parameter
@@ -1490,7 +1481,7 @@ const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
     ElementsTransition transition) {
   return new (zone()) Operator1<ElementsTransition>(  // --
       IrOpcode::kTransitionElementsKind,              // opcode
-      Operator::kNoDeopt | Operator::kNoThrow,        // flags
+      Operator::kNoThrow,                             // flags
       "TransitionElementsKind",                       // name
       1, 1, 1, 0, 1, 0,                               // counts
       transition);                                    // parameter
@@ -1650,11 +1641,18 @@ const Operator* SimplifiedOperatorBuilder::Allocate(Type type,
 }
 
 const Operator* SimplifiedOperatorBuilder::AllocateRaw(
-    Type type, AllocationType allocation) {
+    Type type, AllocationType allocation,
+    AllowLargeObjects allow_large_objects) {
+  // We forbid optimized allocations to allocate in a different generation than
+  // requested.
+  DCHECK(!(allow_large_objects == AllowLargeObjects::kTrue &&
+           allocation == AllocationType::kYoung &&
+           !FLAG_young_generation_large_objects));
   return new (zone()) Operator1<AllocateParameters>(
       IrOpcode::kAllocateRaw,
       Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
-      "AllocateRaw", 1, 1, 1, 1, 1, 1, AllocateParameters(type, allocation));
+      "AllocateRaw", 1, 1, 1, 1, 1, 1,
+      AllocateParameters(type, allocation, allow_large_objects));
 }
 
 const Operator* SimplifiedOperatorBuilder::StringCodePointAt(
@@ -1705,9 +1703,11 @@ SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
   V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)             \
   V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)             \
   V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)    \
+  V(LoadFromObject, ObjectAccess, Operator::kNoWrite, 2, 1, 1)           \
   V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)    \
-  V(LoadDataViewElement, ExternalArrayType, Operator::kNoWrite, 5, 1, 1) \
-  V(StoreDataViewElement, ExternalArrayType, Operator::kNoRead, 6, 1, 0)
+  V(StoreToObject, ObjectAccess, Operator::kNoRead, 3, 1, 0)             \
+  V(LoadDataViewElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1) \
+  V(StoreDataViewElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)
 
 #define ACCESS(Name, Type, properties, value_input_count, control_input_count, \
                output_count)                                                   \
@@ -1720,18 +1720,6 @@ SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
   }
 ACCESS_OP_LIST(ACCESS)
 #undef ACCESS
-
-const Operator* SimplifiedOperatorBuilder::LoadMessage() {
-  return &cache_.kLoadMessage;
-}
-
-const Operator* SimplifiedOperatorBuilder::StoreMessage() {
-  return &cache_.kStoreMessage;
-}
-
-const Operator* SimplifiedOperatorBuilder::LoadStackArgument() {
-  return &cache_.kLoadStackArgument;
-}
 
 const Operator* SimplifiedOperatorBuilder::TransitionAndStoreElement(
     Handle<Map> double_map, Handle<Map> fast_map) {

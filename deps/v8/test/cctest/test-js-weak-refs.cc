@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/handles-inl.h"
+#include "src/execution/isolate.h"
+#include "src/execution/microtask-queue.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
-#include "src/isolate.h"
-#include "src/microtask-queue.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "test/cctest/cctest.h"
@@ -69,7 +69,7 @@ Handle<WeakCell> FinalizationGroupRegister(
     Handle<Object> holdings, Handle<Object> key, Isolate* isolate) {
   JSFinalizationGroup::Register(finalization_group, target, holdings, key,
                                 isolate);
-  CHECK(finalization_group->active_cells()->IsWeakCell());
+  CHECK(finalization_group->active_cells().IsWeakCell());
   Handle<WeakCell> weak_cell =
       handle(WeakCell::cast(finalization_group->active_cells()), isolate);
 #ifdef VERIFY_HEAP
@@ -105,19 +105,19 @@ void VerifyWeakCellChain(Isolate* isolate, Object list_head, int n_args, ...) {
 
   if (n_args == 0) {
     // Verify empty list
-    CHECK(list_head->IsUndefined(isolate));
+    CHECK(list_head.IsUndefined(isolate));
   } else {
     WeakCell current = WeakCell::cast(Object(va_arg(args, Address)));
     CHECK_EQ(current, list_head);
-    CHECK(current->prev()->IsUndefined(isolate));
+    CHECK(current.prev().IsUndefined(isolate));
 
     for (int i = 1; i < n_args; i++) {
       WeakCell next = WeakCell::cast(Object(va_arg(args, Address)));
-      CHECK_EQ(current->next(), next);
-      CHECK_EQ(next->prev(), current);
+      CHECK_EQ(current.next(), next);
+      CHECK_EQ(next.prev(), current);
       current = next;
     }
-    CHECK(current->next()->IsUndefined(isolate));
+    CHECK(current.next().IsUndefined(isolate));
   }
   va_end(args);
 }
@@ -133,19 +133,19 @@ void VerifyWeakCellKeyChain(Isolate* isolate, Object list_head, int n_args,
 
   if (n_args == 0) {
     // Verify empty list
-    CHECK(list_head->IsTheHole(isolate));
+    CHECK(list_head.IsTheHole(isolate));
   } else {
     WeakCell current = WeakCell::cast(Object(va_arg(args, Address)));
     CHECK_EQ(current, list_head);
-    CHECK(current->key_list_prev()->IsUndefined(isolate));
+    CHECK(current.key_list_prev().IsUndefined(isolate));
 
     for (int i = 1; i < n_args; i++) {
       WeakCell next = WeakCell::cast(Object(va_arg(args, Address)));
-      CHECK_EQ(current->key_list_next(), next);
-      CHECK_EQ(next->key_list_prev(), current);
+      CHECK_EQ(current.key_list_next(), next);
+      CHECK_EQ(next.key_list_prev(), current);
       current = next;
     }
-    CHECK(current->key_list_next()->IsUndefined(isolate));
+    CHECK(current.key_list_next().IsUndefined(isolate));
   }
   va_end(args);
 }
@@ -169,13 +169,13 @@ TEST(TestRegister) {
 
   VerifyWeakCellChain(isolate, finalization_group->active_cells(), 1,
                       *weak_cell1);
-  CHECK(weak_cell1->key_list_prev()->IsUndefined(isolate));
-  CHECK(weak_cell1->key_list_next()->IsUndefined(isolate));
+  CHECK(weak_cell1->key_list_prev().IsUndefined(isolate));
+  CHECK(weak_cell1->key_list_next().IsUndefined(isolate));
 
-  CHECK(finalization_group->cleared_cells()->IsUndefined(isolate));
+  CHECK(finalization_group->cleared_cells().IsUndefined(isolate));
 
   // No key was used during registration, key-based map stays uninitialized.
-  CHECK(finalization_group->key_map()->IsUndefined(isolate));
+  CHECK(finalization_group->key_map().IsUndefined(isolate));
 
   // Register another weak reference and verify internal data structures.
   Handle<WeakCell> weak_cell2 =
@@ -183,11 +183,11 @@ TEST(TestRegister) {
 
   VerifyWeakCellChain(isolate, finalization_group->active_cells(), 2,
                       *weak_cell2, *weak_cell1);
-  CHECK(weak_cell2->key_list_prev()->IsUndefined(isolate));
-  CHECK(weak_cell2->key_list_next()->IsUndefined(isolate));
+  CHECK(weak_cell2->key_list_prev().IsUndefined(isolate));
+  CHECK(weak_cell2->key_list_next().IsUndefined(isolate));
 
-  CHECK(finalization_group->cleared_cells()->IsUndefined(isolate));
-  CHECK(finalization_group->key_map()->IsUndefined(isolate));
+  CHECK(finalization_group->cleared_cells().IsUndefined(isolate));
+  CHECK(finalization_group->key_map().IsUndefined(isolate));
 }
 
 TEST(TestRegisterWithKey) {
@@ -211,7 +211,7 @@ TEST(TestRegisterWithKey) {
       finalization_group, js_object, undefined, key1, isolate);
 
   {
-    CHECK(finalization_group->key_map()->IsObjectHashTable());
+    CHECK(finalization_group->key_map().IsObjectHashTable());
     Handle<ObjectHashTable> key_map =
         handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
     VerifyWeakCellKeyChain(isolate, key_map->Lookup(key1), 1, *weak_cell1);
@@ -224,7 +224,7 @@ TEST(TestRegisterWithKey) {
       finalization_group, js_object, undefined, key2, isolate);
 
   {
-    CHECK(finalization_group->key_map()->IsObjectHashTable());
+    CHECK(finalization_group->key_map().IsObjectHashTable());
     Handle<ObjectHashTable> key_map =
         handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
     VerifyWeakCellKeyChain(isolate, key_map->Lookup(key1), 1, *weak_cell1);
@@ -237,7 +237,7 @@ TEST(TestRegisterWithKey) {
       finalization_group, js_object, undefined, key1, isolate);
 
   {
-    CHECK(finalization_group->key_map()->IsObjectHashTable());
+    CHECK(finalization_group->key_map().IsObjectHashTable());
     Handle<ObjectHashTable> key_map =
         handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
     VerifyWeakCellKeyChain(isolate, key_map->Lookup(key1), 2, *weak_cell3,
@@ -265,20 +265,20 @@ TEST(TestWeakCellNullify1) {
   // Nullify the first WeakCell and verify internal data structures.
   NullifyWeakCell(weak_cell1, isolate);
   CHECK_EQ(finalization_group->active_cells(), *weak_cell2);
-  CHECK(weak_cell2->prev()->IsUndefined(isolate));
-  CHECK(weak_cell2->next()->IsUndefined(isolate));
+  CHECK(weak_cell2->prev().IsUndefined(isolate));
+  CHECK(weak_cell2->next().IsUndefined(isolate));
   CHECK_EQ(finalization_group->cleared_cells(), *weak_cell1);
-  CHECK(weak_cell1->prev()->IsUndefined(isolate));
-  CHECK(weak_cell1->next()->IsUndefined(isolate));
+  CHECK(weak_cell1->prev().IsUndefined(isolate));
+  CHECK(weak_cell1->next().IsUndefined(isolate));
 
   // Nullify the second WeakCell and verify internal data structures.
   NullifyWeakCell(weak_cell2, isolate);
-  CHECK(finalization_group->active_cells()->IsUndefined(isolate));
+  CHECK(finalization_group->active_cells().IsUndefined(isolate));
   CHECK_EQ(finalization_group->cleared_cells(), *weak_cell2);
   CHECK_EQ(weak_cell2->next(), *weak_cell1);
-  CHECK(weak_cell2->prev()->IsUndefined(isolate));
+  CHECK(weak_cell2->prev().IsUndefined(isolate));
   CHECK_EQ(weak_cell1->prev(), *weak_cell2);
-  CHECK(weak_cell1->next()->IsUndefined(isolate));
+  CHECK(weak_cell1->next().IsUndefined(isolate));
 }
 
 TEST(TestWeakCellNullify2) {
@@ -300,19 +300,19 @@ TEST(TestWeakCellNullify2) {
   // Like TestWeakCellNullify1 but nullify the WeakCells in opposite order.
   NullifyWeakCell(weak_cell2, isolate);
   CHECK_EQ(finalization_group->active_cells(), *weak_cell1);
-  CHECK(weak_cell1->prev()->IsUndefined(isolate));
-  CHECK(weak_cell1->next()->IsUndefined(isolate));
+  CHECK(weak_cell1->prev().IsUndefined(isolate));
+  CHECK(weak_cell1->next().IsUndefined(isolate));
   CHECK_EQ(finalization_group->cleared_cells(), *weak_cell2);
-  CHECK(weak_cell2->prev()->IsUndefined(isolate));
-  CHECK(weak_cell2->next()->IsUndefined(isolate));
+  CHECK(weak_cell2->prev().IsUndefined(isolate));
+  CHECK(weak_cell2->next().IsUndefined(isolate));
 
   NullifyWeakCell(weak_cell1, isolate);
-  CHECK(finalization_group->active_cells()->IsUndefined(isolate));
+  CHECK(finalization_group->active_cells().IsUndefined(isolate));
   CHECK_EQ(finalization_group->cleared_cells(), *weak_cell1);
   CHECK_EQ(weak_cell1->next(), *weak_cell2);
-  CHECK(weak_cell1->prev()->IsUndefined(isolate));
+  CHECK(weak_cell1->prev().IsUndefined(isolate));
   CHECK_EQ(weak_cell2->prev(), *weak_cell1);
-  CHECK(weak_cell2->next()->IsUndefined(isolate));
+  CHECK(weak_cell2->next().IsUndefined(isolate));
 }
 
 TEST(TestJSFinalizationGroupPopClearedCellHoldings1) {
@@ -346,15 +346,15 @@ TEST(TestJSFinalizationGroupPopClearedCellHoldings1) {
   Object cleared1 =
       JSFinalizationGroup::PopClearedCellHoldings(finalization_group, isolate);
   CHECK_EQ(cleared1, *holdings3);
-  CHECK(weak_cell3->prev()->IsUndefined(isolate));
-  CHECK(weak_cell3->next()->IsUndefined(isolate));
+  CHECK(weak_cell3->prev().IsUndefined(isolate));
+  CHECK(weak_cell3->next().IsUndefined(isolate));
 
   CHECK(finalization_group->NeedsCleanup());
   Object cleared2 =
       JSFinalizationGroup::PopClearedCellHoldings(finalization_group, isolate);
   CHECK_EQ(cleared2, *holdings2);
-  CHECK(weak_cell2->prev()->IsUndefined(isolate));
-  CHECK(weak_cell2->next()->IsUndefined(isolate));
+  CHECK(weak_cell2->prev().IsUndefined(isolate));
+  CHECK(weak_cell2->next().IsUndefined(isolate));
 
   CHECK(!finalization_group->NeedsCleanup());
 
@@ -364,12 +364,12 @@ TEST(TestJSFinalizationGroupPopClearedCellHoldings1) {
   Object cleared3 =
       JSFinalizationGroup::PopClearedCellHoldings(finalization_group, isolate);
   CHECK_EQ(cleared3, *holdings1);
-  CHECK(weak_cell1->prev()->IsUndefined(isolate));
-  CHECK(weak_cell1->next()->IsUndefined(isolate));
+  CHECK(weak_cell1->prev().IsUndefined(isolate));
+  CHECK(weak_cell1->next().IsUndefined(isolate));
 
   CHECK(!finalization_group->NeedsCleanup());
-  CHECK(finalization_group->active_cells()->IsUndefined(isolate));
-  CHECK(finalization_group->cleared_cells()->IsUndefined(isolate));
+  CHECK(finalization_group->active_cells().IsUndefined(isolate));
+  CHECK(finalization_group->cleared_cells().IsUndefined(isolate));
 }
 
 TEST(TestJSFinalizationGroupPopClearedCellHoldings2) {
@@ -656,16 +656,16 @@ TEST(TestJSWeakRef) {
     Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
 
     CcTest::CollectAllGarbage();
-    CHECK(!inner_weak_ref->target()->IsUndefined(isolate));
+    CHECK(!inner_weak_ref->target().IsUndefined(isolate));
 
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
   }
 
-  CHECK(!weak_ref->target()->IsUndefined(isolate));
+  CHECK(!weak_ref->target().IsUndefined(isolate));
 
   CcTest::CollectAllGarbage();
 
-  CHECK(weak_ref->target()->IsUndefined(isolate));
+  CHECK(weak_ref->target().IsUndefined(isolate));
 }
 
 TEST(TestJSWeakRefIncrementalMarking) {
@@ -691,17 +691,17 @@ TEST(TestJSWeakRefIncrementalMarking) {
 
     heap::SimulateIncrementalMarking(heap, true);
     CcTest::CollectAllGarbage();
-    CHECK(!inner_weak_ref->target()->IsUndefined(isolate));
+    CHECK(!inner_weak_ref->target().IsUndefined(isolate));
 
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
   }
 
-  CHECK(!weak_ref->target()->IsUndefined(isolate));
+  CHECK(!weak_ref->target().IsUndefined(isolate));
 
   heap::SimulateIncrementalMarking(heap, true);
   CcTest::CollectAllGarbage();
 
-  CHECK(weak_ref->target()->IsUndefined(isolate));
+  CHECK(weak_ref->target().IsUndefined(isolate));
 }
 
 TEST(TestJSWeakRefKeepDuringJob) {
@@ -724,17 +724,17 @@ TEST(TestJSWeakRefKeepDuringJob) {
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
   }
 
-  CHECK(!weak_ref->target()->IsUndefined(isolate));
+  CHECK(!weak_ref->target().IsUndefined(isolate));
 
   CcTest::CollectAllGarbage();
 
-  CHECK(!weak_ref->target()->IsUndefined(isolate));
+  CHECK(!weak_ref->target().IsUndefined(isolate));
 
   // Clears the KeepDuringJob set.
   isolate->default_microtask_queue()->RunMicrotasks(isolate);
   CcTest::CollectAllGarbage();
 
-  CHECK(weak_ref->target()->IsUndefined(isolate));
+  CHECK(weak_ref->target().IsUndefined(isolate));
 }
 
 TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
@@ -761,19 +761,19 @@ TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
   }
 
-  CHECK(!weak_ref->target()->IsUndefined(isolate));
+  CHECK(!weak_ref->target().IsUndefined(isolate));
 
   heap::SimulateIncrementalMarking(heap, true);
   CcTest::CollectAllGarbage();
 
-  CHECK(!weak_ref->target()->IsUndefined(isolate));
+  CHECK(!weak_ref->target().IsUndefined(isolate));
 
   // Clears the KeepDuringJob set.
   isolate->default_microtask_queue()->RunMicrotasks(isolate);
   heap::SimulateIncrementalMarking(heap, true);
   CcTest::CollectAllGarbage();
 
-  CHECK(weak_ref->target()->IsUndefined(isolate));
+  CHECK(weak_ref->target().IsUndefined(isolate));
 }
 
 }  // namespace internal

@@ -40,7 +40,7 @@ void StringComparator::State::Advance(int consumed) {
 }
 
 bool StringComparator::Equals(String string_1, String string_2) {
-  int length = string_1->length();
+  int length = string_1.length();
   state_1_.Init(string_1);
   state_2_.Init(string_2);
   while (true) {

@@ -8,6 +8,7 @@
 #include "src/base/logging.h"
 #include "src/torque/ls/json.h"
 #include "src/torque/ls/message-macros.h"
+#include "src/torque/source-positions.h"
 
 namespace v8 {
 namespace internal {
@@ -190,6 +191,7 @@ class ServerCapabilities : public NestedJsonAccessor {
 
   JSON_OBJECT_ACCESSORS(TextDocumentSyncOptions, textDocumentSync)
   JSON_BOOL_ACCESSORS(definitionProvider)
+  JSON_BOOL_ACCESSORS(documentSymbolProvider)
 };
 
 class InitializeResult : public NestedJsonAccessor {
@@ -237,6 +239,14 @@ class Location : public NestedJsonAccessor {
 
   JSON_STRING_ACCESSORS(uri)
   JSON_OBJECT_ACCESSORS(Range, range)
+
+  void SetTo(SourcePosition position) {
+    set_uri(SourceFileMap::GetSource(position.source));
+    range().start().set_line(position.start.line);
+    range().start().set_character(position.start.column);
+    range().end().set_line(position.end.line);
+    range().end().set_character(position.end.column);
+  }
 };
 
 class TextDocumentIdentifier : public NestedJsonAccessor {
@@ -254,6 +264,62 @@ class TextDocumentPositionParams : public NestedJsonAccessor {
   JSON_OBJECT_ACCESSORS(JsonPosition, position)
 };
 
+class Diagnostic : public NestedJsonAccessor {
+ public:
+  using NestedJsonAccessor::NestedJsonAccessor;
+
+  enum DiagnosticSeverity {
+    kError = 1,
+    kWarning = 2,
+    kInformation = 3,
+    kHint = 4
+  };
+
+  JSON_OBJECT_ACCESSORS(Range, range)
+  JSON_INT_ACCESSORS(severity)
+  JSON_STRING_ACCESSORS(source)
+  JSON_STRING_ACCESSORS(message)
+};
+
+class PublishDiagnosticsParams : public NestedJsonAccessor {
+ public:
+  using NestedJsonAccessor::NestedJsonAccessor;
+
+  JSON_STRING_ACCESSORS(uri)
+  JSON_ARRAY_OBJECT_ACCESSORS(Diagnostic, diagnostics)
+};
+
+enum SymbolKind {
+  kFile = 1,
+  kNamespace = 3,
+  kClass = 5,
+  kMethod = 6,
+  kProperty = 7,
+  kField = 8,
+  kConstructor = 9,
+  kFunction = 12,
+  kVariable = 13,
+  kConstant = 14,
+  kStruct = 23,
+};
+
+class DocumentSymbolParams : public NestedJsonAccessor {
+ public:
+  using NestedJsonAccessor::NestedJsonAccessor;
+
+  JSON_OBJECT_ACCESSORS(TextDocumentIdentifier, textDocument)
+};
+
+class SymbolInformation : public NestedJsonAccessor {
+ public:
+  using NestedJsonAccessor::NestedJsonAccessor;
+
+  JSON_STRING_ACCESSORS(name)
+  JSON_INT_ACCESSORS(kind)
+  JSON_OBJECT_ACCESSORS(Location, location)
+  JSON_STRING_ACCESSORS(containerName)
+};
+
 template <class T>
 class Request : public Message {
  public:
@@ -269,6 +335,8 @@ using RegistrationRequest = Request<RegistrationParams>;
 using TorqueFileListNotification = Request<FileListParams>;
 using GotoDefinitionRequest = Request<TextDocumentPositionParams>;
 using DidChangeWatchedFilesNotification = Request<DidChangeWatchedFilesParams>;
+using PublishDiagnosticsNotification = Request<PublishDiagnosticsParams>;
+using DocumentSymbolRequest = Request<DocumentSymbolParams>;
 
 template <class T>
 class Response : public Message {
@@ -282,6 +350,19 @@ class Response : public Message {
 };
 using InitializeResponse = Response<InitializeResult>;
 using GotoDefinitionResponse = Response<Location>;
+
+// Same as "Response" but the result is T[] instead of T.
+template <class T>
+class ResponseArrayResult : public Message {
+ public:
+  explicit ResponseArrayResult(JsonValue& value) : Message(value) {}
+  ResponseArrayResult() : Message() {}
+
+  JSON_INT_ACCESSORS(id)
+  JSON_OBJECT_ACCESSORS(ResponseError, error)
+  JSON_ARRAY_OBJECT_ACCESSORS(T, result)
+};
+using DocumentSymbolResponse = ResponseArrayResult<SymbolInformation>;
 
 }  // namespace ls
 }  // namespace torque

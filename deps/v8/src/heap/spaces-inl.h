@@ -12,8 +12,8 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/msan.h"
 #include "src/objects/code-inl.h"
+#include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {
@@ -54,8 +54,8 @@ HeapObject SemiSpaceIterator::Next() {
       if (current_ == limit_) return HeapObject();
     }
     HeapObject object = HeapObject::FromAddress(current_);
-    current_ += object->Size();
-    if (!object->IsFiller()) {
+    current_ += object.Size();
+    if (!object.IsFiller()) {
       return object;
     }
   }
@@ -80,11 +80,11 @@ HeapObject HeapObjectIterator::FromCurrentPage() {
       continue;
     }
     HeapObject obj = HeapObject::FromAddress(cur_addr_);
-    const int obj_size = obj->Size();
+    const int obj_size = obj.Size();
     cur_addr_ += obj_size;
     DCHECK_LE(cur_addr_, cur_end_);
-    if (!obj->IsFiller()) {
-      if (obj->IsCode()) {
+    if (!obj.IsFiller()) {
+      if (obj.IsCode()) {
         DCHECK_EQ(space_, space_->heap()->code_space());
         DCHECK_CODEOBJECT_SIZE(obj_size, space_);
       } else {
@@ -128,7 +128,7 @@ bool SemiSpace::Contains(HeapObject o) {
 }
 
 bool SemiSpace::Contains(Object o) {
-  return o->IsHeapObject() && Contains(HeapObject::cast(o));
+  return o.IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
 bool SemiSpace::ContainsSlow(Address a) {
@@ -142,7 +142,7 @@ bool SemiSpace::ContainsSlow(Address a) {
 // NewSpace
 
 bool NewSpace::Contains(Object o) {
-  return o->IsHeapObject() && Contains(HeapObject::cast(o));
+  return o.IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
 bool NewSpace::Contains(HeapObject o) {
@@ -195,7 +195,7 @@ size_t PagedSpace::RelinkFreeListCategories(Page* page) {
 
 bool PagedSpace::TryFreeLast(HeapObject object, int object_size) {
   if (allocation_info_.top() != kNullAddress) {
-    const Address object_address = object->address();
+    const Address object_address = object.address();
     if ((allocation_info_.top() - object_size) == object_address) {
       allocation_info_.set_top(object_address);
       return true;
@@ -375,21 +375,16 @@ HeapObject PagedSpace::TryAllocateLinearlyAligned(
   return HeapObject::FromAddress(current_top);
 }
 
-AllocationResult PagedSpace::AllocateRawUnaligned(
-    int size_in_bytes, UpdateSkipList update_skip_list) {
+AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes) {
   DCHECK_IMPLIES(identity() == RO_SPACE, heap()->CanAllocateInReadOnlySpace());
   if (!EnsureLinearAllocationArea(size_in_bytes)) {
     return AllocationResult::Retry(identity());
   }
   HeapObject object = AllocateLinearly(size_in_bytes);
   DCHECK(!object.is_null());
-  if (update_skip_list == UPDATE_SKIP_LIST && identity() == CODE_SPACE) {
-    SkipList::Update(object->address(), size_in_bytes);
-  }
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object->address(), size_in_bytes);
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object.address(), size_in_bytes);
   return object;
 }
-
 
 AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
                                                 AllocationAlignment alignment) {
@@ -409,7 +404,7 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
     object = TryAllocateLinearlyAligned(&allocation_size, alignment);
     DCHECK(!object.is_null());
   }
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object->address(), size_in_bytes);
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object.address(), size_in_bytes);
   return object;
 }
 
@@ -439,7 +434,7 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
   HeapObject heap_obj;
   if (!result.IsRetry() && result.To(&heap_obj) && !is_local()) {
     AllocationStep(static_cast<int>(size_in_bytes + bytes_since_last),
-                   heap_obj->address(), size_in_bytes);
+                   heap_obj.address(), size_in_bytes);
     StartNextInlineAllocationStep();
     DCHECK_IMPLIES(
         heap()->incremental_marking()->black_allocation(),
@@ -479,7 +474,7 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
     obj = heap()->PrecedeWithFiller(obj, filler_size);
   }
 
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj->address(), size_in_bytes);
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
 
   return obj;
 }
@@ -500,7 +495,7 @@ AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes) {
   allocation_info_.set_top(top + size_in_bytes);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj->address(), size_in_bytes);
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
 
   return obj;
 }
@@ -543,7 +538,7 @@ LocalAllocationBuffer LocalAllocationBuffer::FromResult(Heap* heap,
   bool ok = result.To(&obj);
   USE(ok);
   DCHECK(ok);
-  Address top = HeapObject::cast(obj)->address();
+  Address top = HeapObject::cast(obj).address();
   return LocalAllocationBuffer(heap, LinearAllocationArea(top, top + size));
 }
 
@@ -559,7 +554,7 @@ bool LocalAllocationBuffer::TryMerge(LocalAllocationBuffer* other) {
 
 bool LocalAllocationBuffer::TryFreeLast(HeapObject object, int object_size) {
   if (IsValid()) {
-    const Address object_address = object->address();
+    const Address object_address = object.address();
     if ((allocation_info_.top() - object_size) == object_address) {
       allocation_info_.set_top(object_address);
       return true;

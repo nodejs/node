@@ -5,7 +5,7 @@
 #ifndef V8_UNITTESTS_INTERPRETER_BYTECODE_UTILS_H_
 #define V8_UNITTESTS_INTERPRETER_BYTECODE_UTILS_H_
 
-#include "src/frames.h"
+#include "src/execution/frames.h"
 #include "src/interpreter/bytecode-register.h"
 
 namespace v8 {

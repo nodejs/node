@@ -8,7 +8,7 @@
 
 #include "include/v8.h"
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "test/fuzzer/fuzzer-support.h"
 

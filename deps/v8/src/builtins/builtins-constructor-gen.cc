@@ -9,12 +9,12 @@
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
-#include "src/counters.h"
-#include "src/interface-descriptors.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/logging/counters.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -54,7 +54,7 @@ TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
-typedef compiler::Node Node;
+using Node = compiler::Node;
 
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   Node* shared_function_info = Parameter(Descriptor::kSharedFunctionInfo);
@@ -738,8 +738,7 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   }
 }
 
-TF_BUILTIN(GenericConstructorLazyDeoptContinuation,
-           ConstructorBuiltinsAssembler) {
+TF_BUILTIN(GenericLazyDeoptContinuation, ConstructorBuiltinsAssembler) {
   Node* result = Parameter(Descriptor::kResult);
   Return(result);
 }

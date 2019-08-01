@@ -5,7 +5,7 @@
 #ifndef V8_TEST_CCTEST_SETUP_ISOLATE_FOR_TESTS_H_
 #define V8_TEST_CCTEST_SETUP_ISOLATE_FOR_TESTS_H_
 
-#include "src/setup-isolate.h"
+#include "src/init/setup-isolate.h"
 
 namespace v8 {
 namespace internal {

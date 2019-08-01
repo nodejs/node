@@ -9,15 +9,13 @@
 #include "src/builtins/builtins-string-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
-#include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
 
-typedef IteratorBuiltinsFromDSLAssembler::IteratorRecord IteratorRecord;
-
+using IteratorRecord = TorqueStructIteratorRecord;
 using compiler::Node;
 
 TNode<Object> IteratorBuiltinsAssembler::GetIteratorMethod(Node* context,
@@ -270,8 +268,10 @@ void IteratorBuiltinsAssembler::FastIterableToList(
     TVariable<Object>* var_result, Label* slow) {
   Label done(this), check_string(this), check_map(this), check_set(this);
 
-  GotoIfNot(IsFastJSArrayWithNoCustomIteration(context, iterable),
-            &check_string);
+  GotoIfNot(
+      Word32Or(IsFastJSArrayWithNoCustomIteration(context, iterable),
+               IsFastJSArrayForReadWithNoCustomIteration(context, iterable)),
+      &check_string);
 
   // Fast path for fast JSArray.
   *var_result =

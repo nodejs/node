@@ -5,8 +5,8 @@
 #ifndef V8_HEAP_OBJECT_STATS_H_
 #define V8_HEAP_OBJECT_STATS_H_
 
-#include "src/objects.h"
 #include "src/objects/code.h"
+#include "src/objects/objects.h"
 
 // These instance types do not exist for actual use but are merely introduced
 // for object stats tracing. In contrast to Code and FixedArray sub types

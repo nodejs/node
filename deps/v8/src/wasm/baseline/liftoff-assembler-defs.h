@@ -5,8 +5,8 @@
 #ifndef V8_WASM_BASELINE_LIFTOFF_ASSEMBLER_DEFS_H_
 #define V8_WASM_BASELINE_LIFTOFF_ASSEMBLER_DEFS_H_
 
-#include "src/assembler-arch.h"
-#include "src/reglist.h"
+#include "src/codegen/assembler-arch.h"
+#include "src/codegen/reglist.h"
 
 namespace v8 {
 namespace internal {

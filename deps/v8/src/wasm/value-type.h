@@ -5,7 +5,7 @@
 #ifndef V8_WASM_VALUE_TYPE_H_
 #define V8_WASM_VALUE_TYPE_H_
 
-#include "src/machine-type.h"
+#include "src/codegen/machine-type.h"
 #include "src/wasm/wasm-constants.h"
 
 namespace v8 {
@@ -299,6 +299,7 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return MachineRepresentation::kFloat64;
       case kWasmAnyRef:
       case kWasmAnyFunc:
+      case kWasmNullRef:
       case kWasmExceptRef:
         return MachineRepresentation::kTaggedPointer;
       case kWasmS128:

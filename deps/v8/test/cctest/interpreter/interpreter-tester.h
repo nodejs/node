@@ -5,11 +5,11 @@
 #ifndef V8_TEST_CCTEST_INTERPRETER_INTERPRETER_TESTER_H_
 #define V8_TEST_CCTEST_INTERPRETER_INTERPRETER_TESTER_H_
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/api.h"
-#include "src/execution.h"
-#include "src/handles.h"
+#include "src/api/api.h"
+#include "src/execution/execution.h"
+#include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/feedback-cell.h"
@@ -122,13 +122,13 @@ class InterpreterTester {
     }
 
     if (!bytecode_.is_null()) {
-      function->shared()->set_function_data(*bytecode_.ToHandleChecked());
+      function->shared().set_function_data(*bytecode_.ToHandleChecked());
     }
     if (HasFeedbackMetadata()) {
       function->set_raw_feedback_cell(isolate_->heap()->many_closures_cell());
       // Set the raw feedback metadata to circumvent checks that we are not
       // overwriting existing metadata.
-      function->shared()->set_raw_outer_scope_info_or_feedback_metadata(
+      function->shared().set_raw_outer_scope_info_or_feedback_metadata(
           *feedback_metadata_.ToHandleChecked());
       JSFunction::EnsureFeedbackVector(function);
     }

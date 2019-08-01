@@ -192,11 +192,8 @@ function getMemoryFill(mem) {
 
   const tableIndex = 0;
   const isGlobal = false;
-  const isImport = true;
-  builder.addElementSegment(
-      tableIndex, 2, isGlobal, [f.index, f.index], isImport);
-  builder.addElementSegment(
-      tableIndex, 0, isGlobal, [f.index, f.index], isImport);
+  builder.addElementSegment(tableIndex, 2, isGlobal, [f.index, f.index]);
+  builder.addElementSegment(tableIndex, 0, isGlobal, [f.index, f.index]);
 
   assertEquals(null, table.get(0));
   assertEquals(null, table.get(1));
@@ -223,9 +220,7 @@ function getMemoryFill(mem) {
 
   const tableIndex = 0;
   const isGlobal = false;
-  const isImport = true;
-  builder.addElementSegment(
-      tableIndex, 0, isGlobal, [f.index, f.index], isImport);
+  builder.addElementSegment(tableIndex, 0, isGlobal, [f.index, f.index]);
   builder.addDataSegment(0, [42]);
 
   // Instantiation fails, but still modifies the table. The memory is not

@@ -47,11 +47,9 @@ function TestArrayBufferCreation() {
   assertThrows(function() { new SharedArrayBuffer(-10); }, RangeError);
   assertThrows(function() { new SharedArrayBuffer(-2.567); }, RangeError);
 
-/* TODO[dslomov]: Reenable the test
   assertThrows(function() {
     var ab1 = new SharedArrayBuffer(0xFFFFFFFFFFFF)
   }, RangeError);
-*/
 
   var sab = new SharedArrayBuffer();
   assertSame(0, sab.byteLength);
@@ -450,10 +448,10 @@ function TestTypedArraysWithIllegalIndices() {
   assertEquals(255, a[s2]);
   assertEquals(0, a[-0]);
 
-  /* Chromium bug: 424619
-   * a[-Infinity] = 50;
-   * assertEquals(undefined, a[-Infinity]);
-   */
+
+  a[-Infinity] = 50;
+  assertEquals(undefined, a[-Infinity]);
+
   a[1.5] = 10;
   assertEquals(undefined, a[1.5]);
   var nan = Math.sqrt(-1);
@@ -499,10 +497,9 @@ function TestTypedArraysWithIllegalIndicesStrict() {
   assertEquals(255, a[s2]);
   assertEquals(0, a[-0]);
 
-  /* Chromium bug: 424619
-   * a[-Infinity] = 50;
-   * assertEquals(undefined, a[-Infinity]);
-   */
+  a[-Infinity] = 50;
+  assertEquals(undefined, a[-Infinity]);
+
   a[1.5] = 10;
   assertEquals(undefined, a[1.5]);
   var nan = Math.sqrt(-1);

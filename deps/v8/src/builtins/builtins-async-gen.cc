@@ -190,15 +190,7 @@ Node* AsyncBuiltinsAssembler::Await(Node* context, Node* generator, Node* value,
   Label if_old(this), if_new(this), done(this),
       if_slow_constructor(this, Label::kDeferred);
 
-  STATIC_ASSERT(sizeof(FLAG_harmony_await_optimization) == 1);
-  TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
-      MachineType::Uint8(),
-      ExternalConstant(
-          ExternalReference::address_of_harmony_await_optimization_flag())));
-  GotoIf(Word32Equal(flag_value, Int32Constant(0)), &if_old);
-
-  // We're running with --harmony-await-optimization enabled, which means
-  // we do the `PromiseResolve(%Promise%,value)` avoiding to unnecessarily
+  // We do the `PromiseResolve(%Promise%,value)` avoiding to unnecessarily
   // create wrapper promises. Now if {value} is already a promise with the
   // intrinsics %Promise% constructor as its "constructor", we don't need
   // to allocate the wrapper promise and can just use the `AwaitOptimized`

@@ -9,7 +9,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

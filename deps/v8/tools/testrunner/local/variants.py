@@ -23,7 +23,9 @@ ALL_VARIANT_FLAGS = {
   "slow_path": [["--force-slow-path"]],
   "stress": [["--stress-opt", "--always-opt", "--no-liftoff",
               "--no-wasm-tier-up"]],
-  "stress_background_compile": [["--stress-background-compile"]],
+  "stress_js_bg_compile_wasm_code_gc": [["--stress-background-compile",
+                                         "--wasm-code-gc",
+                                         "--stress-wasm-code-gc"]],
   "stress_incremental_marking":  [["--stress-incremental-marking"]],
   # Trigger stress sampling allocation profiler with sample interval = 2^14
   "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],

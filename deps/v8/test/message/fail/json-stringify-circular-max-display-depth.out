@@ -14,3 +14,4 @@ TypeError: Converting circular structure to JSON
     --- index 1 closes the circle
     at JSON.stringify (<anonymous>)
     at *%(basename)s:21:6
+

@@ -139,7 +139,6 @@ class FunctionTemplateInfo : public TemplateInfo {
   DECL_ACCESSORS(cached_property_name, Object)
 
   // Begin flag bits ---------------------
-  DECL_BOOLEAN_ACCESSORS(hidden_prototype)
   DECL_BOOLEAN_ACCESSORS(undetectable)
 
   // If set, object instances created by this function
@@ -169,7 +168,7 @@ class FunctionTemplateInfo : public TemplateInfo {
 
   static const int kInvalidSerialNumber = 0;
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kSize,
+  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kHeaderSize,
                                 TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FIELDS)
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
@@ -189,13 +188,12 @@ class FunctionTemplateInfo : public TemplateInfo {
                                                     Handle<Object> getter);
 
   // Bit position in the flag, from least significant bit position.
-  static const int kHiddenPrototypeBit = 0;
-  static const int kUndetectableBit = 1;
-  static const int kNeedsAccessCheckBit = 2;
-  static const int kReadOnlyPrototypeBit = 3;
-  static const int kRemovePrototypeBit = 4;
-  static const int kDoNotCacheBit = 5;
-  static const int kAcceptAnyReceiver = 6;
+  static const int kUndetectableBit = 0;
+  static const int kNeedsAccessCheckBit = 1;
+  static const int kReadOnlyPrototypeBit = 2;
+  static const int kRemovePrototypeBit = 3;
+  static const int kDoNotCacheBit = 4;
+  static const int kAcceptAnyReceiver = 5;
 
  private:
   static inline FunctionTemplateRareData EnsureFunctionTemplateRareData(
@@ -221,7 +219,7 @@ class ObjectTemplateInfo : public TemplateInfo {
   DECL_VERIFIER(ObjectTemplateInfo)
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kSize,
+  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kHeaderSize,
                                 TORQUE_GENERATED_OBJECT_TEMPLATE_INFO_FIELDS)
 
   // Starting from given object template's constructor walk up the inheritance

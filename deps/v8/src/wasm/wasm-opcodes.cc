@@ -7,9 +7,9 @@
 #include <array>
 
 #include "src/base/template-utils.h"
-#include "src/messages.h"
+#include "src/codegen/signature.h"
+#include "src/execution/messages.h"
 #include "src/runtime/runtime.h"
-#include "src/signature.h"
 
 namespace v8 {
 namespace internal {
@@ -48,11 +48,11 @@ namespace wasm {
 #define CASE_ALL_SIGN_OP(name, str) \
   CASE_FLOAT_OP(name, str) CASE_SIGN_OP(INT, name, str)
 #define CASE_CONVERT_OP(name, RES, SRC, src_suffix, str) \
-  CASE_##RES##_OP(U##name##SRC, str "_u/" src_suffix)    \
-      CASE_##RES##_OP(S##name##SRC, str "_s/" src_suffix)
-#define CASE_CONVERT_SAT_OP(name, RES, SRC, src_suffix, str)   \
-  CASE_##RES##_OP(U##name##Sat##SRC, str "_u:sat/" src_suffix) \
-      CASE_##RES##_OP(S##name##Sat##SRC, str "_s:sat/" src_suffix)
+  CASE_##RES##_OP(U##name##SRC, str "_" src_suffix "_u") \
+      CASE_##RES##_OP(S##name##SRC, str "_" src_suffix "_s")
+#define CASE_CONVERT_SAT_OP(name, RES, SRC, src_suffix, str)      \
+  CASE_##RES##_OP(U##name##Sat##SRC, str "_sat_" src_suffix "_u") \
+      CASE_##RES##_OP(S##name##Sat##SRC, str "_sat_" src_suffix "_s")
 #define CASE_L32_OP(name, str)          \
   CASE_SIGN_OP(I32, name##8, str "8")   \
   CASE_SIGN_OP(I32, name##16, str "16") \
@@ -108,23 +108,23 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_REF_OP(Null, "null")
     CASE_REF_OP(IsNull, "is_null")
     CASE_REF_OP(Func, "func")
-    CASE_I32_OP(ConvertI64, "wrap/i64")
+    CASE_I32_OP(ConvertI64, "wrap_i64")
     CASE_CONVERT_OP(Convert, INT, F32, "f32", "trunc")
     CASE_CONVERT_OP(Convert, INT, F64, "f64", "trunc")
     CASE_CONVERT_OP(Convert, I64, I32, "i32", "extend")
     CASE_CONVERT_OP(Convert, F32, I32, "i32", "convert")
     CASE_CONVERT_OP(Convert, F32, I64, "i64", "convert")
-    CASE_F32_OP(ConvertF64, "demote/f64")
+    CASE_F32_OP(ConvertF64, "demote_f64")
     CASE_CONVERT_OP(Convert, F64, I32, "i32", "convert")
     CASE_CONVERT_OP(Convert, F64, I64, "i64", "convert")
-    CASE_F64_OP(ConvertF32, "promote/f32")
-    CASE_I32_OP(ReinterpretF32, "reinterpret/f32")
-    CASE_I64_OP(ReinterpretF64, "reinterpret/f64")
-    CASE_F32_OP(ReinterpretI32, "reinterpret/i32")
-    CASE_F64_OP(ReinterpretI64, "reinterpret/i64")
-    CASE_INT_OP(SExtendI8, "sign_extend8")
-    CASE_INT_OP(SExtendI16, "sign_extend16")
-    CASE_I64_OP(SExtendI32, "sign_extend32")
+    CASE_F64_OP(ConvertF32, "promote_f32")
+    CASE_I32_OP(ReinterpretF32, "reinterpret_f32")
+    CASE_I64_OP(ReinterpretF64, "reinterpret_f64")
+    CASE_F32_OP(ReinterpretI32, "reinterpret_i32")
+    CASE_F64_OP(ReinterpretI64, "reinterpret_i64")
+    CASE_INT_OP(SExtendI8, "extend8_s")
+    CASE_INT_OP(SExtendI16, "extend16_s")
+    CASE_I64_OP(SExtendI32, "extend32_s")
     CASE_OP(Unreachable, "unreachable")
     CASE_OP(Nop, "nop")
     CASE_OP(Block, "block")
@@ -142,13 +142,14 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(ReturnCallIndirect, "return_call_indirect")
     CASE_OP(Drop, "drop")
     CASE_OP(Select, "select")
-    CASE_OP(GetLocal, "get_local")
-    CASE_OP(SetLocal, "set_local")
-    CASE_OP(TeeLocal, "tee_local")
-    CASE_OP(GetGlobal, "get_global")
-    CASE_OP(SetGlobal, "set_global")
-    CASE_OP(GetTable, "get_table")
-    CASE_OP(SetTable, "set_table")
+    CASE_OP(SelectWithType, "select")
+    CASE_OP(GetLocal, "local.get")
+    CASE_OP(SetLocal, "local.set")
+    CASE_OP(TeeLocal, "local.tee")
+    CASE_OP(GetGlobal, "global.get")
+    CASE_OP(SetGlobal, "global.set")
+    CASE_OP(GetTable, "table.get")
+    CASE_OP(SetTable, "table.set")
     CASE_ALL_OP(Const, "const")
     CASE_OP(MemorySize, "memory.size")
     CASE_OP(MemoryGrow, "memory.grow")
@@ -192,10 +193,10 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I32_OP(AsmjsStoreMem16, "asmjs_store16")
     CASE_SIGN_OP(I32, AsmjsDiv, "asmjs_div")
     CASE_SIGN_OP(I32, AsmjsRem, "asmjs_rem")
-    CASE_I32_OP(AsmjsSConvertF32, "asmjs_convert_s/f32")
-    CASE_I32_OP(AsmjsUConvertF32, "asmjs_convert_u/f32")
-    CASE_I32_OP(AsmjsSConvertF64, "asmjs_convert_s/f64")
-    CASE_I32_OP(AsmjsUConvertF64, "asmjs_convert_u/f64")
+    CASE_I32_OP(AsmjsSConvertF32, "asmjs_convert_f32_s")
+    CASE_I32_OP(AsmjsUConvertF32, "asmjs_convert_f32_u")
+    CASE_I32_OP(AsmjsSConvertF64, "asmjs_convert_f64_s")
+    CASE_I32_OP(AsmjsUConvertF64, "asmjs_convert_f64_u")
 
     // Numeric Opcodes.
     CASE_CONVERT_SAT_OP(Convert, I32, F32, "f32", "trunc")
@@ -209,6 +210,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(TableInit, "table.init")
     CASE_OP(ElemDrop, "elem.drop")
     CASE_OP(TableCopy, "table.copy")
+    CASE_OP(TableGrow, "table.grow")
+    CASE_OP(TableSize, "table.size")
+    CASE_OP(TableFill, "table.fill")
 
     // SIMD opcodes.
     CASE_SIMD_OP(Splat, "splat")
@@ -268,17 +272,17 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S1x16_OP(AllTrue, "all_true")
 
     // Atomic operations.
-    CASE_OP(AtomicNotify, "atomic_notify")
-    CASE_INT_OP(AtomicWait, "atomic_wait")
-    CASE_UNSIGNED_ALL_OP(AtomicLoad, "atomic_load")
-    CASE_UNSIGNED_ALL_OP(AtomicStore, "atomic_store")
-    CASE_UNSIGNED_ALL_OP(AtomicAdd, "atomic_add")
-    CASE_UNSIGNED_ALL_OP(AtomicSub, "atomic_sub")
-    CASE_UNSIGNED_ALL_OP(AtomicAnd, "atomic_and")
-    CASE_UNSIGNED_ALL_OP(AtomicOr, "atomic_or")
-    CASE_UNSIGNED_ALL_OP(AtomicXor, "atomic_xor")
-    CASE_UNSIGNED_ALL_OP(AtomicExchange, "atomic_xchng")
-    CASE_UNSIGNED_ALL_OP(AtomicCompareExchange, "atomic_cmpxchng")
+    CASE_OP(AtomicNotify, "atomic.notify")
+    CASE_INT_OP(AtomicWait, "atomic.wait")
+    CASE_UNSIGNED_ALL_OP(AtomicLoad, "atomic.load")
+    CASE_UNSIGNED_ALL_OP(AtomicStore, "atomic.store")
+    CASE_UNSIGNED_ALL_OP(AtomicAdd, "atomic.add")
+    CASE_UNSIGNED_ALL_OP(AtomicSub, "atomic.sub")
+    CASE_UNSIGNED_ALL_OP(AtomicAnd, "atomic.and")
+    CASE_UNSIGNED_ALL_OP(AtomicOr, "atomic.or")
+    CASE_UNSIGNED_ALL_OP(AtomicXor, "atomic.xor")
+    CASE_UNSIGNED_ALL_OP(AtomicExchange, "atomic.xchng")
+    CASE_UNSIGNED_ALL_OP(AtomicCompareExchange, "atomic.cmpxchng")
 
     default : return "unknown";
     // clang-format on
@@ -367,6 +371,7 @@ bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
   switch (opcode) {
     case kExprRefNull:
     case kExprRefIsNull:
+    case kExprRefFunc:
       return true;
     default:
       return false;

@@ -46,7 +46,7 @@ bool AccessorInfo::has_getter() {
   bool result = getter() != Smi::kZero;
   DCHECK_EQ(result,
             getter() != Smi::kZero &&
-                Foreign::cast(getter())->foreign_address() != kNullAddress);
+                Foreign::cast(getter()).foreign_address() != kNullAddress);
   return result;
 }
 
@@ -54,7 +54,7 @@ bool AccessorInfo::has_setter() {
   bool result = setter() != Smi::kZero;
   DCHECK_EQ(result,
             setter() != Smi::kZero &&
-                Foreign::cast(setter())->foreign_address() != kNullAddress);
+                Foreign::cast(setter()).foreign_address() != kNullAddress);
   return result;
 }
 
@@ -88,13 +88,13 @@ BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
 
 bool AccessorInfo::IsCompatibleReceiver(Object receiver) {
   if (!HasExpectedReceiverType()) return true;
-  if (!receiver->IsJSObject()) return false;
+  if (!receiver.IsJSObject()) return false;
   return FunctionTemplateInfo::cast(expected_receiver_type())
-      ->IsTemplateFor(JSObject::cast(receiver)->map());
+      .IsTemplateFor(JSObject::cast(receiver).map());
 }
 
 bool AccessorInfo::HasExpectedReceiverType() {
-  return expected_receiver_type()->IsFunctionTemplateInfo();
+  return expected_receiver_type().IsFunctionTemplateInfo();
 }
 
 ACCESSORS(AccessCheckInfo, callback, Object, kCallbackOffset)

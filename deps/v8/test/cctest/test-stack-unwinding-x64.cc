@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/win32-headers.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 class UnwindingWinX64Callbacks {
@@ -55,7 +55,8 @@ UNINITIALIZED_TEST(StackUnwindingWinX64) {
       "    var o = instance.foo;\n"
       "    instance.foo = o + 1;\n"
       "  }\n"
-      "}\n";
+      "};\n"
+      "%PrepareFunctionForOptimization(start);\n";
 
   // This test may fail on Windows 7
   if (!::IsWindows8OrGreater()) {

@@ -244,13 +244,16 @@ class TestCase(object):
     timeout = self._test_config.timeout
     if "--stress-opt" in params:
       timeout *= 4
+    if "--jitless" in params:
+      timeout *= 2
+    if "--no-opt" in params:
+      timeout *= 2
     if "--noenable-vfp3" in params:
       timeout *= 2
     if self._get_timeout_param() == TIMEOUT_LONG:
       timeout *= 10
-
-    # TODO(majeski): make it slow outcome dependent.
-    timeout *= 2
+    if self.is_slow:
+      timeout *= 4
     return timeout
 
   def get_shell(self):

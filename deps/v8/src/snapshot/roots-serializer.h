@@ -7,8 +7,8 @@
 
 #include <bitset>
 
+#include "src/objects/visitors.h"
 #include "src/snapshot/serializer.h"
-#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {

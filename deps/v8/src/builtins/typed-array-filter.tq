@@ -21,7 +21,8 @@ namespace typed_array_filter {
       const src = typed_array::EnsureAttached(array) otherwise IsDetached;
 
       // 3. Let len be O.[[ArrayLength]].
-      const len: Smi = src.length;
+      // TODO(v8:4153): Support huge TypedArrays here.
+      const len = Cast<Smi>(Convert<Number>(src.length)) otherwise unreachable;
 
       // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
       const callbackfn = Cast<Callable>(arguments[0])
@@ -58,7 +59,7 @@ namespace typed_array_filter {
       }
 
       // 10. Let A be ? TypedArraySpeciesCreate(O, captured).
-      const lengthSmi: Smi = Convert<Smi>(kept.length);
+      const lengthSmi = Convert<PositiveSmi>(kept.length);
       const typedArray: JSTypedArray =
           typed_array_createtypedarray::TypedArraySpeciesCreateByLength(
               kBuiltinName, array, lengthSmi);

@@ -7,9 +7,9 @@
 #include <ctime>
 
 #include "include/v8.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/ostreams.h"
+#include "src/execution/isolate.h"
+#include "src/utils/ostreams.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
@@ -106,7 +106,7 @@ struct PrintName {
       : name(wire_bytes.GetNameOrNull(ref)) {}
 };
 std::ostream& operator<<(std::ostream& os, const PrintName& name) {
-  return os.write(name.name.start(), name.name.size());
+  return os.write(name.name.begin(), name.name.size());
 }
 }  // namespace
 
@@ -207,7 +207,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
     // Add locals.
     BodyLocalDecls decls(&tmp_zone);
-    DecodeLocalDecls(enabled_features, &decls, func_code.start(),
+    DecodeLocalDecls(enabled_features, &decls, func_code.begin(),
                      func_code.end());
     if (!decls.type_list.empty()) {
       os << "    ";
@@ -225,7 +225,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     // Add body.
     os << "    .addBodyWithEnd([\n";
 
-    FunctionBody func_body(func.sig, func.code.offset(), func_code.start(),
+    FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
                            func_code.end());
     PrintRawWasmCode(isolate->allocator(), func_body, module, kOmitLocals);
     os << "            ]);\n";

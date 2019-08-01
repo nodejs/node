@@ -43,6 +43,7 @@ group("v8_testrunner") {
   testonly = true
 
   data_deps = [
+    "..:v8_python_base",
     "..:v8_dump_build_config",
     ":v8_android_test_runner_deps",
   ]

@@ -5,7 +5,7 @@
 #ifndef V8_SNAPSHOT_DESERIALIZER_ALLOCATOR_H_
 #define V8_SNAPSHOT_DESERIALIZER_ALLOCATOR_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/objects/heap-object.h"
 #include "src/snapshot/serializer-common.h"

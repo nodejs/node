@@ -8,6 +8,7 @@ function bar() {}
 bar({ a: new Proxy({}, {}) });
 function foo(x) { x.a.b == ""; }
 var x = {a: {b: "" }};
+%PrepareFunctionForOptimization(foo);
 foo(x);
 foo(x);
 %OptimizeFunctionOnNextCall(foo);

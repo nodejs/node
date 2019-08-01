@@ -4,10 +4,10 @@
 
 #include "src/extensions/externalize-string-extension.h"
 
-#include "src/api-inl.h"
-#include "src/handles.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/api/api-inl.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -31,11 +31,10 @@ class SimpleStringResource : public Base {
   const size_t length_;
 };
 
-
-typedef SimpleStringResource<char, v8::String::ExternalOneByteStringResource>
-    SimpleOneByteStringResource;
-typedef SimpleStringResource<uc16, v8::String::ExternalStringResource>
-    SimpleTwoByteStringResource;
+using SimpleOneByteStringResource =
+    SimpleStringResource<char, v8::String::ExternalOneByteStringResource>;
+using SimpleTwoByteStringResource =
+    SimpleStringResource<uc16, v8::String::ExternalStringResource>;
 
 const char* const ExternalizeStringExtension::kSource =
     "native function externalizeString();"

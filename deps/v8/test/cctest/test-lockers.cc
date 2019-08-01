@@ -29,15 +29,15 @@
 
 #include <memory>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/base/platform/platform.h"
-#include "src/compilation-cache.h"
-#include "src/execution.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/unicode-inl.h"
-#include "src/utils.h"
+#include "src/codegen/compilation-cache.h"
+#include "src/execution/execution.h"
+#include "src/execution/isolate.h"
+#include "src/objects/objects-inl.h"
+#include "src/strings/unicode-inl.h"
+#include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 
 namespace {
@@ -157,6 +157,7 @@ TEST(LazyDeoptimizationMultithread) {
         "function f() { g(); return obj.x; }"
         "function g() { if (b) { unlock_for_deoptimization(); } }"
         "%NeverOptimizeFunction(g);"
+        "%PrepareFunctionForOptimization(f);"
         "f(); f(); %OptimizeFunctionOnNextCall(f);"
         "f();");
 
@@ -212,6 +213,7 @@ TEST(LazyDeoptimizationMultithreadWithNatives) {
         "function g() { "
         "  unlock_for_deoptimization(); }"
         "%NeverOptimizeFunction(g);"
+        "%PrepareFunctionForOptimization(f);"
         "f(); f(); %OptimizeFunctionOnNextCall(f);");
 
     // Trigger the unlocking.
@@ -262,6 +264,7 @@ TEST(EagerDeoptimizationMultithread) {
     // Optimizes a function f, which will be deoptimized by another thread.
     CompileRun(
         "function f(obj) { unlock_for_deoptimization(); return obj.x; }"
+        "%PrepareFunctionForOptimization(f);"
         "f({x: 1}); f({x: 1});"
         "%OptimizeFunctionOnNextCall(f);"
         "f({x: 1});");

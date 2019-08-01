@@ -104,6 +104,52 @@ assertEquals(z, y = { ...p });
 
 var x = { a:1 };
 assertEquals(x, y = { set a(_) { throw new Error(); }, ...x });
+var prop = Object.getOwnPropertyDescriptor(y, 'a');
+assertEquals(prop.value, 1);
+assertFalse("set" in prop);
+assertTrue(prop.enumerable);
+assertTrue(prop.configurable);
+assertTrue(prop.writable);
 
-var x = { a:1 };
+var x = { a:2 };
 assertEquals(x, y = { get a() { throw new Error(); }, ...x });
+var prop = Object.getOwnPropertyDescriptor(y, 'a');
+assertEquals(prop.value, 2);
+assertFalse("get" in prop);
+assertTrue(prop.enumerable);
+assertTrue(prop.configurable);
+assertTrue(prop.writable);
+
+var x = { a:3 };
+assertEquals(x, y = {
+  get a() {
+    throw new Error();
+  },
+  set a(_) {
+    throw new Error();
+  },
+  ...x
+});
+var prop = Object.getOwnPropertyDescriptor(y, 'a');
+assertEquals(prop.value, 3);
+assertFalse("get" in prop);
+assertFalse("set" in prop);
+assertTrue(prop.enumerable);
+assertTrue(prop.configurable);
+assertTrue(prop.writable);
+
+var x = Object.seal({ a:4 });
+assertEquals(x, y = { ...x });
+var prop = Object.getOwnPropertyDescriptor(y, 'a');
+assertEquals(prop.value, 4);
+assertTrue(prop.enumerable);
+assertTrue(prop.configurable);
+assertTrue(prop.writable);
+
+var x = Object.freeze({ a:5 });
+assertEquals(x, y = { ...x });
+var prop = Object.getOwnPropertyDescriptor(y, 'a');
+assertEquals(prop.value, 5);
+assertTrue(prop.enumerable);
+assertTrue(prop.configurable);
+assertTrue(prop.writable);

@@ -76,6 +76,11 @@ function testCall() {
   obj();
 }
 
+%PrepareFunctionForOptimization(testCompares);
+%PrepareFunctionForOptimization(testIfs);
+%PrepareFunctionForOptimization(testWhiles);
+%PrepareFunctionForOptimization(testFors);
+%PrepareFunctionForOptimization(testCall);
 for (var j = 0; j < 5; j++) {
   testCompares();
   testIfs();

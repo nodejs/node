@@ -7,7 +7,7 @@
 
 #include <iosfwd>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 // Opcodes for control operators.
 #define CONTROL_OP_LIST(V) \
@@ -81,7 +81,8 @@
   INNER_OP_LIST(V)        \
   V(Unreachable)          \
   V(DeadValue)            \
-  V(Dead)
+  V(Dead)                 \
+  V(StaticAssert)
 
 // Opcodes for JavaScript operators.
 #define JS_COMPARE_BINOP_LIST(V) \
@@ -293,6 +294,7 @@
   V(SpeculativeNumberLessThanOrEqual)    \
   V(ReferenceEqual)                      \
   V(SameValue)                           \
+  V(SameValueNumbersOnly)                \
   V(NumberSameValue)                     \
   V(StringEqual)                         \
   V(StringLessThan)                      \
@@ -409,14 +411,13 @@
   V(LoadFieldByIndex)                   \
   V(LoadField)                          \
   V(LoadElement)                        \
-  V(LoadMessage)                        \
   V(LoadTypedElement)                   \
+  V(LoadFromObject)                     \
   V(LoadDataViewElement)                \
-  V(LoadStackArgument)                  \
   V(StoreField)                         \
   V(StoreElement)                       \
-  V(StoreMessage)                       \
   V(StoreTypedElement)                  \
+  V(StoreToObject)                      \
   V(StoreDataViewElement)               \
   V(StoreSignedSmallElement)            \
   V(TransitionAndStoreElement)          \
@@ -885,7 +886,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   // Returns true if opcode for common operator.
   static bool IsCommonOpcode(Value value) {
-    return kStart <= value && value <= kDead;
+    return kStart <= value && value <= kStaticAssert;
   }
 
   // Returns true if opcode for control operator.
@@ -932,6 +933,18 @@ class V8_EXPORT_PRIVATE IrOpcode {
     return (kJSEqual <= value && value <= kJSGreaterThanOrEqual) ||
            (kNumberEqual <= value && value <= kStringLessThanOrEqual) ||
            (kWord32Equal <= value && value <= kFloat64LessThanOrEqual);
+  }
+
+  // Returns true if opcode for decompress operator.
+  static bool IsDecompressOpcode(Value value) {
+    return kChangeCompressedToTagged <= value &&
+           value <= kChangeCompressedSignedToTaggedSigned;
+  }
+
+  // Returns true if opcode for compress operator.
+  static bool IsCompressOpcode(Value value) {
+    return kChangeTaggedToCompressed <= value &&
+           value <= kChangeTaggedSignedToCompressedSigned;
   }
 
   static bool IsContextChainExtendingOpcode(Value value) {

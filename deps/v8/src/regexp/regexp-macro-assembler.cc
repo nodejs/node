@@ -4,11 +4,11 @@
 
 #include "src/regexp/regexp-macro-assembler.h"
 
-#include "src/assembler.h"
-#include "src/isolate-inl.h"
+#include "src/codegen/assembler.h"
+#include "src/execution/isolate-inl.h"
+#include "src/execution/simulator.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/simulator.h"
-#include "src/unicode-inl.h"
+#include "src/strings/unicode-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
@@ -102,30 +102,30 @@ bool NativeRegExpMacroAssembler::CanReadUnaligned() {
 
 const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
     String subject, int start_index, const DisallowHeapAllocation& no_gc) {
-  if (subject->IsConsString()) {
-    subject = ConsString::cast(subject)->first();
-  } else if (subject->IsSlicedString()) {
-    start_index += SlicedString::cast(subject)->offset();
-    subject = SlicedString::cast(subject)->parent();
+  if (subject.IsConsString()) {
+    subject = ConsString::cast(subject).first();
+  } else if (subject.IsSlicedString()) {
+    start_index += SlicedString::cast(subject).offset();
+    subject = SlicedString::cast(subject).parent();
   }
-  if (subject->IsThinString()) {
-    subject = ThinString::cast(subject)->actual();
+  if (subject.IsThinString()) {
+    subject = ThinString::cast(subject).actual();
   }
   DCHECK_LE(0, start_index);
-  DCHECK_LE(start_index, subject->length());
-  if (subject->IsSeqOneByteString()) {
+  DCHECK_LE(start_index, subject.length());
+  if (subject.IsSeqOneByteString()) {
     return reinterpret_cast<const byte*>(
-        SeqOneByteString::cast(subject)->GetChars(no_gc) + start_index);
-  } else if (subject->IsSeqTwoByteString()) {
+        SeqOneByteString::cast(subject).GetChars(no_gc) + start_index);
+  } else if (subject.IsSeqTwoByteString()) {
     return reinterpret_cast<const byte*>(
-        SeqTwoByteString::cast(subject)->GetChars(no_gc) + start_index);
-  } else if (subject->IsExternalOneByteString()) {
+        SeqTwoByteString::cast(subject).GetChars(no_gc) + start_index);
+  } else if (subject.IsExternalOneByteString()) {
     return reinterpret_cast<const byte*>(
-        ExternalOneByteString::cast(subject)->GetChars() + start_index);
+        ExternalOneByteString::cast(subject).GetChars() + start_index);
   } else {
-    DCHECK(subject->IsExternalTwoByteString());
+    DCHECK(subject.IsExternalTwoByteString());
     return reinterpret_cast<const byte*>(
-        ExternalTwoByteString::cast(subject)->GetChars() + start_index);
+        ExternalTwoByteString::cast(subject).GetChars() + start_index);
   }
 }
 
@@ -134,8 +134,8 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     Address* return_address, Code re_code, Address* subject,
     const byte** input_start, const byte** input_end) {
   AllowHeapAllocation allow_allocation;
-  DCHECK(re_code->raw_instruction_start() <= *return_address);
-  DCHECK(*return_address <= re_code->raw_instruction_end());
+  DCHECK(re_code.raw_instruction_start() <= *return_address);
+  DCHECK(*return_address <= re_code.raw_instruction_end());
   int return_value = 0;
   // Prepare for possible GC.
   HandleScope handles(isolate);
@@ -158,13 +158,13 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     return_value = EXCEPTION;
   } else {
     Object result = isolate->stack_guard()->HandleInterrupts();
-    if (result->IsException(isolate)) return_value = EXCEPTION;
+    if (result.IsException(isolate)) return_value = EXCEPTION;
   }
 
   DisallowHeapAllocation no_gc;
 
   if (*code_handle != re_code) {  // Return address no longer valid
-    intptr_t delta = code_handle->address() - re_code->address();
+    intptr_t delta = code_handle->address() - re_code.address();
     // Overwrite the return address on the stack.
     *return_address += delta;
   }
@@ -206,25 +206,25 @@ int NativeRegExpMacroAssembler::Match(Handle<Code> regexp_code,
   String subject_ptr = *subject;
   // Character offsets into string.
   int start_offset = previous_index;
-  int char_length = subject_ptr->length() - start_offset;
+  int char_length = subject_ptr.length() - start_offset;
   int slice_offset = 0;
 
   // The string has been flattened, so if it is a cons string it contains the
   // full string in the first part.
   if (StringShape(subject_ptr).IsCons()) {
-    DCHECK_EQ(0, ConsString::cast(subject_ptr)->second()->length());
-    subject_ptr = ConsString::cast(subject_ptr)->first();
+    DCHECK_EQ(0, ConsString::cast(subject_ptr).second().length());
+    subject_ptr = ConsString::cast(subject_ptr).first();
   } else if (StringShape(subject_ptr).IsSliced()) {
     SlicedString slice = SlicedString::cast(subject_ptr);
-    subject_ptr = slice->parent();
-    slice_offset = slice->offset();
+    subject_ptr = slice.parent();
+    slice_offset = slice.offset();
   }
   if (StringShape(subject_ptr).IsThin()) {
-    subject_ptr = ThinString::cast(subject_ptr)->actual();
+    subject_ptr = ThinString::cast(subject_ptr).actual();
   }
   // Ensure that an underlying string has the same representation.
-  bool is_one_byte = subject_ptr->IsOneByteRepresentation();
-  DCHECK(subject_ptr->IsExternalString() || subject_ptr->IsSeqString());
+  bool is_one_byte = subject_ptr.IsOneByteRepresentation();
+  DCHECK(subject_ptr.IsExternalString() || subject_ptr.IsSeqString());
   // String is now either Sequential or External
   int char_size_shift = is_one_byte ? 0 : 1;
 

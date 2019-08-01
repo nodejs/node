@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_JS_OBJECTS_H_
 #define V8_OBJECTS_JS_OBJECTS_H_
 
-#include "src/objects.h"
 #include "src/objects/embedder-data-slot.h"
+#include "src/objects/objects.h"
 #include "src/objects/property-array.h"
-#include "torque-generated/class-definitions-from-dsl.h"
+#include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -259,18 +259,11 @@ class JSReceiver : public HeapObject {
       Handle<JSReceiver> object, PropertyFilter filter,
       bool try_fast_path = true);
 
-  V8_WARN_UNUSED_RESULT static Handle<FixedArray> GetOwnElementIndices(
-      Isolate* isolate, Handle<JSReceiver> receiver, Handle<JSObject> object);
-
   static const int kHashMask = PropertyArray::HashField::kMask;
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_JSRECEIVER_FIELDS)
-  static const int kHeaderSize = kSize;
-
   bool HasProxyInPrototype(Isolate* isolate);
-
-  bool HasComplexElements();
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<FixedArray> GetPrivateEntries(
       Isolate* isolate, Handle<JSReceiver> receiver);
@@ -345,8 +338,9 @@ class JSObject : public JSReceiver {
   // Returns true if an object has elements of PACKED_ELEMENTS
   inline bool HasPackedElements();
   inline bool HasFrozenOrSealedElements();
+  inline bool HasSealedElements();
 
-  inline bool HasFixedTypedArrayElements();
+  inline bool HasTypedArrayElements();
 
   inline bool HasFixedUint8ClampedElements();
   inline bool HasFixedArrayElements();
@@ -641,7 +635,12 @@ class JSObject : public JSReceiver {
   inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index);
 
   inline void FastPropertyAtPut(FieldIndex index, Object value);
-  inline void RawFastPropertyAtPut(FieldIndex index, Object value);
+  inline void RawFastPropertyAtPut(
+      FieldIndex index, Object value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void RawFastInobjectPropertyAtPut(
+      FieldIndex index, Object value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void RawFastDoublePropertyAsBitsAtPut(FieldIndex index, uint64_t bits);
   inline void WriteToField(int descriptor, PropertyDetails details,
                            Object value);
@@ -879,15 +878,8 @@ class JSIteratorResult : public JSObject {
   DECL_ACCESSORS(done, Object)
 
   // Layout description.
-#define JS_ITERATOR_RESULT_FIELDS(V) \
-  V(kValueOffset, kTaggedSize)       \
-  V(kDoneOffset, kTaggedSize)        \
-  /* Total size. */                  \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_ITERATOR_RESULT_FIELDS)
-#undef JS_ITERATOR_RESULT_FIELDS
+                                TORQUE_GENERATED_JSITERATOR_RESULT_FIELDS)
 
   // Indices of in-object properties.
   static const int kValueIndex = 0;
@@ -1209,15 +1201,8 @@ class JSGlobalObject : public JSObject {
   DECL_VERIFIER(JSGlobalObject)
 
   // Layout description.
-#define JS_GLOBAL_OBJECT_FIELDS(V)     \
-  V(kNativeContextOffset, kTaggedSize) \
-  V(kGlobalProxyOffset, kTaggedSize)   \
-  /* Header size. */                   \
-  V(kHeaderSize, 0)                    \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GLOBAL_OBJECT_FIELDS)
-#undef JS_GLOBAL_OBJECT_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSGLOBAL_OBJECT_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSGlobalObject, JSObject);
 };
@@ -1356,23 +1341,30 @@ class JSMessageObject : public JSObject {
   // [stack_frames]: an array of stack frames for this error object.
   DECL_ACCESSORS(stack_frames, Object)
 
-  // [start_position]: the start position in the script for the error message.
-  inline int start_position() const;
-  inline void set_start_position(int value);
+  // Initializes the source positions in the object if possible. Does nothing if
+  // called more than once. If called when stack space is exhausted, then the
+  // source positions will be not be set and calling it again when there is more
+  // stack space will not have any effect.
+  static void EnsureSourcePositionsAvailable(Isolate* isolate,
+                                             Handle<JSMessageObject> message);
 
-  // [end_position]: the end position in the script for the error message.
-  inline int end_position() const;
-  inline void set_end_position(int value);
+  // Gets the start and end positions for the message.
+  // EnsureSourcePositionsAvailable must have been called before calling these.
+  inline int GetStartPosition() const;
+  inline int GetEndPosition() const;
 
   // Returns the line number for the error message (1-based), or
   // Message::kNoLineNumberInfo if the line cannot be determined.
+  // EnsureSourcePositionsAvailable must have been called before calling this.
   V8_EXPORT_PRIVATE int GetLineNumber() const;
 
   // Returns the offset of the given position within the containing line.
+  // EnsureSourcePositionsAvailable must have been called before calling this.
   V8_EXPORT_PRIVATE int GetColumnNumber() const;
 
   // Returns the source code line containing the given source
   // position, or the empty string if the position is invalid.
+  // EnsureSourcePositionsAvailable must have been called before calling this.
   Handle<String> GetSourceLine() const;
 
   inline int error_level() const;
@@ -1393,6 +1385,27 @@ class JSMessageObject : public JSObject {
                                              kPointerFieldsEndOffset, kSize>;
 
   OBJECT_CONSTRUCTORS(JSMessageObject, JSObject);
+
+ private:
+  friend class Factory;
+
+  inline bool DidEnsureSourcePositionsAvailable() const;
+
+  // [shared]: optional SharedFunctionInfo that can be used to reconstruct the
+  // source position if not available when the message was generated.
+  DECL_ACCESSORS(shared_info, HeapObject)
+
+  // [bytecode_offset]: optional offset using along with |shared| to generation
+  // source positions.
+  DECL_ACCESSORS(bytecode_offset, Smi)
+
+  // [start_position]: the start position in the script for the error message.
+  inline int start_position() const;
+  inline void set_start_position(int value);
+
+  // [end_position]: the end position in the script for the error message.
+  inline int end_position() const;
+  inline void set_end_position(int value);
 };
 
 // The [Async-from-Sync Iterator] object

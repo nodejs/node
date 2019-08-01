@@ -33,6 +33,7 @@ function testRound(expect, input) {
   // sure it gets optimized each time.
   var doRound = new Function('input',
                              '"' + (test_id++) + '";return Math.round(input)');
+  %PrepareFunctionForOptimization(doRound);
   assertEquals(expect, doRound(input));
   assertEquals(expect, doRound(input));
   assertEquals(expect, doRound(input));
@@ -43,6 +44,7 @@ function testRound(expect, input) {
   // optimized code.
   var doRoundToDouble = new Function('input',
                                      '"' + (test_id++) + '";return Math.round(input) + -0.0');
+  %PrepareFunctionForOptimization(doRoundToDouble);
   assertEquals(expect, doRoundToDouble(input));
   assertEquals(expect, doRoundToDouble(input));
   assertEquals(expect, doRoundToDouble(input));
@@ -64,7 +66,8 @@ function roundsum(i, n) {
     ret += Math.round(n);
   }
   return ret;
-}
+};
+%PrepareFunctionForOptimization(roundsum);
 assertEquals(-0, roundsum(1, -0));
 %OptimizeFunctionOnNextCall(roundsum);
 // The optimized function will deopt.  Run it with enough iterations to try

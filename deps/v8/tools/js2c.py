@@ -105,9 +105,9 @@ HEADER_TEMPLATE = """\
 // want to make changes to this file you should either change the
 // javascript source files or the GYP script.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "src/snapshot/natives.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -245,7 +245,10 @@ def BuildMetadata(sources, source_bytes, native_type):
   raw_sources = "".join(sources.modules)
 
   # The sources are expected to be ASCII-only.
-  assert not filter(lambda value: ord(value) >= 128, raw_sources)
+  try:
+    raw_sources.encode('ascii')
+  except UnicodeEncodeError:
+    assert False
 
   # Loop over modules and build up indices into the source blob:
   get_index_cases = []
@@ -300,8 +303,8 @@ def PutInt(blob_file, value):
 
 
 def PutStr(blob_file, value):
-  PutInt(blob_file, len(value));
-  blob_file.write(value);
+  PutInt(blob_file, len(value.encode()))
+  blob_file.write(value.encode())
 
 
 def WriteStartupBlob(sources, startup_blob):

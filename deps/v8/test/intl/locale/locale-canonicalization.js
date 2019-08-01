@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-locale
-
 // Make sure that locale string got canonicalized by the spec,
 // keys are sorted and unique, region upper cased, script title cased and
 // language lower cased.

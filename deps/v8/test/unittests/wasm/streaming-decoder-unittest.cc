@@ -4,7 +4,7 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"

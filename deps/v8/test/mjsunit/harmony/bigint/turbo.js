@@ -19,6 +19,7 @@ function test(f, {input, check}) {
 
 function Test(f, ...cases) {
   for (let i = 0; i < cases.length; ++i) {
+    %PrepareFunctionForOptimization(f);
     test(f, cases[i]);
     %OptimizeFunctionOnNextCall(f);
     for (let j = 0; j < cases.length; ++j) {

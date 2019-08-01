@@ -5,13 +5,13 @@
 #include "src/heap/scavenge-job.h"
 
 #include "src/base/platform/time.h"
+#include "src/execution/isolate.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
-#include "src/isolate.h"
-#include "src/v8.h"
-#include "src/vm-state-inl.h"
+#include "src/init/v8.h"
 
 namespace v8 {
 namespace internal {

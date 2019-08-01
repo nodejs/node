@@ -9,10 +9,10 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
 #include "src/base/threaded-list.h"
-#include "src/function-kind.h"
-#include "src/globals.h"
-#include "src/objects.h"
-#include "src/pointer-with-payload.h"
+#include "src/common/globals.h"
+#include "src/objects/function-kind.h"
+#include "src/objects/objects.h"
+#include "src/utils/pointer-with-payload.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -30,8 +30,8 @@ class Statement;
 class StringSet;
 class VariableProxy;
 
-typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
-    UnresolvedList;
+using UnresolvedList =
+    base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>;
 
 // A hash map to support fast variable declaration and lookup.
 class VariableMap : public ZoneHashMap {
@@ -1169,7 +1169,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
  public:
   ClassScope(Zone* zone, Scope* outer_scope);
   // Deserialization.
-  ClassScope(Zone* zone, Handle<ScopeInfo> scope_info);
+  ClassScope(Zone* zone, AstValueFactory* ast_value_factory,
+             Handle<ScopeInfo> scope_info);
 
   // Declare a private name in the private name map and add it to the
   // local variables of this scope.
@@ -1205,6 +1206,11 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // and the current tail.
   void MigrateUnresolvedPrivateNameTail(AstNodeFactory* ast_node_factory,
                                         UnresolvedList::Iterator tail);
+  Variable* DeclareBrandVariable(AstValueFactory* ast_value_factory,
+                                 int class_token_pos);
+  Variable* brand() {
+    return rare_data_ == nullptr ? nullptr : rare_data_->brand;
+  }
 
  private:
   friend class Scope;
@@ -1222,6 +1228,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     explicit RareData(Zone* zone) : private_name_map(zone) {}
     UnresolvedList unresolved_private_names;
     VariableMap private_name_map;
+    Variable* brand = nullptr;
   };
 
   V8_INLINE RareData* EnsureRareData() {

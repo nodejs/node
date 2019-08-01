@@ -6,8 +6,8 @@
 #define V8_OBJECTS_REGEXP_MATCH_INFO_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

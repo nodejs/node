@@ -22,15 +22,17 @@
 #include <cstring>
 #include <iostream>
 
+#include "src/wasm/c-api.h"
+
 #include "third_party/wasm-api/wasm.h"
-#include "third_party/wasm-api/wasm.hh"
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/wasm/leb-helper.h"
+#include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 
 // BEGIN FILE wasm-bin.cc
@@ -162,32 +164,6 @@ auto wrapper(const FuncType* type) -> vec<byte_t> {
   return binary;
 }
 
-auto wrapper(const GlobalType* type) -> vec<byte_t> {
-  auto size = 25 + zero_size(type->content());
-  auto binary = vec<byte_t>::make_uninitialized(size);
-  auto ptr = binary.get();
-
-  encode_header(ptr);
-
-  *ptr++ = i::wasm::kGlobalSectionCode;
-  encode_size32(ptr, 5 + zero_size(type->content()));  // size
-  *ptr++ = 1;                                          // length
-  encode_valtype(ptr, type->content());
-  *ptr++ = (type->mutability() == VAR);
-  encode_const_zero(ptr, type->content());
-  *ptr++ = 0x0b;  // end
-
-  *ptr++ = i::wasm::kExportSectionCode;
-  *ptr++ = 4;  // size
-  *ptr++ = 1;  // length
-  *ptr++ = 0;  // name length
-  *ptr++ = i::wasm::kExternalGlobal;
-  *ptr++ = 0;  // func index
-
-  assert(ptr - binary.get() == static_cast<ptrdiff_t>(size));
-  return binary;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Decoding
 
@@ -228,11 +204,6 @@ auto name(const byte_t*& pos) -> Name {
   std::memcpy(name.get(), start, size);
   pos += size;
   return name;
-}
-
-void name_skip(const byte_t*& pos) {
-  auto size = bin::u32(pos);
-  pos += size;
 }
 
 // Types
@@ -330,7 +301,7 @@ void expr_skip(const byte_t*& pos) {
 
 // Sections
 
-auto section(const vec<byte_t>& binary, i::wasm::SectionCode sec)
+auto section(const vec<const byte_t>& binary, i::wasm::SectionCode sec)
     -> const byte_t* {
   const byte_t* end = binary.get() + binary.size();
   const byte_t* pos = binary.get() + 8;  // skip header
@@ -344,7 +315,7 @@ auto section(const vec<byte_t>& binary, i::wasm::SectionCode sec)
 }
 
 // Only for asserts/DCHECKs.
-auto section_end(const vec<byte_t>& binary, i::wasm::SectionCode sec)
+auto section_end(const vec<const byte_t>& binary, i::wasm::SectionCode sec)
     -> const byte_t* {
   const byte_t* end = binary.get() + binary.size();
   const byte_t* pos = binary.get() + 8;  // skip header
@@ -361,7 +332,7 @@ auto section_end(const vec<byte_t>& binary, i::wasm::SectionCode sec)
 
 // Type section
 
-auto types(const vec<byte_t>& binary) -> vec<FuncType*> {
+auto types(const vec<const byte_t>& binary) -> vec<FuncType*> {
   auto pos = bin::section(binary, i::wasm::kTypeSectionCode);
   if (pos == nullptr) return vec<FuncType*>::make();
   size_t size = bin::u32(pos);
@@ -376,7 +347,7 @@ auto types(const vec<byte_t>& binary) -> vec<FuncType*> {
 
 // Import section
 
-auto imports(const vec<byte_t>& binary, const vec<FuncType*>& types)
+auto imports(const vec<const byte_t>& binary, const vec<FuncType*>& types)
     -> vec<ImportType*> {
   auto pos = bin::section(binary, i::wasm::kImportSectionCode);
   if (pos == nullptr) return vec<ImportType*>::make();
@@ -419,7 +390,7 @@ auto count(const vec<ImportType*>& imports, ExternKind kind) -> uint32_t {
 
 // Function section
 
-auto funcs(const vec<byte_t>& binary, const vec<ImportType*>& imports,
+auto funcs(const vec<const byte_t>& binary, const vec<ImportType*>& imports,
            const vec<FuncType*>& types) -> vec<FuncType*> {
   auto pos = bin::section(binary, i::wasm::kFunctionSectionCode);
   size_t size = pos != nullptr ? bin::u32(pos) : 0;
@@ -443,7 +414,7 @@ auto funcs(const vec<byte_t>& binary, const vec<ImportType*>& imports,
 
 // Global section
 
-auto globals(const vec<byte_t>& binary, const vec<ImportType*>& imports)
+auto globals(const vec<const byte_t>& binary, const vec<ImportType*>& imports)
     -> vec<GlobalType*> {
   auto pos = bin::section(binary, i::wasm::kGlobalSectionCode);
   size_t size = pos != nullptr ? bin::u32(pos) : 0;
@@ -468,7 +439,7 @@ auto globals(const vec<byte_t>& binary, const vec<ImportType*>& imports)
 
 // Table section
 
-auto tables(const vec<byte_t>& binary, const vec<ImportType*>& imports)
+auto tables(const vec<const byte_t>& binary, const vec<ImportType*>& imports)
     -> vec<TableType*> {
   auto pos = bin::section(binary, i::wasm::kTableSectionCode);
   size_t size = pos != nullptr ? bin::u32(pos) : 0;
@@ -492,7 +463,7 @@ auto tables(const vec<byte_t>& binary, const vec<ImportType*>& imports)
 
 // Memory section
 
-auto memories(const vec<byte_t>& binary, const vec<ImportType*>& imports)
+auto memories(const vec<const byte_t>& binary, const vec<ImportType*>& imports)
     -> vec<MemoryType*> {
   auto pos = bin::section(binary, i::wasm::kMemorySectionCode);
   size_t size = pos != nullptr ? bin::u32(pos) : 0;
@@ -516,7 +487,7 @@ auto memories(const vec<byte_t>& binary, const vec<ImportType*>& imports)
 
 // Export section
 
-auto exports(const vec<byte_t>& binary, const vec<FuncType*>& funcs,
+auto exports(const vec<const byte_t>& binary, const vec<FuncType*>& funcs,
              const vec<GlobalType*>& globals, const vec<TableType*>& tables,
              const vec<MemoryType*>& memories) -> vec<ExportType*> {
   auto pos = bin::section(binary, i::wasm::kExportSectionCode);
@@ -550,11 +521,11 @@ auto exports(const vec<byte_t>& binary, const vec<FuncType*>& funcs,
   return exports;
 }
 
-auto imports(const vec<byte_t>& binary) -> vec<ImportType*> {
+auto imports(const vec<const byte_t>& binary) -> vec<ImportType*> {
   return bin::imports(binary, bin::types(binary));
 }
 
-auto exports(const vec<byte_t>& binary) -> vec<ExportType*> {
+auto exports(const vec<const byte_t>& binary) -> vec<ExportType*> {
   auto types = bin::types(binary);
   auto imports = bin::imports(binary, types);
   auto funcs = bin::funcs(binary, imports, types);
@@ -571,21 +542,6 @@ auto exports(const vec<byte_t>& binary) -> vec<ExportType*> {
 
 namespace v8 {
 namespace wasm {
-
-// Objects
-
-auto object_isolate(const v8::Persistent<v8::Object>& obj) -> v8::Isolate* {
-  struct FakePersistent {
-    v8::Object* val;
-  };
-  auto v8_obj = reinterpret_cast<const FakePersistent*>(&obj)->val;
-  return v8_obj->GetIsolate();
-}
-
-template <class T>
-auto object_handle(T v8_obj) -> i::Handle<T> {
-  return handle(v8_obj, v8_obj->GetIsolate());
-}
 
 // Foreign pointers
 
@@ -620,328 +576,20 @@ auto v8_valtype_to_wasm(i::wasm::ValueType v8_valtype) -> ::wasm::ValKind {
   }
 }
 
-auto func_type_param_arity(v8::Local<v8::Object> function) -> uint32_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(function);
-  auto v8_function = i::Handle<i::WasmExportedFunction>::cast(v8_object);
-  i::wasm::FunctionSig* sig = v8_function->instance()
-                                  ->module()
-                                  ->functions[v8_function->function_index()]
-                                  .sig;
-  return static_cast<uint32_t>(sig->parameter_count());
-}
-
-auto func_type_result_arity(v8::Local<v8::Object> function) -> uint32_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(function);
-  auto v8_function = i::Handle<i::WasmExportedFunction>::cast(v8_object);
-  i::wasm::FunctionSig* sig = v8_function->instance()
-                                  ->module()
-                                  ->functions[v8_function->function_index()]
-                                  .sig;
-  return static_cast<uint32_t>(sig->return_count());
-}
-
-auto func_type_param(v8::Local<v8::Object> function, size_t i)
-    -> ::wasm::ValKind {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(function);
-  auto v8_function = i::Handle<i::WasmExportedFunction>::cast(v8_object);
-  i::wasm::FunctionSig* sig = v8_function->instance()
-                                  ->module()
-                                  ->functions[v8_function->function_index()]
-                                  .sig;
-  return v8_valtype_to_wasm(sig->GetParam(i));
-}
-
-auto func_type_result(v8::Local<v8::Object> function, size_t i)
-    -> ::wasm::ValKind {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(function);
-  auto v8_function = i::Handle<i::WasmExportedFunction>::cast(v8_object);
-  i::wasm::FunctionSig* sig = v8_function->instance()
-                                  ->module()
-                                  ->functions[v8_function->function_index()]
-                                  .sig;
-  return v8_valtype_to_wasm(sig->GetReturn(i));
-}
-
-auto global_type_content(v8::Local<v8::Object> global) -> ::wasm::ValKind {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(global);
-  auto v8_global = i::Handle<i::WasmGlobalObject>::cast(v8_object);
-  return v8_valtype_to_wasm(v8_global->type());
-}
-
-auto global_type_mutable(v8::Local<v8::Object> global) -> bool {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(global);
-  auto v8_global = i::Handle<i::WasmGlobalObject>::cast(v8_object);
-  return v8_global->is_mutable();
-}
-
-auto table_type_min(v8::Local<v8::Object> table) -> uint32_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(table);
-  auto v8_table = i::Handle<i::WasmTableObject>::cast(v8_object);
-  return v8_table->current_length();
-}
-
-auto table_type_max(v8::Local<v8::Object> table) -> uint32_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(table);
-  auto v8_table = i::Handle<i::WasmTableObject>::cast(v8_object);
-  auto v8_max_obj = v8_table->maximum_length();
-  uint32_t max;
-  return v8_max_obj->ToUint32(&max) ? max : 0xffffffffu;
-}
-
-auto memory_size(v8::Local<v8::Object> memory) -> uint32_t;
-
-auto memory_type_min(v8::Local<v8::Object> memory) -> uint32_t {
-  return memory_size(memory);
-}
-
-auto memory_type_max(v8::Local<v8::Object> memory) -> uint32_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(memory);
-  auto v8_memory = i::Handle<i::WasmMemoryObject>::cast(v8_object);
-  return v8_memory->has_maximum_pages() ? v8_memory->maximum_pages()
-                                        : 0xffffffffu;
-}
-
-// Modules
-
-auto module_binary_size(v8::Local<v8::Object> module) -> size_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(module);
-  auto v8_module = i::Handle<i::WasmModuleObject>::cast(v8_object);
-  return v8_module->native_module()->wire_bytes().size();
-}
-
-auto module_binary(v8::Local<v8::Object> module) -> const char* {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(module);
-  auto v8_module = i::Handle<i::WasmModuleObject>::cast(v8_object);
-  return reinterpret_cast<const char*>(
-      v8_module->native_module()->wire_bytes().start());
-}
-
-auto module_serialize_size(v8::Local<v8::Object> module) -> size_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(module);
-  auto v8_module = i::Handle<i::WasmModuleObject>::cast(v8_object);
-  i::wasm::WasmSerializer serializer(v8_module->native_module());
-  return serializer.GetSerializedNativeModuleSize();
-}
-
-auto module_serialize(v8::Local<v8::Object> module, char* buffer, size_t size)
-    -> bool {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(module);
-  auto v8_module = i::Handle<i::WasmModuleObject>::cast(v8_object);
-  i::wasm::WasmSerializer serializer(v8_module->native_module());
-  return serializer.SerializeNativeModule(
-      {reinterpret_cast<uint8_t*>(buffer), size});
-}
-
-auto module_deserialize(v8::Isolate* isolate, const char* binary,
-                        size_t binary_size, const char* buffer,
-                        size_t buffer_size) -> v8::MaybeLocal<v8::Object> {
-  auto v8_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  auto maybe_v8_module = i::wasm::DeserializeNativeModule(
-      v8_isolate, {reinterpret_cast<const uint8_t*>(buffer), buffer_size},
-      {reinterpret_cast<const uint8_t*>(binary), binary_size});
-  if (maybe_v8_module.is_null()) return v8::MaybeLocal<v8::Object>();
-  auto v8_module =
-      i::Handle<i::JSObject>::cast(maybe_v8_module.ToHandleChecked());
-  return v8::MaybeLocal<v8::Object>(v8::Utils::ToLocal(v8_module));
-}
-
-// Instances
-
-auto instance_module(v8::Local<v8::Object> instance) -> v8::Local<v8::Object> {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(instance);
-  auto v8_instance = i::Handle<i::WasmInstanceObject>::cast(v8_object);
-  auto v8_module =
-      object_handle(i::JSObject::cast(v8_instance->module_object()));
-  return v8::Utils::ToLocal(v8_module);
-}
-
-auto instance_exports(v8::Local<v8::Object> instance) -> v8::Local<v8::Object> {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(instance);
-  auto v8_instance = i::Handle<i::WasmInstanceObject>::cast(v8_object);
-  auto v8_exports = object_handle(v8_instance->exports_object());
-  return v8::Utils::ToLocal(v8_exports);
-}
-
-// Externals
-
-auto extern_kind(v8::Local<v8::Object> external) -> ::wasm::ExternKind {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(external);
-
-  if (i::WasmExportedFunction::IsWasmExportedFunction(*v8_object))
-    return ::wasm::EXTERN_FUNC;
-  if (v8_object->IsWasmGlobalObject()) return ::wasm::EXTERN_GLOBAL;
-  if (v8_object->IsWasmTableObject()) return ::wasm::EXTERN_TABLE;
-  if (v8_object->IsWasmMemoryObject()) return ::wasm::EXTERN_MEMORY;
-  UNREACHABLE();
-}
-
-// Functions
-
-auto func_instance(v8::Local<v8::Function> function) -> v8::Local<v8::Object> {
-  auto v8_function = v8::Utils::OpenHandle(*function);
-  auto v8_func = i::Handle<i::WasmExportedFunction>::cast(v8_function);
-  auto v8_instance = object_handle(i::JSObject::cast(v8_func->instance()));
-  return v8::Utils::ToLocal(v8_instance);
-}
-
-// Globals
-
-auto global_get_i32(v8::Local<v8::Object> global) -> int32_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(global);
-  auto v8_global = i::Handle<i::WasmGlobalObject>::cast(v8_object);
-  return v8_global->GetI32();
-}
-auto global_get_i64(v8::Local<v8::Object> global) -> int64_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(global);
-  auto v8_global = i::Handle<i::WasmGlobalObject>::cast(v8_object);
-  return v8_global->GetI64();
-}
-auto global_get_f32(v8::Local<v8::Object> global) -> float {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(global);
-  auto v8_global = i::Handle<i::WasmGlobalObject>::cast(v8_object);
-  return v8_global->GetF32();
-}
-auto global_get_f64(v8::Local<v8::Object> global) -> double {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(global);
-  auto v8_global = i::Handle<i::WasmGlobalObject>::cast(v8_object);
-  return v8_global->GetF64();
-}
-
-void global_set_i32(v8::Local<v8::Object> global, int32_t val) {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(global);
-  auto v8_global = i::Handle<i::WasmGlobalObject>::cast(v8_object);
-  v8_global->SetI32(val);
-}
-void global_set_i64(v8::Local<v8::Object> global, int64_t val) {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(global);
-  auto v8_global = i::Handle<i::WasmGlobalObject>::cast(v8_object);
-  v8_global->SetI64(val);
-}
-void global_set_f32(v8::Local<v8::Object> global, float val) {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(global);
-  auto v8_global = i::Handle<i::WasmGlobalObject>::cast(v8_object);
-  v8_global->SetF32(val);
-}
-void global_set_f64(v8::Local<v8::Object> global, double val) {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(global);
-  auto v8_global = i::Handle<i::WasmGlobalObject>::cast(v8_object);
-  v8_global->SetF32(val);
-}
-
-// Tables
-
-auto table_get(v8::Local<v8::Object> table, size_t index)
-    -> v8::MaybeLocal<v8::Function> {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(table);
-  auto v8_table = i::Handle<i::WasmTableObject>::cast(v8_object);
-  if (index > std::numeric_limits<int>::max()) return {};
-  i::Isolate* isolate = v8_table->GetIsolate();
-  i::MaybeHandle<i::Object> maybe_result =
-      i::WasmTableObject::Get(isolate, v8_table, static_cast<int>(index));
-  i::Handle<i::Object> result;
-  if (!maybe_result.ToHandle(&result)) {
-    // TODO(jkummerow): Clear pending exception?
-    return {};
+i::wasm::ValueType wasm_valtype_to_v8(::wasm::ValKind type) {
+  switch (type) {
+    case ::wasm::I32:
+      return i::wasm::kWasmI32;
+    case ::wasm::I64:
+      return i::wasm::kWasmI64;
+    case ::wasm::F32:
+      return i::wasm::kWasmF32;
+    case ::wasm::F64:
+      return i::wasm::kWasmF64;
+    default:
+      // TODO(wasm+): support new value types
+      UNREACHABLE();
   }
-  if (!result->IsJSFunction()) return {};
-  return v8::MaybeLocal<v8::Function>(
-      v8::Utils::ToLocal(i::Handle<i::JSFunction>::cast(result)));
-}
-
-auto table_set(v8::Local<v8::Object> table, size_t index,
-               v8::MaybeLocal<v8::Function> maybe) -> bool {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(table);
-  auto v8_table = i::Handle<i::WasmTableObject>::cast(v8_object);
-  i::Handle<i::Object> v8_function =
-      maybe.IsEmpty()
-          ? i::Handle<i::Object>::cast(
-                i::ReadOnlyRoots(v8_table->GetIsolate()).null_value_handle())
-          : i::Handle<i::Object>::cast(
-                v8::Utils::OpenHandle<v8::Function, i::JSReceiver>(
-                    maybe.ToLocalChecked()));
-  if (index >= v8_table->current_length()) return false;
-
-  {
-    v8::TryCatch handler(table->GetIsolate());
-    i::WasmTableObject::Set(v8_table->GetIsolate(), v8_table,
-                            static_cast<uint32_t>(index), v8_function);
-    if (handler.HasCaught()) return false;
-  }
-
-  return true;
-}
-
-auto table_size(v8::Local<v8::Object> table) -> size_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(table);
-  auto v8_table = i::Handle<i::WasmTableObject>::cast(v8_object);
-  return v8_table->current_length();
-}
-
-auto table_grow(v8::Local<v8::Object> table, size_t delta,
-                v8::MaybeLocal<v8::Function> init) -> bool {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(table);
-  auto v8_table = i::Handle<i::WasmTableObject>::cast(v8_object);
-  if (delta > 0xfffffffflu) return false;
-  auto old_size = v8_table->current_length();
-  // TODO(jkummerow): Overflow check.
-  auto new_size = old_size + static_cast<uint32_t>(delta);
-  // TODO(v8): This should happen in WasmTableObject::Grow.
-  if (new_size > table_type_max(table)) return false;
-
-  {
-    v8::TryCatch handler(table->GetIsolate());
-    v8_table->Grow(v8_table->GetIsolate(), static_cast<uint32_t>(delta));
-    if (handler.HasCaught()) return false;
-  }
-
-  // TODO(v8): This should happen in WasmTableObject::Grow.
-  if (new_size != old_size) {
-    auto isolate = v8_table->GetIsolate();
-    i::Handle<i::FixedArray> old_array(v8_table->elements(), isolate);
-    auto new_array =
-        isolate->factory()->NewFixedArray(static_cast<int>(new_size));
-    assert(static_cast<uint32_t>(old_array->length()) == old_size);
-    for (int i = 0; i < static_cast<int>(old_size); ++i)
-      new_array->set(i, old_array->get(i));
-    i::Handle<i::Object> val = isolate->factory()->null_value();
-    if (!init.IsEmpty())
-      val = v8::Utils::OpenHandle<v8::Function, i::JSReceiver>(
-          init.ToLocalChecked());
-    for (int i = old_size; i < static_cast<int>(new_size); ++i)
-      new_array->set(i, *val);
-    v8_table->set_elements(*new_array);
-  }
-
-  return true;
-}
-
-// Memory
-
-auto memory_data(v8::Local<v8::Object> memory) -> char* {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(memory);
-  auto v8_memory = i::Handle<i::WasmMemoryObject>::cast(v8_object);
-  return reinterpret_cast<char*>(v8_memory->array_buffer()->backing_store());
-}
-
-auto memory_data_size(v8::Local<v8::Object> memory) -> size_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(memory);
-  auto v8_memory = i::Handle<i::WasmMemoryObject>::cast(v8_object);
-  return v8_memory->array_buffer()->byte_length();
-}
-
-auto memory_size(v8::Local<v8::Object> memory) -> uint32_t {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(memory);
-  auto v8_memory = i::Handle<i::WasmMemoryObject>::cast(v8_object);
-  return static_cast<uint32_t>(v8_memory->array_buffer()->byte_length() /
-                               i::wasm::kWasmPageSize);
-}
-
-auto memory_grow(v8::Local<v8::Object> memory, uint32_t delta) -> bool {
-  auto v8_object = v8::Utils::OpenHandle<v8::Object, i::JSReceiver>(memory);
-  auto v8_memory = i::Handle<i::WasmMemoryObject>::cast(v8_object);
-  auto old =
-      i::WasmMemoryObject::Grow(v8_memory->GetIsolate(), v8_memory, delta);
-  return old != -1;
 }
 
 }  // namespace wasm
@@ -1059,89 +707,17 @@ auto Engine::make(own<Config*>&& config) -> own<Engine*> {
 
 // Stores
 
-enum v8_string_t {
-  V8_S_EMPTY,
-  V8_S_I32,
-  V8_S_I64,
-  V8_S_F32,
-  V8_S_F64,
-  V8_S_ANYREF,
-  V8_S_ANYFUNC,
-  V8_S_VALUE,
-  V8_S_MUTABLE,
-  V8_S_ELEMENT,
-  V8_S_MINIMUM,
-  V8_S_MAXIMUM,
-  V8_S_COUNT
-};
-
-enum v8_symbol_t { V8_Y_CALLBACK, V8_Y_ENV, V8_Y_COUNT };
-
-enum v8_function_t {
-  V8_F_WEAKMAP,
-  V8_F_WEAKMAP_PROTO,
-  V8_F_WEAKMAP_GET,
-  V8_F_WEAKMAP_SET,
-  V8_F_MODULE,
-  V8_F_GLOBAL,
-  V8_F_TABLE,
-  V8_F_MEMORY,
-  V8_F_INSTANCE,
-  V8_F_VALIDATE,
-  V8_F_COUNT,
-};
-
-class StoreImpl {
-  friend own<Store*> Store::make(Engine*);
-
-  v8::Isolate::CreateParams create_params_;
-  v8::Isolate* isolate_;
-  v8::Eternal<v8::Context> context_;
-  v8::Eternal<v8::String> strings_[V8_S_COUNT];
-  v8::Eternal<v8::Symbol> symbols_[V8_Y_COUNT];
-  v8::Eternal<v8::Function> functions_[V8_F_COUNT];
-  v8::Eternal<v8::Object> host_data_map_;
-  v8::Eternal<v8::Symbol> callback_symbol_;
-
- public:
-  StoreImpl() {}
-
-  ~StoreImpl() {
+StoreImpl::~StoreImpl() {
 #ifdef DEBUG
-    reinterpret_cast<i::Isolate*>(isolate_)->heap()->PreciseCollectAllGarbage(
-        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting,
-        v8::kGCCallbackFlagForced);
+  reinterpret_cast<i::Isolate*>(isolate_)->heap()->PreciseCollectAllGarbage(
+      i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting,
+      v8::kGCCallbackFlagForced);
 #endif
-    context()->Exit();
-    isolate_->Exit();
-    isolate_->Dispose();
-    delete create_params_.array_buffer_allocator;
-  }
-
-  auto isolate() const -> v8::Isolate* { return isolate_; }
-
-  auto context() const -> v8::Local<v8::Context> {
-    return context_.Get(isolate_);
-  }
-
-  auto v8_string(v8_string_t i) const -> v8::Local<v8::String> {
-    return strings_[i].Get(isolate_);
-  }
-  auto v8_string(v8_symbol_t i) const -> v8::Local<v8::Symbol> {
-    return symbols_[i].Get(isolate_);
-  }
-  auto v8_function(v8_function_t i) const -> v8::Local<v8::Function> {
-    return functions_[i].Get(isolate_);
-  }
-
-  auto host_data_map() const -> v8::Local<v8::Object> {
-    return host_data_map_.Get(isolate_);
-  }
-
-  static auto get(v8::Isolate* isolate) -> StoreImpl* {
-    return static_cast<StoreImpl*>(isolate->GetData(0));
-  }
-};
+  context()->Exit();
+  isolate_->Exit();
+  isolate_->Dispose();
+  delete create_params_.array_buffer_allocator;
+}
 
 template <>
 struct implement<Store> {
@@ -1173,77 +749,6 @@ auto Store::make(Engine*) -> own<Store*> {
 
     store->isolate_ = isolate;
     store->context_ = v8::Eternal<v8::Context>(isolate, context);
-
-    // Create strings.
-    static const char* const raw_strings[V8_S_COUNT] = {
-        "",        "i32",   "i64",     "f32",     "f64",     "anyref",
-        "anyfunc", "value", "mutable", "element", "initial", "maximum",
-    };
-    for (int i = 0; i < V8_S_COUNT; ++i) {
-      auto maybe = v8::String::NewFromUtf8(isolate, raw_strings[i],
-                                           v8::NewStringType::kNormal);
-      if (maybe.IsEmpty()) return own<Store*>();
-      auto string = maybe.ToLocalChecked();
-      store->strings_[i] = v8::Eternal<v8::String>(isolate, string);
-    }
-
-    for (int i = 0; i < V8_Y_COUNT; ++i) {
-      auto symbol = v8::Symbol::New(isolate);
-      store->symbols_[i] = v8::Eternal<v8::Symbol>(isolate, symbol);
-    }
-
-    // Extract functions.
-    auto global = context->Global();
-    auto maybe_wasm_name = v8::String::NewFromUtf8(isolate, "WebAssembly",
-                                                   v8::NewStringType::kNormal);
-    if (maybe_wasm_name.IsEmpty()) return own<Store*>();
-    auto wasm_name = maybe_wasm_name.ToLocalChecked();
-    auto maybe_wasm = global->Get(context, wasm_name);
-    if (maybe_wasm.IsEmpty()) return own<Store*>();
-    auto wasm = v8::Local<v8::Object>::Cast(maybe_wasm.ToLocalChecked());
-    v8::Local<v8::Object> weakmap;
-    v8::Local<v8::Object> weakmap_proto;
-
-    struct {
-      const char* name;
-      v8::Local<v8::Object>* carrier;
-    } raw_functions[V8_F_COUNT] = {
-        {"WeakMap", &global},    {"prototype", &weakmap},
-        {"get", &weakmap_proto}, {"set", &weakmap_proto},
-        {"Module", &wasm},       {"Global", &wasm},
-        {"Table", &wasm},        {"Memory", &wasm},
-        {"Instance", &wasm},     {"validate", &wasm},
-    };
-    for (int i = 0; i < V8_F_COUNT; ++i) {
-      auto maybe_name = v8::String::NewFromUtf8(isolate, raw_functions[i].name,
-                                                v8::NewStringType::kNormal);
-      if (maybe_name.IsEmpty()) return own<Store*>();
-      auto name = maybe_name.ToLocalChecked();
-      assert(!raw_functions[i].carrier->IsEmpty());
-      // TODO(wasm+): remove
-      if ((*raw_functions[i].carrier)->IsUndefined()) continue;
-      auto maybe_obj = (*raw_functions[i].carrier)->Get(context, name);
-      if (maybe_obj.IsEmpty()) return own<Store*>();
-      auto obj = v8::Local<v8::Object>::Cast(maybe_obj.ToLocalChecked());
-      if (i == V8_F_WEAKMAP_PROTO) {
-        assert(obj->IsObject());
-        weakmap_proto = obj;
-      } else {
-        assert(obj->IsFunction());
-        auto function = v8::Local<v8::Function>::Cast(obj);
-        store->functions_[i] = v8::Eternal<v8::Function>(isolate, function);
-        if (i == V8_F_WEAKMAP) weakmap = function;
-      }
-    }
-
-    // Create host data weak map.
-    v8::Local<v8::Value>* empty_args = nullptr;
-    auto maybe_weakmap =
-        store->v8_function(V8_F_WEAKMAP)->NewInstance(context, 0, empty_args);
-    if (maybe_weakmap.IsEmpty()) return own<Store*>();
-    auto map = v8::Local<v8::Object>::Cast(maybe_weakmap.ToLocalChecked());
-    assert(map->IsWeakMap());
-    store->host_data_map_ = v8::Eternal<v8::Object>(isolate, map);
   }
 
   store->isolate()->Enter();
@@ -1599,92 +1104,7 @@ auto ExportType::type() const -> const ExternType* {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Conversions of types from and to V8 objects
-
-// Types
-
-auto valtype_to_v8(StoreImpl* store, const ValType* type)
-    -> v8::Local<v8::Value> {
-  v8_string_t string;
-  switch (type->kind()) {
-    case I32:
-      string = V8_S_I32;
-      break;
-    case I64:
-      string = V8_S_I64;
-      break;
-    case F32:
-      string = V8_S_F32;
-      break;
-    case F64:
-      string = V8_S_F64;
-      break;
-    case ANYREF:
-      string = V8_S_ANYREF;
-      break;
-    case FUNCREF:
-      string = V8_S_ANYFUNC;
-      break;
-    default:
-      // TODO(wasm+): support new value types
-      UNREACHABLE();
-  }
-  return store->v8_string(string);
-}
-
-auto mutability_to_v8(StoreImpl* store, Mutability mutability)
-    -> v8::Local<v8::Boolean> {
-  return v8::Boolean::New(store->isolate(), mutability == VAR);
-}
-
-void limits_to_v8(StoreImpl* store, Limits limits, v8::Local<v8::Object> desc) {
-  auto isolate = store->isolate();
-  auto context = store->context();
-  ignore(desc->DefineOwnProperty(
-      context, store->v8_string(V8_S_MINIMUM),
-      v8::Integer::NewFromUnsigned(isolate, limits.min)));
-  if (limits.max != Limits(0).max) {
-    ignore(desc->DefineOwnProperty(
-        context, store->v8_string(V8_S_MAXIMUM),
-        v8::Integer::NewFromUnsigned(isolate, limits.max)));
-  }
-}
-
-auto globaltype_to_v8(StoreImpl* store, const GlobalType* type)
-    -> v8::Local<v8::Object> {
-  auto isolate = store->isolate();
-  auto context = store->context();
-  auto desc = v8::Object::New(isolate);
-  ignore(desc->DefineOwnProperty(context, store->v8_string(V8_S_VALUE),
-                                 valtype_to_v8(store, type->content())));
-  ignore(desc->DefineOwnProperty(context, store->v8_string(V8_S_MUTABLE),
-                                 mutability_to_v8(store, type->mutability())));
-  return desc;
-}
-
-auto tabletype_to_v8(StoreImpl* store, const TableType* type)
-    -> v8::Local<v8::Object> {
-  auto isolate = store->isolate();
-  auto context = store->context();
-  auto desc = v8::Object::New(isolate);
-  ignore(desc->DefineOwnProperty(context, store->v8_string(V8_S_ELEMENT),
-                                 valtype_to_v8(store, type->element())));
-  limits_to_v8(store, type->limits(), desc);
-  return desc;
-}
-
-auto memorytype_to_v8(StoreImpl* store, const MemoryType* type)
-    -> v8::Local<v8::Object> {
-  auto isolate = store->isolate();
-  auto desc = v8::Object::New(isolate);
-  limits_to_v8(store, type->limits(), desc);
-  return desc;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Runtime Values
-
-// Values
+// Conversions of values from and to V8 objects
 
 auto val_to_v8(StoreImpl* store, const Val& v) -> v8::Local<v8::Value> {
   auto isolate = store->isolate();
@@ -1710,25 +1130,50 @@ auto val_to_v8(StoreImpl* store, const Val& v) -> v8::Local<v8::Value> {
   }
 }
 
-auto v8_to_val(StoreImpl* store, v8::Local<v8::Value> value, const ValType* t)
-    -> own<Val> {
-  auto context = store->context();
-  switch (t->kind()) {
+own<Val> v8_to_val(i::Isolate* isolate, i::Handle<i::Object> value,
+                   ValKind kind) {
+  switch (kind) {
     case I32:
-      return Val(value->Int32Value(context).ToChecked());
-    case I64: {
-      auto bigint = value->ToBigInt(context).ToLocalChecked();
-      return Val(bigint->Int64Value());
-    }
-    case F32: {
-      auto number = value->NumberValue(context).ToChecked();
-      return Val(static_cast<float32_t>(number));
-    }
+      do {
+        if (value->IsSmi()) return Val(i::Smi::ToInt(*value));
+        if (value->IsHeapNumber()) {
+          return Val(i::DoubleToInt32(i::HeapNumber::cast(*value).value()));
+        }
+        value = i::Object::ToInt32(isolate, value).ToHandleChecked();
+        // This will loop back at most once.
+      } while (true);
+      UNREACHABLE();
+    case I64:
+      if (value->IsBigInt()) return Val(i::BigInt::cast(*value).AsInt64());
+      return Val(
+          i::BigInt::FromObject(isolate, value).ToHandleChecked()->AsInt64());
+    case F32:
+      do {
+        if (value->IsSmi()) {
+          return Val(static_cast<float32_t>(i::Smi::ToInt(*value)));
+        }
+        if (value->IsHeapNumber()) {
+          return Val(i::DoubleToFloat32(i::HeapNumber::cast(*value).value()));
+        }
+        value = i::Object::ToNumber(isolate, value).ToHandleChecked();
+        // This will loop back at most once.
+      } while (true);
+      UNREACHABLE();
     case F64:
-      return Val(value->NumberValue(context).ToChecked());
+      do {
+        if (value->IsSmi()) {
+          return Val(static_cast<float64_t>(i::Smi::ToInt(*value)));
+        }
+        if (value->IsHeapNumber()) {
+          return Val(i::HeapNumber::cast(*value).value());
+        }
+        value = i::Object::ToNumber(isolate, value).ToHandleChecked();
+        // This will loop back at most once.
+      } while (true);
+      UNREACHABLE();
     case ANYREF:
     case FUNCREF: {
-      if (value->IsNull()) {
+      if (value->IsNull(isolate)) {
         return Val(nullptr);
       } else {
         WASM_UNIMPLEMENTED("ref value");
@@ -1737,93 +1182,87 @@ auto v8_to_val(StoreImpl* store, v8::Local<v8::Value> value, const ValType* t)
   }
 }
 
+i::Handle<i::String> VecToString(i::Isolate* isolate,
+                                 const vec<byte_t>& chars) {
+  return isolate->factory()
+      ->NewStringFromUtf8({chars.get(), chars.size()})
+      .ToHandleChecked();
+}
+
 // References
 
-template <class Ref>
-class RefImpl : public v8::Persistent<v8::Object> {
+template <class Ref, class JSType>
+class RefImpl {
  public:
-  RefImpl() = delete;
-
-  static auto make(StoreImpl* store, v8::Local<v8::Object> obj) -> own<Ref*> {
-    static_assert(sizeof(RefImpl) == sizeof(v8::Persistent<v8::Object>),
-                  "incompatible object layout");
-    RefImpl* self =
-        static_cast<RefImpl*>(new (std::nothrow) v8::Persistent<v8::Object>());
+  static own<Ref*> make(StoreImpl* store, i::Handle<JSType> obj) {
+    RefImpl* self = new (std::nothrow) RefImpl();
     if (!self) return nullptr;
-    self->Reset(store->isolate(), obj);
+    i::Isolate* isolate = store->i_isolate();
+    self->val_ = isolate->global_handles()->Create(*obj);
     return make_own(seal<Ref>(self));
   }
 
-  auto copy() const -> own<Ref*> {
-    v8::HandleScope handle_scope(isolate());
-    return make(store(), v8_object());
+  void Reset() {
+    i::GlobalHandles::Destroy(location());
+    if (host_data_) {
+      if (host_data_->finalizer) {
+        host_data_->finalizer(host_data_->info);
+      }
+      delete host_data_;
+    }
   }
 
-  auto store() const -> StoreImpl* { return StoreImpl::get(isolate()); }
+  own<Ref*> copy() const { return make(store(), v8_object()); }
 
-  auto isolate() const -> v8::Isolate* {
-    return v8::wasm::object_isolate(*this);
-  }
+  StoreImpl* store() const { return StoreImpl::get(isolate()); }
 
-  auto v8_object() const -> v8::Local<v8::Object> { return Get(isolate()); }
+  i::Isolate* isolate() const { return val_->GetIsolate(); }
 
-  auto get_host_info() const -> void* {
-    v8::HandleScope handle_scope(isolate());
-    auto store = this->store();
+  i::Handle<JSType> v8_object() const { return i::Handle<JSType>::cast(val_); }
 
-    v8::Local<v8::Value> args[] = {v8_object()};
-    auto maybe_result =
-        store->v8_function(V8_F_WEAKMAP_GET)
-            ->Call(store->context(), store->host_data_map(), 1, args);
-    if (maybe_result.IsEmpty()) return nullptr;
-
-    auto data = v8::wasm::foreign_get(maybe_result.ToLocalChecked());
-    return reinterpret_cast<HostData*>(data)->info;
+  void* get_host_info() const {
+    if (host_data_ == nullptr) return nullptr;
+    return host_data_->info;
   }
 
   void set_host_info(void* info, void (*finalizer)(void*)) {
-    v8::HandleScope handle_scope(isolate());
-    auto store = this->store();
-
-    // V8 attaches finalizers to handles instead of objects, and such handles
-    // cannot be reused after the finalizer has been invoked.
-    // So we need to create them separately from the pool.
-    auto data = new HostData(store->isolate(), v8_object(), info, finalizer);
-    data->handle.template SetWeak<HostData>(data, &v8_finalizer,
-                                            v8::WeakCallbackType::kParameter);
-    auto foreign = v8::wasm::foreign_new(store->isolate(), data);
-    v8::Local<v8::Value> args[] = {v8_object(), foreign};
-    auto maybe_result =
-        store->v8_function(V8_F_WEAKMAP_SET)
-            ->Call(store->context(), store->host_data_map(), 2, args);
-    if (maybe_result.IsEmpty()) return;
+    host_data_ = new HostData(location(), info, finalizer);
+    i::GlobalHandles::MakeWeak(host_data_->location, host_data_, &v8_finalizer,
+                               v8::WeakCallbackType::kParameter);
   }
 
  private:
   struct HostData {
-    HostData(v8::Isolate* isolate, v8::Local<v8::Object> object, void* info,
-             void (*finalizer)(void*))
-        : handle(isolate, object), info(info), finalizer(finalizer) {}
-    v8::Persistent<v8::Object> handle;
+    HostData(i::Address* location, void* info, void (*finalizer)(void*))
+        : location(location), info(info), finalizer(finalizer) {}
+    i::Address* location;
     void* info;
     void (*finalizer)(void*);
   };
 
-  static void v8_finalizer(const v8::WeakCallbackInfo<HostData>& info) {
-    auto data = info.GetParameter();
-    data->handle.Reset();  // Must reset weak handle before deleting it!
+  RefImpl() {}
+
+  static void v8_finalizer(const v8::WeakCallbackInfo<void>& info) {
+    HostData* data = reinterpret_cast<HostData*>(info.GetParameter());
+    i::GlobalHandles::Destroy(data->location);
     if (data->finalizer) (*data->finalizer)(data->info);
     delete data;
   }
+
+  i::Address* location() const {
+    return reinterpret_cast<i::Address*>(val_.address());
+  }
+
+  i::Handle<i::JSReceiver> val_;
+  HostData* host_data_ = nullptr;
 };
 
 template <>
 struct implement<Ref> {
-  using type = RefImpl<Ref>;
+  using type = RefImpl<Ref, i::JSReceiver>;
 };
 
 Ref::~Ref() {
-  v8::HandleScope handle_scope(impl(this)->isolate());
   impl(this)->Reset();
   delete impl(this);
 }
@@ -1845,7 +1284,7 @@ void Ref::set_host_info(void* info, void (*finalizer)(void*)) {
 
 template <>
 struct implement<Trap> {
-  using type = RefImpl<Trap>;
+  using type = RefImpl<Trap, i::JSReceiver>;
 };
 
 Trap::~Trap() {}
@@ -1854,31 +1293,33 @@ auto Trap::copy() const -> own<Trap*> { return impl(this)->copy(); }
 
 auto Trap::make(Store* store_abs, const Message& message) -> own<Trap*> {
   auto store = impl(store_abs);
-  v8::Isolate* isolate = store->isolate();
-  v8::HandleScope handle_scope(isolate);
-
-  auto maybe_string = v8::String::NewFromUtf8(isolate, message.get(),
-                                              v8::NewStringType::kNormal,
-                                              static_cast<int>(message.size()));
-  if (maybe_string.IsEmpty()) return own<Trap*>();
-  auto exception = v8::Exception::Error(maybe_string.ToLocalChecked());
-  return RefImpl<Trap>::make(store, v8::Local<v8::Object>::Cast(exception));
+  i::Isolate* isolate = store->i_isolate();
+  i::HandleScope handle_scope(isolate);
+  i::Handle<i::String> string = VecToString(isolate, message);
+  i::Handle<i::JSReceiver> exception = i::Handle<i::JSReceiver>::cast(
+      isolate->factory()->NewError(isolate->error_function(), string));
+  return implement<Trap>::type::make(store, exception);
 }
 
 auto Trap::message() const -> Message {
   auto isolate = impl(this)->isolate();
-  v8::HandleScope handle_scope(isolate);
+  i::HandleScope handle_scope(isolate);
 
-  auto message = v8::Exception::CreateMessage(isolate, impl(this)->v8_object());
-  v8::String::Utf8Value string(isolate, message->Get());
-  return vec<byte_t>::make(std::string(*string));
+  i::Handle<i::JSMessageObject> message =
+      isolate->CreateMessage(impl(this)->v8_object(), nullptr);
+  i::Handle<i::String> result = i::MessageHandler::GetMessage(isolate, message);
+  result = i::String::Flatten(isolate, result);  // For performance.
+  int length = 0;
+  std::unique_ptr<char[]> utf8 =
+      result->ToCString(i::DISALLOW_NULLS, i::FAST_STRING_TRAVERSAL, &length);
+  return vec<byte_t>::adopt(length, utf8.release());
 }
 
 // Foreign Objects
 
 template <>
 struct implement<Foreign> {
-  using type = RefImpl<Foreign>;
+  using type = RefImpl<Foreign, i::JSReceiver>;
 };
 
 Foreign::~Foreign() {}
@@ -1887,18 +1328,18 @@ auto Foreign::copy() const -> own<Foreign*> { return impl(this)->copy(); }
 
 auto Foreign::make(Store* store_abs) -> own<Foreign*> {
   auto store = impl(store_abs);
-  auto isolate = store->isolate();
-  v8::HandleScope handle_scope(isolate);
+  auto isolate = store->i_isolate();
+  i::HandleScope handle_scope(isolate);
 
-  auto obj = v8::Object::New(isolate);
-  return RefImpl<Foreign>::make(store, obj);
+  auto obj = i::Handle<i::JSReceiver>();
+  return implement<Foreign>::type::make(store, obj);
 }
 
 // Modules
 
 template <>
 struct implement<Module> {
-  using type = RefImpl<Module>;
+  using type = RefImpl<Module, i::WasmModuleObject>;
 };
 
 Module::~Module() {}
@@ -1906,89 +1347,102 @@ Module::~Module() {}
 auto Module::copy() const -> own<Module*> { return impl(this)->copy(); }
 
 auto Module::validate(Store* store_abs, const vec<byte_t>& binary) -> bool {
-  auto store = impl(store_abs);
-  v8::Isolate* isolate = store->isolate();
-  v8::HandleScope handle_scope(isolate);
-
-  auto array_buffer = v8::ArrayBuffer::New(
-      isolate, const_cast<byte_t*>(binary.get()), binary.size());
-
-  v8::Local<v8::Value> args[] = {array_buffer};
-  auto result = store->v8_function(V8_F_VALIDATE)
-                    ->Call(store->context(), v8::Undefined(isolate), 1, args);
-  if (result.IsEmpty()) return false;
-
-  return result.ToLocalChecked()->IsTrue();
+  i::wasm::ModuleWireBytes bytes(
+      {reinterpret_cast<const uint8_t*>(binary.get()), binary.size()});
+  i::Isolate* isolate = impl(store_abs)->i_isolate();
+  i::wasm::WasmFeatures features = i::wasm::WasmFeaturesFromIsolate(isolate);
+  return isolate->wasm_engine()->SyncValidate(isolate, features, bytes);
 }
 
+class NopErrorThrower : public i::wasm::ErrorThrower {
+ public:
+  explicit NopErrorThrower(i::Isolate* isolate)
+      : i::wasm::ErrorThrower(isolate, "ignored") {}
+  ~NopErrorThrower() { Reset(); }
+};
+
 auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module*> {
-  auto store = impl(store_abs);
-  auto isolate = store->isolate();
-  auto context = store->context();
-  v8::HandleScope handle_scope(isolate);
-
-  auto array_buffer = v8::ArrayBuffer::New(
-      isolate, const_cast<byte_t*>(binary.get()), binary.size());
-
-  v8::Local<v8::Value> args[] = {array_buffer};
-  auto maybe_obj =
-      store->v8_function(V8_F_MODULE)->NewInstance(context, 1, args);
-  if (maybe_obj.IsEmpty()) return nullptr;
-  return RefImpl<Module>::make(store, maybe_obj.ToLocalChecked());
+  StoreImpl* store = impl(store_abs);
+  i::Isolate* isolate = store->i_isolate();
+  i::HandleScope scope(isolate);
+  i::wasm::ModuleWireBytes bytes(
+      {reinterpret_cast<const uint8_t*>(binary.get()), binary.size()});
+  i::wasm::WasmFeatures features = i::wasm::WasmFeaturesFromIsolate(isolate);
+  NopErrorThrower thrower(isolate);
+  i::Handle<i::WasmModuleObject> module;
+  if (!isolate->wasm_engine()
+           ->SyncCompile(isolate, features, &thrower, bytes)
+           .ToHandle(&module)) {
+    return nullptr;
+  }
+  return implement<Module>::type::make(store, module);
 }
 
 auto Module::imports() const -> vec<ImportType*> {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  auto module = impl(this)->v8_object();
-  auto binary =
-      vec<byte_t>::adopt(v8::wasm::module_binary_size(module),
-                         const_cast<byte_t*>(v8::wasm::module_binary(module)));
+  i::Vector<const uint8_t> wire_bytes =
+      impl(this)->v8_object()->native_module()->wire_bytes();
+  vec<const byte_t> binary = vec<const byte_t>::adopt(
+      wire_bytes.size(), reinterpret_cast<const byte_t*>(wire_bytes.begin()));
   auto imports = wasm::bin::imports(binary);
   binary.release();
   return imports;
 }
 
-auto Module::exports() const -> vec<ExportType*> {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  auto module = impl(this)->v8_object();
-  auto binary =
-      vec<byte_t>::adopt(v8::wasm::module_binary_size(module),
-                         const_cast<byte_t*>(v8::wasm::module_binary(module)));
+vec<ExportType*> ExportsImpl(i::Handle<i::WasmModuleObject> module_obj) {
+  i::Vector<const uint8_t> wire_bytes =
+      module_obj->native_module()->wire_bytes();
+  vec<const byte_t> binary = vec<const byte_t>::adopt(
+      wire_bytes.size(), reinterpret_cast<const byte_t*>(wire_bytes.begin()));
   auto exports = wasm::bin::exports(binary);
   binary.release();
   return exports;
 }
 
+auto Module::exports() const -> vec<ExportType*> {
+  return ExportsImpl(impl(this)->v8_object());
+}
+
 auto Module::serialize() const -> vec<byte_t> {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  auto module = impl(this)->v8_object();
-  auto binary_size = v8::wasm::module_binary_size(module);
-  auto serial_size = v8::wasm::module_serialize_size(module);
-  auto size_size = i::wasm::LEBHelper::sizeof_u64v(binary_size);
-  auto buffer =
+  i::wasm::NativeModule* native_module =
+      impl(this)->v8_object()->native_module();
+  i::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  size_t binary_size = wire_bytes.size();
+  i::wasm::WasmSerializer serializer(native_module);
+  size_t serial_size = serializer.GetSerializedNativeModuleSize();
+  size_t size_size = i::wasm::LEBHelper::sizeof_u64v(binary_size);
+  vec<byte_t> buffer =
       vec<byte_t>::make_uninitialized(size_size + binary_size + serial_size);
-  auto ptr = buffer.get();
+  byte_t* ptr = buffer.get();
   i::wasm::LEBHelper::write_u64v(reinterpret_cast<uint8_t**>(&ptr),
                                  binary_size);
-  std::memcpy(ptr, v8::wasm::module_binary(module), binary_size);
+  std::memcpy(ptr, wire_bytes.begin(), binary_size);
   ptr += binary_size;
-  if (!v8::wasm::module_serialize(module, ptr, serial_size)) buffer.reset();
+  if (!serializer.SerializeNativeModule(
+          {reinterpret_cast<uint8_t*>(ptr), serial_size})) {
+    buffer.reset();
+  }
   return std::move(buffer);
 }
 
 auto Module::deserialize(Store* store_abs, const vec<byte_t>& serialized)
     -> own<Module*> {
-  auto store = impl(store_abs);
-  auto isolate = store->isolate();
-  v8::HandleScope handle_scope(isolate);
-  auto ptr = serialized.get();
-  auto binary_size = wasm::bin::u64(ptr);
-  auto size_size = ptr - serialized.get();
-  auto serial_size = serialized.size() - size_size - binary_size;
-  auto maybe_obj = v8::wasm::module_deserialize(isolate, ptr, binary_size,
-                                                ptr + binary_size, serial_size);
-  if (maybe_obj.IsEmpty()) return nullptr;
-  return RefImpl<Module>::make(store, maybe_obj.ToLocalChecked());
+  StoreImpl* store = impl(store_abs);
+  i::Isolate* isolate = store->i_isolate();
+  i::HandleScope handle_scope(isolate);
+  const byte_t* ptr = serialized.get();
+  uint64_t binary_size = wasm::bin::u64(ptr);
+  ptrdiff_t size_size = ptr - serialized.get();
+  size_t serial_size = serialized.size() - size_size - binary_size;
+  i::Handle<i::WasmModuleObject> module_obj;
+  size_t data_size = static_cast<size_t>(binary_size);
+  if (!i::wasm::DeserializeNativeModule(
+           isolate,
+           {reinterpret_cast<const uint8_t*>(ptr + data_size), serial_size},
+           {reinterpret_cast<const uint8_t*>(ptr), data_size})
+           .ToHandle(&module_obj)) {
+    return nullptr;
+  }
+  return implement<Module>::type::make(store, module_obj);
 }
 
 // TODO(v8): do better when V8 can do better.
@@ -2021,7 +1475,7 @@ auto Module::obtain(Store* store, const Shared<Module>* shared)
 
 template <>
 struct implement<Extern> {
-  using type = RefImpl<Extern>;
+  using type = RefImpl<Extern, i::JSReceiver>;
 };
 
 Extern::~Extern() {}
@@ -2029,8 +1483,14 @@ Extern::~Extern() {}
 auto Extern::copy() const -> own<Extern*> { return impl(this)->copy(); }
 
 auto Extern::kind() const -> ExternKind {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  return v8::wasm::extern_kind(impl(this)->v8_object());
+  i::Handle<i::JSReceiver> obj = impl(this)->v8_object();
+  if (i::WasmExportedFunction::IsWasmExportedFunction(*obj)) {
+    return wasm::EXTERN_FUNC;
+  }
+  if (obj->IsWasmGlobalObject()) return wasm::EXTERN_GLOBAL;
+  if (obj->IsWasmTableObject()) return wasm::EXTERN_TABLE;
+  if (obj->IsWasmMemoryObject()) return wasm::EXTERN_MEMORY;
+  UNREACHABLE();
 }
 
 auto Extern::type() const -> own<ExternType*> {
@@ -2078,7 +1538,7 @@ auto Extern::memory() const -> const Memory* {
   return kind() == EXTERN_MEMORY ? static_cast<const Memory*>(this) : nullptr;
 }
 
-auto extern_to_v8(const Extern* ex) -> v8::Local<v8::Value> {
+auto extern_to_v8(const Extern* ex) -> i::Handle<i::JSReceiver> {
   return impl(ex)->v8_object();
 }
 
@@ -2086,7 +1546,7 @@ auto extern_to_v8(const Extern* ex) -> v8::Local<v8::Value> {
 
 template <>
 struct implement<Func> {
-  using type = RefImpl<Func>;
+  using type = RefImpl<Func, i::JSFunction>;
 };
 
 Func::~Func() {}
@@ -2115,72 +1575,87 @@ struct FuncData {
     if (finalizer) (*finalizer)(env);
   }
 
-  static void v8_callback(const v8::FunctionCallbackInfo<v8::Value>&);
+  static i::Address v8_callback(void* data, i::Address argv);
   static void finalize_func_data(void* data);
 };
 
 namespace {
 
+// TODO(jkummerow): Generalize for WasmExportedFunction and WasmCapiFunction.
+class SignatureHelper : public i::AllStatic {
+ public:
+  // Use an invalid type as a marker separating params and results.
+  static const i::wasm::ValueType kMarker = i::wasm::kWasmStmt;
+
+  static i::Handle<i::PodArray<i::wasm::ValueType>> Serialize(
+      i::Isolate* isolate, FuncType* type) {
+    int sig_size =
+        static_cast<int>(type->params().size() + type->results().size() + 1);
+    i::Handle<i::PodArray<i::wasm::ValueType>> sig =
+        i::PodArray<i::wasm::ValueType>::New(isolate, sig_size,
+                                             i::AllocationType::kOld);
+    int index = 0;
+    // TODO(jkummerow): Consider making vec<> range-based for-iterable.
+    for (size_t i = 0; i < type->results().size(); i++) {
+      sig->set(index++,
+               v8::wasm::wasm_valtype_to_v8(type->results()[i]->kind()));
+    }
+    // {sig->set} needs to take the address of its second parameter,
+    // so we can't pass in the static const kMarker directly.
+    i::wasm::ValueType marker = kMarker;
+    sig->set(index++, marker);
+    for (size_t i = 0; i < type->params().size(); i++) {
+      sig->set(index++,
+               v8::wasm::wasm_valtype_to_v8(type->params()[i]->kind()));
+    }
+    return sig;
+  }
+
+  static own<FuncType*> Deserialize(i::PodArray<i::wasm::ValueType> sig) {
+    int result_arity = ResultArity(sig);
+    int param_arity = sig.length() - result_arity - 1;
+    vec<ValType*> results = vec<ValType*>::make_uninitialized(result_arity);
+    vec<ValType*> params = vec<ValType*>::make_uninitialized(param_arity);
+
+    int i = 0;
+    for (; i < result_arity; ++i) {
+      results[i] = ValType::make(v8::wasm::v8_valtype_to_wasm(sig.get(i)));
+    }
+    i++;  // Skip marker.
+    for (int p = 0; i < sig.length(); ++i, ++p) {
+      params[p] = ValType::make(v8::wasm::v8_valtype_to_wasm(sig.get(i)));
+    }
+    return FuncType::make(std::move(params), std::move(results));
+  }
+
+  static int ResultArity(i::PodArray<i::wasm::ValueType> sig) {
+    int count = 0;
+    for (; count < sig.length(); count++) {
+      if (sig.get(count) == kMarker) return count;
+    }
+    UNREACHABLE();
+  }
+
+  static int ParamArity(i::PodArray<i::wasm::ValueType> sig) {
+    return sig.length() - ResultArity(sig) - 1;
+  }
+
+  static i::PodArray<i::wasm::ValueType> GetSig(
+      i::Handle<i::JSFunction> function) {
+    return i::WasmCapiFunction::cast(*function).GetSerializedSignature();
+  }
+};
+
 auto make_func(Store* store_abs, FuncData* data) -> own<Func*> {
   auto store = impl(store_abs);
-  auto isolate = store->isolate();
-  v8::HandleScope handle_scope(isolate);
-  auto context = store->context();
-
-  // Create V8 function
-  auto v8_data = v8::wasm::foreign_new(isolate, data);
-  auto function_template =
-      v8::FunctionTemplate::New(isolate, &FuncData::v8_callback, v8_data);
-  auto maybe_func_obj = function_template->GetFunction(context);
-  if (maybe_func_obj.IsEmpty()) return own<Func*>();
-  auto func_obj = maybe_func_obj.ToLocalChecked();
-
-  // Create wrapper instance
-  auto binary = wasm::bin::wrapper(data->type.get());
-  auto module = Module::make(store_abs, binary);
-
-  auto imports_obj = v8::Object::New(isolate);
-  auto module_obj = v8::Object::New(isolate);
-  auto str = store->v8_string(V8_S_EMPTY);
-  ignore(imports_obj->DefineOwnProperty(context, str, module_obj));
-  ignore(module_obj->DefineOwnProperty(context, str, func_obj));
-
-  v8::Local<v8::Value> instantiate_args[] = {impl(module.get())->v8_object(),
-                                             imports_obj};
-  auto instance_obj = store->v8_function(V8_F_INSTANCE)
-                          ->NewInstance(context, 2, instantiate_args)
-                          .ToLocalChecked();
-  assert(!instance_obj.IsEmpty());
-  assert(instance_obj->IsObject());
-  auto exports_obj = v8::wasm::instance_exports(instance_obj);
-  assert(!exports_obj.IsEmpty());
-  assert(exports_obj->IsObject());
-  auto wrapped_func_obj = v8::Local<v8::Function>::Cast(
-      exports_obj->Get(context, str).ToLocalChecked());
-  assert(!wrapped_func_obj.IsEmpty());
-  assert(wrapped_func_obj->IsFunction());
-
-  auto func = RefImpl<Func>::make(store, wrapped_func_obj);
+  i::Isolate* isolate = store->i_isolate();
+  i::HandleScope handle_scope(isolate);
+  i::Handle<i::WasmCapiFunction> function = i::WasmCapiFunction::New(
+      isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback), data,
+      SignatureHelper::Serialize(isolate, data->type.get()));
+  auto func = implement<Func>::type::make(store, function);
   func->set_host_info(data, &FuncData::finalize_func_data);
   return func;
-}
-
-auto func_type(v8::Local<v8::Object> v8_func) -> own<FuncType*> {
-  auto param_arity = v8::wasm::func_type_param_arity(v8_func);
-  auto result_arity = v8::wasm::func_type_result_arity(v8_func);
-  auto params = vec<ValType*>::make_uninitialized(param_arity);
-  auto results = vec<ValType*>::make_uninitialized(result_arity);
-
-  for (size_t i = 0; i < params.size(); ++i) {
-    auto kind = v8::wasm::func_type_param(v8_func, i);
-    params[i] = ValType::make(kind);
-  }
-  for (size_t i = 0; i < results.size(); ++i) {
-    auto kind = v8::wasm::func_type_result(v8_func, i);
-    results[i] = ValType::make(kind);
-  }
-
-  return FuncType::make(std::move(params), std::move(results));
 }
 
 }  // namespace
@@ -2202,110 +1677,221 @@ auto Func::make(Store* store, const FuncType* type, callback_with_env callback,
 }
 
 auto Func::type() const -> own<FuncType*> {
-  // return impl(this)->data->type->copy();
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  return func_type(impl(this)->v8_object());
+  i::Handle<i::JSFunction> func = impl(this)->v8_object();
+  if (i::WasmCapiFunction::IsWasmCapiFunction(*func)) {
+    return SignatureHelper::Deserialize(SignatureHelper::GetSig(func));
+  }
+  DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
+  i::Handle<i::WasmExportedFunction> function =
+      i::Handle<i::WasmExportedFunction>::cast(func);
+  i::wasm::FunctionSig* sig =
+      function->instance().module()->functions[function->function_index()].sig;
+  uint32_t param_arity = static_cast<uint32_t>(sig->parameter_count());
+  uint32_t result_arity = static_cast<uint32_t>(sig->return_count());
+  auto params = vec<ValType*>::make_uninitialized(param_arity);
+  auto results = vec<ValType*>::make_uninitialized(result_arity);
+
+  for (size_t i = 0; i < params.size(); ++i) {
+    auto kind = v8::wasm::v8_valtype_to_wasm(sig->GetParam(i));
+    params[i] = ValType::make(kind);
+  }
+  for (size_t i = 0; i < results.size(); ++i) {
+    auto kind = v8::wasm::v8_valtype_to_wasm(sig->GetReturn(i));
+    results[i] = ValType::make(kind);
+  }
+  return FuncType::make(std::move(params), std::move(results));
 }
 
 auto Func::param_arity() const -> size_t {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  return v8::wasm::func_type_param_arity(impl(this)->v8_object());
+  i::Handle<i::JSFunction> func = impl(this)->v8_object();
+  if (i::WasmCapiFunction::IsWasmCapiFunction(*func)) {
+    return SignatureHelper::ParamArity(SignatureHelper::GetSig(func));
+  }
+  DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
+  i::Handle<i::WasmExportedFunction> function =
+      i::Handle<i::WasmExportedFunction>::cast(func);
+  i::wasm::FunctionSig* sig =
+      function->instance().module()->functions[function->function_index()].sig;
+  return sig->parameter_count();
 }
 
 auto Func::result_arity() const -> size_t {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  return v8::wasm::func_type_result_arity(impl(this)->v8_object());
+  i::Handle<i::JSFunction> func = impl(this)->v8_object();
+  if (i::WasmCapiFunction::IsWasmCapiFunction(*func)) {
+    return SignatureHelper::ResultArity(SignatureHelper::GetSig(func));
+  }
+  DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
+  i::Handle<i::WasmExportedFunction> function =
+      i::Handle<i::WasmExportedFunction>::cast(func);
+  i::wasm::FunctionSig* sig =
+      function->instance().module()->functions[function->function_index()].sig;
+  return sig->return_count();
 }
 
 auto Func::call(const Val args[], Val results[]) const -> own<Trap*> {
   auto func = impl(this);
   auto store = func->store();
   auto isolate = store->isolate();
+  auto i_isolate = store->i_isolate();
   v8::HandleScope handle_scope(isolate);
 
-  auto context = store->context();
-  auto type = this->type();
-  auto& param_types = type->params();
-  auto& result_types = type->results();
-
+  int num_params;
+  int num_results;
+  ValKind result_kind;
+  i::Handle<i::JSFunction> v8_func = func->v8_object();
+  if (i::WasmExportedFunction::IsWasmExportedFunction(*v8_func)) {
+    i::WasmExportedFunction wef = i::WasmExportedFunction::cast(*v8_func);
+    i::wasm::FunctionSig* sig =
+        wef.instance().module()->functions[wef.function_index()].sig;
+    num_params = static_cast<int>(sig->parameter_count());
+    num_results = static_cast<int>(sig->return_count());
+    if (num_results > 0) {
+      result_kind = v8::wasm::v8_valtype_to_wasm(sig->GetReturn(0));
+    }
+#if DEBUG
+    for (int i = 0; i < num_params; i++) {
+      DCHECK_EQ(args[i].kind(), v8::wasm::v8_valtype_to_wasm(sig->GetParam(i)));
+    }
+#endif
+  } else {
+    DCHECK(i::WasmCapiFunction::IsWasmCapiFunction(*v8_func));
+    UNIMPLEMENTED();
+  }
   // TODO(rossberg): cache v8_args array per thread.
-  auto v8_args = std::unique_ptr<v8::Local<v8::Value>[]>(
-      new (std::nothrow) v8::Local<v8::Value>[param_types.size()]);
-  for (size_t i = 0; i < param_types.size(); ++i) {
-    assert(args[i].kind() == param_types[i]->kind());
-    v8_args[i] = val_to_v8(store, args[i]);
+  auto v8_args = std::unique_ptr<i::Handle<i::Object>[]>(
+      new (std::nothrow) i::Handle<i::Object>[num_params]);
+  for (int i = 0; i < num_params; ++i) {
+    v8_args[i] = v8::Utils::OpenHandle(*val_to_v8(store, args[i]));
   }
 
+  // TODO(jkummerow): Use Execution::TryCall instead of manual TryCatch.
   v8::TryCatch handler(isolate);
-  auto v8_function = v8::Local<v8::Function>::Cast(func->v8_object());
-  auto maybe_val =
-      v8_function->Call(context, v8::Undefined(isolate),
-                        static_cast<int>(param_types.size()), v8_args.get());
+  i::MaybeHandle<i::Object> maybe_val = i::Execution::Call(
+      i_isolate, func->v8_object(), i_isolate->factory()->undefined_value(),
+      num_params, v8_args.get());
 
   if (handler.HasCaught()) {
-    auto exception = handler.Exception();
-    if (!exception->IsObject()) {
-      auto maybe_string = exception->ToString(store->context());
-      auto string = maybe_string.IsEmpty() ? store->v8_string(V8_S_EMPTY)
-                                           : maybe_string.ToLocalChecked();
-      exception = v8::Exception::Error(string);
+    i_isolate->OptionalRescheduleException(true);
+    i::Handle<i::Object> exception =
+        v8::Utils::OpenHandle(*handler.Exception());
+    if (!exception->IsJSReceiver()) {
+      i::MaybeHandle<i::String> maybe_string =
+          i::Object::ToString(i_isolate, exception);
+      i::Handle<i::String> string = maybe_string.is_null()
+                                        ? i_isolate->factory()->empty_string()
+                                        : maybe_string.ToHandleChecked();
+      exception =
+          i_isolate->factory()->NewError(i_isolate->error_function(), string);
     }
-    return RefImpl<Trap>::make(store, v8::Local<v8::Object>::Cast(exception));
+    return implement<Trap>::type::make(
+        store, i::Handle<i::JSReceiver>::cast(exception));
   }
 
-  auto val = maybe_val.ToLocalChecked();
-  if (result_types.size() == 0) {
-    assert(val->IsUndefined());
-  } else if (result_types.size() == 1) {
-    assert(!val->IsUndefined());
-    new (&results[0]) Val(v8_to_val(store, val, result_types[0]));
+  auto val = maybe_val.ToHandleChecked();
+  if (num_results == 0) {
+    assert(val->IsUndefined(i_isolate));
+  } else if (num_results == 1) {
+    assert(!val->IsUndefined(i_isolate));
+    new (&results[0]) Val(v8_to_val(i_isolate, val, result_kind));
   } else {
     WASM_UNIMPLEMENTED("multiple results");
   }
   return nullptr;
 }
 
-void FuncData::v8_callback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  auto self = reinterpret_cast<FuncData*>(v8::wasm::foreign_get(info.Data()));
-  auto store = impl(self->store);
-  auto isolate = store->isolate();
-  v8::HandleScope handle_scope(isolate);
+i::Address FuncData::v8_callback(void* data, i::Address argv) {
+  FuncData* self = reinterpret_cast<FuncData*>(data);
 
-  auto& param_types = self->type->params();
-  auto& result_types = self->type->results();
+  const vec<ValType*>& param_types = self->type->params();
+  const vec<ValType*>& result_types = self->type->results();
 
-  assert(param_types.size() == static_cast<size_t>(info.Length()));
   int num_param_types = static_cast<int>(param_types.size());
   int num_result_types = static_cast<int>(result_types.size());
 
-  // TODO(rossberg): cache params and result arrays per thread.
-  std::unique_ptr<Val[]> args(new Val[num_param_types]);
+  std::unique_ptr<Val[]> params(new Val[num_param_types]);
   std::unique_ptr<Val[]> results(new Val[num_result_types]);
+  i::Address p = argv;
   for (int i = 0; i < num_param_types; ++i) {
-    args[i] = v8_to_val(store, info[i], param_types[i]);
+    switch (param_types[i]->kind()) {
+      case I32:
+        params[i] = Val(i::ReadUnalignedValue<int32_t>(p));
+        p += 4;
+        break;
+      case I64:
+        params[i] = Val(i::ReadUnalignedValue<int64_t>(p));
+        p += 8;
+        break;
+      case F32:
+        params[i] = Val(i::ReadUnalignedValue<float32_t>(p));
+        p += 4;
+        break;
+      case F64:
+        params[i] = Val(i::ReadUnalignedValue<float64_t>(p));
+        p += 8;
+        break;
+      case ANYREF:
+      case FUNCREF: {
+        i::Address raw = i::ReadUnalignedValue<i::Address>(p);
+        p += sizeof(raw);
+        if (raw == i::kNullAddress) {
+          params[i] = Val(nullptr);
+        } else {
+          i::JSReceiver raw_obj = i::JSReceiver::cast(i::Object(raw));
+          i::Handle<i::JSReceiver> obj(raw_obj, raw_obj.GetIsolate());
+          params[i] = Val(implement<Ref>::type::make(impl(self->store), obj));
+        }
+        break;
+      }
+    }
   }
 
   own<Trap*> trap;
   if (self->kind == kCallbackWithEnv) {
-    trap = self->callback_with_env(self->env, args.get(), results.get());
+    trap = self->callback_with_env(self->env, params.get(), results.get());
   } else {
-    trap = self->callback(args.get(), results.get());
+    trap = self->callback(params.get(), results.get());
   }
 
   if (trap) {
-    isolate->ThrowException(impl(trap.get())->v8_object());
-    return;
+    i::Isolate* isolate = impl(self->store)->i_isolate();
+    isolate->Throw(*impl(trap.get())->v8_object());
+    i::Object ex = isolate->pending_exception();
+    isolate->clear_pending_exception();
+    return ex.ptr();
   }
 
-  auto ret = info.GetReturnValue();
-  if (result_types.size() == 0) {
-    ret.SetUndefined();
-  } else if (result_types.size() == 1) {
-    assert(results[0].kind() == result_types[0]->kind());
-    ret.Set(val_to_v8(store, results[0]));
-  } else {
-    WASM_UNIMPLEMENTED("multiple results");
+  p = argv;
+  for (int i = 0; i < num_result_types; ++i) {
+    switch (result_types[i]->kind()) {
+      case I32:
+        i::WriteUnalignedValue(p, results[i].i32());
+        p += 4;
+        break;
+      case I64:
+        i::WriteUnalignedValue(p, results[i].i64());
+        p += 8;
+        break;
+      case F32:
+        i::WriteUnalignedValue(p, results[i].f32());
+        p += 4;
+        break;
+      case F64:
+        i::WriteUnalignedValue(p, results[i].f64());
+        p += 8;
+        break;
+      case ANYREF:
+      case FUNCREF: {
+        if (results[i].ref() == nullptr) {
+          i::WriteUnalignedValue(p, i::kNullAddress);
+        } else {
+          i::WriteUnalignedValue(p, impl(results[i].ref())->v8_object()->ptr());
+        }
+        p += sizeof(i::Address);
+        break;
+      }
+    }
   }
+  return i::kNullAddress;
 }
 
 void FuncData::finalize_func_data(void* data) {
@@ -2316,7 +1902,7 @@ void FuncData::finalize_func_data(void* data) {
 
 template <>
 struct implement<Global> {
-  using type = RefImpl<Global>;
+  using type = RefImpl<Global, i::WasmGlobalObject>;
 };
 
 Global::~Global() {}
@@ -2325,53 +1911,46 @@ auto Global::copy() const -> own<Global*> { return impl(this)->copy(); }
 
 auto Global::make(Store* store_abs, const GlobalType* type, const Val& val)
     -> own<Global*> {
-  auto store = impl(store_abs);
-  auto isolate = store->isolate();
-  v8::HandleScope handle_scope(isolate);
-  auto context = store->context();
+  StoreImpl* store = impl(store_abs);
+  i::Isolate* isolate = store->i_isolate();
+  i::HandleScope handle_scope(isolate);
 
-  assert(type->content()->kind() == val.kind());
+  DCHECK_EQ(type->content()->kind(), val.kind());
 
-  // Create wrapper instance
-  auto binary = wasm::bin::wrapper(type);
-  auto module = Module::make(store_abs, binary);
+  i::wasm::ValueType i_type =
+      v8::wasm::wasm_valtype_to_v8(type->content()->kind());
+  bool is_mutable = (type->mutability() == VAR);
+  const int32_t offset = 0;
+  i::Handle<i::WasmGlobalObject> obj =
+      i::WasmGlobalObject::New(isolate, i::MaybeHandle<i::JSArrayBuffer>(),
+                               i::MaybeHandle<i::FixedArray>(), i_type, offset,
+                               is_mutable)
+          .ToHandleChecked();
 
-  v8::Local<v8::Value> instantiate_args[] = {impl(module.get())->v8_object()};
-  auto instance_obj = store->v8_function(V8_F_INSTANCE)
-                          ->NewInstance(context, 1, instantiate_args)
-                          .ToLocalChecked();
-  auto exports_obj = v8::wasm::instance_exports(instance_obj);
-  auto obj = v8::Local<v8::Object>::Cast(
-      exports_obj->Get(context, store->v8_string(V8_S_EMPTY)).ToLocalChecked());
-  assert(!obj.IsEmpty() && obj->IsObject());
-
-  auto global = RefImpl<Global>::make(store, obj);
+  auto global = implement<Global>::type::make(store, obj);
   assert(global);
   global->set(val);
   return global;
 }
 
 auto Global::type() const -> own<GlobalType*> {
-  // return impl(this)->data->type->copy();
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  auto v8_global = impl(this)->v8_object();
-  auto kind = v8::wasm::global_type_content(v8_global);
-  auto mutability = v8::wasm::global_type_mutable(v8_global) ? VAR : CONST;
+  i::Handle<i::WasmGlobalObject> v8_global = impl(this)->v8_object();
+  ValKind kind = v8::wasm::v8_valtype_to_wasm(v8_global->type());
+  Mutability mutability = v8_global->is_mutable() ? VAR : CONST;
   return GlobalType::make(ValType::make(kind), mutability);
 }
 
 auto Global::get() const -> Val {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  auto v8_global = impl(this)->v8_object();
+  i::Handle<i::WasmGlobalObject> v8_global = impl(this)->v8_object();
   switch (type()->content()->kind()) {
     case I32:
-      return Val(v8::wasm::global_get_i32(v8_global));
+      return Val(v8_global->GetI32());
     case I64:
-      return Val(v8::wasm::global_get_i64(v8_global));
+      return Val(v8_global->GetI64());
     case F32:
-      return Val(v8::wasm::global_get_f32(v8_global));
+      return Val(v8_global->GetF32());
     case F64:
-      return Val(v8::wasm::global_get_f64(v8_global));
+      return Val(v8_global->GetF64());
     case ANYREF:
     case FUNCREF:
       WASM_UNIMPLEMENTED("globals of reference type");
@@ -2382,17 +1961,16 @@ auto Global::get() const -> Val {
 }
 
 void Global::set(const Val& val) {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  auto v8_global = impl(this)->v8_object();
+  i::Handle<i::WasmGlobalObject> v8_global = impl(this)->v8_object();
   switch (val.kind()) {
     case I32:
-      return v8::wasm::global_set_i32(v8_global, val.i32());
+      return v8_global->SetI32(val.i32());
     case I64:
-      return v8::wasm::global_set_i64(v8_global, val.i64());
+      return v8_global->SetI64(val.i64());
     case F32:
-      return v8::wasm::global_set_f32(v8_global, val.f32());
+      return v8_global->SetF32(val.f32());
     case F64:
-      return v8::wasm::global_set_f64(v8_global, val.f64());
+      return v8_global->SetF64(val.f64());
     case ANYREF:
     case FUNCREF:
       WASM_UNIMPLEMENTED("globals of reference type");
@@ -2406,7 +1984,7 @@ void Global::set(const Val& val) {
 
 template <>
 struct implement<Table> {
-  using type = RefImpl<Table>;
+  using type = RefImpl<Table, i::WasmTableObject>;
 };
 
 Table::~Table() {}
@@ -2415,81 +1993,120 @@ auto Table::copy() const -> own<Table*> { return impl(this)->copy(); }
 
 auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
     -> own<Table*> {
-  auto store = impl(store_abs);
-  auto isolate = store->isolate();
-  v8::HandleScope handle_scope(isolate);
-  auto context = store->context();
+  StoreImpl* store = impl(store_abs);
+  i::Isolate* isolate = store->i_isolate();
+  i::HandleScope scope(isolate);
+  auto enabled_features = i::wasm::WasmFeaturesFromFlags();
 
-  v8::Local<v8::Value> init = v8::Null(isolate);
-  if (ref) init = impl(ref)->v8_object();
-  v8::Local<v8::Value> args[] = {tabletype_to_v8(store, type), init};
-  auto maybe_obj =
-      store->v8_function(V8_F_TABLE)->NewInstance(context, 2, args);
-  if (maybe_obj.IsEmpty()) return own<Table*>();
-  auto table = RefImpl<Table>::make(store, maybe_obj.ToLocalChecked());
-  // TODO(wasm+): pass reference initialiser as parameter
-  if (table && ref) {
-    auto size = type->limits().min;
-    auto obj = maybe_obj.ToLocalChecked();
-    auto maybe_func =
-        v8::MaybeLocal<v8::Function>(v8::Local<v8::Function>::Cast(init));
-    for (size_t i = 0; i < size; ++i) {
-      v8::wasm::table_set(obj, i, maybe_func);
+  // Get "element".
+  i::wasm::ValueType i_type;
+  switch (type->element()->kind()) {
+    case FUNCREF:
+      i_type = i::wasm::kWasmAnyFunc;
+      break;
+    case ANYREF:
+      if (enabled_features.anyref) {
+        i_type = i::wasm::kWasmAnyRef;
+        break;
+      }  // Else fall through.
+      V8_FALLTHROUGH;
+    default:
+      UNREACHABLE();  // 'element' must be 'FUNCREF'.
+      return nullptr;
+  }
+
+  const Limits& limits = type->limits();
+  uint32_t minimum = limits.min;
+  if (minimum > i::wasm::max_table_init_entries()) return nullptr;
+  uint32_t maximum = limits.max;
+  bool has_maximum = false;
+  if (maximum != Limits(0).max) {
+    has_maximum = true;
+    if (maximum < minimum) return nullptr;
+    if (maximum > i::wasm::max_table_init_entries()) return nullptr;
+  }
+
+  i::Handle<i::FixedArray> backing_store;
+  i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
+      isolate, i_type, minimum, has_maximum, maximum, &backing_store);
+
+  if (ref) {
+    i::Handle<i::JSReceiver> init = impl(ref)->v8_object();
+    DCHECK(i::wasm::max_table_init_entries() <= i::kMaxInt);
+    for (int i = 0; i < static_cast<int>(minimum); i++) {
+      // This doesn't call WasmTableObject::Set because the table has
+      // just been created, so it can't be imported by any instances
+      // yet that might require updating.
+      DCHECK_EQ(table_obj->dispatch_tables().length(), 0);
+      backing_store->set(i, *init);
     }
   }
-  return table;
+  return implement<Table>::type::make(store, table_obj);
 }
 
 auto Table::type() const -> own<TableType*> {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  auto v8_table = impl(this)->v8_object();
-  uint32_t min = v8::wasm::table_type_min(v8_table);
-  uint32_t max = v8::wasm::table_type_max(v8_table);
+  i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
+  uint32_t min = table->current_length();
+  uint32_t max;
+  if (!table->maximum_length().ToUint32(&max)) max = 0xFFFFFFFFu;
   // TODO(wasm+): support new element types.
   return TableType::make(ValType::make(FUNCREF), Limits(min, max));
 }
 
 auto Table::get(size_t index) const -> own<Ref*> {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  auto maybe = v8::wasm::table_get(impl(this)->v8_object(), index);
-  if (maybe.IsEmpty() || maybe.ToLocalChecked()->IsNull()) return own<Ref*>();
+  i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
+  if (index >= table->current_length()) return own<Ref*>();
+  i::Isolate* isolate = table->GetIsolate();
+  i::HandleScope handle_scope(isolate);
+  i::Handle<i::Object> result =
+      i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
+  if (!result->IsJSFunction()) return own<Ref*>();
+  DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*result) ||
+         i::WasmCapiFunction::IsWasmCapiFunction(*result));
   // TODO(wasm+): other references
-  auto obj = maybe.ToLocalChecked();
-  assert(obj->IsFunction());
-  return RefImpl<Func>::make(impl(this)->store(), obj);
+  return implement<Func>::type::make(impl(this)->store(),
+                                     i::Handle<i::JSFunction>::cast(result));
 }
 
 auto Table::set(size_t index, const Ref* ref) -> bool {
-  v8::HandleScope handle_scope(impl(this)->isolate());
   if (ref && !impl(ref)->v8_object()->IsFunction()) {
     WASM_UNIMPLEMENTED("non-function table elements");
   }
-  auto obj = ref ? v8::MaybeLocal<v8::Function>(
-                       v8::Local<v8::Function>::Cast(impl(ref)->v8_object()))
-                 : v8::MaybeLocal<v8::Function>();
-  return v8::wasm::table_set(impl(this)->v8_object(), index, obj);
+  i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
+  if (index >= table->current_length()) return false;
+  i::Isolate* isolate = table->GetIsolate();
+  i::HandleScope handle_scope(isolate);
+  i::Handle<i::Object> obj =
+      ref ? i::Handle<i::Object>::cast(impl(ref)->v8_object())
+          : i::Handle<i::Object>::cast(
+                i::ReadOnlyRoots(isolate).null_value_handle());
+  i::WasmTableObject::Set(isolate, table, static_cast<uint32_t>(index), obj);
+  return true;
 }
 
+// TODO(jkummerow): Having Table::size_t shadowing "std" size_t is ugly.
 auto Table::size() const -> size_t {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  // TODO(jkummerow): Having Table::size_t shadowing "std" size_t is ugly.
-  return static_cast<Table::size_t>(
-      v8::wasm::table_size(impl(this)->v8_object()));
+  return impl(this)->v8_object()->current_length();
 }
 
 auto Table::grow(size_t delta, const Ref* ref) -> bool {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  auto obj = ref ? v8::MaybeLocal<v8::Function>(
-                       v8::Local<v8::Function>::Cast(impl(ref)->v8_object()))
-                 : v8::MaybeLocal<v8::Function>();
-  return v8::wasm::table_grow(impl(this)->v8_object(), delta, obj);
+  i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
+  i::Isolate* isolate = table->GetIsolate();
+  i::HandleScope scope(isolate);
+  i::Handle<i::Object> init_value =
+      ref == nullptr
+          ? i::Handle<i::Object>::cast(isolate->factory()->null_value())
+          : i::Handle<i::Object>::cast(impl(ref)->v8_object());
+  int result = i::WasmTableObject::Grow(
+      isolate, table, static_cast<uint32_t>(delta), init_value);
+  return result >= 0;
 }
 
 // Memory Instances
 
 template <>
 struct implement<Memory> {
-  using type = RefImpl<Memory>;
+  using type = RefImpl<Memory, i::WasmMemoryObject>;
 };
 
 Memory::~Memory() {}
@@ -2497,51 +2114,64 @@ Memory::~Memory() {}
 auto Memory::copy() const -> own<Memory*> { return impl(this)->copy(); }
 
 auto Memory::make(Store* store_abs, const MemoryType* type) -> own<Memory*> {
-  auto store = impl(store_abs);
-  auto isolate = store->isolate();
-  v8::HandleScope handle_scope(isolate);
-  auto context = store->context();
+  StoreImpl* store = impl(store_abs);
+  i::Isolate* isolate = store->i_isolate();
+  i::HandleScope scope(isolate);
 
-  v8::Local<v8::Value> args[] = {memorytype_to_v8(store, type)};
-  auto maybe_obj =
-      store->v8_function(V8_F_MEMORY)->NewInstance(context, 1, args);
-  if (maybe_obj.IsEmpty()) return own<Memory*>();
-  return RefImpl<Memory>::make(store, maybe_obj.ToLocalChecked());
+  const Limits& limits = type->limits();
+  uint32_t minimum = limits.min;
+  if (minimum > i::wasm::max_mem_pages()) return nullptr;
+  uint32_t maximum = limits.max;
+  if (maximum != Limits(0).max) {
+    if (maximum < minimum) return nullptr;
+    if (maximum > i::wasm::kSpecMaxWasmMemoryPages) return nullptr;
+  }
+  bool is_shared = false;  // TODO(wasm+): Support shared memory.
+  i::Handle<i::WasmMemoryObject> memory_obj;
+  if (!i::WasmMemoryObject::New(isolate, minimum, maximum, is_shared)
+           .ToHandle(&memory_obj)) {
+    return own<Memory*>();
+  }
+  return implement<Memory>::type::make(store, memory_obj);
 }
 
 auto Memory::type() const -> own<MemoryType*> {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  auto v8_memory = impl(this)->v8_object();
-  uint32_t min = v8::wasm::memory_type_min(v8_memory);
-  uint32_t max = v8::wasm::memory_type_max(v8_memory);
+  i::Handle<i::WasmMemoryObject> memory = impl(this)->v8_object();
+  uint32_t min = static_cast<uint32_t>(memory->array_buffer().byte_length() /
+                                       i::wasm::kWasmPageSize);
+  uint32_t max =
+      memory->has_maximum_pages() ? memory->maximum_pages() : 0xFFFFFFFFu;
   return MemoryType::make(Limits(min, max));
 }
 
 auto Memory::data() const -> byte_t* {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  return v8::wasm::memory_data(impl(this)->v8_object());
+  return reinterpret_cast<byte_t*>(
+      impl(this)->v8_object()->array_buffer().backing_store());
 }
 
 auto Memory::data_size() const -> size_t {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  return v8::wasm::memory_data_size(impl(this)->v8_object());
+  return impl(this)->v8_object()->array_buffer().byte_length();
 }
 
 auto Memory::size() const -> pages_t {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  return v8::wasm::memory_size(impl(this)->v8_object());
+  return static_cast<pages_t>(
+      impl(this)->v8_object()->array_buffer().byte_length() /
+      i::wasm::kWasmPageSize);
 }
 
 auto Memory::grow(pages_t delta) -> bool {
-  v8::HandleScope handle_scope(impl(this)->isolate());
-  return v8::wasm::memory_grow(impl(this)->v8_object(), delta);
+  i::Handle<i::WasmMemoryObject> memory = impl(this)->v8_object();
+  i::Isolate* isolate = memory->GetIsolate();
+  i::HandleScope handle_scope(isolate);
+  int32_t old = i::WasmMemoryObject::Grow(isolate, memory, delta);
+  return old != -1;
 }
 
 // Module Instances
 
 template <>
 struct implement<Instance> {
-  using type = RefImpl<Instance>;
+  using type = RefImpl<Instance, i::WasmInstanceObject>;
 };
 
 Instance::~Instance() {}
@@ -2550,90 +2180,84 @@ auto Instance::copy() const -> own<Instance*> { return impl(this)->copy(); }
 
 auto Instance::make(Store* store_abs, const Module* module_abs,
                     const Extern* const imports[]) -> own<Instance*> {
-  auto store = impl(store_abs);
-  auto module = impl(module_abs);
-  auto isolate = store->isolate();
-  auto context = store->context();
-  v8::HandleScope handle_scope(isolate);
+  StoreImpl* store = impl(store_abs);
+  const implement<Module>::type* module = impl(module_abs);
+  i::Isolate* isolate = store->i_isolate();
+  i::HandleScope handle_scope(isolate);
 
-  assert(module->v8_object()->GetIsolate() == isolate);
+  DCHECK_EQ(module->v8_object()->GetIsolate(), isolate);
 
-  auto import_types = module_abs->imports();
-  auto imports_obj = v8::Object::New(isolate);
+  vec<ImportType*> import_types = module_abs->imports();
+  i::Handle<i::JSObject> imports_obj =
+      isolate->factory()->NewJSObject(isolate->object_function());
   for (size_t i = 0; i < import_types.size(); ++i) {
     auto type = import_types[i];
-    auto maybe_module = v8::String::NewFromOneByte(
-        isolate, reinterpret_cast<const uint8_t*>(type->module().get()),
-        v8::NewStringType::kNormal, static_cast<int>(type->module().size()));
-    if (maybe_module.IsEmpty()) return own<Instance*>();
-    auto module_str = maybe_module.ToLocalChecked();
-    auto maybe_name = v8::String::NewFromOneByte(
-        isolate, reinterpret_cast<const uint8_t*>(type->name().get()),
-        v8::NewStringType::kNormal, static_cast<int>(type->name().size()));
-    if (maybe_name.IsEmpty()) return own<Instance*>();
-    auto name_str = maybe_name.ToLocalChecked();
+    i::Handle<i::String> module_str = VecToString(isolate, type->module());
+    i::Handle<i::String> name_str = VecToString(isolate, type->name());
 
-    v8::Local<v8::Object> module_obj;
-    if (imports_obj->HasOwnProperty(context, module_str).ToChecked()) {
-      module_obj = v8::Local<v8::Object>::Cast(
-          imports_obj->Get(context, module_str).ToLocalChecked());
+    i::Handle<i::JSObject> module_obj;
+    i::LookupIterator module_it(isolate, imports_obj, module_str,
+                                i::LookupIterator::OWN_SKIP_INTERCEPTOR);
+    if (i::JSObject::HasProperty(&module_it).ToChecked()) {
+      module_obj = i::Handle<i::JSObject>::cast(
+          i::Object::GetProperty(&module_it).ToHandleChecked());
     } else {
-      module_obj = v8::Object::New(isolate);
-      ignore(imports_obj->DefineOwnProperty(context, module_str, module_obj));
+      module_obj = isolate->factory()->NewJSObject(isolate->object_function());
+      ignore(
+          i::Object::SetProperty(isolate, imports_obj, module_str, module_obj));
     }
-
-    ignore(module_obj->DefineOwnProperty(context, name_str,
-                                         extern_to_v8(imports[i])));
+    ignore(i::Object::SetProperty(isolate, module_obj, name_str,
+                                  impl(imports[i])->v8_object()));
   }
 
-  v8::Local<v8::Value> instantiate_args[] = {module->v8_object(), imports_obj};
-  auto obj = store->v8_function(V8_F_INSTANCE)
-                 ->NewInstance(context, 2, instantiate_args)
-                 .ToLocalChecked();
-  return RefImpl<Instance>::make(store, obj);
+  NopErrorThrower thrower(isolate);
+  i::Handle<i::WasmInstanceObject> instance_obj =
+      isolate->wasm_engine()
+          ->SyncInstantiate(isolate, &thrower, module->v8_object(), imports_obj,
+                            i::MaybeHandle<i::JSArrayBuffer>())
+          .ToHandleChecked();
+  return implement<Instance>::type::make(store, instance_obj);
 }
 
 auto Instance::exports() const -> vec<Extern*> {
-  auto instance = impl(this);
-  auto store = instance->store();
-  auto isolate = store->isolate();
-  auto context = store->context();
-  v8::HandleScope handle_scope(isolate);
+  const implement<Instance>::type* instance = impl(this);
+  StoreImpl* store = instance->store();
+  i::Isolate* isolate = store->i_isolate();
+  i::HandleScope handle_scope(isolate);
+  i::Handle<i::WasmInstanceObject> instance_obj = instance->v8_object();
+  i::Handle<i::WasmModuleObject> module_obj(instance_obj->module_object(),
+                                            isolate);
+  i::Handle<i::JSObject> exports_obj(instance_obj->exports_object(), isolate);
 
-  auto module_obj = v8::wasm::instance_module(instance->v8_object());
-  auto exports_obj = v8::wasm::instance_exports(instance->v8_object());
-  assert(!module_obj.IsEmpty() && module_obj->IsObject());
-  assert(!exports_obj.IsEmpty() && exports_obj->IsObject());
-
-  auto module = RefImpl<Module>::make(store, module_obj);
-  auto export_types = module->exports();
-  auto exports = vec<Extern*>::make_uninitialized(export_types.size());
+  vec<ExportType*> export_types = ExportsImpl(module_obj);
+  vec<Extern*> exports = vec<Extern*>::make_uninitialized(export_types.size());
   if (!exports) return vec<Extern*>::invalid();
 
   for (size_t i = 0; i < export_types.size(); ++i) {
     auto& name = export_types[i]->name();
-    auto maybe_name_obj =
-        v8::String::NewFromUtf8(isolate, name.get(), v8::NewStringType::kNormal,
-                                static_cast<int>(name.size()));
-    if (maybe_name_obj.IsEmpty()) return vec<Extern*>::invalid();
-    auto name_obj = maybe_name_obj.ToLocalChecked();
-    auto obj = v8::Local<v8::Object>::Cast(
-        exports_obj->Get(context, name_obj).ToLocalChecked());
+    i::Handle<i::String> name_str = VecToString(isolate, name);
+    i::Handle<i::Object> obj =
+        i::Object::GetProperty(isolate, exports_obj, name_str)
+            .ToHandleChecked();
 
-    auto type = export_types[i]->type();
-    assert(type->kind() == v8::wasm::extern_kind(obj));
+    const ExternType* type = export_types[i]->type();
     switch (type->kind()) {
       case EXTERN_FUNC: {
-        exports[i].reset(RefImpl<Func>::make(store, obj));
+        DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*obj));
+        exports[i].reset(implement<Func>::type::make(
+            store, i::Handle<i::WasmExportedFunction>::cast(obj)));
       } break;
       case EXTERN_GLOBAL: {
-        exports[i].reset(RefImpl<Global>::make(store, obj));
+        exports[i].reset(implement<Global>::type::make(
+            store, i::Handle<i::WasmGlobalObject>::cast(obj)));
       } break;
       case EXTERN_TABLE: {
-        exports[i].reset(RefImpl<Table>::make(store, obj));
+        exports[i].reset(implement<Table>::type::make(
+            store, i::Handle<i::WasmTableObject>::cast(obj)));
       } break;
       case EXTERN_MEMORY: {
-        exports[i].reset(RefImpl<Memory>::make(store, obj));
+        exports[i].reset(implement<Memory>::type::make(
+            store, i::Handle<i::WasmMemoryObject>::cast(obj)));
       } break;
     }
   }

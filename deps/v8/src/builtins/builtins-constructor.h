@@ -5,10 +5,10 @@
 #ifndef V8_BUILTINS_BUILTINS_CONSTRUCTOR_H_
 #define V8_BUILTINS_BUILTINS_CONSTRUCTOR_H_
 
-#include "src/contexts.h"
-#include "src/objects.h"
+#include "src/objects/contexts.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/js-array.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

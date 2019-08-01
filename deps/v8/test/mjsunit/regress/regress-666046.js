@@ -21,6 +21,7 @@ A.prototype = proto;
 function foo(o) {
   return o.a0;
 }
+%EnsureFeedbackVectorForFunction(foo);
 
 // Ensure |proto| is in old space.
 gc();

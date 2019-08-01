@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/state-values-utils.h"
-#include "src/bit-vector.h"
+#include "src/utils/bit-vector.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "test/unittests/test-utils.h"

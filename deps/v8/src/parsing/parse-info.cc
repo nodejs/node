@@ -9,11 +9,11 @@
 #include "src/ast/ast.h"
 #include "src/base/template-utils.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
-#include "src/counters.h"
-#include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/log.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/logging/log.h"
+#include "src/numbers/hash-seed-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/zone/zone.h"
 
@@ -60,12 +60,9 @@ ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
   set_might_always_opt(FLAG_always_opt || FLAG_prepare_always_opt);
   set_allow_lazy_compile(FLAG_lazy);
   set_allow_natives_syntax(FLAG_allow_natives_syntax);
-  set_allow_harmony_public_fields(FLAG_harmony_public_fields);
-  set_allow_harmony_static_fields(FLAG_harmony_static_fields);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   set_allow_harmony_import_meta(FLAG_harmony_import_meta);
   set_allow_harmony_numeric_separator(FLAG_harmony_numeric_separator);
-  set_allow_harmony_private_fields(FLAG_harmony_private_fields);
   set_allow_harmony_private_methods(FLAG_harmony_private_methods);
 }
 
@@ -93,7 +90,7 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
   // Do not support re-parsing top-level function of a wrapped script.
   // TODO(yangguo): consider whether we need a top-level function in a
   //                wrapped script at all.
-  DCHECK_IMPLIES(is_toplevel(), !Script::cast(shared->script())->is_wrapped());
+  DCHECK_IMPLIES(is_toplevel(), !Script::cast(shared->script()).is_wrapped());
 
   set_allow_lazy_parsing(true);
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
@@ -116,7 +113,7 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
   set_collect_type_profile(
       isolate->is_collecting_type_profile() &&
       (shared->HasFeedbackMetadata()
-           ? shared->feedback_metadata()->HasTypeProfileSlot()
+           ? shared->feedback_metadata().HasTypeProfileSlot()
            : script->IsUserJavaScript()));
 }
 

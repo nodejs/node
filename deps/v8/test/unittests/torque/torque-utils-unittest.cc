@@ -17,12 +17,15 @@ TEST(TorqueUtils, FileUriDecodeIllegal) {
 }
 
 TEST(TorqueUtils, FileUriDecode) {
+#ifdef V8_OS_WIN
+  EXPECT_EQ(FileUriDecode("file:///c%3A/torque/base.tq").value(),
+            "c:/torque/base.tq");
+  EXPECT_EQ(FileUriDecode("file:///d%3a/lower/hex.txt").value(),
+            "d:/lower/hex.txt");
+#else
   EXPECT_EQ(FileUriDecode("file:///some/src/file.tq").value(),
             "/some/src/file.tq");
-  EXPECT_EQ(FileUriDecode("file:///c%3A/torque/base.tq").value(),
-            "/c:/torque/base.tq");
-  EXPECT_EQ(FileUriDecode("file:///d%3a/lower/hex.txt").value(),
-            "/d:/lower/hex.txt");
+#endif
 }
 
 }  // namespace torque

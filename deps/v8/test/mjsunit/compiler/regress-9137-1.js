@@ -1,0 +1,24 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Flags: --allow-natives-syntax --opt
+// Flags: --no-flush-bytecode --no-stress-flush-bytecode
+
+function changeMap(obj) {
+  obj.blub = 42;
+}
+
+function foo(obj) {
+  return obj.bind(changeMap(obj));
+}
+
+%NeverOptimizeFunction(changeMap);
+%PrepareFunctionForOptimization(foo);
+foo(function(){});
+foo(function(){});
+%OptimizeFunctionOnNextCall(foo);
+foo(function(){});
+%OptimizeFunctionOnNextCall(foo);
+foo(function(){});
+assertOptimized(foo);

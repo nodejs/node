@@ -23,6 +23,7 @@ function wrapper1() {
   }
   f1();
 }
+%PrepareFunctionForOptimization(wrapper1);
 
 function f2() {
   counter++;
@@ -47,14 +48,17 @@ function listener(event, exec_state, event_data, data) {
     wrapper1();
     fail("wrapper1()");
 
+    %PrepareFunctionForOptimization(wrapper2);
     wrapper2(true);
     wrapper2(false);
     wrapper2(true);
     %OptimizeFunctionOnNextCall(wrapper2);
     wrapper2(false);
     fail("wrapper2(true)");
-    fail("%OptimizeFunctionOnNextCall(wrapper2); wrapper2(true)");
+    fail("%PrepareFunctionForOptimization(wrapper2); "+
+         "%OptimizeFunctionOnNextCall(wrapper2); wrapper2(true)");
 
+    %PrepareFunctionForOptimization(wrapper2);
     %OptimizeFunctionOnNextCall(wrapper2, "concurrent");
     wrapper2(false);
     fail("%UnblockConcurrentRecompilation();" +

@@ -11,6 +11,7 @@
 
 function foo(a, i) { return a[i]; }
 
+%PrepareFunctionForOptimization(foo);
 var a = ['one', , 'three'];
 foo(a, 0);
 foo(a, 0);

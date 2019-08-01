@@ -10,7 +10,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/typer.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 

@@ -9,7 +9,7 @@
 
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string-table.h"
 

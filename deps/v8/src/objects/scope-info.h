@@ -5,11 +5,11 @@
 #ifndef V8_OBJECTS_SCOPE_INFO_H_
 #define V8_OBJECTS_SCOPE_INFO_H_
 
-#include "src/function-kind.h"
-#include "src/globals.h"
-#include "src/objects.h"
+#include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
-#include "src/utils.h"
+#include "src/objects/function-kind.h"
+#include "src/objects/objects.h"
+#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -68,6 +68,9 @@ class ScopeInfo : public FixedArray {
   // Does this scope declare a "this" binding, and the "this" binding is stack-
   // or context-allocated?
   bool HasAllocatedReceiver() const;
+
+  // Does this scope has class brand (for private methods)?
+  bool HasClassBrand() const;
 
   // Does this scope declare a "new.target" binding?
   bool HasNewTarget() const;
@@ -228,8 +231,10 @@ class ScopeInfo : public FixedArray {
   class ReceiverVariableField
       : public BitField<VariableAllocationInfo, DeclarationScopeField::kNext,
                         2> {};
-  class HasNewTargetField
+  class HasClassBrandField
       : public BitField<bool, ReceiverVariableField::kNext, 1> {};
+  class HasNewTargetField
+      : public BitField<bool, HasClassBrandField::kNext, 1> {};
   class FunctionVariableField
       : public BitField<VariableAllocationInfo, HasNewTargetField::kNext, 2> {};
   // TODO(cbruni): Combine with function variable field when only storing the

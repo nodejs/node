@@ -5,7 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_PROMISE_H_
 #define V8_BUILTINS_BUILTINS_PROMISE_H_
 
-#include "src/contexts.h"
+#include "src/objects/contexts.h"
 
 namespace v8 {
 namespace internal {

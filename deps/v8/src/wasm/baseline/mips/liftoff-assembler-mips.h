@@ -585,10 +585,6 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t index,
   lw(reg, liftoff::GetHalfStackSlot(index, half));
 }
 
-void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
-  Addu(dst, lhs, imm);
-}
-
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
   TurboAssembler::Mul(dst, lhs, rhs);
 }
@@ -643,6 +639,21 @@ I32_BINOP(xor, xor_)
 // clang-format on
 
 #undef I32_BINOP
+
+#define I32_BINOP_I(name, instruction)                               \
+  void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
+                                         int32_t imm) {              \
+    instruction(dst, lhs, Operand(imm));                             \
+  }
+
+// clang-format off
+I32_BINOP_I(add, Addu)
+I32_BINOP_I(and, And)
+I32_BINOP_I(or, Or)
+I32_BINOP_I(xor, Xor)
+// clang-format on
+
+#undef I32_BINOP_I
 
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   TurboAssembler::Clz(dst, src);

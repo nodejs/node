@@ -4,14 +4,14 @@
 
 #include "src/ic/keyed-store-generic.h"
 
-#include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
-#include "src/contexts.h"
-#include "src/feedback-vector.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/interface-descriptors.h"
+#include "src/execution/isolate.h"
 #include "src/ic/accessor-assembler.h"
-#include "src/interface-descriptors.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/objects/contexts.h"
+#include "src/objects/feedback-vector.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -352,8 +352,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
         TryChangeToHoleyMapMulti(receiver, receiver_map, elements_kind, context,
                                  PACKED_SMI_ELEMENTS, PACKED_ELEMENTS, slow);
       }
-      StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
-                          value);
+      StoreNoWriteBarrier(MachineRepresentation::kTaggedSigned, elements,
+                          offset, value);
       MaybeUpdateLengthAndReturn(receiver, intptr_index, value, update_length);
 
       BIND(&non_smi_value);
@@ -851,7 +851,9 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
         var_accessor_holder.Bind(receiver);
         Goto(&accessor);
       } else {
-        Goto(&overwrite);
+        // We must reconfigure an accessor property to a data property
+        // here, let the runtime take care of that.
+        Goto(slow);
       }
 
       BIND(&overwrite);

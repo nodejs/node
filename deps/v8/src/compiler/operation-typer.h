@@ -8,7 +8,7 @@
 #include "src/base/flags.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/types.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -55,6 +55,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
 
   // Comparison operators.
   Type SameValue(Type lhs, Type rhs);
+  Type SameValueNumbersOnly(Type lhs, Type rhs);
   Type StrictEqual(Type lhs, Type rhs);
 
   // Check operators.

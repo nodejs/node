@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_GRAPH_TRIMMER_H_
 #define V8_COMPILER_GRAPH_TRIMMER_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/node-marker.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

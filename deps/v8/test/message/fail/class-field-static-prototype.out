@@ -1,4 +1,4 @@
-*%(basename)s:8: SyntaxError: Classes may not have a static property named 'prototype'
+*%(basename)s:6: SyntaxError: Classes may not have a static property named 'prototype'
   static prototype = function() {};
          ^^^^^^^^^
 SyntaxError: Classes may not have a static property named 'prototype'

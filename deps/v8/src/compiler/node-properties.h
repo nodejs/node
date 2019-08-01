@@ -5,9 +5,9 @@
 #ifndef V8_COMPILER_NODE_PROPERTIES_H_
 #define V8_COMPILER_NODE_PROPERTIES_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/node.h"
 #include "src/compiler/types.h"
-#include "src/globals.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-handle-set.h"
 
@@ -118,7 +118,8 @@ class V8_EXPORT_PRIVATE NodeProperties final {
 
   // Find the last frame state that is effect-wise before the given node. This
   // assumes a linear effect-chain up to a {CheckPoint} node in the graph.
-  static Node* FindFrameStateBefore(Node* node);
+  // Returns {unreachable_sentinel} if {node} is determined to be unreachable.
+  static Node* FindFrameStateBefore(Node* node, Node* unreachable_sentinel);
 
   // Collect the output-value projection for the given output index.
   static Node* FindProjection(Node* node, size_t projection_index);
@@ -148,8 +149,7 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   enum InferReceiverMapsResult {
     kNoReceiverMaps,         // No receiver maps inferred.
     kReliableReceiverMaps,   // Receiver maps can be trusted.
-    kUnreliableReceiverMaps  // Receiver maps might have changed (side-effect),
-                             // but instance type is reliable.
+    kUnreliableReceiverMaps  // Receiver maps might have changed (side-effect).
   };
   static InferReceiverMapsResult InferReceiverMaps(
       JSHeapBroker* broker, Node* receiver, Node* effect,
@@ -158,9 +158,6 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Return the initial map of the new-target if the allocation can be inlined.
   static base::Optional<MapRef> GetJSCreateMap(JSHeapBroker* broker,
                                                Node* receiver);
-
-  static bool HasInstanceTypeWitness(JSHeapBroker* broker, Node* receiver,
-                                     Node* effect, InstanceType instance_type);
 
   // Walks up the {effect} chain to check that there's no observable side-effect
   // between the {effect} and it's {dominator}. Aborts the walk if there's join

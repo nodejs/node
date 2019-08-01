@@ -4,10 +4,10 @@
 
 #include "include/v8.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/execution/isolate.h"
 #include "src/heap/spaces.h"
-#include "src/isolate.h"
 #include "src/objects/code-inl.h"
 #include "test/cctest/cctest.h"
 
@@ -50,9 +50,9 @@ TEST(Unwind_BuiltinPCInMiddle_Success) {
   // Put the current PC inside of a valid builtin.
   Code builtin = i_isolate->builtins()->builtin(Builtins::kStringEqual);
   const uintptr_t offset = 40;
-  CHECK_LT(offset, builtin->InstructionSize());
+  CHECK_LT(offset, builtin.InstructionSize());
   register_state.pc =
-      reinterpret_cast<void*>(builtin->InstructionStart() + offset);
+      reinterpret_cast<void*>(builtin.InstructionStart() + offset);
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
                                                  stack_base);
@@ -97,7 +97,7 @@ TEST(Unwind_BuiltinPCAtStart_Success) {
   // Put the current PC at the start of a valid builtin, so that we are setting
   // up the frame.
   Code builtin = i_isolate->builtins()->builtin(Builtins::kStringEqual);
-  register_state.pc = reinterpret_cast<void*>(builtin->InstructionStart());
+  register_state.pc = reinterpret_cast<void*>(builtin.InstructionStart());
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
                                                  stack_base);
@@ -114,7 +114,8 @@ const char* foo_source = R"(
     let y = x ^ b;
     let z = y / a;
     return x + y - z;
-  }
+  };
+  %PrepareFunctionForOptimization(foo);
   foo(1, 2);
   foo(1, 2);
   %OptimizeFunctionOnNextCall(foo);
@@ -153,16 +154,16 @@ TEST(Unwind_CodeObjectPCInMiddle_Success) {
   // Put the current PC inside of the created code object.
   AbstractCode abstract_code = foo->abstract_code();
   // We don't produce optimized code when run with --no-opt.
-  if (!abstract_code->IsCode() && FLAG_opt == false) return;
-  CHECK(abstract_code->IsCode());
+  if (!abstract_code.IsCode() && FLAG_opt == false) return;
+  CHECK(abstract_code.IsCode());
 
-  Code code = abstract_code->GetCode();
+  Code code = abstract_code.GetCode();
   // We don't want the offset too early or it could be the `push rbp`
   // instruction (which is not at the start of generated code, because the lazy
   // deopt check happens before frame setup).
-  const uintptr_t offset = code->InstructionSize() - 20;
-  CHECK_LT(offset, code->InstructionSize());
-  Address pc = code->InstructionStart() + offset;
+  const uintptr_t offset = code.InstructionSize() - 20;
+  CHECK_LT(offset, code.InstructionSize());
+  Address pc = code.InstructionStart() + offset;
   register_state.pc = reinterpret_cast<void*>(pc);
 
   // Check that the created code is within the code range that we get from the
@@ -336,7 +337,7 @@ TEST(Unwind_JSEntry_Fail) {
   RegisterState register_state;
 
   Code js_entry = i_isolate->heap()->builtin(Builtins::kJSEntry);
-  byte* start = reinterpret_cast<byte*>(js_entry->InstructionStart());
+  byte* start = reinterpret_cast<byte*>(js_entry.InstructionStart());
   register_state.pc = start + 10;
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
@@ -494,8 +495,8 @@ TEST(PCIsInV8_InJSEntryRange) {
   UnwindState unwind_state = isolate->GetUnwindState();
 
   Code js_entry = i_isolate->heap()->builtin(Builtins::kJSEntry);
-  byte* start = reinterpret_cast<byte*>(js_entry->InstructionStart());
-  size_t length = js_entry->InstructionSize();
+  byte* start = reinterpret_cast<byte*>(js_entry.InstructionStart());
+  size_t length = js_entry.InstructionSize();
 
   void* pc = start;
   CHECK(v8::Unwinder::PCIsInV8(unwind_state, pc));
@@ -530,9 +531,8 @@ TEST(PCIsInV8_LargeCodeObject) {
   desc.unwinding_info = nullptr;
   desc.unwinding_info_size = 0;
   desc.origin = nullptr;
-  Handle<Object> self_ref;
   Handle<Code> foo_code =
-      i_isolate->factory()->NewCode(desc, Code::WASM_FUNCTION, self_ref);
+      Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
 
   CHECK(i_isolate->heap()->InSpace(*foo_code, CODE_LO_SPACE));
   byte* start = reinterpret_cast<byte*>(foo_code->InstructionStart());

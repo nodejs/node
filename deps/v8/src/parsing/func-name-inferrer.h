@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/pointer-with-payload.h"
+#include "src/utils/pointer-with-payload.h"
 
 namespace v8 {
 namespace internal {

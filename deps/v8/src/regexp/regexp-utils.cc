@@ -4,10 +4,10 @@
 
 #include "src/regexp/regexp-utils.h"
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/regexp/jsregexp.h"
 
 namespace v8 {
@@ -37,7 +37,7 @@ Handle<String> RegExpUtils::GenericCaptureGetter(
 namespace {
 
 V8_INLINE bool HasInitialRegExpMap(Isolate* isolate, JSReceiver recv) {
-  return recv->map() == isolate->regexp_function()->initial_map();
+  return recv.map() == isolate->regexp_function()->initial_map();
 }
 
 }  // namespace
@@ -48,7 +48,7 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
   Handle<Object> value_as_object =
       isolate->factory()->NewNumberFromInt64(value);
   if (HasInitialRegExpMap(isolate, *recv)) {
-    JSRegExp::cast(*recv)->set_last_index(*value_as_object, SKIP_WRITE_BARRIER);
+    JSRegExp::cast(*recv).set_last_index(*value_as_object, SKIP_WRITE_BARRIER);
     return recv;
   } else {
     return Object::SetProperty(
@@ -60,7 +60,7 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
 MaybeHandle<Object> RegExpUtils::GetLastIndex(Isolate* isolate,
                                               Handle<JSReceiver> recv) {
   if (HasInitialRegExpMap(isolate, *recv)) {
-    return handle(JSRegExp::cast(*recv)->last_index(), isolate);
+    return handle(JSRegExp::cast(*recv).last_index(), isolate);
   } else {
     return Object::GetProperty(isolate, recv,
                                isolate->factory()->lastIndex_string());
@@ -89,7 +89,7 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        Execution::Call(isolate, exec, regexp, argc, argv.start()), Object);
+        Execution::Call(isolate, exec, regexp, argc, argv.begin()), Object);
 
     if (!result->IsJSReceiver() && !result->IsNull(isolate)) {
       THROW_NEW_ERROR(isolate,
@@ -115,7 +115,7 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
     ScopedVector<Handle<Object>> argv(argc);
     argv[0] = string;
 
-    return Execution::Call(isolate, regexp_exec, regexp, argc, argv.start());
+    return Execution::Call(isolate, regexp_exec, regexp, argc, argv.begin());
   }
 }
 
@@ -158,35 +158,33 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   if (!HasInitialRegExpMap(isolate, recv)) return false;
 
   // Check the receiver's prototype's map.
-  Object proto = recv->map()->prototype();
-  if (!proto->IsJSReceiver()) return false;
+  Object proto = recv.map().prototype();
+  if (!proto.IsJSReceiver()) return false;
 
   Handle<Map> initial_proto_initial_map = isolate->regexp_prototype_map();
-  Map proto_map = JSReceiver::cast(proto)->map();
+  Map proto_map = JSReceiver::cast(proto).map();
   if (proto_map != *initial_proto_initial_map) {
     return false;
   }
 
   // Check that the "exec" method is unmodified.
-  if (FLAG_track_constant_fields) {
-    // Check that the index refers to "exec" method (this has to be consistent
-    // with the init order in the bootstrapper).
-    DCHECK_EQ(*(isolate->factory()->exec_string()),
-              proto_map->instance_descriptors()->GetKey(
-                  JSRegExp::kExecFunctionDescriptorIndex));
-    if (proto_map->instance_descriptors()
-            ->GetDetails(JSRegExp::kExecFunctionDescriptorIndex)
-            .constness() != PropertyConstness::kConst) {
-      return false;
-    }
+  // Check that the index refers to "exec" method (this has to be consistent
+  // with the init order in the bootstrapper).
+  DCHECK_EQ(*(isolate->factory()->exec_string()),
+            proto_map.instance_descriptors().GetKey(
+                JSRegExp::kExecFunctionDescriptorIndex));
+  if (proto_map.instance_descriptors()
+          .GetDetails(JSRegExp::kExecFunctionDescriptorIndex)
+          .constness() != PropertyConstness::kConst) {
+    return false;
   }
 
   if (!isolate->IsRegExpSpeciesLookupChainIntact()) return false;
 
   // The smi check is required to omit ToLength(lastIndex) calls with possible
   // user-code execution on the fast path.
-  Object last_index = JSRegExp::cast(recv)->last_index();
-  return last_index->IsSmi() && Smi::ToInt(last_index) >= 0;
+  Object last_index = JSRegExp::cast(recv).last_index();
+  return last_index.IsSmi() && Smi::ToInt(last_index) >= 0;
 }
 
 uint64_t RegExpUtils::AdvanceStringIndex(Handle<String> string, uint64_t index,

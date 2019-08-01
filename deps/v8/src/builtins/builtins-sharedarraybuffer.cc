@@ -7,14 +7,14 @@
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
-#include "src/conversions-inl.h"
-#include "src/counters.h"
-#include "src/futex-emulation.h"
-#include "src/globals.h"
+#include "src/codegen/code-factory.h"
+#include "src/common/globals.h"
+#include "src/execution/futex-emulation.h"
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -74,8 +74,7 @@ V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
 
   size_t access_index;
   if (!TryNumberToSize(*access_index_obj, &access_index) ||
-      typed_array->WasDetached() ||
-      access_index >= typed_array->length_value()) {
+      typed_array->WasDetached() || access_index >= typed_array->length()) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidAtomicAccessIndex));
     return Nothing<size_t>();
@@ -164,13 +163,13 @@ BUILTIN(AtomicsWait) {
 
   double timeout_number;
   if (timeout->IsUndefined(isolate)) {
-    timeout_number = ReadOnlyRoots(isolate).infinity_value()->Number();
+    timeout_number = ReadOnlyRoots(isolate).infinity_value().Number();
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
                                        Object::ToNumber(isolate, timeout));
     timeout_number = timeout->Number();
     if (std::isnan(timeout_number))
-      timeout_number = ReadOnlyRoots(isolate).infinity_value()->Number();
+      timeout_number = ReadOnlyRoots(isolate).infinity_value().Number();
     else if (timeout_number < 0)
       timeout_number = 0;
   }

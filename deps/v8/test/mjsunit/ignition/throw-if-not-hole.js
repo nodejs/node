@@ -15,7 +15,13 @@ class B extends A {
     }
   }
 }
+// No feedback case
+test = new B(0);
+assertThrows(() => {new B(1)}, ReferenceError);
 
+// Ensure Feedback
+%PrepareFunctionForOptimization(B);
+%EnsureFeedbackVectorForFunction(A);
 test = new B(0);
 test = new B(0);
 assertThrows(() => {new B(1)}, ReferenceError);

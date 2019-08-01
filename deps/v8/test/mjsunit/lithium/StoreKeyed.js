@@ -45,11 +45,13 @@ var A1_int = [12, 23];
 var A2_int = [12, 23];
 var A3_int = [12, 23];
 
+%PrepareFunctionForOptimization(foo);
 foo(A1, 1, 3.4);
 foo(A2, 1, 3.4);
 %OptimizeFunctionOnNextCall(foo);
 foo(A3, 1, 3.4);
 
+%PrepareFunctionForOptimization(foo_int);
 foo_int(A1_int, 1, 34);
 foo_int(A2_int, 1, 34);
 %OptimizeFunctionOnNextCall(foo_int);

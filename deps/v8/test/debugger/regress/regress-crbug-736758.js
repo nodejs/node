@@ -8,6 +8,7 @@ function listener() {}
 function f() { [1,2,3].forEach(g) }
 function g() { debugger }
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 Debug.setListener(listener);

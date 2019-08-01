@@ -4,7 +4,7 @@
 
 #include "src/compiler/backend/move-optimizer.h"
 
-#include "src/register-configuration.h"
+#include "src/codegen/register-configuration.h"
 
 namespace v8 {
 namespace internal {

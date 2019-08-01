@@ -7,8 +7,8 @@
 
 #include <utility>
 
-#include "src/assert-scope.h"
-#include "src/globals.h"
+#include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/objects/slots.h"
 
 // Has to be the last include (doesn't have include guards):

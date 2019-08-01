@@ -6,7 +6,7 @@
 #define V8_COMPILER_TYPE_CACHE_H_
 
 #include "src/compiler/types.h"
-#include "src/date.h"
+#include "src/date/date.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/string.h"
@@ -113,9 +113,10 @@ class V8_EXPORT_PRIVATE TypeCache final {
   // JSArrayBuffer::byte_length above.
   Type const kJSArrayBufferViewByteOffsetType = kJSArrayBufferByteLengthType;
 
-  // The JSTypedArray::length property always contains a tagged number in the
-  // range [0, kMaxSmiValue].
-  Type const kJSTypedArrayLengthType = Type::UnsignedSmall();
+  // The JSTypedArray::length property always contains an untagged number in
+  // the range [0, kMaxSmiValue].
+  Type const kJSTypedArrayLengthType =
+      CreateRange(0.0, JSTypedArray::kMaxLength);
 
   // The String::length property always contains a smi in the range
   // [0, String::kMaxLength].

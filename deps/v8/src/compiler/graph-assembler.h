@@ -8,7 +8,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/vector-slot-pair.h"
+#include "src/compiler/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {
@@ -233,11 +233,11 @@ class GraphAssembler {
                      Node* value);
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
-  Node* Load(MachineType rep, Node* object, Node* offset);
+  Node* Load(MachineType type, Node* object, Node* offset);
 
   Node* StoreUnaligned(MachineRepresentation rep, Node* object, Node* offset,
                        Node* value);
-  Node* LoadUnaligned(MachineType rep, Node* object, Node* offset);
+  Node* LoadUnaligned(MachineType type, Node* object, Node* offset);
 
   Node* Retain(Node* buffer);
   Node* UnsafePointerAdd(Node* base, Node* external);
@@ -284,6 +284,12 @@ class GraphAssembler {
   Node* ExtractCurrentEffect();
 
  private:
+  // Adds a decompression node if pointer compression is enabled and the
+  // representation loaded is a compressed one. To be used after loads.
+  Node* InsertDecompressionIfNeeded(MachineRepresentation rep, Node* value);
+  // Adds a compression node if pointer compression is enabled and the
+  // representation to be stored is a compressed one. To be used before stores.
+  Node* InsertCompressionIfNeeded(MachineRepresentation rep, Node* value);
   template <typename... Vars>
   void MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label, Vars... vars);
 

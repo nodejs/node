@@ -25,8 +25,8 @@ class MachineOperatorTestWithParam
   const T& GetParam() const { return ::testing::get<1>(B::GetParam()); }
 
  private:
-  typedef ::testing::WithParamInterface<
-      ::testing::tuple<MachineRepresentation, T> > B;
+  using B = ::testing::WithParamInterface<
+      ::testing::tuple<MachineRepresentation, T> >;
 };
 
 
@@ -51,10 +51,8 @@ const MachineRepresentation kRepresentationsForStore[] = {
 // -----------------------------------------------------------------------------
 // Load operator.
 
-
-typedef MachineOperatorTestWithParam<LoadRepresentation>
-    MachineLoadOperatorTest;
-
+using MachineLoadOperatorTest =
+    MachineOperatorTestWithParam<LoadRepresentation>;
 
 TEST_P(MachineLoadOperatorTest, InstancesAreGloballyShared) {
   MachineOperatorBuilder machine1(zone(), representation());
@@ -347,9 +345,7 @@ TEST_F(MachineOptionalOperatorTest, OptionalOperators) {
 // -----------------------------------------------------------------------------
 // Pseudo operators.
 
-
-typedef TestWithZone MachineOperatorTest;
-
+using MachineOperatorTest = TestWithZone;
 
 TEST_F(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs32Bit) {
   MachineOperatorBuilder machine(zone(), MachineRepresentation::kWord32);

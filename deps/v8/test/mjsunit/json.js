@@ -520,3 +520,6 @@ assertEquals({a: 0, b: 1}, JSON.parse('{"a":0,"b":1}', reviver));
 
 reviver = (k, v) => (v === Infinity) ? "inf" : v;
 assertEquals('{"":"inf"}', JSON.stringify({"":Infinity}, reviver));
+
+assertEquals([10.4, "\u1234"], JSON.parse("[10.4, \"\u1234\"]"));
+assertEquals(10, JSON.parse('{"10":10}')["10"]);

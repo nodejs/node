@@ -23,6 +23,7 @@ function literals_sharing_test(warmup, optimize) {
     // propagated to the next closure.
     assertTrue(%HasDoubleElements(a));
   };
+  %EnsureFeedbackVectorForFunction(closure);
   if (optimize) %OptimizeFunctionOnNextCall(closure);
   closure();
 }

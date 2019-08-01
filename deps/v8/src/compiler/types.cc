@@ -6,9 +6,9 @@
 
 #include "src/compiler/types.h"
 
-#include "src/handles-inl.h"
-#include "src/objects-inl.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
+#include "src/handles/handles-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -324,11 +324,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     // require bit set types, they should get kOtherInternal.
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FREE_SPACE_TYPE:
-#define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
-  case FIXED_##TYPE##_ARRAY_TYPE:
-
-      TYPED_ARRAYS(FIXED_TYPED_ARRAY_CASE)
-#undef FIXED_TYPED_ARRAY_CASE
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
     case ASM_WASM_DATA_TYPE:
@@ -348,12 +343,16 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case INTERPRETER_DATA_TYPE:
+    case TEMPLATE_OBJECT_DESCRIPTION_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case ENUM_CACHE_TYPE:
+    case SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE:
+    case WASM_CAPI_FUNCTION_DATA_TYPE:
     case WASM_DEBUG_INFO_TYPE:
     case WASM_EXCEPTION_TAG_TYPE:
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
+    case WASM_JS_FUNCTION_DATA_TYPE:
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:

@@ -4,16 +4,16 @@
 
 #include <memory>
 
-#include "src/accessors.h"
-#include "src/arguments-inl.h"
 #include "src/ast/scopes.h"
-#include "src/bootstrapper.h"
-#include "src/counters.h"
-#include "src/deoptimizer.h"
-#include "src/frames-inl.h"
+#include "src/builtins/accessors.h"
+#include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/execution/message-template.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/isolate-inl.h"
-#include "src/message-template.h"
+#include "src/init/bootstrapper.h"
+#include "src/logging/counters.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/smi.h"
@@ -52,7 +52,7 @@ Object DeclareGlobal(
     Handle<FeedbackVector> feedback_vector = Handle<FeedbackVector>(),
     FeedbackSlot slot = FeedbackSlot::Invalid()) {
   Handle<ScriptContextTable> script_contexts(
-      global->native_context()->script_context_table(), isolate);
+      global->native_context().script_context_table(), isolate);
   ScriptContextTable::LookupResult lookup;
   if (ScriptContextTable::Lookup(isolate, *script_contexts, *name, &lookup) &&
       IsLexicalVariableMode(lookup.mode)) {
@@ -125,7 +125,7 @@ Object DeclareGlobal(
     // Preinitialize the feedback slot if the global object does not have
     // named interceptor or the interceptor is not masking.
     if (!global->HasNamedInterceptor() ||
-        global->GetNamedInterceptor()->non_masking()) {
+        global->GetNamedInterceptor().non_masking()) {
       FeedbackNexus nexus(feedback_vector, slot);
       nexus.ConfigurePropertyCellMode(it.GetPropertyCell());
     }
@@ -221,12 +221,12 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   // context, or a declaration block scope. Since this is called from eval, the
   // context passed is the context of the caller, which may be some nested
   // context and not the declaration context.
-  Handle<Context> context(isolate->context()->declaration_context(), isolate);
+  Handle<Context> context(isolate->context().declaration_context(), isolate);
 
   DCHECK(context->IsFunctionContext() || context->IsNativeContext() ||
          context->IsScriptContext() || context->IsEvalContext() ||
          (context->IsBlockContext() &&
-          context->scope_info()->is_declaration_scope()));
+          context->scope_info().is_declaration_scope()));
 
   bool is_function = value->IsJSFunction();
   bool is_var = !is_function;
@@ -252,13 +252,13 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
                          value, NONE, is_var, is_function,
                          RedeclarationType::kTypeError);
   }
-  if (context->extension()->IsJSGlobalObject()) {
+  if (context->extension().IsJSGlobalObject()) {
     Handle<JSGlobalObject> global(JSGlobalObject::cast(context->extension()),
                                   isolate);
     return DeclareGlobal(isolate, global, name, value, NONE, is_var,
                          is_function, RedeclarationType::kTypeError);
   } else if (context->IsScriptContext()) {
-    DCHECK(context->global_object()->IsJSGlobalObject());
+    DCHECK(context->global_object().IsJSGlobalObject());
     Handle<JSGlobalObject> global(
         JSGlobalObject::cast(context->global_object()), isolate);
     return DeclareGlobal(isolate, global, name, value, NONE, is_var,
@@ -288,7 +288,7 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
     // yet. Sloppy eval will never have an extension object, as vars are hoisted
     // out, and lets are known statically.
     DCHECK((context->IsBlockContext() &&
-            context->scope_info()->is_declaration_scope()) ||
+            context->scope_info().is_declaration_scope()) ||
            context->IsFunctionContext());
     object =
         isolate->factory()->NewJSObject(isolate->context_extension_function());
@@ -389,13 +389,13 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
 template <typename T>
 Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
                                     T parameters, int argument_count) {
-  CHECK(!IsDerivedConstructor(callee->shared()->kind()));
-  DCHECK(callee->shared()->has_simple_parameters());
+  CHECK(!IsDerivedConstructor(callee->shared().kind()));
+  DCHECK(callee->shared().has_simple_parameters());
   Handle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
 
   // Allocate the elements if needed.
-  int parameter_count = callee->shared()->internal_formal_parameter_count();
+  int parameter_count = callee->shared().internal_formal_parameter_count();
   if (argument_count > 0) {
     if (parameter_count > 0) {
       int mapped_count = Min(argument_count, parameter_count);
@@ -423,7 +423,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
         --index;
       }
 
-      Handle<ScopeInfo> scope_info(callee->shared()->scope_info(), isolate);
+      Handle<ScopeInfo> scope_info(callee->shared().scope_info(), isolate);
 
       // First mark all mappable slots as unmapped and copy the values into the
       // arguments object.
@@ -522,7 +522,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
-  int start_index = callee->shared()->internal_formal_parameter_count();
+  int start_index = callee->shared().internal_formal_parameter_count();
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
@@ -535,9 +535,9 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   {
     DisallowHeapAllocation no_gc;
     FixedArray elements = FixedArray::cast(result->elements());
-    WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
+    WriteBarrierMode mode = elements.GetWriteBarrierMode(no_gc);
     for (int i = 0; i < num_elements; i++) {
-      elements->set(i, *arguments[i + start_index], mode);
+      elements.set(i, *arguments[i + start_index], mode);
     }
   }
   return *result;
@@ -580,7 +580,7 @@ RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
   // Note that args[0] is the address of an array of full object pointers
   // (a.k.a. FullObjectSlot), which looks like a Smi because it's aligned.
   DCHECK(args[0].IsSmi());
-  FullObjectSlot frame(args[0]->ptr());
+  FullObjectSlot frame(args[0].ptr());
   CONVERT_SMI_ARG_CHECKED(length, 1);
   CONVERT_SMI_ARG_CHECKED(mapped_count, 2);
   Handle<FixedArray> result =
@@ -811,7 +811,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     Handle<Object> receiver = isolate->factory()->undefined_value();
-    Handle<Object> value = handle(Context::cast(*holder)->get(index), isolate);
+    Handle<Object> value = handle(Context::cast(*holder).get(index), isolate);
     // Check for uninitialized bindings.
     if (flag == kNeedsInitialization && value->IsTheHole(isolate)) {
       THROW_NEW_ERROR(isolate,
@@ -875,7 +875,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DCHECK(args[0]->IsString());
+  DCHECK(args[0].IsString());
   Handle<String> name = args.at<String>(0);
   Handle<Object> value;
   Handle<Object> receiver;
@@ -915,7 +915,7 @@ MaybeHandle<Object> StoreLookupSlot(
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
     if (flag == kNeedsInitialization &&
-        Handle<Context>::cast(holder)->get(index)->IsTheHole(isolate)) {
+        Handle<Context>::cast(holder)->get(index).IsTheHole(isolate)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name),
                       Object);
@@ -985,7 +985,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   const ContextLookupFlags lookup_flags =
       static_cast<ContextLookupFlags>(DONT_FOLLOW_CHAINS);
-  Handle<Context> declaration_context(isolate->context()->declaration_context(),
+  Handle<Context> declaration_context(isolate->context().declaration_context(),
                                       isolate);
   RETURN_RESULT_OR_FAILURE(
       isolate, StoreLookupSlot(isolate, declaration_context, name, value,

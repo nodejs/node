@@ -30,3 +30,15 @@ function NewIntlRelativeTimeFormat() {
   let obj = new Intl.RelativeTimeFormat();
 }
 createSuite('NewIntlRelativeTimeFormat', 100, NewIntlRelativeTimeFormat, ()=>{});
+
+function NewIntlLocaleWithOptions() {
+  let obj = new Intl.Locale("en-Latn-US-u-nu-thai",
+      { language: "zh", region: "TW", script: "Hant", calendar: "roc", collation: "zhuyin",
+        hourCycle: "h11", caseFirst: "upper", numberingSystem: "hanidec"});
+}
+createSuite('NewIntlLocaleWithOptions', 100, NewIntlLocaleWithOptions, ()=>{});
+
+function NewIntlLocale() {
+  let obj = new Intl.Locale("zh");
+}
+createSuite('NewIntlLocale', 100, NewIntlLocale, ()=>{});
