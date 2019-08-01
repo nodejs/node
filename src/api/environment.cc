@@ -325,6 +325,10 @@ MultiIsolatePlatform* InitializeV8Platform(int thread_pool_size) {
   return per_process::v8_platform.Platform();
 }
 
+void ForkPlatform() {
+  per_process::v8_platform.Fork();
+}
+
 void FreePlatform(MultiIsolatePlatform* platform) {
   delete platform;
 }

@@ -1087,6 +1087,15 @@ int Stop(Environment* env) {
   return 0;
 }
 
+int Fork(Environment* env) {
+  int ret = uv_loop_fork(env->event_loop());
+  if (ret != 0) {
+    return ret;
+  }
+  ForkPlatform();
+  return 0;
+}
+
 }  // namespace node
 
 #if !HAVE_INSPECTOR

@@ -101,6 +101,10 @@ void Agent::Start() {
   started_ = true;
 }
 
+void Agent::Fork() {
+  uv_loop_fork(&tracing_loop_);
+}
+
 AgentWriterHandle Agent::AddClient(
     const std::set<std::string>& categories,
     std::unique_ptr<AsyncTraceWriter> writer,

@@ -98,6 +98,11 @@ struct V8Platform {
     v8::V8::InitializePlatform(platform_);
   }
 
+  inline void Fork() {
+    platform_->Fork();
+    tracing_agent_->Fork();
+  }
+
   inline void Dispose() {
     StopTracingAgent();
     platform_->Shutdown();

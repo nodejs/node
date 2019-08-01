@@ -111,6 +111,7 @@ class Agent {
   void AddMetadataEvent(std::unique_ptr<TraceObject> event);
   // Flushes all writers registered through AddClient().
   void Flush(bool blocking);
+  void Fork();
 
   TraceConfig* CreateTraceConfig() const;
 

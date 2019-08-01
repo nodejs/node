@@ -22,6 +22,7 @@ class MutexBase {
   inline ~MutexBase();
   inline void Lock();
   inline void Unlock();
+  inline void Reset();
 
   MutexBase(const MutexBase&) = delete;
   MutexBase& operator=(const MutexBase&) = delete;
@@ -72,6 +73,7 @@ class ConditionVariableBase {
   inline void Broadcast(const ScopedLock&);
   inline void Signal(const ScopedLock&);
   inline void Wait(const ScopedLock& scoped_lock);
+  inline void Reset();
 
   ConditionVariableBase(const ConditionVariableBase&) = delete;
   ConditionVariableBase& operator=(const ConditionVariableBase&) = delete;
@@ -147,6 +149,11 @@ void ConditionVariableBase<Traits>::Wait(const ScopedLock& scoped_lock) {
 }
 
 template <typename Traits>
+void ConditionVariableBase<Traits>::Reset() {
+  CHECK_EQ(0, Traits::cond_init(&cond_));
+}
+
+template <typename Traits>
 MutexBase<Traits>::MutexBase() {
   CHECK_EQ(0, Traits::mutex_init(&mutex_));
 }
@@ -164,6 +171,11 @@ void MutexBase<Traits>::Lock() {
 template <typename Traits>
 void MutexBase<Traits>::Unlock() {
   Traits::mutex_unlock(&mutex_);
+}
+
+template <typename Traits>
+void MutexBase<Traits>::Reset() {
+  CHECK_EQ(0, Traits::mutex_init(&mutex_));
 }
 
 template <typename Traits>

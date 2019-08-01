@@ -33,6 +33,7 @@ class TaskQueue {
   void NotifyOfCompletion();
   void BlockingDrain();
   void Stop();
+  void Reset();
 
  private:
   Mutex lock_;
@@ -118,6 +119,7 @@ class WorkerThreadsTaskRunner {
 
   void BlockingDrain();
   void Shutdown();
+  void Reset();
 
   int NumberOfWorkerThreads() const;
 
@@ -138,6 +140,7 @@ class NodePlatform : public MultiIsolatePlatform {
 
   void DrainTasks(v8::Isolate* isolate) override;
   void CancelPendingDelayedTasks(v8::Isolate* isolate) override;
+  void Fork();
   void Shutdown();
 
   // v8::Platform implementation.

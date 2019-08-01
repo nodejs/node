@@ -217,6 +217,39 @@ void WorkerThreadsTaskRunner::Shutdown() {
   }
 }
 
+void WorkerThreadsTaskRunner::Reset() {
+  threads_.clear();
+  pending_worker_tasks_.Reset();
+
+  Mutex platform_workers_mutex;
+  ConditionVariable platform_workers_ready;
+
+  Mutex::ScopedLock lock(platform_workers_mutex);
+  int thread_pool_size = threads_.size();
+  int pending_platform_workers = thread_pool_size;
+
+  threads_.push_back(delayed_task_scheduler_->Start());
+
+  for (int i = 0; i < thread_pool_size; i++) {
+    PlatformWorkerData* worker_data = new PlatformWorkerData{
+      &pending_worker_tasks_, &platform_workers_mutex,
+      &platform_workers_ready, &pending_platform_workers, i
+    };
+    std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
+    if (uv_thread_create(t.get(), PlatformWorkerThread,
+                         worker_data) != 0) {
+      break;
+    }
+    threads_.push_back(std::move(t));
+  }
+
+  // Wait for platform workers to initialize before continuing with the
+  // bootstrap.
+  while (pending_platform_workers > 0) {
+    platform_workers_ready.Wait(lock);
+  }
+}
+
 int WorkerThreadsTaskRunner::NumberOfWorkerThreads() const {
   return threads_.size();
 }
@@ -333,6 +366,10 @@ void NodePlatform::AddIsolateFinishedCallback(Isolate* isolate,
     return;
   }
   it->second->AddShutdownCallback(cb, data);
+}
+
+void NodePlatform::Fork() {
+  worker_thread_task_runner_->Reset();
 }
 
 void NodePlatform::Shutdown() {
@@ -541,6 +578,14 @@ std::queue<std::unique_ptr<T>> TaskQueue<T>::PopAll() {
   std::queue<std::unique_ptr<T>> result;
   result.swap(task_queue_);
   return result;
+}
+
+template <class T>
+void TaskQueue<T>::Reset() {
+  PopAll();
+  lock_.Reset();
+  tasks_available_.Reset();
+  tasks_drained_.Reset();
 }
 
 }  // namespace node

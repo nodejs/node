@@ -218,6 +218,12 @@ NODE_EXTERN int Start(int argc, char* argv[]);
 // in the loop and / or actively executing JavaScript code).
 NODE_EXTERN int Stop(Environment* env);
 
+// Experimental fork(2) recovery support. Reinitialize any kernel state
+// possible in the child process after a fork(2) system call. Embeders
+// should stop JS code from running at an early stage (not many works have
+// scheduled) to be prepared to fork.
+NODE_EXTERN int Fork(Environment* env);
+
 // TODO(addaleax): Officially deprecate this and replace it with something
 // better suited for a public embedder API.
 NODE_EXTERN void Init(int* argc,
@@ -341,6 +347,7 @@ NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     node::tracing::TracingController* tracing_controller);
 MultiIsolatePlatform* InitializeV8Platform(int thread_pool_size);
+NODE_EXTERN void ForkPlatform();
 NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform);
 
 NODE_EXTERN void EmitBeforeExit(Environment* env);
