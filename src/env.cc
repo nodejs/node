@@ -567,7 +567,7 @@ void Environment::StopProfilerIdleNotifier() {
 }
 
 void Environment::PrintSyncTrace() const {
-  if (!options_->trace_sync_io) return;
+  if (!trace_sync_io_) return;
 
   HandleScope handle_scope(isolate());
 
