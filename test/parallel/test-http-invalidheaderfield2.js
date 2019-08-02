@@ -67,7 +67,7 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
   '!@#$%^&*()-_=+\\;\':"[]{}<>,./?|~`'
 ].forEach(function(str) {
   assert.strictEqual(
-    _checkInvalidHeaderChar(str), null,
+    _checkInvalidHeaderChar(str), undefined,
     `_checkInvalidHeaderChar(${inspect(str)}) unexpectedly failed`);
 });
 

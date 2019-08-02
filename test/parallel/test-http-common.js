@@ -25,12 +25,12 @@ assert.deepStrictEqual(
   { char: 'あ', index: 4 }
 );
 
-assert.strictEqual(checkInvalidHeaderChar(''), null);
-assert.strictEqual(checkInvalidHeaderChar(1), null);
-assert.strictEqual(checkInvalidHeaderChar(' '), null);
-assert.strictEqual(checkInvalidHeaderChar(false), null);
-assert.strictEqual(checkInvalidHeaderChar('t'), null);
-assert.strictEqual(checkInvalidHeaderChar('tt'), null);
-assert.strictEqual(checkInvalidHeaderChar('ttt'), null);
-assert.strictEqual(checkInvalidHeaderChar('tttt'), null);
-assert.strictEqual(checkInvalidHeaderChar('ttttt'), null);
+assert.strictEqual(checkInvalidHeaderChar(''), undefined);
+assert.strictEqual(checkInvalidHeaderChar(1), undefined);
+assert.strictEqual(checkInvalidHeaderChar(' '), undefined);
+assert.strictEqual(checkInvalidHeaderChar(false), undefined);
+assert.strictEqual(checkInvalidHeaderChar('t'), undefined);
+assert.strictEqual(checkInvalidHeaderChar('tt'), undefined);
+assert.strictEqual(checkInvalidHeaderChar('ttt'), undefined);
+assert.strictEqual(checkInvalidHeaderChar('tttt'), undefined);
+assert.strictEqual(checkInvalidHeaderChar('ttttt'), undefined);
