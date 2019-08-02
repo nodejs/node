@@ -76,20 +76,7 @@ int wmain(int argc, wchar_t* wargv[]) {
 #ifdef __linux__
 // linux has getauxval from glibc 2.16 and musl
 // also for whom is adventurous enough to run nodejs on android
-#if (defined(__ANDROID__) && __ANDROID_NDK__ >= 18) || \
-    !defined(__GLIBC__) || (defined(__GLIBC__) && __GLIBC_MINOR__ >= 16)
 #include <sys/auxv.h>
-#define HAS_GETAUXVAL 1
-#else
-#include <elf.h>
-#ifdef __LP64__
-#define Elf_auxv_t Elf64_auxv_t
-#else
-#define Elf_auxv_t Elf32_auxv_t
-#endif  // __LP64__
-extern char** environ;
-#define HAS_GETAUXVAL 0
-#endif
 #endif  // __linux__
 #if defined(__POSIX__) && defined(NODE_SHARED_MODE)
 #include <string.h>
@@ -118,19 +105,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 #if defined(__linux__)
-#if HAS_GETAUXVAL
   node::per_process::linux_at_secure = getauxval(AT_SECURE);
-#else
-  char** envp = environ;
-  while (*envp++ != nullptr) {}
-  Elf_auxv_t* auxv = reinterpret_cast<Elf_auxv_t*>(envp);
-  for (; auxv->a_type != AT_NULL; auxv++) {
-    if (auxv->a_type == AT_SECURE) {
-      node::per_process::linux_at_secure = auxv->a_un.a_val;
-      break;
-    }
-  }
-#endif
 #endif
   // Disable stdio buffering, it interacts poorly with printf()
   // calls elsewhere in the program (e.g., any logging from V8.)
