@@ -1436,6 +1436,16 @@ response.statusMessage = 'Not found';
 After response header was sent to the client, this property indicates the
 status message which was sent out.
 
+### response.writableFinished
+<!-- YAML
+added: v12.7.0
+-->
+
+* {boolean}
+
+Is `true` if all data has been flushed to the underlying system, immediately
+before the [`'finish'`][] event is emitted.
+
 ### response.write(chunk[, encoding][, callback])
 <!-- YAML
 added: v0.1.29
@@ -1472,17 +1482,6 @@ first chunk of the body.
 Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in user memory.
 `'drain'` will be emitted when the buffer is free again.
-
-### response.writableFinished
-<!-- YAML
-added: v12.7.0
--->
-
-* {boolean}
-
-Is `true` if all data has been flushed to the underlying system, immediately
-before the [`'finish'`][] event is emitted.
-
 
 ### response.writeContinue()
 <!-- YAML
