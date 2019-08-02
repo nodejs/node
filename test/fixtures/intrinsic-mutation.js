@@ -1,3 +1,4 @@
+'use strict';
 Object.defineProperty(
   String.prototype,
   Symbol('fake-polyfill-property'), {
