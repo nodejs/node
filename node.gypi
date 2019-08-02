@@ -295,10 +295,22 @@
       'ldflags': [ '-Wl,-z,relro',
                    '-Wl,-z,now' ]
     }],
-    [ 'OS=="linux" and target_arch=="x64" and node_use_large_pages=="true"', {
+    [ 'OS=="linux" and '
+      'target_arch=="x64" and '
+      'node_use_large_pages=="true" and '
+      'node_use_large_pages_script_lld=="false"', {
       'ldflags': [
         '-Wl,-T',
         '<!(realpath src/large_pages/ld.implicit.script)',
+      ]
+    }],
+    [ 'OS=="linux" and '
+      'target_arch=="x64" and '
+      'node_use_large_pages=="true" and '
+      'node_use_large_pages_script_lld=="true"', {
+      'ldflags': [
+        '-Wl,-T',
+        '<!(realpath src/large_pages/ld.implicit.script.lld)',
       ]
     }],
     [ 'node_use_openssl=="true"', {
