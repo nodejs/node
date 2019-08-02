@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
 
 function main({ n }) {
   bench.start();
-  for (var i = 0; i < n; ++i)
+  for (let i = 0; i < n; ++i)
     cpus();
   bench.end(n);
 }
