@@ -1481,6 +1481,8 @@ added: v10.0.0
     **Default**: `true`.
 * `callback` {Function} A callback function that takes an optional error
   argument.
+* Returns: {Function} A cleanup function which removes all registered
+  listeners.
 
 A function to get notified when a stream is no longer readable, writable
 or has experienced an error or a premature close event.
@@ -1519,6 +1521,20 @@ async function run() {
 
 run().catch(console.error);
 rs.resume(); // Drain the stream.
+```
+
+`stream.finished()` leaves dangling event listeners (in particular
+`'error'`, `'end'`, `'finish'` and `'close'`) after `callback` has been
+invoked. The reason for this is so that unexpected `'error'` events (due to
+incorrect stream implementations) do not cause unexpected crashes.
+If this is unwanted behavior then the returned cleanup function needs to be
+invoked in the callback:
+
+```js
+const cleanup = finished(...streams, (err) => {
+  cleanup();
+  // ...
+});
 ```
 
 ### stream.pipeline(...streams, callback)
@@ -1573,6 +1589,10 @@ async function run() {
 
 run().catch(console.error);
 ```
+
+`stream.pipeline()` leaves dangling event listeners on the streams
+after the `callback` has been invoked. In the case of reuse of streams after
+failure, this can cause event listener leaks and swallowed errors.
 
 ### stream.Readable.from(iterable, [options])
 <!-- YAML
