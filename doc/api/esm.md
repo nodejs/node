@@ -242,13 +242,13 @@ throw when an attempt is made to import them:
 
 ```js
 import submodule from 'es-module-package/private-module.js';
-// Throws - Package exports error
+// Throws - Module not found
 ```
 
 > Note: this is not a strong encapsulation as any private modules can still be
 > loaded by absolute paths.
 
-Folders can also be mapped with package exports as well:
+Folders can also be mapped with package exports:
 
 <!-- eslint-skip -->
 ```js
@@ -268,8 +268,24 @@ import feature from 'es-module-package/features/x.js';
 If a package has no exports, setting `"exports": false` can be used instead of
 `"exports": {}` to indicate the package does not intend for submodules to be
 exposed.
-This is just a convention that works because `false`, just like `{}`, has no
-iterable own properties.
+
+Any invalid exports entries will be ignored. This includes exports not
+starting with `"./"` or a missing trailing `"/"` for directory exports.
+
+Array fallback support is provided for exports, similarly to import maps
+in order to be forward-compatible with fallback workflows in future:
+
+<!-- eslint-skip -->
+```js
+{
+  "exports": {
+    "./submodule": ["not:valid", "./submodule.js"]
+  }
+}
+```
+
+Since `"not:valid"` is not a supported target, `"./submodule.js"` is used
+instead as the fallback, as if it were the only target.
 
 ## <code>import</code> Specifiers
 
@@ -660,7 +676,7 @@ CommonJS loader. Additional formats such as _"addon"_ can be extended in future
 updates.
 
 In the following algorithms, all subroutine errors are propagated as errors
-of these top-level routines.
+of these top-level routines unless stated otherwise.
 
 _isMain_ is **true** when resolving the Node.js application entry point.
 
@@ -681,6 +697,9 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >    1. Note: _specifier_ is now a bare specifier.
 >    1. Set _resolvedURL_ the result of
 >       **PACKAGE_RESOLVE**(_specifier_, _parentURL_).
+> 1. If _resolvedURL_ contains any percent encodings of _"/"_ or _"\"_ (_"%2f"_
+>    and _"%5C"_ respectively), then
+>    1. Throw an _Invalid Specifier_ error.
 > 1. If the file at _resolvedURL_ does not exist, then
 >    1. Throw a _Module Not Found_ error.
 > 1. Set _resolvedURL_ to the real path of _resolvedURL_.
@@ -753,19 +772,39 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >    1. Set _packagePath_ to _"./"_ concatenated with _packagePath_.
 >    1. If _packagePath_ is a key of _exports_, then
 >       1. Let _target_ be the value of _exports[packagePath]_.
->       1. If _target_ is not a String, continue the loop.
->       1. Return the URL resolution of the concatenation of _packageURL_ and
->          _target_.
+>       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_,
+>          _""_).
 >    1. Let _directoryKeys_ be the list of keys of _exports_ ending in
 >       _"/"_, sorted by length descending.
 >    1. For each key _directory_ in _directoryKeys_, do
 >       1. If _packagePath_ starts with _directory_, then
 >          1. Let _target_ be the value of _exports[directory]_.
->          1. If _target_ is not a String, continue the loop.
 >          1. Let _subpath_ be the substring of _target_ starting at the index
 >             of the length of _directory_.
->          1. Return the URL resolution of the concatenation of _packageURL_,
->             _target_ and _subpath_.
+>          1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_,
+>             _subpath_.
+> 1. Throw a _Module Not Found_ error.
+
+**PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_)
+> 1. If _target_ is a String, then
+>    1. If _target_ does not start with _"./"_, or _subpath_ has non-zero
+>       length and _target_ does not end with _"/"_, then
+>       1. Throw a _Module Not Found_ error.
+>    1. Let _resolvedTarget_ be the URL resolution of the concatenation of
+>       _packageURL_ and _target_.
+>    1. If _resolvedTarget_ is contained in _packageURL_, then
+>       1. Let _resolved_ be the URL resolution of the concatenation of
+>          _subpath_ and _resolvedTarget_.
+>       1. If _resolved_ is contained in _packageURL_, then
+>          1. Return _resolved_.
+> 1. Otherwise, if _target_ is an Array, then
+>    1. For each item _targetValue_ in _target_, do
+>       1. If _targetValue_ is not a String, continue the loop.
+>       1. Let _resolved_ be the result of
+>          **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _targetValue_,
+>          _subpath_), continuing the loop on abrupt completion.
+>       1. Assert: _resolved_ is a String.
+>       1. Return _resolved_.
 > 1. Throw a _Module Not Found_ error.
 
 **ESM_FORMAT**(_url_, _isMain_)

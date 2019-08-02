@@ -758,7 +758,8 @@ Maybe<URL> FinalizeResolution(Environment* env,
 
   const std::string& path = resolved.ToFilePath();
   if (CheckDescriptorAtPath(path) != FILE) {
-    std::string msg = "Cannot find module '" + path +
+    std::string msg = "Cannot find module '" +
+        (path.length() != 0 ? path : resolved.path()) +
         "' imported from " + base.ToFilePath();
     node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
     return Nothing<URL>();
@@ -800,6 +801,42 @@ Maybe<URL> PackageMainResolve(Environment* env,
   return Nothing<URL>();
 }
 
+void ThrowExportsNotFound(Environment* env,
+                          const std::string& match,
+                          const URL& pjson_url,
+                          const URL& base) {
+  const std::string msg = "Package exports for '" +
+      URL(".", pjson_url).ToFilePath() + "' do not define a '" + match +
+      "' subpath, imported from " + base.ToFilePath();
+  node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
+}
+
+Maybe<URL> ResolveExportsTarget(Environment* env,
+                                const std::string& target,
+                                const std::string& subpath,
+                                const std::string& match,
+                                const URL& pjson_url,
+                                const URL& base) {
+  if (target.substr(0, 2) == "./") {
+    if (subpath.length() > 0 && target.back() != '/') {
+      return Nothing<URL>();
+    }
+    URL resolved(target, pjson_url);
+    std::string resolved_path = resolved.path();
+    std::string pkg_path = URL(".", pjson_url).path();
+    if (resolved_path.find(pkg_path) == 0) {
+      if (subpath.length() == 0) return Just(resolved);
+      URL subpath_resolved(subpath, resolved);
+      std::string subpath_resolved_path = subpath_resolved.path();
+      if (subpath_resolved_path.find(pkg_path) == 0) {
+        return Just(subpath_resolved);
+      }
+    }
+  }
+  // Note: std: / nodejs: support goes here
+  return Nothing<URL>();
+}
+
 Maybe<URL> PackageExportsResolve(Environment* env,
                                  const URL& pjson_url,
                                  const std::string& pkg_subpath,
@@ -809,57 +846,92 @@ Maybe<URL> PackageExportsResolve(Environment* env,
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   Local<Value> exports = pcfg.exports.Get(isolate);
-  if (exports->IsObject()) {
-    Local<Object> exports_obj = exports.As<Object>();
-    Local<String> subpath = String::NewFromUtf8(isolate,
-        pkg_subpath.c_str(), v8::NewStringType::kNormal).ToLocalChecked();
+  if (!exports->IsObject()) {
+    ThrowExportsNotFound(env, pkg_subpath, pjson_url, base);
+    return Nothing<URL>();
+  }
+  Local<Object> exports_obj = exports.As<Object>();
+  Local<String> subpath = String::NewFromUtf8(isolate,
+      pkg_subpath.c_str(), v8::NewStringType::kNormal).ToLocalChecked();
 
-    auto target = exports_obj->Get(context, subpath).ToLocalChecked();
+  if (exports_obj->Has(context, subpath).FromJust()) {
+    Local<Value> target = exports_obj->Get(context, subpath).ToLocalChecked();
+    if (target->IsString()) {
+      Utf8Value target_utf8(isolate, target.As<v8::String>());
+      std::string target_str(*target_utf8, target_utf8.length());
+      Maybe<URL> resolved = ResolveExportsTarget(env, target_str, "",
+          pkg_subpath, pjson_url, base);
+      if (resolved.IsNothing()) {
+        ThrowExportsNotFound(env, pkg_subpath, pjson_url, base);
+        return Nothing<URL>();
+      }
+      return FinalizeResolution(env, resolved.FromJust(), base);
+    } else if (target->IsArray()) {
+      Local<Array> target_arr = target.As<Array>();
+      const uint32_t length = target_arr->Length();
+      for (uint32_t i = 0; i < length; i++) {
+        auto target_item = target_arr->Get(context, i).ToLocalChecked();
+        if (target_item->IsString()) {
+          Utf8Value target_utf8(isolate, target_item.As<v8::String>());
+          std::string target(*target_utf8, target_utf8.length());
+          Maybe<URL> resolved = ResolveExportsTarget(env, target, "",
+              pkg_subpath, pjson_url, base);
+          if (resolved.IsNothing()) continue;
+          return FinalizeResolution(env, resolved.FromJust(), base);
+        }
+      }
+    }
+    ThrowExportsNotFound(env, pkg_subpath, pjson_url, base);
+    return Nothing<URL>();
+  }
+
+  Local<String> best_match;
+  std::string best_match_str = "";
+  Local<Array> keys =
+      exports_obj->GetOwnPropertyNames(context).ToLocalChecked();
+  for (uint32_t i = 0; i < keys->Length(); ++i) {
+    Local<String> key = keys->Get(context, i).ToLocalChecked().As<String>();
+    Utf8Value key_utf8(isolate, key);
+    std::string key_str(*key_utf8, key_utf8.length());
+    if (key_str.back() != '/') continue;
+    if (pkg_subpath.substr(0, key_str.length()) == key_str &&
+        key_str.length() > best_match_str.length()) {
+      best_match = key;
+      best_match_str = key_str;
+    }
+  }
+
+  if (best_match_str.length() > 0) {
+    auto target = exports_obj->Get(context, best_match).ToLocalChecked();
+    std::string subpath = pkg_subpath.substr(best_match_str.length());
     if (target->IsString()) {
       Utf8Value target_utf8(isolate, target.As<v8::String>());
       std::string target(*target_utf8, target_utf8.length());
-      if (target.substr(0, 2) == "./") {
-        URL target_url(target, pjson_url);
-        return FinalizeResolution(env, target_url, base);
+      Maybe<URL> resolved = ResolveExportsTarget(env, target, subpath,
+          pkg_subpath, pjson_url, base);
+      if (resolved.IsNothing()) {
+        ThrowExportsNotFound(env, pkg_subpath, pjson_url, base);
+        return Nothing<URL>();
       }
-    }
-
-    Local<String> best_match;
-    std::string best_match_str = "";
-    Local<Array> keys =
-        exports_obj->GetOwnPropertyNames(context).ToLocalChecked();
-    for (uint32_t i = 0; i < keys->Length(); ++i) {
-      Local<String> key = keys->Get(context, i).ToLocalChecked().As<String>();
-      Utf8Value key_utf8(isolate, key);
-      std::string key_str(*key_utf8, key_utf8.length());
-      if (key_str.back() != '/') continue;
-      if (pkg_subpath.substr(0, key_str.length()) == key_str &&
-          key_str.length() > best_match_str.length()) {
-        best_match = key;
-        best_match_str = key_str;
-      }
-    }
-
-    if (best_match_str.length() > 0) {
-      auto target = exports_obj->Get(context, best_match).ToLocalChecked();
-      if (target->IsString()) {
-        Utf8Value target_utf8(isolate, target.As<v8::String>());
-        std::string target(*target_utf8, target_utf8.length());
-        if (target.back() == '/' && target.substr(0, 2) == "./") {
-          std::string subpath = pkg_subpath.substr(best_match_str.length());
-          URL url_prefix(target, pjson_url);
-          URL target_url(subpath, url_prefix);
-          if (target_url.path().find(url_prefix.path()) == 0) {
-            return FinalizeResolution(env, target_url, base);
-          }
+      return FinalizeResolution(env, URL(subpath, resolved.FromJust()), base);
+    } else if (target->IsArray()) {
+      Local<Array> target_arr = target.As<Array>();
+      const uint32_t length = target_arr->Length();
+      for (uint32_t i = 0; i < length; i++) {
+        auto target_item = target_arr->Get(context, i).ToLocalChecked();
+        if (target_item->IsString()) {
+          Utf8Value target_utf8(isolate, target_item.As<v8::String>());
+          std::string target_str(*target_utf8, target_utf8.length());
+          Maybe<URL> resolved = ResolveExportsTarget(env, target_str, subpath,
+              pkg_subpath, pjson_url, base);
+          if (resolved.IsNothing()) continue;
+          return FinalizeResolution(env, resolved.FromJust(), base);
         }
       }
     }
   }
-  std::string msg = "Package exports for '" +
-      URL(".", pjson_url).ToFilePath() + "' do not define a '" + pkg_subpath +
-      "' subpath, imported from " + base.ToFilePath();
-  node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
+
+  ThrowExportsNotFound(env, pkg_subpath, pjson_url, base);
   return Nothing<URL>();
 }
 

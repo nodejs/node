@@ -17,6 +17,9 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
     ['pkgexports/space', { default: 'encoded path' }],
     // Verifying that normal packages still work with exports turned on.
     isRequire ? ['baz/index', { default: 'eye catcher' }] : [null],
+    // Fallbacks
+    ['pkgexports/fallbackdir/asdf.js', { default: 'asdf' }],
+    ['pkgexports/fallbackfile', { default: 'asdf' }],
   ]);
   for (const [validSpecifier, expected] of validSpecifiers) {
     if (validSpecifier === null) continue;
@@ -27,20 +30,40 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
       }));
   }
 
-  // There's no such export - so there's nothing to do.
-  loadFixture('pkgexports/missing').catch(mustCall((err) => {
-    strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
-    assertStartsWith(err.message, 'Package exports');
-    assertIncludes(err.message, 'do not define a \'./missing\' subpath');
-  }));
+  const undefinedExports = new Map([
+    // There's no such export - so there's nothing to do.
+    ['pkgexports/missing', './missing'],
+    // The file exists but isn't exported. The exports is a number which counts
+    // as a non-null value without any properties, just like `{}`.
+    ['pkgexports-number/hidden.js', './hidden.js'],
+    // Even though 'pkgexports/sub/asdf.js' works, alternate "path-like"
+    // variants do not to prevent confusion and accidental loopholes.
+    ['pkgexports/sub/./../asdf.js', './sub/./../asdf.js'],
+    // This path steps back inside the package but goes through an exports
+    // target that escapes the package, so we still catch that as invalid
+    ['pkgexports/belowdir/pkgexports/asdf.js', './belowdir/pkgexports/asdf.js'],
+    // This target file steps below the package
+    ['pkgexports/belowfile', './belowfile'],
+    // Directory mappings require a trailing / to work
+    ['pkgexports/missingtrailer/x', './missingtrailer/x'],
+    // Invalid target handling
+    ['pkgexports/null', './null'],
+    ['pkgexports/invalid1', './invalid1'],
+    ['pkgexports/invalid2', './invalid2'],
+    ['pkgexports/invalid3', './invalid3'],
+    ['pkgexports/invalid4', './invalid4'],
+    // Missing / invalid fallbacks
+    ['pkgexports/nofallback1', './nofallback1'],
+    ['pkgexports/nofallback2', './nofallback2'],
+  ]);
 
-  // The file exists but isn't exported. The exports is a number which counts
-  // as a non-null value without any properties, just like `{}`.
-  loadFixture('pkgexports-number/hidden.js').catch(mustCall((err) => {
-    strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
-    assertStartsWith(err.message, 'Package exports');
-    assertIncludes(err.message, 'do not define a \'./hidden.js\' subpath');
-  }));
+  for (const [specifier, subpath] of undefinedExports) {
+    loadFixture(specifier).catch(mustCall((err) => {
+      strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
+      assertStartsWith(err.message, 'Package exports');
+      assertIncludes(err.message, `do not define a '${subpath}' subpath`);
+    }));
+  }
 
   // There's no main field so we won't find anything when importing the name.
   // The fact that "." is mapped is ignored, it's not a valid main config.
@@ -54,26 +77,19 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
     }
   }));
 
-  // Even though 'pkgexports/sub/asdf.js' works, alternate "path-like" variants
-  // do not to prevent confusion and accidental loopholes.
-  loadFixture('pkgexports/sub/./../asdf.js').catch(mustCall((err) => {
-    strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
-    assertStartsWith(err.message, 'Package exports');
-    assertIncludes(err.message,
-                   'do not define a \'./sub/./../asdf.js\' subpath');
-  }));
-
   // Covering out bases - not a file is still not a file after dir mapping.
   loadFixture('pkgexports/sub/not-a-file.js').catch(mustCall((err) => {
-    if (isRequire) {
-      strictEqual(err.code, 'MODULE_NOT_FOUND');
-      assertStartsWith(err.message,
-                       'Cannot find module \'pkgexports/sub/not-a-file.js\'');
-    } else {
-      strictEqual(err.code, 'ERR_MODULE_NOT_FOUND');
-      // ESM currently returns a full file path
-      assertStartsWith(err.message, 'Cannot find module');
-    }
+    strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
+    // ESM returns a full file path
+    assertStartsWith(err.message, isRequire ?
+      'Cannot find module \'pkgexports/sub/not-a-file.js\'' :
+      'Cannot find module');
+  }));
+
+  // THe use of %2F escapes in paths fails loading
+  loadFixture('pkgexports/sub/..%2F..%2Fbar.js').catch(mustCall((err) => {
+    strictEqual(err.code, isRequire ? 'ERR_INVALID_FILE_URL_PATH' :
+      'ERR_MODULE_NOT_FOUND');
   }));
 });
 
