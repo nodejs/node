@@ -25,6 +25,7 @@ const fixtureC = fixtures.path('printC.js');
 const fixtureD = fixtures.path('define-global.js');
 const fixtureE = fixtures.path('intrinsic-mutation.js');
 const fixtureF = fixtures.path('print-intrinsic-mutation-name.js');
+const fixtureG = fixtures.path('worker-from-argv.js');
 const fixtureThrows = fixtures.path('throws_error4.js');
 
 // Test preloading a single module works
@@ -76,15 +77,14 @@ childProcess.exec(
     assert.strictEqual(stdout, 'smoosh\n');
   }
 );
-const workerSrc = `'new (require("worker_threads").Worker)("${fixtureF}");'`;
 childProcess.exec(
   `"${
     nodeBinary
   }" --frozen-intrinsics ${
     preloadOption([fixtureE])
-  }-e ${
-    workerSrc
-  }`,
+  } ${
+    fixtureG
+  } ${fixtureF}`,
   function(err, stdout) {
     assert.ifError(err);
     assert.strictEqual(stdout, 'smoosh\n');
