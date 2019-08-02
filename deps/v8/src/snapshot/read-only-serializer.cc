@@ -4,14 +4,14 @@
 
 #include "src/snapshot/read-only-serializer.h"
 
-#include "src/api.h"
-#include "src/code-tracer.h"
-#include "src/global-handles.h"
+#include "src/api/api.h"
+#include "src/diagnostics/code-tracer.h"
+#include "src/execution/v8threads.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/read-only-heap.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/startup-serializer.h"
-#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +27,7 @@ ReadOnlySerializer::~ReadOnlySerializer() {
 
 void ReadOnlySerializer::SerializeObject(HeapObject obj) {
   CHECK(ReadOnlyHeap::Contains(obj));
-  CHECK_IMPLIES(obj->IsString(), obj->IsInternalizedString());
+  CHECK_IMPLIES(obj.IsString(), obj.IsInternalizedString());
 
   if (SerializeHotObject(obj)) return;
   if (IsRootAndHasBeenSerialized(obj) && SerializeRoot(obj)) {
@@ -40,6 +40,9 @@ void ReadOnlySerializer::SerializeObject(HeapObject obj) {
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer object_serializer(this, obj, &sink_);
   object_serializer.Serialize();
+#ifdef DEBUG
+  serialized_objects_.insert(obj);
+#endif
 }
 
 void ReadOnlySerializer::SerializeReadOnlyRoots() {
@@ -60,6 +63,16 @@ void ReadOnlySerializer::FinalizeSerialization() {
                    FullObjectSlot(&undefined));
   SerializeDeferredObjects();
   Pad();
+
+#ifdef DEBUG
+  // Check that every object on read-only heap is reachable (and was
+  // serialized).
+  ReadOnlyHeapIterator iterator(isolate()->heap()->read_only_heap());
+  for (HeapObject object = iterator.Next(); !object.is_null();
+       object = iterator.Next()) {
+    CHECK(serialized_objects_.count(object));
+  }
+#endif
 }
 
 bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
@@ -75,7 +88,7 @@ bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
   // not be fulfilled during deserialization until few first root objects are
   // serialized. But we must serialize Map objects since deserializer checks
   // that these root objects are indeed Maps.
-  return !object->IsMap();
+  return !object.IsMap();
 }
 
 bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(

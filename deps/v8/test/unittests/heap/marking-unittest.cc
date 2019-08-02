@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/heap/marking.h"
 #include "test/unittests/heap/bitmap-test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"

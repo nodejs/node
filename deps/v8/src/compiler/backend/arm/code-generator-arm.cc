@@ -4,16 +4,16 @@
 
 #include "src/compiler/backend/code-generator.h"
 
-#include "src/assembler-inl.h"
-#include "src/boxed-float.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/double.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
-#include "src/macro-assembler.h"
-#include "src/optimized-compilation-info.h"
+#include "src/numbers/double.h"
+#include "src/utils/boxed-float.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -168,34 +168,14 @@ namespace {
 
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
-  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register index,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode,
+  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand offset,
+                       Register value, RecordWriteMode mode,
+                       StubCallMode stub_mode,
                        UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         object_(object),
-        index_(index),
-        index_immediate_(0),
+        offset_(offset),
         value_(value),
-        scratch0_(scratch0),
-        scratch1_(scratch1),
-        mode_(mode),
-        stub_mode_(stub_mode),
-        must_save_lr_(!gen->frame_access_state()->has_frame()),
-        unwinding_info_writer_(unwinding_info_writer),
-        zone_(gen->zone()) {}
-
-  OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t index,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode,
-                       UnwindingInfoWriter* unwinding_info_writer)
-      : OutOfLineCode(gen),
-        object_(object),
-        index_(no_reg),
-        index_immediate_(index),
-        value_(value),
-        scratch0_(scratch0),
-        scratch1_(scratch1),
         mode_(mode),
         stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
@@ -206,15 +186,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
     }
-    __ CheckPageFlag(value_, scratch0_,
-                     MemoryChunk::kPointersToHereAreInterestingMask, eq,
+    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
-    if (index_ == no_reg) {
-      __ add(scratch1_, object_, Operand(index_immediate_));
-    } else {
-      DCHECK_EQ(0, index_immediate_);
-      __ add(scratch1_, object_, Operand(index_));
-    }
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
                                              : OMIT_REMEMBERED_SET;
@@ -226,12 +199,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset());
     }
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
-      __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+      __ CallEphemeronKeyBarrier(object_, offset_, save_fp_mode);
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
-      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+      __ CallRecordWriteStub(object_, offset_, remembered_set_action,
                              save_fp_mode, wasm::WasmCode::kWasmRecordWrite);
     } else {
-      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+      __ CallRecordWriteStub(object_, offset_, remembered_set_action,
                              save_fp_mode);
     }
     if (must_save_lr_) {
@@ -242,11 +215,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
  private:
   Register const object_;
-  Register const index_;
-  int32_t const index_immediate_;  // Valid if index_==no_reg.
+  Operand const offset_;
   Register const value_;
-  Register const scratch0_;
-  Register const scratch1_;
   RecordWriteMode const mode_;
   StubCallMode stub_mode_;
   bool must_save_lr_;
@@ -584,7 +554,6 @@ void FlushPendingPushRegisters(TurboAssembler* tasm,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   frame_access_state->IncreaseSPDelta(pending_pushes->size());
   pending_pushes->clear();
@@ -601,7 +570,7 @@ void AdjustStackPointerForTailCall(
     if (pending_pushes != nullptr) {
       FlushPendingPushRegisters(tasm, state, pending_pushes);
     }
-    tasm->sub(sp, sp, Operand(stack_slot_delta * kSystemPointerSize));
+    tasm->AllocateStackSpace(stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
     if (pending_pushes != nullptr) {
@@ -864,6 +833,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
+      if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
+        // Put the return address in a stack slot.
+        __ str(pc, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+      }
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
         __ CallCFunction(ref, num_parameters);
@@ -871,6 +844,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters);
       }
+      RecordSafepoint(instr->reference_map(), Safepoint::kNoLazyDeopt);
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -972,29 +946,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
-      Register scratch0 = i.TempRegister(0);
-      Register scratch1 = i.TempRegister(1);
-      OutOfLineRecordWrite* ool;
 
       AddressingMode addressing_mode =
           AddressingModeField::decode(instr->opcode());
+      Operand offset(0);
       if (addressing_mode == kMode_Offset_RI) {
-        int32_t index = i.InputInt32(1);
-        ool = new (zone()) OutOfLineRecordWrite(
-            this, object, index, value, scratch0, scratch1, mode,
-            DetermineStubCallMode(), &unwinding_info_writer_);
-        __ str(value, MemOperand(object, index));
+        int32_t immediate = i.InputInt32(1);
+        offset = Operand(immediate);
+        __ str(value, MemOperand(object, immediate));
       } else {
         DCHECK_EQ(kMode_Offset_RR, addressing_mode);
-        Register index(i.InputRegister(1));
-        ool = new (zone()) OutOfLineRecordWrite(
-            this, object, index, value, scratch0, scratch1, mode,
-            DetermineStubCallMode(), &unwinding_info_writer_);
-        __ str(value, MemOperand(object, index));
+        Register reg = i.InputRegister(1);
+        offset = Operand(reg);
+        __ str(value, MemOperand(object, reg));
       }
-      __ CheckPageFlag(object, scratch0,
-                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                       ool->entry());
+      auto ool = new (zone()) OutOfLineRecordWrite(
+          this, object, offset, value, mode, DetermineStubCallMode(),
+          &unwinding_info_writer_);
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+                       ne, ool->entry());
       __ bind(ool->exit());
       break;
     }
@@ -2929,8 +2899,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
-        gen_->RecordSafepoint(reference_map, Safepoint::kSimple,
-                              Safepoint::kNoLazyDeopt);
+        gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
         if (FLAG_debug_code) {
           __ stop(GetAbortReason(AbortReason::kUnexpectedReturnFromWasmTrap));
         }
@@ -3035,7 +3004,8 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(info()->GetOutputStackFrameType());
       if (call_descriptor->IsWasmFunctionCall()) {
         __ Push(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper()) {
+      } else if (call_descriptor->IsWasmImportWrapper() ||
+                 call_descriptor->IsWasmCapiFunction()) {
         // WASM import wrappers are passed a tuple in the place of the instance.
         // Unpack the tuple into the instance and the target callable.
         // This must be done here in the codegen because it cannot be expressed
@@ -3045,6 +3015,10 @@ void CodeGenerator::AssembleConstructFrame() {
         __ ldr(kWasmInstanceRegister,
                FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
         __ Push(kWasmInstanceRegister);
+        if (call_descriptor->IsWasmCapiFunction()) {
+          // Reserve space for saving the PC later.
+          __ AllocateStackSpace(kSystemPointerSize);
+        }
       }
     }
 
@@ -3098,8 +3072,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
       // We come from WebAssembly, there are no references for the GC.
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
-      RecordSafepoint(reference_map, Safepoint::kSimple,
-                      Safepoint::kNoLazyDeopt);
+      RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       if (FLAG_debug_code) {
         __ stop(GetAbortReason(AbortReason::kUnexpectedReturnFromThrow));
       }
@@ -3112,7 +3085,7 @@ void CodeGenerator::AssembleConstructFrame() {
     required_slots -= frame()->GetReturnSlotCount();
     required_slots -= 2 * base::bits::CountPopulation(saves_fp);
     if (required_slots > 0) {
-      __ sub(sp, sp, Operand(required_slots * kSystemPointerSize));
+      __ AllocateStackSpace(required_slots * kSystemPointerSize);
     }
   }
 
@@ -3134,7 +3107,7 @@ void CodeGenerator::AssembleConstructFrame() {
   const int returns = frame()->GetReturnSlotCount();
   if (returns != 0) {
     // Create space for returns.
-    __ sub(sp, sp, Operand(returns * kSystemPointerSize));
+    __ AllocateStackSpace(returns * kSystemPointerSize);
   }
 }
 
@@ -3468,7 +3441,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     }
     default:
       UNREACHABLE();
-      break;
   }
 }
 

@@ -46,6 +46,35 @@
       ]
     },
     {
+      "name": "BigInt",
+      "path": ["BigInt"],
+      "main": "run.js",
+      "resources": [
+        "to-boolean.js"
+      ],
+      "results_regexp": "^%s\\-BigInt\\(Score\\): (.+)$",
+      "tests": [
+        { "name": "BigInt-ToBoolean" },
+        { "name": "BigInt-BooleanConstructor" },
+        { "name": "BigInt-NewBooleanConstructor" }
+      ]
+    },
+    {
+      "name": "BigInt-Jitless",
+      "path": ["BigInt"],
+      "main": "run.js",
+      "resources": [
+        "to-boolean.js"
+      ],
+      "flags": ["--jitless"],
+      "results_regexp": "^%s\\-BigInt\\(Score\\): (.+)$",
+      "tests": [
+        { "name": "BigInt-ToBoolean" },
+        { "name": "BigInt-BooleanConstructor" },
+        { "name": "BigInt-NewBooleanConstructor" }
+      ]
+    },
+    {
       "name": "TypedArrays",
       "path": ["TypedArrays"],
       "results_regexp": "^TypedArrays\\-%s\\(Score\\): (.+)$",

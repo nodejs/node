@@ -6,7 +6,7 @@
 
 #include "src/base/logging.h"
 #include "src/snapshot/snapshot-source-sink.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 #ifndef V8_USE_EXTERNAL_STARTUP_DATA
 #error natives-external.cc is used only for the external snapshot build.
@@ -44,7 +44,7 @@ class NativesStore {
     for (int i = 0; i < static_cast<int>(native_ids_.size()); ++i) {
       int native_id_length = native_ids_[i].length();
       if ((static_cast<int>(strlen(id)) == native_id_length) &&
-          (strncmp(id, native_ids_[i].start(), native_id_length) == 0)) {
+          (strncmp(id, native_ids_[i].begin(), native_id_length) == 0)) {
         return i;
       }
     }
@@ -76,9 +76,9 @@ class NativesStore {
     const char extension[] = ".js";
     Vector<char> name(Vector<char>::New(id_length + sizeof(native) - 1 +
                                         sizeof(extension) - 1));
-    memcpy(name.start(), native, sizeof(native) - 1);
-    memcpy(name.start() + sizeof(native) - 1, id, id_length);
-    memcpy(name.start() + sizeof(native) - 1 + id_length, extension,
+    memcpy(name.begin(), native, sizeof(native) - 1);
+    memcpy(name.begin() + sizeof(native) - 1, id, id_length);
+    memcpy(name.begin() + sizeof(native) - 1 + id_length, extension,
            sizeof(extension) - 1);
     return Vector<const char>::cast(name);
   }

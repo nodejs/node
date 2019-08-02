@@ -42,7 +42,8 @@ class MatchPrototypePredicate : public v8::debug::QueryObjectPredicate {
       : m_inspector(inspector), m_context(context), m_prototype(prototype) {}
 
   bool Filter(v8::Local<v8::Object> object) override {
-    v8::Local<v8::Context> objectContext = object->CreationContext();
+    v8::Local<v8::Context> objectContext =
+        v8::debug::GetCreationContext(object);
     if (objectContext != m_context) return false;
     if (!m_inspector->client()->isInspectableHeapObject(object)) return false;
     // Get prototype chain for current object until first visited prototype.

@@ -4,9 +4,9 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
-#include "src/handles-inl.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

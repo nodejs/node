@@ -70,8 +70,8 @@ class TestRangeBuilder {
   }
 
  private:
-  typedef std::pair<int, int> Interval;
-  typedef std::vector<Interval> IntervalList;
+  using Interval = std::pair<int, int>;
+  using IntervalList = std::vector<Interval>;
   int id_;
   IntervalList pairs_;
   std::set<int> uses_;

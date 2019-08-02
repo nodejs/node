@@ -25,9 +25,9 @@
 #include <stdlib.h>
 #include "test/cctest/cctest.h"
 
-#include "src/arm64/decoder-arm64.h"
-#include "src/arm64/decoder-arm64-inl.h"
-#include "src/arm64/disasm-arm64.h"
+#include "src/codegen/arm64/decoder-arm64-inl.h"
+#include "src/codegen/arm64/decoder-arm64.h"
+#include "src/diagnostics/arm64/disasm-arm64.h"
 
 #if defined(V8_OS_WIN)
 #define RANDGEN() rand()

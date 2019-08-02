@@ -6,12 +6,12 @@
 #define V8_INTERPRETER_BYTECODE_GENERATOR_H_
 
 #include "src/ast/ast.h"
-#include "src/feedback-vector.h"
-#include "src/function-kind.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/objects/feedback-vector.h"
+#include "src/objects/function-kind.h"
 
 namespace v8 {
 namespace internal {
@@ -291,10 +291,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
+  void BuildPrivateClassMemberNameAssignment(ClassLiteral::Property* property);
   void BuildClassLiteral(ClassLiteral* expr, Register name);
   void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);
   void VisitThisFunctionVariable(Variable* variable);
+  void BuildPrivateBrandInitialization(Register receiver);
   void BuildInstanceMemberInitialization(Register constructor,
                                          Register instance);
   void BuildGeneratorObjectVariableInitialization();

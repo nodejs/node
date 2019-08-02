@@ -13,6 +13,7 @@ function opt(b) {
         return arr.slice();
 }
 
+%PrepareFunctionForOptimization(opt);
 opt(false);
 opt(false);
 %OptimizeFunctionOnNextCall(opt);

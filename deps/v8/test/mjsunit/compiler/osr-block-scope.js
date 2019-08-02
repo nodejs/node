@@ -28,6 +28,7 @@ function test(expected, func, depth) {
   for (var depth = 1; depth < 4; depth++) {
     var body = nest(orig, name, depth);
     func = eval("(" + body + ")");
+    %PrepareFunctionForOptimization(func);
 
     assertEquals(expected, func());
     assertEquals(expected, func());
@@ -47,6 +48,7 @@ function foo() {
   }
   return result;
 }
+%PrepareFunctionForOptimization(foo);
 
 test(45, foo);
 
@@ -58,6 +60,7 @@ function bar() {
   }
   return sum;
 }
+%PrepareFunctionForOptimization(bar);
 
 test(45, bar);
 
@@ -71,6 +74,7 @@ function bon() {
     return sum;
   }
 }
+%PrepareFunctionForOptimization(bon);
 
 test(45, bon);
 
@@ -87,6 +91,7 @@ function row() {
   }
   return 11;
 }
+%PrepareFunctionForOptimization(row);
 
 test(7, row);
 
@@ -98,6 +103,7 @@ function nub() {
   }
   return i;
 }
+%PrepareFunctionForOptimization(nub);
 
 test(2, nub);
 
@@ -112,5 +118,6 @@ function kub() {
   }
   return result;
 }
+%PrepareFunctionForOptimization(kub);
 
 test(1, kub);

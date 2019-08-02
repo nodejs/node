@@ -77,6 +77,7 @@ function create(a) {
 function runTest(test, kind, holey_predicate) {
 
   // Verify built-in implementation produces correct results.
+  %PrepareFunctionForOptimization(test);
   let a = test();
   assertKind(kind, a);
   holey_predicate(a);

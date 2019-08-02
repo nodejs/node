@@ -7,10 +7,10 @@
 
 #include "src/objects/arguments.h"
 
-#include "src/contexts-inl.h"
-#include "src/isolate-inl.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -62,23 +62,23 @@ bool JSSloppyArgumentsObject::GetSloppyArgumentsLength(Isolate* isolate,
                                                        int* out) {
   Context context = *isolate->native_context();
   Map map = object->map();
-  if (map != context->sloppy_arguments_map() &&
-      map != context->strict_arguments_map() &&
-      map != context->fast_aliased_arguments_map()) {
+  if (map != context.sloppy_arguments_map() &&
+      map != context.strict_arguments_map() &&
+      map != context.fast_aliased_arguments_map()) {
     return false;
   }
   DCHECK(object->HasFastElements() || object->HasFastArgumentsElements());
   Object len_obj =
       object->InObjectPropertyAt(JSArgumentsObjectWithLength::kLengthIndex);
-  if (!len_obj->IsSmi()) return false;
+  if (!len_obj.IsSmi()) return false;
   *out = Max(0, Smi::ToInt(len_obj));
 
   FixedArray parameters = FixedArray::cast(object->elements());
   if (object->HasSloppyArgumentsElements()) {
-    FixedArray arguments = FixedArray::cast(parameters->get(1));
-    return *out <= arguments->length();
+    FixedArray arguments = FixedArray::cast(parameters.get(1));
+    return *out <= arguments.length();
   }
-  return *out <= parameters->length();
+  return *out <= parameters.length();
 }
 
 }  // namespace internal

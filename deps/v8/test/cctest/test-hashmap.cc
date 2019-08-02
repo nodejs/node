@@ -28,7 +28,7 @@
 #include <stdlib.h>
 
 #include "src/base/overflowing-math.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 #include "src/base/hashmap.h"
@@ -37,7 +37,7 @@ namespace v8 {
 namespace internal {
 namespace test_hashmap {
 
-typedef uint32_t (*IntKeyHash)(uint32_t key);
+using IntKeyHash = uint32_t (*)(uint32_t key);
 
 class IntSet {
  public:

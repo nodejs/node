@@ -65,6 +65,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   // V8InspectorSession implementation.
   void dispatchProtocolMessage(const StringView& message) override;
   std::unique_ptr<StringBuffer> stateJSON() override;
+  std::vector<uint8_t> state() override;
   std::vector<std::unique_ptr<protocol::Schema::API::Domain>> supportedDomains()
       override;
   void addInspectedObject(

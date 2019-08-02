@@ -6,7 +6,7 @@
 #define V8_INTERPRETER_BYTECODE_REGISTER_OPTIMIZER_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 
 namespace v8 {

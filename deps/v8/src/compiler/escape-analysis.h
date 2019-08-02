@@ -6,10 +6,10 @@
 #define V8_COMPILER_ESCAPE_ANALYSIS_H_
 
 #include "src/base/functional.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/persistent-map.h"
-#include "src/globals.h"
 #include "src/objects/name.h"
 
 namespace v8 {

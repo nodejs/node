@@ -4,8 +4,8 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/handles.h"
-#include "src/objects-inl.h"
+#include "src/handles/handles.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
@@ -29,7 +29,8 @@ namespace module_decoder_unittest {
 #define WASM_INIT_EXPR_F32(val) WASM_F32(val), kExprEnd
 #define WASM_INIT_EXPR_I64(val) WASM_I64(val), kExprEnd
 #define WASM_INIT_EXPR_F64(val) WASM_F64(val), kExprEnd
-#define WASM_INIT_EXPR_ANYREF WASM_REF_NULL, kExprEnd
+#define WASM_INIT_EXPR_REF_NULL WASM_REF_NULL, kExprEnd
+#define WASM_INIT_EXPR_REF_FUNC(val) WASM_REF_FUNC(val), kExprEnd
 #define WASM_INIT_EXPR_GLOBAL(index) WASM_GET_GLOBAL(index), kExprEnd
 
 #define REF_NULL_ELEMENT kExprRefNull, kExprEnd
@@ -270,26 +271,75 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
 TEST_F(WasmModuleVerifyTest, AnyRefGlobal) {
   WASM_FEATURE_SCOPE(anyref);
   static const byte data[] = {
-      SECTION(Global,                 // --
-              ENTRY_COUNT(1),         // --
-              kLocalAnyRef,           // local type
-              0,                      // immutable
-              WASM_INIT_EXPR_ANYREF)  // init
-  };
+      // sig#0 ---------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs ---------------------------------------------------------------
+      TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
+      SECTION(Global,                       // --
+              ENTRY_COUNT(2),               // --
+              kLocalAnyRef,                 // local type
+              0,                            // immutable
+              WASM_INIT_EXPR_REF_NULL,      // init
+              kLocalAnyRef,                 // local type
+              0,                            // immutable
+              WASM_INIT_EXPR_REF_FUNC(1)),  // init
+      TWO_EMPTY_BODIES};
 
   {
-    // Should decode to exactly one global.
+    // Should decode to two globals.
     ModuleResult result = DecodeModule(data, data + sizeof(data));
     EXPECT_OK(result);
-    EXPECT_EQ(1u, result.value()->globals.size());
-    EXPECT_EQ(0u, result.value()->functions.size());
+    EXPECT_EQ(2u, result.value()->globals.size());
+    EXPECT_EQ(2u, result.value()->functions.size());
     EXPECT_EQ(0u, result.value()->data_segments.size());
 
-    const WasmGlobal* global = &result.value()->globals.back();
-
+    const WasmGlobal* global = &result.value()->globals[0];
     EXPECT_EQ(kWasmAnyRef, global->type);
     EXPECT_FALSE(global->mutability);
     EXPECT_EQ(WasmInitExpr::kRefNullConst, global->init.kind);
+
+    global = &result.value()->globals[1];
+    EXPECT_EQ(kWasmAnyRef, global->type);
+    EXPECT_FALSE(global->mutability);
+    EXPECT_EQ(WasmInitExpr::kRefFuncConst, global->init.kind);
+    EXPECT_EQ(uint32_t{1}, global->init.val.function_index);
+  }
+}
+
+TEST_F(WasmModuleVerifyTest, AnyFuncGlobal) {
+  WASM_FEATURE_SCOPE(anyref);
+  static const byte data[] = {
+      // sig#0 ---------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs ---------------------------------------------------------------
+      TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
+      SECTION(Global,                       // --
+              ENTRY_COUNT(2),               // --
+              kLocalAnyFunc,                // local type
+              0,                            // immutable
+              WASM_INIT_EXPR_REF_NULL,      // init
+              kLocalAnyFunc,                // local type
+              0,                            // immutable
+              WASM_INIT_EXPR_REF_FUNC(1)),  // init
+      TWO_EMPTY_BODIES};
+  {
+    // Should decode to two globals.
+    ModuleResult result = DecodeModule(data, data + sizeof(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(2u, result.value()->globals.size());
+    EXPECT_EQ(2u, result.value()->functions.size());
+    EXPECT_EQ(0u, result.value()->data_segments.size());
+
+    const WasmGlobal* global = &result.value()->globals[0];
+    EXPECT_EQ(kWasmAnyFunc, global->type);
+    EXPECT_FALSE(global->mutability);
+    EXPECT_EQ(WasmInitExpr::kRefNullConst, global->init.kind);
+
+    global = &result.value()->globals[1];
+    EXPECT_EQ(kWasmAnyFunc, global->type);
+    EXPECT_FALSE(global->mutability);
+    EXPECT_EQ(WasmInitExpr::kRefFuncConst, global->init.kind);
+    EXPECT_EQ(uint32_t{1}, global->init.val.function_index);
   }
 }
 
@@ -1175,9 +1225,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
   EXPECT_VERIFIES(data);
 }
 
-TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefTable) {
-  // Test that tables of type 'AnyRef' cannot be initialized by the element
-  // section.
+TEST_F(WasmModuleVerifyTest, ElementSectionInitAnyRefTableWithAnyFunc) {
   WASM_FEATURE_SCOPE(anyref);
   WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
@@ -1201,9 +1249,11 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefTable) {
               2,                         // elements count
               FUNC_INDEX(0),             // entry 0
               FUNC_INDEX(0)),            // entry 1
+      // code ----------------------------------------------------------------
+      ONE_EMPTY_BODY,
   };
 
-  EXPECT_FAILURE(data);
+  EXPECT_VERIFIES(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefImportedTable) {
@@ -2433,7 +2483,8 @@ TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_omitted) {
 #undef WASM_INIT_EXPR_F32
 #undef WASM_INIT_EXPR_I64
 #undef WASM_INIT_EXPR_F64
-#undef WASM_INIT_EXPR_ANYREF
+#undef WASM_INIT_EXPR_REF_NULL
+#undef WASM_INIT_EXPR_REF_FUNC
 #undef WASM_INIT_EXPR_GLOBAL
 #undef REF_NULL_ELEMENT
 #undef REF_FUNC_ELEMENT

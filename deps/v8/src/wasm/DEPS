@@ -2,6 +2,8 @@ specific_include_rules = {
   "c-api\.cc": [
     "+include/libplatform/libplatform.h",
     "+third_party/wasm-api/wasm.h",
+  ],
+  "c-api\.h": [
     "+third_party/wasm-api/wasm.hh",
   ],
 }

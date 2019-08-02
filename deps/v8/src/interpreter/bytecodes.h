@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-operands.h"
 
 // This interface and it's implementation are independent of the

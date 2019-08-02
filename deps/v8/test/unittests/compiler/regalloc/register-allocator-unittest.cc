@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/compiler/pipeline.h"
 #include "test/unittests/compiler/backend/instruction-sequence-unittest.h"
 
@@ -625,22 +625,18 @@ TEST_F(RegisterAllocatorTest, SingleDeferredBlockSpill) {
 
   const int var_def_index = 1;
   const int call_index = 3;
-  const bool spill_in_deferred =
-      FLAG_turbo_preprocess_ranges || FLAG_turbo_control_flow_aware_allocation;
-  int expect_no_moves = spill_in_deferred ? var_def_index : call_index;
-  int expect_spill_move = spill_in_deferred ? call_index : var_def_index;
 
-  // We should have no parallel moves at the "expect_no_moves" position.
+  // We should have no parallel moves at the "var_def_index" position.
   EXPECT_EQ(
-      0, GetParallelMoveCount(expect_no_moves, Instruction::START, sequence()));
+      0, GetParallelMoveCount(var_def_index, Instruction::START, sequence()));
 
-  // The spill should be performed at the position expect_spill_move.
-  EXPECT_TRUE(IsParallelMovePresent(expect_spill_move, Instruction::START,
-                                    sequence(), Reg(0), Slot(0)));
+  // The spill should be performed at the position "call_index".
+  EXPECT_TRUE(IsParallelMovePresent(call_index, Instruction::START, sequence(),
+                                    Reg(0), Slot(0)));
 }
 
 TEST_F(RegisterAllocatorTest, MultipleDeferredBlockSpills) {
-  if (!FLAG_turbo_preprocess_ranges) return;
+  if (FLAG_turbo_control_flow_aware_allocation) return;
 
   StartBlock();  // B0
   auto var1 = EmitOI(Reg(0));
@@ -775,7 +771,7 @@ class SlotConstraintTest : public RegisterAllocatorTest,
   int variant() const { return ::testing::get<1>(B::GetParam()); }
 
  private:
-  typedef ::testing::WithParamInterface<::testing::tuple<ParameterType, int>> B;
+  using B = ::testing::WithParamInterface<::testing::tuple<ParameterType, int>>;
 };
 
 }  // namespace
@@ -817,7 +813,6 @@ TEST_P(SlotConstraintTest, SlotConstraint) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   EndBlock(Last());
 

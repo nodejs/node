@@ -10,12 +10,12 @@ Source of script wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-0:
 Source of script wasm://wasm/wasm-0c10a5fe/wasm-0c10a5fe-1:
 1: func $wasm_B (param i32)
 2:   loop
-3:     get_local 0
+3:     local.get 0
 4:     if
-5:       get_local 0
+5:       local.get 0
 6:       i32.const 1
 7:       i32.sub
-8:       set_local 0
+8:       local.set 0
 9:       call 0
 10:       br 1
 11:     end

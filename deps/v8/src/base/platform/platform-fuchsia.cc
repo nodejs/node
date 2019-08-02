@@ -150,7 +150,12 @@ void OS::SignalCodeMovingGC() {
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   const auto kNanosPerMicrosecond = 1000ULL;
   const auto kMicrosPerSecond = 1000000ULL;
-  const zx_time_t nanos_since_thread_started = zx_clock_get(ZX_CLOCK_THREAD);
+  zx_time_t nanos_since_thread_started;
+  zx_status_t status =
+      zx_clock_get_new(ZX_CLOCK_THREAD, &nanos_since_thread_started);
+  if (status != ZX_OK) {
+    return -1;
+  }
 
   // First convert to microseconds, rounding up.
   const uint64_t micros_since_thread_started =

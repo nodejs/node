@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_BIGINT_H_
 #define V8_OBJECTS_BIGINT_H_
 
-#include "src/globals.h"
-#include "src/objects.h"
+#include "src/common/globals.h"
 #include "src/objects/heap-object.h"
-#include "src/utils.h"
+#include "src/objects/objects.h"
+#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -87,7 +87,7 @@ class BigIntBase : public HeapObject {
 
   inline digit_t digit(int n) const {
     SLOW_DCHECK(0 <= n && n < length());
-    return READ_UINTPTR_FIELD(*this, kDigitsOffset + n * kDigitSize);
+    return ReadField<digit_t>(kDigitsOffset + n * kDigitSize);
   }
 
   bool is_zero() const { return length() == 0; }

@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -17,7 +17,7 @@ TEST(ArgumentsMapped) {
   Handle<Object> arguments;
   T.Call(T.Val(19), T.Val(23), T.Val(42), T.Val(65)).ToHandle(&arguments);
   CHECK(arguments->IsJSObject() && !arguments->IsJSArray());
-  CHECK(JSObject::cast(*arguments)->HasSloppyArgumentsElements());
+  CHECK(JSObject::cast(*arguments).HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
   Handle<Object> length =
       Object::GetProperty(T.isolate, arguments, l).ToHandleChecked();
@@ -31,7 +31,7 @@ TEST(ArgumentsUnmapped) {
   Handle<Object> arguments;
   T.Call(T.Val(19), T.Val(23), T.Val(42), T.Val(65)).ToHandle(&arguments);
   CHECK(arguments->IsJSObject() && !arguments->IsJSArray());
-  CHECK(!JSObject::cast(*arguments)->HasSloppyArgumentsElements());
+  CHECK(!JSObject::cast(*arguments).HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
   Handle<Object> length =
       Object::GetProperty(T.isolate, arguments, l).ToHandleChecked();
@@ -45,7 +45,7 @@ TEST(ArgumentsRest) {
   Handle<Object> arguments;
   T.Call(T.Val(19), T.Val(23), T.Val(42), T.Val(65)).ToHandle(&arguments);
   CHECK(arguments->IsJSObject() && arguments->IsJSArray());
-  CHECK(!JSObject::cast(*arguments)->HasSloppyArgumentsElements());
+  CHECK(!JSObject::cast(*arguments).HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
   Handle<Object> length =
       Object::GetProperty(T.isolate, arguments, l).ToHandleChecked();

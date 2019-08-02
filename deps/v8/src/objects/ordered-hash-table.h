@@ -6,11 +6,11 @@
 #define V8_OBJECTS_ORDERED_HASH_TABLE_H_
 
 #include "src/base/export-template.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/smi.h"
-#include "src/roots.h"
+#include "src/roots/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -126,7 +126,7 @@ class OrderedHashTable : public FixedArray {
     return get(EntryToIndex(entry));
   }
 
-  bool IsObsolete() { return !get(NextTableIndex())->IsSmi(); }
+  bool IsObsolete() { return !get(NextTableIndex()).IsSmi(); }
 
   // The next newer table. This is only valid if the table is obsolete.
   Derived NextTable() { return Derived::cast(get(NextTableIndex())); }
@@ -540,13 +540,13 @@ class SmallOrderedHashTable : public HeapObject {
   byte getByte(Offset offset, ByteIndex index) const {
     DCHECK(offset < DataTableStartOffset() ||
            offset >= GetBucketsStartOffset());
-    return READ_BYTE_FIELD(*this, offset + (index * kOneByteSize));
+    return ReadField<byte>(offset + (index * kOneByteSize));
   }
 
   void setByte(Offset offset, ByteIndex index, byte value) {
     DCHECK(offset < DataTableStartOffset() ||
            offset >= GetBucketsStartOffset());
-    WRITE_BYTE_FIELD(*this, offset + (index * kOneByteSize), value);
+    WriteField<byte>(offset + (index * kOneByteSize), value);
   }
 
   Offset GetDataEntryOffset(int entry, int relative_index) const {

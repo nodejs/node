@@ -27,11 +27,17 @@
 
 // Tests supportedLocalesOf method.
 
+// Flags: --harmony-intl-segmenter
+
 var services = [
-  Intl.DateTimeFormat,
   Intl.Collator,
+  Intl.DateTimeFormat,
   Intl.NumberFormat,
-  Intl.PluralRules
+  Intl.ListFormat,
+  Intl.PluralRules,
+  Intl.RelativeTimeFormat,
+  Intl.Segmenter,
+  Intl.v8BreakIterator,
 ];
 
 for (const service of services) {

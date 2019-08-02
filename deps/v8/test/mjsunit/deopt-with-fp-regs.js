@@ -75,6 +75,7 @@ function test(a, b, c, d, e, v) {
   assertEquals(24,   d);
   assertEquals(37.5, e);
 }
+%PrepareFunctionForOptimization(test);
 
 
 test(10.0, 20.0, 30.0, 40.0, 50.0, 1.5);

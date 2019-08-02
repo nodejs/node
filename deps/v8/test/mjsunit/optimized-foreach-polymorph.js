@@ -19,7 +19,8 @@ var e = [,,,,0.5,3,4];
       result += i;
     }
     arg.forEach(sum);
-  }
+  };
+  %PrepareFunctionForOptimization(polymorph1);
   polymorph1(a);
   polymorph1(a);
   polymorph1(b);
@@ -39,7 +40,8 @@ var e = [,,,,0.5,3,4];
       result += i;
     }
     arg.forEach(sum);
-  }
+  };
+  %PrepareFunctionForOptimization(polymorph1);
   polymorph1(a);
   polymorph1(a);
   polymorph1(b);
@@ -61,7 +63,8 @@ var e = [,,,,0.5,3,4];
       result += i;
     }
     arg.forEach(sum);
-  }
+  };
+  %PrepareFunctionForOptimization(polymorph1);
   polymorph1(a);
   polymorph1(a);
   polymorph1(b);
@@ -82,7 +85,8 @@ var e = [,,,,0.5,3,4];
       result += v;
     }
     arg.forEach(sum);
-  }
+  };
+  %PrepareFunctionForOptimization(polymorph1);
   polymorph1(d);
   polymorph1(d);
   polymorph1(d);
@@ -100,7 +104,8 @@ var e = [,,,,0.5,3,4];
       result += v;
     }
     arg.forEach(sum);
-  }
+  };
+  %PrepareFunctionForOptimization(polymorph1);
   polymorph1(d);
   polymorph1(e);
   polymorph1(d);

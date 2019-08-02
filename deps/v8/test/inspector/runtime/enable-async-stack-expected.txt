@@ -33,10 +33,10 @@ Checks that async stack is captured when Runtime.setAsyncCallStackDepth is calle
     callFrames : [
         [0] : {
             columnNumber : 32
-            functionName :
+            functionName : 
             lineNumber : 0
             scriptId : <scriptId>
-            url :
+            url : 
         }
     ]
     parentId : {

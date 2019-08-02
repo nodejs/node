@@ -12,6 +12,7 @@ function get() {
   return m.stringlife;
 }
 
+%PrepareFunctionForOptimization(get);
 assertEquals("42", get());
 assertEquals("42", get());
 assertEquals("42", get());

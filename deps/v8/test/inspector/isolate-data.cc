@@ -16,7 +16,7 @@ v8::internal::Vector<uint16_t> ToVector(v8::Isolate* isolate,
                                         v8::Local<v8::String> str) {
   v8::internal::Vector<uint16_t> buffer =
       v8::internal::Vector<uint16_t>::New(str->Length());
-  str->Write(isolate, buffer.start(), 0, str->Length());
+  str->Write(isolate, buffer.begin(), 0, str->Length());
   return buffer;
 }
 
@@ -157,13 +157,12 @@ int IsolateData::ConnectSession(int context_group_id,
   return session_id;
 }
 
-std::unique_ptr<v8_inspector::StringBuffer> IsolateData::DisconnectSession(
-    int session_id) {
+std::vector<uint8_t> IsolateData::DisconnectSession(int session_id) {
   v8::SealHandleScope seal_handle_scope(isolate());
   auto it = sessions_.find(session_id);
   CHECK(it != sessions_.end());
   context_group_by_session_.erase(it->second.get());
-  std::unique_ptr<v8_inspector::StringBuffer> result = it->second->stateJSON();
+  std::vector<uint8_t> result = it->second->state();
   sessions_.erase(it);
   return result;
 }
@@ -282,14 +281,14 @@ int IsolateData::HandleMessage(v8::Local<v8::Message> message,
   v8_inspector::StringView detailed_message;
   v8::internal::Vector<uint16_t> message_text_string =
       ToVector(isolate, message->Get());
-  v8_inspector::StringView message_text(message_text_string.start(),
+  v8_inspector::StringView message_text(message_text_string.begin(),
                                         message_text_string.length());
   v8::internal::Vector<uint16_t> url_string;
   if (message->GetScriptOrigin().ResourceName()->IsString()) {
     url_string = ToVector(
         isolate, message->GetScriptOrigin().ResourceName().As<v8::String>());
   }
-  v8_inspector::StringView url(url_string.start(), url_string.length());
+  v8_inspector::StringView url(url_string.begin(), url_string.length());
 
   v8::SealHandleScope seal_handle_scope(isolate);
   return inspector->exceptionThrown(
@@ -464,7 +463,7 @@ class StringBufferImpl : public v8_inspector::StringBuffer {
  public:
   StringBufferImpl(v8::Isolate* isolate, v8::Local<v8::String> string)
       : data_(ToVector(isolate, string)),
-        view_(data_.start(), data_.length()) {}
+        view_(data_.begin(), data_.length()) {}
   const v8_inspector::StringView& string() override { return view_; }
 
  private:

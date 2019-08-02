@@ -12,10 +12,9 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
-#include "src/date.h"
-#include "src/elements.h"
-#include "src/objects-inl.h"
+#include "src/date/date.h"
+#include "src/logging/counters.h"
+#include "src/objects/elements.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-break-iterator-inl.h"
@@ -28,8 +27,9 @@
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
 #include "src/objects/smi.h"
-#include "src/property-descriptor.h"
 
 #include "unicode/brkiter.h"
 
@@ -227,7 +227,7 @@ namespace {
 Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
                                        Handle<JSObject> object,
                                        Builtins::Name builtin_id, int len) {
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
+  Handle<NativeContext> native_context(isolate->context().native_context(),
                                        isolate);
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
       native_context,
@@ -482,13 +482,14 @@ BUILTIN(NumberFormatInternalFormatNumber) {
                                        Object::ToNumber(isolate, value));
   }
 
-  icu::NumberFormat* icu_number_format =
-      number_format->icu_number_format()->raw();
-  CHECK_NOT_NULL(icu_number_format);
+  icu::number::LocalizedNumberFormatter* icu_localized_number_formatter =
+      number_format->icu_number_formatter().raw();
+  CHECK_NOT_NULL(icu_localized_number_formatter);
 
+  // Return FormatNumber(nf, x).
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      JSNumberFormat::FormatNumeric(isolate, *icu_number_format, numeric_obj));
+      isolate, JSNumberFormat::FormatNumeric(
+                   isolate, *icu_localized_number_formatter, numeric_obj));
 }
 
 BUILTIN(DateTimeFormatConstructor) {
@@ -969,7 +970,7 @@ BUILTIN(CollatorInternalCompare) {
                                      Object::ToString(isolate, y));
 
   // 7. Return CompareStrings(collator, X, Y).
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  icu::Collator* icu_collator = collator->icu_collator().raw();
   CHECK_NOT_NULL(icu_collator);
   return *Intl::CompareStrings(isolate, *icu_collator, string_x, string_y);
 }
@@ -1071,7 +1072,7 @@ BUILTIN(SegmenterPrototypeSegment) {
   RETURN_RESULT_OR_FAILURE(
       isolate,
       JSSegmentIterator::Create(
-          isolate, segmenter_holder->icu_break_iterator()->raw()->clone(),
+          isolate, segmenter_holder->icu_break_iterator().raw()->clone(),
           segmenter_holder->granularity(), text));
 }
 

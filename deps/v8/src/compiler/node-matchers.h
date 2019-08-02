@@ -8,11 +8,11 @@
 #include <cmath>
 
 #include "src/base/compiler-specific.h"
+#include "src/codegen/external-reference.h"
+#include "src/common/globals.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
-#include "src/double.h"
-#include "src/external-reference.h"
-#include "src/globals.h"
+#include "src/numbers/double.h"
 #include "src/objects/heap-object.h"
 
 namespace v8 {
@@ -253,6 +253,15 @@ struct BinopMatcher : public NodeMatcher {
 
   bool IsFoldable() const { return left().HasValue() && right().HasValue(); }
   bool LeftEqualsRight() const { return left().node() == right().node(); }
+
+  bool OwnsInput(Node* input) {
+    for (Node* use : input->uses()) {
+      if (use != node()) {
+        return false;
+      }
+    }
+    return true;
+  }
 
  protected:
   void SwapInputs() {

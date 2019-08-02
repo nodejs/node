@@ -4,9 +4,9 @@
 
 #include "src/snapshot/roots-serializer.h"
 
+#include "src/execution/isolate.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 
 namespace v8 {
@@ -58,8 +58,8 @@ void RootsSerializer::VisitRootPointers(Root root, const char* description,
 
 void RootsSerializer::CheckRehashability(HeapObject obj) {
   if (!can_be_rehashed_) return;
-  if (!obj->NeedsRehashing()) return;
-  if (obj->CanBeRehashed()) return;
+  if (!obj.NeedsRehashing()) return;
+  if (obj.CanBeRehashed()) return;
   can_be_rehashed_ = false;
 }
 

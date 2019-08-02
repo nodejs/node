@@ -92,7 +92,7 @@ class V8_EXPORT_PRIVATE Sampler {
 
 #ifdef USE_SIGNALS
 
-typedef std::atomic_bool AtomicMutex;
+using AtomicMutex = std::atomic_bool;
 
 // A helper that uses an std::atomic_bool to create a lock that is obtained on
 // construction and released on destruction.
@@ -120,7 +120,7 @@ class V8_EXPORT_PRIVATE AtomicGuard {
 // take a sample for every Sampler on the current thread.
 class V8_EXPORT_PRIVATE SamplerManager {
  public:
-  typedef std::vector<Sampler*> SamplerList;
+  using SamplerList = std::vector<Sampler*>;
 
   // Add |sampler| to the map if it is not already present.
   void AddSampler(Sampler* sampler);

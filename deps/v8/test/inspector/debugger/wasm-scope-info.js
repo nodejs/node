@@ -33,6 +33,7 @@ async function instantiateWasm() {
   utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
   var builder = new WasmModuleBuilder();
+  builder.addGlobal(kWasmI32, true);
 
   builder.addFunction('func', kSig_v_i)
       .addLocals(
@@ -51,7 +52,10 @@ async function instantiateWasm() {
         kExprSetLocal, 2,
         // Set local 3 to 1/7.
         kExprI32Const, 1, kExprF64UConvertI32, kExprI32Const, 7,
-        kExprF64UConvertI32, kExprF64Div, kExprSetLocal, 3
+        kExprF64UConvertI32, kExprF64Div, kExprSetLocal, 3,
+
+        // Set global 0 to 15
+        kExprI32Const, 15, kExprSetGlobal, 0,
       ])
       .exportAs('main');
 
@@ -129,13 +133,15 @@ async function dumpScopeProperties(message) {
 async function dumpScopeChainsOnPause(message) {
   InspectorTest.log(`Scope:`);
   for (var frame of message.params.callFrames) {
+    var isWasmFrame = /^wasm/.test(frame.url);
     var functionName = frame.functionName || '(anonymous)';
     var lineNumber = frame.location ? frame.location.lineNumber : frame.lineNumber;
     var columnNumber = frame.location ? frame.location.columnNumber : frame.columnNumber;
     InspectorTest.log(`at ${functionName} (${lineNumber}:${columnNumber}):`);
     for (var scope of frame.scopeChain) {
       InspectorTest.logObject(' - scope (' + scope.type + '):');
-      if (scope.type == 'global') {
+      if (!isWasmFrame && scope.type == 'global') {
+        // Skip global scope for non wasm-functions.
         InspectorTest.logObject('   -- skipped globals');
         continue;
       }

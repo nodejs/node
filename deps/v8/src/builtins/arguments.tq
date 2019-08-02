@@ -31,6 +31,7 @@ namespace arguments {
   // It is difficult to actually check/assert this, since interpreted or JITted
   // frames are StandardFrames, but so are hand-written builtins. Doing that
   // more refined check would be prohibitively expensive.
+  @export
   macro GetArgumentsFrameAndCount(implicit context: Context)(f: JSFunction):
       ArgumentsInfo {
     let frame: Frame = LoadParentFramePointer();

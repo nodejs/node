@@ -5,8 +5,8 @@
 #ifndef V8_WASM_WASM_OPCODES_H_
 #define V8_WASM_WASM_OPCODES_H_
 
-#include "src/globals.h"
-#include "src/message-template.h"
+#include "src/common/globals.h"
+#include "src/execution/message-template.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-constants.h"
 
@@ -45,6 +45,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(ReturnCallIndirect, 0x13, _) \
   V(Drop, 0x1a, _)               \
   V(Select, 0x1b, _)             \
+  V(SelectWithType, 0x1c, _)     \
   V(GetLocal, 0x20, _)           \
   V(SetLocal, 0x21, _)           \
   V(TeeLocal, 0x22, _)           \
@@ -405,22 +406,26 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V)
 
-#define FOREACH_NUMERIC_OPCODE(V)   \
-  V(I32SConvertSatF32, 0xfc00, i_f) \
-  V(I32UConvertSatF32, 0xfc01, i_f) \
-  V(I32SConvertSatF64, 0xfc02, i_d) \
-  V(I32UConvertSatF64, 0xfc03, i_d) \
-  V(I64SConvertSatF32, 0xfc04, l_f) \
-  V(I64UConvertSatF32, 0xfc05, l_f) \
-  V(I64SConvertSatF64, 0xfc06, l_d) \
-  V(I64UConvertSatF64, 0xfc07, l_d) \
-  V(MemoryInit, 0xfc08, v_iii)      \
-  V(DataDrop, 0xfc09, v_v)          \
-  V(MemoryCopy, 0xfc0a, v_iii)      \
-  V(MemoryFill, 0xfc0b, v_iii)      \
-  V(TableInit, 0xfc0c, v_iii)       \
-  V(ElemDrop, 0xfc0d, v_v)          \
-  V(TableCopy, 0xfc0e, v_iii)
+#define FOREACH_NUMERIC_OPCODE(V)                                             \
+  V(I32SConvertSatF32, 0xfc00, i_f)                                           \
+  V(I32UConvertSatF32, 0xfc01, i_f)                                           \
+  V(I32SConvertSatF64, 0xfc02, i_d)                                           \
+  V(I32UConvertSatF64, 0xfc03, i_d)                                           \
+  V(I64SConvertSatF32, 0xfc04, l_f)                                           \
+  V(I64UConvertSatF32, 0xfc05, l_f)                                           \
+  V(I64SConvertSatF64, 0xfc06, l_d)                                           \
+  V(I64UConvertSatF64, 0xfc07, l_d)                                           \
+  V(MemoryInit, 0xfc08, v_iii)                                                \
+  V(DataDrop, 0xfc09, v_v)                                                    \
+  V(MemoryCopy, 0xfc0a, v_iii)                                                \
+  V(MemoryFill, 0xfc0b, v_iii)                                                \
+  V(TableInit, 0xfc0c, v_iii)                                                 \
+  V(ElemDrop, 0xfc0d, v_v)                                                    \
+  V(TableCopy, 0xfc0e, v_iii)                                                 \
+  V(TableGrow, 0xfc0f, i_ai)                                                  \
+  V(TableSize, 0xfc10, i_v)                                                   \
+  /*TableFill is polymorph in the second parameter. It's anyref or anyfunc.*/ \
+  V(TableFill, 0xfc11, v_iii)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
   V(AtomicNotify, 0xfe00, i_ii)                 \
@@ -547,7 +552,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64)  \
   V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
   V(i_ill, kWasmI32, kWasmI32, kWasmI64, kWasmI64)  \
-  V(i_r, kWasmI32, kWasmAnyRef)
+  V(i_r, kWasmI32, kWasmAnyRef)                     \
+  V(i_ai, kWasmI32, kWasmAnyFunc, kWasmI32)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \
   V(s_s, kWasmS128, kWasmS128)             \
@@ -610,6 +616,7 @@ struct WasmInitExpr {
     kF32Const,
     kF64Const,
     kRefNullConst,
+    kRefFuncConst,
   } kind;
 
   union {
@@ -618,6 +625,7 @@ struct WasmInitExpr {
     float f32_const;
     double f64_const;
     uint32_t global_index;
+    uint32_t function_index;
   } val;
 
   WasmInitExpr() : kind(kNone) {}
@@ -625,8 +633,15 @@ struct WasmInitExpr {
   explicit WasmInitExpr(int64_t v) : kind(kI64Const) { val.i64_const = v; }
   explicit WasmInitExpr(float v) : kind(kF32Const) { val.f32_const = v; }
   explicit WasmInitExpr(double v) : kind(kF64Const) { val.f64_const = v; }
-  WasmInitExpr(WasmInitKind kind, uint32_t global_index) : kind(kGlobalIndex) {
-    val.global_index = global_index;
+  WasmInitExpr(WasmInitKind kind, uint32_t index) : kind(kind) {
+    if (kind == kGlobalIndex) {
+      val.global_index = index;
+    } else if (kind == kRefFuncConst) {
+      val.function_index = index;
+    } else {
+      // For the other types, the other initializers should be used.
+      UNREACHABLE();
+    }
   }
 };
 

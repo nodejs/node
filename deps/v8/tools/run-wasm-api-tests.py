@@ -30,7 +30,7 @@ import shutil
 import subprocess
 import sys
 
-CFLAGS = "-DDEBUG -Wall -Werror -O0 -fsanitize=address"
+CFLAGS = "-DDEBUG -Wall -Werror -O0 -ggdb -fsanitize=address"
 
 CHECKOUT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WASM_PATH = os.path.join(CHECKOUT_PATH, "third_party", "wasm-api")
@@ -87,12 +87,12 @@ class Runner(object):
     dst_wasm_file = self.dst_file_basename + ".wasm"
     shutil.copyfile(src_wasm_file, dst_wasm_file)
 
-  def _Error(self, step, lang, compiler):
+  def _Error(self, step, lang, compiler, code):
     print("Error: %s failed. To repro: tools/run-wasm-api-tests.py "
           "%s %s %s %s %s" %
           (step, self.outdir, self.tempdir, self.name, lang,
            compiler["name"].lower()))
-
+    return code
 
   def CompileAndRun(self, compiler, language):
     print("==== %s %s/%s ====" %
@@ -104,15 +104,15 @@ class Runner(object):
     # Compile.
     c = _Call([compiler[lang], "-c", language["cflags"], CFLAGS,
                "-I", WASM_PATH, "-o", obj_file, src_file])
-    if c: return self._Error("compilation", lang, compiler)
+    if c: return self._Error("compilation", lang, compiler, c)
     # Link.
     c = _Call([compiler["cc"], CFLAGS, compiler["ldflags"], obj_file,
                "-o", exe_file, self.lib_file, "-ldl -pthread"])
-    if c: return self._Error("linking", lang, compiler)
+    if c: return self._Error("linking", lang, compiler, c)
     # Execute.
     exe_file = "./%s-%s" % (self.name, lang)
     c = _Call(["cd", self.tempdir, ";", exe_file])
-    if c: return self._Error("execution", lang, compiler)
+    if c: return self._Error("execution", lang, compiler, c)
     return 0
 
 def Main(args):
@@ -157,6 +157,10 @@ def Main(args):
       for language in languages:
         c = runner.CompileAndRun(compiler, language)
         if c: result = c
+  if result:
+    print("\nFinished with errors.")
+  else:
+    print("\nFinished successfully.")
   return result
 
 if __name__ == "__main__":

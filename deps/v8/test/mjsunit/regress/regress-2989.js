@@ -33,7 +33,7 @@ if (isNeverOptimizeLiteMode()) {
       x = 42;
       return f.arguments[0];
   }
-
+  %EnsureFeedbackVectorForFunction(f);
   f(0);
   %OptimizeFunctionOnNextCall(f);
   assertEquals(42, f(0));

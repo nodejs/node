@@ -5,9 +5,9 @@
 #ifndef V8_WASM_WASM_LINKAGE_H_
 #define V8_WASM_WASM_LINKAGE_H_
 
-#include "src/assembler-arch.h"
-#include "src/machine-type.h"
-#include "src/signature.h"
+#include "src/codegen/assembler-arch.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/signature.h"
 #include "src/wasm/value-type.h"
 
 namespace v8 {

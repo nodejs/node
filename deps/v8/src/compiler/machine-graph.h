@@ -6,11 +6,11 @@
 #define V8_COMPILER_MACHINE_GRAPH_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/common-node-cache.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
-#include "src/globals.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

@@ -4,17 +4,17 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
-#include "src/conversions.h"
-#include "src/counters.h"
-#include "src/date.h"
-#include "src/dateparser-inl.h"
-#include "src/objects-inl.h"
+#include "src/codegen/code-factory.h"
+#include "src/date/date.h"
+#include "src/date/dateparser-inl.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions.h"
+#include "src/objects/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format.h"
 #endif
-#include "src/string-stream.h"
+#include "src/strings/string-stream.h"
 
 namespace v8 {
 namespace internal {
@@ -123,12 +123,12 @@ double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
     result = DateParser::Parse(isolate, str_content.ToUC16Vector(), *tmp);
   }
   if (!result) return std::numeric_limits<double>::quiet_NaN();
-  double const day = MakeDay(tmp->get(0)->Number(), tmp->get(1)->Number(),
-                             tmp->get(2)->Number());
-  double const time = MakeTime(tmp->get(3)->Number(), tmp->get(4)->Number(),
-                               tmp->get(5)->Number(), tmp->get(6)->Number());
+  double const day =
+      MakeDay(tmp->get(0).Number(), tmp->get(1).Number(), tmp->get(2).Number());
+  double const time = MakeTime(tmp->get(3).Number(), tmp->get(4).Number(),
+                               tmp->get(5).Number(), tmp->get(6).Number());
   double date = MakeDate(day, time);
-  if (tmp->get(7)->IsNull(isolate)) {
+  if (tmp->get(7).IsNull(isolate)) {
     if (date >= -DateCache::kMaxTimeBeforeUTCInMs &&
         date <= DateCache::kMaxTimeBeforeUTCInMs) {
       date = isolate->date_cache()->ToUTC(static_cast<int64_t>(date));
@@ -136,14 +136,14 @@ double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
       return std::numeric_limits<double>::quiet_NaN();
     }
   } else {
-    date -= tmp->get(7)->Number() * 1000.0;
+    date -= tmp->get(7).Number() * 1000.0;
   }
   return DateCache::TimeClip(date);
 }
 
 enum ToDateStringMode { kDateOnly, kTimeOnly, kDateAndTime };
 
-typedef base::SmallVector<char, 128> DateBuffer;
+using DateBuffer = base::SmallVector<char, 128>;
 
 template <class... Args>
 DateBuffer FormatDate(const char* format, Args... args) {
@@ -222,7 +222,7 @@ BUILTIN(DateConstructor) {
   } else if (argc == 1) {
     Handle<Object> value = args.at(1);
     if (value->IsJSDate()) {
-      time_val = Handle<JSDate>::cast(value)->value()->Number();
+      time_val = Handle<JSDate>::cast(value)->value().Number();
     } else {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                          Object::ToPrimitive(value));
@@ -374,7 +374,7 @@ BUILTIN(DatePrototypeSetDate) {
   Handle<Object> value = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToNumber(isolate, value));
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
@@ -397,8 +397,8 @@ BUILTIN(DatePrototypeSetFullYear) {
                                      Object::ToNumber(isolate, year));
   double y = year->Number(), m = 0.0, dt = 1.0;
   int time_within_day = 0;
-  if (!std::isnan(date->value()->Number())) {
-    int64_t const time_ms = static_cast<int64_t>(date->value()->Number());
+  if (!std::isnan(date->value().Number())) {
+    int64_t const time_ms = static_cast<int64_t>(date->value().Number());
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
     int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
     time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);
@@ -432,7 +432,7 @@ BUILTIN(DatePrototypeSetHours) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, hour,
                                      Object::ToNumber(isolate, hour));
   double h = hour->Number();
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
@@ -471,7 +471,7 @@ BUILTIN(DatePrototypeSetMilliseconds) {
   Handle<Object> ms = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
                                      Object::ToNumber(isolate, ms));
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
@@ -493,7 +493,7 @@ BUILTIN(DatePrototypeSetMinutes) {
   Handle<Object> min = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min,
                                      Object::ToNumber(isolate, min));
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
@@ -528,7 +528,7 @@ BUILTIN(DatePrototypeSetMonth) {
   Handle<Object> month = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                      Object::ToNumber(isolate, month));
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
@@ -557,7 +557,7 @@ BUILTIN(DatePrototypeSetSeconds) {
   Handle<Object> sec = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
                                      Object::ToNumber(isolate, sec));
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
@@ -595,8 +595,8 @@ BUILTIN(DatePrototypeSetUTCDate) {
   Handle<Object> value = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToNumber(isolate, value));
-  if (std::isnan(date->value()->Number())) return date->value();
-  int64_t const time_ms = static_cast<int64_t>(date->value()->Number());
+  if (std::isnan(date->value().Number())) return date->value();
+  int64_t const time_ms = static_cast<int64_t>(date->value().Number());
   int const days = isolate->date_cache()->DaysFromTime(time_ms);
   int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
   int year, month, day;
@@ -616,8 +616,8 @@ BUILTIN(DatePrototypeSetUTCFullYear) {
                                      Object::ToNumber(isolate, year));
   double y = year->Number(), m = 0.0, dt = 1.0;
   int time_within_day = 0;
-  if (!std::isnan(date->value()->Number())) {
-    int64_t const time_ms = static_cast<int64_t>(date->value()->Number());
+  if (!std::isnan(date->value().Number())) {
+    int64_t const time_ms = static_cast<int64_t>(date->value().Number());
     int const days = isolate->date_cache()->DaysFromTime(time_ms);
     time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
     int year, month, day;
@@ -650,7 +650,7 @@ BUILTIN(DatePrototypeSetUTCHours) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, hour,
                                      Object::ToNumber(isolate, hour));
   double h = hour->Number();
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int day = isolate->date_cache()->DaysFromTime(time_ms);
@@ -688,7 +688,7 @@ BUILTIN(DatePrototypeSetUTCMilliseconds) {
   Handle<Object> ms = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
                                      Object::ToNumber(isolate, ms));
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int day = isolate->date_cache()->DaysFromTime(time_ms);
@@ -709,7 +709,7 @@ BUILTIN(DatePrototypeSetUTCMinutes) {
   Handle<Object> min = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min,
                                      Object::ToNumber(isolate, min));
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int day = isolate->date_cache()->DaysFromTime(time_ms);
@@ -743,7 +743,7 @@ BUILTIN(DatePrototypeSetUTCMonth) {
   Handle<Object> month = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                      Object::ToNumber(isolate, month));
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int days = isolate->date_cache()->DaysFromTime(time_ms);
@@ -771,7 +771,7 @@ BUILTIN(DatePrototypeSetUTCSeconds) {
   Handle<Object> sec = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
                                      Object::ToNumber(isolate, sec));
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int day = isolate->date_cache()->DaysFromTime(time_ms);
@@ -796,7 +796,7 @@ BUILTIN(DatePrototypeToDateString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toDateString");
   DateBuffer buffer =
-      ToDateString(date->value()->Number(), isolate->date_cache(), kDateOnly);
+      ToDateString(date->value().Number(), isolate->date_cache(), kDateOnly);
   RETURN_RESULT_OR_FAILURE(
       isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
 }
@@ -805,7 +805,7 @@ BUILTIN(DatePrototypeToDateString) {
 BUILTIN(DatePrototypeToISOString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toISOString");
-  double const time_val = date->value()->Number();
+  double const time_val = date->value().Number();
   if (std::isnan(time_val)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
@@ -833,7 +833,7 @@ BUILTIN(DatePrototypeToString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toString");
   DateBuffer buffer =
-      ToDateString(date->value()->Number(), isolate->date_cache());
+      ToDateString(date->value().Number(), isolate->date_cache());
   RETURN_RESULT_OR_FAILURE(
       isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
 }
@@ -843,7 +843,7 @@ BUILTIN(DatePrototypeToTimeString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toTimeString");
   DateBuffer buffer =
-      ToDateString(date->value()->Number(), isolate->date_cache(), kTimeOnly);
+      ToDateString(date->value().Number(), isolate->date_cache(), kTimeOnly);
   RETURN_RESULT_OR_FAILURE(
       isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
 }
@@ -908,7 +908,7 @@ BUILTIN(DatePrototypeToLocaleTimeString) {
 BUILTIN(DatePrototypeToUTCString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toUTCString");
-  double const time_val = date->value()->Number();
+  double const time_val = date->value().Number();
   if (std::isnan(time_val)) {
     return *isolate->factory()->NewStringFromAsciiChecked("Invalid Date");
   }
@@ -929,7 +929,7 @@ BUILTIN(DatePrototypeToUTCString) {
 BUILTIN(DatePrototypeGetYear) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.getYear");
-  double time_val = date->value()->Number();
+  double time_val = date->value().Number();
   if (std::isnan(time_val)) return date->value();
   int64_t time_ms = static_cast<int64_t>(time_val);
   int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
@@ -954,8 +954,8 @@ BUILTIN(DatePrototypeSetYear) {
     }
   }
   int time_within_day = 0;
-  if (!std::isnan(date->value()->Number())) {
-    int64_t const time_ms = static_cast<int64_t>(date->value()->Number());
+  if (!std::isnan(date->value().Number())) {
+    int64_t const time_ms = static_cast<int64_t>(date->value().Number());
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
     int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
     time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);

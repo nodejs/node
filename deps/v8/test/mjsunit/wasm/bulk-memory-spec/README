@@ -1,0 +1,19 @@
+This directory contains the bulk-memory proposal tests, converted to JS using
+the reference interpreter using the following shell command:
+
+```
+for f in *.wast; do wasm $f -o $f.js; done
+```
+
+Where `wasm` is the reference interpreter compiled from the bulk memory
+proposal (https://github.com/WebAssembly/bulk-memory-operations).
+
+This only includes the tests that are different than the spec repo. The
+testsuite repo (https://github.com/WebAssembly/testsuite) has a tool which
+calculates this, see
+https://github.com/WebAssembly/testsuite/tree/master/proposals/bulk-memory-operations
+
+The contents are copied from the following revisions:
+
+WebAssembly/testsuite: 2a2099d52103215962707fbe9f44cd51fd146636
+WebAssembly/bulk-memory-operations: 47b4ae718b42081a220ac7f405bed1391661a635

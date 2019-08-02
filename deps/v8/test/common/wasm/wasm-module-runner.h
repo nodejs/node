@@ -5,8 +5,8 @@
 #ifndef V8_WASM_MODULE_RUNNER_H_
 #define V8_WASM_MODULE_RUNNER_H_
 
-#include "src/isolate.h"
-#include "src/objects.h"
+#include "src/execution/isolate.h"
+#include "src/objects/objects.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -56,6 +56,11 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
 // given encoded module. The module should have no imports.
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end);
+
+// Decode and compile the given module with no imports.
+MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
+                                                ErrorThrower* thrower,
+                                                const ModuleWireBytes& bytes);
 
 // Decode, compile, and instantiate the given module with no imports.
 MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(

@@ -7,6 +7,7 @@ function bar(x) { debugger; }
 function foo() { bar(arguments[0]); }
 function wrap() { return foo(1); }
 
+%PrepareFunctionForOptimization(wrap);
 wrap();
 wrap();
 %OptimizeFunctionOnNextCall(wrap);

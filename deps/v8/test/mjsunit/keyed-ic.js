@@ -187,6 +187,73 @@ runTest = function() {
 
 runTest();
 
+// ----------------------------------------------------------------------
+// Indexed access for packed/holey elements
+// ----------------------------------------------------------------------
+runTest = function() {
+  var o = [ 'a', 43 ];
+
+  function test(o, holey=false) {
+    var initial_X = 0;
+    var X = initial_X;
+    var Y = 1;
+
+    function fieldTest(change_index) {
+      for (var i = 0; i < 10; i++) {
+        var property = o[X];
+        if (i <= change_index) {
+          if (holey) {
+            assertEquals(undefined, property);
+          } else {
+            assertEquals('a', property);
+          }
+        } else {
+          if (holey) {
+            assertEquals('a', property);
+          }
+          else {
+            assertEquals(43, property);
+          }
+        }
+        if (i == change_index) X = Y;
+      }
+      X = initial_X;
+    };
+
+    for (var i = 0; i < 10; i++) fieldTest(i);
+  }
+  test(o);
+
+  // Packed
+  // Non-extensible
+  var b =  Object.preventExtensions(o);
+  test(b);
+
+  // Sealed
+  var c =  Object.seal(o);
+  test(c);
+
+  // Frozen
+  var d =  Object.freeze(o);
+  test(d);
+
+  // Holey
+  // Non-extensible
+  o = [, 'a'];
+  var b =  Object.preventExtensions(o);
+  test(b, true);
+
+  // Sealed
+  var c =  Object.seal(o);
+  test(c, true);
+
+  // Frozen
+  var d =  Object.freeze(o);
+  test(d, true);
+}
+
+runTest();
+
 
 // ----------------------------------------------------------------------
 // Constant function access.

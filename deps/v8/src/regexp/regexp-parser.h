@@ -5,8 +5,8 @@
 #ifndef V8_REGEXP_REGEXP_PARSER_H_
 #define V8_REGEXP_REGEXP_PARSER_H_
 
-#include "src/objects.h"
 #include "src/objects/js-regexp.h"
+#include "src/objects/objects.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/zone/zone.h"
 

@@ -14,16 +14,16 @@ namespace internal {
 template <typename T>
 class ZoneAllocator {
  public:
-  typedef T* pointer;
-  typedef const T* const_pointer;
-  typedef T& reference;
-  typedef const T& const_reference;
-  typedef T value_type;
-  typedef size_t size_type;
-  typedef ptrdiff_t difference_type;
+  using pointer = T*;
+  using const_pointer = const T*;
+  using reference = T&;
+  using const_reference = const T&;
+  using value_type = T;
+  using size_type = size_t;
+  using difference_type = ptrdiff_t;
   template <class O>
   struct rebind {
-    typedef ZoneAllocator<O> other;
+    using other = ZoneAllocator<O>;
   };
 
 #ifdef V8_CC_MSVC
@@ -81,7 +81,7 @@ class RecyclingZoneAllocator : public ZoneAllocator<T> {
  public:
   template <class O>
   struct rebind {
-    typedef RecyclingZoneAllocator<O> other;
+    using other = RecyclingZoneAllocator<O>;
   };
 
 #ifdef V8_CC_MSVC
@@ -137,8 +137,8 @@ class RecyclingZoneAllocator : public ZoneAllocator<T> {
   FreeBlock* free_list_;
 };
 
-typedef ZoneAllocator<bool> ZoneBoolAllocator;
-typedef ZoneAllocator<int> ZoneIntAllocator;
+using ZoneBoolAllocator = ZoneAllocator<bool>;
+using ZoneIntAllocator = ZoneAllocator<int>;
 
 }  // namespace internal
 }  // namespace v8

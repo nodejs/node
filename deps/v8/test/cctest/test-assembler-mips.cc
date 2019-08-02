@@ -27,14 +27,14 @@
 
 #include <iostream>  // NOLINT(readability/streams)
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/disassembler.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/macro-assembler.h"
-#include "src/simulator.h"
 
 #include "test/cctest/cctest.h"
 
@@ -43,10 +43,10 @@ namespace internal {
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 // TODO(mips): Refine these signatures per test case.
-typedef void*(F1)(int x, int p1, int p2, int p3, int p4);
-typedef void*(F2)(int x, int y, int p2, int p3, int p4);
-typedef void*(F3)(void* p, int p1, int p2, int p3, int p4);
-typedef void*(F4)(void* p0, void* p1, int p2, int p3, int p4);
+using F1 = void*(int x, int p1, int p2, int p3, int p4);
+using F2 = void*(int x, int y, int p2, int p3, int p4);
+using F3 = void*(void* p, int p1, int p2, int p3, int p4);
+using F4 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 
@@ -64,8 +64,7 @@ TEST(MIPS0) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   int res = reinterpret_cast<int>(f.Call(0xAB0, 0xC, 0, 0, 0));
   CHECK_EQ(static_cast<int32_t>(0xABC), res);
@@ -99,8 +98,7 @@ TEST(MIPS1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F1>::FromCode(*code);
   int res = reinterpret_cast<int>(f.Call(50, 0, 0, 0, 0));
   CHECK_EQ(1275, res);
@@ -236,8 +234,7 @@ TEST(MIPS2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   int res = reinterpret_cast<int>(f.Call(0xAB0, 0xC, 0, 0, 0));
   CHECK_EQ(static_cast<int32_t>(0x31415926), res);
@@ -250,7 +247,7 @@ TEST(MIPS3) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     double a;
     double b;
     double c;
@@ -267,7 +264,7 @@ TEST(MIPS3) {
     float fe;
     float ff;
     float fg;
-  } T;
+  };
   T t;
 
   // Create a function that accepts &t, and loads, manipulates, and stores
@@ -336,8 +333,7 @@ TEST(MIPS3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   // Double test values.
   t.a = 1.5e14;
@@ -392,11 +388,11 @@ TEST(MIPS4) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     double a;
     double b;
     double c;
-  } T;
+  };
   T t;
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -438,8 +434,7 @@ TEST(MIPS4) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.a = 1.5e22;
   t.b = 2.75e11;
@@ -458,12 +453,12 @@ TEST(MIPS5) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     double a;
     double b;
     int i;
     int j;
-  } T;
+  };
   T t;
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -499,8 +494,7 @@ TEST(MIPS5) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.a = 1.5e4;
   t.b = 2.75e8;
@@ -521,7 +515,7 @@ TEST(MIPS6) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     uint32_t ui;
     int32_t si;
     int32_t r1;
@@ -530,7 +524,7 @@ TEST(MIPS6) {
     int32_t r4;
     int32_t r5;
     int32_t r6;
-  } T;
+  };
   T t;
 
   Assembler assm(AssemblerOptions{});
@@ -567,8 +561,7 @@ TEST(MIPS6) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.ui = 0x11223344;
   t.si = 0x99AABBCC;
@@ -599,7 +592,7 @@ TEST(MIPS7) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     double a;
     double b;
     double c;
@@ -607,7 +600,7 @@ TEST(MIPS7) {
     double e;
     double f;
     int32_t result;
-  } T;
+  };
   T t;
 
   // Create a function that accepts &t, and loads, manipulates, and stores
@@ -659,8 +652,7 @@ TEST(MIPS7) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.a = 1.5e14;
   t.b = 2.75e11;
@@ -683,7 +675,7 @@ TEST(MIPS8) {
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
 
-    typedef struct {
+    struct T {
       int32_t input;
       int32_t result_rotr_4;
       int32_t result_rotr_8;
@@ -699,7 +691,7 @@ TEST(MIPS8) {
       int32_t result_rotrv_20;
       int32_t result_rotrv_24;
       int32_t result_rotrv_28;
-    } T;
+    };
     T t;
 
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -755,8 +747,7 @@ TEST(MIPS8) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     t.input = 0x12345678;
     f.Call(&t, 0x0, 0, 0, 0);
@@ -800,7 +791,8 @@ TEST(MIPS9) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  USE(code);
 }
 
 
@@ -810,14 +802,14 @@ TEST(MIPS10) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     double a;
     double b;
     int32_t dbl_mant;
     int32_t dbl_exp;
     int32_t word;
     int32_t b_word;
-  } T;
+  };
   T t;
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -849,8 +841,7 @@ TEST(MIPS10) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.a = 2.147483646e+09;       // 0x7FFFFFFE -> 0xFF80000041DFFFFF as double.
   t.b_word = 0x0FF00FF0;       // 0x0FF00FF0 -> 0x as double.
@@ -871,7 +862,7 @@ TEST(MIPS11) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     int32_t reg_init;
     int32_t mem_init;
     int32_t lwl_0;
@@ -890,7 +881,7 @@ TEST(MIPS11) {
     int32_t swr_1;
     int32_t swr_2;
     int32_t swr_3;
-  } T;
+  };
   T t;
 
   Assembler assm(AssemblerOptions{});
@@ -976,8 +967,7 @@ TEST(MIPS11) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.reg_init = 0xAABBCCDD;
   t.mem_init = 0x11223344;
@@ -1035,14 +1025,14 @@ TEST(MIPS12) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
-      int32_t  x;
-      int32_t  y;
-      int32_t  y1;
-      int32_t  y2;
-      int32_t  y3;
-      int32_t  y4;
-  } T;
+  struct T {
+    int32_t x;
+    int32_t y;
+    int32_t y1;
+    int32_t y2;
+    int32_t y3;
+    int32_t y4;
+  };
   T t;
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -1101,8 +1091,7 @@ TEST(MIPS12) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.x = 1;
   t.y = 2;
@@ -1123,14 +1112,14 @@ TEST(MIPS13) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     double cvt_big_out;
     double cvt_small_out;
     uint32_t trunc_big_out;
     uint32_t trunc_small_out;
     uint32_t cvt_big_in;
     uint32_t cvt_small_in;
-  } T;
+  };
   T t;
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -1154,8 +1143,7 @@ TEST(MIPS13) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   t.cvt_big_in = 0xFFFFFFFF;
@@ -1190,7 +1178,7 @@ TEST(MIPS14) {
   uint32_t x##_err4_out; \
   int32_t x##_invalid_result;
 
-  typedef struct {
+  struct T {
     double round_up_in;
     double round_down_in;
     double neg_round_up_in;
@@ -1205,7 +1193,7 @@ TEST(MIPS14) {
     ROUND_STRUCT_ELEMENT(ceil)
     ROUND_STRUCT_ELEMENT(trunc)
     ROUND_STRUCT_ELEMENT(cvt)
-  } T;
+  };
   T t;
 
 #undef ROUND_STRUCT_ELEMENT
@@ -1274,8 +1262,7 @@ TEST(MIPS14) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   t.round_up_in = 123.51;
@@ -1335,7 +1322,7 @@ TEST(seleqz_selnez) {
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-    typedef struct test {
+    struct Test {
       int a;
       int b;
       int c;
@@ -1348,7 +1335,7 @@ TEST(seleqz_selnez) {
       float j;
       float k;
       float l;
-    } Test;
+    };
 
     Test test;
     // Integer part of test.
@@ -1378,8 +1365,7 @@ TEST(seleqz_selnez) {
     __ nop();
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
 
     (f.Call(&test, 0, 0, 0, 0));
@@ -1492,8 +1478,7 @@ TEST(min_max) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputsa[i];
@@ -1520,11 +1505,11 @@ TEST(rint_d)  {
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-    typedef struct test_float {
+    struct TestFloat {
       double a;
       double b;
       int fcsr;
-    }TestFloat;
+    };
 
     TestFloat test;
     double inputs[kTableLength] = {18446744073709551617.0,
@@ -1602,8 +1587,7 @@ TEST(rint_d)  {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
 
     for (int j = 0; j < 4; j++) {
@@ -1625,14 +1609,14 @@ TEST(sel) {
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-    typedef struct test {
+    struct Test {
       double dd;
       double ds;
       double dt;
       float fd;
       float fs;
       float ft;
-    } Test;
+    };
 
     Test test;
     __ Ldc1(f0, MemOperand(a0, offsetof(Test, dd)));   // test
@@ -1649,8 +1633,7 @@ TEST(sel) {
     __ nop();
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
 
     const int test_size = 3;
@@ -1699,11 +1682,11 @@ TEST(rint_s)  {
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-    typedef struct test_float {
+    struct TestFloat {
       float a;
       float b;
       int fcsr;
-    }TestFloat;
+    };
 
     TestFloat test;
     float inputs[kTableLength] = {18446744073709551617.0,
@@ -1781,8 +1764,7 @@ TEST(rint_s)  {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
 
     for (int j = 0; j < 4; j++) {
@@ -1803,10 +1785,10 @@ TEST(Cvt_d_uw) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_struct {
+  struct TestStruct {
     unsigned input;
     uint64_t output;
-  } TestStruct;
+  };
 
   unsigned inputs[] = {0x0, 0xFFFFFFFF, 0x80000000, 0x7FFFFFFF};
 
@@ -1825,8 +1807,7 @@ TEST(Cvt_d_uw) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.input = inputs[i];
@@ -1906,8 +1887,7 @@ TEST(mina_maxa) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputsa[i];
@@ -1939,13 +1919,13 @@ TEST(trunc_l) {
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
     const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
-    typedef struct test_float {
+    struct Test {
       uint32_t isNaN2008;
       double a;
       float b;
       int64_t c;  // a trunc result
       int64_t d;  // b trunc result
-    }Test;
+    };
     const int kTableLength = 15;
     double inputs_D[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
@@ -1986,8 +1966,7 @@ TEST(trunc_l) {
     Test test;
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
@@ -2013,7 +1992,7 @@ TEST(movz_movn) {
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-    typedef struct test_float {
+    struct TestFloat {
       int32_t rt;
       double a;
       double b;
@@ -2025,7 +2004,7 @@ TEST(movz_movn) {
       float dold;
       float d1;
       float dold1;
-    }TestFloat;
+    };
 
     TestFloat test;
     double inputs_D[kTableLength] = {
@@ -2066,8 +2045,7 @@ TEST(movz_movn) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
@@ -2097,7 +2075,7 @@ TEST(movt_movd) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
 
-    typedef struct test_float {
+    struct TestFloat {
       double srcd;
       double dstd;
       double dstdold;
@@ -2110,7 +2088,7 @@ TEST(movt_movd) {
       float dstfold1;
       int32_t cc;
       int32_t fcsr;
-    }TestFloat;
+    };
 
     TestFloat test;
     double inputs_D[kTableLength] = {
@@ -2168,7 +2146,7 @@ TEST(movt_movd) {
         CodeDesc desc;
         assm.GetCode(isolate, &desc);
         Handle<Code> code =
-            isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+            Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
         auto f = GeneratedCode<F3>::FromCode(*code);
 
         (f.Call(&test, 0, 0, 0, 0));
@@ -2195,11 +2173,11 @@ TEST(cvt_w_d) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct Test {
     double a;
     int32_t b;
     int32_t fcsr;
-  }Test;
+  };
   const int kTableLength = 24;
   double inputs[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
@@ -2252,8 +2230,7 @@ TEST(cvt_w_d) {
   Test test;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int j = 0; j < 4; j++) {
     test.fcsr = fcsr_inputs[j];
@@ -2272,13 +2249,13 @@ TEST(trunc_w) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct Test {
     uint32_t isNaN2008;
     double a;
     float b;
     int32_t c;  // a trunc result
     int32_t d;  // b trunc result
-  }Test;
+  };
   const int kTableLength = 15;
   double inputs_D[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
@@ -2319,8 +2296,7 @@ TEST(trunc_w) {
   Test test;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
@@ -2342,13 +2318,13 @@ TEST(round_w) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct Test {
     uint32_t isNaN2008;
     double a;
     float b;
     int32_t c;  // a trunc result
     int32_t d;  // b trunc result
-  }Test;
+  };
   const int kTableLength = 15;
   double inputs_D[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
@@ -2388,8 +2364,7 @@ TEST(round_w) {
   Test test;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
@@ -2412,13 +2387,13 @@ TEST(round_l) {
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
     const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
-    typedef struct test_float {
+    struct Test {
       uint32_t isNaN2008;
       double a;
       float b;
       int64_t c;
       int64_t d;
-    }Test;
+    };
     const int kTableLength = 15;
     double inputs_D[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
@@ -2459,8 +2434,7 @@ TEST(round_l) {
     Test test;
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
@@ -2485,14 +2459,14 @@ TEST(sub) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct TestFloat {
     float a;
     float b;
     float resultS;
     double c;
     double d;
     double resultD;
-  }TestFloat;
+  };
 
   TestFloat test;
   double inputfs_D[kTableLength] = {
@@ -2532,8 +2506,7 @@ TEST(sub) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputfs_S[i];
@@ -2558,7 +2531,7 @@ TEST(sqrt_rsqrt_recip) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct TestFloat {
     float a;
     float resultS;
     float resultS1;
@@ -2567,7 +2540,7 @@ TEST(sqrt_rsqrt_recip) {
     double resultD;
     double resultD1;
     double resultD2;
-  }TestFloat;
+  };
   TestFloat test;
 
   double inputs_D[kTableLength] = {
@@ -2611,8 +2584,7 @@ TEST(sqrt_rsqrt_recip) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   for (int i = 0; i < kTableLength; i++) {
@@ -2658,12 +2630,12 @@ TEST(neg) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct TestFloat {
     float a;
     float resultS;
     double c;
     double resultD;
-  }TestFloat;
+  };
 
   TestFloat test;
   double inputs_D[kTableLength] = {
@@ -2691,8 +2663,7 @@ TEST(neg) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_S[i];
@@ -2711,14 +2682,14 @@ TEST(mul) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct TestFloat {
     float a;
     float b;
     float resultS;
     double c;
     double d;
     double resultD;
-  }TestFloat;
+  };
 
   TestFloat test;
   double inputfs_D[kTableLength] = {
@@ -2748,8 +2719,7 @@ TEST(mul) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputfs_S[i];
@@ -2770,12 +2740,12 @@ TEST(mov) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct TestFloat {
     double a;
     double b;
     float c;
     float d;
-  }TestFloat;
+  };
 
   TestFloat test;
   double inputs_D[kTableLength] = {
@@ -2804,8 +2774,7 @@ TEST(mov) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
@@ -2824,13 +2793,13 @@ TEST(floor_w) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct Test {
     uint32_t isNaN2008;
     double a;
     float b;
     int32_t c;  // a floor result
     int32_t d;  // b floor result
-  }Test;
+  };
   const int kTableLength = 15;
   double inputs_D[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
@@ -2871,8 +2840,7 @@ TEST(floor_w) {
   Test test;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
@@ -2895,13 +2863,13 @@ TEST(floor_l) {
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
     const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
-    typedef struct test_float {
+    struct Test {
       uint32_t isNaN2008;
       double a;
       float b;
       int64_t c;
       int64_t d;
-    }Test;
+    };
     const int kTableLength = 15;
     double inputs_D[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
@@ -2942,8 +2910,7 @@ TEST(floor_l) {
     Test test;
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
@@ -2967,13 +2934,13 @@ TEST(ceil_w) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct Test {
     uint32_t isNaN2008;
     double a;
     float b;
     int32_t c;  // a floor result
     int32_t d;  // b floor result
-  }Test;
+  };
   const int kTableLength = 15;
   double inputs_D[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
@@ -3014,8 +2981,7 @@ TEST(ceil_w) {
   Test test;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
@@ -3038,13 +3004,13 @@ TEST(ceil_l) {
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
     const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
-    typedef struct test_float {
+    struct Test {
       uint32_t isNaN2008;
       double a;
       float b;
       int64_t c;
       int64_t d;
-    }Test;
+    };
     const int kTableLength = 15;
     double inputs_D[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
@@ -3085,8 +3051,7 @@ TEST(ceil_l) {
     Test test;
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
@@ -3122,7 +3087,6 @@ TEST(jump_tables1) {
   Label done;
   {
     __ BlockTrampolinePoolFor(kNumCases + 7);
-    PredictableCodeSizeScope predictable(&assm, (kNumCases + 7) * kInstrSize);
 
     __ nal();
     __ nop();
@@ -3154,8 +3118,7 @@ TEST(jump_tables1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -3198,7 +3161,6 @@ TEST(jump_tables2) {
   __ bind(&dispatch);
   {
     __ BlockTrampolinePoolFor(kNumCases + 7);
-    PredictableCodeSizeScope predictable(&assm, (kNumCases + 7) * kInstrSize);
 
     __ nal();
     __ nop();
@@ -3220,8 +3182,7 @@ TEST(jump_tables2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -3261,7 +3222,7 @@ TEST(jump_tables3) {
   for (int i = 0; i < kNumCases; ++i) {
     __ bind(&labels[i]);
     obj = *values[i];
-    imm32 = obj->ptr();
+    imm32 = obj.ptr();
     __ lui(v0, (imm32 >> 16) & 0xFFFF);
     __ ori(v0, v0, imm32 & 0xFFFF);
     __ b(&done);
@@ -3271,7 +3232,6 @@ TEST(jump_tables3) {
   __ bind(&dispatch);
   {
     __ BlockTrampolinePoolFor(kNumCases + 7);
-    PredictableCodeSizeScope predictable(&assm, (kNumCases + 7) * kInstrSize);
 
     __ nal();
     __ nop();
@@ -3293,8 +3253,7 @@ TEST(jump_tables3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -3319,12 +3278,12 @@ TEST(BITSWAP) {
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
 
-    typedef struct {
+    struct T {
       int32_t r1;
       int32_t r2;
       int32_t r3;
       int32_t r4;
-    } T;
+    };
     T t;
 
     Assembler assm(AssemblerOptions{});
@@ -3344,8 +3303,7 @@ TEST(BITSWAP) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     t.r1 = 0x781A15C3;
     t.r2 = 0x8B71FCDE;
@@ -3364,7 +3322,7 @@ TEST(class_fmt) {
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
 
-    typedef struct {
+    struct T {
       double dSignalingNan;
       double dQuietNan;
       double dNegInf;
@@ -3384,7 +3342,8 @@ TEST(class_fmt) {
       float  fPosInf;
       float  fPosNorm;
       float  fPosSubnorm;
-      float  fPosZero;  } T;
+      float fPosZero;
+    };
     T t;
 
     // Create a function that accepts &t, and loads, manipulates, and stores
@@ -3477,8 +3436,7 @@ TEST(class_fmt) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
 
     t.dSignalingNan =  std::numeric_limits<double>::signaling_NaN();
@@ -3538,12 +3496,12 @@ TEST(ABS) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct TestFloat {
     int64_t fir;
     double a;
     float b;
     double fcsr;
-  } TestFloat;
+  };
 
   TestFloat test;
 
@@ -3568,8 +3526,7 @@ TEST(ABS) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   test.a = -2.0;
   test.b = -2.0;
@@ -3635,14 +3592,14 @@ TEST(ADD_FMT) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct TestFloat {
     double a;
     double b;
     double c;
     float fa;
     float fb;
     float fc;
-  } TestFloat;
+  };
 
   TestFloat test;
 
@@ -3661,8 +3618,7 @@ TEST(ADD_FMT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   test.a = 2.0;
   test.b = 3.0;
@@ -3705,7 +3661,7 @@ TEST(C_COND_FMT) {
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-    typedef struct test_float {
+    struct TestFloat {
       double dOp1;
       double dOp2;
       uint32_t dF;
@@ -3726,7 +3682,7 @@ TEST(C_COND_FMT) {
       uint32_t fUlt;
       uint32_t fOle;
       uint32_t fUle;
-    } TestFloat;
+    };
 
     TestFloat test;
 
@@ -3815,8 +3771,7 @@ TEST(C_COND_FMT) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     test.dOp1 = 2.0;
     test.dOp2 = 3.0;
@@ -3916,7 +3871,7 @@ TEST(CMP_COND_FMT) {
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-    typedef struct test_float {
+    struct TestFloat {
       double dOp1;
       double dOp2;
       double dF;
@@ -3943,7 +3898,7 @@ TEST(CMP_COND_FMT) {
       float fOr;
       float fUne;
       float fNe;
-    } TestFloat;
+    };
 
     TestFloat test;
 
@@ -4015,8 +3970,7 @@ TEST(CMP_COND_FMT) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
     auto f = GeneratedCode<F3>::FromCode(*code);
     uint64_t dTrue  = 0xFFFFFFFFFFFFFFFF;
     uint64_t dFalse = 0x0000000000000000;
@@ -4132,7 +4086,7 @@ TEST(CVT) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test_float {
+  struct TestFloat {
     float    cvt_d_s_in;
     double   cvt_d_s_out;
     int32_t  cvt_d_w_in;
@@ -4156,7 +4110,7 @@ TEST(CVT) {
     int32_t  cvt_w_s_out;
     double   cvt_w_d_in;
     int32_t  cvt_w_d_out;
-  } TestFloat;
+  };
 
   TestFloat test;
 
@@ -4201,8 +4155,7 @@ TEST(CVT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   test.cvt_d_s_in = -0.51;
@@ -4377,14 +4330,14 @@ TEST(DIV_FMT) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  typedef struct test {
+  struct Test {
     double dOp1;
     double dOp2;
     double dRes;
     float  fOp1;
     float  fOp2;
     float  fRes;
-  } Test;
+  };
 
   Test test;
 
@@ -4413,8 +4366,7 @@ TEST(DIV_FMT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -4505,8 +4457,7 @@ uint32_t run_align(uint32_t rs_value, uint32_t rt_value, uint8_t bp) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -4560,8 +4511,7 @@ uint32_t run_aluipc(int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
   PC = (uint32_t)code->entry();  // Set the program counter.
@@ -4613,8 +4563,7 @@ uint32_t run_auipc(int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
   PC = (uint32_t)code->entry();  // Set the program counter.
@@ -4688,8 +4637,7 @@ uint32_t run_lwpc(int offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -4768,8 +4716,7 @@ uint32_t run_jic(int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -4839,8 +4786,7 @@ uint64_t run_beqzc(int32_t value, int32_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -4896,12 +4842,12 @@ inline void store_elements_of_vector(MacroAssembler& assm, MSARegister w,
   __ st_d(w, MemOperand(a, 0));
 }
 
-typedef union {
+union msa_reg_t {
   uint8_t b[16];
   uint16_t h[8];
   uint32_t w[4];
   uint64_t d[2];
-} msa_reg_t;
+};
 
 struct TestCaseMsaBranch {
   uint64_t wt_lo;
@@ -4917,12 +4863,12 @@ void run_bz_bnz(TestCaseMsaBranch* input, Branch GenerateBranch,
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
 
-  typedef struct {
+  struct T {
     uint64_t ws_lo;
     uint64_t ws_hi;
     uint64_t wd_lo;
     uint64_t wd_hi;
-  } T;
+  };
   T t = {0x20B9CC4F1A83E0C5, 0xA27E1B5F2F5BB18A, 0x0000000000000000,
          0x0000000000000000};
   msa_reg_t res;
@@ -4942,8 +4888,7 @@ void run_bz_bnz(TestCaseMsaBranch* input, Branch GenerateBranch,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -5112,8 +5057,7 @@ uint32_t run_jialc(int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -5160,8 +5104,7 @@ static uint32_t run_addiupc(int32_t imm19) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
   PC = (uint32_t)code->entry();  // Set the program counter.
@@ -5242,8 +5185,7 @@ int32_t run_bc(int32_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -5323,8 +5265,7 @@ int32_t run_balc(int32_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -5347,8 +5288,7 @@ uint32_t run_aui(uint32_t rs, uint16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -5436,8 +5376,7 @@ uint32_t run_bal(int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
 
@@ -5488,8 +5427,7 @@ TEST(Trampoline) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
 
   int32_t res = reinterpret_cast<int32_t>(f.Call(42, 42, 0, 0, 0));
@@ -5554,8 +5492,7 @@ void helper_madd_msub_maddf_msubf(F func) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   const size_t kTableLength = sizeof(test_cases) / sizeof(TestCaseMaddMsub<T>);
@@ -5639,8 +5576,7 @@ uint32_t run_Subu(uint32_t imm, int32_t num_instr) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
 
   uint32_t res = reinterpret_cast<uint32_t>(f.Call(0, 0, 0, 0, 0));
@@ -5701,14 +5637,14 @@ TEST(MSA_fill_copy) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     uint32_t u8;
     uint32_t u16;
     uint32_t u32;
     uint32_t s8;
     uint32_t s16;
     uint32_t s32;
-  } T;
+  };
   T t;
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -5743,8 +5679,7 @@ TEST(MSA_fill_copy) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -5767,12 +5702,12 @@ TEST(MSA_fill_copy_2) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     uint32_t w0;
     uint32_t w1;
     uint32_t w2;
     uint32_t w3;
-  } T;
+  };
   T t[2];
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -5811,8 +5746,7 @@ TEST(MSA_fill_copy_2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -5837,10 +5771,10 @@ TEST(MSA_fill_copy_3) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     uint64_t d0;
     uint64_t d1;
-  } T;
+  };
   T t[2];
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -5868,8 +5802,7 @@ TEST(MSA_fill_copy_3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -5913,8 +5846,7 @@ void run_msa_insert(int32_t rs_value, int n, msa_reg_t* w) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -5986,12 +5918,12 @@ TEST(MSA_move_v) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     uint64_t ws_lo;
     uint64_t ws_hi;
     uint64_t wd_lo;
     uint64_t wd_hi;
-  } T;
+  };
   T t[] = {{0x20B9CC4F1A83E0C5, 0xA27E1B5F2F5BB18A, 0x1E86678B52F8E1FF,
             0x706E51290AC76FB9},
            {0x4414AED7883FFD18, 0x047D183A06B67016, 0x4EF258CF8D822870,
@@ -6013,8 +5945,7 @@ TEST(MSA_move_v) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
     code->Print(std::cout);
 #endif
@@ -6031,12 +5962,12 @@ void run_msa_sldi(OperFunc GenerateOperation,
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  typedef struct {
+  struct T {
     uint64_t ws_lo;
     uint64_t ws_hi;
     uint64_t wd_lo;
     uint64_t wd_hi;
-  } T;
+  };
   T t[] = {{0x20B9CC4F1A83E0C5, 0xA27E1B5F2F5BB18A, 0x1E86678B52F8E1FF,
             0x706E51290AC76FB9},
            {0x4414AED7883FFD18, 0x047D183A06B67016, 0x4EF258CF8D822870,
@@ -6058,8 +5989,7 @@ void run_msa_sldi(OperFunc GenerateOperation,
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+    Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
     code->Print(std::cout);
 #endif
@@ -6143,8 +6073,7 @@ void run_msa_ctc_cfc(uint32_t value) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -6253,8 +6182,7 @@ void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -6431,8 +6359,7 @@ uint32_t run_Ins(uint32_t imm, uint32_t source, uint16_t pos, uint16_t size) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
 
   uint32_t res = reinterpret_cast<uint32_t>(f.Call(0, 0, 0, 0, 0));
@@ -6481,8 +6408,7 @@ uint32_t run_Ext(uint32_t source, uint16_t pos, uint16_t size) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
 
   uint32_t res = reinterpret_cast<uint32_t>(f.Call(0, 0, 0, 0, 0));
@@ -6543,8 +6469,7 @@ void run_msa_i5(struct TestCaseMsaI5* input, bool i5_sign_ext,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -6963,8 +6888,7 @@ void run_msa_2r(const struct TestCaseMsa2R* input,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -8013,8 +7937,7 @@ void run_msa_vector(struct TestCaseMsaVector* input,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -8101,8 +8024,7 @@ void run_msa_bit(struct TestCaseMsaBit* input, InstFunc GenerateInstructionFunc,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -8574,8 +8496,7 @@ void run_msa_i10(int32_t input, InstFunc GenerateVectorInstructionFunc,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -8652,8 +8573,7 @@ void run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -8731,8 +8651,7 @@ void run_msa_3r(struct TestCaseMsa3R* input, InstFunc GenerateI5InstructionFunc,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -9134,7 +9053,7 @@ TEST(MSA_3R_instructions) {
   }
 
 #define SUBSUS_U_DF(T, lanes, mask)                           \
-  typedef typename std::make_unsigned<T>::type uT;            \
+  using uT = typename std::make_unsigned<T>::type;            \
   int size_in_bits = kMSARegSize / lanes;                     \
   for (int i = 0; i < 2; i++) {                               \
     uint64_t res = 0;                                         \
@@ -9163,7 +9082,7 @@ TEST(MSA_3R_instructions) {
   }
 
 #define SUBSUU_S_DF(T, lanes, mask)                        \
-  typedef typename std::make_unsigned<T>::type uT;         \
+  using uT = typename std::make_unsigned<T>::type;         \
   int size_in_bits = kMSARegSize / lanes;                  \
   for (int i = 0; i < 2; i++) {                            \
     uint64_t res = 0;                                      \
@@ -9737,8 +9656,7 @@ void run_msa_3rf(const struct TestCaseMsa3RF* input,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif

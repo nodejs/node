@@ -6,14 +6,14 @@
 
 #include <set>
 
-#include "src/accessors.h"
 #include "src/ast/ast.h"
 #include "src/base/optional.h"
-#include "src/bootstrapper.h"
-#include "src/counters.h"
-#include "src/message-template.h"
-#include "src/objects-inl.h"
+#include "src/builtins/accessors.h"
+#include "src/execution/message-template.h"
+#include "src/init/bootstrapper.h"
+#include "src/logging/counters.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
@@ -145,9 +145,16 @@ ClassScope::ClassScope(Zone* zone, Scope* outer_scope)
   set_language_mode(LanguageMode::kStrict);
 }
 
-ClassScope::ClassScope(Zone* zone, Handle<ScopeInfo> scope_info)
+ClassScope::ClassScope(Zone* zone, AstValueFactory* ast_value_factory,
+                       Handle<ScopeInfo> scope_info)
     : Scope(zone, CLASS_SCOPE, scope_info) {
   set_language_mode(LanguageMode::kStrict);
+  if (scope_info->HasClassBrand()) {
+    Variable* brand =
+        LookupInScopeInfo(ast_value_factory->dot_brand_string(), this);
+    DCHECK_NOT_NULL(brand);
+    EnsureRareData()->brand = brand;
+  }
 }
 
 Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
@@ -303,8 +310,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   Scope* innermost_scope = nullptr;
   Scope* outer_scope = nullptr;
   while (!scope_info.is_null()) {
-    if (scope_info->scope_type() == WITH_SCOPE) {
-      if (scope_info->IsDebugEvaluateScope()) {
+    if (scope_info.scope_type() == WITH_SCOPE) {
+      if (scope_info.IsDebugEvaluateScope()) {
         outer_scope = new (zone)
             DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info, isolate));
         outer_scope->set_is_debug_evaluate_scope();
@@ -314,45 +321,46 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
             new (zone) Scope(zone, WITH_SCOPE, handle(scope_info, isolate));
       }
 
-    } else if (scope_info->scope_type() == SCRIPT_SCOPE) {
+    } else if (scope_info.scope_type() == SCRIPT_SCOPE) {
       // If we reach a script scope, it's the outermost scope. Install the
       // scope info of this script context onto the existing script scope to
       // avoid nesting script scopes.
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
-      DCHECK(!scope_info->HasOuterScopeInfo());
+      DCHECK(!scope_info.HasOuterScopeInfo());
       break;
-    } else if (scope_info->scope_type() == FUNCTION_SCOPE) {
+    } else if (scope_info.scope_type() == FUNCTION_SCOPE) {
       outer_scope = new (zone)
           DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info, isolate));
-      if (scope_info->IsAsmModule()) {
+      if (scope_info.IsAsmModule()) {
         outer_scope->AsDeclarationScope()->set_is_asm_module();
       }
-    } else if (scope_info->scope_type() == EVAL_SCOPE) {
+    } else if (scope_info.scope_type() == EVAL_SCOPE) {
       outer_scope = new (zone)
           DeclarationScope(zone, EVAL_SCOPE, handle(scope_info, isolate));
-    } else if (scope_info->scope_type() == CLASS_SCOPE) {
-      outer_scope = new (zone) ClassScope(zone, handle(scope_info, isolate));
-    } else if (scope_info->scope_type() == BLOCK_SCOPE) {
-      if (scope_info->is_declaration_scope()) {
+    } else if (scope_info.scope_type() == CLASS_SCOPE) {
+      outer_scope = new (zone)
+          ClassScope(zone, ast_value_factory, handle(scope_info, isolate));
+    } else if (scope_info.scope_type() == BLOCK_SCOPE) {
+      if (scope_info.is_declaration_scope()) {
         outer_scope = new (zone)
             DeclarationScope(zone, BLOCK_SCOPE, handle(scope_info, isolate));
       } else {
         outer_scope =
             new (zone) Scope(zone, BLOCK_SCOPE, handle(scope_info, isolate));
       }
-    } else if (scope_info->scope_type() == MODULE_SCOPE) {
+    } else if (scope_info.scope_type() == MODULE_SCOPE) {
       outer_scope = new (zone)
           ModuleScope(isolate, handle(scope_info, isolate), ast_value_factory);
     } else {
-      DCHECK_EQ(scope_info->scope_type(), CATCH_SCOPE);
-      DCHECK_EQ(scope_info->ContextLocalCount(), 1);
-      DCHECK_EQ(scope_info->ContextLocalMode(0), VariableMode::kVar);
-      DCHECK_EQ(scope_info->ContextLocalInitFlag(0), kCreatedInitialized);
-      String name = scope_info->ContextLocalName(0);
+      DCHECK_EQ(scope_info.scope_type(), CATCH_SCOPE);
+      DCHECK_EQ(scope_info.ContextLocalCount(), 1);
+      DCHECK_EQ(scope_info.ContextLocalMode(0), VariableMode::kVar);
+      DCHECK_EQ(scope_info.ContextLocalInitFlag(0), kCreatedInitialized);
+      String name = scope_info.ContextLocalName(0);
       MaybeAssignedFlag maybe_assigned =
-          scope_info->ContextLocalMaybeAssignedFlag(0);
+          scope_info.ContextLocalMaybeAssignedFlag(0);
       outer_scope = new (zone)
           Scope(zone, ast_value_factory->GetString(handle(name, isolate)),
                 maybe_assigned, handle(scope_info, isolate));
@@ -365,8 +373,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     }
     current_scope = outer_scope;
     if (innermost_scope == nullptr) innermost_scope = current_scope;
-    scope_info = scope_info->HasOuterScopeInfo() ? scope_info->OuterScopeInfo()
-                                                 : ScopeInfo();
+    scope_info = scope_info.HasOuterScopeInfo() ? scope_info.OuterScopeInfo()
+                                                : ScopeInfo();
   }
 
   if (deserialization_mode == DeserializationMode::kIncludingVariables &&
@@ -1710,6 +1718,11 @@ void Scope::Print(int n) {
     if (class_scope->rare_data_ != nullptr) {
       PrintMap(n1, "// private name vars:\n",
                &(class_scope->rare_data_->private_name_map), true, function);
+      Variable* brand = class_scope->brand();
+      if (brand != nullptr) {
+        Indent(n1, "// brand var:\n");
+        PrintVar(n1, brand);
+      }
     }
   }
 
@@ -2510,6 +2523,22 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
 
   DCHECK(unresolved.is_empty());
   return nullptr;
+}
+
+Variable* ClassScope::DeclareBrandVariable(AstValueFactory* ast_value_factory,
+                                           int class_token_pos) {
+  DCHECK_IMPLIES(rare_data_ != nullptr, rare_data_->brand == nullptr);
+  bool was_added;
+  Variable* brand = Declare(zone(), ast_value_factory->dot_brand_string(),
+                            VariableMode::kConst, NORMAL_VARIABLE,
+                            InitializationFlag::kNeedsInitialization,
+                            MaybeAssignedFlag::kMaybeAssigned, &was_added);
+  DCHECK(was_added);
+  brand->ForceContextAllocation();
+  brand->set_is_used();
+  EnsureRareData()->brand = brand;
+  brand->set_initializer_position(class_token_pos);
+  return brand;
 }
 
 }  // namespace internal

@@ -5,7 +5,7 @@
 #ifndef V8_ZONE_ZONE_HANDLE_SET_H_
 #define V8_ZONE_ZONE_HANDLE_SET_H_
 
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
@@ -157,7 +157,7 @@ class ZoneHandleSet final {
   inline const_iterator end() const;
 
  private:
-  typedef ZoneVector<Address*> List;
+  using List = ZoneVector<Address*>;
 
   List const* list() const {
     DCHECK_EQ(kListTag, data_ & kTagMask);
@@ -193,11 +193,11 @@ std::ostream& operator<<(std::ostream& os, ZoneHandleSet<T> set) {
 template <typename T>
 class ZoneHandleSet<T>::const_iterator {
  public:
-  typedef std::forward_iterator_tag iterator_category;
-  typedef std::ptrdiff_t difference_type;
-  typedef Handle<T> value_type;
-  typedef value_type reference;
-  typedef value_type* pointer;
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = std::ptrdiff_t;
+  using value_type = Handle<T>;
+  using reference = value_type;
+  using pointer = value_type*;
 
   const_iterator(const const_iterator& other)
       : set_(other.set_), current_(other.current_) {}

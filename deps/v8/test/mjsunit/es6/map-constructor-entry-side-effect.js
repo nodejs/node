@@ -33,6 +33,7 @@ function TestMapConstructorEntrySideEffect(ctor) {
   assertFalse(col.has(k3));
 }
 
+%PrepareFunctionForOptimization(TestMapConstructorEntrySideEffect);
 TestMapConstructorEntrySideEffect(Map);
 TestMapConstructorEntrySideEffect(Map);
 TestMapConstructorEntrySideEffect(Map);
@@ -41,6 +42,7 @@ TestMapConstructorEntrySideEffect(Map);
 assertOptimized(TestMapConstructorEntrySideEffect);
 
 TestMapConstructorEntrySideEffect(WeakMap);
+%PrepareFunctionForOptimization(TestMapConstructorEntrySideEffect);
 TestMapConstructorEntrySideEffect(WeakMap);
 TestMapConstructorEntrySideEffect(WeakMap);
 %OptimizeFunctionOnNextCall(TestMapConstructorEntrySideEffect);

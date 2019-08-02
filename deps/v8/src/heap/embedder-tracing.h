@@ -6,8 +6,8 @@
 #define V8_HEAP_EMBEDDER_TRACING_H_
 
 #include "include/v8.h"
-#include "src/flags.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {
@@ -48,7 +48,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   EmbedderHeapTracer* remote_tracer() const { return remote_tracer_; }
 
   void SetRemoteTracer(EmbedderHeapTracer* tracer);
-  void TracePrologue();
+  void TracePrologue(EmbedderHeapTracer::TraceFlags flags);
   void TraceEpilogue();
   void EnterFinalPause();
   bool Trace(double deadline);
@@ -76,7 +76,27 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     embedder_worklist_empty_ = is_empty;
   }
 
+  void IncreaseAllocatedSize(size_t bytes) {
+    remote_stats_.allocated_size += bytes;
+    remote_stats_.accumulated_allocated_size += bytes;
+    if (remote_stats_.allocated_size >
+        remote_stats_.allocated_size_limit_for_check) {
+      StartIncrementalMarkingIfNeeded();
+      remote_stats_.allocated_size_limit_for_check =
+          remote_stats_.allocated_size + kEmbedderAllocatedThreshold;
+    }
+  }
+
+  void StartIncrementalMarkingIfNeeded();
+
+  size_t allocated_size() const { return remote_stats_.allocated_size; }
+  size_t accumulated_allocated_size() const {
+    return remote_stats_.accumulated_allocated_size;
+  }
+
  private:
+  static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
+
   Isolate* const isolate_;
   EmbedderHeapTracer* remote_tracer_ = nullptr;
 
@@ -87,6 +107,19 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   // thread. This is opportunistic as concurrent marking tasks may hold local
   // segments of potential embedder fields to move to the main thread.
   bool embedder_worklist_empty_ = false;
+
+  struct RemoteStatistics {
+    // Allocated size of objects in bytes reported by the embedder. Updated via
+    // TraceSummary at the end of tracing and incrementally when the GC is not
+    // in progress.
+    size_t allocated_size = 0;
+    // Limit for |allocated_size_| in bytes to avoid checking for starting a GC
+    // on each increment.
+    size_t allocated_size_limit_for_check = 0;
+    // Totally accumulated bytes allocated by the embedder. Monotonically
+    // increasing value. Used to approximate allocation rate.
+    size_t accumulated_allocated_size = 0;
+  } remote_stats_;
 
   friend class EmbedderStackStateScope;
 };

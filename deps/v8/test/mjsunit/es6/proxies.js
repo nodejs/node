@@ -1510,6 +1510,7 @@ function TestConstructorWithProxyPrototype2(create, handler) {
   function f() {
     return o.x;
   }
+  %PrepareFunctionForOptimization(f);
   assertEquals(10, f());
   assertEquals(10, f());
   %OptimizeFunctionOnNextCall(f);

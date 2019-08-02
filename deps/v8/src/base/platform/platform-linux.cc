@@ -106,9 +106,6 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
     if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
     if (fscanf(fp, "%" V8PRIxPTR, &offset) != 1) break;
 
-    // Adjust {start} based on {offset}.
-    start -= offset;
-
     int c;
     if (attr_r == 'r' && attr_w != 'w' && attr_x == 'x') {
       // Found a read-only executable entry. Skip characters until we reach
@@ -135,6 +132,21 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
         snprintf(lib_name, kLibNameLen, "%08" V8PRIxPTR "-%08" V8PRIxPTR, start,
                  end);
       }
+
+#ifdef V8_OS_ANDROID
+      size_t lib_name_length = strlen(lib_name);
+      if (lib_name_length < 4 ||
+          strncmp(&lib_name[lib_name_length - 4], ".apk", 4) != 0) {
+        // Only adjust {start} based on {offset} if the file isn't the APK,
+        // since we load the library directly from the APK and don't want to
+        // apply the offset of the .so in the APK as the libraries offset.
+        start -= offset;
+      }
+#else
+      // Adjust {start} based on {offset}.
+      start -= offset;
+#endif
+
       result.push_back(SharedLibraryAddress(lib_name, start, end));
     } else {
       // Entry not describing executable data. Skip to end of line to set up

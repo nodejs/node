@@ -5,21 +5,19 @@
 #ifndef V8_BUILTINS_BUILTINS_ARGUMENTS_GEN_H_
 #define V8_BUILTINS_BUILTINS_ARGUMENTS_GEN_H_
 
-#include "src/code-stub-assembler.h"
-#include "torque-generated/builtins-arguments-from-dsl-gen.h"
+#include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
-typedef compiler::CodeAssemblerState CodeAssemblerState;
-typedef compiler::CodeAssemblerLabel CodeAssemblerLabel;
+using Node = compiler::Node;
+using CodeAssemblerState = compiler::CodeAssemblerState;
+using CodeAssemblerLabel = compiler::CodeAssemblerLabel;
 
-class ArgumentsBuiltinsAssembler : public CodeStubAssembler,
-                                   public ArgumentsBuiltinsFromDSLAssembler {
+class ArgumentsBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit ArgumentsBuiltinsAssembler(CodeAssemblerState* state)
-      : CodeStubAssembler(state), ArgumentsBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state) {}
 
   Node* EmitFastNewStrictArguments(Node* context, Node* function);
   Node* EmitFastNewSloppyArguments(Node* context, Node* function);

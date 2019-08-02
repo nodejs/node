@@ -6,9 +6,9 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/globals.h"
-#include "src/isolate.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"
 #include "src/objects/property-cell.h"
@@ -151,7 +151,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
 
     TNode<Int32T> kind = LoadMapElementsKind(arguments_list_map);
 
-    GotoIf(Int32GreaterThan(kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
+    GotoIf(IsElementsKindGreaterThan(kind, LAST_FROZEN_ELEMENTS_KIND),
            &if_runtime);
     Branch(Word32And(kind, Int32Constant(1)), &if_holey_array, &if_done);
   }
@@ -306,11 +306,13 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     var_elements = LoadElements(spread_array);
 
     // Check elements kind of {spread}.
-    GotoIf(Int32LessThan(spread_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
+    GotoIf(IsElementsKindLessThanOrEqual(spread_kind, HOLEY_ELEMENTS),
            &if_smiorobject);
+    GotoIf(IsElementsKindLessThanOrEqual(spread_kind, LAST_FAST_ELEMENTS_KIND),
+           &if_double);
     Branch(
-        Int32GreaterThan(spread_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
-        &if_generic, &if_double);
+        IsElementsKindLessThanOrEqual(spread_kind, LAST_FROZEN_ELEMENTS_KIND),
+        &if_smiorobject, &if_generic);
   }
 
   BIND(&if_generic);
@@ -478,7 +480,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       // the receiver did not pass the {signature} check.
       TNode<Map> holder_map = LoadMap(holder);
       var_holder = LoadMapPrototype(holder_map);
-      GotoIf(IsSetWord32(LoadMapBitField3(holder_map),
+      GotoIf(IsSetWord32(LoadMapBitField2(holder_map),
                          Map::HasHiddenPrototypeBit::kMask),
              &holder_loop);
       ThrowTypeError(context, MessageTemplate::kIllegalInvocation);

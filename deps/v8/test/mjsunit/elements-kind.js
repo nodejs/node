@@ -151,6 +151,7 @@ function test_wrapper() {
   }
   var smi_only = new Array(1, 2, 3);
   assertKind(elements_kind.fast_smi_only, smi_only);
+  %PrepareFunctionForOptimization(monomorphic);
   for (var i = 0; i < 3; i++) monomorphic(smi_only);
     %OptimizeFunctionOnNextCall(monomorphic);
   monomorphic(smi_only);
@@ -206,7 +207,8 @@ function convert_to_double(array) {
   array[1] = 2.5;
   assertKind(elements_kind.fast_double, array);
   assertEquals(2.5, array[1]);
-}
+};
+%PrepareFunctionForOptimization(convert_to_double);
 var smis = construct_smis();
 for (var i = 0; i < 3; i++) convert_to_double(smis);
   %OptimizeFunctionOnNextCall(convert_to_double);
@@ -218,7 +220,8 @@ function convert_to_fast(array) {
   array[1] = "two";
   assertKind(elements_kind.fast, array);
   assertEquals("two", array[1]);
-}
+};
+%PrepareFunctionForOptimization(convert_to_fast);
 smis = construct_smis();
 for (var i = 0; i < 3; i++) convert_to_fast(smis);
 var doubles = construct_doubles();

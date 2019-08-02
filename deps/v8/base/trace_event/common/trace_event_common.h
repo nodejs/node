@@ -420,6 +420,9 @@
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_COUNTER, category_group, name, \
                            TRACE_EVENT_FLAG_NONE, "value",                  \
                            static_cast<int>(value))
+#define TRACE_COUNTER_WITH_FLAG1(category_group, name, flag, value)         \
+  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_COUNTER, category_group, name, \
+                           flag, "value", static_cast<int>(value))
 #define TRACE_COPY_COUNTER1(category_group, name, value)                    \
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_COUNTER, category_group, name, \
                            TRACE_EVENT_FLAG_COPY, "value",                  \
@@ -1069,7 +1072,6 @@
 #define TRACE_EVENT_FLAG_HAS_PROCESS_ID (static_cast<unsigned int>(1 << 11))
 #define TRACE_EVENT_FLAG_HAS_LOCAL_ID (static_cast<unsigned int>(1 << 12))
 #define TRACE_EVENT_FLAG_HAS_GLOBAL_ID (static_cast<unsigned int>(1 << 13))
-#define TRACE_EVENT_FLAG_DISALLOW_POSTTASK (static_cast<unsigned int>(1 << 14))
 // TODO(eseckler): Remove once we have native support for typed proto events in
 // TRACE_EVENT macros.
 #define TRACE_EVENT_FLAG_TYPED_PROTO_ARGS (static_cast<unsigned int>(1 << 15))

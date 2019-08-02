@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-private-fields
+// Flags: --harmony-private-fields --allow-natives-syntax
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks Runtime.getProperties method');
 
@@ -43,6 +43,21 @@ InspectorTest.runAsyncTestSuite([
 
   async function testArrayBuffer() {
     let objectId = await evaluateToObjectId('new Uint8Array([1, 1, 1, 1, 1, 1, 1, 1]).buffer');
+    let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
+    for (let prop of props.result.result) {
+      if (prop.name === '__proto__')
+        continue;
+      InspectorTest.log(prop.name);
+      await logGetPropertiesResult(prop.value.objectId);
+    }
+  },
+
+  async function testDetachedArrayBuffer() {
+    await Protocol.Runtime.evaluate({ expression: 'var a = new ArrayBuffer(16)' });
+    await Protocol.Runtime.evaluate({ expression: 'var b = new Uint32Array(a)' });
+    let objectId = await evaluateToObjectId('a');
+    await Protocol.Runtime.evaluate({ expression: '%ArrayBufferDetach(a)' });
+    await Protocol.Runtime.evaluate({ expression: 'b', generatePreview: true })
     let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
     for (let prop of props.result.result) {
       if (prop.name === '__proto__')

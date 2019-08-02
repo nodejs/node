@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --experimental-stack-trace-frames
+
 // Test wasm compilation explicitly, since this creates a promise which is only
 // resolved later, i.e. the message queue gets empty in-between.
 // The important part here is that d8 exits with a non-zero exit code.

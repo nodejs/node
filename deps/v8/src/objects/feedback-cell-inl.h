@@ -8,7 +8,7 @@
 #include "src/objects/feedback-cell.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -25,10 +25,15 @@ ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
 INT32_ACCESSORS(FeedbackCell, interrupt_budget, kInterruptBudgetOffset)
 
 void FeedbackCell::clear_padding() {
-  if (FeedbackCell::kSize == FeedbackCell::kUnalignedSize) return;
-  DCHECK_GE(FeedbackCell::kSize, FeedbackCell::kUnalignedSize);
+  if (FeedbackCell::kAlignedSize == FeedbackCell::kUnalignedSize) return;
+  DCHECK_GE(FeedbackCell::kAlignedSize, FeedbackCell::kUnalignedSize);
   memset(reinterpret_cast<byte*>(address() + FeedbackCell::kUnalignedSize), 0,
-         FeedbackCell::kSize - FeedbackCell::kUnalignedSize);
+         FeedbackCell::kAlignedSize - FeedbackCell::kUnalignedSize);
+}
+
+void FeedbackCell::reset() {
+  set_value(GetReadOnlyRoots().undefined_value());
+  set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
 }
 
 }  // namespace internal

@@ -8,7 +8,7 @@
 #include <memory>
 #include <unordered_set>
 
-#include "src/cancelable-task.h"
+#include "src/tasks/cancelable-task.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-tier.h"
@@ -88,7 +88,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // be shared across threads, i.e. could be concurrently modified.
   void AsyncCompile(Isolate* isolate, const WasmFeatures& enabled,
                     std::shared_ptr<CompilationResultResolver> resolver,
-                    const ModuleWireBytes& bytes, bool is_shared);
+                    const ModuleWireBytes& bytes, bool is_shared,
+                    const char* api_method_name_for_errors);
 
   // Begin an asynchronous instantiation of the given WASM module.
   void AsyncInstantiate(Isolate* isolate,
@@ -98,6 +99,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   std::shared_ptr<StreamingDecoder> StartStreamingCompilation(
       Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
+      const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver);
 
   // Compiles the function with the given index at a specific compilation tier.
@@ -185,8 +187,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // This will spawn foreground tasks that do *not* keep the NativeModule alive.
   void SampleTopTierCodeSizeInAllIsolates(const std::shared_ptr<NativeModule>&);
 
-  // Called by each Isolate to report its live code for a GC cycle.
-  void ReportLiveCodeForGC(Isolate*, Vector<WasmCode*> live_code);
+  // Called by each Isolate to report its live code for a GC cycle. First
+  // version reports an externally determined set of live code (might be empty),
+  // second version gets live code from the execution stack of that isolate.
+  void ReportLiveCodeForGC(Isolate*, Vector<WasmCode*>);
+  void ReportLiveCodeFromStackForGC(Isolate*);
 
   // Add potentially dead code. The occurrence in the set of potentially dead
   // code counts as a reference, and is decremented on the next GC.
@@ -194,6 +199,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // {false} if an entry already exists. The ref count is *unchanged* in any
   // case.
   V8_WARN_UNUSED_RESULT bool AddPotentiallyDeadCode(WasmCode*);
+
+  // Free dead code.
+  using DeadCodeMap = std::unordered_map<NativeModule*, std::vector<WasmCode*>>;
+  void FreeDeadCode(const DeadCodeMap&);
+  void FreeDeadCodeLocked(const DeadCodeMap&);
 
   // Call on process start and exit.
   static void InitializeOncePerProcess();
@@ -211,10 +221,19 @@ class V8_EXPORT_PRIVATE WasmEngine {
   AsyncCompileJob* CreateAsyncCompileJob(
       Isolate* isolate, const WasmFeatures& enabled,
       std::unique_ptr<byte[]> bytes_copy, size_t length,
-      Handle<Context> context,
+      Handle<Context> context, const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver);
 
-  void TriggerGC();
+  void TriggerGC(int8_t gc_sequence_index);
+
+  // Remove an isolate from the outstanding isolates of the current GC. Returns
+  // true if the isolate was still outstanding, false otherwise. Hold {mutex_}
+  // when calling this method.
+  bool RemoveIsolateFromCurrentGC(Isolate*);
+
+  // Finish a GC if there are no more outstanding isolates. Hold {mutex_} when
+  // calling this method.
+  void PotentiallyFinishCurrentGC();
 
   WasmMemoryTracker memory_tracker_;
   WasmCodeManager code_manager_;

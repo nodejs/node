@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "src/debug/debug-interface.h"
-#include "src/handles.h"
-#include "src/objects.h"
+#include "src/handles/handles.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -20,6 +20,7 @@ class Isolate;
 struct CoverageBlock {
   CoverageBlock(int s, int e, uint32_t c) : start(s), end(e), count(c) {}
   CoverageBlock() : CoverageBlock(kNoSourcePosition, kNoSourcePosition, 0) {}
+
   int start;
   int end;
   uint32_t count;
@@ -28,6 +29,10 @@ struct CoverageBlock {
 struct CoverageFunction {
   CoverageFunction(int s, int e, uint32_t c, Handle<String> n)
       : start(s), end(e), count(c), name(n), has_block_coverage(false) {}
+
+  bool HasNonEmptySourceRange() const { return start < end && start >= 0; }
+  bool HasBlocks() const { return !blocks.empty(); }
+
   int start;
   int end;
   uint32_t count;

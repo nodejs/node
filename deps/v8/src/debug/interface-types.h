@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "include/v8.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 

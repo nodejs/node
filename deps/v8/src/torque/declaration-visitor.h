@@ -10,7 +10,6 @@
 
 #include "src/base/macros.h"
 #include "src/torque/declarations.h"
-#include "src/torque/file-visitor.h"
 #include "src/torque/global-context.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
@@ -19,94 +18,92 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-class DeclarationVisitor : public FileVisitor {
+Namespace* GetOrCreateNamespace(const std::string& name);
+
+class PredeclarationVisitor {
  public:
-  void Visit(Ast* ast) {
+  static void Predeclare(Ast* ast) {
+    CurrentScope::Scope current_namespace(GlobalContext::GetDefaultNamespace());
+    for (Declaration* child : ast->declarations()) Predeclare(child);
+  }
+  static void ResolvePredeclarations();
+
+ private:
+  static void Predeclare(Declaration* decl);
+  static void Predeclare(NamespaceDeclaration* decl) {
+    CurrentScope::Scope current_scope(GetOrCreateNamespace(decl->name));
+    for (Declaration* child : decl->declarations) Predeclare(child);
+  }
+  static void Predeclare(TypeDeclaration* decl) {
+    Declarations::PredeclareTypeAlias(decl->name, decl, false);
+  }
+  static void Predeclare(GenericDeclaration* decl) {
+    Declarations::DeclareGeneric(decl->callable->name, decl);
+  }
+};
+
+class DeclarationVisitor {
+ public:
+  static void Visit(Ast* ast) {
     CurrentScope::Scope current_namespace(GlobalContext::GetDefaultNamespace());
     for (Declaration* child : ast->declarations()) Visit(child);
   }
-
-  void Visit(Declaration* decl);
-
-  Namespace* GetOrCreateNamespace(const std::string& name) {
-    std::vector<Namespace*> existing_namespaces = FilterDeclarables<Namespace>(
-        Declarations::TryLookupShallow(QualifiedName(name)));
-    if (existing_namespaces.empty()) {
-      return Declarations::DeclareNamespace(name);
-    }
-    DCHECK_EQ(1, existing_namespaces.size());
-    return existing_namespaces.front();
-  }
-
-  void Visit(NamespaceDeclaration* decl) {
+  static void Visit(Declaration* decl);
+  static void Visit(NamespaceDeclaration* decl) {
     CurrentScope::Scope current_scope(GetOrCreateNamespace(decl->name));
     for (Declaration* child : decl->declarations) Visit(child);
   }
 
-  void Visit(TypeDeclaration* decl);
-
-  void DeclareMethods(AggregateType* container,
-                      const std::vector<Declaration*>& methods);
-  void Visit(StructDeclaration* decl);
-  void Visit(ClassDeclaration* decl);
-
-  void Visit(TypeAliasDeclaration* decl) {
-    const Type* type = Declarations::GetType(decl->type);
-    type->AddAlias(decl->name->value);
-    Declarations::DeclareType(decl->name, type, true);
+  static void Visit(TypeDeclaration* decl) {
+    // Looking up the type will trigger type computation; this ensures errors
+    // are reported even if the type is unused.
+    Declarations::LookupType(decl->name);
   }
 
-  Builtin* CreateBuiltin(BuiltinDeclaration* decl, std::string external_name,
-                         std::string readable_name, Signature signature,
-                         base::Optional<Statement*> body);
-  void Visit(ExternalBuiltinDeclaration* decl, const Signature& signature,
-             base::Optional<Statement*> body) {
+  static Builtin* CreateBuiltin(BuiltinDeclaration* decl,
+                                std::string external_name,
+                                std::string readable_name, Signature signature,
+                                base::Optional<Statement*> body);
+  static void Visit(ExternalBuiltinDeclaration* decl,
+                    const Signature& signature,
+                    base::Optional<Statement*> body) {
     Declarations::Declare(
         decl->name,
         CreateBuiltin(decl, decl->name, decl->name, signature, base::nullopt));
   }
 
-  void Visit(ExternalRuntimeDeclaration* decl, const Signature& sig,
-             base::Optional<Statement*> body);
-  void Visit(ExternalMacroDeclaration* decl, const Signature& sig,
-             base::Optional<Statement*> body);
-  void Visit(TorqueBuiltinDeclaration* decl, const Signature& signature,
-             base::Optional<Statement*> body);
-  void Visit(TorqueMacroDeclaration* decl, const Signature& signature,
-             base::Optional<Statement*> body);
-  void Visit(IntrinsicDeclaration* decl, const Signature& signature,
-             base::Optional<Statement*> body);
+  static void Visit(ExternalRuntimeDeclaration* decl, const Signature& sig,
+                    base::Optional<Statement*> body);
+  static void Visit(ExternalMacroDeclaration* decl, const Signature& sig,
+                    base::Optional<Statement*> body);
+  static void Visit(TorqueBuiltinDeclaration* decl, const Signature& signature,
+                    base::Optional<Statement*> body);
+  static void Visit(TorqueMacroDeclaration* decl, const Signature& signature,
+                    base::Optional<Statement*> body);
+  static void Visit(IntrinsicDeclaration* decl, const Signature& signature,
+                    base::Optional<Statement*> body);
 
-  void Visit(CallableNode* decl, const Signature& signature,
-             base::Optional<Statement*> body);
+  static void Visit(CallableNode* decl, const Signature& signature,
+                    base::Optional<Statement*> body);
 
-  void Visit(ConstDeclaration* decl);
-  void Visit(StandardDeclaration* decl);
-  void Visit(GenericDeclaration* decl);
-  void Visit(SpecializationDeclaration* decl);
-  void Visit(ExternConstDeclaration* decl);
-  void Visit(CppIncludeDeclaration* decl);
+  static void Visit(ConstDeclaration* decl);
+  static void Visit(StandardDeclaration* decl);
+  static void Visit(GenericDeclaration* decl) {
+    // The PredeclarationVisitor already handled this case.
+  }
+  static void Visit(SpecializationDeclaration* decl);
+  static void Visit(ExternConstDeclaration* decl);
+  static void Visit(CppIncludeDeclaration* decl);
 
-  Signature MakeSpecializedSignature(const SpecializationKey& key);
-  Callable* SpecializeImplicit(const SpecializationKey& key);
-  Callable* Specialize(const SpecializationKey& key, CallableNode* declaration,
-                       base::Optional<const CallableNodeSignature*> signature,
-                       base::Optional<Statement*> body);
-
-  void FinalizeStructsAndClasses();
+  static Signature MakeSpecializedSignature(const SpecializationKey& key);
+  static Callable* SpecializeImplicit(const SpecializationKey& key);
+  static Callable* Specialize(
+      const SpecializationKey& key, CallableNode* declaration,
+      base::Optional<const CallableNodeSignature*> signature,
+      base::Optional<Statement*> body, SourcePosition position);
 
  private:
-  void DeclareSpecializedTypes(const SpecializationKey& key);
-
-  void FinalizeStructFieldsAndMethods(StructType* struct_type,
-                                      StructDeclaration* struct_declaration);
-  void FinalizeClassFieldsAndMethods(ClassType* class_type,
-                                     ClassDeclaration* class_declaration);
-
-  std::vector<std::tuple<Scope*, StructDeclaration*, StructType*>>
-      struct_declarations_;
-  std::vector<std::tuple<Scope*, ClassDeclaration*, ClassType*>>
-      class_declarations_;
+  static void DeclareSpecializedTypes(const SpecializationKey& key);
 };
 
 }  // namespace torque

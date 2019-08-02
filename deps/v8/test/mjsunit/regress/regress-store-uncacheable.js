@@ -32,6 +32,7 @@ function f() {
   o["<abc>"] = 123;
 }
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 f();

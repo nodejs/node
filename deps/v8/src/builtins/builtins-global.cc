@@ -4,11 +4,11 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
-#include "src/compiler.h"
-#include "src/counters.h"
-#include "src/objects-inl.h"
-#include "src/uri.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/compiler.h"
+#include "src/logging/counters.h"
+#include "src/objects/objects-inl.h"
+#include "src/strings/uri.h"
 
 namespace v8 {
 namespace internal {

@@ -24,7 +24,8 @@ Protocol.Debugger.setBlackboxPatterns({ patterns: [ "bar.js" ] });
 
 Protocol.Debugger.onPaused(PerformSteps);
 Protocol.Runtime.evaluate({
-  "expression": "bar(); bar(); %OptimizeFunctionOnNextCall(bar); bar()"
+  "expression": "%PrepareFunctionForOptimization(bar); bar(); bar(); " +
+                "%OptimizeFunctionOnNextCall(bar); bar()"
 });
 Protocol.Runtime.evaluate({ "expression": "debugger; bar();" });
 

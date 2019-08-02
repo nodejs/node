@@ -4,15 +4,15 @@
 
 #include "src/runtime/runtime-utils.h"
 
-#include "src/arguments-inl.h"
-#include "src/counters.h"
-#include "src/elements.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/isolate-inl.h"
-#include "src/keys.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/objects/elements.h"
+#include "src/objects/keys.h"
 #include "src/objects/module.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

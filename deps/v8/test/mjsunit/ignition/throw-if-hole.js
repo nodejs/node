@@ -11,6 +11,10 @@ function f(b) {
 }
 
 f(0);
+assertThrows(() => {f(1)}, ReferenceError);
+
+%PrepareFunctionForOptimization(f);
+f(0);
 f(0);
 %OptimizeFunctionOnNextCall(f);
 f(0);

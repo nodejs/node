@@ -5,7 +5,7 @@
 #ifndef V8_PARSING_PARSING_H_
 #define V8_PARSING_PARSING_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

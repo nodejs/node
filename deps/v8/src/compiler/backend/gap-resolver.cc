@@ -8,7 +8,7 @@
 #include <set>
 
 #include "src/base/enum-set.h"
-#include "src/register-configuration.h"
+#include "src/codegen/register-configuration.h"
 
 namespace v8 {
 namespace internal {

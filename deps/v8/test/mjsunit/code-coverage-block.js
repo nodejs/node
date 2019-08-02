@@ -216,9 +216,8 @@ TestCoverage(
 %PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
- {"start":1,"end":201,"count":6},  // TODO(jgruber): Invocation count is off.
- {"start":83,"end":153,"count":4},
- {"start":153,"end":200,"count":1}]
+ {"start":1,"end":201,"count":1},
+ {"start":83,"end":153,"count":4}]
 );
 
 TestCoverage(
@@ -415,7 +414,7 @@ TestCoverage(
  {"start":286,"end":350,"count":0},
  {"start":401,"end":701,"count":1},
  {"start":603,"end":700,"count":0},
- {"start":561,"end":568,"count":0},  // TODO(jgruber): Sorting.
+ {"start":561,"end":568,"count":0},
  {"start":751,"end":1051,"count":1},
  {"start":819,"end":820,"count":0},
  {"start":861,"end":1050,"count":0}]
@@ -540,10 +539,25 @@ const it = function*() {                  // 0000
 it.next(); it.next();                     // 0250
 `,
 [{"start":0,"end":299,"count":1},
- {"start":11,"end":201,"count":3},
- {"start":64,"end":114,"count":1},
+ {"start":11,"end":201,"count":1},
  {"start":114,"end":121,"count":0},
- {"start":122,"end":129,"count":1},
+ {"start":129,"end":200,"count":0}]
+);
+
+TestCoverage(
+"yield expressions twice",
+`
+function* gen() {                         // 0000
+  yield nop();                            // 0050
+  yield nop() ? nop() : nop()             // 0100
+  return nop();                           // 0150
+};                                        // 0200
+{const it = gen(); it.next(); it.next();} // 0250
+{const it = gen(); it.next(); it.next();} // 0300
+`,
+[{"start":0,"end":349,"count":1},
+ {"start":0,"end":201,"count":2},
+ {"start":114,"end":121,"count":0},
  {"start":129,"end":200,"count":0}]
 );
 
@@ -563,9 +577,9 @@ try {                                     // 0200
 `,
 [{"start":0,"end":499,"count":1},
  {"start":451,"end":452,"count":0},
- {"start":12,"end":101,"count":3},
+ {"start":12,"end":101,"count":1},
  {"start":60,"end":100,"count":0},
- {"start":264,"end":353,"count":3},
+ {"start":264,"end":353,"count":1},
  {"start":312,"end":352,"count":0}]
 );
 
@@ -582,9 +596,8 @@ const it = function*() {                  // 0000
 it.next(); it.return();                   // 0450
 `,
 [{"start":0,"end":449,"count":1},
- {"start":11,"end":351,"count":3},
+ {"start":11,"end":351,"count":1},
  {"start":112,"end":254,"count":0},
- {"start":254,"end":272,"count":1},
  {"start":272,"end":350,"count":0}]
 );
 
@@ -601,9 +614,8 @@ const it = function*() {                  // 0000
 it.next(); it.throw(42);                  // 0550
 `,
 [{"start":0,"end":449,"count":1},
- {"start":11,"end":351,"count":3},
+ {"start":11,"end":351,"count":1},
  {"start":112,"end":154,"count":0},
- {"start":154,"end":310,"count":1},
  {"start":310,"end":350,"count":0}]
 );
 
@@ -619,10 +631,8 @@ it.next(); it.next(); it.next();          // 0250
 it.next(); it.next(); it.next();          // 0300
 `,
 [{"start":0,"end":349,"count":1},
- {"start":11,"end":201,"count":7},
- {"start":65,"end":115,"count":1},
+ {"start":11,"end":201,"count":1},
  {"start":115,"end":122,"count":0},
- {"start":123,"end":130,"count":1},
  {"start":130,"end":200,"count":0}]
 );
 
@@ -642,9 +652,9 @@ try {                                     // 0200
 `,
 [{"start":0,"end":499,"count":1},
  {"start":451,"end":452,"count":0},
- {"start":12,"end":101,"count":3},
+ {"start":12,"end":101,"count":1},
  {"start":65,"end":100,"count":0},
- {"start":264,"end":353,"count":3},
+ {"start":264,"end":353,"count":1},
  {"start":317,"end":352,"count":0}]
 );
 
@@ -659,8 +669,7 @@ f();                                      // 0200
 %PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
- {"start":0,"end":151,"count":3},
- {"start":61,"end":150,"count":1}]
+ {"start":0,"end":151,"count":1}]
 );
 
 TestCoverage(
@@ -676,7 +685,8 @@ b()                                       // 0250
 [{"start":0,"end":299,"count":1},
  {"start":15,"end":20,"count":0},
  {"start":50,"end":151,"count":2},
- {"start":114,"end":118,"count":0}]);
+ {"start":114,"end":118,"count":0}]
+);
 
 TestCoverage(
 "LogicalOrExpression IsTest()",
@@ -705,7 +715,8 @@ const c = true && 50                      // 0300
 [{"start":0,"end":349,"count":1},
  {"start":16,"end":21,"count":0},
  {"start":50,"end":151,"count":2},
- {"start":114,"end":118,"count":0}]);
+ {"start":114,"end":118,"count":0}]
+);
 
 TestCoverage(
 "LogicalAndExpression IsTest()",

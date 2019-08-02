@@ -50,7 +50,7 @@ WASM_EXEC_TEST(MemoryInit) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  r.builder().AddPassiveDataSegment(Vector<const byte>(data));
+  r.builder().AddPassiveDataSegment(ArrayVector(data));
   BUILD(r,
         WASM_MEMORY_INIT(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
                          WASM_GET_LOCAL(2)),
@@ -87,7 +87,7 @@ WASM_EXEC_TEST(MemoryInitOutOfBoundsData) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  r.builder().AddPassiveDataSegment(Vector<const byte>(data));
+  r.builder().AddPassiveDataSegment(ArrayVector(data));
   BUILD(r,
         WASM_MEMORY_INIT(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
                          WASM_GET_LOCAL(2)),
@@ -110,7 +110,7 @@ WASM_EXEC_TEST(MemoryInitOutOfBounds) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[kWasmPageSize] = {};
-  r.builder().AddPassiveDataSegment(Vector<const byte>(data));
+  r.builder().AddPassiveDataSegment(ArrayVector(data));
   BUILD(r,
         WASM_MEMORY_INIT(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
                          WASM_GET_LOCAL(2)),
@@ -331,7 +331,7 @@ WASM_EXEC_TEST(DataDropTwice) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0};
-  r.builder().AddPassiveDataSegment(Vector<const byte>(data));
+  r.builder().AddPassiveDataSegment(ArrayVector(data));
   BUILD(r, WASM_DATA_DROP(0), kExprI32Const, 0);
 
   CHECK_EQ(0, r.Call());
@@ -343,7 +343,7 @@ WASM_EXEC_TEST(DataDropThenMemoryInit) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  r.builder().AddPassiveDataSegment(Vector<const byte>(data));
+  r.builder().AddPassiveDataSegment(ArrayVector(data));
   BUILD(r, WASM_DATA_DROP(0),
         WASM_MEMORY_INIT(0, WASM_I32V_1(0), WASM_I32V_1(1), WASM_I32V_1(2)),
         kExprI32Const, 0);
@@ -543,6 +543,8 @@ WASM_EXEC_TEST(TableCopyElems) {
       WASM_TABLE_COPY(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
       kExprI32Const, 0);
 
+  r.builder().FreezeSignatureMapAndInitializeWrapperCache();
+
   auto table = handle(
       WasmTableObject::cast(r.builder().instance_object()->tables().get(0)),
       isolate);
@@ -627,6 +629,8 @@ WASM_EXEC_TEST(TableCopyOobWrites) {
       r,
       WASM_TABLE_COPY(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
       kExprI32Const, 0);
+
+  r.builder().FreezeSignatureMapAndInitializeWrapperCache();
 
   auto table = handle(
       WasmTableObject::cast(r.builder().instance_object()->tables().get(0)),

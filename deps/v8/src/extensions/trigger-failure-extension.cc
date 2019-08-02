@@ -5,7 +5,7 @@
 #include "src/extensions/trigger-failure-extension.h"
 
 #include "src/base/logging.h"
-#include "src/checks.h"
+#include "src/common/checks.h"
 
 namespace v8 {
 namespace internal {

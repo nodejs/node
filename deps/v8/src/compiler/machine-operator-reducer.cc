@@ -14,7 +14,7 @@
 #include "src/compiler/machine-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/conversions-inl.h"
+#include "src/numbers/conversions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -751,6 +751,16 @@ Reduction MachineOperatorReducer::ReduceInt32Add(Node* node) {
       return reduction.Changed() ? reduction : Changed(node);
     }
   }
+  // (x + Int32Constant(a)) + Int32Constant(b)) => x + Int32Constant(a + b)
+  if (m.right().HasValue() && m.left().IsInt32Add()) {
+    Int32BinopMatcher n(m.left().node());
+    if (n.right().HasValue() && m.OwnsInput(m.left().node())) {
+      node->ReplaceInput(1, Int32Constant(base::AddWithWraparound(
+                                m.right().Value(), n.right().Value())));
+      node->ReplaceInput(0, n.left().node());
+      return Changed(node);
+    }
+  }
   return NoChange();
 }
 
@@ -761,6 +771,16 @@ Reduction MachineOperatorReducer::ReduceInt64Add(Node* node) {
   if (m.IsFoldable()) {
     return ReplaceInt64(
         base::AddWithWraparound(m.left().Value(), m.right().Value()));
+  }
+  // (x + Int64Constant(a)) + Int64Constant(b)) => x + Int64Constant(a + b)
+  if (m.right().HasValue() && m.left().IsInt64Add()) {
+    Int64BinopMatcher n(m.left().node());
+    if (n.right().HasValue() && m.OwnsInput(m.left().node())) {
+      node->ReplaceInput(1, Int64Constant(base::AddWithWraparound(
+                                m.right().Value(), n.right().Value())));
+      node->ReplaceInput(0, n.left().node());
+      return Changed(node);
+    }
   }
   return NoChange();
 }

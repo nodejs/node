@@ -11,9 +11,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addFunction('id', kSig_i_i)
          .addBody([kExprGetLocal, 0])
-         .giveCompilationHint(kCompilationHintStrategyLazy,
-                              kCompilationHintTierOptimized,
-                              kCompilationHintTierBaseline)
+         .setCompilationHint(kCompilationHintStrategyLazy,
+                             kCompilationHintTierOptimized,
+                             kCompilationHintTierBaseline)
          .exportFunc();
   assertThrows(() => builder.toModule(),
     WebAssembly.CompileError,
@@ -26,9 +26,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addFunction('id', kSig_i_l)
          .addBody([kExprGetLocal, 0])
-         .giveCompilationHint(kCompilationHintStrategyLazy,
-                              kCompilationHintTierDefault,
-                              kCompilationHintTierDefault)
+         .setCompilationHint(kCompilationHintStrategyLazy,
+                             kCompilationHintTierDefault,
+                             kCompilationHintTierDefault)
          .exportFunc();
   assertThrows(() => builder.toModule(),
     WebAssembly.CompileError,
@@ -47,9 +47,21 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addFunction('id', kSig_i_i)
          .addBody([kExprGetLocal, 0])
-         .giveCompilationHint(kCompilationHintStrategyLazy,
-                              kCompilationHintTierDefault,
-                              kCompilationHintTierDefault)
+         .setCompilationHint(kCompilationHintStrategyLazy,
+                             kCompilationHintTierDefault,
+                             kCompilationHintTierDefault)
+         .exportFunc();
+  assertEquals(42, builder.instantiate().exports.id(42));
+})();
+
+(function testCompileLazyBaselineEagerTopTierModule() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('id', kSig_i_i)
+         .addBody([kExprGetLocal, 0])
+         .setCompilationHint(kCompilationHintStrategyLazyBaselineEagerTopTier,
+                             kCompilationHintTierDefault,
+                             kCompilationHintTierDefault)
          .exportFunc();
   assertEquals(42, builder.instantiate().exports.id(42));
 })();

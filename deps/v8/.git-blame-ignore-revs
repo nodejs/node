@@ -20,3 +20,6 @@
 
 # Update of quotations in DEPS file.
 e50b49a0e38b34e2b28e026f4d1c7e0da0c7bb1a
+
+# Rewrite code base to use "." instead of "->" to access Object members.
+878ccb33bd3cf0e6dc018ff8d15843f585ac07be

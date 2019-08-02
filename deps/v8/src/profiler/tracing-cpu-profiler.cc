@@ -4,9 +4,9 @@
 
 #include "src/profiler/tracing-cpu-profiler.h"
 
+#include "src/init/v8.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/tracing/trace-event.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -53,10 +53,10 @@ void TracingCpuProfilerImpl::StartProfiling() {
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(
       TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler.hires"), &enabled);
   int sampling_interval_us = enabled ? 100 : 1000;
-  profiler_.reset(new CpuProfiler(isolate_));
+  profiler_.reset(new CpuProfiler(isolate_, kDebugNaming));
   profiler_->set_sampling_interval(
       base::TimeDelta::FromMicroseconds(sampling_interval_us));
-  profiler_->StartProfiling("", true);
+  profiler_->StartProfiling("", {kLeafNodeLineNumbers});
 }
 
 void TracingCpuProfilerImpl::StopProfiling() {

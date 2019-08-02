@@ -8,8 +8,8 @@
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
-#include "src/handles.h"
-#include "src/objects-inl.h"
+#include "src/handles/handles.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data-impl.h"
@@ -420,7 +420,7 @@ Handle<PreparseData> PreparseDataBuilder::ByteData::CopyToHeap(
   int data_length = zone_byte_data_.length();
   Handle<PreparseData> data =
       isolate->factory()->NewPreparseData(data_length, children_length);
-  data->copy_in(0, zone_byte_data_.start(), data_length);
+  data->copy_in(0, zone_byte_data_.begin(), data_length);
   return data;
 }
 

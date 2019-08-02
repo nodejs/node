@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -220,7 +220,7 @@ TEST(Run_Wasm_returnCallIndirectFactorial) {
   WasmFunctionCompiler& fact_aux_fn = r.NewFunction(sigs.i_ii(), "fact_aux");
   fact_aux_fn.SetSigIndex(0);
 
-  r.builder().AddSignature(sigs.i_ii());
+  byte sig_index = r.builder().AddSignature(sigs.i_ii());
 
   // Function table.
   uint16_t indirect_function_table[] = {
@@ -229,14 +229,15 @@ TEST(Run_Wasm_returnCallIndirectFactorial) {
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
 
-  BUILD(r, WASM_RETURN_CALL_INDIRECT(0, WASM_I32V(0), WASM_GET_LOCAL(0),
+  BUILD(r, WASM_RETURN_CALL_INDIRECT(sig_index, WASM_I32V(0), WASM_GET_LOCAL(0),
                                      WASM_I32V(1)));
 
   BUILD(fact_aux_fn,
         WASM_IF_ELSE_I(
             WASM_I32_EQ(WASM_I32V(1), WASM_GET_LOCAL(0)), WASM_GET_LOCAL(1),
             WASM_RETURN_CALL_INDIRECT(
-                0, WASM_I32V(0), WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                sig_index, WASM_I32V(0),
+                WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
                 WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)))));
 
   uint32_t test_values[] = {1, 2, 5, 10, 20};

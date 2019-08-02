@@ -29,7 +29,7 @@
 #define V8_TEST_CCTEST_TRACE_EXTENSION_H_
 
 #include "include/v8.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 struct TickSample;

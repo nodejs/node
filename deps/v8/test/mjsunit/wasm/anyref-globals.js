@@ -528,3 +528,89 @@ function dummy_func() {
   assertEquals(obj2, instance2.exports.reexport2.value);
   assertEquals(obj3, instance2.exports.reexport3.value);
 })();
+
+(function TestImportImmutableAnyFuncGlobalAsAnyRef() {
+  print(arguments.callee.name);
+  let builder1 = new WasmModuleBuilder();
+  const g3 = builder1.addGlobal(kWasmAnyFunc, true).exportAs("e3");
+  builder1.addGlobal(kWasmAnyRef, false).exportAs("e1"); // Dummy.
+  builder1.addGlobal(kWasmAnyFunc, false).exportAs("e2"); // Dummy.
+  const instance1 = builder1.instantiate();
+
+  let builder2 = new WasmModuleBuilder();
+  const i1 = builder2.addImportedGlobal('exports', 'e1', kWasmAnyRef, false);
+  const i2 = builder2.addImportedGlobal('exports', 'e2', kWasmAnyRef, false);
+  builder2.instantiate(instance1);
+})();
+
+(function TestImportMutableAnyFuncGlobalAsAnyRefFails() {
+  print(arguments.callee.name);
+  let builder1 = new WasmModuleBuilder();
+  const g3 = builder1.addGlobal(kWasmAnyFunc, true).exportAs("e3");
+  builder1.addGlobal(kWasmAnyRef, true).exportAs("e1"); // Dummy.
+  builder1.addGlobal(kWasmAnyFunc, true).exportAs("e2"); // Dummy.
+  const instance1 = builder1.instantiate();
+
+  let builder2 = new WasmModuleBuilder();
+  const i1 = builder2.addImportedGlobal('exports', 'e1', kWasmAnyRef, true);
+  const i2 = builder2.addImportedGlobal('exports', 'e2', kWasmAnyRef, true);
+  assertThrows(() => builder2.instantiate(instance1), WebAssembly.LinkError);
+})();
+
+(function TestRefFuncGlobalInit() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  const g_ref = builder.addGlobal(kWasmAnyRef, true);
+  const g_func = builder.addGlobal(kWasmAnyFunc, true);
+  const f_ref = builder.addFunction('get_anyref_global', kSig_r_v)
+                    .addBody([kExprGetGlobal, g_ref.index])
+                    .exportAs('get_anyref_global');
+  const f_func = builder.addFunction('get_anyfunc_global', kSig_a_v)
+                     .addBody([kExprGetGlobal, g_func.index])
+                     .exportAs('get_anyfunc_global');
+
+  g_ref.function_index = f_ref.index;
+  g_func.function_index = f_func.index;
+
+  const instance = builder.instantiate();
+  assertEquals(
+      instance.exports.get_anyref_global, instance.exports.get_anyref_global());
+  assertEquals(
+      instance.exports.get_anyfunc_global,
+      instance.exports.get_anyfunc_global());
+})();
+
+(function TestRefFuncGlobalInitWithImport() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(kSig_i_v);
+  const import_wasm = builder.addImport('m', 'wasm', sig_index);
+  const import_js = builder.addImport('m', 'js', sig_index);
+  const g_wasm = builder.addGlobal(kWasmAnyFunc, true);
+  const g_js = builder.addGlobal(kWasmAnyFunc, true);
+  g_wasm.function_index = import_wasm;
+  g_js.function_index = import_js;
+  builder.addFunction('get_global_wasm', kSig_a_v)
+      .addBody([kExprGetGlobal, g_wasm.index])
+      .exportFunc();
+  builder.addFunction('get_global_js', kSig_a_v)
+      .addBody([kExprGetGlobal, g_js.index])
+      .exportFunc();
+
+  const expected_wasm = dummy_func();
+  const expected_val = 27;
+  // I want to test here that imported JS functions get wrapped by wasm-to-js
+  // and js-to-wasm wrappers. That's why {expected_js} does not return an
+  // integer directly but an object with a {valueOf} function.
+  function expected_js() {
+    const result = {};
+    result.valueOf = () => expected_val;
+    return result;
+  };
+
+  const instance =
+      builder.instantiate({m: {wasm: expected_wasm, js: expected_js}});
+
+  assertSame(expected_wasm, instance.exports.get_global_wasm());
+  assertSame(expected_val, instance.exports.get_global_js()());
+})();

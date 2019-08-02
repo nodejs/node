@@ -29,3 +29,19 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertThrows(() => table.set(12), RangeError);
 })();
+
+(function TestImportAnyRefTable() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  const table_index = builder.addImportedTable("imp", "table", 3, 10, kWasmAnyRef);
+  builder.addFunction('get', kSig_r_v)
+  .addBody([kExprI32Const, 0, kExprGetTable, table_index]);
+
+  let table_ref = new WebAssembly.Table({element: "anyref", initial: 3, maximum: 10});
+  builder.instantiate({imp:{table: table_ref}});
+
+  let table_func = new WebAssembly.Table({ element: "anyfunc", initial: 3, maximum: 10 });
+  assertThrows(() => builder.instantiate({ imp: { table: table_func } }),
+    WebAssembly.LinkError, /imported table does not match the expected type/);
+})();

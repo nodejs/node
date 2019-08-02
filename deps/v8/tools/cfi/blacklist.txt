@@ -15,7 +15,7 @@ type:std::*
 fun:*LocaleConvertCase*
 
 # PropertyCallbackArguments::Call methods cast function pointers
-src:*src/api-arguments-inl.h
+src:*src/api/api-arguments-inl.h
 
 # v8 callback that casts argument template parameters
 fun:*PendingPhantomCallback*Invoke*

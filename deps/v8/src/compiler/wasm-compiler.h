@@ -45,47 +45,21 @@ struct WasmFeatures;
 
 namespace compiler {
 
-class TurbofanWasmCompilationUnit {
- public:
-  explicit TurbofanWasmCompilationUnit(wasm::WasmCompilationUnit* wasm_unit);
-  ~TurbofanWasmCompilationUnit();
+bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
+                               wasm::CompilationEnv* env,
+                               const wasm::FunctionBody& func_body,
+                               int func_index, wasm::WasmFeatures* detected,
+                               MachineGraph* mcgraph,
+                               NodeOriginTable* node_origins,
+                               SourcePositionTable* source_positions);
 
-  bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
-                                 wasm::CompilationEnv* env,
-                                 const wasm::FunctionBody& func_body,
-                                 wasm::WasmFeatures* detected,
-                                 double* decode_ms, MachineGraph* mcgraph,
-                                 NodeOriginTable* node_origins,
-                                 SourcePositionTable* source_positions);
+wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
+    wasm::WasmEngine*, wasm::CompilationEnv*, const wasm::FunctionBody&,
+    int func_index, Counters*, wasm::WasmFeatures* detected);
 
-  wasm::WasmCompilationResult ExecuteCompilation(wasm::WasmEngine*,
-                                                 wasm::CompilationEnv*,
-                                                 const wasm::FunctionBody&,
-                                                 Counters*,
-                                                 wasm::WasmFeatures* detected);
-
- private:
-  wasm::WasmCompilationUnit* const wasm_unit_;
-
-  DISALLOW_COPY_AND_ASSIGN(TurbofanWasmCompilationUnit);
-};
-
-class InterpreterCompilationUnit final {
- public:
-  explicit InterpreterCompilationUnit(wasm::WasmCompilationUnit* wasm_unit)
-      : wasm_unit_(wasm_unit) {}
-
-  wasm::WasmCompilationResult ExecuteCompilation(wasm::WasmEngine*,
-                                                 wasm::CompilationEnv*,
-                                                 const wasm::FunctionBody&,
-                                                 Counters*,
-                                                 wasm::WasmFeatures* detected);
-
- private:
-  wasm::WasmCompilationUnit* const wasm_unit_;
-
-  DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationUnit);
-};
+wasm::WasmCompilationResult ExecuteInterpreterEntryCompilation(
+    wasm::WasmEngine*, wasm::CompilationEnv*, const wasm::FunctionBody&,
+    int func_index, Counters*, wasm::WasmFeatures* detected);
 
 // Calls to WASM imports are handled in several different ways, depending on the
 // type of the target function/callable and whether the signature matches the
@@ -93,6 +67,7 @@ class InterpreterCompilationUnit final {
 enum class WasmImportCallKind : uint8_t {
   kLinkError,                      // static WASM->WASM type error
   kRuntimeTypeError,               // runtime WASM->JS type error
+  kWasmToCapi,                     // fast WASM->C-API call
   kWasmToWasm,                     // fast WASM->WASM call
   kJSFunctionArityMatch,           // fast WASM->JS call
   kJSFunctionArityMatchSloppy,     // fast WASM->JS call, sloppy receiver
@@ -136,6 +111,11 @@ GetWasmImportCallKind(Handle<JSReceiver> callable, wasm::FunctionSig* sig,
 V8_EXPORT_PRIVATE wasm::WasmCode* CompileWasmImportCallWrapper(
     wasm::WasmEngine*, wasm::NativeModule*, WasmImportCallKind,
     wasm::FunctionSig*, bool source_positions);
+
+// Compiles a host call wrapper, which allows WASM to call host functions.
+wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine*,
+                                           wasm::NativeModule*,
+                                           wasm::FunctionSig*, Address address);
 
 // Creates a code object calling a wasm function with the given signature,
 // callable from JS.
@@ -184,10 +164,6 @@ class WasmGraphBuilder {
     kRetpoline = true,
     kNoRetpoline = false
   };
-  enum ExtraCallableParam : bool {  // --
-    kExtraCallableParam = true,
-    kNoExtraCallableParam = false
-  };
 
   V8_EXPORT_PRIVATE WasmGraphBuilder(
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
@@ -219,6 +195,7 @@ class WasmGraphBuilder {
   Node* CreateOrMergeIntoEffectPhi(Node* merge, Node* tnode, Node* fnode);
   Node* EffectPhi(unsigned count, Node** effects, Node* control);
   Node* RefNull();
+  Node* RefFunc(uint32_t function_index);
   Node* Uint32Constant(uint32_t value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
@@ -231,7 +208,7 @@ class WasmGraphBuilder {
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* MemoryGrow(Node* input);
   Node* Throw(uint32_t exception_index, const wasm::WasmException* exception,
-              const Vector<Node*> values);
+              const Vector<Node*> values, wasm::WasmCodePosition position);
   Node* Rethrow(Node* except_obj);
   Node* ExceptionTagEqual(Node* caught_tag, Node* expected_tag);
   Node* LoadExceptionTagFromTable(uint32_t exception_index);
@@ -247,6 +224,15 @@ class WasmGraphBuilder {
                   Node** control = nullptr);
 
   void PatchInStackCheckIfNeeded();
+
+  // TODO(v8:8977, v8:7703): move this somewhere? This should be where it
+  // can be used in many places (e.g graph assembler, wasm compiler).
+  // Adds a decompression node if pointer compression is enabled and the type
+  // loaded is a compressed one. To be used after loads.
+  Node* InsertDecompressionIfNeeded(MachineType type, Node* value);
+  // Adds a compression node if pointer compression is enabled and the
+  // representation to be stored is a compressed one. To be used before stores.
+  Node* InsertCompressionIfNeeded(MachineRepresentation rep, Node* value);
 
   //-----------------------------------------------------------------------
   // Operations that read and/or write {control} and {effect}.
@@ -411,6 +397,9 @@ class WasmGraphBuilder {
   Node* ElemDrop(uint32_t elem_segment_index, wasm::WasmCodePosition position);
   Node* TableCopy(uint32_t table_src_index, uint32_t table_dst_index, Node* dst,
                   Node* src, Node* size, wasm::WasmCodePosition position);
+  Node* TableGrow(uint32_t table_index, Node* value, Node* delta);
+  Node* TableSize(uint32_t table_index);
+  Node* TableFill(uint32_t table_index, Node* start, Node* value, Node* count);
 
   bool has_simd() const { return has_simd_; }
 
@@ -617,12 +606,13 @@ class WasmGraphBuilder {
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 };
 
+enum WasmCallKind { kWasmFunction, kWasmImportWrapper, kWasmCapiFunction };
+
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
     Zone* zone, wasm::FunctionSig* signature,
     WasmGraphBuilder::UseRetpoline use_retpoline =
         WasmGraphBuilder::kNoRetpoline,
-    WasmGraphBuilder::ExtraCallableParam callable_param =
-        WasmGraphBuilder::kNoExtraCallableParam);
+    WasmCallKind kind = kWasmFunction);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, CallDescriptor* call_descriptor);

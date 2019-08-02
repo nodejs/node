@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/isolate.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -39,7 +39,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
     HeapObject object =
         compaction_space->AllocateRawUnaligned(kMaxRegularHeapObjectSize)
             .ToObjectChecked();
-    heap->CreateFillerObjectAt(object->address(), kMaxRegularHeapObjectSize,
+    heap->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize,
                                ClearRecordedSlots::kNo);
   }
   int pages_in_old_space = old_space->CountTotalPages();

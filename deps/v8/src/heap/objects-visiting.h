@@ -5,15 +5,16 @@
 #ifndef V8_HEAP_OBJECTS_VISITING_H_
 #define V8_HEAP_OBJECTS_VISITING_H_
 
-#include "src/objects.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/map.h"
-#include "src/visitors.h"
+#include "src/objects/objects.h"
+#include "src/objects/visitors.h"
 
 namespace v8 {
 namespace internal {
 
-#define TYPED_VISITOR_ID_LIST_CLASSES(V)                                  \
+// TODO(jkummerow): Drop the duplication: V(x, x) -> V(x).
+#define TYPED_VISITOR_ID_LIST(V)                                          \
   V(AllocationSite, AllocationSite)                                       \
   V(BigInt, BigInt)                                                       \
   V(ByteArray, ByteArray)                                                 \
@@ -31,7 +32,6 @@ namespace internal {
   V(FeedbackVector, FeedbackVector)                                       \
   V(FixedArray, FixedArray)                                               \
   V(FixedDoubleArray, FixedDoubleArray)                                   \
-  V(FixedTypedArrayBase, FixedTypedArrayBase)                             \
   V(JSArrayBuffer, JSArrayBuffer)                                         \
   V(JSDataView, JSDataView)                                               \
   V(JSFunction, JSFunction)                                               \
@@ -59,18 +59,12 @@ namespace internal {
   V(TransitionArray, TransitionArray)                                     \
   V(UncompiledDataWithoutPreparseData, UncompiledDataWithoutPreparseData) \
   V(UncompiledDataWithPreparseData, UncompiledDataWithPreparseData)       \
+  V(WasmCapiFunctionData, WasmCapiFunctionData)                           \
   V(WasmInstanceObject, WasmInstanceObject)
 
 #define FORWARD_DECLARE(TypeName, Type) class Type;
-TYPED_VISITOR_ID_LIST_CLASSES(FORWARD_DECLARE)
+TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
-
-#define TYPED_VISITOR_ID_LIST_TYPEDEFS(V) \
-  V(FixedFloat64Array, FixedFloat64Array)
-
-#define TYPED_VISITOR_ID_LIST(V)   \
-  TYPED_VISITOR_ID_LIST_CLASSES(V) \
-  TYPED_VISITOR_ID_LIST_TYPEDEFS(V)
 
 // The base class for visitors that need to dispatch on object type. The default
 // behavior of all visit functions is to iterate body of the given object using

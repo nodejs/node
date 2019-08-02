@@ -11,21 +11,21 @@
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
 #include "src/ast/source-range-ast-visitor.h"
-#include "src/bailout-reason.h"
 #include "src/base/ieee754.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
-#include "src/char-predicates-inl.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
-#include "src/conversions-inl.h"
-#include "src/log.h"
-#include "src/message-template.h"
+#include "src/execution/message-template.h"
+#include "src/logging/log.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/parsing/expression-scope-reparenter.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/rewriter.h"
 #include "src/runtime/runtime.h"
-#include "src/string-stream.h"
+#include "src/strings/char-predicates-inl.h"
+#include "src/strings/string-stream.h"
 #include "src/tracing/trace-event.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -422,12 +422,9 @@ Parser::Parser(ParseInfo* info)
   allow_lazy_ = info->allow_lazy_compile() && info->allow_lazy_parsing() &&
                 info->extension() == nullptr && can_compile_lazily;
   set_allow_natives(info->allow_natives_syntax());
-  set_allow_harmony_public_fields(info->allow_harmony_public_fields());
-  set_allow_harmony_static_fields(info->allow_harmony_static_fields());
   set_allow_harmony_dynamic_import(info->allow_harmony_dynamic_import());
   set_allow_harmony_import_meta(info->allow_harmony_import_meta());
   set_allow_harmony_numeric_separator(info->allow_harmony_numeric_separator());
-  set_allow_harmony_private_fields(info->allow_harmony_private_fields());
   set_allow_harmony_private_methods(info->allow_harmony_private_methods());
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -522,10 +519,9 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
     if (!info->is_eval()) {
       event_name = "parse-script";
       start = 0;
-      end = String::cast(script->source())->length();
+      end = String::cast(script.source()).length();
     }
-    LOG(isolate,
-        FunctionEvent(event_name, script->id(), ms, start, end, "", 0));
+    LOG(isolate, FunctionEvent(event_name, script.id(), ms, start, end, "", 0));
   }
   return result;
 }
@@ -641,6 +637,9 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   DCHECK_NULL(target_stack_);
 
   if (has_error()) return nullptr;
+
+  RecordFunctionLiteralSourceRange(result);
+
   return result;
 }
 
@@ -1717,7 +1716,7 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
   // try {
   //   InitialYield;
   //   ...body...;
-  //   return undefined; // See comment below
+  //   // fall through to the implicit return after the try-finally
   // } catch (.catch) {
   //   %AsyncGeneratorReject(generator, .catch);
   // } finally {
@@ -1744,12 +1743,6 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
 
     // Don't create iterator result for async generators, as the resume methods
     // will create it.
-    // TODO(leszeks): This will create another suspend point, which is
-    // unnecessary if there is already an unconditional return in the body.
-    Statement* final_return = BuildReturnStatement(
-        factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
-    statements.Add(final_return);
-
     try_block = factory()->NewBlock(false, statements);
   }
 
@@ -2453,6 +2446,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   function_literal->set_function_token_position(function_token_pos);
   function_literal->set_suspend_count(suspend_count);
 
+  RecordFunctionLiteralSourceRange(function_literal);
+
   if (should_post_parallel_task) {
     // Start a parallel parse / compile task on the compiler dispatcher.
     info()->parallel_tasks()->Enqueue(info(), function_name, function_literal);
@@ -2803,20 +2798,16 @@ Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
   return proxy->var();
 }
 
-void Parser::DeclareClassField(ClassScope* scope,
-                               ClassLiteralProperty* property,
-                               const AstRawString* property_name,
-                               bool is_static, bool is_computed_name,
-                               bool is_private, ClassInfo* class_info) {
-  DCHECK(allow_harmony_public_fields() || allow_harmony_private_fields());
-
+void Parser::DeclarePublicClassField(ClassScope* scope,
+                                     ClassLiteralProperty* property,
+                                     bool is_static, bool is_computed_name,
+                                     ClassInfo* class_info) {
   if (is_static) {
     class_info->static_fields->Add(property, zone());
   } else {
     class_info->instance_fields->Add(property, zone());
   }
 
-  DCHECK_IMPLIES(is_computed_name, !is_private);
   if (is_computed_name) {
     // We create a synthetic variable name here so that scope
     // analysis doesn't dedupe the vars.
@@ -2825,27 +2816,49 @@ void Parser::DeclareClassField(ClassScope* scope,
             ast_value_factory(), class_info->computed_field_count));
     property->set_computed_name_var(computed_name_var);
     class_info->properties->Add(property, zone());
-  } else if (is_private) {
-    Variable* private_name_var =
-        CreatePrivateNameVariable(scope, property_name);
-    int pos = property->value()->position();
-    if (pos == kNoSourcePosition) {
-      pos = property->key()->position();
-    }
-    private_name_var->set_initializer_position(pos);
-    property->set_private_name_var(private_name_var);
-    class_info->properties->Add(property, zone());
   }
+}
+
+void Parser::DeclarePrivateClassMember(ClassScope* scope,
+                                       const AstRawString* property_name,
+                                       ClassLiteralProperty* property,
+                                       ClassLiteralProperty::Kind kind,
+                                       bool is_static, ClassInfo* class_info) {
+  DCHECK_IMPLIES(kind == ClassLiteralProperty::Kind::METHOD,
+                 allow_harmony_private_methods());
+  // TODO(joyee): We do not support private accessors yet (which allow
+  // declaring the same private name twice). Make them noops.
+  if (kind != ClassLiteralProperty::Kind::FIELD &&
+      kind != ClassLiteralProperty::Kind::METHOD) {
+    return;
+  }
+
+  if (kind == ClassLiteralProperty::Kind::FIELD) {
+    if (is_static) {
+      class_info->static_fields->Add(property, zone());
+    } else {
+      class_info->instance_fields->Add(property, zone());
+    }
+  }
+
+  Variable* private_name_var = CreatePrivateNameVariable(scope, property_name);
+  int pos = property->value()->position();
+  if (pos == kNoSourcePosition) {
+    pos = property->key()->position();
+  }
+  private_name_var->set_initializer_position(pos);
+  property->set_private_name_var(private_name_var);
+  class_info->properties->Add(property, zone());
 }
 
 // This method declares a property of the given class.  It updates the
 // following fields of class_info, as appropriate:
 //   - constructor
 //   - properties
-void Parser::DeclareClassProperty(ClassScope* scope,
-                                  const AstRawString* class_name,
-                                  ClassLiteralProperty* property,
-                                  bool is_constructor, ClassInfo* class_info) {
+void Parser::DeclarePublicClassMethod(const AstRawString* class_name,
+                                      ClassLiteralProperty* property,
+                                      bool is_constructor,
+                                      ClassInfo* class_info) {
   if (is_constructor) {
     DCHECK(!class_info->constructor);
     class_info->constructor = property->value()->AsFunctionLiteral();
@@ -2866,15 +2879,19 @@ FunctionLiteral* Parser::CreateInitializerFunction(
             FunctionKind::kClassMembersInitializerFunction);
   // function() { .. class fields initializer .. }
   ScopedPtrList<Statement> statements(pointer_buffer());
-  InitializeClassMembersStatement* static_fields =
+  InitializeClassMembersStatement* stmt =
       factory()->NewInitializeClassMembersStatement(fields, kNoSourcePosition);
-  statements.Add(static_fields);
-  return factory()->NewFunctionLiteral(
+  statements.Add(stmt);
+  FunctionLiteral* result = factory()->NewFunctionLiteral(
       ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
       FunctionLiteral::kShouldEagerCompile, scope->start_position(), false,
       GetNextFunctionLiteralId());
+
+  RecordFunctionLiteralSourceRange(result);
+
+  return result;
 }
 
 // This method generates a ClassLiteral AST node.

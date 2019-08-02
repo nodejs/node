@@ -12,10 +12,10 @@
 #include <set>
 #include <string>
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects.h"
 #include "unicode/uversion.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -78,16 +78,8 @@ class JSSegmenter : public JSObject {
   DECL_VERIFIER(JSSegmenter)
 
   // Layout description.
-#define JS_SEGMENTER_FIELDS(V)            \
-  V(kJSSegmenterOffset, kTaggedSize)      \
-  V(kLocaleOffset, kTaggedSize)           \
-  V(kICUBreakIteratorOffset, kTaggedSize) \
-  V(kFlagsOffset, kTaggedSize)            \
-  /* Header size. */                      \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_SEGMENTER_FIELDS)
-#undef JS_SEGMENTER_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSSEGMENTER_FIELDS)
 
  private:
   static Granularity GetGranularity(const char* str);

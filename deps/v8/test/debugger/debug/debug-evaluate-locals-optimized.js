@@ -122,6 +122,7 @@ function listener(event, exec_state, event_data, data) {
   };
 };
 
+%PrepareFunctionForOptimization(f);
 for (var i = 0; i < 4; i++) f(expected.length - 1, 11, 12);
 %OptimizeFunctionOnNextCall(f);
 f(expected.length - 1, 11, 12);

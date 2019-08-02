@@ -8,6 +8,7 @@
 function* h() { try {yield 42} finally {yield 43} };
 function* g() { yield* h(); };
 
+%PrepareFunctionForOptimization(g);
 let x = g();
 x.next();
 %OptimizeFunctionOnNextCall(g);

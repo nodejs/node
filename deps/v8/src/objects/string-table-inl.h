@@ -28,24 +28,39 @@ StringSet::StringSet(Address ptr) : HashTable<StringSet, StringSetShape>(ptr) {
 }
 
 bool StringSetShape::IsMatch(String key, Object value) {
-  DCHECK(value->IsString());
-  return key->Equals(String::cast(value));
+  DCHECK(value.IsString());
+  return key.Equals(String::cast(value));
 }
 
 uint32_t StringSetShape::Hash(Isolate* isolate, String key) {
-  return key->Hash();
+  return key.Hash();
 }
 
 uint32_t StringSetShape::HashForObject(ReadOnlyRoots roots, Object object) {
-  return String::cast(object)->Hash();
+  return String::cast(object).Hash();
 }
 
-StringTableKey::StringTableKey(uint32_t hash_field)
-    : HashTableKey(hash_field >> Name::kHashShift), hash_field_(hash_field) {}
+bool StringTableShape::IsMatch(Key key, Object value) {
+  String string = String::cast(value);
+  if (string.hash_field() != key->hash_field()) return false;
+  if (string.length() != key->length()) return false;
+  return key->IsMatch(string);
+}
+
+StringTableKey::StringTableKey(uint32_t hash_field, int length)
+    : hash_field_(hash_field), length_(length) {}
 
 void StringTableKey::set_hash_field(uint32_t hash_field) {
   hash_field_ = hash_field;
-  set_hash(hash_field >> Name::kHashShift);
+}
+
+uint32_t StringTableKey::hash() const {
+  return hash_field_ >> Name::kHashShift;
+}
+
+// static
+uint32_t StringTableShape::Hash(Isolate* isolate, Key key) {
+  return key->hash();
 }
 
 Handle<Object> StringTableShape::AsHandle(Isolate* isolate,
@@ -54,7 +69,7 @@ Handle<Object> StringTableShape::AsHandle(Isolate* isolate,
 }
 
 uint32_t StringTableShape::HashForObject(ReadOnlyRoots roots, Object object) {
-  return String::cast(object)->Hash();
+  return String::cast(object).Hash();
 }
 
 RootIndex StringTableShape::GetMapRootIndex() {

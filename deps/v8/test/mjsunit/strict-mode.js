@@ -147,11 +147,11 @@ function foo(eval) {\
 })();
 
 // Octal literal
-CheckStrictMode("var x = 012");
-CheckStrictMode("012");
-CheckStrictMode("'Hello octal\\032'");
-CheckStrictMode("function octal() { return 012; }");
-CheckStrictMode("function octal() { return '\\032'; }");
+CheckStrictMode("var x = 012", SyntaxError);
+CheckStrictMode("012", SyntaxError);
+CheckStrictMode("'Hello octal\\032'", SyntaxError);
+CheckStrictMode("function octal() { return 012; }", SyntaxError);
+CheckStrictMode("function octal() { return '\\032'; }", SyntaxError);
 
 (function ValidEscape() {
   "use strict";

@@ -4,7 +4,7 @@
 
 #include "src/ic/binary-op-assembler.h"
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

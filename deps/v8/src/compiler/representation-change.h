@@ -240,6 +240,8 @@ class UseInfo {
   }
   static UseInfo CheckedNumberOrOddballAsFloat64(
       IdentifyZeros identify_zeros, const VectorSlotPair& feedback) {
+    // TODO(tebbi): We should use Float64 truncation here, since this exactly
+    // means that we treat Oddballs as Numbers.
     return UseInfo(MachineRepresentation::kFloat64,
                    Truncation::Any(identify_zeros),
                    TypeCheckKind::kNumberOrOddball, feedback);

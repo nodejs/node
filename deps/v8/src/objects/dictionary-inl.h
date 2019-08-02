@@ -7,7 +7,7 @@
 
 #include "src/objects/dictionary.h"
 
-#include "src/hash-seed-inl.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-cell-inl.h"
@@ -53,14 +53,14 @@ SimpleNumberDictionary::SimpleNumberDictionary(Address ptr)
 
 bool NumberDictionary::requires_slow_elements() {
   Object max_index_object = get(kMaxNumberKeyIndex);
-  if (!max_index_object->IsSmi()) return false;
+  if (!max_index_object.IsSmi()) return false;
   return 0 != (Smi::ToInt(max_index_object) & kRequiresSlowElementsMask);
 }
 
 uint32_t NumberDictionary::max_number_key() {
   DCHECK(!requires_slow_elements());
   Object max_index_object = get(kMaxNumberKeyIndex);
-  if (!max_index_object->IsSmi()) return 0;
+  if (!max_index_object.IsSmi()) return 0;
   uint32_t value = static_cast<uint32_t>(Smi::ToInt(max_index_object));
   return value >> kRequiresSlowElementsTagSize;
 }
@@ -73,7 +73,7 @@ template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::ClearEntry(Isolate* isolate, int entry) {
   Object the_hole = this->GetReadOnlyRoots().the_hole_value();
   PropertyDetails details = PropertyDetails::Empty();
-  Derived::cast(*this)->SetEntry(isolate, entry, the_hole, the_hole, details);
+  Derived::cast(*this).SetEntry(isolate, entry, the_hole, the_hole, details);
 }
 
 template <typename Derived, typename Shape>
@@ -81,7 +81,7 @@ void Dictionary<Derived, Shape>::SetEntry(Isolate* isolate, int entry,
                                           Object key, Object value,
                                           PropertyDetails details) {
   DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
-  DCHECK(!key->IsName() || details.dictionary_index() > 0);
+  DCHECK(!key.IsName() || details.dictionary_index() > 0);
   int index = DerivedHashTable::EntryToIndex(entry);
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = this->GetWriteBarrierMode(no_gc);
@@ -91,7 +91,7 @@ void Dictionary<Derived, Shape>::SetEntry(Isolate* isolate, int entry,
 }
 
 Object GlobalDictionaryShape::Unwrap(Object object) {
-  return PropertyCell::cast(object)->name();
+  return PropertyCell::cast(object).name();
 }
 
 RootIndex GlobalDictionaryShape::GetMapRootIndex() {
@@ -105,7 +105,7 @@ RootIndex NameDictionaryShape::GetMapRootIndex() {
 }
 
 PropertyCell GlobalDictionary::CellAt(int entry) {
-  DCHECK(KeyAt(entry)->IsPropertyCell());
+  DCHECK(KeyAt(entry).IsPropertyCell());
   return PropertyCell::cast(KeyAt(entry));
 }
 
@@ -115,15 +115,15 @@ bool GlobalDictionaryShape::IsLive(ReadOnlyRoots roots, Object k) {
 }
 
 bool GlobalDictionaryShape::IsKey(ReadOnlyRoots roots, Object k) {
-  return IsLive(roots, k) && !PropertyCell::cast(k)->value()->IsTheHole(roots);
+  return IsLive(roots, k) && !PropertyCell::cast(k).value().IsTheHole(roots);
 }
 
-Name GlobalDictionary::NameAt(int entry) { return CellAt(entry)->name(); }
-Object GlobalDictionary::ValueAt(int entry) { return CellAt(entry)->value(); }
+Name GlobalDictionary::NameAt(int entry) { return CellAt(entry).name(); }
+Object GlobalDictionary::ValueAt(int entry) { return CellAt(entry).value(); }
 
 void GlobalDictionary::SetEntry(Isolate* isolate, int entry, Object key,
                                 Object value, PropertyDetails details) {
-  DCHECK_EQ(key, PropertyCell::cast(value)->name());
+  DCHECK_EQ(key, PropertyCell::cast(value).name());
   set(EntryToIndex(entry) + kEntryKeyIndex, value);
   DetailsAtPut(isolate, entry, details);
 }
@@ -133,8 +133,8 @@ void GlobalDictionary::ValueAtPut(int entry, Object value) {
 }
 
 bool NumberDictionaryBaseShape::IsMatch(uint32_t key, Object other) {
-  DCHECK(other->IsNumber());
-  return key == static_cast<uint32_t>(other->Number());
+  DCHECK(other.IsNumber());
+  return key == static_cast<uint32_t>(other.Number());
 }
 
 uint32_t NumberDictionaryBaseShape::Hash(Isolate* isolate, uint32_t key) {
@@ -143,8 +143,8 @@ uint32_t NumberDictionaryBaseShape::Hash(Isolate* isolate, uint32_t key) {
 
 uint32_t NumberDictionaryBaseShape::HashForObject(ReadOnlyRoots roots,
                                                   Object other) {
-  DCHECK(other->IsNumber());
-  return ComputeSeededHash(static_cast<uint32_t>(other->Number()),
+  DCHECK(other.IsNumber());
+  return ComputeSeededHash(static_cast<uint32_t>(other.Number()),
                            HashSeed(roots));
 }
 
@@ -162,7 +162,7 @@ RootIndex SimpleNumberDictionaryShape::GetMapRootIndex() {
 }
 
 bool NameDictionaryShape::IsMatch(Handle<Name> key, Object other) {
-  DCHECK(other->IsTheHole() || Name::cast(other)->IsUniqueName());
+  DCHECK(other.IsTheHole() || Name::cast(other).IsUniqueName());
   DCHECK(key->IsUniqueName());
   return *key == other;
 }
@@ -172,17 +172,17 @@ uint32_t NameDictionaryShape::Hash(Isolate* isolate, Handle<Name> key) {
 }
 
 uint32_t NameDictionaryShape::HashForObject(ReadOnlyRoots roots, Object other) {
-  return Name::cast(other)->Hash();
+  return Name::cast(other).Hash();
 }
 
 bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Object other) {
-  DCHECK(PropertyCell::cast(other)->name()->IsUniqueName());
-  return *key == PropertyCell::cast(other)->name();
+  DCHECK(PropertyCell::cast(other).name().IsUniqueName());
+  return *key == PropertyCell::cast(other).name();
 }
 
 uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
                                               Object other) {
-  return PropertyCell::cast(other)->name()->Hash();
+  return PropertyCell::cast(other).name().Hash();
 }
 
 Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
@@ -194,19 +194,19 @@ Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
 template <typename Dictionary>
 PropertyDetails GlobalDictionaryShape::DetailsAt(Dictionary dict, int entry) {
   DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
-  return dict->CellAt(entry)->property_details();
+  return dict.CellAt(entry).property_details();
 }
 
 template <typename Dictionary>
 void GlobalDictionaryShape::DetailsAtPut(Isolate* isolate, Dictionary dict,
                                          int entry, PropertyDetails value) {
   DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
-  PropertyCell cell = dict->CellAt(entry);
-  if (cell->property_details().IsReadOnly() != value.IsReadOnly()) {
-    cell->dependent_code()->DeoptimizeDependentCodeGroup(
+  PropertyCell cell = dict.CellAt(entry);
+  if (cell.property_details().IsReadOnly() != value.IsReadOnly()) {
+    cell.dependent_code().DeoptimizeDependentCodeGroup(
         isolate, DependentCode::kPropertyCellChangedGroup);
   }
-  cell->set_property_details(value);
+  cell.set_property_details(value);
 }
 
 }  // namespace internal

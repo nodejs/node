@@ -4,7 +4,7 @@
 
 #include "src/objects/embedder-data-array.h"
 
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects/embedder-data-array-inl.h"
 
 namespace v8 {

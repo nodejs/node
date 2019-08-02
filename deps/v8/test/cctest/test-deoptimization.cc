@@ -27,15 +27,15 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/isolate.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 using ::v8::base::OS;
@@ -482,7 +482,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
   SNPrintF(f_source_buffer,
            "function f(x, y) { return x %s y; };",
            binary_op);
-  char* f_source = f_source_buffer.start();
+  char* f_source = f_source_buffer.begin();
 
   AllowNativesSyntaxNoInlining options;
   // Compile function f and collect to type feedback to insert binary op stub

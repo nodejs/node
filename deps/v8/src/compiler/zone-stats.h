@@ -9,7 +9,7 @@
 #include <set>
 #include <vector>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

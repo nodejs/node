@@ -186,13 +186,15 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 };
 
 // Used to insert a deserialized internalized string into the string table.
-class StringTableInsertionKey : public StringTableKey {
+class StringTableInsertionKey final : public StringTableKey {
  public:
   explicit StringTableInsertionKey(String string);
 
-  bool IsMatch(Object string) override;
+  bool IsMatch(String string) override;
 
   V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override;
+
+  String string() const { return string_; }
 
  private:
   uint32_t ComputeHashField(String string);

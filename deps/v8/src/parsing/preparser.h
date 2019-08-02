@@ -8,8 +8,8 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/parsing/parser-base.h"
+#include "src/parsing/pending-compilation-error-handler.h"
 #include "src/parsing/preparser-logger.h"
-#include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
 namespace internal {
@@ -1230,32 +1230,39 @@ class PreParser : public ParserBase<PreParser> {
                           &was_added);
     }
   }
-  V8_INLINE void DeclareClassProperty(ClassScope* scope,
-                                      const PreParserIdentifier& class_name,
-                                      const PreParserExpression& property,
-                                      bool is_constructor,
-                                      ClassInfo* class_info) {}
-
-  V8_INLINE void DeclareClassField(ClassScope* scope,
-                                   const PreParserExpression& property,
-                                   const PreParserIdentifier& property_name,
-                                   bool is_static, bool is_computed_name,
-                                   bool is_private, ClassInfo* class_info) {
-    DCHECK_IMPLIES(is_computed_name, !is_private);
+  V8_INLINE void DeclarePublicClassMethod(const PreParserIdentifier& class_name,
+                                          const PreParserExpression& property,
+                                          bool is_constructor,
+                                          ClassInfo* class_info) {}
+  V8_INLINE void DeclarePublicClassField(ClassScope* scope,
+                                         const PreParserExpression& property,
+                                         bool is_static, bool is_computed_name,
+                                         ClassInfo* class_info) {
     if (is_computed_name) {
       bool was_added;
       DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
           VariableMode::kConst, scope, &was_added);
-    } else if (is_private) {
-      bool was_added;
-      DeclarePrivateVariableName(property_name.string_, scope, &was_added);
-      if (!was_added) {
-        Scanner::Location loc(property.position(), property.position() + 1);
-        ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
-                        property_name.string_);
-      }
+    }
+  }
+
+  V8_INLINE void DeclarePrivateClassMember(
+      ClassScope* scope, const PreParserIdentifier& property_name,
+      const PreParserExpression& property, ClassLiteralProperty::Kind kind,
+      bool is_static, ClassInfo* class_info) {
+    // TODO(joyee): We do not support private accessors yet (which allow
+    // declaring the same private name twice). Make them noops.
+    if (kind != ClassLiteralProperty::Kind::FIELD &&
+        kind != ClassLiteralProperty::Kind::METHOD) {
+      return;
+    }
+    bool was_added;
+    DeclarePrivateVariableName(property_name.string_, scope, &was_added);
+    if (!was_added) {
+      Scanner::Location loc(property.position(), property.position() + 1);
+      ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
+                      property_name.string_);
     }
   }
 
@@ -1503,6 +1510,10 @@ class PreParser : public ParserBase<PreParser> {
                                              source_location.end_pos, message,
                                              arg, error_type);
     scanner()->set_parser_error();
+  }
+
+  const AstRawString* GetRawNameFromIdentifier(const PreParserIdentifier& arg) {
+    return arg.string_;
   }
 
   // "null" return type creators.

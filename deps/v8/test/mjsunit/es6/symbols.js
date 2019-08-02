@@ -43,6 +43,7 @@ function isValidSymbolString(s) {
 function TestNew() {
   function indirectSymbol() { return Symbol() }
   function indirect() { return indirectSymbol() }
+  %PrepareFunctionForOptimization(indirect);
   for (var i = 0; i < 2; ++i) {
     for (var j = 0; j < 5; ++j) {
       symbols.push(Symbol())
@@ -519,6 +520,7 @@ function TestComparison() {
   var throwFuncs = [lt, gt, le, ge, lt_same, gt_same, le_same, ge_same];
 
   for (var f of throwFuncs) {
+    %PrepareFunctionForOptimization(f);
     assertThrows(f, TypeError);
     %OptimizeFunctionOnNextCall(f);
     assertThrows(f, TypeError);

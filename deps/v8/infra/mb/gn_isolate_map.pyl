@@ -47,6 +47,10 @@
     "label": "//test:v8_perf",
     "type": "script",
   },
+  "perf_integration": {
+    "label": "//test:v8_perf",
+    "type": "script",
+  },
   "jsfunfuzz": {
     "label": "//tools/jsfunfuzz:v8_jsfunfuzz",
     "type": "script",

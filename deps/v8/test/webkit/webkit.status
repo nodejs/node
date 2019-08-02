@@ -36,6 +36,11 @@
   # Irregexp interpreter overflows stack. We should just not crash.
   'fast/js/regexp-stack-overflow': [PASS, FAIL],
 
+  # This test tries to sort very large array. Array#sort pre-processing does
+  # not support huge sparse Arrays, so this test runs a very long time.
+  # https://crbug.com/v8/8714
+  'array-sort-small-sparse-array-with-large-length': [SKIP],
+
   # Slow tests.
   'dfg-double-vote-fuzz': [PASS, SLOW],
 }],  # ALWAYS
@@ -109,10 +114,10 @@
 }],  # arch == arm64 and msan
 
 ##############################################################################
-['variant in [nooptimization, stress, stress_background_compile] and (arch == arm or arch == arm64) and simulator_run', {
+['variant in [nooptimization, stress, stress_js_bg_compile_wasm_code_gc] and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'dfg-double-vote-fuzz': [SKIP],
-}],  # variant in [nooptimization, stress, stress_background_compile] and (arch == arm or arch == arm64) and simulator_run
+}],  # variant in [nooptimization, stress, stress_js_bg_compile_wasm_code_gc] and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
 ['gcov_coverage', {

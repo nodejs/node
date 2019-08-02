@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
-#include "src/code-stub-assembler.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/macro-assembler.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"

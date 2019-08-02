@@ -7,15 +7,15 @@
 
 #include <unordered_set>
 
-#include "src/assembler-inl.h"
 #include "src/base/bits.h"
-#include "src/compilation-cache.h"
-#include "src/counters.h"
-#include "src/globals.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/compilation-cache.h"
+#include "src/common/globals.h"
+#include "src/execution/isolate.h"
+#include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
-#include "src/isolate.h"
-#include "src/memcopy.h"
+#include "src/logging/counters.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-inl.h"
@@ -23,7 +23,8 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/templates.h"
-#include "src/ostreams.h"
+#include "src/utils/memcopy.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -43,17 +44,17 @@ class FieldStatsCollector : public ObjectVisitor {
 
   void RecordStats(HeapObject host) {
     size_t old_pointer_fields_count = *tagged_fields_count_;
-    host->Iterate(this);
+    host.Iterate(this);
     size_t tagged_fields_count_in_object =
         *tagged_fields_count_ - old_pointer_fields_count;
 
-    int object_size_in_words = host->Size() / kTaggedSize;
+    int object_size_in_words = host.Size() / kTaggedSize;
     DCHECK_LE(tagged_fields_count_in_object, object_size_in_words);
     size_t raw_fields_count_in_object =
         object_size_in_words - tagged_fields_count_in_object;
 
-    if (host->IsJSObject()) {
-      JSObjectFieldStats field_stats = GetInobjectFieldStats(host->map());
+    if (host.IsJSObject()) {
+      JSObjectFieldStats field_stats = GetInobjectFieldStats(host.map());
       // Embedder fields are already included into pointer words.
       DCHECK_LE(field_stats.embedded_fields_count_,
                 tagged_fields_count_in_object);
@@ -116,17 +117,17 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
   // Iterate descriptor array and calculate stats.
   JSObjectFieldStats stats;
   stats.embedded_fields_count_ = JSObject::GetEmbedderFieldCount(map);
-  if (!map->is_dictionary_map()) {
-    int nof = map->NumberOfOwnDescriptors();
-    DescriptorArray descriptors = map->instance_descriptors();
+  if (!map.is_dictionary_map()) {
+    int nof = map.NumberOfOwnDescriptors();
+    DescriptorArray descriptors = map.instance_descriptors();
     for (int descriptor = 0; descriptor < nof; descriptor++) {
-      PropertyDetails details = descriptors->GetDetails(descriptor);
+      PropertyDetails details = descriptors.GetDetails(descriptor);
       if (details.location() == kField) {
         FieldIndex index = FieldIndex::ForDescriptor(map, descriptor);
         // Stop on first out-of-object field.
         if (!index.is_inobject()) break;
         if (details.representation().IsDouble() &&
-            map->IsUnboxedDoubleField(index)) {
+            map.IsUnboxedDoubleField(index)) {
           ++stats.unboxed_double_fields_count_;
         }
       }
@@ -430,7 +431,7 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
 
 bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject obj,
                                                   CowMode check_cow_array) {
-  if (obj->IsFixedArrayExact()) {
+  if (obj.IsFixedArrayExact()) {
     FixedArray fixed_array = FixedArray::cast(obj);
     bool cow_check = check_cow_array == kIgnoreCow || !IsCowArray(fixed_array);
     return CanRecordFixedArray(fixed_array) && cow_check;
@@ -444,16 +445,16 @@ void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
     HeapObject parent, HashTable<Derived, Shape> hash_table,
     ObjectStats::VirtualInstanceType type) {
   size_t over_allocated =
-      (hash_table->Capacity() - (hash_table->NumberOfElements() +
-                                 hash_table->NumberOfDeletedElements())) *
+      (hash_table.Capacity() -
+       (hash_table.NumberOfElements() + hash_table.NumberOfDeletedElements())) *
       HashTable<Derived, Shape>::kEntrySize * kTaggedSize;
-  RecordVirtualObjectStats(parent, hash_table, type, hash_table->Size(),
+  RecordVirtualObjectStats(parent, hash_table, type, hash_table.Size(),
                            over_allocated);
 }
 
 bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
     HeapObject parent, HeapObject obj, ObjectStats::VirtualInstanceType type) {
-  return RecordVirtualObjectStats(parent, obj, type, obj->Size(),
+  return RecordVirtualObjectStats(parent, obj, type, obj.Size(),
                                   ObjectStats::kNoOverAllocation, kCheckCow);
 }
 
@@ -483,29 +484,29 @@ void ObjectStatsCollectorImpl::RecordExternalResourceStats(
 
 void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
     AllocationSite site) {
-  if (!site->PointsToLiteral()) return;
-  JSObject boilerplate = site->boilerplate();
-  if (boilerplate->IsJSArray()) {
+  if (!site.PointsToLiteral()) return;
+  JSObject boilerplate = site.boilerplate();
+  if (boilerplate.IsJSArray()) {
     RecordSimpleVirtualObjectStats(site, boilerplate,
                                    ObjectStats::JS_ARRAY_BOILERPLATE_TYPE);
     // Array boilerplates cannot have properties.
   } else {
     RecordVirtualObjectStats(
         site, boilerplate, ObjectStats::JS_OBJECT_BOILERPLATE_TYPE,
-        boilerplate->Size(), ObjectStats::kNoOverAllocation);
-    if (boilerplate->HasFastProperties()) {
+        boilerplate.Size(), ObjectStats::kNoOverAllocation);
+    if (boilerplate.HasFastProperties()) {
       // We'll mis-classify the empty_property_array here. Given that there is a
       // single instance, this is negligible.
-      PropertyArray properties = boilerplate->property_array();
+      PropertyArray properties = boilerplate.property_array();
       RecordSimpleVirtualObjectStats(
           site, properties, ObjectStats::BOILERPLATE_PROPERTY_ARRAY_TYPE);
     } else {
-      NameDictionary properties = boilerplate->property_dictionary();
+      NameDictionary properties = boilerplate.property_dictionary();
       RecordSimpleVirtualObjectStats(
           site, properties, ObjectStats::BOILERPLATE_PROPERTY_DICTIONARY_TYPE);
     }
   }
-  FixedArrayBase elements = boilerplate->elements();
+  FixedArrayBase elements = boilerplate.elements();
   RecordSimpleVirtualObjectStats(site, elements,
                                  ObjectStats::BOILERPLATE_ELEMENTS_TYPE);
 }
@@ -514,14 +515,14 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
     FunctionTemplateInfo fti) {
   // named_property_handler and indexed_property_handler are recorded as
   // INTERCEPTOR_INFO_TYPE.
-  if (!fti->call_code()->IsUndefined(isolate())) {
+  if (!fti.call_code().IsUndefined(isolate())) {
     RecordSimpleVirtualObjectStats(
-        fti, CallHandlerInfo::cast(fti->call_code()),
+        fti, CallHandlerInfo::cast(fti.call_code()),
         ObjectStats::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);
   }
-  if (!fti->GetInstanceCallHandler()->IsUndefined(isolate())) {
+  if (!fti.GetInstanceCallHandler().IsUndefined(isolate())) {
     RecordSimpleVirtualObjectStats(
-        fti, CallHandlerInfo::cast(fti->GetInstanceCallHandler()),
+        fti, CallHandlerInfo::cast(fti.GetInstanceCallHandler()),
         ObjectStats::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);
   }
 }
@@ -529,62 +530,61 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
 void ObjectStatsCollectorImpl::RecordVirtualJSGlobalObjectDetails(
     JSGlobalObject object) {
   // Properties.
-  GlobalDictionary properties = object->global_dictionary();
+  GlobalDictionary properties = object.global_dictionary();
   RecordHashTableVirtualObjectStats(object, properties,
                                     ObjectStats::GLOBAL_PROPERTIES_TYPE);
   // Elements.
-  FixedArrayBase elements = object->elements();
+  FixedArrayBase elements = object.elements();
   RecordSimpleVirtualObjectStats(object, elements,
                                  ObjectStats::GLOBAL_ELEMENTS_TYPE);
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject object) {
   // JSGlobalObject is recorded separately.
-  if (object->IsJSGlobalObject()) return;
+  if (object.IsJSGlobalObject()) return;
 
   // Uncompiled JSFunction has a separate type.
-  if (object->IsJSFunction() && !JSFunction::cast(object)->is_compiled()) {
+  if (object.IsJSFunction() && !JSFunction::cast(object).is_compiled()) {
     RecordSimpleVirtualObjectStats(HeapObject(), object,
                                    ObjectStats::JS_UNCOMPILED_FUNCTION_TYPE);
   }
 
   // Properties.
-  if (object->HasFastProperties()) {
-    PropertyArray properties = object->property_array();
+  if (object.HasFastProperties()) {
+    PropertyArray properties = object.property_array();
     if (properties != ReadOnlyRoots(heap_).empty_property_array()) {
-      size_t over_allocated =
-          object->map()->UnusedPropertyFields() * kTaggedSize;
+      size_t over_allocated = object.map().UnusedPropertyFields() * kTaggedSize;
       RecordVirtualObjectStats(object, properties,
-                               object->map()->is_prototype_map()
+                               object.map().is_prototype_map()
                                    ? ObjectStats::PROTOTYPE_PROPERTY_ARRAY_TYPE
                                    : ObjectStats::OBJECT_PROPERTY_ARRAY_TYPE,
-                               properties->Size(), over_allocated);
+                               properties.Size(), over_allocated);
     }
   } else {
-    NameDictionary properties = object->property_dictionary();
+    NameDictionary properties = object.property_dictionary();
     RecordHashTableVirtualObjectStats(
         object, properties,
-        object->map()->is_prototype_map()
+        object.map().is_prototype_map()
             ? ObjectStats::PROTOTYPE_PROPERTY_DICTIONARY_TYPE
             : ObjectStats::OBJECT_PROPERTY_DICTIONARY_TYPE);
   }
 
   // Elements.
-  FixedArrayBase elements = object->elements();
-  if (object->HasDictionaryElements()) {
+  FixedArrayBase elements = object.elements();
+  if (object.HasDictionaryElements()) {
     RecordHashTableVirtualObjectStats(
         object, NumberDictionary::cast(elements),
-        object->IsJSArray() ? ObjectStats::ARRAY_DICTIONARY_ELEMENTS_TYPE
-                            : ObjectStats::OBJECT_DICTIONARY_ELEMENTS_TYPE);
-  } else if (object->IsJSArray()) {
+        object.IsJSArray() ? ObjectStats::ARRAY_DICTIONARY_ELEMENTS_TYPE
+                           : ObjectStats::OBJECT_DICTIONARY_ELEMENTS_TYPE);
+  } else if (object.IsJSArray()) {
     if (elements != ReadOnlyRoots(heap_).empty_fixed_array()) {
       size_t element_size =
-          (elements->Size() - FixedArrayBase::kHeaderSize) / elements->length();
-      uint32_t length = JSArray::cast(object)->length()->Number();
-      size_t over_allocated = (elements->length() - length) * element_size;
+          (elements.Size() - FixedArrayBase::kHeaderSize) / elements.length();
+      uint32_t length = JSArray::cast(object).length().Number();
+      size_t over_allocated = (elements.length() - length) * element_size;
       RecordVirtualObjectStats(object, elements,
                                ObjectStats::ARRAY_ELEMENTS_TYPE,
-                               elements->Size(), over_allocated);
+                               elements.Size(), over_allocated);
     }
   } else {
     RecordSimpleVirtualObjectStats(object, elements,
@@ -592,10 +592,10 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject object) {
   }
 
   // JSCollections.
-  if (object->IsJSCollection()) {
+  if (object.IsJSCollection()) {
     // TODO(bmeurer): Properly compute over-allocation here.
     RecordSimpleVirtualObjectStats(
-        object, FixedArray::cast(JSCollection::cast(object)->table()),
+        object, FixedArray::cast(JSCollection::cast(object).table()),
         ObjectStats::JS_COLLECTION_TABLE_TYPE);
   }
 }
@@ -656,30 +656,30 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
   size_t calculated_size = 0;
 
   // Log the feedback vector's header (fixed fields).
-  size_t header_size = vector->slots_start().address() - vector->address();
+  size_t header_size = vector.slots_start().address() - vector.address();
   stats_->RecordVirtualObjectStats(ObjectStats::FEEDBACK_VECTOR_HEADER_TYPE,
                                    header_size, ObjectStats::kNoOverAllocation);
   calculated_size += header_size;
 
   // Iterate over the feedback slots and log each one.
-  if (!vector->shared_function_info()->HasFeedbackMetadata()) return;
+  if (!vector.shared_function_info().HasFeedbackMetadata()) return;
 
-  FeedbackMetadataIterator it(vector->metadata());
+  FeedbackMetadataIterator it(vector.metadata());
   while (it.HasNext()) {
     FeedbackSlot slot = it.Next();
     // Log the entry (or entries) taken up by this slot.
     size_t slot_size = it.entry_size() * kTaggedSize;
     stats_->RecordVirtualObjectStats(
-        GetFeedbackSlotType(vector->Get(slot), it.kind(), heap_->isolate()),
+        GetFeedbackSlotType(vector.Get(slot), it.kind(), heap_->isolate()),
         slot_size, ObjectStats::kNoOverAllocation);
     calculated_size += slot_size;
 
     // Log the monomorphic/polymorphic helper objects that this slot owns.
     for (int i = 0; i < it.entry_size(); i++) {
-      MaybeObject raw_object = vector->get(slot.ToInt() + i);
+      MaybeObject raw_object = vector.get(slot.ToInt() + i);
       HeapObject object;
       if (raw_object->GetHeapObject(&object)) {
-        if (object->IsCell() || object->IsWeakFixedArray()) {
+        if (object.IsCell() || object.IsWeakFixedArray()) {
           RecordSimpleVirtualObjectStats(
               vector, object, ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE);
         }
@@ -687,65 +687,65 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
     }
   }
 
-  CHECK_EQ(calculated_size, vector->Size());
+  CHECK_EQ(calculated_size, vector.Size());
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualFixedArrayDetails(
     FixedArray array) {
   if (IsCowArray(array)) {
     RecordVirtualObjectStats(HeapObject(), array, ObjectStats::COW_ARRAY_TYPE,
-                             array->Size(), ObjectStats::kNoOverAllocation,
+                             array.Size(), ObjectStats::kNoOverAllocation,
                              kIgnoreCow);
   }
 }
 
 void ObjectStatsCollectorImpl::CollectStatistics(
     HeapObject obj, Phase phase, CollectFieldStats collect_field_stats) {
-  Map map = obj->map();
+  Map map = obj.map();
   switch (phase) {
     case kPhase1:
-      if (obj->IsFeedbackVector()) {
+      if (obj.IsFeedbackVector()) {
         RecordVirtualFeedbackVectorDetails(FeedbackVector::cast(obj));
-      } else if (obj->IsMap()) {
+      } else if (obj.IsMap()) {
         RecordVirtualMapDetails(Map::cast(obj));
-      } else if (obj->IsBytecodeArray()) {
+      } else if (obj.IsBytecodeArray()) {
         RecordVirtualBytecodeArrayDetails(BytecodeArray::cast(obj));
-      } else if (obj->IsCode()) {
+      } else if (obj.IsCode()) {
         RecordVirtualCodeDetails(Code::cast(obj));
-      } else if (obj->IsFunctionTemplateInfo()) {
+      } else if (obj.IsFunctionTemplateInfo()) {
         RecordVirtualFunctionTemplateInfoDetails(
             FunctionTemplateInfo::cast(obj));
-      } else if (obj->IsJSGlobalObject()) {
+      } else if (obj.IsJSGlobalObject()) {
         RecordVirtualJSGlobalObjectDetails(JSGlobalObject::cast(obj));
-      } else if (obj->IsJSObject()) {
+      } else if (obj.IsJSObject()) {
         // This phase needs to come after RecordVirtualAllocationSiteDetails
         // to properly split among boilerplates.
         RecordVirtualJSObjectDetails(JSObject::cast(obj));
-      } else if (obj->IsSharedFunctionInfo()) {
+      } else if (obj.IsSharedFunctionInfo()) {
         RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo::cast(obj));
-      } else if (obj->IsContext()) {
+      } else if (obj.IsContext()) {
         RecordVirtualContext(Context::cast(obj));
-      } else if (obj->IsScript()) {
+      } else if (obj.IsScript()) {
         RecordVirtualScriptDetails(Script::cast(obj));
-      } else if (obj->IsArrayBoilerplateDescription()) {
+      } else if (obj.IsArrayBoilerplateDescription()) {
         RecordVirtualArrayBoilerplateDescription(
             ArrayBoilerplateDescription::cast(obj));
-      } else if (obj->IsFixedArrayExact()) {
+      } else if (obj.IsFixedArrayExact()) {
         // Has to go last as it triggers too eagerly.
         RecordVirtualFixedArrayDetails(FixedArray::cast(obj));
       }
       break;
     case kPhase2:
-      if (obj->IsExternalString()) {
+      if (obj.IsExternalString()) {
         // This has to be in Phase2 to avoid conflicting with recording Script
         // sources. We still want to run RecordObjectStats after though.
         RecordVirtualExternalStringDetails(ExternalString::cast(obj));
       }
       size_t over_allocated = ObjectStats::kNoOverAllocation;
-      if (obj->IsJSObject()) {
-        over_allocated = map->instance_size() - map->UsedInstanceSize();
+      if (obj.IsJSObject()) {
+        over_allocated = map.instance_size() - map.UsedInstanceSize();
       }
-      RecordObjectStats(obj, map->instance_type(), obj->Size(), over_allocated);
+      RecordObjectStats(obj, map.instance_type(), obj.Size(), over_allocated);
       if (collect_field_stats == CollectFieldStats::kYes) {
         field_stats_collector_.RecordStats(obj);
       }
@@ -756,10 +756,10 @@ void ObjectStatsCollectorImpl::CollectStatistics(
 void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   // Iterate boilerplates first to disambiguate them from regular JS objects.
   Object list = heap_->allocation_sites_list();
-  while (list->IsAllocationSite()) {
+  while (list.IsAllocationSite()) {
     AllocationSite site = AllocationSite::cast(list);
     RecordVirtualAllocationSiteDetails(site);
-    list = site->weak_next();
+    list = site.weak_next();
   }
 
   // FixedArray.
@@ -804,7 +804,7 @@ bool ObjectStatsCollectorImpl::CanRecordFixedArray(FixedArrayBase array) {
 }
 
 bool ObjectStatsCollectorImpl::IsCowArray(FixedArrayBase array) {
-  return array->map() == ReadOnlyRoots(heap_).fixed_cow_array_map();
+  return array.map() == ReadOnlyRoots(heap_).fixed_cow_array_map();
 }
 
 bool ObjectStatsCollectorImpl::SameLiveness(HeapObject obj1, HeapObject obj2) {
@@ -819,57 +819,57 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
   // to get a better picture of what's going on in MapSpace. This
   // method computes the virtual instance type to use for a given map,
   // using MAP_TYPE for regular maps that aren't special in any way.
-  if (map->is_prototype_map()) {
-    if (map->is_dictionary_map()) {
+  if (map.is_prototype_map()) {
+    if (map.is_dictionary_map()) {
       RecordSimpleVirtualObjectStats(
           HeapObject(), map, ObjectStats::MAP_PROTOTYPE_DICTIONARY_TYPE);
-    } else if (map->is_abandoned_prototype_map()) {
+    } else if (map.is_abandoned_prototype_map()) {
       RecordSimpleVirtualObjectStats(HeapObject(), map,
                                      ObjectStats::MAP_ABANDONED_PROTOTYPE_TYPE);
     } else {
       RecordSimpleVirtualObjectStats(HeapObject(), map,
                                      ObjectStats::MAP_PROTOTYPE_TYPE);
     }
-  } else if (map->is_deprecated()) {
+  } else if (map.is_deprecated()) {
     RecordSimpleVirtualObjectStats(HeapObject(), map,
                                    ObjectStats::MAP_DEPRECATED_TYPE);
-  } else if (map->is_dictionary_map()) {
+  } else if (map.is_dictionary_map()) {
     RecordSimpleVirtualObjectStats(HeapObject(), map,
                                    ObjectStats::MAP_DICTIONARY_TYPE);
-  } else if (map->is_stable()) {
+  } else if (map.is_stable()) {
     RecordSimpleVirtualObjectStats(HeapObject(), map,
                                    ObjectStats::MAP_STABLE_TYPE);
   } else {
     // This will be logged as MAP_TYPE in Phase2.
   }
 
-  DescriptorArray array = map->instance_descriptors();
-  if (map->owns_descriptors() &&
+  DescriptorArray array = map.instance_descriptors();
+  if (map.owns_descriptors() &&
       array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
     // Generally DescriptorArrays have their own instance type already
     // (DESCRIPTOR_ARRAY_TYPE), but we'd like to be able to tell which
     // of those are for (abandoned) prototypes, and which of those are
     // owned by deprecated maps.
-    if (map->is_prototype_map()) {
+    if (map.is_prototype_map()) {
       RecordSimpleVirtualObjectStats(
           map, array, ObjectStats::PROTOTYPE_DESCRIPTOR_ARRAY_TYPE);
-    } else if (map->is_deprecated()) {
+    } else if (map.is_deprecated()) {
       RecordSimpleVirtualObjectStats(
           map, array, ObjectStats::DEPRECATED_DESCRIPTOR_ARRAY_TYPE);
     }
 
-    EnumCache enum_cache = array->enum_cache();
-    RecordSimpleVirtualObjectStats(array, enum_cache->keys(),
+    EnumCache enum_cache = array.enum_cache();
+    RecordSimpleVirtualObjectStats(array, enum_cache.keys(),
                                    ObjectStats::ENUM_KEYS_CACHE_TYPE);
-    RecordSimpleVirtualObjectStats(array, enum_cache->indices(),
+    RecordSimpleVirtualObjectStats(array, enum_cache.indices(),
                                    ObjectStats::ENUM_INDICES_CACHE_TYPE);
   }
 
-  if (map->is_prototype_map()) {
-    if (map->prototype_info()->IsPrototypeInfo()) {
-      PrototypeInfo info = PrototypeInfo::cast(map->prototype_info());
-      Object users = info->prototype_users();
-      if (users->IsWeakFixedArray()) {
+  if (map.is_prototype_map()) {
+    if (map.prototype_info().IsPrototypeInfo()) {
+      PrototypeInfo info = PrototypeInfo::cast(map.prototype_info());
+      Object users = info.prototype_users();
+      if (users.IsWeakFixedArray()) {
         RecordSimpleVirtualObjectStats(map, WeakArrayList::cast(users),
                                        ObjectStats::PROTOTYPE_USERS_TYPE);
       }
@@ -879,29 +879,29 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
 
 void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script script) {
   RecordSimpleVirtualObjectStats(
-      script, script->shared_function_infos(),
+      script, script.shared_function_infos(),
       ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);
 
   // Log the size of external source code.
-  Object raw_source = script->source();
-  if (raw_source->IsExternalString()) {
+  Object raw_source = script.source();
+  if (raw_source.IsExternalString()) {
     // The contents of external strings aren't on the heap, so we have to record
     // them manually. The on-heap String object is recorded indepentendely in
     // the normal pass.
     ExternalString string = ExternalString::cast(raw_source);
-    Address resource = string->resource_as_address();
-    size_t off_heap_size = string->ExternalPayloadSize();
+    Address resource = string.resource_as_address();
+    size_t off_heap_size = string.ExternalPayloadSize();
     RecordExternalResourceStats(
         resource,
-        string->IsOneByteRepresentation()
+        string.IsOneByteRepresentation()
             ? ObjectStats::SCRIPT_SOURCE_EXTERNAL_ONE_BYTE_TYPE
             : ObjectStats::SCRIPT_SOURCE_EXTERNAL_TWO_BYTE_TYPE,
         off_heap_size);
-  } else if (raw_source->IsString()) {
+  } else if (raw_source.IsString()) {
     String source = String::cast(raw_source);
     RecordSimpleVirtualObjectStats(
         script, source,
-        source->IsOneByteRepresentation()
+        source.IsOneByteRepresentation()
             ? ObjectStats::SCRIPT_SOURCE_NON_EXTERNAL_ONE_BYTE_TYPE
             : ObjectStats::SCRIPT_SOURCE_NON_EXTERNAL_TWO_BYTE_TYPE);
   }
@@ -911,11 +911,11 @@ void ObjectStatsCollectorImpl::RecordVirtualExternalStringDetails(
     ExternalString string) {
   // Track the external string resource size in a separate category.
 
-  Address resource = string->resource_as_address();
-  size_t off_heap_size = string->ExternalPayloadSize();
+  Address resource = string.resource_as_address();
+  size_t off_heap_size = string.ExternalPayloadSize();
   RecordExternalResourceStats(
       resource,
-      string->IsOneByteRepresentation()
+      string.IsOneByteRepresentation()
           ? ObjectStats::STRING_EXTERNAL_RESOURCE_ONE_BYTE_TYPE
           : ObjectStats::STRING_EXTERNAL_RESOURCE_TWO_BYTE_TYPE,
       off_heap_size);
@@ -924,7 +924,7 @@ void ObjectStatsCollectorImpl::RecordVirtualExternalStringDetails(
 void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
     SharedFunctionInfo info) {
   // Uncompiled SharedFunctionInfo gets its own category.
-  if (!info->is_compiled()) {
+  if (!info.is_compiled()) {
     RecordSimpleVirtualObjectStats(
         HeapObject(), info, ObjectStats::UNCOMPILED_SHARED_FUNCTION_INFO_TYPE);
   }
@@ -933,7 +933,7 @@ void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
 void ObjectStatsCollectorImpl::RecordVirtualArrayBoilerplateDescription(
     ArrayBoilerplateDescription description) {
   RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
-      description, description->constant_elements(),
+      description, description.constant_elements(),
       ObjectStats::ARRAY_BOILERPLATE_DESCRIPTION_ELEMENTS_TYPE);
 }
 
@@ -942,11 +942,11 @@ void ObjectStatsCollectorImpl::
         HeapObject parent, HeapObject object,
         ObjectStats::VirtualInstanceType type) {
   if (!RecordSimpleVirtualObjectStats(parent, object, type)) return;
-  if (object->IsFixedArrayExact()) {
+  if (object.IsFixedArrayExact()) {
     FixedArray array = FixedArray::cast(object);
-    for (int i = 0; i < array->length(); i++) {
-      Object entry = array->get(i);
-      if (!entry->IsHeapObject()) continue;
+    for (int i = 0; i < array.length(); i++) {
+      Object entry = array.get(i);
+      if (!entry.IsHeapObject()) continue;
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           array, HeapObject::cast(entry), type);
     }
@@ -956,24 +956,24 @@ void ObjectStatsCollectorImpl::
 void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
     BytecodeArray bytecode) {
   RecordSimpleVirtualObjectStats(
-      bytecode, bytecode->constant_pool(),
+      bytecode, bytecode.constant_pool(),
       ObjectStats::BYTECODE_ARRAY_CONSTANT_POOL_TYPE);
   // FixedArrays on constant pool are used for holding descriptor information.
   // They are shared with optimized code.
-  FixedArray constant_pool = FixedArray::cast(bytecode->constant_pool());
-  for (int i = 0; i < constant_pool->length(); i++) {
-    Object entry = constant_pool->get(i);
-    if (entry->IsFixedArrayExact()) {
+  FixedArray constant_pool = FixedArray::cast(bytecode.constant_pool());
+  for (int i = 0; i < constant_pool.length(); i++) {
+    Object entry = constant_pool.get(i);
+    if (entry.IsFixedArrayExact()) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, HeapObject::cast(entry),
           ObjectStats::EMBEDDED_OBJECT_TYPE);
     }
   }
   RecordSimpleVirtualObjectStats(
-      bytecode, bytecode->handler_table(),
+      bytecode, bytecode.handler_table(),
       ObjectStats::BYTECODE_ARRAY_HANDLER_TABLE_TYPE);
-  if (bytecode->HasSourcePositionTable()) {
-    RecordSimpleVirtualObjectStats(bytecode, bytecode->SourcePositionTable(),
+  if (bytecode.HasSourcePositionTable()) {
+    RecordSimpleVirtualObjectStats(bytecode, bytecode.SourcePositionTable(),
                                    ObjectStats::SOURCE_POSITION_TABLE_TYPE);
   }
 }
@@ -998,50 +998,48 @@ ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(
 
 void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
   RecordSimpleVirtualObjectStats(HeapObject(), code,
-                                 CodeKindToVirtualInstanceType(code->kind()));
-  RecordSimpleVirtualObjectStats(code, code->deoptimization_data(),
+                                 CodeKindToVirtualInstanceType(code.kind()));
+  RecordSimpleVirtualObjectStats(code, code.deoptimization_data(),
                                  ObjectStats::DEOPTIMIZATION_DATA_TYPE);
-  RecordSimpleVirtualObjectStats(code, code->relocation_info(),
+  RecordSimpleVirtualObjectStats(code, code.relocation_info(),
                                  ObjectStats::RELOC_INFO_TYPE);
-  Object source_position_table = code->source_position_table();
-  if (source_position_table->IsSourcePositionTableWithFrameCache()) {
+  Object source_position_table = code.source_position_table();
+  if (source_position_table.IsSourcePositionTableWithFrameCache()) {
     RecordSimpleVirtualObjectStats(
         code,
         SourcePositionTableWithFrameCache::cast(source_position_table)
-            ->source_position_table(),
+            .source_position_table(),
         ObjectStats::SOURCE_POSITION_TABLE_TYPE);
-  } else if (source_position_table->IsHeapObject()) {
+  } else if (source_position_table.IsHeapObject()) {
     RecordSimpleVirtualObjectStats(code,
                                    HeapObject::cast(source_position_table),
                                    ObjectStats::SOURCE_POSITION_TABLE_TYPE);
   }
-  if (code->kind() == Code::Kind::OPTIMIZED_FUNCTION) {
+  if (code.kind() == Code::Kind::OPTIMIZED_FUNCTION) {
     DeoptimizationData input_data =
-        DeoptimizationData::cast(code->deoptimization_data());
-    if (input_data->length() > 0) {
-      RecordSimpleVirtualObjectStats(code->deoptimization_data(),
-                                     input_data->LiteralArray(),
+        DeoptimizationData::cast(code.deoptimization_data());
+    if (input_data.length() > 0) {
+      RecordSimpleVirtualObjectStats(code.deoptimization_data(),
+                                     input_data.LiteralArray(),
                                      ObjectStats::OPTIMIZED_CODE_LITERALS_TYPE);
     }
   }
-  int const mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (mode == RelocInfo::EMBEDDED_OBJECT) {
-      Object target = it.rinfo()->target_object();
-      if (target->IsFixedArrayExact()) {
-        RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
-            code, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);
-      }
+    DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
+    Object target = it.rinfo()->target_object();
+    if (target.IsFixedArrayExact()) {
+      RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
+          code, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);
     }
   }
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualContext(Context context) {
-  if (context->IsNativeContext()) {
-    RecordObjectStats(context, NATIVE_CONTEXT_TYPE, context->Size());
-  } else if (context->IsFunctionContext()) {
-    RecordObjectStats(context, FUNCTION_CONTEXT_TYPE, context->Size());
+  if (context.IsNativeContext()) {
+    RecordObjectStats(context, NATIVE_CONTEXT_TYPE, context.Size());
+  } else if (context.IsFunctionContext()) {
+    RecordObjectStats(context, FUNCTION_CONTEXT_TYPE, context.Size());
   } else {
     RecordSimpleVirtualObjectStats(HeapObject(), context,
                                    ObjectStats::OTHER_CONTEXT_TYPE);
@@ -1081,14 +1079,10 @@ class ObjectStatsVisitor {
 namespace {
 
 void IterateHeap(Heap* heap, ObjectStatsVisitor* visitor) {
-  SpaceIterator space_it(heap);
-  HeapObject obj;
-  while (space_it.has_next()) {
-    std::unique_ptr<ObjectIterator> it(space_it.next()->GetObjectIterator());
-    ObjectIterator* obj_it = it.get();
-    for (obj = obj_it->Next(); !obj.is_null(); obj = obj_it->Next()) {
-      visitor->Visit(obj, obj->Size());
-    }
+  CombinedHeapIterator iterator(heap);
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
+    visitor->Visit(obj, obj.Size());
   }
 }
 

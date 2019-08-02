@@ -4,24 +4,24 @@
 
 #if V8_TARGET_ARCH_IA32
 
-#include "src/api-arguments.h"
+#include "src/api/api-arguments.h"
 #include "src/base/adapters.h"
-#include "src/code-factory.h"
-#include "src/counters.h"
+#include "src/codegen/code-factory.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer.h"
-#include "src/frame-constants.h"
-#include "src/frames.h"
+#include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/frame-constants.h"
+#include "src/execution/frames.h"
+#include "src/logging/counters.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/register-configuration.h"
 #include "src/heap/heap-inl.h"
-#include "src/macro-assembler-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/register-configuration.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -30,18 +30,11 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
-                                ExitFrameType exit_frame_type) {
+void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
   __ Move(kJavaScriptCallExtraArg1Register,
           Immediate(ExternalReference::Create(address)));
-  if (exit_frame_type == BUILTIN_EXIT) {
-    __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
-            RelocInfo::CODE_TARGET);
-  } else {
-    DCHECK(exit_frame_type == EXIT);
-    __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithExitFrame),
-            RelocInfo::CODE_TARGET);
-  }
+  __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
+          RelocInfo::CODE_TARGET);
 }
 
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
@@ -405,7 +398,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     __ push(Immediate(StackFrame::TypeToMarker(type)));
     // Reserve a slot for the context. It is filled after the root register has
     // been set up.
-    __ sub(esp, Immediate(kSystemPointerSize));
+    __ AllocateStackSpace(kSystemPointerSize);
     // Save callee-saved registers (C calling conventions).
     __ push(edi);
     __ push(esi);
@@ -810,7 +803,8 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
   // Load the optimized code from the feedback vector and re-use the register.
   Register optimized_code_entry = scratch;
   __ mov(optimized_code_entry,
-         FieldOperand(feedback_vector, FeedbackVector::kOptimizedCodeOffset));
+         FieldOperand(feedback_vector,
+                      FeedbackVector::kOptimizedCodeWeakOrSmiOffset));
 
   // Check if the code entry is a Smi. If yes, we interpret it as an
   // optimisation marker. Otherwise, interpret it as a weak reference to a code
@@ -1242,7 +1236,7 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
 
   __ lea(scratch1,
          Operand(num_args, times_system_pointer_size, kSystemPointerSize));
-  __ AllocateStackFrame(scratch1);
+  __ AllocateStackSpace(scratch1);
 
   // Step 2 move return_address and slots around it to the correct locations.
   // Move from top to bottom, otherwise we may overwrite when num_args = 0 or 1,
@@ -1388,7 +1382,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ bind(&trampoline_loaded);
   __ Pop(eax);
-  __ add(scratch, Immediate(interpreter_entry_return_pc_offset->value()));
+  __ add(scratch, Immediate(interpreter_entry_return_pc_offset.value()));
   __ push(scratch);
 
   // Initialize the dispatch table register.
@@ -2219,7 +2213,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label done;
       __ lea(ecx, Operand(edx, times_system_pointer_size, 0));
-      __ sub(esp, ecx);
+      __ sub(esp, ecx);  // Not Windows-friendly, but corrected below.
       // Check the stack for overflow. We are not trying to catch interruptions
       // (i.e. debug break and preemption) here, so check the "real stack
       // limit".
@@ -2234,6 +2228,19 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       }
       __ bind(&done);
     }
+
+#if V8_OS_WIN
+    // Correctly allocate the stack space that was checked above.
+    {
+      Label win_done;
+      __ cmp(ecx, TurboAssemblerBase::kStackPageSize);
+      __ j(less_equal, &win_done, Label::kNear);
+      // Reset esp and walk through the range touching every page.
+      __ lea(esp, Operand(esp, edx, times_system_pointer_size, 0));
+      __ AllocateStackSpace(ecx);
+      __ bind(&win_done);
+    }
+#endif
 
     // Adjust effective number of arguments to include return address.
     __ inc(eax);
@@ -2648,7 +2655,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
                       arraysize(wasm::kFpParamRegisters),
                   "frame size mismatch");
-    __ sub(esp, Immediate(kSimd128Size * arraysize(wasm::kFpParamRegisters)));
+    __ AllocateStackSpace(kSimd128Size * arraysize(wasm::kFpParamRegisters));
     int offset = 0;
     for (DoubleRegister reg : wasm::kFpParamRegisters) {
       __ movdqu(Operand(esp, offset), reg);
@@ -2882,7 +2889,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   if (CpuFeatures::IsSupported(SSE3)) {
     CpuFeatureScope scope(masm, SSE3);
     // Reserve space for 64 bit answer.
-    __ sub(esp, Immediate(kDoubleSize));  // Nolint.
+    __ AllocateStackSpace(kDoubleSize);  // Nolint.
     // Do conversion, which cannot fail because we checked the exponent.
     __ fisttp_d(Operand(esp, 0));
     __ mov(result_reg, Operand(esp, 0));  // Load low word of answer as result
@@ -3005,16 +3012,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ mov(esi, __ ExternalReferenceAsOperand(next_address, esi));
   __ mov(edi, __ ExternalReferenceAsOperand(limit_address, edi));
 
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, eax);
-    __ Move(Operand(esp, 0),
-            Immediate(ExternalReference::isolate_address(isolate)));
-    __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
-
   Label profiler_disabled;
   Label end_profiler_check;
   __ Move(eax, Immediate(ExternalReference::is_profiling_address(isolate)));
@@ -3032,16 +3029,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // Call the api function.
   __ call(function_address);
   __ bind(&end_profiler_check);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, eax);
-    __ mov(eax, Immediate(ExternalReference::isolate_address(isolate)));
-    __ mov(Operand(esp, 0), eax);
-    __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
 
   Label prologue;
   // Load the value from ReturnValue
@@ -3164,7 +3151,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   DCHECK(!AreAliased(api_function_address, argc, holder));
 
-  typedef FunctionCallbackArguments FCA;
+  using FCA = FunctionCallbackArguments;
 
   STATIC_ASSERT(FCA::kArgsLength == 6);
   STATIC_ASSERT(FCA::kNewTargetIndex == 5);

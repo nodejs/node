@@ -6,9 +6,9 @@
 #include <limits>
 
 #include "src/base/platform/platform.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/heap/gc-tracer.h"
-#include "src/isolate.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -54,104 +54,122 @@ TEST(GCTracer, AverageSpeed) {
 namespace {
 
 void SampleAndAddAllocaton(v8::internal::GCTracer* tracer, double time_ms,
-                           size_t new_space_counter_bytes,
-                           size_t old_generation_counter_bytes) {
-  tracer->SampleAllocation(time_ms, new_space_counter_bytes,
-                           old_generation_counter_bytes);
+                           size_t per_space_counter_bytes) {
+  // Increment counters of all spaces.
+  tracer->SampleAllocation(time_ms, per_space_counter_bytes,
+                           per_space_counter_bytes, per_space_counter_bytes);
   tracer->AddAllocation(time_ms);
 }
 
 }  // namespace
 
 TEST_F(GCTracerTest, AllocationThroughput) {
+  // GCTracer::AllocationThroughputInBytesPerMillisecond ignores global memory.
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
-  int time1 = 100;
-  size_t counter1 = 1000;
-  // First sample creates baseline but is not part of the recorded samples.
-  tracer->SampleAllocation(time1, counter1, counter1);
-  SampleAndAddAllocaton(tracer, time1, counter1, counter1);
-  int time2 = 200;
-  size_t counter2 = 2000;
-  SampleAndAddAllocaton(tracer, time2, counter2, counter2);
+  const int time1 = 100;
+  const size_t counter1 = 1000;
+  SampleAndAddAllocaton(tracer, time1, counter1);
+  const int time2 = 200;
+  const size_t counter2 = 2000;
+  SampleAndAddAllocaton(tracer, time2, counter2);
   // Will only consider the current sample.
-  size_t throughput = static_cast<size_t>(
-      tracer->AllocationThroughputInBytesPerMillisecond(100));
-  EXPECT_EQ(2 * (counter2 - counter1) / (time2 - time1), throughput);
-  int time3 = 1000;
-  size_t counter3 = 30000;
-  SampleAndAddAllocaton(tracer, time3, counter3, counter3);
+  EXPECT_EQ(2 * (counter2 - counter1) / (time2 - time1),
+            static_cast<size_t>(
+                tracer->AllocationThroughputInBytesPerMillisecond(100)));
+  const int time3 = 1000;
+  const size_t counter3 = 30000;
+  SampleAndAddAllocaton(tracer, time3, counter3);
+  // Only consider last sample.
+  EXPECT_EQ(2 * (counter3 - counter2) / (time3 - time2),
+            static_cast<size_t>(
+                tracer->AllocationThroughputInBytesPerMillisecond(800)));
   // Considers last 2 samples.
-  throughput = tracer->AllocationThroughputInBytesPerMillisecond(801);
-  EXPECT_EQ(2 * (counter3 - counter1) / (time3 - time1), throughput);
+  EXPECT_EQ(2 * (counter3 - counter1) / (time3 - time1),
+            static_cast<size_t>(
+                tracer->AllocationThroughputInBytesPerMillisecond(801)));
 }
 
-TEST_F(GCTracerTest, NewSpaceAllocationThroughput) {
+TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
-  int time1 = 100;
-  size_t counter1 = 1000;
-  SampleAndAddAllocaton(tracer, time1, counter1, 0);
-  int time2 = 200;
-  size_t counter2 = 2000;
-  SampleAndAddAllocaton(tracer, time2, counter2, 0);
-  size_t throughput =
-      tracer->NewSpaceAllocationThroughputInBytesPerMillisecond();
-  EXPECT_EQ((counter2 - counter1) / (time2 - time1), throughput);
-  int time3 = 1000;
-  size_t counter3 = 30000;
-  SampleAndAddAllocaton(tracer, time3, counter3, 0);
-  throughput = tracer->NewSpaceAllocationThroughputInBytesPerMillisecond();
-  EXPECT_EQ((counter3 - counter1) / (time3 - time1), throughput);
+  const int time1 = 100;
+  const size_t counter1 = 1000;
+  SampleAndAddAllocaton(tracer, time1, counter1);
+  const int time2 = 200;
+  const size_t counter2 = 2000;
+  SampleAndAddAllocaton(tracer, time2, counter2);
+  const size_t expected_throughput1 = (counter2 - counter1) / (time2 - time1);
+  EXPECT_EQ(expected_throughput1,
+            static_cast<size_t>(
+                tracer->NewSpaceAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(
+      expected_throughput1,
+      static_cast<size_t>(
+          tracer->OldGenerationAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(expected_throughput1,
+            static_cast<size_t>(
+                tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
+  const int time3 = 1000;
+  const size_t counter3 = 30000;
+  SampleAndAddAllocaton(tracer, time3, counter3);
+  const size_t expected_throughput2 = (counter3 - counter1) / (time3 - time1);
+  EXPECT_EQ(expected_throughput2,
+            static_cast<size_t>(
+                tracer->NewSpaceAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(
+      expected_throughput2,
+      static_cast<size_t>(
+          tracer->OldGenerationAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(expected_throughput2,
+            static_cast<size_t>(
+                tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
 }
 
-TEST_F(GCTracerTest, NewSpaceAllocationThroughputWithProvidedTime) {
+TEST_F(GCTracerTest, PerGenerationAllocationThroughputWithProvidedTime) {
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
-  int time1 = 100;
-  size_t counter1 = 1000;
-  // First sample creates baseline but is not part of the recorded samples.
-  SampleAndAddAllocaton(tracer, time1, counter1, 0);
-  int time2 = 200;
-  size_t counter2 = 2000;
-  SampleAndAddAllocaton(tracer, time2, counter2, 0);
-  // Will only consider the current sample.
-  size_t throughput =
-      tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(100);
-  EXPECT_EQ((counter2 - counter1) / (time2 - time1), throughput);
-  int time3 = 1000;
-  size_t counter3 = 30000;
-  SampleAndAddAllocaton(tracer, time3, counter3, 0);
-  // Considers last 2 samples.
-  throughput = tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(801);
-  EXPECT_EQ((counter3 - counter1) / (time3 - time1), throughput);
-}
-
-TEST_F(GCTracerTest, OldGenerationAllocationThroughputWithProvidedTime) {
-  GCTracer* tracer = i_isolate()->heap()->tracer();
-  tracer->ResetForTesting();
-
-  int time1 = 100;
-  size_t counter1 = 1000;
-  // First sample creates baseline but is not part of the recorded samples.
-  SampleAndAddAllocaton(tracer, time1, 0, counter1);
-  int time2 = 200;
-  size_t counter2 = 2000;
-  SampleAndAddAllocaton(tracer, time2, 0, counter2);
-  // Will only consider the current sample.
-  size_t throughput = static_cast<size_t>(
-      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100));
-  EXPECT_EQ((counter2 - counter1) / (time2 - time1), throughput);
-  int time3 = 1000;
-  size_t counter3 = 30000;
-  SampleAndAddAllocaton(tracer, time3, 0, counter3);
-  // Considers last 2 samples.
-  throughput = static_cast<size_t>(
-      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(801));
-  EXPECT_EQ((counter3 - counter1) / (time3 - time1), throughput);
+  const int time1 = 100;
+  const size_t counter1 = 1000;
+  SampleAndAddAllocaton(tracer, time1, counter1);
+  const int time2 = 200;
+  const size_t counter2 = 2000;
+  SampleAndAddAllocaton(tracer, time2, counter2);
+  const size_t expected_throughput1 = (counter2 - counter1) / (time2 - time1);
+  EXPECT_EQ(
+      expected_throughput1,
+      static_cast<size_t>(
+          tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(100)));
+  EXPECT_EQ(
+      expected_throughput1,
+      static_cast<size_t>(
+          tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100)));
+  const int time3 = 1000;
+  const size_t counter3 = 30000;
+  SampleAndAddAllocaton(tracer, time3, counter3);
+  const size_t expected_throughput2 = (counter3 - counter2) / (time3 - time2);
+  // Only consider last sample.
+  EXPECT_EQ(
+      expected_throughput2,
+      static_cast<size_t>(
+          tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(800)));
+  EXPECT_EQ(
+      expected_throughput2,
+      static_cast<size_t>(
+          tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(800)));
+  const size_t expected_throughput3 = (counter3 - counter1) / (time3 - time1);
+  // Consider last two samples.
+  EXPECT_EQ(
+      expected_throughput3,
+      static_cast<size_t>(
+          tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(801)));
+  EXPECT_EQ(
+      expected_throughput3,
+      static_cast<size_t>(
+          tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(801)));
 }
 
 TEST_F(GCTracerTest, RegularScope) {

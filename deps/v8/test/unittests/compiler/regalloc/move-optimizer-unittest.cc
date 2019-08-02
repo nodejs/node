@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/backend/move-optimizer.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 #include "test/unittests/compiler/backend/instruction-sequence-unittest.h"
 
 namespace v8 {

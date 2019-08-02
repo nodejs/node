@@ -10,14 +10,14 @@
 #include "src/base/macros.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/template-utils.h"
-#include "src/execution.h"
-#include "src/isolate.h"
-#include "src/v8.h"
+#include "src/execution/execution.h"
+#include "src/execution/isolate.h"
+#include "src/init/v8.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
 
-typedef TestWithIsolate IsolateTest;
+using IsolateTest = TestWithIsolate;
 
 namespace {
 

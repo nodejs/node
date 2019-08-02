@@ -179,8 +179,6 @@ let id = (() => {  // identity exported function
   let t = builder.addImport("q", "exp_ten", sig_i_v);
 
   builder.setTableBounds(7, 35);
-  // builder.addElementSegment(0, g1, true,
-  //     [funcs.mul.index, funcs.add.index, funcs.sub.index]);
   builder.addElementSegment(0, g1, true, [a, i, t]);
 
   builder.addExportOfKind("table", kExternalTable, 0);
@@ -266,7 +264,7 @@ let id = (() => {  // identity exported function
         kExprGetLocal, 0,
         kExprCallIndirect, index_i_ii, kTableZero])
       .exportAs("main");
-    builder.addElementSegment(0, 0, false, [0], true);
+    builder.addElementSegment(0, 0, false, [0]);
     return new WebAssembly.Module(builder.toBuffer());
   }
 

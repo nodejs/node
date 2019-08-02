@@ -7,9 +7,13 @@ var Debug = debug.Debug;
 
 Debug.setListener(() => undefined);
 
-const myObj = {};
+function f() {
+  const myObj = {};
 
-for (let i = 0; i < 10; i++) {
-  %OptimizeOsr();
-  %ScheduleBreak();
+  for (let i = 0; i < 10; i++) {
+    %OptimizeOsr();
+    %ScheduleBreak();
+  }
 }
+%PrepareFunctionForOptimization(f);
+f()

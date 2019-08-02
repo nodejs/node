@@ -1,6 +1,6 @@
-*%(basename)s:10: TypeError: Write of private field #x to an object which did not contain the field
+*%(basename)s:8: TypeError: Write of private field #x to an object which did not contain the field
     ({}).#x = 1;
             ^
 TypeError: Write of private field #x to an object which did not contain the field
-    at new X (*%(basename)s:10:13)
-    at *%(basename)s:14:1
+    at new X (*%(basename)s:8:13)
+    at *%(basename)s:12:1

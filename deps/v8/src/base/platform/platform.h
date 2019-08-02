@@ -207,7 +207,6 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(3, 0) int VSNPrintF(char* str, int length,
                                            const char* format, va_list args);
 
-  static char* StrChr(char* str, int c);
   static void StrNCpy(char* dest, int length, const char* src, size_t n);
 
   // Support for the profiler.  Can do nothing, in which case ticks

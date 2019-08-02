@@ -27,7 +27,7 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "test/cctest/cctest.h"
 
@@ -865,8 +865,10 @@ TEST(CrossScriptLoadICs) {
     SimpleContext context;
     context.Check(
         "x = 15;"
-        "function f() { return x; }"
-        "function g() { return x; }"
+        "function f() { return x; };"
+        "function g() { return x; };"
+        "%PrepareFunctionForOptimization(f);"
+        "%PrepareFunctionForOptimization(g);"
         "f()",
         EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
     context.Check(
@@ -890,6 +892,7 @@ TEST(CrossScriptLoadICs) {
     context.Check(
         "x = 15;"
         "function f() { return x; }"
+        "%PrepareFunctionForOptimization(f);"
         "f()",
         EXPECT_RESULT, Number::New(CcTest::isolate(), 15));
     for (int k = 0; k < 3; k++) {
@@ -900,6 +903,7 @@ TEST(CrossScriptLoadICs) {
     context.Check(
         "'use strict';"
         "let x = 5;"
+        "%PrepareFunctionForOptimization(f);"
         "f()",
         EXPECT_RESULT, Number::New(CcTest::isolate(), 5));
     for (int k = 0; k < 3; k++) {
@@ -921,8 +925,10 @@ TEST(CrossScriptStoreICs) {
     context.Check(
         "var global = this;"
         "x = 15;"
-        "function f(v) { x = v; }"
-        "function g(v) { x = v; }"
+        "function f(v) { x = v; };"
+        "function g(v) { x = v; };"
+        "%PrepareFunctionForOptimization(f);"
+        "%PrepareFunctionForOptimization(g);"
         "f(10); x",
         EXPECT_RESULT, Number::New(CcTest::isolate(), 10));
     context.Check(
@@ -958,7 +964,8 @@ TEST(CrossScriptStoreICs) {
     context.Check(
         "var global = this;"
         "x = 15;"
-        "function f(v) { x = v; }"
+        "function f(v) { x = v; };"
+        "%PrepareFunctionForOptimization(f);"
         "f(10); x",
         EXPECT_RESULT, Number::New(CcTest::isolate(), 10));
     for (int k = 0; k < 3; k++) {
@@ -980,8 +987,10 @@ TEST(CrossScriptStoreICs) {
     }
     context.Check("global.x", EXPECT_RESULT,
                   Number::New(CcTest::isolate(), 20));
-    context.Check("%OptimizeFunctionOnNextCall(f); f(41); x", EXPECT_RESULT,
-                  Number::New(CcTest::isolate(), 41));
+    context.Check(
+        "%PrepareFunctionForOptimization(f);"
+        "%OptimizeFunctionOnNextCall(f); f(41); x",
+        EXPECT_RESULT, Number::New(CcTest::isolate(), 41));
     context.Check("global.x", EXPECT_RESULT,
                   Number::New(CcTest::isolate(), 20));
   }
@@ -1000,7 +1009,7 @@ TEST(CrossScriptAssignmentToConst) {
                   Undefined(CcTest::isolate()));
     context.Check("'use strict';const x = 1; x", EXPECT_RESULT,
                   Number::New(CcTest::isolate(), 1));
-    context.Check("f();", EXPECT_EXCEPTION);
+    context.Check("%PrepareFunctionForOptimization(f);f();", EXPECT_EXCEPTION);
     context.Check("x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
     context.Check("f();", EXPECT_EXCEPTION);
     context.Check("x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
@@ -1055,8 +1064,10 @@ TEST(Regress3941) {
   {
     // Optimize.
     SimpleContext context;
-    context.Check("function f() { x = 1; }", EXPECT_RESULT,
-                  Undefined(CcTest::isolate()));
+    context.Check(
+        "function f() { x = 1; };"
+        "%PrepareFunctionForOptimization(f);",
+        EXPECT_RESULT, Undefined(CcTest::isolate()));
     for (int i = 0; i < 4; i++) {
       context.Check("f(); x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
     }
@@ -1096,8 +1107,10 @@ TEST(Regress3941_Reads) {
   {
     // Optimize.
     SimpleContext context;
-    context.Check("function f() { return x; }", EXPECT_RESULT,
-                  Undefined(CcTest::isolate()));
+    context.Check(
+        "function f() { return x; };"
+        "%PrepareFunctionForOptimization(f);",
+        EXPECT_RESULT, Undefined(CcTest::isolate()));
     for (int i = 0; i < 4; i++) {
       context.Check("f()", EXPECT_EXCEPTION);
     }

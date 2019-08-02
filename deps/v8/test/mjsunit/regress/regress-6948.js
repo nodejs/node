@@ -8,6 +8,7 @@ var o = {};
 
 function foo(s) { return o[s]; }
 
+%PrepareFunctionForOptimization(foo);
 var s = 'c' + 'c';
 foo(s);
 foo(s);

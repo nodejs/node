@@ -33,13 +33,13 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8-platform.h"
 #include "src/base/enum-set.h"
+#include "src/codegen/register-configuration.h"
 #include "src/debug/debug-interface.h"
-#include "src/flags.h"
+#include "src/execution/isolate.h"
+#include "src/flags/flags.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects.h"
-#include "src/register-configuration.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
+#include "src/objects/objects.h"
 #include "src/zone/accounting-allocator.h"
 
 namespace v8 {
@@ -106,7 +106,7 @@ static constexpr const char* kExtensionName[kMaxExtensions] = {
 
 class CcTest {
  public:
-  typedef void (TestFunction)();
+  using TestFunction = void();
   CcTest(TestFunction* callback, const char* file, const char* name,
          bool enabled, bool initialize);
   ~CcTest() { i::DeleteArray(file_); }
@@ -133,6 +133,7 @@ class CcTest {
   }
 
   static i::Heap* heap();
+  static i::ReadOnlyHeap* read_only_heap();
 
   static void CollectGarbage(i::AllocationSpace space);
   static void CollectAllGarbage(i::Isolate* isolate = nullptr);
@@ -321,9 +322,9 @@ class LocalContext {
 
 
 static inline uint16_t* AsciiToTwoByteString(const char* source) {
-  int array_length = i::StrLength(source) + 1;
+  size_t array_length = strlen(source) + 1;
   uint16_t* converted = i::NewArray<uint16_t>(array_length);
-  for (int i = 0; i < array_length; i++) converted[i] = source[i];
+  for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
   return converted;
 }
 
@@ -500,11 +501,13 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
 
 // Takes a JSFunction and runs it through the test version of the optimizing
 // pipeline, allocating the temporary compilation artifacts in a given Zone.
-// For possible {flags} values, look at OptimizedCompilationInfo::Flag.
-// If passed a non-null pointer for {broker}, outputs the JSHeapBroker to it.
+// For possible {flags} values, look at OptimizedCompilationInfo::Flag.  If
+// {out_broker} is not nullptr, returns the JSHeapBroker via that (transferring
+// ownership to the caller).
 i::Handle<i::JSFunction> Optimize(
     i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
-    uint32_t flags, i::compiler::JSHeapBroker** out_broker = nullptr);
+    uint32_t flags,
+    std::unique_ptr<i::compiler::JSHeapBroker>* out_broker = nullptr);
 
 static inline void ExpectString(const char* code, const char* expected) {
   v8::Local<v8::Value> result = CompileRun(code);

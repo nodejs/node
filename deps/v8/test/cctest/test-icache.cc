@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
-#include "src/handles-inl.h"
-#include "src/macro-assembler-inl.h"
-#include "src/simulator.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/execution/simulator.h"
+#include "src/handles/handles-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 

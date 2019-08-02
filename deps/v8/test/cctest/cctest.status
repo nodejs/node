@@ -121,6 +121,8 @@
   ############################################################################
   # Slow tests.
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
+  'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
+  'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
@@ -208,6 +210,14 @@
   # Windows doesn't support nosnap mode.
   'test-serialize/*': [SKIP],
 }],  # 'no_snap == True and system == windows'
+
+##############################################################################
+['is_full_debug', {
+  # Tests too slow in non-optimized debug mode.
+  'test-api/InternalFieldsSubclassing': [SKIP],
+  'test-cpu-profiler/Inlining2': [SKIP],
+  'test-heap/TestInternalWeakLists': [SKIP],
+}],  # 'is_full_debug'
 
 ##############################################################################
 ['byteorder == big', {
@@ -417,14 +427,15 @@
 
 ##############################################################################
 # The test relies on deterministic compilation.
-['variant == stress_background_compile', {
+['variant == stress_js_bg_compile_wasm_code_gc', {
   'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
-}],  # variant == stress_background_compile
+}],  # variant == stress_js_bg_compile_wasm_code_gc
 
 ##############################################################################
 ['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
+  'test-api-stack-traces/*': [SKIP],
   'test-api/*': [SKIP],
   'test-bignum-dtoa/*': [SKIP],
   'test-cpu-profiler/*': [SKIP],
@@ -460,23 +471,6 @@
 
 ##############################################################################
 ['lite_mode or variant == jitless', {
-
-  # TODO(8394): First execution events don't work in lite_mode. Enable this after
-  # we fix the lite mode to track the first execution.
-  'test-log/LogFunctionEvents': [SKIP],
-
-  # Skip tests for weak references in feedback vector.
-  'test-weak-references/WeakReferencesBasic': [SKIP],
-  'test-weak-references/WeakReferencesOldToOld': [SKIP],
-  'test-weak-references/WeakReferencesOldToNew': [SKIP],
-  'test-weak-references/WeakReferencesOldToNewScavenged': [SKIP],
-  'test-weak-references/WeakReferencesOldToCleared': [SKIP],
-  'test-weak-references/ObjectMovesBeforeClearingWeakField': [SKIP],
-  'test-weak-references/ObjectWithWeakFieldDies': [SKIP],
-  'test-weak-references/ObjectWithWeakReferencePromoted': [SKIP],
-  'test-weak-references/ObjectWithClearedWeakReferencePromoted': [SKIP],
-  'test-weak-references/WeakReferenceWriteBarrier': [SKIP],
-  'test-heap-profiler/WeakReference': [SKIP],
 
   # Slow tests
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
@@ -550,6 +544,7 @@
   'test-run-unwinding-info/*': [SKIP],
   'test-run-variables/*': [SKIP],
   'test-torque/*': [SKIP],
+  'test-macro-assembler-x64/EmbeddedObj': [SKIP],
 
   # Field representation tracking is disabled in jitless mode.
   'test-field-type-tracking/*': [SKIP],

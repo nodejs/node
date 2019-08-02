@@ -9,7 +9,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/common/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
@@ -253,8 +253,8 @@ class TyperTest : public TypedGraphTest {
     }
   }
 
-  typedef std::function<Type(Type)> UnaryTyper;
-  typedef std::function<Type(Type, Type)> BinaryTyper;
+  using UnaryTyper = std::function<Type(Type)>;
+  using BinaryTyper = std::function<Type(Type, Type)>;
 
   void TestUnaryMonotonicity(UnaryTyper typer, Type upper1 = Type::Any()) {
     Type type1 = Type::Intersect(types_.Fuzz(), upper1, zone());

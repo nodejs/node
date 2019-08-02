@@ -4,9 +4,9 @@
 
 #include "src/wasm/function-compiler.h"
 
+#include "src/codegen/macro-assembler-inl.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/counters.h"
-#include "src/macro-assembler-inl.h"
+#include "src/logging/counters.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -24,19 +24,19 @@ class WasmInstructionBufferImpl {
         : buffer_(buffer), holder_(holder) {}
 
     ~View() override {
-      if (buffer_.start() == holder_->old_buffer_.start()) {
+      if (buffer_.begin() == holder_->old_buffer_.start()) {
         DCHECK_EQ(buffer_.size(), holder_->old_buffer_.size());
         holder_->old_buffer_ = {};
       }
     }
 
-    byte* start() const override { return buffer_.start(); }
+    byte* start() const override { return buffer_.begin(); }
 
     int size() const override { return static_cast<int>(buffer_.size()); }
 
     std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
       // If we grow, we must be the current buffer of {holder_}.
-      DCHECK_EQ(buffer_.start(), holder_->buffer_.start());
+      DCHECK_EQ(buffer_.begin(), holder_->buffer_.start());
       DCHECK_EQ(buffer_.size(), holder_->buffer_.size());
       DCHECK_NULL(holder_->old_buffer_);
 
@@ -112,26 +112,13 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
   return FLAG_liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
 }
 
-WasmCompilationUnit::WasmCompilationUnit(int index, ExecutionTier tier)
-    : func_index_(index), tier_(tier) {
-  if (V8_UNLIKELY(FLAG_wasm_tier_mask_for_testing) && index < 32 &&
-      (FLAG_wasm_tier_mask_for_testing & (1 << index))) {
-    tier = ExecutionTier::kTurbofan;
-  }
-  SwitchTier(tier);
-}
-
-// Declared here such that {LiftoffCompilationUnit} and
-// {TurbofanWasmCompilationUnit} can be opaque in the header file.
-WasmCompilationUnit::~WasmCompilationUnit() = default;
-
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     WasmEngine* wasm_engine, CompilationEnv* env,
     const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
     Counters* counters, WasmFeatures* detected) {
   auto* func = &env->module->functions[func_index_];
   Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
-  wasm::FunctionBody func_body{func->sig, func->code.offset(), code.start(),
+  wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
                                code.end()};
 
   auto size_histogram = SELECT_WASM_COUNTER(counters, env->module->origin, wasm,
@@ -141,35 +128,45 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
                                              wasm_compile, function_time);
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
-  // Exactly one compiler-specific unit must be set.
-  DCHECK_EQ(1, !!liftoff_unit_ + !!turbofan_unit_ + !!interpreter_unit_);
-
   if (FLAG_trace_wasm_compiler) {
-    const char* tier =
-        liftoff_unit_ ? "liftoff" : turbofan_unit_ ? "turbofan" : "interpreter";
-    PrintF("Compiling wasm function %d with %s\n\n", func_index_, tier);
+    PrintF("Compiling wasm function %d with %s\n\n", func_index_,
+           ExecutionTierToString(tier_));
   }
 
   WasmCompilationResult result;
-  if (liftoff_unit_) {
-    result = liftoff_unit_->ExecuteCompilation(wasm_engine->allocator(), env,
-                                               func_body, counters, detected);
-    if (!result.succeeded()) {
+
+  switch (tier_) {
+    case ExecutionTier::kNone:
+      UNREACHABLE();
+
+    case ExecutionTier::kLiftoff:
+      // The --wasm-tier-mask-for-testing flag can force functions to be
+      // compiled with TurboFan, see documentation.
+      if (V8_LIKELY(FLAG_wasm_tier_mask_for_testing == 0) ||
+          func_index_ >= 32 ||
+          ((FLAG_wasm_tier_mask_for_testing & (1 << func_index_)) == 0)) {
+        result =
+            ExecuteLiftoffCompilation(wasm_engine->allocator(), env, func_body,
+                                      func_index_, counters, detected);
+        if (result.succeeded()) break;
+      }
+
       // If Liftoff failed, fall back to turbofan.
       // TODO(wasm): We could actually stop or remove the tiering unit for this
       // function to avoid compiling it twice with TurboFan.
-      SwitchTier(ExecutionTier::kTurbofan);
-      DCHECK_NOT_NULL(turbofan_unit_);
-    }
+      V8_FALLTHROUGH;
+
+    case ExecutionTier::kTurbofan:
+      result = compiler::ExecuteTurbofanWasmCompilation(
+          wasm_engine, env, func_body, func_index_, counters, detected);
+      break;
+
+    case ExecutionTier::kInterpreter:
+      result = compiler::ExecuteInterpreterEntryCompilation(
+          wasm_engine, env, func_body, func_index_, counters, detected);
+      break;
   }
-  if (turbofan_unit_) {
-    result = turbofan_unit_->ExecuteCompilation(wasm_engine, env, func_body,
-                                                counters, detected);
-  }
-  if (interpreter_unit_) {
-    result = interpreter_unit_->ExecuteCompilation(wasm_engine, env, func_body,
-                                                   counters, detected);
-  }
+
   result.func_index = func_index_;
   result.requested_tier = tier_;
 
@@ -180,36 +177,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   }
 
   return result;
-}
-
-void WasmCompilationUnit::SwitchTier(ExecutionTier new_tier) {
-  // This method is being called in the constructor, where neither
-  // {liftoff_unit_} nor {turbofan_unit_} nor {interpreter_unit_} are set, or to
-  // switch tier from kLiftoff to kTurbofan, in which case {liftoff_unit_} is
-  // already set.
-  switch (new_tier) {
-    case ExecutionTier::kLiftoff:
-      DCHECK(!turbofan_unit_);
-      DCHECK(!liftoff_unit_);
-      DCHECK(!interpreter_unit_);
-      liftoff_unit_.reset(new LiftoffCompilationUnit());
-      return;
-    case ExecutionTier::kTurbofan:
-      DCHECK(!turbofan_unit_);
-      DCHECK(!interpreter_unit_);
-      liftoff_unit_.reset();
-      turbofan_unit_.reset(new compiler::TurbofanWasmCompilationUnit(this));
-      return;
-    case ExecutionTier::kInterpreter:
-      DCHECK(!turbofan_unit_);
-      DCHECK(!liftoff_unit_);
-      DCHECK(!interpreter_unit_);
-      interpreter_unit_.reset(new compiler::InterpreterCompilationUnit(this));
-      return;
-    case ExecutionTier::kNone:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
 }
 
 // static

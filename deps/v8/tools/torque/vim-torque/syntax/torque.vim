@@ -30,7 +30,7 @@ syn keyword torqueFunction macro builtin runtime intrinsic
 syn keyword torqueKeyword cast convert from_constexpr min max unsafe_cast
 syn keyword torqueLabel case
 syn keyword torqueMatching try label catch
-syn keyword torqueModifier extern javascript constexpr transitioning transient weak
+syn keyword torqueModifier extern javascript constexpr transitioning transient weak export
 syn match torqueNumber /\v<[0-9]+(\.[0-9]*)?>/
 syn match torqueNumber /\v<0x[0-9a-fA-F]+>/
 syn keyword torqueOperator operator

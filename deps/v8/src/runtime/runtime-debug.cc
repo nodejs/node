@@ -4,22 +4,22 @@
 
 #include <vector>
 
-#include "src/arguments-inl.h"
-#include "src/compiler.h"
-#include "src/counters.h"
+#include "src/codegen/compiler.h"
+#include "src/common/globals.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
-#include "src/frames-inl.h"
-#include "src/globals.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
-#include "src/isolate-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -66,10 +66,10 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   DCHECK(it.frame()->is_interpreted());
   InterpretedFrame* interpreted_frame =
       reinterpret_cast<InterpretedFrame*>(it.frame());
-  SharedFunctionInfo shared = interpreted_frame->function()->shared();
-  BytecodeArray bytecode_array = shared->GetBytecodeArray();
+  SharedFunctionInfo shared = interpreted_frame->function().shared();
+  BytecodeArray bytecode_array = shared.GetBytecodeArray();
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
-  Bytecode bytecode = Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
+  Bytecode bytecode = Bytecodes::FromByte(bytecode_array.get(bytecode_offset));
 
   bool side_effect_check_failed = false;
   if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
@@ -98,7 +98,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
   Object interrupt_object = isolate->stack_guard()->HandleInterrupts();
-  if (interrupt_object->IsException(isolate)) {
+  if (interrupt_object.IsException(isolate)) {
     return MakePair(interrupt_object,
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
@@ -112,8 +112,8 @@ RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   USE(function);
 
-  DCHECK(function->shared()->HasDebugInfo());
-  DCHECK(function->shared()->GetDebugInfo()->BreakAtEntry());
+  DCHECK(function->shared().HasDebugInfo());
+  DCHECK(function->shared().GetDebugInfo().BreakAtEntry());
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
@@ -147,7 +147,7 @@ static MaybeHandle<JSArray> GetIteratorInternalProperties(
   Factory* factory = isolate->factory();
   Handle<IteratorType> iterator = Handle<IteratorType>::cast(object);
   const char* kind = nullptr;
-  switch (iterator->map()->instance_type()) {
+  switch (iterator->map().instance_type()) {
     case JS_MAP_KEY_ITERATOR_TYPE:
       kind = "keys";
       break;
@@ -300,7 +300,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  if (!args[0]->IsJSGeneratorObject()) return Smi::kZero;
+  if (!args[0].IsJSGeneratorObject()) return Smi::kZero;
 
   // Check arguments.
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
@@ -323,7 +323,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
 
-  if (!args[0]->IsJSGeneratorObject()) {
+  if (!args[0].IsJSGeneratorObject()) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -448,8 +448,8 @@ RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(Object, f, 0);
-  if (f->IsJSFunction()) {
-    return JSFunction::cast(f)->shared()->inferred_name();
+  if (f.IsJSFunction()) {
+    return JSFunction::cast(f).shared().inferred_name();
   }
   return ReadOnlyRoots(isolate).empty_string();
 }
@@ -484,19 +484,19 @@ int ScriptLinePosition(Handle<Script> script, int line) {
 
   if (script->type() == Script::TYPE_WASM) {
     return WasmModuleObject::cast(script->wasm_module_object())
-        ->GetFunctionOffset(line);
+        .GetFunctionOffset(line);
   }
 
   Script::InitLineEnds(script);
 
   FixedArray line_ends_array = FixedArray::cast(script->line_ends());
-  const int line_count = line_ends_array->length();
+  const int line_count = line_ends_array.length();
   DCHECK_LT(0, line_count);
 
   if (line == 0) return 0;
   // If line == line_count, we return the first position beyond the last line.
   if (line > line_count) return -1;
-  return Smi::ToInt(line_ends_array->get(line - 1)) + 1;
+  return Smi::ToInt(line_ends_array.get(line - 1)) + 1;
 }
 
 int ScriptLinePositionWithOffset(Handle<Script> script, int line, int offset) {
@@ -578,7 +578,7 @@ bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
   Script::Iterator iterator(isolate);
   for (Script script = iterator.Next(); !script.is_null();
        script = iterator.Next()) {
-    if (script->id() == needle) {
+    if (script.id() == needle) {
       *result = handle(script, isolate);
       return true;
     }
@@ -737,23 +737,7 @@ RUNTIME_FUNCTION(Runtime_DebugToggleBlockCoverage) {
 }
 
 RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
-  SealHandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  CONVERT_SMI_ARG_CHECKED(coverage_array_slot_index, 1);
-
-  // It's quite possible that a function contains IncBlockCounter bytecodes, but
-  // no coverage info exists. This happens e.g. by selecting the best-effort
-  // coverage collection mode, which triggers deletion of all coverage infos in
-  // order to avoid memory leaks.
-
-  SharedFunctionInfo shared = function->shared();
-  if (shared->HasCoverageInfo()) {
-    CoverageInfo coverage_info = shared->GetCoverageInfo();
-    coverage_info->IncrementBlockCount(coverage_array_slot_index);
-  }
-
-  return ReadOnlyRoots(isolate).undefined_value();
+  UNREACHABLE();  // Never called. See the IncBlockCounter builtin instead.
 }
 
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionEntered) {
@@ -793,7 +777,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, script_function, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, new_source, 1);
 
-  Handle<Script> script(Script::cast(script_function->shared()->script()),
+  Handle<Script> script(Script::cast(script_function->shared().script()),
                         isolate);
   v8::debug::LiveEditResult result;
   LiveEdit::PatchScript(isolate, script, new_source, false, &result);

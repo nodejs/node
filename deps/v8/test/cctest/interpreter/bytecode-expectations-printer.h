@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "src/interpreter/bytecodes.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 

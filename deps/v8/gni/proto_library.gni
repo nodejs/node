@@ -13,6 +13,12 @@ template("proto_library") {
 
   set_sources_assignment_filter([])
 
+  if (host_os == "win") {
+    host_executable_suffix = ".exe"
+  } else {
+    host_executable_suffix = ""
+  }
+
   # All the proto imports should be relative to the project root.
   proto_in_dir = "//"
   if (defined(invoker.proto_in_dir)) {
@@ -42,8 +48,9 @@ template("proto_library") {
 
   if (defined(invoker.generator_plugin_label)) {
     plugin_host_label = invoker.generator_plugin_label + "($host_toolchain)"
-    plugin_path = get_label_info(plugin_host_label, "root_out_dir") + "/" +
-                  get_label_info(plugin_host_label, "name")
+    plugin_path =
+        get_label_info(plugin_host_label, "root_out_dir") + "/" +
+        get_label_info(plugin_host_label, "name") + host_executable_suffix
     generate_with_plugin = true
   } else if (defined(invoker.generator_plugin_script)) {
     plugin_path = invoker.generator_plugin_script
@@ -107,7 +114,8 @@ template("proto_library") {
     outputs = get_path_info(protogens, "abspath")
 
     protoc_label = "//:protoc($host_toolchain)"
-    protoc_path = get_label_info(protoc_label, "root_out_dir") + "/protoc"
+    protoc_path = get_label_info(protoc_label, "root_out_dir") + "/protoc" +
+                  host_executable_suffix
     args = [
       # Path should be rebased because |root_build_dir| for current toolchain
       # may be different from |root_out_dir| of protoc built on host toolchain.

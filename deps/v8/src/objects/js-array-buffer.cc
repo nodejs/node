@@ -5,8 +5,8 @@
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-buffer-inl.h"
 
-#include "src/counters.h"
-#include "src/property-descriptor.h"
+#include "src/logging/counters.h"
+#include "src/objects/property-descriptor.h"
 
 namespace v8 {
 namespace internal {
@@ -69,7 +69,7 @@ void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
   if (allocation.is_wasm_memory) {
     wasm::WasmMemoryTracker* memory_tracker =
         isolate->wasm_engine()->memory_tracker();
-    memory_tracker->FreeMemoryIfIsWasmMemory(isolate, allocation.backing_store);
+    memory_tracker->FreeWasmMemory(isolate, allocation.backing_store);
   } else {
     isolate->array_buffer_allocator()->Free(allocation.allocation_base,
                                             allocation.length);
@@ -150,10 +150,7 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
 
   Isolate* isolate = typed_array->GetIsolate();
 
-  DCHECK(IsFixedTypedArrayElementsKind(typed_array->GetElementsKind()));
-
-  Handle<FixedTypedArrayBase> fixed_typed_array(
-      FixedTypedArrayBase::cast(typed_array->elements()), isolate);
+  DCHECK(IsTypedArrayElementsKind(typed_array->GetElementsKind()));
 
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(typed_array->buffer()),
                                isolate);
@@ -162,14 +159,13 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
 
   void* backing_store =
       isolate->array_buffer_allocator()->AllocateUninitialized(
-          fixed_typed_array->DataSize());
+          typed_array->byte_length());
   if (backing_store == nullptr) {
     isolate->heap()->FatalProcessOutOfMemory(
         "JSTypedArray::MaterializeArrayBuffer");
   }
   buffer->set_is_external(false);
-  DCHECK_EQ(buffer->byte_length(),
-            static_cast<uintptr_t>(fixed_typed_array->DataSize()));
+  DCHECK_EQ(buffer->byte_length(), typed_array->byte_length());
   // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
   // are currently being constructed in the |ArrayBufferTracker|. The
   // registration method below handles the case of registering a buffer that has
@@ -177,14 +173,12 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
   buffer->set_backing_store(backing_store);
   // RegisterNewArrayBuffer expects a valid length for adjusting counters.
   isolate->heap()->RegisterNewArrayBuffer(*buffer);
-  memcpy(buffer->backing_store(), fixed_typed_array->DataPtr(),
-         fixed_typed_array->DataSize());
-  Handle<FixedTypedArrayBase> new_elements =
-      isolate->factory()->NewFixedTypedArrayWithExternalPointer(
-          fixed_typed_array->length(), typed_array->type(),
-          static_cast<uint8_t*>(buffer->backing_store()));
+  memcpy(buffer->backing_store(), typed_array->DataPtr(),
+         typed_array->byte_length());
 
-  typed_array->set_elements(*new_elements);
+  typed_array->set_elements(ReadOnlyRoots(isolate).empty_byte_array());
+  typed_array->set_external_pointer(backing_store);
+  typed_array->set_base_pointer(Smi::kZero);
   DCHECK(!typed_array->is_on_heap());
 
   return buffer;
@@ -226,7 +220,7 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
       }
       // 3b iv. Let length be O.[[ArrayLength]].
-      size_t length = o->length_value();
+      size_t length = o->length();
       // 3b v. If numericIndex ≥ length, return false.
       if (o->WasDetached() || index >= length) {
         RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
@@ -271,13 +265,13 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
 }
 
 ExternalArrayType JSTypedArray::type() {
-  switch (elements()->map()->instance_type()) {
-#define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
-  case FIXED_##TYPE##_ARRAY_TYPE:                            \
+  switch (map().elements_kind()) {
+#define ELEMENTS_KIND_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                                      \
     return kExternal##Type##Array;
 
-    TYPED_ARRAYS(INSTANCE_TYPE_TO_ARRAY_TYPE)
-#undef INSTANCE_TYPE_TO_ARRAY_TYPE
+    TYPED_ARRAYS(ELEMENTS_KIND_TO_ARRAY_TYPE)
+#undef ELEMENTS_KIND_TO_ARRAY_TYPE
 
     default:
       UNREACHABLE();
@@ -285,13 +279,13 @@ ExternalArrayType JSTypedArray::type() {
 }
 
 size_t JSTypedArray::element_size() {
-  switch (elements()->map()->instance_type()) {
-#define INSTANCE_TYPE_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
-  case FIXED_##TYPE##_ARRAY_TYPE:                              \
+  switch (map().elements_kind()) {
+#define ELEMENTS_KIND_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                                        \
     return sizeof(ctype);
 
-    TYPED_ARRAYS(INSTANCE_TYPE_TO_ELEMENT_SIZE)
-#undef INSTANCE_TYPE_TO_ELEMENT_SIZE
+    TYPED_ARRAYS(ELEMENTS_KIND_TO_ELEMENT_SIZE)
+#undef ELEMENTS_KIND_TO_ELEMENT_SIZE
 
     default:
       UNREACHABLE();

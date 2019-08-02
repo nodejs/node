@@ -30,6 +30,7 @@
 "use strict";
 let unused_var = 1;
 function __f_12() { new Array(); }
+%PrepareFunctionForOptimization(__f_12);
 __f_12();
 __f_12();
 %OptimizeFunctionOnNextCall(__f_12);

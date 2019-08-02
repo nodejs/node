@@ -317,6 +317,17 @@ domain Debugger
       # Location this breakpoint resolved into.
       Location actualLocation
 
+  # Sets instrumentation breakpoint.
+  command setInstrumentationBreakpoint
+    parameters
+      # Instrumentation name.
+      enum instrumentation
+        beforeScriptExecution
+        beforeScriptWithSourceMapExecution
+    returns
+      # Id of the created breakpoint for further reference.
+      BreakpointId breakpointId
+
   # Sets JavaScript breakpoint at given location specified either by URL or URL regex. Once this
   # command is issued, all existing parsed scripts will have breakpoints resolved and returned in
   # `locations` property. Further matching script parsing will result in subsequent
@@ -449,16 +460,17 @@ domain Debugger
       array of CallFrame callFrames
       # Pause reason.
       enum reason
-        XHR
+        ambiguous
+        assert
+        debugCommand
         DOM
         EventListener
         exception
-        assert
-        debugCommand
-        promiseRejection
+        instrumentation
         OOM
         other
-        ambiguous
+        promiseRejection
+        XHR
       # Object containing break-specific auxiliary properties.
       optional object data
       # Hit breakpoints IDs

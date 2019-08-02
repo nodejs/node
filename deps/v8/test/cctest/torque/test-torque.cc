@@ -4,22 +4,22 @@
 
 #include <cmath>
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-string-gen.h"
-#include "src/char-predicates.h"
-#include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/compiler/node.h"
 #include "src/debug/debug.h"
-#include "src/elements-kind.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
+#include "src/objects/elements-kind.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/strings/char-predicates.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
-#include "torque-generated/builtins-test-from-dsl-gen.h"
+#include "torque-generated/builtins-test-gen-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -27,14 +27,13 @@ namespace compiler {
 
 namespace {
 
-typedef CodeAssemblerLabel Label;
-typedef CodeAssemblerVariable Variable;
+using Label = CodeAssemblerLabel;
+using Variable = CodeAssemblerVariable;
 
-class TestTorqueAssembler : public CodeStubAssembler,
-                            public TestBuiltinsFromDSLAssembler {
+class TestTorqueAssembler : public CodeStubAssembler {
  public:
   explicit TestTorqueAssembler(CodeAssemblerState* state)
-      : CodeStubAssembler(state), TestBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state) {}
 };
 
 }  // namespace
@@ -480,6 +479,20 @@ TEST(TestReferences) {
   TestTorqueAssembler m(asm_tester.state());
   {
     m.TestReferences();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestStaticAssert) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestStaticAssert();
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);

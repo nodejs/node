@@ -5,6 +5,8 @@
 #ifndef V8_SNAPSHOT_READ_ONLY_SERIALIZER_H_
 #define V8_SNAPSHOT_READ_ONLY_SERIALIZER_H_
 
+#include <unordered_set>
+
 #include "src/snapshot/roots-serializer.h"
 
 namespace v8 {
@@ -35,6 +37,9 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
   void SerializeObject(HeapObject o) override;
   bool MustBeDeferred(HeapObject object) override;
 
+#ifdef DEBUG
+  std::unordered_set<HeapObject, Object::Hasher> serialized_objects_;
+#endif
   DISALLOW_COPY_AND_ASSIGN(ReadOnlySerializer);
 };
 

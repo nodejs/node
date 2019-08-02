@@ -5,8 +5,8 @@
 #include <unordered_set>
 
 #include "src/heap/object-stats.h"
-#include "src/objects-inl.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/objects-inl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {

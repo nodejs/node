@@ -16,8 +16,9 @@ var f = function() {
     } catch (e) {
     }
   });
-}
+};
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

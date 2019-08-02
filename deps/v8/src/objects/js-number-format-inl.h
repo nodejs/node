@@ -9,8 +9,8 @@
 #ifndef V8_OBJECTS_JS_NUMBER_FORMAT_INL_H_
 #define V8_OBJECTS_JS_NUMBER_FORMAT_INL_H_
 
-#include "src/objects-inl.h"
 #include "src/objects/js-number-format.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,33 +21,49 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(JSNumberFormat, JSObject)
 
 ACCESSORS(JSNumberFormat, locale, String, kLocaleOffset)
-ACCESSORS(JSNumberFormat, icu_number_format, Managed<icu::NumberFormat>,
-          kICUNumberFormatOffset)
+ACCESSORS(JSNumberFormat, icu_number_formatter,
+          Managed<icu::number::LocalizedNumberFormatter>,
+          kIcuNumberFormatterOffset)
 ACCESSORS(JSNumberFormat, bound_format, Object, kBoundFormatOffset)
+
+// Currenct ECMA 402 spec mandate to record (Min|Max)imumFractionDigits
+// uncondictionally while the unified number proposal eventually will only
+// record either (Min|Max)imumFractionDigits or (Min|Max)imumSignaficantDigits
+// Since LocalizedNumberFormatter can only remember one set, and during
+// 2019-1-17 ECMA402 meeting that the committee decide not to take a PR to
+// address that prior to the unified number proposal, we have to add these two
+// 5 bits int into flags to remember the (Min|Max)imumFractionDigits while
+// (Min|Max)imumSignaficantDigits is present.
+// TODO(ftang) remove the following once we ship int-number-format-unified
+//  * SMI_ACCESSORS of flags
+//  * Four inline functions: (set_)?(min|max)imum_fraction_digits
+
 SMI_ACCESSORS(JSNumberFormat, flags, kFlagsOffset)
 
-inline void JSNumberFormat::set_style(Style style) {
-  DCHECK_LT(style, Style::COUNT);
+inline int JSNumberFormat::minimum_fraction_digits() const {
+  return MinimumFractionDigitsBits::decode(flags());
+}
+
+inline void JSNumberFormat::set_minimum_fraction_digits(int digits) {
+  DCHECK_GE(MinimumFractionDigitsBits::kMax, digits);
+  DCHECK_LE(0, digits);
+  DCHECK_GE(20, digits);
   int hints = flags();
-  hints = StyleBits::update(hints, style);
+  hints = MinimumFractionDigitsBits::update(hints, digits);
   set_flags(hints);
 }
 
-inline JSNumberFormat::Style JSNumberFormat::style() const {
-  return StyleBits::decode(flags());
+inline int JSNumberFormat::maximum_fraction_digits() const {
+  return MaximumFractionDigitsBits::decode(flags());
 }
 
-inline void JSNumberFormat::set_currency_display(
-    CurrencyDisplay currency_display) {
-  DCHECK_LT(currency_display, CurrencyDisplay::COUNT);
+inline void JSNumberFormat::set_maximum_fraction_digits(int digits) {
+  DCHECK_GE(MaximumFractionDigitsBits::kMax, digits);
+  DCHECK_LE(0, digits);
+  DCHECK_GE(20, digits);
   int hints = flags();
-  hints = CurrencyDisplayBits::update(hints, currency_display);
+  hints = MaximumFractionDigitsBits::update(hints, digits);
   set_flags(hints);
-}
-
-inline JSNumberFormat::CurrencyDisplay JSNumberFormat::currency_display()
-    const {
-  return CurrencyDisplayBits::decode(flags());
 }
 
 CAST_ACCESSOR(JSNumberFormat)

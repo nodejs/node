@@ -508,6 +508,9 @@ var prettyPrinted;
   }
 
   assertThrows = function assertThrows(code, type_opt, cause_opt) {
+    if (arguments.length > 1 && type_opt === undefined) {
+      failWithMessage('invalid use of assertThrows, unknown type_opt given');
+    }
     if (type_opt !== undefined && typeof type_opt !== 'function') {
       failWithMessage(
           'invalid use of assertThrows, maybe you want assertThrowsEquals');
@@ -535,6 +538,9 @@ var prettyPrinted;
   };
 
   assertThrowsAsync = function assertThrowsAsync(promise, type_opt, cause_opt) {
+    if (arguments.length > 1 && type_opt === undefined) {
+      failWithMessage('invalid use of assertThrows, unknown type_opt given');
+    }
     if (type_opt !== undefined && typeof type_opt !== 'function') {
       failWithMessage(
           'invalid use of assertThrows, maybe you want assertThrowsEquals');

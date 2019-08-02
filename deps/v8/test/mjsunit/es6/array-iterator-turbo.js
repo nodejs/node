@@ -101,6 +101,7 @@ let tests = {
       let { array, expected, array2, expected2 } = tests[key];
 
       // Warmup:
+      %PrepareFunctionForOptimization(fn);
       fn(array);
       fn(array);
       %OptimizeFunctionOnNextCall(fn);
@@ -203,6 +204,7 @@ let tests = {
       };
 
       // Warmup
+      %PrepareFunctionForOptimization(sum);
       sum(array);
       sum(array);
       %OptimizeFunctionOnNextCall(sum);

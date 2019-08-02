@@ -25,6 +25,8 @@ function f() {
   debugger;
 }
 
+%PrepareFunctionForOptimization(f);
+
 f();
 f();
 

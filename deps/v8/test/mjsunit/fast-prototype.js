@@ -43,6 +43,7 @@ function AddProps(obj) {
     obj["x" + i] = 0;
   }
 }
+%EnsureFeedbackVectorForFunction(AddProps);
 
 
 function DoProtoMagic(proto, set__proto__) {
@@ -58,9 +59,11 @@ function DoProtoMagic(proto, set__proto__) {
   }
   // Prototypes are made fast when ICs encounter them.
   function ic() { return typeof receiver.foo; }
+  %EnsureFeedbackVectorForFunction(ic);
   ic();
   ic();
 }
+%EnsureFeedbackVectorForFunction(DoProtoMagic);
 
 
 function test(use_new, add_first, set__proto__) {
@@ -86,36 +89,41 @@ function test(use_new, add_first, set__proto__) {
   }
   return proto;
 }
+%EnsureFeedbackVectorForFunction(test);
 
 // TODO(mstarzinger): This test fails easily if gc happens at the wrong time.
 gc();
 
-for (var i = 0; i < 4; i++) {
-  var set__proto__ = ((i & 1) != 0);
-  var use_new = ((i & 2) != 0);
+function test_fast_prototype() {
+  for (var i = 0; i < 4; i++) {
+    var set__proto__ = ((i & 1) != 0);
+    var use_new = ((i & 2) != 0);
 
-  test(use_new, true, set__proto__);
-  test(use_new, false, set__proto__);
-}
+    test(use_new, true, set__proto__);
+    test(use_new, false, set__proto__);
+  }
 
 
-var x = {a: 1, b: 2, c: 3};
-var o = { __proto__: x };
-assertFalse(%HasFastProperties(x));
-for (key in x) {
-  assertTrue(key == 'a');
-  break;
+  var x = {a: 1, b: 2, c: 3};
+  var o = { __proto__: x };
+  assertFalse(%HasFastProperties(x));
+  for (key in x) {
+    assertTrue(key == 'a');
+    break;
+  }
+  assertTrue(%HasFastProperties(x));
+  delete x.b;
+  for (key in x) {
+    assertTrue(key == 'a');
+    break;
+  }
+  assertTrue(%HasFastProperties(x));
+  x.d = 4;
+  assertTrue(%HasFastProperties(x));
+  for (key in x) {
+    assertTrue(key == 'a');
+    break;
+  }
 }
-assertTrue(%HasFastProperties(x));
-delete x.b;
-for (key in x) {
-  assertTrue(key == 'a');
-  break;
-}
-assertTrue(%HasFastProperties(x));
-x.d = 4;
-assertTrue(%HasFastProperties(x));
-for (key in x) {
-  assertTrue(key == 'a');
-  break;
-}
+%EnsureFeedbackVectorForFunction(test_fast_prototype);
+test_fast_prototype();

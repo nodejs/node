@@ -60,10 +60,12 @@
   'language/expressions/assignment/S11.13.1_A6*': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4709
+  'built-ins/Promise/all/resolve-element-function-name': [FAIL],
+  'built-ins/Promise/allSettled/reject-element-function-name': [FAIL],
+  'built-ins/Promise/allSettled/resolve-element-function-name': [FAIL],
+  'built-ins/Promise/executor-function-name': [FAIL],
   'built-ins/Promise/reject-function-name': [FAIL],
   'built-ins/Promise/resolve-function-name': [FAIL],
-  'built-ins/Promise/all/resolve-element-function-name': [FAIL],
-  'built-ins/Promise/executor-function-name': [FAIL],
   'built-ins/Proxy/revocable/revocation-function-name': [FAIL],
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
   'language/expressions/assignment/fn-name-lhs-member': [FAIL],
@@ -72,6 +74,10 @@
   'intl402/NumberFormat/prototype/format/format-function-name': [FAIL],
   'intl402/DateTimeFormat/prototype/format/format-function-name': [FAIL],
   'intl402/Collator/prototype/compare/compare-function-name': [FAIL],
+
+  # intl tests which require flags. https://bugs.chromium.org/p/v8/issues/detail?id=9154
+  'intl402/NumberFormat/numbering-system-options': ['--harmony-intl-add-calendar-numbering-system'],
+  'intl402/DateTimeFormat/numbering-system-calendar-options': ['--harmony-intl-add-calendar-numbering-system'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9084
   'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
@@ -146,17 +152,6 @@
   'built-ins/DataView/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
-
-  # https://crbug.com/v8/9131
-  'built-ins/RegExp/property-escapes/generated/Assigned': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/Changes_When_NFKC_Casefolded': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Symbol': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/General_Category_-_Symbol': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/General_Category_-_Unassigned': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/Grapheme_Base': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/Script_-_Common': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Han': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
@@ -519,17 +514,18 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9047
   'annexB/built-ins/Function/createdynfn-no-line-terminator-html-close-comment-body': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9048
-  'built-ins/JSON/stringify/bigint-tojson-receiver': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9050
-  'language/statements/async-generator/return-undefined-implicit-and-explicit': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9051
-  'language/statements/async-generator/yield-star-return-then-getter-ticks': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9229
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -654,6 +650,10 @@
 ['asan == True', {
   # BUG(v8:4653): Test262 tests which rely on quit() are not compatible with
   # asan's --omit-quit flag.
+  'built-ins/Promise/allSettled/reject-deferred': [FAIL],
+  'built-ins/Promise/allSettled/reject-ignored-deferred': [FAIL],
+  'built-ins/Promise/allSettled/reject-ignored-immed': [FAIL],
+  'built-ins/Promise/allSettled/reject-immed': [FAIL],
   'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
   'language/expressions/dynamic-import/always-create-new-promise': [SKIP],
   'language/expressions/dynamic-import/assign-expr-get-value-abrupt-throws': [SKIP],

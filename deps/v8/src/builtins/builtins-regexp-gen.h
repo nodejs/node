@@ -6,8 +6,8 @@
 #define V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
 
 #include "src/base/optional.h"
-#include "src/code-stub-assembler.h"
-#include "src/message-template.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/execution/message-template.h"
 
 namespace v8 {
 namespace internal {
@@ -38,10 +38,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   // Allocate a RegExpResult with the given length (the number of captures,
   // including the match itself), index (the index where the match starts),
   // and input string.
-  TNode<JSRegExpResult> AllocateRegExpResult(TNode<Context> context,
-                                             TNode<Smi> length,
-                                             TNode<Smi> index,
-                                             TNode<String> input);
+  TNode<JSRegExpResult> AllocateRegExpResult(
+      TNode<Context> context, TNode<Smi> length, TNode<Smi> index,
+      TNode<String> input, TNode<FixedArray>* elements_out = nullptr);
 
   TNode<Object> FastLoadLastIndex(TNode<JSRegExp> regexp);
   TNode<Object> SlowLoadLastIndex(TNode<Context> context, TNode<Object> regexp);
@@ -148,9 +147,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void RegExpPrototypeSplitBody(Node* const context, Node* const regexp,
                                 TNode<String> const string,
                                 TNode<Smi> const limit);
-
-  Node* ReplaceGlobalCallableFastPath(Node* context, Node* regexp, Node* string,
-                                      Node* replace_callable);
 };
 
 class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {

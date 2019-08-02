@@ -6,7 +6,10 @@
 
 #include <ostream>
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
@@ -14,14 +17,11 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/schedule.h"
-#include "src/frames.h"
-#include "src/interface-descriptors.h"
+#include "src/execution/frames.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/machine-type.h"
-#include "src/macro-assembler.h"
-#include "src/memcopy.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
+#include "src/utils/memcopy.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -275,7 +275,7 @@ TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
 
 TNode<String> CodeAssembler::StringConstant(const char* str) {
   Handle<String> internalized_string =
-      factory()->InternalizeOneByteString(OneByteVector(str));
+      factory()->InternalizeString(OneByteVector(str));
   return UncheckedCast<String>(HeapConstant(internalized_string));
 }
 
@@ -423,6 +423,10 @@ void CodeAssembler::Unreachable() {
 void CodeAssembler::Comment(std::string str) {
   if (!FLAG_code_comments) return;
   raw_assembler()->Comment(str);
+}
+
+void CodeAssembler::StaticAssert(TNode<BoolT> value) {
+  raw_assembler()->StaticAssert(value);
 }
 
 void CodeAssembler::SetSourcePosition(const char* file, int line) {
@@ -941,14 +945,14 @@ Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_UNARY_OP
 
-Node* CodeAssembler::Load(MachineType rep, Node* base,
+Node* CodeAssembler::Load(MachineType type, Node* base,
                           LoadSensitivity needs_poisoning) {
-  return raw_assembler()->Load(rep, base, needs_poisoning);
+  return raw_assembler()->Load(type, base, needs_poisoning);
 }
 
-Node* CodeAssembler::Load(MachineType rep, Node* base, Node* offset,
+Node* CodeAssembler::Load(MachineType type, Node* base, Node* offset,
                           LoadSensitivity needs_poisoning) {
-  return raw_assembler()->Load(rep, base, offset, needs_poisoning);
+  return raw_assembler()->Load(type, base, offset, needs_poisoning);
 }
 
 Node* CodeAssembler::LoadFullTagged(Node* base,
@@ -963,8 +967,13 @@ Node* CodeAssembler::LoadFullTagged(Node* base, Node* offset,
       Load(MachineType::Pointer(), base, offset, needs_poisoning));
 }
 
-Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* offset) {
-  return raw_assembler()->AtomicLoad(rep, base, offset);
+Node* CodeAssembler::AtomicLoad(MachineType type, Node* base, Node* offset) {
+  return raw_assembler()->AtomicLoad(type, base, offset);
+}
+
+Node* CodeAssembler::LoadFromObject(MachineType type, TNode<HeapObject> object,
+                                    TNode<IntPtrT> offset) {
+  return raw_assembler()->LoadFromObject(type, object, offset);
 }
 
 TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
@@ -992,13 +1001,51 @@ Node* CodeAssembler::Store(Node* base, Node* value) {
                                 kFullWriteBarrier);
 }
 
+void CodeAssembler::StoreToObject(MachineRepresentation rep,
+                                  TNode<HeapObject> object,
+                                  TNode<IntPtrT> offset, Node* value,
+                                  StoreToObjectWriteBarrier write_barrier) {
+  WriteBarrierKind write_barrier_kind;
+  switch (write_barrier) {
+    case StoreToObjectWriteBarrier::kFull:
+      write_barrier_kind = WriteBarrierKind::kFullWriteBarrier;
+      break;
+    case StoreToObjectWriteBarrier::kMap:
+      write_barrier_kind = WriteBarrierKind::kMapWriteBarrier;
+      break;
+    case StoreToObjectWriteBarrier::kNone:
+      if (CanBeTaggedPointer(rep)) {
+        write_barrier_kind = WriteBarrierKind::kAssertNoWriteBarrier;
+      } else {
+        write_barrier_kind = WriteBarrierKind::kNoWriteBarrier;
+      }
+      break;
+  }
+  raw_assembler()->StoreToObject(rep, object, offset, value,
+                                 write_barrier_kind);
+}
+
 void CodeAssembler::OptimizedStoreField(MachineRepresentation rep,
                                         TNode<HeapObject> object, int offset,
-                                        Node* value,
-                                        WriteBarrierKind write_barrier) {
+                                        Node* value) {
   raw_assembler()->OptimizedStoreField(rep, object, offset, value,
-                                       write_barrier);
+                                       WriteBarrierKind::kFullWriteBarrier);
 }
+
+void CodeAssembler::OptimizedStoreFieldAssertNoWriteBarrier(
+    MachineRepresentation rep, TNode<HeapObject> object, int offset,
+    Node* value) {
+  raw_assembler()->OptimizedStoreField(rep, object, offset, value,
+                                       WriteBarrierKind::kAssertNoWriteBarrier);
+}
+
+void CodeAssembler::OptimizedStoreFieldUnsafeNoWriteBarrier(
+    MachineRepresentation rep, TNode<HeapObject> object, int offset,
+    Node* value) {
+  raw_assembler()->OptimizedStoreField(rep, object, offset, value,
+                                       WriteBarrierKind::kNoWriteBarrier);
+}
+
 void CodeAssembler::OptimizedStoreMap(TNode<HeapObject> object,
                                       TNode<Map> map) {
   raw_assembler()->OptimizedStoreMap(object, map);
@@ -1016,11 +1063,26 @@ Node* CodeAssembler::StoreEphemeronKey(Node* base, Node* offset, Node* value) {
 
 Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                          Node* value) {
-  return raw_assembler()->Store(rep, base, value, kNoWriteBarrier);
+  return raw_assembler()->Store(
+      rep, base, value,
+      CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
 }
 
 Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                          Node* offset, Node* value) {
+  return raw_assembler()->Store(
+      rep, base, offset, value,
+      CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
+}
+
+Node* CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
+                                               Node* base, Node* value) {
+  return raw_assembler()->Store(rep, base, value, kNoWriteBarrier);
+}
+
+Node* CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
+                                               Node* base, Node* offset,
+                                               Node* value) {
   return raw_assembler()->Store(rep, base, offset, value, kNoWriteBarrier);
 }
 
@@ -1120,10 +1182,11 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
   raw_assembler()->AddNode(raw_assembler()->common()->IfSuccess(), node);
 }
 
-TNode<HeapObject> CodeAssembler::OptimizedAllocate(TNode<IntPtrT> size,
-                                                   AllocationType allocation) {
-  return UncheckedCast<HeapObject>(
-      raw_assembler()->OptimizedAllocate(size, allocation));
+TNode<HeapObject> CodeAssembler::OptimizedAllocate(
+    TNode<IntPtrT> size, AllocationType allocation,
+    AllowLargeObjects allow_large_objects) {
+  return UncheckedCast<HeapObject>(raw_assembler()->OptimizedAllocate(
+      size, allocation, allow_large_objects));
 }
 
 void CodeAssembler::HandleException(Node* node) {
@@ -1186,7 +1249,8 @@ TNode<Object> CodeAssembler::CallRuntimeWithCEntryImpl(
   int argc = static_cast<int>(args.size());
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
-      CallDescriptor::kNoFlags);
+      Runtime::MayAllocate(function) ? CallDescriptor::kNoFlags
+                                     : CallDescriptor::kNoAllocate);
 
   Node* ref = ExternalConstant(ExternalReference::Create(function));
   Node* arity = Int32Constant(argc);
@@ -1888,19 +1952,21 @@ Address CheckObjectType(Address raw_value, Address raw_type,
   Smi type(raw_type);
   String location = String::cast(Object(raw_location));
   const char* expected;
-  switch (static_cast<ObjectType>(type->value())) {
-#define TYPE_CASE(Name)                                  \
-  case ObjectType::k##Name:                              \
-    if (value->Is##Name()) return Smi::FromInt(0).ptr(); \
-    expected = #Name;                                    \
+  switch (static_cast<ObjectType>(type.value())) {
+#define TYPE_CASE(Name)                                 \
+  case ObjectType::k##Name:                             \
+    if (value.Is##Name()) return Smi::FromInt(0).ptr(); \
+    expected = #Name;                                   \
     break;
-#define TYPE_STRUCT_CASE(NAME, Name, name)               \
-  case ObjectType::k##Name:                              \
-    if (value->Is##Name()) return Smi::FromInt(0).ptr(); \
-    expected = #Name;                                    \
+#define TYPE_STRUCT_CASE(NAME, Name, name)              \
+  case ObjectType::k##Name:                             \
+    if (value.Is##Name()) return Smi::FromInt(0).ptr(); \
+    expected = #Name;                                   \
     break;
 
     TYPE_CASE(Object)
+    TYPE_CASE(Smi)
+    TYPE_CASE(HeapObject)
     OBJECT_TYPE_LIST(TYPE_CASE)
     HEAP_OBJECT_TYPE_LIST(TYPE_CASE)
     STRUCT_LIST(TYPE_STRUCT_CASE)
@@ -1908,11 +1974,11 @@ Address CheckObjectType(Address raw_value, Address raw_type,
 #undef TYPE_STRUCT_CASE
   }
   std::stringstream value_description;
-  value->Print(value_description);
-  V8_Fatal(__FILE__, __LINE__,
-           "Type cast failed in %s\n"
-           "  Expected %s but found %s",
-           location->ToAsciiArray(), expected, value_description.str().c_str());
+  value.Print(value_description);
+  FATAL(
+      "Type cast failed in %s\n"
+      "  Expected %s but found %s",
+      location.ToAsciiArray(), expected, value_description.str().c_str());
 #else
   UNREACHABLE();
 #endif

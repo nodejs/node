@@ -31,18 +31,18 @@
 #include <cmath>
 #include <limits>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/arm64/assembler-arm64-inl.h"
-#include "src/arm64/decoder-arm64-inl.h"
-#include "src/arm64/disasm-arm64.h"
-#include "src/arm64/macro-assembler-arm64-inl.h"
-#include "src/arm64/simulator-arm64.h"
-#include "src/arm64/utils-arm64.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/codegen/arm64/assembler-arm64-inl.h"
+#include "src/codegen/arm64/decoder-arm64-inl.h"
+#include "src/codegen/arm64/macro-assembler-arm64-inl.h"
+#include "src/codegen/arm64/utils-arm64.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/diagnostics/arm64/disasm-arm64.h"
+#include "src/execution/arm64/simulator-arm64.h"
 #include "src/heap/factory.h"
-#include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
 #include "test/common/assembler-tester.h"
@@ -215,8 +215,8 @@ static void InitializeVM() {
 #define CHECK_EQUAL_NZCV(expected)                                            \
   CHECK(EqualNzcv(expected, core.flags_nzcv()))
 
-#define CHECK_EQUAL_REGISTERS(expected)                                       \
-  CHECK(EqualRegisters(&expected, &core))
+#define CHECK_EQUAL_REGISTERS(expected) \
+  CHECK(EqualV8Registers(&expected, &core))
 
 #define CHECK_EQUAL_32(expected, result)                                      \
   CHECK(Equal32(static_cast<uint32_t>(expected), &core, result))
@@ -6448,7 +6448,7 @@ namespace {
 void LoadLiteral(MacroAssembler* masm, Register reg, uint64_t imm) {
   // Since we do not allow non-relocatable entries in the literal pool, we need
   // to fake a relocation mode that is not NONE here.
-  masm->Ldr(reg, Immediate(imm, RelocInfo::EMBEDDED_OBJECT));
+  masm->Ldr(reg, Immediate(imm, RelocInfo::FULL_EMBEDDED_OBJECT));
 }
 
 }  // namespace
@@ -6984,10 +6984,6 @@ TEST(claim_drop_zero) {
   __ Drop(xzr, 0);
   __ Claim(x7, 0);
   __ Drop(x7, 0);
-  __ ClaimBySMI(xzr, 8);
-  __ DropBySMI(xzr, 8);
-  __ ClaimBySMI(xzr, 0);
-  __ DropBySMI(xzr, 0);
   CHECK_EQ(0u, __ SizeOfCodeGeneratedSince(&start));
 
   END();
@@ -12307,160 +12303,6 @@ TEST(push_pop) {
   CHECK_EQUAL_32(0x33333333U, w29);
 }
 
-TEST(push_queued) {
-  INIT_V8();
-  SETUP();
-
-  START();
-
-  MacroAssembler::PushPopQueue queue(&masm);
-
-  // Queue up registers.
-  queue.Queue(x0);
-  queue.Queue(x1);
-  queue.Queue(x2);
-  queue.Queue(x3);
-
-  queue.Queue(w4);
-  queue.Queue(w5);
-  queue.Queue(w6);
-  queue.Queue(w7);
-
-  queue.Queue(d0);
-  queue.Queue(d1);
-
-  queue.Queue(s2);
-  queue.Queue(s3);
-  queue.Queue(s4);
-  queue.Queue(s5);
-
-  __ Mov(x0, 0x1234000000000000);
-  __ Mov(x1, 0x1234000100010001);
-  __ Mov(x2, 0x1234000200020002);
-  __ Mov(x3, 0x1234000300030003);
-  __ Mov(w4, 0x12340004);
-  __ Mov(w5, 0x12340005);
-  __ Mov(w6, 0x12340006);
-  __ Mov(w7, 0x12340007);
-  __ Fmov(d0, 123400.0);
-  __ Fmov(d1, 123401.0);
-  __ Fmov(s2, 123402.0);
-  __ Fmov(s3, 123403.0);
-  __ Fmov(s4, 123404.0);
-  __ Fmov(s5, 123405.0);
-
-  // Actually push them.
-  queue.PushQueued();
-
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 8));
-  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 6));
-
-  // Pop them conventionally.
-  __ Pop(s5, s4, s3, s2);
-  __ Pop(d1, d0);
-  __ Pop(w7, w6, w5, w4);
-  __ Pop(x3, x2, x1, x0);
-
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x1234000000000000, x0);
-  CHECK_EQUAL_64(0x1234000100010001, x1);
-  CHECK_EQUAL_64(0x1234000200020002, x2);
-  CHECK_EQUAL_64(0x1234000300030003, x3);
-
-  CHECK_EQUAL_64(0x0000000012340004, x4);
-  CHECK_EQUAL_64(0x0000000012340005, x5);
-  CHECK_EQUAL_64(0x0000000012340006, x6);
-  CHECK_EQUAL_64(0x0000000012340007, x7);
-
-  CHECK_EQUAL_FP64(123400.0, d0);
-  CHECK_EQUAL_FP64(123401.0, d1);
-
-  CHECK_EQUAL_FP32(123402.0, s2);
-  CHECK_EQUAL_FP32(123403.0, s3);
-  CHECK_EQUAL_FP32(123404.0, s4);
-  CHECK_EQUAL_FP32(123405.0, s5);
-}
-
-TEST(pop_queued) {
-  INIT_V8();
-  SETUP();
-
-  START();
-
-  MacroAssembler::PushPopQueue queue(&masm);
-
-  __ Mov(x0, 0x1234000000000000);
-  __ Mov(x1, 0x1234000100010001);
-  __ Mov(x2, 0x1234000200020002);
-  __ Mov(x3, 0x1234000300030003);
-  __ Mov(w4, 0x12340004);
-  __ Mov(w5, 0x12340005);
-  __ Mov(w6, 0x12340006);
-  __ Mov(w7, 0x12340007);
-  __ Fmov(d0, 123400.0);
-  __ Fmov(d1, 123401.0);
-  __ Fmov(s2, 123402.0);
-  __ Fmov(s3, 123403.0);
-  __ Fmov(s4, 123404.0);
-  __ Fmov(s5, 123405.0);
-
-  // Push registers conventionally.
-  __ Push(x0, x1, x2, x3);
-  __ Push(w4, w5, w6, w7);
-  __ Push(d0, d1);
-  __ Push(s2, s3, s4, s5);
-
-  // Queue up a pop.
-  queue.Queue(s5);
-  queue.Queue(s4);
-  queue.Queue(s3);
-  queue.Queue(s2);
-
-  queue.Queue(d1);
-  queue.Queue(d0);
-
-  queue.Queue(w7);
-  queue.Queue(w6);
-  queue.Queue(w5);
-  queue.Queue(w4);
-
-  queue.Queue(x3);
-  queue.Queue(x2);
-  queue.Queue(x1);
-  queue.Queue(x0);
-
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 8));
-  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 6));
-
-  // Actually pop them.
-  queue.PopQueued();
-
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x1234000000000000, x0);
-  CHECK_EQUAL_64(0x1234000100010001, x1);
-  CHECK_EQUAL_64(0x1234000200020002, x2);
-  CHECK_EQUAL_64(0x1234000300030003, x3);
-
-  CHECK_EQUAL_64(0x0000000012340004, x4);
-  CHECK_EQUAL_64(0x0000000012340005, x5);
-  CHECK_EQUAL_64(0x0000000012340006, x6);
-  CHECK_EQUAL_64(0x0000000012340007, x7);
-
-  CHECK_EQUAL_FP64(123400.0, d0);
-  CHECK_EQUAL_FP64(123401.0, d1);
-
-  CHECK_EQUAL_FP32(123402.0, s2);
-  CHECK_EQUAL_FP32(123403.0, s3);
-  CHECK_EQUAL_FP32(123404.0, s4);
-  CHECK_EQUAL_FP32(123405.0, s5);
-}
-
 TEST(copy_slots_down) {
   INIT_V8();
   SETUP();
@@ -12757,146 +12599,6 @@ TEST(copy_noop) {
   CHECK_EQUAL_64(fives, x14);
   CHECK_EQUAL_64(fives, x15);
   CHECK_EQUAL_64(0, x16);
-}
-
-TEST(jump_both_smi) {
-  INIT_V8();
-  SETUP();
-
-  Label cond_pass_00, cond_pass_01, cond_pass_10, cond_pass_11;
-  Label cond_fail_00, cond_fail_01, cond_fail_10, cond_fail_11;
-  Label return1, return2, return3, done;
-
-  START();
-
-  __ Mov(x0, 0x5555555500000001UL);  // A pointer.
-  __ Mov(x1, 0xAAAAAAAA00000001UL);  // A pointer.
-  __ Mov(x2, 0x1234567800000000UL);  // A smi.
-  __ Mov(x3, 0x8765432100000000UL);  // A smi.
-  __ Mov(x4, 0xDEAD);
-  __ Mov(x5, 0xDEAD);
-  __ Mov(x6, 0xDEAD);
-  __ Mov(x7, 0xDEAD);
-
-  __ JumpIfBothSmi(x0, x1, &cond_pass_00, &cond_fail_00);
-  __ Bind(&return1);
-  __ JumpIfBothSmi(x0, x2, &cond_pass_01, &cond_fail_01);
-  __ Bind(&return2);
-  __ JumpIfBothSmi(x2, x1, &cond_pass_10, &cond_fail_10);
-  __ Bind(&return3);
-  __ JumpIfBothSmi(x2, x3, &cond_pass_11, &cond_fail_11);
-
-  __ Bind(&cond_fail_00);
-  __ Mov(x4, 0);
-  __ B(&return1);
-  __ Bind(&cond_pass_00);
-  __ Mov(x4, 1);
-  __ B(&return1);
-
-  __ Bind(&cond_fail_01);
-  __ Mov(x5, 0);
-  __ B(&return2);
-  __ Bind(&cond_pass_01);
-  __ Mov(x5, 1);
-  __ B(&return2);
-
-  __ Bind(&cond_fail_10);
-  __ Mov(x6, 0);
-  __ B(&return3);
-  __ Bind(&cond_pass_10);
-  __ Mov(x6, 1);
-  __ B(&return3);
-
-  __ Bind(&cond_fail_11);
-  __ Mov(x7, 0);
-  __ B(&done);
-  __ Bind(&cond_pass_11);
-  __ Mov(x7, 1);
-
-  __ Bind(&done);
-
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x5555555500000001UL, x0);
-  CHECK_EQUAL_64(0xAAAAAAAA00000001UL, x1);
-  CHECK_EQUAL_64(0x1234567800000000UL, x2);
-  CHECK_EQUAL_64(0x8765432100000000UL, x3);
-  CHECK_EQUAL_64(0, x4);
-  CHECK_EQUAL_64(0, x5);
-  CHECK_EQUAL_64(0, x6);
-  CHECK_EQUAL_64(1, x7);
-}
-
-TEST(jump_either_smi) {
-  INIT_V8();
-  SETUP();
-
-  Label cond_pass_00, cond_pass_01, cond_pass_10, cond_pass_11;
-  Label cond_fail_00, cond_fail_01, cond_fail_10, cond_fail_11;
-  Label return1, return2, return3, done;
-
-  START();
-
-  __ Mov(x0, 0x5555555500000001UL);  // A pointer.
-  __ Mov(x1, 0xAAAAAAAA00000001UL);  // A pointer.
-  __ Mov(x2, 0x1234567800000000UL);  // A smi.
-  __ Mov(x3, 0x8765432100000000UL);  // A smi.
-  __ Mov(x4, 0xDEAD);
-  __ Mov(x5, 0xDEAD);
-  __ Mov(x6, 0xDEAD);
-  __ Mov(x7, 0xDEAD);
-
-  __ JumpIfEitherSmi(x0, x1, &cond_pass_00, &cond_fail_00);
-  __ Bind(&return1);
-  __ JumpIfEitherSmi(x0, x2, &cond_pass_01, &cond_fail_01);
-  __ Bind(&return2);
-  __ JumpIfEitherSmi(x2, x1, &cond_pass_10, &cond_fail_10);
-  __ Bind(&return3);
-  __ JumpIfEitherSmi(x2, x3, &cond_pass_11, &cond_fail_11);
-
-  __ Bind(&cond_fail_00);
-  __ Mov(x4, 0);
-  __ B(&return1);
-  __ Bind(&cond_pass_00);
-  __ Mov(x4, 1);
-  __ B(&return1);
-
-  __ Bind(&cond_fail_01);
-  __ Mov(x5, 0);
-  __ B(&return2);
-  __ Bind(&cond_pass_01);
-  __ Mov(x5, 1);
-  __ B(&return2);
-
-  __ Bind(&cond_fail_10);
-  __ Mov(x6, 0);
-  __ B(&return3);
-  __ Bind(&cond_pass_10);
-  __ Mov(x6, 1);
-  __ B(&return3);
-
-  __ Bind(&cond_fail_11);
-  __ Mov(x7, 0);
-  __ B(&done);
-  __ Bind(&cond_pass_11);
-  __ Mov(x7, 1);
-
-  __ Bind(&done);
-
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x5555555500000001UL, x0);
-  CHECK_EQUAL_64(0xAAAAAAAA00000001UL, x1);
-  CHECK_EQUAL_64(0x1234567800000000UL, x2);
-  CHECK_EQUAL_64(0x8765432100000000UL, x3);
-  CHECK_EQUAL_64(0, x4);
-  CHECK_EQUAL_64(1, x5);
-  CHECK_EQUAL_64(1, x6);
-  CHECK_EQUAL_64(1, x7);
 }
 
 TEST(noreg) {
@@ -14722,8 +14424,9 @@ TEST(pool_size) {
   HandleScope handle_scope(isolate);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, masm.CodeObject());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB)
+                          .set_self_reference(masm.CodeObject())
+                          .Build();
 
   unsigned pool_count = 0;
   int pool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL) |

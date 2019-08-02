@@ -11,14 +11,13 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
-#include "src/allocation.h"
 #include "src/base/macros.h"
+#include "src/base/type-traits.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
-#include "src/globals.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/source-position.h"
 #include "src/heap/heap.h"
-#include "src/machine-type.h"
-#include "src/objects.h"
 #include "src/objects/arguments.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/heap-number.h"
@@ -27,10 +26,10 @@
 #include "src/objects/js-proxy.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
-#include "src/source-position.h"
-#include "src/type-traits.h"
+#include "src/utils/allocation.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -67,14 +66,12 @@ class JSFinalizationGroupCleanupIterator;
 class JSWeakMap;
 class JSWeakRef;
 class JSWeakSet;
-class MaybeObject;
 class PromiseCapability;
 class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
 class WasmDebugInfo;
-class WeakCell;
 class Zone;
 
 template <typename T>
@@ -281,9 +278,12 @@ class int31_t {
 #define ENUM_ELEMENT(Name) k##Name,
 #define ENUM_STRUCT_ELEMENT(NAME, Name, name) k##Name,
 enum class ObjectType {
-  kObject,
-  OBJECT_TYPE_LIST(ENUM_ELEMENT) HEAP_OBJECT_TYPE_LIST(ENUM_ELEMENT)
-      STRUCT_LIST(ENUM_STRUCT_ELEMENT)
+  ENUM_ELEMENT(Object)                 //
+  ENUM_ELEMENT(Smi)                    //
+  ENUM_ELEMENT(HeapObject)             //
+  OBJECT_TYPE_LIST(ENUM_ELEMENT)       //
+  HEAP_OBJECT_TYPE_LIST(ENUM_ELEMENT)  //
+  STRUCT_LIST(ENUM_STRUCT_ELEMENT)     //
 };
 #undef ENUM_ELEMENT
 #undef ENUM_STRUCT_ELEMENT
@@ -297,6 +297,8 @@ inline bool NeedsBoundsCheck(CheckBounds check_bounds) {
       return DEBUG_BOOL;
   }
 }
+
+enum class StoreToObjectWriteBarrier { kNone, kMap, kFull };
 
 class AccessCheckNeeded;
 class BigIntWrapper;
@@ -322,10 +324,12 @@ class StringWrapper;
 class SymbolWrapper;
 class Undetectable;
 class UniqueName;
+class WasmCapiFunctionData;
 class WasmExceptionObject;
 class WasmExceptionTag;
 class WasmExportedFunctionData;
 class WasmGlobalObject;
+class WasmJSFunctionData;
 class WasmMemoryObject;
 class WasmModuleObject;
 class WasmTableObject;
@@ -349,6 +353,8 @@ struct ObjectTypeOf {};
     static const ObjectType value = ObjectType::k##Name; \
   };
 OBJECT_TYPE_CASE(Object)
+OBJECT_TYPE_CASE(Smi)
+OBJECT_TYPE_CASE(HeapObject)
 OBJECT_TYPE_LIST(OBJECT_TYPE_CASE)
 HEAP_OBJECT_ORDINARY_TYPE_LIST(OBJECT_TYPE_CASE)
 STRUCT_LIST(OBJECT_TYPE_STRUCT_CASE)
@@ -470,12 +476,12 @@ struct types_have_common_values<MaybeObject, T> {
 template <class T>
 class TNode {
  public:
-  static_assert(is_valid_type_tag<T>::value, "invalid type tag");
-
   template <class U,
             typename std::enable_if<is_subtype<U, T>::value, int>::type = 0>
-  TNode(const TNode<U>& other) : node_(other) {}
-  TNode() : node_(nullptr) {}
+  TNode(const TNode<U>& other) : node_(other) {
+    LazyTemplateChecks();
+  }
+  TNode() : TNode(nullptr) {}
 
   TNode operator=(TNode other) {
     DCHECK_NOT_NULL(other.node_);
@@ -488,9 +494,14 @@ class TNode {
   static TNode UncheckedCast(compiler::Node* node) { return TNode(node); }
 
  protected:
-  explicit TNode(compiler::Node* node) : node_(node) {}
+  explicit TNode(compiler::Node* node) : node_(node) { LazyTemplateChecks(); }
 
  private:
+  // These checks shouldn't be checked before TNode is actually used.
+  void LazyTemplateChecks() {
+    static_assert(is_valid_type_tag<T>::value, "invalid type tag");
+  }
+
   compiler::Node* node_;
 };
 
@@ -795,6 +806,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<UintPtrT> UintPtrConstant(uintptr_t value) {
     return Unsigned(IntPtrConstant(bit_cast<intptr_t>(value)));
   }
+  TNode<RawPtrT> PointerConstant(void* value) {
+    return ReinterpretCast<RawPtrT>(IntPtrConstant(bit_cast<intptr_t>(value)));
+  }
   TNode<Number> NumberConstant(double value);
   TNode<Smi> SmiConstant(Smi value);
   TNode<Smi> SmiConstant(int value);
@@ -874,6 +888,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     Comment(s.str());
   }
 
+  void StaticAssert(TNode<BoolT> value);
+
   void SetSourcePosition(const char* file, int line);
 
   void Bind(Label* label);
@@ -933,17 +949,17 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<WordT> WordPoisonOnSpeculation(SloppyTNode<WordT> value);
 
   // Load raw memory location.
-  Node* Load(MachineType rep, Node* base,
+  Node* Load(MachineType type, Node* base,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
   template <class Type>
-  TNode<Type> Load(MachineType rep, TNode<RawPtr<Type>> base) {
+  TNode<Type> Load(MachineType type, TNode<RawPtr<Type>> base) {
     DCHECK(
-        IsSubtype(rep.representation(), MachineRepresentationOf<Type>::value));
-    return UncheckedCast<Type>(Load(rep, static_cast<Node*>(base)));
+        IsSubtype(type.representation(), MachineRepresentationOf<Type>::value));
+    return UncheckedCast<Type>(Load(type, static_cast<Node*>(base)));
   }
-  Node* Load(MachineType rep, Node* base, Node* offset,
+  Node* Load(MachineType type, Node* base, Node* offset,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
-  Node* AtomicLoad(MachineType rep, Node* base, Node* offset);
+  Node* AtomicLoad(MachineType type, Node* base, Node* offset);
   // Load uncompressed tagged value from (most likely off JS heap) memory
   // location.
   Node* LoadFullTagged(
@@ -951,6 +967,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* LoadFullTagged(
       Node* base, Node* offset,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+
+  Node* LoadFromObject(MachineType type, TNode<HeapObject> object,
+                       TNode<IntPtrT> offset);
 
   // Load a value from the root array.
   TNode<Object> LoadRoot(RootIndex root_index);
@@ -962,6 +981,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);
+  Node* UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
+                                  Node* value);
+  Node* UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
+                                  Node* offset, Node* value);
+
   // Stores uncompressed tagged value to (most likely off JS heap) memory
   // location without write barrier.
   Node* StoreFullTaggedNoWriteBarrier(Node* base, Node* tagged_value);
@@ -970,10 +994,19 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Optimized memory operations that map to Turbofan simplified nodes.
   TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
-                                      AllocationType allocation);
+                                      AllocationType allocation,
+                                      AllowLargeObjects allow_large_objects);
+  void StoreToObject(MachineRepresentation rep, TNode<HeapObject> object,
+                     TNode<IntPtrT> offset, Node* value,
+                     StoreToObjectWriteBarrier write_barrier);
   void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
-                           int offset, Node* value,
-                           WriteBarrierKind write_barrier);
+                           int offset, Node* value);
+  void OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation rep,
+                                               TNode<HeapObject> object,
+                                               int offset, Node* value);
+  void OptimizedStoreFieldUnsafeNoWriteBarrier(MachineRepresentation rep,
+                                               TNode<HeapObject> object,
+                                               int offset, Node* value);
   void OptimizedStoreMap(TNode<HeapObject> object, TNode<Map>);
   // {value_high} is used for 64-bit stores on 32-bit platforms, must be
   // nullptr in other cases.

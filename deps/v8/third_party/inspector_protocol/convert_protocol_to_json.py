@@ -4,10 +4,8 @@
 # found in the LICENSE file.
 
 import argparse
-import collections
 import json
 import os.path
-import re
 import sys
 
 import pdl

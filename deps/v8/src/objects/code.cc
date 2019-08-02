@@ -6,24 +6,24 @@
 
 #include "src/objects/code.h"
 
-#include "src/assembler-inl.h"
-#include "src/cpu-features.h"
-#include "src/deoptimizer.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/cpu-features.h"
+#include "src/codegen/reloc-info.h"
+#include "src/codegen/safepoint-table.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/allocation-site-inl.h"
-#include "src/ostreams.h"
-#include "src/reloc-info.h"
-#include "src/roots-inl.h"
-#include "src/safepoint-table.h"
-#include "src/snapshot/embedded-data.h"
+#include "src/roots/roots-inl.h"
+#include "src/snapshot/embedded/embedded-data.h"
+#include "src/utils/ostreams.h"
 
 #ifdef ENABLE_DISASSEMBLER
-#include "src/code-comments.h"
-#include "src/disasm.h"
-#include "src/disassembler.h"
-#include "src/eh-frame.h"
+#include "src/codegen/code-comments.h"
+#include "src/diagnostics/disasm.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/diagnostics/eh-frame.h"
 #endif
 
 namespace v8 {
@@ -63,12 +63,10 @@ int Code::ExecutableInstructionSize() const { return safepoint_table_offset(); }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (mode == RelocInfo::EMBEDDED_OBJECT) {
-      it.rinfo()->set_target_object(heap, undefined, SKIP_WRITE_BARRIER);
-    }
+    DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
+    it.rinfo()->set_target_object(heap, undefined, SKIP_WRITE_BARRIER);
   }
   set_embedded_objects_cleared(true);
 }
@@ -107,7 +105,7 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
   for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (mode == RelocInfo::EMBEDDED_OBJECT) {
+    if (RelocInfo::IsEmbeddedObjectMode(mode)) {
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       it.rinfo()->set_target_object(heap, *p, UPDATE_WRITE_BARRIER,
                                     SKIP_ICACHE_FLUSH);
@@ -116,7 +114,7 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
       // code object.
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       Code code = Code::cast(*p);
-      it.rinfo()->set_target_address(code->raw_instruction_start(),
+      it.rinfo()->set_target_address(code.raw_instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsRuntimeEntry(mode)) {
       Address p = it.rinfo()->target_runtime_entry(origin);
@@ -194,12 +192,12 @@ void AbstractCode::SetStackFrameCache(Handle<AbstractCode> abstract_code,
 namespace {
 template <typename Code>
 void DropStackFrameCacheCommon(Code code) {
-  i::Object maybe_table = code->source_position_table();
-  if (maybe_table->IsUndefined() || maybe_table->IsByteArray()) return;
-  DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
-  code->set_source_position_table(
+  i::Object maybe_table = code.source_position_table();
+  if (maybe_table.IsUndefined() || maybe_table.IsByteArray()) return;
+  DCHECK(maybe_table.IsSourcePositionTableWithFrameCache());
+  code.set_source_position_table(
       i::SourcePositionTableWithFrameCache::cast(maybe_table)
-          ->source_position_table());
+          .source_position_table());
 }
 }  // namespace
 
@@ -213,7 +211,7 @@ void AbstractCode::DropStackFrameCache() {
 
 int AbstractCode::SourcePosition(int offset) {
   Object maybe_table = source_position_table();
-  if (maybe_table->IsException()) return kNoSourcePosition;
+  if (maybe_table.IsException()) return kNoSourcePosition;
 
   ByteArray source_position_table = ByteArray::cast(maybe_table);
   int position = 0;
@@ -259,10 +257,10 @@ bool Code::CanDeoptAt(Address pc) {
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(deoptimization_data());
   Address code_start_address = InstructionStart();
-  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
-    if (deopt_data->Pc(i)->value() == -1) continue;
-    Address address = code_start_address + deopt_data->Pc(i)->value();
-    if (address == pc && deopt_data->BytecodeOffset(i) != BailoutId::None()) {
+  for (int i = 0; i < deopt_data.DeoptCount(); i++) {
+    if (deopt_data.Pc(i).value() == -1) continue;
+    Address address = code_start_address + deopt_data.Pc(i).value();
+    if (address == pc && deopt_data.BytecodeOffset(i) != BailoutId::None()) {
       return true;
     }
   }
@@ -302,7 +300,8 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
   STATIC_ASSERT(mode_mask ==
                 (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
-                 RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                 RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
+                 RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
@@ -324,7 +323,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
       if (InstructionStream::PcIsOffHeap(isolate, target_address)) continue;
 
       Code target = Code::GetCodeFromTargetAddress(target_address);
-      CHECK(target->IsCode());
+      CHECK(target.IsCode());
       if (Builtins::IsIsolateIndependentBuiltin(target)) continue;
     }
 #endif
@@ -340,12 +339,12 @@ bool Code::Inlines(SharedFunctionInfo sfi) {
   DisallowHeapAllocation no_gc;
   DeoptimizationData const data =
       DeoptimizationData::cast(deoptimization_data());
-  if (data->length() == 0) return false;
-  if (data->SharedFunctionInfo() == sfi) return true;
-  FixedArray const literals = data->LiteralArray();
-  int const inlined_count = data->InlinedFunctionCount()->value();
+  if (data.length() == 0) return false;
+  if (data.SharedFunctionInfo() == sfi) return true;
+  FixedArray const literals = data.LiteralArray();
+  int const inlined_count = data.InlinedFunctionCount().value();
   for (int i = 0; i < inlined_count; ++i) {
-    if (SharedFunctionInfo::cast(literals->get(i)) == sfi) return true;
+    if (SharedFunctionInfo::cast(literals.get(i)) == sfi) return true;
   }
   return false;
 }
@@ -353,7 +352,7 @@ bool Code::Inlines(SharedFunctionInfo sfi) {
 Code::OptimizedCodeIterator::OptimizedCodeIterator(Isolate* isolate) {
   isolate_ = isolate;
   Object list = isolate->heap()->native_contexts_list();
-  next_context_ = list->IsUndefined(isolate_) ? Context() : Context::cast(list);
+  next_context_ = list.IsUndefined(isolate_) ? Context() : Context::cast(list);
 }
 
 Code Code::OptimizedCodeIterator::Next() {
@@ -361,21 +360,21 @@ Code Code::OptimizedCodeIterator::Next() {
     Object next;
     if (!current_code_.is_null()) {
       // Get next code in the linked list.
-      next = current_code_->next_code_link();
+      next = current_code_.next_code_link();
     } else if (!next_context_.is_null()) {
       // Linked list of code exhausted. Get list of next context.
-      next = next_context_->OptimizedCodeListHead();
-      Object next_context = next_context_->next_context_link();
-      next_context_ = next_context->IsUndefined(isolate_)
+      next = next_context_.OptimizedCodeListHead();
+      Object next_context = next_context_.next_context_link();
+      next_context_ = next_context.IsUndefined(isolate_)
                           ? Context()
                           : Context::cast(next_context);
     } else {
       // Exhausted contexts.
       return Code();
     }
-    current_code_ = next->IsUndefined(isolate_) ? Code() : Code::cast(next);
+    current_code_ = next.IsUndefined(isolate_) ? Code() : Code::cast(next);
   } while (current_code_.is_null());
-  DCHECK_EQ(Code::OPTIMIZED_FUNCTION, current_code_->kind());
+  DCHECK_EQ(Code::OPTIMIZED_FUNCTION, current_code_.kind());
   return current_code_;
 }
 
@@ -395,7 +394,7 @@ SharedFunctionInfo DeoptimizationData::GetInlinedFunction(int index) {
   if (index == -1) {
     return SharedFunctionInfo::cast(SharedFunctionInfo());
   } else {
-    return SharedFunctionInfo::cast(LiteralArray()->get(index));
+    return SharedFunctionInfo::cast(LiteralArray().get(index));
   }
 }
 
@@ -428,10 +427,10 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
   }
 
   disasm::NameConverter converter;
-  int const inlined_function_count = InlinedFunctionCount()->value();
+  int const inlined_function_count = InlinedFunctionCount().value();
   os << "Inlined functions (count = " << inlined_function_count << ")\n";
   for (int id = 0; id < inlined_function_count; ++id) {
-    Object info = LiteralArray()->get(id);
+    Object info = LiteralArray().get(id);
     os << " " << Brief(SharedFunctionInfo::cast(info)) << "\n";
   }
   os << "\n";
@@ -445,7 +444,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
   for (int i = 0; i < deopt_count; i++) {
     os << std::setw(6) << i << "  " << std::setw(15)
        << BytecodeOffset(i).ToInt() << "  " << std::setw(4);
-    print_pc(os, Pc(i)->value());
+    print_pc(os, Pc(i).value());
     os << std::setw(2);
 
     if (!FLAG_print_code_verbose) {
@@ -454,7 +453,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
     }
 
     // Print details of the frame translation.
-    int translation_index = TranslationIndex(i)->value();
+    int translation_index = TranslationIndex(i).value();
     TranslationIterator iterator(TranslationByteArray(), translation_index);
     Translation::Opcode opcode =
         static_cast<Translation::Opcode>(iterator.Next());
@@ -483,9 +482,9 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           unsigned height = iterator.Next();
           int return_value_offset = iterator.Next();
           int return_value_count = iterator.Next();
-          Object shared_info = LiteralArray()->get(shared_info_id);
+          Object shared_info = LiteralArray().get(shared_info_id);
           os << "{bytecode_offset=" << bytecode_offset << ", function="
-             << Brief(SharedFunctionInfo::cast(shared_info)->DebugName())
+             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
              << ", height=" << height << ", retval=@" << return_value_offset
              << "(#" << return_value_count << ")}";
           break;
@@ -494,10 +493,10 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
         case Translation::CONSTRUCT_STUB_FRAME: {
           int bailout_id = iterator.Next();
           int shared_info_id = iterator.Next();
-          Object shared_info = LiteralArray()->get(shared_info_id);
+          Object shared_info = LiteralArray().get(shared_info_id);
           unsigned height = iterator.Next();
           os << "{bailout_id=" << bailout_id << ", function="
-             << Brief(SharedFunctionInfo::cast(shared_info)->DebugName())
+             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
              << ", height=" << height << "}";
           break;
         }
@@ -507,20 +506,20 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
         case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME: {
           int bailout_id = iterator.Next();
           int shared_info_id = iterator.Next();
-          Object shared_info = LiteralArray()->get(shared_info_id);
+          Object shared_info = LiteralArray().get(shared_info_id);
           unsigned height = iterator.Next();
           os << "{bailout_id=" << bailout_id << ", function="
-             << Brief(SharedFunctionInfo::cast(shared_info)->DebugName())
+             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
              << ", height=" << height << "}";
           break;
         }
 
         case Translation::ARGUMENTS_ADAPTOR_FRAME: {
           int shared_info_id = iterator.Next();
-          Object shared_info = LiteralArray()->get(shared_info_id);
+          Object shared_info = LiteralArray().get(shared_info_id);
           unsigned height = iterator.Next();
           os << "{function="
-             << Brief(SharedFunctionInfo::cast(shared_info)->DebugName())
+             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
              << ", height=" << height << "}";
           break;
         }
@@ -610,7 +609,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
 
         case Translation::LITERAL: {
           int literal_index = iterator.Next();
-          Object literal_value = LiteralArray()->get(literal_index);
+          Object literal_value = LiteralArray().get(literal_index);
           os << "{literal_id=" << literal_index << " (" << Brief(literal_value)
              << ")}";
           break;
@@ -705,7 +704,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
                                                   constant_pool_offset());
       for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
-        os << static_cast<const void*>(ptr) << "  " << buf.start() << "\n";
+        os << static_cast<const void*>(ptr) << "  " << buf.begin() << "\n";
       }
     }
   }
@@ -744,7 +743,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   if (kind() == OPTIMIZED_FUNCTION) {
     DeoptimizationData data =
         DeoptimizationData::cast(this->deoptimization_data());
-    data->DeoptimizationDataPrint(os);
+    data.DeoptimizationDataPrint(os);
   }
   os << "\n";
 
@@ -854,16 +853,16 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     iterator.Advance();
   }
 
-  os << "Constant pool (size = " << constant_pool()->length() << ")\n";
+  os << "Constant pool (size = " << constant_pool().length() << ")\n";
 #ifdef OBJECT_PRINT
-  if (constant_pool()->length() > 0) {
-    constant_pool()->Print();
+  if (constant_pool().length() > 0) {
+    constant_pool().Print();
   }
 #endif
 
-  os << "Handler Table (size = " << handler_table()->length() << ")\n";
+  os << "Handler Table (size = " << handler_table().length() << ")\n";
 #ifdef ENABLE_DISASSEMBLER
-  if (handler_table()->length() > 0) {
+  if (handler_table().length() > 0) {
     HandlerTable table(*this);
     table.HandlerTableRangePrint(os);
   }
@@ -872,10 +871,10 @@ void BytecodeArray::Disassemble(std::ostream& os) {
 
 void BytecodeArray::CopyBytecodesTo(BytecodeArray to) {
   BytecodeArray from = *this;
-  DCHECK_EQ(from->length(), to->length());
-  CopyBytes(reinterpret_cast<byte*>(to->GetFirstBytecodeAddress()),
-            reinterpret_cast<byte*>(from->GetFirstBytecodeAddress()),
-            from->length());
+  DCHECK_EQ(from.length(), to.length());
+  CopyBytes(reinterpret_cast<byte*>(to.GetFirstBytecodeAddress()),
+            reinterpret_cast<byte*>(from.GetFirstBytecodeAddress()),
+            from.length());
 }
 
 void BytecodeArray::MakeOlder() {
@@ -1018,7 +1017,7 @@ bool DependentCode::MarkCodeForDeoptimization(
   }
   if (this->group() < group) {
     // The group comes later in the list.
-    return next_link()->MarkCodeForDeoptimization(isolate, group);
+    return next_link().MarkCodeForDeoptimization(isolate, group);
   }
   DCHECK_EQ(group, this->group());
   DisallowHeapAllocation no_allocation_scope;
@@ -1029,8 +1028,8 @@ bool DependentCode::MarkCodeForDeoptimization(
     MaybeObject obj = object_at(i);
     if (obj->IsCleared()) continue;
     Code code = Code::cast(obj->GetHeapObjectAssumeWeak());
-    if (!code->marked_for_deoptimization()) {
-      code->SetMarkedForDeoptimization(DependencyGroupName(group));
+    if (!code.marked_for_deoptimization()) {
+      code.SetMarkedForDeoptimization(DependencyGroupName(group));
       marked = true;
     }
   }
@@ -1061,7 +1060,7 @@ void Code::SetMarkedForDeoptimization(const char* reason) {
     PrintF(scope.file(),
            "[marking dependent code " V8PRIxPTR_FMT
            " (opt #%d) for deoptimization, reason: %s]\n",
-           ptr(), deopt_data->OptimizationId()->value(), reason);
+           ptr(), deopt_data.OptimizationId().value(), reason);
   }
 }
 

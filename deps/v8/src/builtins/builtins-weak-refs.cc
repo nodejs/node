@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-utils-inl.h"
-#include "src/counters.h"
+#include "src/logging/counters.h"
 #include "src/objects/js-weak-refs-inl.h"
 
 namespace v8 {
@@ -15,7 +15,7 @@ BUILTIN(FinalizationGroupConstructor) {
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              handle(target->shared()->Name(), isolate)));
+                              handle(target->shared().Name(), isolate)));
   }
   // [[Construct]]
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
@@ -38,9 +38,9 @@ BUILTIN(FinalizationGroupConstructor) {
   finalization_group->set_flags(
       JSFinalizationGroup::ScheduledForCleanupField::encode(false));
 
-  DCHECK(finalization_group->active_cells()->IsUndefined(isolate));
-  DCHECK(finalization_group->cleared_cells()->IsUndefined(isolate));
-  DCHECK(finalization_group->key_map()->IsUndefined(isolate));
+  DCHECK(finalization_group->active_cells().IsUndefined(isolate));
+  DCHECK(finalization_group->cleared_cells().IsUndefined(isolate));
+  DCHECK(finalization_group->key_map().IsUndefined(isolate));
   return *finalization_group;
 }
 
@@ -125,7 +125,7 @@ BUILTIN(WeakRefConstructor) {
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              handle(target->shared()->Name(), isolate)));
+                              handle(target->shared().Name(), isolate)));
   }
   // [[Construct]]
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
@@ -155,14 +155,14 @@ BUILTIN(WeakRefConstructor) {
 BUILTIN(WeakRefDeref) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSWeakRef, weak_ref, "WeakRef.prototype.deref");
-  if (weak_ref->target()->IsJSReceiver()) {
+  if (weak_ref->target().IsJSReceiver()) {
     Handle<JSReceiver> target =
         handle(JSReceiver::cast(weak_ref->target()), isolate);
     // AddKeepDuringJobTarget might allocate and cause a GC, but it won't clear
     // weak_ref since we hold a Handle to its target.
     isolate->heap()->AddKeepDuringJobTarget(target);
   } else {
-    DCHECK(weak_ref->target()->IsUndefined(isolate));
+    DCHECK(weak_ref->target().IsUndefined(isolate));
   }
   return weak_ref->target();
 }

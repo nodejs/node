@@ -5,12 +5,12 @@
 #include "src/heap/sweeper.h"
 
 #include "src/base/template-utils.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/remembered-set.h"
-#include "src/objects-inl.h"
-#include "src/vm-state-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -155,12 +155,11 @@ void Sweeper::StartSweeping() {
       heap_->mark_compact_collector()->non_atomic_marking_state();
   ForAllSweepingSpaces([this, marking_state](AllocationSpace space) {
     int space_index = GetSweepSpaceIndex(space);
-    std::sort(sweeping_list_[space_index].begin(),
-              sweeping_list_[space_index].end(),
-              [marking_state](Page* a, Page* b) {
-                return marking_state->live_bytes(a) <
-                       marking_state->live_bytes(b);
-              });
+    std::sort(
+        sweeping_list_[space_index].begin(), sweeping_list_[space_index].end(),
+        [marking_state](Page* a, Page* b) {
+          return marking_state->live_bytes(a) > marking_state->live_bytes(b);
+        });
   });
 }
 
@@ -250,6 +249,8 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
          space->identity() == CODE_SPACE || space->identity() == MAP_SPACE);
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
 
+  CodeObjectRegistry* code_object_registry = p->GetCodeObjectRegistry();
+
   // TODO(ulan): we don't have to clear type old-to-old slots in code space
   // because the concurrent marker doesn't mark code objects. This requires
   // the write barrier for code objects to check the color of the code object.
@@ -265,30 +266,24 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
 
   Address free_start = p->area_start();
 
-  // If we use the skip list for code space pages, we have to lock the skip
-  // list because it could be accessed concurrently by the runtime or the
-  // deoptimizer.
-  const bool rebuild_skip_list =
-      space->identity() == CODE_SPACE && p->skip_list() != nullptr;
-  SkipList* skip_list = p->skip_list();
-  if (rebuild_skip_list) {
-    skip_list->Clear();
-  }
-
   intptr_t live_bytes = 0;
   intptr_t freed_bytes = 0;
   intptr_t max_freed_bytes = 0;
-  int curr_region = -1;
 
-  // Set the allocated_bytes counter to area_size. The free operations below
-  // will decrease the counter to actual live bytes.
-  p->ResetAllocatedBytes();
+  // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
+  // counter. The free operations below will decrease allocated_bytes_ to actual
+  // live bytes and keep track of wasted_memory_.
+  p->ResetAllocationStatistics();
+
+  if (code_object_registry) code_object_registry->Clear();
 
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(p, marking_state_->bitmap(p))) {
     HeapObject const object = object_and_size.first;
+    if (code_object_registry)
+      code_object_registry->RegisterAlreadyExistingCodeObject(object.address());
     DCHECK(marking_state_->IsBlack(object));
-    Address free_end = object->address();
+    Address free_end = object.address();
     if (free_end != free_start) {
       CHECK_GT(free_end, free_start);
       size_t size = static_cast<size_t>(free_end - free_start);
@@ -315,18 +310,9 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
             static_cast<uint32_t>(free_end - p->address())));
       }
     }
-    Map map = object->synchronized_map();
-    int size = object->SizeFromMap(map);
+    Map map = object.synchronized_map();
+    int size = object.SizeFromMap(map);
     live_bytes += size;
-    if (rebuild_skip_list) {
-      int new_region_start = SkipList::RegionNumber(free_end);
-      int new_region_end =
-          SkipList::RegionNumber(free_end + size - kTaggedSize);
-      if (new_region_start != curr_region || new_region_end != curr_region) {
-        skip_list->AddObject(free_end, size);
-        curr_region = new_region_end;
-      }
-    }
     free_start = free_end + size;
   }
 
@@ -382,6 +368,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
     DCHECK_EQ(live_bytes, p->allocated_bytes());
   }
   p->set_concurrent_sweeping_state(Page::kSweepingDone);
+  if (code_object_registry) code_object_registry->Finalize();
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
   return static_cast<int>(FreeList::GuaranteedAllocatable(max_freed_bytes));
 }
@@ -408,7 +395,10 @@ int Sweeper::ParallelSweepSpace(AllocationSpace identity,
   Page* page = nullptr;
   while ((page = GetSweepingPageSafe(identity)) != nullptr) {
     int freed = ParallelSweepPage(page, identity);
-    pages_freed += 1;
+    if (page->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
+      // Free list of a never-allocate page will be dropped later on.
+      continue;
+    }
     DCHECK_GE(freed, 0);
     max_freed = Max(max_freed, freed);
     if ((required_freed_bytes) > 0 && (max_freed >= required_freed_bytes))
@@ -503,8 +493,8 @@ Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
   int space_index = GetSweepSpaceIndex(space);
   Page* page = nullptr;
   if (!sweeping_list_[space_index].empty()) {
-    page = sweeping_list_[space_index].front();
-    sweeping_list_[space_index].pop_front();
+    page = sweeping_list_[space_index].back();
+    sweeping_list_[space_index].pop_back();
   }
   return page;
 }

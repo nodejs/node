@@ -184,13 +184,15 @@ JsonParserResult ParseJson(const std::string& input) {
   // Torque needs a CurrentSourceFile scope during parsing.
   // As JSON lives in memory only, a unknown file scope is created.
   SourceFileMap::Scope source_map_scope;
+  TorqueMessages::Scope messages_scope;
   CurrentSourceFile::Scope unkown_file(SourceFileMap::AddSource("<json>"));
 
   JsonParserResult result;
   try {
     result.value = (*JsonGrammar().Parse(input)).Cast<JsonValue>();
-  } catch (TorqueError& error) {
-    result.error = error;
+  } catch (TorqueAbortCompilation&) {
+    CHECK(!TorqueMessages::Get().empty());
+    result.error = TorqueMessages::Get().front();
   }
   return result;
 }

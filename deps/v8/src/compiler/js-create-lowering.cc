@@ -4,7 +4,7 @@
 
 #include "src/compiler/js-create-lowering.h"
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/common-operator.h"
@@ -18,7 +18,6 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
-#include "src/objects-inl.h"
 #include "src/objects/arguments.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number.h"
@@ -26,6 +25,7 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -901,7 +901,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
   SharedFunctionInfoRef shared(broker(), p.shared_info());
-  HeapObjectRef feedback_cell(broker(), p.feedback_cell());
+  FeedbackCellRef feedback_cell(broker(), p.feedback_cell());
   HeapObjectRef code(broker(), p.code());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1616,17 +1616,39 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
     DCHECK_EQ(kData, property_details.kind());
     NameRef property_name = boilerplate_map.GetPropertyKey(i);
     FieldIndex index = boilerplate_map.GetFieldIndexFor(i);
-    FieldAccess access = {
-        kTaggedBase,        index.offset(), property_name.object(),
-        MaybeHandle<Map>(), Type::Any(),    MachineType::AnyTagged(),
-        kFullWriteBarrier};
+    FieldAccess access = {kTaggedBase,
+                          index.offset(),
+                          property_name.object(),
+                          MaybeHandle<Map>(),
+                          Type::Any(),
+                          MachineType::TypeCompressedTagged(),
+                          kFullWriteBarrier,
+                          LoadSensitivity::kUnsafe,
+                          property_details.constness()};
     Node* value;
     if (boilerplate_map.IsUnboxedDoubleField(i)) {
       access.machine_type = MachineType::Float64();
       access.type = Type::Number();
-      value = jsgraph()->Constant(boilerplate.RawFastDoublePropertyAt(index));
+      uint64_t value_bits = boilerplate.RawFastDoublePropertyAsBitsAt(index);
+      if (value_bits == kHoleNanInt64) {
+        // This special case is analogous to is_uninitialized being true in the
+        // non-unboxed-double case below. The store of the hole NaN value here
+        // will always be followed by another store that actually initializes
+        // the field. The hole NaN should therefore be unobservable.
+        // Load elimination expects there to be at most one const store to any
+        // given field, so we always mark the unobservable ones as mutable.
+        access.constness = PropertyConstness::kMutable;
+      }
+      value = jsgraph()->Constant(bit_cast<double>(value_bits));
     } else {
       ObjectRef boilerplate_value = boilerplate.RawFastPropertyAt(index);
+      bool is_uninitialized =
+          boilerplate_value.IsHeapObject() &&
+          boilerplate_value.AsHeapObject().map().oddball_type() ==
+              OddballType::kUninitialized;
+      if (is_uninitialized) {
+        access.constness = PropertyConstness::kMutable;
+      }
       if (boilerplate_value.IsJSObject()) {
         JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
         value = effect = AllocateFastLiteral(effect, control,
@@ -1643,10 +1665,6 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
         value = effect = builder.Finish();
       } else if (property_details.representation().IsSmi()) {
         // Ensure that value is stored as smi.
-        bool is_uninitialized =
-            boilerplate_value.IsHeapObject() &&
-            boilerplate_value.AsHeapObject().map().oddball_type() ==
-                OddballType::kUninitialized;
         value = is_uninitialized
                     ? jsgraph()->ZeroConstant()
                     : jsgraph()->Constant(boilerplate_value.AsSmi());

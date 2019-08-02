@@ -4,11 +4,11 @@
 
 #include "test/unittests/compiler/code-assembler-unittest.h"
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors.h"
 #include "src/compiler/node.h"
-#include "src/interface-descriptors.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/node-test-utils.h"
 

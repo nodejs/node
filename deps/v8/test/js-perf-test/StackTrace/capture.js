@@ -20,6 +20,7 @@ function Inline() {
   function Middle() { Inner(); }
   function Outer() { Middle(); }
 
+  %PrepareFunctionForOptimization(Outer);
   Outer();
   Outer();
   %OptimizeFunctionOnNextCall(Outer);

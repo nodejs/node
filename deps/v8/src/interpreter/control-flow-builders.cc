@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/interpreter/control-flow-builders.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -11,6 +11,7 @@ function foo() { return x++ };
 
 function gaga(f) { return f() };
 
+%PrepareFunctionForOptimization(gaga);
 assertEquals(0, gaga(foo));
 assertEquals(1, gaga(foo));
 %OptimizeFunctionOnNextCall(gaga);

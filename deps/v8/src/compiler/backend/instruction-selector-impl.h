@@ -5,12 +5,12 @@
 #ifndef V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_IMPL_H_
 #define V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_IMPL_H_
 
+#include "src/codegen/macro-assembler.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/schedule.h"
-#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -33,7 +33,7 @@ class SwitchInfo {
              BasicBlock* default_branch)
       : cases_(cases),
         min_value_(min_value),
-        max_value_(min_value),
+        max_value_(max_value),
         default_branch_(default_branch) {
     if (cases.size() != 0) {
       DCHECK_LE(min_value, max_value);

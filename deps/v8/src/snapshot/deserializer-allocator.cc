@@ -29,7 +29,7 @@ Address DeserializerAllocator::AllocateRaw(AllocationSpace space, int size) {
     AllocationResult result = lo_space->AllocateRaw(size);
     HeapObject obj = result.ToObjectChecked();
     deserialized_large_objects_.push_back(obj);
-    return obj->address();
+    return obj.address();
   } else if (space == MAP_SPACE) {
     DCHECK_EQ(Map::kSize, size);
     return allocated_maps_[next_map_index_++];
@@ -44,7 +44,10 @@ Address DeserializerAllocator::AllocateRaw(AllocationSpace space, int size) {
     int chunk_index = current_chunk_[space];
     DCHECK_LE(high_water_[space], reservation[chunk_index].end);
 #endif
-    if (space == CODE_SPACE) SkipList::Update(address, size);
+    if (space == CODE_SPACE)
+      MemoryChunk::FromAddress(address)
+          ->GetCodeObjectRegistry()
+          ->RegisterNewlyAllocatedCodeObject(address);
     return address;
   }
 }
@@ -60,11 +63,11 @@ Address DeserializerAllocator::Allocate(AllocationSpace space, int size) {
     // If one of the following assertions fails, then we are deserializing an
     // aligned object when the filler maps have not been deserialized yet.
     // We require filler maps as padding to align the object.
-    DCHECK(ReadOnlyRoots(heap_).free_space_map()->IsMap());
-    DCHECK(ReadOnlyRoots(heap_).one_pointer_filler_map()->IsMap());
-    DCHECK(ReadOnlyRoots(heap_).two_pointer_filler_map()->IsMap());
+    DCHECK(ReadOnlyRoots(heap_).free_space_map().IsMap());
+    DCHECK(ReadOnlyRoots(heap_).one_pointer_filler_map().IsMap());
+    DCHECK(ReadOnlyRoots(heap_).two_pointer_filler_map().IsMap());
     obj = heap_->AlignWithFiller(obj, size, reserved, next_alignment_);
-    address = obj->address();
+    address = obj.address();
     next_alignment_ = kWordAligned;
     return address;
   } else {
@@ -103,7 +106,7 @@ HeapObject DeserializerAllocator::GetObject(AllocationSpace space,
   if (next_alignment_ != kWordAligned) {
     int padding = Heap::GetFillToAlign(address, next_alignment_);
     next_alignment_ = kWordAligned;
-    DCHECK(padding == 0 || HeapObject::FromAddress(address)->IsFiller());
+    DCHECK(padding == 0 || HeapObject::FromAddress(address).IsFiller());
     address += padding;
   }
   return HeapObject::FromAddress(address);

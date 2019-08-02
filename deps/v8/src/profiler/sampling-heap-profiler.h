@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <unordered_map>
+
 #include "include/v8-profiler.h"
 #include "src/heap/heap.h"
 #include "src/profiler/strings-storage.h"
@@ -48,7 +49,7 @@ class SamplingHeapProfiler {
  public:
   class AllocationNode {
    public:
-    typedef uint64_t FunctionId;
+    using FunctionId = uint64_t;
     AllocationNode(AllocationNode* parent, const char* name, int script_id,
                    int start_position, uint32_t id)
         : parent_(parent),
@@ -105,11 +106,9 @@ class SamplingHeapProfiler {
            SamplingHeapProfiler* profiler_, uint64_t sample_id)
         : size(size_),
           owner(owner_),
-          global(Global<Value>(
-              reinterpret_cast<v8::Isolate*>(profiler_->isolate_), local_)),
+          global(reinterpret_cast<v8::Isolate*>(profiler_->isolate_), local_),
           profiler(profiler_),
           sample_id(sample_id) {}
-    ~Sample() { global.Reset(); }
     const size_t size;
     AllocationNode* const owner;
     Global<Value> global;
@@ -128,6 +127,38 @@ class SamplingHeapProfiler {
   StringsStorage* names() const { return names_; }
 
  private:
+  class Observer : public AllocationObserver {
+   public:
+    Observer(Heap* heap, intptr_t step_size, uint64_t rate,
+             SamplingHeapProfiler* profiler,
+             base::RandomNumberGenerator* random)
+        : AllocationObserver(step_size),
+          profiler_(profiler),
+          heap_(heap),
+          random_(random),
+          rate_(rate) {}
+
+   protected:
+    void Step(int bytes_allocated, Address soon_object, size_t size) override {
+      USE(heap_);
+      DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
+      if (soon_object) {
+        // TODO(ofrobots): it would be better to sample the next object rather
+        // than skipping this sample epoch if soon_object happens to be null.
+        profiler_->SampleObject(soon_object, size);
+      }
+    }
+
+    intptr_t GetNextStepSize() override { return GetNextSampleInterval(rate_); }
+
+   private:
+    intptr_t GetNextSampleInterval(uint64_t rate);
+    SamplingHeapProfiler* const profiler_;
+    Heap* const heap_;
+    base::RandomNumberGenerator* const random_;
+    uint64_t const rate_;
+  };
+
   void SampleObject(Address soon_object, size_t size);
 
   const std::vector<v8::AllocationProfile::Sample> BuildSamples() const;
@@ -157,8 +188,7 @@ class SamplingHeapProfiler {
   Heap* const heap_;
   uint64_t last_sample_id_ = 0;
   uint32_t last_node_id_ = 0;
-  std::unique_ptr<SamplingAllocationObserver> new_space_observer_;
-  std::unique_ptr<SamplingAllocationObserver> other_spaces_observer_;
+  Observer allocation_observer_;
   StringsStorage* const names_;
   AllocationNode profile_root_;
   std::unordered_map<Sample*, std::unique_ptr<Sample>> samples_;
@@ -166,42 +196,7 @@ class SamplingHeapProfiler {
   const uint64_t rate_;
   v8::HeapProfiler::SamplingFlags flags_;
 
-  friend class SamplingAllocationObserver;
-
   DISALLOW_COPY_AND_ASSIGN(SamplingHeapProfiler);
-};
-
-class SamplingAllocationObserver : public AllocationObserver {
- public:
-  SamplingAllocationObserver(Heap* heap, intptr_t step_size, uint64_t rate,
-                             SamplingHeapProfiler* profiler,
-                             base::RandomNumberGenerator* random)
-      : AllocationObserver(step_size),
-        profiler_(profiler),
-        heap_(heap),
-        random_(random),
-        rate_(rate) {}
-  ~SamplingAllocationObserver() override = default;
-
- protected:
-  void Step(int bytes_allocated, Address soon_object, size_t size) override {
-    USE(heap_);
-    DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
-    if (soon_object) {
-      // TODO(ofrobots): it would be better to sample the next object rather
-      // than skipping this sample epoch if soon_object happens to be null.
-      profiler_->SampleObject(soon_object, size);
-    }
-  }
-
-  intptr_t GetNextStepSize() override { return GetNextSampleInterval(rate_); }
-
- private:
-  intptr_t GetNextSampleInterval(uint64_t rate);
-  SamplingHeapProfiler* const profiler_;
-  Heap* const heap_;
-  base::RandomNumberGenerator* const random_;
-  uint64_t const rate_;
 };
 
 }  // namespace internal

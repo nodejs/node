@@ -17,9 +17,11 @@ namespace torque {
 
 class GlobalContext : public ContextualClass<GlobalContext> {
  public:
+  GlobalContext(GlobalContext&&) V8_NOEXCEPT = default;
+  GlobalContext& operator=(GlobalContext&&) V8_NOEXCEPT = default;
   explicit GlobalContext(Ast ast)
-      : verbose_(false),
-        collect_language_server_data_(false),
+      : collect_language_server_data_(false),
+        force_assert_statements_(false),
         ast_(std::move(ast)) {
     CurrentScope::Scope current_scope(nullptr);
     CurrentSourcePosition::Scope current_source_position(
@@ -49,13 +51,14 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     return result;
   }
 
-  static void RegisterClass(const std::string& name, ClassType* new_class) {
-    Get().classes_[name] = new_class;
+  static void RegisterClass(const TypeAlias* alias) {
+    DCHECK(alias->ParentScope()->IsNamespace());
+    Get().classes_.push_back(alias);
   }
 
-  static const std::map<std::string, ClassType*>& GetClasses() {
-    return Get().classes_;
-  }
+  using GlobalClassList = std::vector<const TypeAlias*>;
+
+  static const GlobalClassList& GetClasses() { return Get().classes_; }
 
   static void AddCppInclude(std::string include_path) {
     Get().cpp_includes_.push_back(std::move(include_path));
@@ -64,24 +67,32 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     return Get().cpp_includes_;
   }
 
-  static void SetVerbose() { Get().verbose_ = true; }
-  static bool verbose() { return Get().verbose_; }
   static void SetCollectLanguageServerData() {
     Get().collect_language_server_data_ = true;
   }
   static bool collect_language_server_data() {
     return Get().collect_language_server_data_;
   }
+  static void SetForceAssertStatements() {
+    Get().force_assert_statements_ = true;
+  }
+  static bool force_assert_statements() {
+    return Get().force_assert_statements_;
+  }
   static Ast* ast() { return &Get().ast_; }
+  static size_t FreshId() { return Get().fresh_id_++; }
 
  private:
-  bool verbose_;
   bool collect_language_server_data_;
+  bool force_assert_statements_;
   Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
   std::vector<std::string> cpp_includes_;
-  std::map<std::string, ClassType*> classes_;
+  GlobalClassList classes_;
+  size_t fresh_id_ = 0;
+
+  friend class LanguageServerData;
 };
 
 template <class T>

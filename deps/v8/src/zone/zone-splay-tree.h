@@ -5,7 +5,7 @@
 #ifndef V8_ZONE_ZONE_SPLAY_TREE_H_
 #define V8_ZONE_ZONE_SPLAY_TREE_H_
 
-#include "src/splay-tree.h"
+#include "src/utils/splay-tree.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

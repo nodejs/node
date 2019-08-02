@@ -109,15 +109,27 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
   BAILOUT("FillI64Half");
 }
 
-#define UNIMPLEMENTED_GP_BINOP(name)                             \
+#define UNIMPLEMENTED_I32_BINOP(name)                            \
   void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
                                      Register rhs) {             \
-    BAILOUT("gp binop: " #name);                                 \
+    BAILOUT("i32 binop:: " #name);                               \
+  }
+#define UNIMPLEMENTED_I32_BINOP_I(name)                          \
+  UNIMPLEMENTED_I32_BINOP(name)                                  \
+  void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
+                                     int32_t imm) {              \
+    BAILOUT("i32 binop_i: " #name);                              \
   }
 #define UNIMPLEMENTED_I64_BINOP(name)                                          \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
                                      LiftoffRegister rhs) {                    \
     BAILOUT("i64 binop: " #name);                                              \
+  }
+#define UNIMPLEMENTED_I64_BINOP_I(name)                                        \
+  UNIMPLEMENTED_I64_BINOP(name)                                                \
+  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
+                                     int32_t imm) {                            \
+    BAILOUT("i64_i binop: " #name);                                            \
   }
 #define UNIMPLEMENTED_GP_UNOP(name)                                \
   bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
@@ -149,22 +161,22 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
     BAILOUT("i64 shiftop: " #name);                                            \
   }
 
-UNIMPLEMENTED_GP_BINOP(i32_add)
-UNIMPLEMENTED_GP_BINOP(i32_sub)
-UNIMPLEMENTED_GP_BINOP(i32_mul)
-UNIMPLEMENTED_GP_BINOP(i32_and)
-UNIMPLEMENTED_GP_BINOP(i32_or)
-UNIMPLEMENTED_GP_BINOP(i32_xor)
+UNIMPLEMENTED_I32_BINOP_I(i32_add)
+UNIMPLEMENTED_I32_BINOP(i32_sub)
+UNIMPLEMENTED_I32_BINOP(i32_mul)
+UNIMPLEMENTED_I32_BINOP_I(i32_and)
+UNIMPLEMENTED_I32_BINOP_I(i32_or)
+UNIMPLEMENTED_I32_BINOP_I(i32_xor)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shl)
 UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
-UNIMPLEMENTED_I64_BINOP(i64_add)
+UNIMPLEMENTED_I64_BINOP_I(i64_add)
 UNIMPLEMENTED_I64_BINOP(i64_sub)
 UNIMPLEMENTED_I64_BINOP(i64_mul)
 #ifdef V8_TARGET_ARCH_PPC64
-UNIMPLEMENTED_I64_BINOP(i64_and)
-UNIMPLEMENTED_I64_BINOP(i64_or)
-UNIMPLEMENTED_I64_BINOP(i64_xor)
+UNIMPLEMENTED_I64_BINOP_I(i64_and)
+UNIMPLEMENTED_I64_BINOP_I(i64_or)
+UNIMPLEMENTED_I64_BINOP_I(i64_xor)
 #endif
 UNIMPLEMENTED_I64_SHIFTOP(i64_shl)
 UNIMPLEMENTED_I64_SHIFTOP(i64_sar)
@@ -201,8 +213,10 @@ UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_trunc)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_nearest_int)
 UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 
-#undef UNIMPLEMENTED_GP_BINOP
+#undef UNIMPLEMENTED_I32_BINOP
+#undef UNIMPLEMENTED_I32_BINOP_I
 #undef UNIMPLEMENTED_I64_BINOP
+#undef UNIMPLEMENTED_I64_BINOP_I
 #undef UNIMPLEMENTED_GP_UNOP
 #undef UNIMPLEMENTED_FP_BINOP
 #undef UNIMPLEMENTED_FP_UNOP
@@ -229,15 +243,6 @@ void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
   BAILOUT("i32_remu");
-}
-
-void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
-                                    int32_t imm) {
-  BAILOUT("i64_add");
-}
-
-void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
-  BAILOUT("i32_add");
 }
 
 void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, int amount) {

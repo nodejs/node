@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
-#include "src/execution.h"
-#include "src/global-handles.h"
+#include "src/execution/execution.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/test-feedback-vector.h"
 
 namespace v8 {
@@ -94,7 +94,7 @@ TEST(VectorStructure) {
     vector = NewFeedbackVector(isolate, &spec);
     FeedbackVectorHelper helper(vector);
     FeedbackCell cell = *vector->GetClosureFeedbackCell(0);
-    CHECK_EQ(cell->value(), *factory->undefined_value());
+    CHECK_EQ(cell.value(), *factory->undefined_value());
   }
 }
 

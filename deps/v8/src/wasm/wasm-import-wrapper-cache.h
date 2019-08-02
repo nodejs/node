@@ -23,23 +23,37 @@ using FunctionSig = Signature<ValueType>;
 // Implements a cache for import wrappers.
 class WasmImportWrapperCache {
  public:
+  using CacheKey = std::pair<compiler::WasmImportCallKind, FunctionSig*>;
+
+  class CacheKeyHash {
+   public:
+    size_t operator()(const CacheKey& key) const {
+      return base::hash_combine(static_cast<uint8_t>(key.first), *key.second);
+    }
+  };
+
+  // Helper class to modify the cache under a lock.
+  class ModificationScope {
+   public:
+    explicit ModificationScope(WasmImportWrapperCache* cache)
+        : cache_(cache), guard_(&cache->mutex_) {}
+
+    V8_EXPORT_PRIVATE WasmCode*& operator[](const CacheKey& key);
+
+   private:
+    WasmImportWrapperCache* const cache_;
+    base::MutexGuard guard_;
+  };
+
+  // Assumes the key exists in the map.
+  V8_EXPORT_PRIVATE WasmCode* Get(compiler::WasmImportCallKind kind,
+                                  FunctionSig* sig) const;
+
   ~WasmImportWrapperCache();
 
-  V8_EXPORT_PRIVATE WasmCode* GetOrCompile(WasmEngine* wasm_engine,
-                                           Counters* counters,
-                                           compiler::WasmImportCallKind kind,
-                                           FunctionSig* sig);
-
  private:
-  friend class NativeModule;
-  using CacheKey = std::pair<uint8_t, FunctionSig>;
-
-  mutable base::Mutex mutex_;
-  NativeModule* native_module_;
-  std::unordered_map<CacheKey, WasmCode*, base::hash<CacheKey>> entry_map_;
-
-  explicit WasmImportWrapperCache(NativeModule* native_module)
-      : native_module_(native_module) {}
+  base::Mutex mutex_;
+  std::unordered_map<CacheKey, WasmCode*, CacheKeyHash> entry_map_;
 };
 
 }  // namespace wasm

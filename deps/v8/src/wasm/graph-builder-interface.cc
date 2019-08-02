@@ -5,10 +5,10 @@
 #include "src/wasm/graph-builder-interface.h"
 
 #include "src/compiler/wasm-compiler.h"
-#include "src/flags.h"
-#include "src/handles.h"
-#include "src/objects-inl.h"
-#include "src/ostreams.h"
+#include "src/flags/flags.h"
+#include "src/handles/handles.h"
+#include "src/objects/objects-inl.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
@@ -251,6 +251,10 @@ class WasmGraphBuildingInterface {
     result->node = builder_->RefNull();
   }
 
+  void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
+    result->node = BUILD(RefFunc, function_index);
+  }
+
   void Drop(FullDecoder* decoder, const Value& value) {}
 
   void DoReturn(FullDecoder* decoder, Vector<Value> values) {
@@ -461,7 +465,7 @@ class WasmGraphBuildingInterface {
     for (int i = 0; i < count; ++i) {
       args[i] = value_args[i].node;
     }
-    BUILD(Throw, imm.index, imm.exception, VectorOf(args));
+    BUILD(Throw, imm.index, imm.exception, VectorOf(args), decoder->position());
     builder_->TerminateThrow(ssa_env_->effect, ssa_env_->control);
   }
 
@@ -534,31 +538,52 @@ class WasmGraphBuildingInterface {
     BUILD(MemoryInit, imm.data_segment_index, dst.node, src.node, size.node,
           decoder->position());
   }
+
   void DataDrop(FullDecoder* decoder, const DataDropImmediate<validate>& imm) {
     BUILD(DataDrop, imm.index, decoder->position());
   }
+
   void MemoryCopy(FullDecoder* decoder,
                   const MemoryCopyImmediate<validate>& imm, const Value& dst,
                   const Value& src, const Value& size) {
     BUILD(MemoryCopy, dst.node, src.node, size.node, decoder->position());
   }
+
   void MemoryFill(FullDecoder* decoder,
                   const MemoryIndexImmediate<validate>& imm, const Value& dst,
                   const Value& value, const Value& size) {
     BUILD(MemoryFill, dst.node, value.node, size.node, decoder->position());
   }
+
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
                  Vector<Value> args) {
     BUILD(TableInit, imm.table.index, imm.elem_segment_index, args[0].node,
           args[1].node, args[2].node, decoder->position());
   }
+
   void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
     BUILD(ElemDrop, imm.index, decoder->position());
   }
+
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
                  Vector<Value> args) {
     BUILD(TableCopy, imm.table_src.index, imm.table_dst.index, args[0].node,
           args[1].node, args[2].node, decoder->position());
+  }
+
+  void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Value& value, Value& delta, Value* result) {
+    result->node = BUILD(TableGrow, imm.index, value.node, delta.node);
+  }
+
+  void TableSize(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Value* result) {
+    result->node = BUILD(TableSize, imm.index);
+  }
+
+  void TableFill(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Value& start, Value& value, Value& count) {
+    BUILD(TableFill, imm.index, start.node, value.node, count.node);
   }
 
  private:
@@ -580,7 +605,7 @@ class WasmGraphBuildingInterface {
   }
 
   TFNode** GetNodes(Vector<Value> values) {
-    return GetNodes(values.start(), values.size());
+    return GetNodes(values.begin(), values.size());
   }
 
   void SetEnv(SsaEnv* env) {
@@ -603,7 +628,7 @@ class WasmGraphBuildingInterface {
             break;
         }
       }
-      PrintF("{set_env = %p, state = %c", static_cast<void*>(env), state);
+      PrintF("{set_env = %p, state = %c", env, state);
       if (env && env->control) {
         PrintF(", control = ");
         compiler::WasmGraphBuilder::PrintDebugName(env->control);
@@ -692,7 +717,9 @@ class WasmGraphBuildingInterface {
       Value& val = stack_values[i];
       Value& old = (*merge)[i];
       DCHECK_NOT_NULL(val.node);
-      DCHECK(val.type == old.type || val.type == kWasmVar);
+      DCHECK(val.type == kWasmVar ||
+             ValueTypes::MachineRepresentationFor(val.type) ==
+                 ValueTypes::MachineRepresentationFor(old.type));
       old.node = first ? val.node
                        : builder_->CreateOrMergeIntoPhi(
                              ValueTypes::MachineRepresentationFor(old.type),

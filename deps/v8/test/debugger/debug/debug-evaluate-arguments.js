@@ -30,6 +30,7 @@ function foo(a) {
   }
   return bar(1,2,a);
 }
+%PrepareFunctionForOptimization(foo);
 
 listened = false;
 foo_expected = [3];
@@ -53,6 +54,7 @@ assertTrue(listened);
 listened = false;
 foo_expected = [3,4,5];
 bar_expected = [1,2,3];
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 assertEquals(6, foo(3,4,5));
 assertTrue(listened);

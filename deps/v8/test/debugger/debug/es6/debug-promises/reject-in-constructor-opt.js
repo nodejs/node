@@ -39,6 +39,8 @@ function bar(a,b) {
   throw new Error("uncaught"); // EXCEPTION
 }
 
+%PrepareFunctionForOptimization(foo);
+
 foo();
 %PerformMicrotaskCheckpoint();
 
@@ -52,6 +54,7 @@ foo();
 %PerformMicrotaskCheckpoint();
 
 %NeverOptimizeFunction(bar);
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 
 // bar does not get inlined into foo.

@@ -8,10 +8,10 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/export-template.h"
 #include "src/base/macros.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/smi.h"
-#include "src/roots.h"
+#include "src/roots/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -150,7 +150,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
   // Find entry for key otherwise return kNotFound.
   inline int FindEntry(ReadOnlyRoots roots, Key key, int32_t hash);
-  int FindEntry(Isolate* isolate, Key key);
+  inline int FindEntry(Isolate* isolate, Key key);
 
   // Rehashes the table in-place.
   void Rehash(ReadOnlyRoots roots);

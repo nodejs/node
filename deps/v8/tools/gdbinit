@@ -163,3 +163,88 @@ def dcheck_stop_handler(event):
 
 gdb.events.stop.connect(dcheck_stop_handler)
 end
+
+# Code imported from chromium/src/tools/gdb/gdbinit
+python
+
+import os
+import subprocess
+import sys
+
+compile_dirs = set()
+
+
+def get_current_debug_file_directories():
+  dir = gdb.execute("show debug-file-directory", to_string=True)
+  dir = dir[
+      len('The directory where separate debug symbols are searched for is "'
+         ):-len('".') - 1]
+  return set(dir.split(":"))
+
+
+def add_debug_file_directory(dir):
+  # gdb has no function to add debug-file-directory, simulates that by using
+  # `show debug-file-directory` and `set debug-file-directory <directories>`.
+  current_dirs = get_current_debug_file_directories()
+  current_dirs.add(dir)
+  gdb.execute(
+      "set debug-file-directory %s" % ":".join(current_dirs), to_string=True)
+
+
+def load_libcxx_pretty_printers(src_dir):
+  libcxx_pretty_printers = os.path.join(src_dir, 'third_party',
+                                        'libcxx-pretty-printers')
+  if not os.path.isdir(libcxx_pretty_printers):
+    return
+  sys.path.insert(1, libcxx_pretty_printers)
+  from printers import register_libcxx_printers
+  register_libcxx_printers(None)
+
+
+def load_gdb_chrome(src_dir):
+  tools_gdb = os.path.join(src_dir, 'tools', 'gdb')
+
+  sys.path.insert(1, tools_gdb)
+  import gdb_chrome
+
+  gdb.execute('source %s' % os.path.join(tools_gdb, 'viewg.gdb'))
+
+
+def newobj_handler(event):
+  global compile_dirs
+  compile_dir = os.path.dirname(event.new_objfile.filename)
+  if not compile_dir:
+    return
+  if compile_dir in compile_dirs:
+    return
+  compile_dirs.add(compile_dir)
+
+  # Add source path
+  gdb.execute("dir %s" % compile_dir)
+
+  # Need to tell the location of .dwo files.
+  # https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
+  # https://crbug.com/603286#c35
+  add_debug_file_directory(compile_dir)
+
+  git = subprocess.Popen(
+      ['git', '-C', compile_dir, 'rev-parse', '--show-toplevel'],
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE)
+  src_dir, _ = git.communicate()
+  if git.returncode:
+    return
+  src_dir = str(src_dir).rstrip()
+
+  load_libcxx_pretty_printers(src_dir)
+
+  load_gdb_chrome(src_dir)
+
+
+# Event hook for newly loaded objfiles.
+# https://sourceware.org/gdb/onlinedocs/gdb/Events-In-Python.html
+gdb.events.new_objfile.connect(newobj_handler)
+
+gdb.execute("set environment CHROMIUM_GDBINIT_SOURCED=1")
+
+end

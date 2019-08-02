@@ -6,12 +6,12 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
-#include "src/flags.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/v8.h"
+#include "src/execution/isolate.h"
+#include "src/flags/flags.h"
+#include "src/init/v8.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 
@@ -64,7 +64,7 @@ namespace internal {
 SaveFlags::SaveFlags() {
   // For each flag, save the current flag value.
 #define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) SAVED_##nam = FLAG_##nam;
-#include "src/flag-definitions.h"  // NOLINT
+#include "src/flags/flag-definitions.h"  // NOLINT
 #undef FLAG_MODE_APPLY
 }
 
@@ -75,7 +75,7 @@ SaveFlags::~SaveFlags() {
   if (SAVED_##nam != FLAG_##nam) {                   \
     FLAG_##nam = SAVED_##nam;                        \
   }
-#include "src/flag-definitions.h"  // NOLINT
+#include "src/flags/flag-definitions.h"  // NOLINT
 #undef FLAG_MODE_APPLY
 }
 

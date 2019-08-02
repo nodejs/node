@@ -92,6 +92,8 @@
       'V8 Linux gcc': 'release_x86_gcc',
       'V8 Linux64 gcc - debug': 'debug_x64_gcc',
       # FYI.
+      'V8 iOS - sim': 'release_x64_ios_simulator',
+      'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
       'V8 Linux64 - pointer compression': 'release_x64_pointer_compression',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
@@ -151,6 +153,7 @@
       # Arm64.
       'V8 Android Arm64 - builder': 'release_android_arm64',
       'V8 Android Arm64 - debug builder': 'debug_android_arm64',
+      'V8 Arm64 - builder': 'release_arm64',
       'V8 Linux - arm64 - sim': 'release_simulate_arm64',
       'V8 Linux - arm64 - sim - debug': 'debug_simulate_arm64',
       'V8 Linux - arm64 - sim - nosnap - debug':
@@ -191,6 +194,7 @@
       'v8_android_arm64_compile_dbg': 'debug_android_arm64',
       'v8_android_arm64_n5x_rel_ng': 'release_android_arm64',
       'v8_fuchsia_rel_ng': 'release_x64_fuchsia_trybot',
+      'v8_ios_simulator': 'release_x64_ios_simulator',
       'v8_linux_noembed_rel_ng': 'release_x86_noembed_trybot',
       'v8_linux_rel_ng': 'release_x86_gcmole_trybot',
       'v8_linux_optional_rel_ng': 'release_x86_trybot',
@@ -212,6 +216,8 @@
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
+      'v8_linux64_nodcheck_rel_ng': 'release_x64',
+      'v8_linux64_perfetto_dbg_ng': 'debug_x64_perfetto',
       'v8_linux64_pointer_compression_rel_ng': 'release_x64_pointer_compression',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
@@ -390,6 +396,8 @@
     # Release configs for arm.
     'release_arm': [
       'release_bot', 'arm', 'hard_float'],
+    'release_arm64': [
+      'release_bot', 'arm64', 'hard_float'],
     'release_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
       'android_strip_outputs'],
@@ -433,6 +441,8 @@
     'release_x64_gcc_coverage': [
       'release_bot', 'x64', 'coverage', 'gcc', 'no_custom_libcxx',
       'no_sysroot'],
+    'release_x64_ios_simulator': [
+      'release_bot', 'x64', 'ios_simulator'],
     'release_x64_internal': [
       'release_bot', 'x64', 'v8_snapshot_internal'],
     'release_x64_jumbo': [
@@ -490,6 +500,8 @@
       'debug_bot', 'x64', 'jumbo_limited'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
+    'debug_x64_perfetto': [
+      'debug_bot', 'x64', 'perfetto'],
     'debug_x64_trybot': [
       'debug_trybot', 'x64'],
     'debug_x64_trybot_custom': [
@@ -646,6 +658,10 @@
       'gn_args': 'arm_float_abi="hard"',
     },
 
+    'ios_simulator': {
+      'gn_args': 'target_cpu="x64" target_os="ios"',
+    },
+
     'jumbo': {
       'gn_args': 'use_jumbo_build=true',
     },
@@ -697,6 +713,10 @@
 
     'no_sysroot': {
       'gn_args': 'use_sysroot=false',
+    },
+
+    'perfetto': {
+      'gn_args': 'v8_use_perfetto=true',
     },
 
     'release': {

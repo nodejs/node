@@ -127,9 +127,8 @@ function TestSparseNonArraySorting(length) {
   assertFalse(4 in obj, "objsort non-existing retained");
 }
 
+TestSparseNonArraySorting(1000);
 TestSparseNonArraySorting(5000);
-TestSparseNonArraySorting(500000);
-TestSparseNonArraySorting(Math.pow(2, 31) + 1);
 
 
 function TestArrayLongerLength(length) {
@@ -147,8 +146,7 @@ function TestArrayLongerLength(length) {
 TestArrayLongerLength(4);
 TestArrayLongerLength(10);
 TestArrayLongerLength(1000);
-TestArrayLongerLength(500000);
-TestArrayLongerLength(Math.pow(2,32) - 1);
+TestArrayLongerLength(5000);
 
 
 function TestNonArrayLongerLength(length) {
@@ -166,8 +164,7 @@ function TestNonArrayLongerLength(length) {
 TestNonArrayLongerLength(4);
 TestNonArrayLongerLength(10);
 TestNonArrayLongerLength(1000);
-TestNonArrayLongerLength(500000);
-TestNonArrayLongerLength(Math.pow(2,32) - 1);
+TestNonArrayLongerLength(5000);
 
 
 function TestNonArrayWithAccessors() {

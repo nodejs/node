@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/simplified-operator.h"
+#include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/simplified-operator-reducer.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/types.h"
-#include "src/conversions-inl.h"
+#include "src/numbers/conversions-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"

@@ -14,6 +14,9 @@ function tests() {
   assertEquals(3, countArgs(...[1.1, 2, 3]));                     // Double
   assertEquals(4, countArgs(...[1.1, 2, , 3]));                   // HoleyDouble
   assertEquals(3, countArgs(...[{valueOf: () => 0}, 1.1, '2']));  // Object
+  assertEquals(3, countArgs(...Object.freeze([{valueOf: () => 0}, 1.1, '2'])));  // Frozen Object
+  assertEquals(3, countArgs(...Object.seal([{valueOf: () => 0}, 1.1, '2'])));  // Sealed Object
+  assertEquals(3, countArgs(...Object.preventExtensions([{valueOf: () => 0}, 1.1, '2'])));  // Non-extensible Object
   assertEquals(
       4, countArgs(...[{valueOf: () => 0}, 1.1, , '2']));  // HoleyObject
 
