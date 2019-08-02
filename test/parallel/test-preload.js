@@ -24,6 +24,7 @@ const fixtureB = fixtures.path('printB.js');
 const fixtureC = fixtures.path('printC.js');
 const fixtureD = fixtures.path('define-global.js');
 const fixtureE = fixtures.path('intrinsic-mutation.js');
+const fixtureF = fixtures.path('print-intrinsic-mutation-name.js');
 const fixtureThrows = fixtures.path('throws_error4.js');
 
 // Test preloading a single module works
@@ -65,18 +66,28 @@ childProcess.exec(
 
 // Test that preload can be used with --frozen-intrinsics
 childProcess.exec(
-  `"${nodeBinary}" --frozen-intrinsics ${preloadOption([fixtureE])}-e "console.log('hello');"`,
+  `"${nodeBinary}" --frozen-intrinsics ${
+    preloadOption([fixtureE])
+  } ${
+    fixtureF
+  }`,
   function(err, stdout) {
     assert.ifError(err);
-    assert.strictEqual(stdout, 'hello\n');
+    assert.strictEqual(stdout, 'smoosh\n');
   }
 );
-const workerSrc = `const {Worker} = require('worker_threads');new Worker(${JSON.stringify(fixtureA)});`;
+const workerSrc = `new (require('worker_threads').Worker)(${fixtureF});`;
 childProcess.exec(
-  `"${nodeBinary}" --frozen-intrinsics ${preloadOption([fixtureE])}-e ${JSON.stringify(workerSrc)}`,
+  `"${
+    nodeBinary
+  }" --frozen-intrinsics ${
+    preloadOption([fixtureE])
+  }-e ${
+    workerSrc
+  }`,
   function(err, stdout) {
     assert.ifError(err);
-    assert.strictEqual(stdout, 'A\n');
+    assert.strictEqual(stdout, 'smoosh\n');
   }
 );
 

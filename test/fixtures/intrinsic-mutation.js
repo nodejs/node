@@ -1,8 +1,10 @@
 'use strict';
 Object.defineProperty(
-  String.prototype,
-  Symbol('fake-polyfill-property'), {
+  Object.prototype,
+  'flatten', {
     enumerable: false,
-    value: null
+    // purposefully named something that
+    // would never land in JS itself
+    value: function smoosh() {}
   }
 );
