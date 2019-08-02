@@ -202,11 +202,12 @@ NODE_MODULES_PATHS(START)
 5. return DIRS
 ```
 
-If `--experimental-exports` is enabled,
-node allows packages loaded via `LOAD_NODE_MODULES` to explicitly declare
-which filepaths to expose and how they should be interpreted.
-This expands on the control packages already had using the `main` field.
-With this feature enabled, the `LOAD_NODE_MODULES` changes as follows:
+If `--experimental-exports` is enabled, Node.js allows packages loaded via
+`LOAD_NODE_MODULES` to explicitly declare which file paths to expose and how
+they should be interpreted. This expands on the control packages already had
+using the `main` field.
+
+With this feature enabled, the `LOAD_NODE_MODULES` changes are:
 
 ```txt
 LOAD_NODE_MODULES(X, START)
@@ -224,10 +225,10 @@ RESOLVE_BARE_SPECIFIER(DIR, X)
    b. If "exports" is null or undefined, GOTO 3.
    c. Find the longest key in "exports" that the subpath starts with.
    d. If no such key can be found, throw "not found".
-   e. If the key matches the subpath entirely, return DIR/name/${exports[key]}.
-   f. If either the key or exports[key] do not end with a slash (`/`),
-      throw "not found".
-   g. Return DIR/name/${exports[key]}${subpath.slice(key.length)}.
+   e. let RESOLVED_URL =
+        PACKAGE_EXPORTS_TARGET_RESOLVE(pathToFileURL(DIR/name), exports[key],
+        subpath.slice(key.length)), as defined in the esm resolver.
+   f. return fileURLToPath(RESOLVED_URL)
 3. return DIR/X
 ```
 
