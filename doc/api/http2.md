@@ -3269,6 +3269,17 @@ added: v8.4.0
 
 The [`Http2Stream`][] object backing the response.
 
+#### response.writableEnded
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` after [`response.end()`][] has been called. This property
+does not indicate whether the data has been flushed, for this use
+[`writable.writableFinished`][] instead.
+
 #### response.write(chunk[, encoding][, callback])
 <!-- YAML
 added: v8.4.0
@@ -3509,3 +3520,4 @@ following additional properties:
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [error code]: #error_codes
+[`writable.writableFinished`]: stream.html#stream_writable_writablefinished

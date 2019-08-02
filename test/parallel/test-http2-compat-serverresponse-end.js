@@ -150,8 +150,10 @@ const {
   // for http1 compatibility
   const server = createServer(mustCall((request, response) => {
     strictEqual(response.finished, true);
+    strictEqual(response.writableEnded, false);
     response.writeHead(HTTP_STATUS_OK, { foo: 'bar' });
     response.end('data', mustCall());
+    strictEqual(response.writableEnded, true);
   }));
   server.listen(0, mustCall(() => {
     const { port } = server.address();

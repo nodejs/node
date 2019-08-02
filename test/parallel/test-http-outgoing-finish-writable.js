@@ -9,12 +9,14 @@ const http = require('http');
 const server = http.createServer(common.mustCall(function(req, res) {
   assert.strictEqual(res.writable, true);
   assert.strictEqual(res.finished, false);
+  assert.strictEqual(res.writableEnded, false);
   res.end();
 
   // res.writable is set to false after it has finished sending
   // Ref: https://github.com/nodejs/node/issues/15029
   assert.strictEqual(res.writable, true);
   assert.strictEqual(res.finished, true);
+  assert.strictEqual(res.writableEnded, true);
 
   server.close();
 }));
