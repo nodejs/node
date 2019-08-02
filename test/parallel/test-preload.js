@@ -76,7 +76,7 @@ childProcess.exec(
     assert.strictEqual(stdout, 'smoosh\n');
   }
 );
-const workerSrc = `new (require('worker_threads').Worker)(${fixtureF});`;
+const workerSrc = `'new (require("worker_threads").Worker)("${fixtureF}");'`;
 childProcess.exec(
   `"${
     nodeBinary
