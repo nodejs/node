@@ -25,8 +25,10 @@ server.listen(0, common.mustCall(() => {
       }));
     }));
     assert.strictEqual(response.finished, false);
+    assert.strictEqual(response.writableEnded, false);
     response.end();
     assert.strictEqual(response.finished, true);
+    assert.strictEqual(response.writableEnded, true);
   }));
 
   const url = `http://localhost:${port}`;

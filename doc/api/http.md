@@ -764,6 +764,27 @@ req.once('response', (res) => {
 });
 ```
 
+### request.writableEnded
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` after [`request.end()`][] has been called. This property
+does not indicate whether the data has been flushed, for this use
+[`request.writableFinished`][] instead.
+
+### request.writableFinished
+<!-- YAML
+added: v12.7.0
+-->
+
+* {boolean}
+
+Is `true` if all data has been flushed to the underlying system, immediately
+before the [`'finish'`][] event is emitted.
+
 ### request.write(chunk[, encoding][, callback])
 <!-- YAML
 added: v0.1.29
@@ -1435,6 +1456,17 @@ response.statusMessage = 'Not found';
 
 After response header was sent to the client, this property indicates the
 status message which was sent out.
+
+### response.writableEnded
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` after [`response.end()`][] has been called. This property
+does not indicate whether the data has been flushed, for this use
+[`response.writableFinished`][] instead.
 
 ### response.writableFinished
 <!-- YAML
@@ -2222,11 +2254,13 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`request.setTimeout()`]: #http_request_settimeout_timeout_callback
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`request.socket`]: #http_request_socket
+[`request.writableFinished`]: #http_request_writablefinished
 [`request.write(data, encoding)`]: #http_request_write_chunk_encoding_callback
 [`response.end()`]: #http_response_end_data_encoding_callback
 [`response.getHeader()`]: #http_response_getheader_name
 [`response.setHeader()`]: #http_response_setheader_name_value
 [`response.socket`]: #http_response_socket
+[`response.writableFinished`]: #http_response_writablefinished
 [`response.write()`]: #http_response_write_chunk_encoding_callback
 [`response.write(data, encoding)`]: #http_response_write_chunk_encoding_callback
 [`response.writeContinue()`]: #http_response_writecontinue
