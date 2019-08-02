@@ -71,6 +71,14 @@ childProcess.exec(
     assert.strictEqual(stdout, 'hello\n');
   }
 );
+const workerSrc = `const {Worker} = require('worker_threads');new Worker(${JSON.stringify(fixtureA)});`;
+childProcess.exec(
+  `"${nodeBinary}" --frozen-intrinsics ${preloadOption([fixtureE])}-e ${JSON.stringify(workerSrc)}`,
+  function(err, stdout) {
+    assert.ifError(err);
+    assert.strictEqual(stdout, 'A\n');
+  }
+);
 
 // Test that preload can be used with stdin
 const stdinProc = childProcess.spawn(
