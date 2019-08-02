@@ -954,8 +954,9 @@ This method has effect only of subsequent Buffer API usage, Buffer instances
 created before `Buffer.harden()` is called are not affected.
 
 Warning: for ecosystem compatibility and security reasons `Buffer.harden()` can
-be called only once and only from the top-level application code. Attempting to
-call it from a library in `node_modules` will throw.
+be called only once and only from the top-level application code and only before
+the first turn of the event loop. Attempting to call it asynchronously in
+runtime or from a library in `node_modules` will throw.
 
 By default, it enables mandratory zero fill, disables Buffer pooling, disables
 deprecated unsafe Buffer API, freezes `Buffer` and `require('buffer')` objects.
