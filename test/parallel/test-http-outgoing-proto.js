@@ -71,7 +71,14 @@ common.expectsError(() => {
   outgoingMessage.write('');
 }
 
-assert(OutgoingMessage.prototype.write.call({ _header: 'test' }));
+common.expectsError(() => {
+  OutgoingMessage.prototype.write.call({ _header: 'test' });
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The first argument must be one of type string or Buffer. ' +
+           'Received type undefined'
+});
 
 common.expectsError(() => {
   const outgoingMessage = new OutgoingMessage();
