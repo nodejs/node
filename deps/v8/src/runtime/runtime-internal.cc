@@ -4,27 +4,27 @@
 
 #include <memory>
 
-#include "src/api.h"
-#include "src/arguments-inl.h"
+#include "src/api/api.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/prettyprinter.h"
-#include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
-#include "src/conversions.h"
-#include "src/counters.h"
 #include "src/debug/debug.h"
-#include "src/feedback-vector-inl.h"
-#include "src/frames-inl.h"
-#include "src/isolate-inl.h"
-#include "src/message-template.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/execution/message-template.h"
+#include "src/init/bootstrapper.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/template-objects-inl.h"
-#include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
-#include "src/string-builder-inl.h"
+#include "src/strings/string-builder-inl.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -37,13 +37,6 @@ RUNTIME_FUNCTION(Runtime_AccessCheck) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   }
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  CHECK(isolate->bootstrapper()->IsActive());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -276,13 +269,13 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  function->raw_feedback_cell()->set_interrupt_budget(FLAG_interrupt_budget);
+  function->raw_feedback_cell().set_interrupt_budget(FLAG_interrupt_budget);
   if (!function->has_feedback_vector()) {
     JSFunction::EnsureFeedbackVector(function);
     // Also initialize the invocation count here. This is only really needed for
     // OSR. When we OSR functions with lazy feedback allocation we want to have
     // a non zero invocation count so we can inline functions.
-    function->feedback_vector()->set_invocation_count(1);
+    function->feedback_vector().set_invocation_count(1);
     return ReadOnlyRoots(isolate).undefined_value();
   }
   // Handle interrupts.
@@ -290,13 +283,6 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
     SealHandleScope shs(isolate);
     return isolate->stack_guard()->HandleInterrupts();
   }
-}
-
-RUNTIME_FUNCTION(Runtime_Interrupt) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  TRACE_EVENT0("v8.execute", "V8.Interrupt");
-  return isolate->stack_guard()->HandleInterrupts();
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
@@ -321,6 +307,14 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   return *isolate->factory()->NewFillerObject(size, double_align,
                                               AllocationType::kOld);
+}
+
+RUNTIME_FUNCTION(Runtime_AllocateByteArray) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(length, 0);
+  DCHECK_LT(0, length);
+  return *isolate->factory()->NewByteArray(length);
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateSeqOneByteString) {
@@ -361,7 +355,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
     int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
     if (script->IsScript() &&
-        !(Handle<Script>::cast(script)->source()->IsUndefined(isolate))) {
+        !(Handle<Script>::cast(script)->source().IsUndefined(isolate))) {
       Handle<Script> casted_script = Handle<Script>::cast(script);
       *target = MessageLocation(casted_script, pos, pos + 1, shared);
       return true;
@@ -615,7 +609,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   } else {
     DCHECK_LE(args.length(), 2);
     std::FILE* f;
-    if (args[0]->IsString()) {
+    if (args[0].IsString()) {
       // With a string argument, the results are appended to that file.
       CONVERT_ARG_HANDLE_CHECKED(String, arg0, 0);
       DisallowHeapAllocation no_gc;
@@ -640,7 +634,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
     OFStream stats_stream(f);
     isolate->counters()->runtime_call_stats()->Print(stats_stream);
     isolate->counters()->runtime_call_stats()->Reset();
-    if (args[0]->IsString())
+    if (args[0].IsString())
       std::fclose(f);
     else
       std::fflush(f);
@@ -701,7 +695,7 @@ RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared_info, 1);
   CONVERT_SMI_ARG_CHECKED(slot_id, 2);
 
-  Handle<Context> native_context(isolate->context()->native_context(), isolate);
+  Handle<Context> native_context(isolate->context().native_context(), isolate);
   return *TemplateObjectDescription::GetTemplateObject(
       isolate, native_context, description, shared_info, slot_id);
 }

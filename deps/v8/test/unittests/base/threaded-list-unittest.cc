@@ -4,7 +4,7 @@
 
 #include <iterator>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/base/threaded-list.h"
 #include "testing/gtest-support.h"

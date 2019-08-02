@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api.h"
+#include "src/api/api.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
-#include "src/counters.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
-#include "src/macro-assembler.h"
+#include "src/logging/counters.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/shared-function-info.h"
 #include "src/runtime/runtime.h"
@@ -599,6 +599,113 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
   }
 }
 
+namespace {
+
+class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
+ public:
+  explicit SetOrCopyDataPropertiesAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+ protected:
+  TNode<Object> SetOrCopyDataProperties(TNode<Context> context,
+                                        TNode<JSReceiver> target,
+                                        TNode<Object> source, Label* if_runtime,
+                                        bool use_set = true) {
+    Label if_done(this), if_noelements(this),
+        if_sourcenotjsobject(this, Label::kDeferred);
+
+    // JSValue wrappers for numbers don't have any enumerable own properties,
+    // so we can immediately skip the whole operation if {source} is a Smi.
+    GotoIf(TaggedIsSmi(source), &if_done);
+
+    // Otherwise check if {source} is a proper JSObject, and if not, defer
+    // to testing for non-empty strings below.
+    TNode<Map> source_map = LoadMap(CAST(source));
+    TNode<Int32T> source_instance_type = LoadMapInstanceType(source_map);
+    GotoIfNot(IsJSObjectInstanceType(source_instance_type),
+              &if_sourcenotjsobject);
+
+    TNode<FixedArrayBase> source_elements = LoadElements(CAST(source));
+    GotoIf(IsEmptyFixedArray(source_elements), &if_noelements);
+    Branch(IsEmptySlowElementDictionary(source_elements), &if_noelements,
+           if_runtime);
+
+    BIND(&if_noelements);
+    {
+      // If the target is deprecated, the object will be updated on first store.
+      // If the source for that store equals the target, this will invalidate
+      // the cached representation of the source. Handle this case in runtime.
+      TNode<Map> target_map = LoadMap(target);
+      GotoIf(IsDeprecatedMap(target_map), if_runtime);
+
+      if (use_set) {
+        TNode<BoolT> target_is_simple_receiver = IsSimpleObjectMap(target_map);
+        ForEachEnumerableOwnProperty(
+            context, source_map, CAST(source), kEnumerationOrder,
+            [=](TNode<Name> key, TNode<Object> value) {
+              KeyedStoreGenericGenerator::SetProperty(
+                  state(), context, target, target_is_simple_receiver, key,
+                  value, LanguageMode::kStrict);
+            },
+            if_runtime);
+      } else {
+        ForEachEnumerableOwnProperty(
+            context, source_map, CAST(source), kEnumerationOrder,
+            [=](TNode<Name> key, TNode<Object> value) {
+              CallBuiltin(Builtins::kSetPropertyInLiteral, context, target, key,
+                          value);
+            },
+            if_runtime);
+      }
+      Goto(&if_done);
+    }
+
+    BIND(&if_sourcenotjsobject);
+    {
+      // Handle other JSReceivers in the runtime.
+      GotoIf(IsJSReceiverInstanceType(source_instance_type), if_runtime);
+
+      // Non-empty strings are the only non-JSReceivers that need to be
+      // handled explicitly by Object.assign() and CopyDataProperties.
+      GotoIfNot(IsStringInstanceType(source_instance_type), &if_done);
+      TNode<IntPtrT> source_length = LoadStringLengthAsWord(CAST(source));
+      Branch(WordEqual(source_length, IntPtrConstant(0)), &if_done, if_runtime);
+    }
+
+    BIND(&if_done);
+    return UndefinedConstant();
+  }
+};
+
+}  // namespace
+
+// ES #sec-copydataproperties
+TF_BUILTIN(CopyDataProperties, SetOrCopyDataPropertiesAssembler) {
+  TNode<JSObject> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<Object> source = CAST(Parameter(Descriptor::kSource));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  CSA_ASSERT(this, WordNotEqual(target, source));
+
+  Label if_runtime(this, Label::kDeferred);
+  Return(SetOrCopyDataProperties(context, target, source, &if_runtime, false));
+
+  BIND(&if_runtime);
+  TailCallRuntime(Runtime::kCopyDataProperties, context, target, source);
+}
+
+TF_BUILTIN(SetDataProperties, SetOrCopyDataPropertiesAssembler) {
+  TNode<JSReceiver> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<Object> source = CAST(Parameter(Descriptor::kSource));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  Label if_runtime(this, Label::kDeferred);
+  Return(SetOrCopyDataProperties(context, target, source, &if_runtime, true));
+
+  BIND(&if_runtime);
+  TailCallRuntime(Runtime::kSetDataProperties, context, target, source);
+}
+
 TF_BUILTIN(ForInEnumerate, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* context = Parameter(Descriptor::kContext);
@@ -646,19 +753,21 @@ TF_BUILTIN(SameValue, CodeStubAssembler) {
   Return(FalseConstant());
 }
 
-class InternalBuiltinsAssembler : public CodeStubAssembler {
- public:
-  explicit InternalBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+TF_BUILTIN(SameValueNumbersOnly, CodeStubAssembler) {
+  Node* lhs = Parameter(Descriptor::kLeft);
+  Node* rhs = Parameter(Descriptor::kRight);
 
-  template <typename Descriptor>
-  void GenerateAdaptorWithExitFrameType(
-      Builtins::ExitFrameType exit_frame_type);
-};
+  Label if_true(this), if_false(this);
+  BranchIfSameValue(lhs, rhs, &if_true, &if_false, SameValueMode::kNumbersOnly);
 
-template <typename Descriptor>
-void InternalBuiltinsAssembler::GenerateAdaptorWithExitFrameType(
-    Builtins::ExitFrameType exit_frame_type) {
+  BIND(&if_true);
+  Return(TrueConstant());
+
+  BIND(&if_false);
+  Return(FalseConstant());
+}
+
+TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
   TNode<JSFunction> target = CAST(Parameter(Descriptor::kTarget));
   TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
   TNode<WordT> c_function =
@@ -682,9 +791,9 @@ void InternalBuiltinsAssembler::GenerateAdaptorWithExitFrameType(
       argc,
       Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
 
-  TNode<Code> code = HeapConstant(
-      CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
-                          exit_frame_type == Builtins::BUILTIN_EXIT));
+  const bool builtin_exit_frame = true;
+  TNode<Code> code = HeapConstant(CodeFactory::CEntry(
+      isolate(), 1, kDontSaveFPRegs, kArgvOnStack, builtin_exit_frame));
 
   // Unconditionally push argc, target and new target as extra stack arguments.
   // They will be used by stack frame iterators when constructing stack trace.
@@ -695,14 +804,6 @@ void InternalBuiltinsAssembler::GenerateAdaptorWithExitFrameType(
                SmiFromInt32(argc),  // additional stack argument 2
                target,              // additional stack argument 3
                new_target);         // additional stack argument 4
-}
-
-TF_BUILTIN(AdaptorWithExitFrame, InternalBuiltinsAssembler) {
-  GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::EXIT);
-}
-
-TF_BUILTIN(AdaptorWithBuiltinExitFrame, InternalBuiltinsAssembler) {
-  GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::BUILTIN_EXIT);
 }
 
 TF_BUILTIN(AllocateInYoungGeneration, CodeStubAssembler) {

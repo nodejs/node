@@ -136,12 +136,6 @@ class {{config.lib.export_macro}} Binary {
 
 std::unique_ptr<Value> toProtocolValue(const base::Value* value, int depth);
 std::unique_ptr<base::Value> toBaseValue(Value* value, int depth);
-
-bool AppendStringValueToMapBinary(base::StringPiece in,
-    base::StringPiece key, base::StringPiece value, std::string* out);
-bool AppendStringValueToMapJSON(base::StringPiece in,
-    base::StringPiece key, base::StringPiece value, std::string* out);
-
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}
 {% endfor %}

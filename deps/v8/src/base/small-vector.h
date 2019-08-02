@@ -5,7 +5,9 @@
 #ifndef V8_BASE_SMALL_VECTOR_H_
 #define V8_BASE_SMALL_VECTOR_H_
 
+#include <algorithm>
 #include <type_traits>
+#include <utility>
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
@@ -29,6 +31,10 @@ class SmallVector {
   explicit SmallVector(size_t size) { resize_no_init(size); }
   SmallVector(const SmallVector& other) V8_NOEXCEPT { *this = other; }
   SmallVector(SmallVector&& other) V8_NOEXCEPT { *this = std::move(other); }
+  SmallVector(std::initializer_list<T> init) {
+    resize_no_init(init.size());
+    memcpy(begin_, init.begin(), sizeof(T) * init.size());
+  }
 
   ~SmallVector() {
     if (is_big()) free(begin_);

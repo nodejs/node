@@ -316,7 +316,7 @@ function js_div(a, b) { return (a / b) | 0; }
     .exportAs("main");
 
   builder.addImportedTable("z", "table", kTableSize, kTableSize);
-  builder.addElementSegment(0, 1, false, [f2.index], true);
+  builder.addElementSegment(0, 1, false, [f2.index]);
 
   var m2 = new WebAssembly.Module(builder.toBuffer());
 
@@ -586,7 +586,7 @@ function js_div(a, b) { return (a / b) | 0; }
   builder1.setName('module_1');
   builder1.addFunction('f', kSig_i_i).addBody([kExprGetLocal, 0]);
   builder1.addImportedTable('z', 'table');
-  builder1.addElementSegment(0, 0, false, [0], true);
+  builder1.addElementSegment(0, 0, false, [0]);
   let module1 = new WebAssembly.Module(builder1.toBuffer());
   let instance1 =
       new WebAssembly.Instance(module1, {z: {table: instance0.exports.table}});
@@ -624,7 +624,7 @@ function js_div(a, b) { return (a / b) | 0; }
   builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_v).addBody([kExprI32Const, 0, kExprI32LoadMem, 0, 0]);
   builder.addImportedTable('', 'table');
-  builder.addElementSegment(0, 0, false, [0], true);
+  builder.addElementSegment(0, 0, false, [0]);
   builder.addImportedMemory('', 'memory', 1);
 
 
@@ -812,6 +812,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   let i2 = (() => {
     let builder = new WasmModuleBuilder();
+    builder.addTable(kWasmAnyFunc, 4);
     builder.addImport("q", "f2", kSig_i_v);
     builder.addImport("q", "f1", kSig_i_v);
     builder.addFunction("main", kSig_i_i)
@@ -867,6 +868,7 @@ function js_div(a, b) { return (a / b) | 0; }
   let main = (() => {
     let builder = new WasmModuleBuilder();
     builder.addMemory(1, 1, false);
+    builder.addTable(kWasmAnyFunc, 4);
     builder.addImport("q", "f1", kSig_i_v);
     builder.addImport("q", "f2", kSig_i_v);
     builder.addImport("q", "f3", kSig_i_v);

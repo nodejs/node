@@ -5,12 +5,12 @@
 #include "src/runtime/runtime.h"
 
 #include "src/base/hashmap.h"
-#include "src/contexts.h"
-#include "src/handles-inl.h"
+#include "src/codegen/reloc-info.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/reloc-info.h"
+#include "src/objects/contexts.h"
+#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -106,6 +106,7 @@ bool Runtime::NeedsExactContext(FunctionId id) {
       // try-catch in async function.
       return false;
     case Runtime::kAddPrivateField:
+    case Runtime::kAddPrivateBrand:
     case Runtime::kCopyDataProperties:
     case Runtime::kCreateDataProperty:
     case Runtime::kCreatePrivateNameSymbol:
@@ -174,6 +175,16 @@ bool Runtime::IsNonReturning(FunctionId id) {
       return true;
     default:
       return false;
+  }
+}
+
+bool Runtime::MayAllocate(FunctionId id) {
+  switch (id) {
+    case Runtime::kCompleteInobjectSlackTracking:
+    case Runtime::kCompleteInobjectSlackTrackingForMap:
+      return false;
+    default:
+      return true;
   }
 }
 

@@ -8,6 +8,10 @@
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/base/macros.h"
 
+#ifdef DEBUG
+#include <set>
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -23,9 +27,21 @@ class AstFunctionLiteralIdReindexer final
 
   // AstTraversalVisitor implementation.
   void VisitFunctionLiteral(FunctionLiteral* lit);
+  void VisitClassLiteral(ClassLiteral* lit);
 
  private:
   int delta_;
+
+#ifdef DEBUG
+  // Visited set, only used in DCHECKs for verification.
+  std::set<FunctionLiteral*> visited_;
+
+  // Visit all function literals, checking if they have already been visited
+  // (are in the visited set).
+  void CheckVisited(Expression* expr);
+#else
+  void CheckVisited(Expression* expr) {}
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(AstFunctionLiteralIdReindexer);
 };

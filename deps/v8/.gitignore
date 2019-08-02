@@ -94,7 +94,6 @@ GTAGS
 TAGS
 bsuite
 compile_commands.json
-d8
 !/test/mjsunit/d8
 d8_g
 gccauses

@@ -4,10 +4,10 @@
 
 #include <vector>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/contexts.h"
 #include "src/interpreter/bytecode-decoder.h"
+#include "src/objects/contexts.h"
 #include "src/runtime/runtime.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"

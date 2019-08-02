@@ -34,7 +34,7 @@ namespace array {
     ResetToGenericAccessor() {
       this.loadFn = Load<GenericElementsAccessor>;
       this.storeFn = Store<GenericElementsAccessor>;
-      this.bailoutStatus = kSuccess;
+      this.deleteFn = Delete<GenericElementsAccessor>;
     }
 
     // The receiver of the Array.p.sort call.
@@ -54,16 +54,13 @@ namespace array {
     // uses ToString and a lexicographical compare.
     sortComparePtr: CompareBuiltinFn;
 
-    // The following three function pointer represent a Accessor/Path.
-    // These are used to Load/Store elements and to check whether to bail to the
-    // baseline GenericElementsAccessor.
+    // The following four function pointer represent a Accessor/Path.
+    // These are used to Load/Store/Delete elements and to check whether
+    // to bail to the baseline GenericElementsAccessor.
     loadFn: LoadFn;
     storeFn: StoreFn;
+    deleteFn: DeleteFn;
     canUseSameAccessorFn: CanUseSameAccessorFn;
-
-    // If this field has the value kFailure, we need to bail to the baseline
-    // GenericElementsAccessor.
-    bailoutStatus: Smi;
 
     // This controls when we get *into* galloping mode. It's initialized to
     // kMinGallop. mergeLow and mergeHigh tend to nudge it higher for random
@@ -90,48 +87,95 @@ namespace array {
 
     // Pointer to the temporary array.
     tempArray: FixedArray;
+
+    // The initialReceiverLength converted and clamped to Smi.
+    sortLength: Smi;
+
+    // The number of undefined that need to be inserted after sorting
+    // when the elements are copied back from the workArray to the receiver.
+    numberOfUndefined: Smi;
+  }
+
+  type FastSmiElements;
+  type FastObjectElements;
+
+  // With the pre-processing step in Torque, the exact number of elements
+  // to sort is unknown at the time the sort state is created.
+  // The 'length' property is an upper bound (as per spec),
+  // while the actual size of the backing store is a good guess.
+  // After the pre-processing step, the workarray won't change in length.
+  macro CalculateWorkArrayLength(
+      receiver: JSReceiver, initialReceiverLength: Number): intptr {
+    // TODO(szuend): Implement full range sorting, not only up to MaxSmi.
+    //               https://crbug.com/v8/7970.
+    let clampedReceiverLength: uintptr =
+        Convert<uintptr>(initialReceiverLength);
+    if (clampedReceiverLength > kSmiMaxValue) {
+      clampedReceiverLength = kSmiMaxValue;
+    }
+
+    let workArrayLength: intptr = Convert<intptr>(clampedReceiverLength);
+    try {
+      const object = Cast<JSObject>(receiver) otherwise NoJsObject;
+      const elementsLength = Convert<intptr>(object.elements.length);
+
+      // In some cases, elements are only on prototypes, but not on the receiver
+      // itself. Do nothing then, as {workArrayLength} got initialized with the
+      // {length} property.
+      if (elementsLength != 0) {
+        workArrayLength = IntPtrMin(workArrayLength, elementsLength);
+      }
+    }
+    label NoJsObject {}
+
+    return workArrayLength;
   }
 
   transitioning macro NewSortState(implicit context: Context)(
       receiver: JSReceiver, comparefn: Undefined | Callable,
-      initialReceiverLength: Number, sortLength: Smi,
-      forceGeneric: constexpr bool): SortState {
+      initialReceiverLength: Number): SortState {
     const sortComparePtr =
         comparefn != Undefined ? SortCompareUserFn : SortCompareDefault;
     const map = receiver.map;
-    let loadFn = Load<GenericElementsAccessor>;
-    let storeFn = Store<GenericElementsAccessor>;
-    let canUseSameAccessorFn = CanUseSameAccessor<GenericElementsAccessor>;
+    let loadFn: LoadFn;
+    let storeFn: StoreFn;
+    let deleteFn: DeleteFn;
+    let canUseSameAccessorFn: CanUseSameAccessorFn;
 
     try {
-      if constexpr (!forceGeneric) {
-        GotoIfForceSlowPath() otherwise Slow;
-        let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+      GotoIfForceSlowPath() otherwise Slow;
+      let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
-        const elementsKind: ElementsKind = map.elements_kind;
-        if (IsDoubleElementsKind(elementsKind)) {
-          loadFn = Load<FastDoubleElements>;
-          storeFn = Store<FastDoubleElements>;
-          canUseSameAccessorFn = CanUseSameAccessor<FastDoubleElements>;
-        } else if (elementsKind == PACKED_SMI_ELEMENTS) {
-          loadFn = Load<FastPackedSmiElements>;
-          storeFn = Store<FastPackedSmiElements>;
-          canUseSameAccessorFn = CanUseSameAccessor<FastPackedSmiElements>;
-        } else {
-          loadFn = Load<FastSmiOrObjectElements>;
-          storeFn = Store<FastSmiOrObjectElements>;
-          canUseSameAccessorFn = CanUseSameAccessor<FastSmiOrObjectElements>;
-        }
+      // Copy copy-on-write (COW) arrays.
+      array::EnsureWriteableFastElements(a);
+
+      const elementsKind: ElementsKind = map.elements_kind;
+      if (IsDoubleElementsKind(elementsKind)) {
+        loadFn = Load<FastDoubleElements>;
+        storeFn = Store<FastDoubleElements>;
+        deleteFn = Delete<FastDoubleElements>;
+        canUseSameAccessorFn = CanUseSameAccessor<FastDoubleElements>;
+      } else if (IsFastSmiElementsKind(elementsKind)) {
+        loadFn = Load<FastSmiElements>;
+        storeFn = Store<FastSmiElements>;
+        deleteFn = Delete<FastSmiElements>;
+        canUseSameAccessorFn = CanUseSameAccessor<FastSmiElements>;
+      } else {
+        loadFn = Load<FastObjectElements>;
+        storeFn = Store<FastObjectElements>;
+        deleteFn = Delete<FastObjectElements>;
+        canUseSameAccessorFn = CanUseSameAccessor<FastObjectElements>;
       }
     }
     label Slow {
-      if (map.elements_kind == DICTIONARY_ELEMENTS && IsExtensibleMap(map) &&
-          !IsCustomElementsReceiverInstanceType(map.instance_type)) {
-        loadFn = Load<DictionaryElements>;
-        storeFn = Store<DictionaryElements>;
-        canUseSameAccessorFn = CanUseSameAccessor<DictionaryElements>;
-      }
+      loadFn = Load<GenericElementsAccessor>;
+      storeFn = Store<GenericElementsAccessor>;
+      deleteFn = Delete<GenericElementsAccessor>;
+      canUseSameAccessorFn = CanUseSameAccessor<GenericElementsAccessor>;
     }
+
+    const workArrayLength =
+        CalculateWorkArrayLength(receiver, initialReceiverLength);
 
     return new SortState{
       receiver,
@@ -141,17 +185,18 @@ namespace array {
       sortComparePtr,
       loadFn,
       storeFn,
+      deleteFn,
       canUseSameAccessorFn,
-      bailoutStatus: kSuccess,
       minGallop: kMinGallopWins,
       pendingRunsSize: 0,
       pendingRuns: AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending)),
-      workArray: AllocateZeroedFixedArray(Convert<intptr>(sortLength)),
-      tempArray: kEmptyFixedArray
+      workArray: AllocateZeroedFixedArray(workArrayLength),
+      tempArray: kEmptyFixedArray,
+      sortLength: 0,
+      numberOfUndefined: 0
     };
   }
 
-  const kFailure: Smi = -1;
   const kSuccess: Smi = 0;
 
   // The maximum number of entries in a SortState's pending-runs stack.
@@ -171,6 +216,7 @@ namespace array {
 
   type LoadFn = builtin(Context, SortState, Smi) => Object;
   type StoreFn = builtin(Context, SortState, Smi, Object) => Smi;
+  type DeleteFn = builtin(Context, SortState, Smi) => Smi;
   type CanUseSameAccessorFn = builtin(Context, JSReceiver, Object, Number) =>
       Boolean;
   type CompareBuiltinFn = builtin(Context, Object, Object, Object) => Number;
@@ -183,28 +229,23 @@ namespace array {
 
   transitioning builtin Load<ElementsAccessor: type>(
       context: Context, sortState: SortState, index: Smi): Object {
-    return GetProperty(sortState.receiver, index);
+    const receiver = sortState.receiver;
+    if (!HasProperty_Inline(receiver, index)) return Hole;
+    return GetProperty(receiver, index);
   }
 
-  Load<FastPackedSmiElements>(
-      context: Context, sortState: SortState, index: Smi): Object {
+  Load<FastSmiElements>(context: Context, sortState: SortState, index: Smi):
+      Object {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
     return elements.objects[index];
   }
 
-  Load<FastSmiOrObjectElements>(
-      context: Context, sortState: SortState, index: Smi): Object {
+  Load<FastObjectElements>(context: Context, sortState: SortState, index: Smi):
+      Object {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    const result: Object = elements.objects[index];
-    if (IsTheHole(result)) {
-      // The pre-processing step removed all holes by compacting all elements
-      // at the start of the array. Finding a hole means the cmp function or
-      // ToString changes the array.
-      return Failure(sortState);
-    }
-    return result;
+    return elements.objects[index];
   }
 
   Load<FastDoubleElements>(context: Context, sortState: SortState, index: Smi):
@@ -212,28 +253,11 @@ namespace array {
     try {
       const object = UnsafeCast<JSObject>(sortState.receiver);
       const elements = UnsafeCast<FixedDoubleArray>(object.elements);
-      const value = LoadDoubleWithHoleCheck(elements, index) otherwise Bailout;
+      const value = LoadDoubleWithHoleCheck(elements, index) otherwise IfHole;
       return AllocateHeapNumberWithValue(value);
     }
-    label Bailout {
-      // The pre-processing step removed all holes by compacting all elements
-      // at the start of the array. Finding a hole means the cmp function or
-      // ToString changes the array.
-      return Failure(sortState);
-    }
-  }
-
-  Load<DictionaryElements>(context: Context, sortState: SortState, index: Smi):
-      Object {
-    try {
-      const object = UnsafeCast<JSObject>(sortState.receiver);
-      const dictionary = UnsafeCast<NumberDictionary>(object.elements);
-      const intptrIndex = Convert<intptr>(index);
-      return BasicLoadNumberDictionaryElement(dictionary, intptrIndex)
-          otherwise Bailout, Bailout;
-    }
-    label Bailout {
-      return Failure(sortState);
+    label IfHole {
+      return Hole;
     }
   }
 
@@ -243,15 +267,16 @@ namespace array {
     return kSuccess;
   }
 
-  Store<FastPackedSmiElements>(
+  Store<FastSmiElements>(
       context: Context, sortState: SortState, index: Smi, value: Object): Smi {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    StoreFixedArrayElementSmi(elements, index, value, SKIP_WRITE_BARRIER);
+    const value = UnsafeCast<Smi>(value);
+    StoreFixedArrayElement(elements, index, value, SKIP_WRITE_BARRIER);
     return kSuccess;
   }
 
-  Store<FastSmiOrObjectElements>(
+  Store<FastObjectElements>(
       context: Context, sortState: SortState, index: Smi, value: Object): Smi {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
@@ -269,26 +294,42 @@ namespace array {
     return kSuccess;
   }
 
-  Store<DictionaryElements>(
-      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
+  transitioning builtin Delete<ElementsAccessor: type>(
+      context: Context, sortState: SortState, index: Smi): Smi {
+    const receiver = sortState.receiver;
+    if (!HasProperty_Inline(receiver, index)) return kSuccess;
+    DeleteProperty(receiver, index, kSloppy);
+    return kSuccess;
+  }
+
+  Delete<FastSmiElements>(context: Context, sortState: SortState, index: Smi):
+      Smi {
+    assert(IsHoleyFastElementsKind(sortState.receiver.map.elements_kind));
+
     const object = UnsafeCast<JSObject>(sortState.receiver);
-    const dictionary = UnsafeCast<NumberDictionary>(object.elements);
-    const intptrIndex = Convert<intptr>(index);
-    try {
-      BasicStoreNumberDictionaryElement(dictionary, intptrIndex, value)
-          otherwise Fail, Fail, ReadOnly;
-      return kSuccess;
-    }
-    label ReadOnly {
-      // We cannot write to read-only data properties. Throw the same TypeError
-      // as SetProperty would.
-      const receiver = sortState.receiver;
-      ThrowTypeError(
-          kStrictReadOnlyProperty, index, Typeof(receiver), receiver);
-    }
-    label Fail {
-      return Failure(sortState);
-    }
+    const elements = UnsafeCast<FixedArray>(object.elements);
+    elements.objects[index] = Hole;
+    return kSuccess;
+  }
+
+  Delete<FastObjectElements>(
+      context: Context, sortState: SortState, index: Smi): Smi {
+    assert(IsHoleyFastElementsKind(sortState.receiver.map.elements_kind));
+
+    const object = UnsafeCast<JSObject>(sortState.receiver);
+    const elements = UnsafeCast<FixedArray>(object.elements);
+    elements.objects[index] = Hole;
+    return kSuccess;
+  }
+
+  Delete<FastDoubleElements>(
+      context: Context, sortState: SortState, index: Smi): Smi {
+    assert(IsHoleyFastElementsKind(sortState.receiver.map.elements_kind));
+
+    const object = UnsafeCast<JSObject>(sortState.receiver);
+    const elements = UnsafeCast<FixedDoubleArray>(object.elements);
+    StoreFixedDoubleArrayHoleSmi(elements, index);
+    return kSuccess;
   }
 
   transitioning builtin SortCompareDefault(
@@ -354,12 +395,6 @@ namespace array {
     return True;
   }
 
-  CanUseSameAccessor<DictionaryElements>(
-      context: Context, receiver: JSReceiver, initialReceiverMap: Object,
-      initialReceiverLength: Number): Boolean {
-    return SelectBooleanConstant(receiver.map == initialReceiverMap);
-  }
-
   // Re-loading the stack-size is done in a few places. The small macro allows
   // for easier invariant checks at all use sites.
   macro GetPendingRunsSize(implicit context: Context)(sortState: SortState):
@@ -416,36 +451,6 @@ namespace array {
 
     sortState.tempArray = tempArray;
     return tempArray;
-  }
-
-  // This macro jumps to the Bailout label iff kBailoutStatus is kFailure.
-  macro EnsureSuccess(implicit context: Context)(sortState:
-                                                     SortState) labels Bailout {
-    if (sortState.bailoutStatus == kFailure) goto Bailout;
-  }
-
-  // Sets kBailoutStatus to kFailure and returns kFailure.
-  macro Failure(sortState: SortState): Smi {
-    sortState.bailoutStatus = kFailure;
-    return kFailure;
-  }
-
-  // The following Call* macros wrap builtin calls, making call sites more
-  // readable since we can use labels and do not have to check kBailoutStatus
-  // or the return value.
-
-  macro CallLoad(implicit context: Context, sortState: SortState)(
-      load: LoadFn, index: Smi): Object
-      labels Bailout {
-    const result: Object = load(context, sortState, index);
-    EnsureSuccess(sortState) otherwise Bailout;
-    return result;
-  }
-
-  macro CallStore(implicit context: Context, sortState: SortState)(
-      store: StoreFn, index: Smi, value: Object) labels Bailout {
-    store(context, sortState, index, value);
-    EnsureSuccess(sortState) otherwise Bailout;
   }
 
   transitioning builtin
@@ -1267,49 +1272,87 @@ namespace array {
   }
 
   transitioning macro
-  CopyReceiverElementsToWorkArray(
-      implicit context: Context, sortState: SortState)(length: Smi) {
-    // TODO(szuend): Investigate if we can use COW arrays or a memcpy + range
-    //               barrier to speed this step up.
-    let loadFn = sortState.loadFn;
-    const workArray = sortState.workArray;
+  CompactReceiverElementsIntoWorkArray(
+      implicit context: Context, sortState: SortState)(): Smi {
+    let growableWorkArray = growable_fixed_array::GrowableFixedArray{
+      array: sortState.workArray,
+      capacity: Convert<intptr>(sortState.workArray.length),
+      length: 0
+    };
 
-    for (let i: Smi = 0; i < length; ++i) {
-      try {
-        workArray.objects[i] = CallLoad(loadFn, i) otherwise Bailout;
-      }
-      label Bailout deferred {
-        sortState.ResetToGenericAccessor();
-        loadFn = sortState.loadFn;
-        workArray.objects[i] = CallLoad(loadFn, i) otherwise unreachable;
+    const loadFn = sortState.loadFn;
+
+    // TODO(szuend): Implement full range sorting, not only up to MaxSmi.
+    //               https://crbug.com/v8/7970.
+    const receiverLength: Number = sortState.initialReceiverLength;
+    assert(IsNumberNormalized(receiverLength));
+
+    const sortLength: Smi = TaggedIsSmi(receiverLength) ?
+        UnsafeCast<Smi>(receiverLength) :
+        Convert<PositiveSmi>(kSmiMax) otherwise unreachable;
+
+    // Move all non-undefined elements into {sortState.workArray}, holes
+    // are ignored.
+    let numberOfUndefined: Smi = 0;
+    for (let i: Smi = 0; i < receiverLength; ++i) {
+      const element: Object = loadFn(context, sortState, i);
+
+      if (element == Hole) {
+        // Do nothing for holes. The result is that elements are
+        // compacted at the front of the work array.
+      } else if (element == Undefined) {
+        numberOfUndefined++;
+      } else {
+        growableWorkArray.Push(element);
       }
     }
+
+    // Reset the workArray on the frameState, as it may have grown.
+    sortState.workArray = growableWorkArray.array;
+    sortState.sortLength = sortLength;
+    sortState.numberOfUndefined = numberOfUndefined;
+
+    return Convert<Smi>(growableWorkArray.length);
   }
 
   transitioning macro
   CopyWorkArrayToReceiver(implicit context: Context, sortState: SortState)(
-      length: Smi) {
-    // TODO(szuend): Build fast-path that simply installs the work array as the
-    // new backing store where applicable.
-    let storeFn = sortState.storeFn;
+      numberOfNonUndefined: Smi) {
+    const storeFn = sortState.storeFn;
     const workArray = sortState.workArray;
 
-    for (let i: Smi = 0; i < length; ++i) {
-      try {
-        CallStore(storeFn, i, workArray.objects[i]) otherwise Bailout;
-      }
-      label Bailout deferred {
-        sortState.ResetToGenericAccessor();
-        storeFn = sortState.storeFn;
-        CallStore(storeFn, i, workArray.objects[i]) otherwise unreachable;
-      }
+    assert(numberOfNonUndefined <= workArray.length);
+    assert(
+        numberOfNonUndefined + sortState.numberOfUndefined <=
+        sortState.sortLength);
+
+    // Writing the elements back is a 3 step process:
+    //   1. Copy the sorted elements from the workarray to the receiver.
+    //   2. Add {nOfUndefined} undefineds to the receiver.
+    //   3. Depending on the backing store either delete properties or
+    //      set them to the Hole up to {sortState.sortLength}.
+    let index: Smi = 0;
+    for (; index < numberOfNonUndefined; ++index) {
+      storeFn(context, sortState, index, workArray.objects[index]);
+    }
+
+    const numberOfUndefinedEnd: Smi =
+        sortState.numberOfUndefined + numberOfNonUndefined;
+    for (; index < numberOfUndefinedEnd; ++index) {
+      storeFn(context, sortState, index, Undefined);
+    }
+
+    const end: Smi = sortState.sortLength;
+    const deleteFn = sortState.deleteFn;
+    for (; index < end; ++index) {
+      deleteFn(context, sortState, index);
     }
   }
 
   transitioning builtin
-  ArrayTimSort(context: Context, sortState: SortState, length: Smi): Object {
-    CopyReceiverElementsToWorkArray(length);
-    ArrayTimSortImpl(context, sortState, length);
+  ArrayTimSort(context: Context, sortState: SortState): Object {
+    const numberOfNonUndefined: Smi = CompactReceiverElementsIntoWorkArray();
+    ArrayTimSortImpl(context, sortState, numberOfNonUndefined);
 
     try {
       // The comparison function or toString might have changed the
@@ -1320,23 +1363,9 @@ namespace array {
       sortState.ResetToGenericAccessor();
     }
 
-    CopyWorkArrayToReceiver(length);
+    CopyWorkArrayToReceiver(numberOfNonUndefined);
     return kSuccess;
   }
-
-  // For compatibility with JSC, we also sort elements inherited from
-  // the prototype chain on non-Array objects.
-  // We do this by copying them to this object and sorting only
-  // own elements. This is not very efficient, but sorting with
-  // inherited elements happens very, very rarely, if at all.
-  // The specification allows "implementation dependent" behavior
-  // if an element on the prototype chain has an element that
-  // might interact with sorting.
-  //
-  // We also move all non-undefined elements to the front of the
-  // array and move the undefineds after that. Holes are removed.
-  // This happens for Array as well as non-Array objects.
-  extern runtime PrepareElementsForSort(Context, Object, Number): Smi;
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.sort
   transitioning javascript builtin
@@ -1355,16 +1384,8 @@ namespace array {
 
     if (len < 2) return receiver;
 
-    // TODO(szuend): Investigate performance tradeoff of skipping this step
-    //               for PACKED_* and handling Undefineds during sorting.
-    const nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
-    assert(nofNonUndefined <= len);
-
-    if (nofNonUndefined < 2) return receiver;
-
-    const sortState: SortState =
-        NewSortState(obj, comparefn, len, nofNonUndefined, false);
-    ArrayTimSort(context, sortState, nofNonUndefined);
+    const sortState: SortState = NewSortState(obj, comparefn, len);
+    ArrayTimSort(context, sortState);
 
     return receiver;
   }

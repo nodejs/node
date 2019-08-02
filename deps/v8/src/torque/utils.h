@@ -28,20 +28,60 @@ std::string StringLiteralQuote(const std::string& s);
 V8_EXPORT_PRIVATE base::Optional<std::string> FileUriDecode(
     const std::string& s);
 
-class LintErrorStatus : public ContextualClass<LintErrorStatus> {
- public:
-  LintErrorStatus() : has_lint_errors_(false) {}
+struct TorqueMessage {
+  enum class Kind { kError, kLint };
 
-  static bool HasLintErrors() { return Get().has_lint_errors_; }
-  static void SetLintError() { Get().has_lint_errors_ = true; }
-
- private:
-  bool has_lint_errors_;
+  std::string message;
+  base::Optional<SourcePosition> position;
+  Kind kind;
 };
 
-void LintError(const std::string& error);
+DECLARE_CONTEXTUAL_VARIABLE(TorqueMessages, std::vector<TorqueMessage>);
 
-// Prints a LintError with the format "{type} '{name}' doesn't follow
+class V8_EXPORT_PRIVATE MessageBuilder {
+ public:
+  MessageBuilder(const std::string& message, TorqueMessage::Kind kind);
+
+  MessageBuilder& Position(SourcePosition position) {
+    message_.position = position;
+    return *this;
+  }
+
+  [[noreturn]] void Throw() const;
+
+  ~MessageBuilder() {
+    // This will also get called in case the error is thrown.
+    Report();
+  }
+
+ private:
+  MessageBuilder() = delete;
+  void Report() const;
+
+  TorqueMessage message_;
+};
+
+// Used for throwing exceptions. Retrieve TorqueMessage from the contextual
+// for specific error information.
+struct TorqueAbortCompilation {};
+
+template <class... Args>
+static MessageBuilder Message(TorqueMessage::Kind kind, Args&&... args) {
+  std::stringstream stream;
+  USE((stream << std::forward<Args>(args))...);
+  return MessageBuilder(stream.str(), kind);
+}
+
+template <class... Args>
+MessageBuilder Error(Args&&... args) {
+  return Message(TorqueMessage::Kind::kError, std::forward<Args>(args)...);
+}
+template <class... Args>
+MessageBuilder Lint(Args&&... args) {
+  return Message(TorqueMessage::Kind::kLint, std::forward<Args>(args)...);
+}
+
+// Report a LintError with the format "{type} '{name}' doesn't follow
 // '{convention}' naming convention".
 void NamingConventionError(const std::string& type, const std::string& name,
                            const std::string& convention);
@@ -52,26 +92,9 @@ bool IsSnakeCase(const std::string& s);
 bool IsValidNamespaceConstName(const std::string& s);
 bool IsValidTypeName(const std::string& s);
 
-struct TorqueError : public std::exception {
-  explicit TorqueError(const std::string& message) : message(message) {}
-
-  std::string message;
-  base::Optional<SourcePosition> position;
-};
-
-[[noreturn]] void ThrowTorqueError(const std::string& error,
-                                   bool include_position);
 template <class... Args>
 [[noreturn]] void ReportError(Args&&... args) {
-  std::stringstream s;
-  USE((s << std::forward<Args>(args))...);
-  ThrowTorqueError(s.str(), true);
-}
-template <class... Args>
-[[noreturn]] void ReportErrorWithoutPosition(Args&&... args) {
-  std::stringstream s;
-  USE((s << std::forward<Args>(args))...);
-  ThrowTorqueError(s.str(), false);
+  Error(std::forward<Args>(args)...).Throw();
 }
 
 std::string CapifyStringWithUnderscores(const std::string& camellified_string);
@@ -208,7 +231,9 @@ class Stack {
   void Poke(BottomOffset from_bottom, T x) {
     elements_.at(from_bottom.offset) = std::move(x);
   }
-  void Push(T x) { elements_.push_back(std::move(x)); }
+  void Push(T x) {
+    elements_.push_back(std::move(x));
+  }
   StackRange TopRange(size_t slot_count) const {
     DCHECK_GE(Size(), slot_count);
     return StackRange{AboveTop() - slot_count, AboveTop()};

@@ -4,9 +4,9 @@
 
 #include "src/compiler/backend/register-allocator-verifier.h"
 
-#include "src/bit-vector.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/ostreams.h"
+#include "src/utils/bit-vector.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

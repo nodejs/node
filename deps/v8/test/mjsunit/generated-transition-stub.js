@@ -17,6 +17,7 @@ function test() {
   // Test PACKED SMI -> PACKED DOUBLE
   //
 
+  %PrepareFunctionForOptimization(transition1);
   const a1 = [0, 1, 2, 3, 4];
   transition1(a1, 0, 2.5);
   const a2 = [0, 1, 2, 3, 4];
@@ -59,6 +60,7 @@ function test() {
     a[i] = v;
   }
 
+  %PrepareFunctionForOptimization(transition2);
   const b1 = [0, 1, 2, , 4];
   transition2(b1, 0, 2.5);
   const b2 = [0, 1, 2, , 4];
@@ -93,6 +95,7 @@ function test() {
     a[i] = v;
   }
 
+  %PrepareFunctionForOptimization(transition3);
   const c1 = [0, 1, 2, 3.5, 4];
   transition3(c1, 0, new Object());
   const c2 = [0, 1, 2, 3.5, 4];
@@ -147,6 +150,7 @@ function test() {
       a[i] = v;
   }
 
+  %PrepareFunctionForOptimization(transition4);
   const d1 = [0, 1, , 3.5, 4];
   transition4(d1, 0, new Object());
   const d2 = [0, 1, , 3.5, 4];

@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #if V8_TARGET_ARCH_S390
 
-#include "src/assembler-inl.h"
 #include "src/base/bits.h"
-#include "src/log.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/logging/log.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/snapshot/embedded-data.h"
 #include "src/regexp/s390/regexp-macro-assembler-s390.h"
-#include "src/unicode.h"
+#include "src/snapshot/embedded/embedded-data.h"
+#include "src/strings/unicode.h"
 
 namespace v8 {
 namespace internal {
@@ -731,7 +731,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     if (num_saved_registers_ > 8) {
       // One slot beyond address of register 0.
       __ lay(r3, MemOperand(frame_pointer(), kRegisterZero + kPointerSize));
-      __ LoadImmP(r4, Operand(num_saved_registers_));
+      __ Load(r4, Operand(num_saved_registers_));
       Label init_loop;
       __ bind(&init_loop);
       __ StoreP(r1, MemOperand(r3, -kPointerSize));
@@ -930,8 +930,9 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(isolate(), &code_desc);
-  Handle<Code> code = isolate()->factory()->NewCode(code_desc, Code::REGEXP,
-                                                    masm_->CodeObject());
+  Handle<Code> code = Factory::CodeBuilder(isolate(), code_desc, Code::REGEXP)
+                          .set_self_reference(masm_->CodeObject())
+                          .Build();
   PROFILE(masm_->isolate(),
           RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);

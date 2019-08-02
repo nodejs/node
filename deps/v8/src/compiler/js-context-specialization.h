@@ -6,7 +6,7 @@
 #define V8_COMPILER_JS_CONTEXT_SPECIALIZATION_H_
 
 #include "src/compiler/graph-reducer.h"
-#include "src/maybe-handles.h"
+#include "src/handles/maybe-handles.h"
 
 namespace v8 {
 namespace internal {

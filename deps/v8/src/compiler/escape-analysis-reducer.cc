@@ -7,7 +7,7 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -326,8 +326,9 @@ void EscapeAnalysisReducer::Finalize() {
                                     TypeCache::Get()->kArgumentsLengthType);
             NodeProperties::ReplaceValueInput(load, arguments_frame, 0);
             NodeProperties::ReplaceValueInput(load, offset, 1);
-            NodeProperties::ChangeOp(
-                load, jsgraph()->simplified()->LoadStackArgument());
+            NodeProperties::ChangeOp(load,
+                                     jsgraph()->simplified()->LoadElement(
+                                         AccessBuilder::ForStackArgument()));
             break;
           }
           case IrOpcode::kLoadField: {

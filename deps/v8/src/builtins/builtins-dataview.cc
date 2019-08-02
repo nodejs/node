@@ -4,12 +4,12 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/conversions.h"
-#include "src/counters.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -101,6 +101,8 @@ BUILTIN(DataViewConstructor) {
 
   // 13. Set O's [[ByteOffset]] internal slot to offset.
   Handle<JSDataView>::cast(result)->set_byte_offset(view_byte_offset);
+  Handle<JSDataView>::cast(result)->set_data_pointer(
+      static_cast<uint8_t*>(array_buffer->backing_store()) + view_byte_offset);
 
   // 14. Return O.
   return *result;

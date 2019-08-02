@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 #define V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 
-#include "src/cancelable-task.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {

@@ -13,7 +13,6 @@ per-file js_protocol.pdl=set noparent
 per-file js_protocol.pdl=dgozman@chromium.org
 per-file js_protocol.pdl=pfeldman@chromium.org
 
-per-file PRESUBMIT.py=machenbach@chromium.org
-per-file PRESUBMIT.py=sergiyb@chromium.org
+per-file PRESUBMIT.py=file://INFRA_OWNERS
 
 # COMPONENT: Platform>DevTools>JavaScript

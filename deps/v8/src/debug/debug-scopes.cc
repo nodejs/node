@@ -8,16 +8,16 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/common/globals.h"
 #include "src/debug/debug.h"
-#include "src/frames-inl.h"
-#include "src/globals.h"
-#include "src/isolate-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module.h"
-#include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/rewriter.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -47,8 +47,8 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
 
   if (!context_->IsNativeContext()) {
     DisallowHeapAllocation no_gc;
-    ScopeInfo closure_info = context_->closure_context()->scope_info();
-    Handle<String> debug_name(closure_info->FunctionDebugName(), isolate_);
+    ScopeInfo closure_info = context_->closure_context().scope_info();
+    Handle<String> debug_name(closure_info.FunctionDebugName(), isolate_);
     if (debug_name->length() > 0) return debug_name;
   }
   return isolate_->factory()->undefined_value();
@@ -56,11 +56,11 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
 
 ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
     : isolate_(isolate), context_(function->context(), isolate) {
-  if (!function->shared()->IsSubjectToDebugging()) {
+  if (!function->shared().IsSubjectToDebugging()) {
     context_ = Handle<Context>();
     return;
   }
-  script_ = handle(Script::cast(function->shared()->script()), isolate);
+  script_ = handle(Script::cast(function->shared().script()), isolate);
   UnwrapEvaluationContext();
 }
 
@@ -70,8 +70,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
       generator_(generator),
       function_(generator->function(), isolate),
       context_(generator->context(), isolate),
-      script_(Script::cast(function_->shared()->script()), isolate) {
-  CHECK(function_->shared()->IsSubjectToDebugging());
+      script_(Script::cast(function_->shared().script()), isolate) {
+  CHECK(function_->shared().IsSubjectToDebugging());
   TryParseAndRetrieveScopes(DEFAULT);
 }
 
@@ -88,7 +88,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
   // Catch the case when the debugger stops in an internal function.
   Handle<SharedFunctionInfo> shared_info(function_->shared(), isolate_);
   Handle<ScopeInfo> scope_info(shared_info->scope_info(), isolate_);
-  if (shared_info->script()->IsUndefined(isolate_)) {
+  if (shared_info->script().IsUndefined(isolate_)) {
     current_scope_ = closure_scope_ = nullptr;
     context_ = handle(function_->context(), isolate_);
     function_ = Handle<JSFunction>();
@@ -191,14 +191,14 @@ void ScopeIterator::UnwrapEvaluationContext() {
   if (!context_->IsDebugEvaluateContext()) return;
   Context current = *context_;
   do {
-    Object wrapped = current->get(Context::WRAPPED_CONTEXT_INDEX);
-    if (wrapped->IsContext()) {
+    Object wrapped = current.get(Context::WRAPPED_CONTEXT_INDEX);
+    if (wrapped.IsContext()) {
       current = Context::cast(wrapped);
     } else {
-      DCHECK(!current->previous().is_null());
-      current = current->previous();
+      DCHECK(!current.previous().is_null());
+      current = current.previous();
     }
-  } while (current->IsDebugEvaluateContext());
+  } while (current.IsDebugEvaluateContext());
   context_ = handle(current, isolate_);
 }
 
@@ -232,13 +232,13 @@ bool ScopeIterator::HasPositionInfo() {
 int ScopeIterator::start_position() {
   if (InInnerScope()) return current_scope_->start_position();
   if (context_->IsNativeContext()) return 0;
-  return context_->closure_context()->scope_info()->StartPosition();
+  return context_->closure_context().scope_info().StartPosition();
 }
 
 int ScopeIterator::end_position() {
   if (InInnerScope()) return current_scope_->end_position();
   if (context_->IsNativeContext()) return 0;
-  return context_->closure_context()->scope_info()->EndPosition();
+  return context_->closure_context().scope_info().EndPosition();
 }
 
 bool ScopeIterator::DeclaresLocals(Mode mode) const {
@@ -341,7 +341,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
     UNREACHABLE();
   }
   if (context_->IsNativeContext()) {
-    DCHECK(context_->global_object()->IsJSGlobalObject());
+    DCHECK(context_->global_object().IsJSGlobalObject());
     // If we are at the native context and have not yet seen script scope,
     // fake it.
     return seen_script_scope_ ? ScopeTypeGlobal : ScopeTypeScript;
@@ -481,13 +481,13 @@ void ScopeIterator::DebugPrint() {
 
     case ScopeIterator::ScopeTypeWith:
       os << "With:\n";
-      context_->extension()->Print(os);
+      context_->extension().Print(os);
       break;
 
     case ScopeIterator::ScopeTypeCatch:
       os << "Catch:\n";
-      context_->extension()->Print(os);
-      context_->get(Context::THROWN_OBJECT_INDEX)->Print(os);
+      context_->extension().Print(os);
+      context_->get(Context::THROWN_OBJECT_INDEX).Print(os);
       break;
 
     case ScopeIterator::ScopeTypeClosure:
@@ -502,10 +502,8 @@ void ScopeIterator::DebugPrint() {
 
     case ScopeIterator::ScopeTypeScript:
       os << "Script:\n";
-      context_->global_object()
-          ->native_context()
-          ->script_context_table()
-          ->Print(os);
+      context_->global_object().native_context().script_context_table().Print(
+          os);
       break;
 
     default:
@@ -521,7 +519,7 @@ int ScopeIterator::GetSourcePosition() {
   } else {
     DCHECK(!generator_.is_null());
     SharedFunctionInfo::EnsureSourcePositionsAvailable(
-        isolate_, handle(generator_->function()->shared(), isolate_));
+        isolate_, handle(generator_->function().shared(), isolate_));
     return generator_->source_position();
   }
 }
@@ -557,7 +555,7 @@ void ScopeIterator::RetrieveScopeChain(DeclarationScope* scope) {
 void ScopeIterator::VisitScriptScope(const Visitor& visitor) const {
   Handle<JSGlobalObject> global(context_->global_object(), isolate_);
   Handle<ScriptContextTable> script_contexts(
-      global->native_context()->script_context_table(), isolate_);
+      global->native_context().script_context_table(), isolate_);
 
   // Skip the first script since that just declares 'this'.
   for (int context_index = 1; context_index < script_contexts->used();
@@ -576,7 +574,7 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
   if (VisitContextLocals(visitor, scope_info, context_)) return;
 
   int count_index = scope_info->ModuleVariableCountIndex();
-  int module_variable_count = Smi::cast(scope_info->get(count_index))->value();
+  int module_variable_count = Smi::cast(scope_info->get(count_index)).value();
 
   Handle<Module> module(context_->module(), isolate_);
 
@@ -645,8 +643,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
           DCHECK(!generator_.is_null());
           FixedArray parameters_and_registers =
               generator_->parameters_and_registers();
-          DCHECK_LT(index, parameters_and_registers->length());
-          value = handle(parameters_and_registers->get(index), isolate_);
+          DCHECK_LT(index, parameters_and_registers.length());
+          value = handle(parameters_and_registers.get(index), isolate_);
         } else {
           value = frame_inspector_->GetParameter(index);
 
@@ -664,10 +662,10 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
           FixedArray parameters_and_registers =
               generator_->parameters_and_registers();
           int parameter_count =
-              function_->shared()->scope_info()->ParameterCount();
+              function_->shared().scope_info().ParameterCount();
           index += parameter_count;
-          DCHECK_LT(index, parameters_and_registers->length());
-          value = handle(parameters_and_registers->get(index), isolate_);
+          DCHECK_LT(index, parameters_and_registers.length());
+          value = handle(parameters_and_registers.get(index), isolate_);
           if (value->IsTheHole(isolate_)) {
             value = isolate_->factory()->undefined_value();
           }
@@ -715,7 +713,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
 // a proxy, return an empty object.
 Handle<JSObject> ScopeIterator::WithContextExtension() {
   DCHECK(context_->IsWithContext());
-  if (context_->extension_receiver()->IsJSProxy()) {
+  if (context_->extension_receiver().IsJSProxy()) {
     return isolate_->factory()->NewJSObjectWithNullProto();
   }
   return handle(JSObject::cast(context_->extension_receiver()), isolate_);
@@ -761,7 +759,7 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode) const {
     DCHECK(!context_->IsScriptContext());
     DCHECK(!context_->IsNativeContext());
     DCHECK(!context_->IsWithContext());
-    if (!context_->scope_info()->CallsSloppyEval()) return;
+    if (!context_->scope_info().CallsSloppyEval()) return;
     if (context_->extension_object().is_null()) return;
     Handle<JSObject> extension(context_->extension_object(), isolate_);
     Handle<FixedArray> keys =
@@ -771,7 +769,7 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode) const {
 
     for (int i = 0; i < keys->length(); i++) {
       // Names of variables introduced by eval are strings.
-      DCHECK(keys->get(i)->IsString());
+      DCHECK(keys->get(i).IsString());
       Handle<String> key(String::cast(keys->get(i)), isolate_);
       Handle<Object> value = JSReceiver::GetDataProperty(extension, key);
       if (visitor(key, value)) return;
@@ -817,7 +815,7 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
             // Set the variable in the suspended generator.
             DCHECK(!generator_.is_null());
             int parameter_count =
-                function_->shared()->scope_info()->ParameterCount();
+                function_->shared().scope_info().ParameterCount();
             index += parameter_count;
             Handle<FixedArray> parameters_and_registers(
                 generator_->parameters_and_registers(), isolate_);
@@ -854,7 +852,7 @@ bool ScopeIterator::SetContextExtensionValue(Handle<String> variable_name,
                                              Handle<Object> new_value) {
   if (!context_->has_extension()) return false;
 
-  DCHECK(context_->extension_object()->IsJSContextExtensionObject());
+  DCHECK(context_->extension_object().IsJSContextExtensionObject());
   Handle<JSObject> ext(context_->extension_object(), isolate_);
   LookupIterator it(isolate_, ext, variable_name, LookupIterator::OWN);
   Maybe<bool> maybe = JSReceiver::HasOwnProperty(ext, variable_name);
@@ -887,7 +885,7 @@ bool ScopeIterator::SetModuleVariableValue(Handle<String> variable_name,
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  cell_index = context_->scope_info()->ModuleIndex(
+  cell_index = context_->scope_info().ModuleIndex(
       *variable_name, &mode, &init_flag, &maybe_assigned_flag);
 
   // Setting imports is currently not supported.
@@ -904,7 +902,7 @@ bool ScopeIterator::SetModuleVariableValue(Handle<String> variable_name,
 bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
                                            Handle<Object> new_value) {
   Handle<ScriptContextTable> script_contexts(
-      context_->global_object()->native_context()->script_context_table(),
+      context_->global_object().native_context().script_context_table(),
       isolate_);
   ScriptContextTable::LookupResult lookup_result;
   if (ScriptContextTable::Lookup(isolate_, *script_contexts, *variable_name,

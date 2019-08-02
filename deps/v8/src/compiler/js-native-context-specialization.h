@@ -7,7 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/deoptimize-reason.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/objects/map.h"
 
 namespace v8 {
@@ -93,11 +93,17 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSToObject(Node* node);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
-                                FeedbackNexus const& nexus,
-                                MapHandles const& receiver_maps,
+                                ElementAccessFeedback const& processed,
                                 AccessMode access_mode,
                                 KeyedAccessLoadMode load_mode,
                                 KeyedAccessStoreMode store_mode);
+  // In the case of non-keyed (named) accesses, pass the name as {static_name}
+  // and use {nullptr} for {key} (load/store modes are irrelevant).
+  Reduction ReducePropertyAccessUsingProcessedFeedback(
+      Node* node, Node* key, base::Optional<NameRef> static_name, Node* value,
+      FeedbackNexus const& nexus, AccessMode access_mode,
+      KeyedAccessLoadMode load_mode = STANDARD_LOAD,
+      KeyedAccessStoreMode store_mode = STANDARD_STORE);
   Reduction ReduceKeyedAccess(Node* node, Node* key, Node* value,
                               FeedbackNexus const& nexus,
                               AccessMode access_mode,
@@ -108,9 +114,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                        NameRef const& name,
                                        AccessMode access_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
-                              MapHandles const& receiver_maps,
-                              NameRef const& name, AccessMode access_mode,
-                              Node* key = nullptr);
+                              NamedAccessFeedback const& processed,
+                              AccessMode access_mode, Node* key = nullptr);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                NameRef const& name, AccessMode access_mode,
                                Node* key = nullptr);
@@ -214,7 +219,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.
-  bool CanTreatHoleAsUndefined(MapHandles const& receiver_maps);
+  bool CanTreatHoleAsUndefined(ZoneVector<Handle<Map>> const& receiver_maps);
 
   // Extract receiver maps from {nexus} and filter based on {receiver} if
   // possible.

@@ -7,8 +7,8 @@
 
 #include "src/objects/microtask.h"
 
-#include "src/contexts-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/js-objects-inl.h"
 

@@ -8,7 +8,7 @@
 #include "src/objects/foreign.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,15 +23,15 @@ CAST_ACCESSOR(Foreign)
 // static
 bool Foreign::IsNormalized(Object value) {
   if (value == Smi::kZero) return true;
-  return Foreign::cast(value)->foreign_address() != kNullAddress;
+  return Foreign::cast(value).foreign_address() != kNullAddress;
 }
 
 Address Foreign::foreign_address() {
-  return READ_UINTPTR_FIELD(*this, kForeignAddressOffset);
+  return ReadField<Address>(kForeignAddressOffset);
 }
 
 void Foreign::set_foreign_address(Address value) {
-  WRITE_UINTPTR_FIELD(*this, kForeignAddressOffset, value);
+  WriteField<Address>(kForeignAddressOffset, value);
 }
 
 }  // namespace internal

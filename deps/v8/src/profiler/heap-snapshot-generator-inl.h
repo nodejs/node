@@ -8,7 +8,7 @@
 #include "src/profiler/heap-snapshot-generator.h"
 
 #include "src/profiler/heap-profiler.h"
-#include "src/string-hasher-inl.h"
+#include "src/strings/string-hasher-inl.h"
 
 namespace v8 {
 namespace internal {

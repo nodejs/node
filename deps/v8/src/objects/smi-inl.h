@@ -13,9 +13,7 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(Smi)
-
-int Smi::ToInt(const Object object) { return Smi::cast(object)->value(); }
+// TODO(ishell): remove this file
 
 }  // namespace internal
 }  // namespace v8

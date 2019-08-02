@@ -6,15 +6,15 @@
 
 #include <limits>
 
-#include "src/assembler-inl.h"
 #include "src/base/adapters.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 
 namespace v8 {
 namespace internal {
@@ -458,7 +458,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
     case IrOpcode::kDelayedStringConstant:
       return g->UseImmediate(input);
     case IrOpcode::kHeapConstant: {
-      if (!CanBeTaggedPointer(rep)) {
+      if (!CanBeTaggedOrCompressedPointer(rep)) {
         // If we have inconsistent static and dynamic types, e.g. if we
         // smi-check a string, we can get here with a heap object that
         // says it is a smi. In that case, we return an invalid instruction
@@ -485,7 +485,6 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
     case IrOpcode::kObjectState:
     case IrOpcode::kTypedObjectState:
       UNREACHABLE();
-      break;
     default:
       switch (kind) {
         case FrameStateInputKind::kStackSlot:
@@ -908,6 +907,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                     ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
                     : g.UseRegister(callee));
       break;
+    case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
       buffer->instruction_args.push_back(
@@ -1007,8 +1007,13 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     UnallocatedOperand unallocated = UnallocatedOperand::cast(op);
     if (unallocated.HasFixedSlotPolicy() && !call_tail) {
       int stack_index = -unallocated.fixed_slot_index() - 1;
+      // This can insert empty slots before stack_index and will insert enough
+      // slots after stack_index to store the parameter.
       if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
-        buffer->pushed_nodes.resize(stack_index + 1);
+        int num_slots = std::max(
+            1, (ElementSizeInBytes(location.GetType().representation()) /
+                kSystemPointerSize));
+        buffer->pushed_nodes.resize(stack_index + num_slots);
       }
       PushParameter param = {*iter, location};
       buffer->pushed_nodes[stack_index] = param;
@@ -1227,7 +1232,6 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     default:
       UNREACHABLE();
-      break;
   }
   if (trace_turbo_ == kEnableTraceTurboJson && input) {
     int instruction_start = static_cast<int>(instructions_.size());
@@ -1328,6 +1332,9 @@ void InstructionSelector::VisitNode(Node* node) {
       return;
     case IrOpcode::kUnreachable:
       VisitUnreachable(node);
+      return;
+    case IrOpcode::kStaticAssert:
+      VisitStaticAssert(node);
       return;
     case IrOpcode::kDeadValue:
       VisitDeadValue(node);
@@ -2625,6 +2632,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     case CallDescriptor::kCallJSFunction:
       opcode = kArchCallJSFunction | MiscField::encode(flags);
       break;
+    case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
       opcode = kArchCallWasmFunction | MiscField::encode(flags);
@@ -2837,6 +2845,11 @@ void InstructionSelector::VisitDebugBreak(Node* node) {
 void InstructionSelector::VisitUnreachable(Node* node) {
   OperandGenerator g(this);
   Emit(kArchDebugBreak, g.NoOutput());
+}
+
+void InstructionSelector::VisitStaticAssert(Node* node) {
+  node->InputAt(0)->Print();
+  FATAL("Expected turbofan static assert to hold, but got non-true input!\n");
 }
 
 void InstructionSelector::VisitDeadValue(Node* node) {

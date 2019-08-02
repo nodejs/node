@@ -7,11 +7,12 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/base/platform/platform.h"
-#include "src/counters.h"
+#include "src/logging/counters.h"
 #include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/startup-deserializer.h"
-#include "src/version.h"
+#include "src/utils/memcopy.h"
+#include "src/utils/version.h"
 
 namespace v8 {
 namespace internal {
@@ -151,7 +152,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   uint32_t payload_length =
       static_cast<uint32_t>(startup_snapshot->RawData().length());
   CopyBytes(data + payload_offset,
-            reinterpret_cast<const char*>(startup_snapshot->RawData().start()),
+            reinterpret_cast<const char*>(startup_snapshot->RawData().begin()),
             payload_length);
   if (FLAG_profile_deserialization) {
     PrintF("Snapshot blob consists of:\n%10d bytes in %d chunks for startup\n",
@@ -165,7 +166,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   payload_length = read_only_snapshot->RawData().length();
   CopyBytes(
       data + payload_offset,
-      reinterpret_cast<const char*>(read_only_snapshot->RawData().start()),
+      reinterpret_cast<const char*>(read_only_snapshot->RawData().begin()),
       payload_length);
   if (FLAG_profile_deserialization) {
     PrintF("%10d bytes for read-only\n", payload_length);
@@ -179,7 +180,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
     payload_length = context_snapshot->RawData().length();
     CopyBytes(
         data + payload_offset,
-        reinterpret_cast<const char*>(context_snapshot->RawData().start()),
+        reinterpret_cast<const char*>(context_snapshot->RawData().begin()),
         payload_length);
     if (FLAG_profile_deserialization) {
       PrintF("%10d bytes in %d chunks for context #%d\n", payload_length,
@@ -379,29 +380,55 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
 
 }  // namespace
 
-// TODO(jgruber): Merge with related code in mksnapshot.cc and
-// inspector-test.cc.
 v8::StartupData CreateSnapshotDataBlobInternal(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
-    const char* embedded_source) {
-  // Create a new isolate and a new context from scratch, optionally run
-  // a script to embed, and serialize to create a snapshot blob.
-  v8::StartupData result = {nullptr, 0};
+    const char* embedded_source, v8::Isolate* isolate) {
+  // If no isolate is passed in, create it (and a new context) from scratch.
+  if (isolate == nullptr) isolate = v8::Isolate::Allocate();
+
+  // Optionally run a script to embed, and serialize to create a snapshot blob.
+  v8::SnapshotCreator snapshot_creator(isolate);
   {
-    v8::SnapshotCreator snapshot_creator;
-    v8::Isolate* isolate = snapshot_creator.GetIsolate();
-    {
-      v8::HandleScope scope(isolate);
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      if (embedded_source != nullptr &&
-          !RunExtraCode(isolate, context, embedded_source, "<embedded>")) {
-        return result;
-      }
-      snapshot_creator.SetDefaultContext(context);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    if (embedded_source != nullptr &&
+        !RunExtraCode(isolate, context, embedded_source, "<embedded>")) {
+      return {};
     }
-    result = snapshot_creator.CreateBlob(function_code_handling);
+    snapshot_creator.SetDefaultContext(context);
   }
-  return result;
+  return snapshot_creator.CreateBlob(function_code_handling);
+}
+
+v8::StartupData WarmUpSnapshotDataBlobInternal(
+    v8::StartupData cold_snapshot_blob, const char* warmup_source) {
+  CHECK(cold_snapshot_blob.raw_size > 0 && cold_snapshot_blob.data != nullptr);
+  CHECK_NOT_NULL(warmup_source);
+
+  // Use following steps to create a warmed up snapshot blob from a cold one:
+  //  - Create a new isolate from the cold snapshot.
+  //  - Create a new context to run the warmup script. This will trigger
+  //    compilation of executed functions.
+  //  - Create a new context. This context will be unpolluted.
+  //  - Serialize the isolate and the second context into a new snapshot blob.
+  v8::SnapshotCreator snapshot_creator(nullptr, &cold_snapshot_blob);
+  v8::Isolate* isolate = snapshot_creator.GetIsolate();
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    if (!RunExtraCode(isolate, context, warmup_source, "<warm-up>")) {
+      return {};
+    }
+  }
+  {
+    v8::HandleScope handle_scope(isolate);
+    isolate->ContextDisposedNotification(false);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    snapshot_creator.SetDefaultContext(context);
+  }
+
+  return snapshot_creator.CreateBlob(
+      v8::SnapshotCreator::FunctionCodeHandling::kKeep);
 }
 
 }  // namespace internal

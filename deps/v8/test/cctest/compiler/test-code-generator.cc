@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/code-stub-assembler.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/linkage.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/optimized-compilation-info.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
@@ -192,9 +192,9 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
 //
 // Finally, it is important that this function does not call `RecordWrite` which
 // is why "setup" is in charge of all allocations and we are using
-// SKIP_WRITE_BARRIER. The reason for this is that `RecordWrite` may clobber the
-// top 64 bits of Simd128 registers. This is the case on x64, ia32 and Arm64 for
-// example.
+// UNSAFE_SKIP_WRITE_BARRIER. The reason for this is that `RecordWrite` may
+// clobber the top 64 bits of Simd128 registers. This is the case on x64, ia32
+// and Arm64 for example.
 Handle<Code> BuildTeardownFunction(Isolate* isolate,
                                    CallDescriptor* call_descriptor,
                                    std::vector<AllocatedOperand> parameters) {
@@ -206,7 +206,8 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
     Node* param = __ Parameter(i + 2);
     switch (parameters[i].representation()) {
       case MachineRepresentation::kTagged:
-        __ StoreFixedArrayElement(result_array, i, param, SKIP_WRITE_BARRIER);
+        __ StoreFixedArrayElement(result_array, i, param,
+                                  UNSAFE_SKIP_WRITE_BARRIER);
         break;
       // Box FP values into HeapNumbers.
       case MachineRepresentation::kFloat32:
@@ -229,7 +230,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
                       ->I32x4ExtractLane(lane),
                   param));
           __ StoreFixedArrayElement(vector, lane, lane_value,
-                                    SKIP_WRITE_BARRIER);
+                                    UNSAFE_SKIP_WRITE_BARRIER);
         }
         break;
       }
@@ -249,7 +250,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
   switch (operand.representation()) {
     case MachineRepresentation::kTagged:
       if (value->IsSmi()) {
-        os << Smi::cast(*value)->value();
+        os << Smi::cast(*value).value();
       } else {
         os << value->Number();
       }
@@ -262,7 +263,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
       FixedArray vector = FixedArray::cast(*value);
       os << "[";
       for (int lane = 0; lane < 4; lane++) {
-        os << Smi::cast(*vector->GetValueChecked<Smi>(isolate, lane))->value();
+        os << Smi::cast(vector.get(lane)).value();
         if (lane < 3) {
           os << ", ";
         }
@@ -272,7 +273,6 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
     }
     default:
       UNREACHABLE();
-      break;
   }
   os << " (" << operand.representation() << " ";
   if (operand.location_kind() == AllocatedOperand::REGISTER) {
@@ -752,8 +752,7 @@ class TestEnvironment : public HandleAndZoneScope {
         state_out->set(to_index, *constant_value);
       } else {
         int from_index = OperandToStatePosition(AllocatedOperand::cast(from));
-        state_out->set(to_index, *state_out->GetValueChecked<Object>(
-                                     main_isolate(), from_index));
+        state_out->set(to_index, state_out->get(from_index));
       }
     }
     return state_out;
@@ -773,10 +772,8 @@ class TestEnvironment : public HandleAndZoneScope {
           OperandToStatePosition(AllocatedOperand::cast(swap->destination()));
       int rhs_index =
           OperandToStatePosition(AllocatedOperand::cast(swap->source()));
-      Handle<Object> lhs =
-          state_out->GetValueChecked<Object>(main_isolate(), lhs_index);
-      Handle<Object> rhs =
-          state_out->GetValueChecked<Object>(main_isolate(), rhs_index);
+      Handle<Object> lhs{state_out->get(lhs_index), main_isolate()};
+      Handle<Object> rhs{state_out->get(rhs_index), main_isolate()};
       state_out->set(lhs_index, *rhs);
       state_out->set(rhs_index, *lhs);
     }
@@ -786,10 +783,8 @@ class TestEnvironment : public HandleAndZoneScope {
   // Compare the given state with a reference.
   void CheckState(Handle<FixedArray> actual, Handle<FixedArray> expected) {
     for (int i = 0; i < static_cast<int>(layout_.size()); i++) {
-      Handle<Object> actual_value =
-          actual->GetValueChecked<Object>(main_isolate(), i);
-      Handle<Object> expected_value =
-          expected->GetValueChecked<Object>(main_isolate(), i);
+      Handle<Object> actual_value{actual->get(i), main_isolate()};
+      Handle<Object> expected_value{expected->get(i), main_isolate()};
       if (!CompareValues(actual_value, expected_value,
                          layout_[i].representation())) {
         std::ostringstream expected_str;
@@ -797,8 +792,8 @@ class TestEnvironment : public HandleAndZoneScope {
                         layout_[i]);
         std::ostringstream actual_str;
         PrintStateValue(actual_str, main_isolate(), actual_value, layout_[i]);
-        V8_Fatal(__FILE__, __LINE__, "Expected: '%s' but got '%s'",
-                 expected_str.str().c_str(), actual_str.str().c_str());
+        FATAL("Expected: '%s' but got '%s'", expected_str.str().c_str(),
+              actual_str.str().c_str());
       }
     }
   }
@@ -812,13 +807,11 @@ class TestEnvironment : public HandleAndZoneScope {
         return actual->StrictEquals(*expected);
       case MachineRepresentation::kSimd128:
         for (int lane = 0; lane < 4; lane++) {
-          Handle<Smi> actual_lane =
-              FixedArray::cast(*actual)->GetValueChecked<Smi>(main_isolate(),
-                                                              lane);
-          Handle<Smi> expected_lane =
-              FixedArray::cast(*expected)->GetValueChecked<Smi>(main_isolate(),
-                                                                lane);
-          if (*actual_lane != *expected_lane) {
+          int actual_lane =
+              Smi::cast(FixedArray::cast(*actual).get(lane)).value();
+          int expected_lane =
+              Smi::cast(FixedArray::cast(*expected).get(lane)).value();
+          if (actual_lane != expected_lane) {
             return false;
           }
         }

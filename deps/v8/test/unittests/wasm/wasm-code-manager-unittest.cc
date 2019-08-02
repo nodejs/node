@@ -158,11 +158,17 @@ class WasmCodeManagerTest : public TestWithContext,
   static constexpr uint32_t kNumFunctions = 10;
   static constexpr uint32_t kJumpTableSize = RoundUp<kCodeAlignment>(
       JumpTableAssembler::SizeForNumberOfSlots(kNumFunctions));
-  static size_t page_size;
+  static size_t allocate_page_size;
+  static size_t commit_page_size;
 
   WasmCodeManagerTest() {
-    if (page_size == 0) page_size = AllocatePageSize();
-    DCHECK_NE(0, page_size);
+    CHECK_EQ(allocate_page_size == 0, commit_page_size == 0);
+    if (allocate_page_size == 0) {
+      allocate_page_size = AllocatePageSize();
+      commit_page_size = CommitPageSize();
+    }
+    CHECK_NE(0, allocate_page_size);
+    CHECK_NE(0, commit_page_size);
   }
 
   using NativeModulePtr = std::shared_ptr<NativeModule>;
@@ -193,10 +199,17 @@ class WasmCodeManagerTest : public TestWithContext,
   void SetMaxCommittedMemory(size_t limit) {
     manager()->SetMaxCommittedMemoryForTesting(limit);
   }
+
+  void DisableWin64UnwindInfoForTesting() {
+#if defined(V8_OS_WIN_X64)
+    manager()->DisableWin64UnwindInfoForTesting();
+#endif
+  }
 };
 
 // static
-size_t WasmCodeManagerTest::page_size = 0;
+size_t WasmCodeManagerTest::allocate_page_size = 0;
+size_t WasmCodeManagerTest::commit_page_size = 0;
 
 INSTANTIATE_TEST_SUITE_P(Parameterized, WasmCodeManagerTest,
                          ::testing::Values(Fixed, Growable),
@@ -206,93 +219,107 @@ TEST_P(WasmCodeManagerTest, EmptyCase) {
   SetMaxCommittedMemory(0);
   CHECK_EQ(0, manager()->committed_code_space());
 
-  ASSERT_DEATH_IF_SUPPORTED(AllocModule(page_size, GetParam()),
-                            "OOM in NativeModule::AllocateForCode commit");
+  ASSERT_DEATH_IF_SUPPORTED(AllocModule(allocate_page_size, GetParam()),
+                            "OOM in wasm code commit");
 }
 
 TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
-  SetMaxCommittedMemory(page_size);
+  SetMaxCommittedMemory(allocate_page_size);
+  DisableWin64UnwindInfoForTesting();
+
   CHECK_EQ(0, manager()->committed_code_space());
-  NativeModulePtr native_module = AllocModule(page_size, GetParam());
+  NativeModulePtr native_module = AllocModule(allocate_page_size, GetParam());
   CHECK(native_module);
-  CHECK_EQ(page_size, manager()->committed_code_space());
+  CHECK_EQ(commit_page_size, manager()->committed_code_space());
   WasmCodeRefScope code_ref_scope;
   uint32_t index = 0;
   WasmCode* code = AddCode(native_module.get(), index++, 1 * kCodeAlignment);
   CHECK_NOT_NULL(code);
-  CHECK_EQ(page_size, manager()->committed_code_space());
+  CHECK_EQ(commit_page_size, manager()->committed_code_space());
 
   code = AddCode(native_module.get(), index++, 3 * kCodeAlignment);
   CHECK_NOT_NULL(code);
-  CHECK_EQ(page_size, manager()->committed_code_space());
+  CHECK_EQ(commit_page_size, manager()->committed_code_space());
 
   code = AddCode(native_module.get(), index++,
-                 page_size - 4 * kCodeAlignment - kJumpTableSize);
+                 allocate_page_size - 4 * kCodeAlignment - kJumpTableSize);
   CHECK_NOT_NULL(code);
-  CHECK_EQ(page_size, manager()->committed_code_space());
+  CHECK_EQ(allocate_page_size, manager()->committed_code_space());
 
   // This fails in "reservation" if we cannot extend the code space, or in
   // "commit" it we can (since we hit the allocation limit in the
   // WasmCodeManager). Hence don't check for that part of the OOM message.
   ASSERT_DEATH_IF_SUPPORTED(
       AddCode(native_module.get(), index++, 1 * kCodeAlignment),
-      "OOM in NativeModule::AllocateForCode");
+      "OOM in wasm code");
 }
 
 TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
-  SetMaxCommittedMemory(3 * page_size);
-  NativeModulePtr nm1 = AllocModule(2 * page_size, GetParam());
-  NativeModulePtr nm2 = AllocModule(2 * page_size, GetParam());
+  SetMaxCommittedMemory(3 * allocate_page_size);
+  DisableWin64UnwindInfoForTesting();
+
+  NativeModulePtr nm1 = AllocModule(2 * allocate_page_size, GetParam());
+  NativeModulePtr nm2 = AllocModule(2 * allocate_page_size, GetParam());
   CHECK(nm1);
   CHECK(nm2);
   WasmCodeRefScope code_ref_scope;
-  WasmCode* code = AddCode(nm1.get(), 0, 2 * page_size - kJumpTableSize);
+  WasmCode* code =
+      AddCode(nm1.get(), 0, 2 * allocate_page_size - kJumpTableSize);
   CHECK_NOT_NULL(code);
   ASSERT_DEATH_IF_SUPPORTED(
-      AddCode(nm2.get(), 0, 2 * page_size - kJumpTableSize),
-      "OOM in NativeModule::AllocateForCode commit");
+      AddCode(nm2.get(), 0, 2 * allocate_page_size - kJumpTableSize),
+      "OOM in wasm code commit");
 }
 
 TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
-  SetMaxCommittedMemory(3 * page_size);
-  NativeModulePtr nm = AllocModule(page_size, GetParam());
-  size_t module_size = GetParam() == Fixed ? kMaxWasmCodeMemory : page_size;
+  SetMaxCommittedMemory(3 * allocate_page_size);
+  DisableWin64UnwindInfoForTesting();
+
+  NativeModulePtr nm = AllocModule(allocate_page_size, GetParam());
+  size_t module_size =
+      GetParam() == Fixed ? kMaxWasmCodeMemory : allocate_page_size;
   size_t remaining_space_in_module = module_size - kJumpTableSize;
   if (GetParam() == Fixed) {
     // Requesting more than the remaining space fails because the module cannot
     // grow.
     ASSERT_DEATH_IF_SUPPORTED(
         AddCode(nm.get(), 0, remaining_space_in_module + kCodeAlignment),
-        "OOM in NativeModule::AllocateForCode");
+        "OOM in wasm code reservation");
   } else {
     // The module grows by one page. One page remains uncommitted.
     WasmCodeRefScope code_ref_scope;
     CHECK_NOT_NULL(
         AddCode(nm.get(), 0, remaining_space_in_module + kCodeAlignment));
-    CHECK_EQ(2 * page_size, manager()->committed_code_space());
+    CHECK_EQ(commit_page_size + allocate_page_size,
+             manager()->committed_code_space());
   }
 }
 
 TEST_P(WasmCodeManagerTest, CommitIncrements) {
-  SetMaxCommittedMemory(10 * page_size);
-  NativeModulePtr nm = AllocModule(3 * page_size, GetParam());
+  SetMaxCommittedMemory(10 * allocate_page_size);
+  DisableWin64UnwindInfoForTesting();
+
+  NativeModulePtr nm = AllocModule(3 * allocate_page_size, GetParam());
   WasmCodeRefScope code_ref_scope;
   WasmCode* code = AddCode(nm.get(), 0, kCodeAlignment);
   CHECK_NOT_NULL(code);
-  CHECK_EQ(page_size, manager()->committed_code_space());
-  code = AddCode(nm.get(), 1, 2 * page_size);
+  CHECK_EQ(commit_page_size, manager()->committed_code_space());
+  code = AddCode(nm.get(), 1, 2 * allocate_page_size);
   CHECK_NOT_NULL(code);
-  CHECK_EQ(3 * page_size, manager()->committed_code_space());
-  code = AddCode(nm.get(), 2, page_size - kCodeAlignment - kJumpTableSize);
+  CHECK_EQ(commit_page_size + 2 * allocate_page_size,
+           manager()->committed_code_space());
+  code = AddCode(nm.get(), 2,
+                 allocate_page_size - kCodeAlignment - kJumpTableSize);
   CHECK_NOT_NULL(code);
-  CHECK_EQ(3 * page_size, manager()->committed_code_space());
+  CHECK_EQ(3 * allocate_page_size, manager()->committed_code_space());
 }
 
 TEST_P(WasmCodeManagerTest, Lookup) {
-  SetMaxCommittedMemory(2 * page_size);
+  SetMaxCommittedMemory(2 * allocate_page_size);
+  DisableWin64UnwindInfoForTesting();
 
-  NativeModulePtr nm1 = AllocModule(page_size, GetParam());
-  NativeModulePtr nm2 = AllocModule(page_size, GetParam());
+  NativeModulePtr nm1 = AllocModule(allocate_page_size, GetParam());
+  NativeModulePtr nm2 = AllocModule(allocate_page_size, GetParam());
   Address mid_code1_1;
   {
     // The {WasmCodeRefScope} needs to die before {nm1} dies.
@@ -334,9 +361,10 @@ TEST_P(WasmCodeManagerTest, Lookup) {
 }
 
 TEST_P(WasmCodeManagerTest, LookupWorksAfterRewrite) {
-  SetMaxCommittedMemory(2 * page_size);
+  SetMaxCommittedMemory(2 * allocate_page_size);
+  DisableWin64UnwindInfoForTesting();
 
-  NativeModulePtr nm1 = AllocModule(page_size, GetParam());
+  NativeModulePtr nm1 = AllocModule(allocate_page_size, GetParam());
 
   WasmCodeRefScope code_ref_scope;
   WasmCode* code0 = AddCode(nm1.get(), 0, kCodeAlignment);

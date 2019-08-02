@@ -12,4 +12,5 @@ function f() {
   }
 }
 
+%PrepareFunctionForOptimization(f);
 f();

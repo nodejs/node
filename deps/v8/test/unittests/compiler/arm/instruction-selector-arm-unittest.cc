@@ -6,7 +6,7 @@
 
 #include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -14,8 +14,7 @@ namespace compiler {
 
 namespace {
 
-typedef Node* (RawMachineAssembler::*Constructor)(Node*, Node*);
-
+using Constructor = Node* (RawMachineAssembler::*)(Node*, Node*);
 
 // Data processing instructions.
 struct DPI {
@@ -143,9 +142,7 @@ const int32_t kImmediates[] = {
 // -----------------------------------------------------------------------------
 // Data processing instructions.
 
-
-typedef InstructionSelectorTestWithParam<DPI> InstructionSelectorDPITest;
-
+using InstructionSelectorDPITest = InstructionSelectorTestWithParam<DPI>;
 
 TEST_P(InstructionSelectorDPITest, Parameters) {
   const DPI dpi = GetParam();
@@ -536,9 +533,7 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorDPITest,
 // -----------------------------------------------------------------------------
 // Data processing instructions with overflow.
 
-
-typedef InstructionSelectorTestWithParam<ODPI> InstructionSelectorODPITest;
-
+using InstructionSelectorODPITest = InstructionSelectorTestWithParam<ODPI>;
 
 TEST_P(InstructionSelectorODPITest, OvfWithParameters) {
   const ODPI odpi = GetParam();
@@ -1035,9 +1030,7 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorODPITest,
 // -----------------------------------------------------------------------------
 // Shifts.
 
-
-typedef InstructionSelectorTestWithParam<Shift> InstructionSelectorShiftTest;
-
+using InstructionSelectorShiftTest = InstructionSelectorTestWithParam<Shift>;
 
 TEST_P(InstructionSelectorShiftTest, Parameters) {
   const Shift shift = GetParam();
@@ -1321,10 +1314,8 @@ const MemoryAccess kMemoryAccesses[] = {
 
 }  // namespace
 
-
-typedef InstructionSelectorTestWithParam<MemoryAccess>
-    InstructionSelectorMemoryAccessTest;
-
+using InstructionSelectorMemoryAccessTest =
+    InstructionSelectorTestWithParam<MemoryAccess>;
 
 TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
   const MemoryAccess memacc = GetParam();
@@ -1493,10 +1484,8 @@ const Comparison kComparisons[] = {
 
 }  // namespace
 
-
-typedef InstructionSelectorTestWithParam<Comparison>
-    InstructionSelectorComparisonTest;
-
+using InstructionSelectorComparisonTest =
+    InstructionSelectorTestWithParam<Comparison>;
 
 TEST_P(InstructionSelectorComparisonTest, Parameters) {
   const Comparison& cmp = GetParam();
@@ -1586,9 +1575,8 @@ const Comparison kF32Comparisons[] = {
 
 }  // namespace
 
-typedef InstructionSelectorTestWithParam<Comparison>
-    InstructionSelectorF32ComparisonTest;
-
+using InstructionSelectorF32ComparisonTest =
+    InstructionSelectorTestWithParam<Comparison>;
 
 TEST_P(InstructionSelectorF32ComparisonTest, WithParameters) {
   const Comparison& cmp = GetParam();
@@ -1667,9 +1655,8 @@ const Comparison kF64Comparisons[] = {
 
 }  // namespace
 
-typedef InstructionSelectorTestWithParam<Comparison>
-    InstructionSelectorF64ComparisonTest;
-
+using InstructionSelectorF64ComparisonTest =
+    InstructionSelectorTestWithParam<Comparison>;
 
 TEST_P(InstructionSelectorF64ComparisonTest, WithParameters) {
   const Comparison& cmp = GetParam();
@@ -1738,9 +1725,7 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
 // -----------------------------------------------------------------------------
 // Floating point arithmetic.
 
-
-typedef InstructionSelectorTestWithParam<FAI> InstructionSelectorFAITest;
-
+using InstructionSelectorFAITest = InstructionSelectorTestWithParam<FAI>;
 
 TEST_P(InstructionSelectorFAITest, Parameters) {
   const FAI& fai = GetParam();
@@ -2009,8 +1994,8 @@ const FlagSettingInst kFlagSettingInstructions[] = {
     {&RawMachineAssembler::Word32Or, "Word32Or", kArmOrr, kArmOrr},
     {&RawMachineAssembler::Word32Xor, "Word32Xor", kArmEor, kArmTeq}};
 
-typedef InstructionSelectorTestWithParam<FlagSettingInst>
-    InstructionSelectorFlagSettingTest;
+using InstructionSelectorFlagSettingTest =
+    InstructionSelectorTestWithParam<FlagSettingInst>;
 
 TEST_P(InstructionSelectorFlagSettingTest, CmpZeroRight) {
   const FlagSettingInst inst = GetParam();

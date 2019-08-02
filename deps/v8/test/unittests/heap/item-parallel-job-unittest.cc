@@ -4,7 +4,7 @@
 
 #include "src/heap/item-parallel-job.h"
 
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

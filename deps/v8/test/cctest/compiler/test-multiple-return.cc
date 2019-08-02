@@ -7,14 +7,14 @@
 #include <limits>
 #include <memory>
 
-#include "src/assembler.h"
 #include "src/base/bits.h"
-#include "src/compiler.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/compiler.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/machine-type.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -151,7 +151,7 @@ void TestReturnMultipleValues(MachineType type) {
       // m.Parameter(0) is the WasmContext.
       Node* p0 = m.Parameter(1);
       Node* p1 = m.Parameter(2);
-      typedef Node* Node_ptr;
+      using Node_ptr = Node*;
       std::unique_ptr<Node_ptr[]> returns(new Node_ptr[count]);
       for (int i = 0; i < count; ++i) {
         if (i % 3 == 0) returns[i] = Add(m, type, p0, p1);
@@ -187,7 +187,7 @@ void TestReturnMultipleValues(MachineType type) {
           handles.main_isolate(), code->raw_instruction_size());
       wasm::WasmCodeRefScope wasm_code_ref_scope;
       byte* code_start =
-          module->AddCodeForTesting(code)->instructions().start();
+          module->AddCodeForTesting(code)->instructions().begin();
 
       RawMachineAssemblerTester<int32_t> mt(Code::Kind::JS_TO_WASM_FUNCTION);
       const int input_count = 2 + param_count;
@@ -276,7 +276,7 @@ void ReturnLastValue(MachineType type) {
     std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
-    byte* code_start = module->AddCodeForTesting(code)->instructions().start();
+    byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
 
     // Generate caller.
     int expect = return_count - 1;
@@ -338,7 +338,7 @@ void ReturnSumOfReturns(MachineType type) {
     std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
-    byte* code_start = module->AddCodeForTesting(code)->instructions().start();
+    byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
 
     // Generate caller.
     RawMachineAssemblerTester<int32_t> mt;

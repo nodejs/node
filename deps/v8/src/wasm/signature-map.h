@@ -7,7 +7,7 @@
 
 #include <unordered_map>
 
-#include "src/signature.h"
+#include "src/codegen/signature.h"
 #include "src/wasm/value-type.h"
 
 namespace v8 {
@@ -33,6 +33,10 @@ class V8_EXPORT_PRIVATE SignatureMap {
 
   // Disallows further insertions to this signature map.
   void Freeze() { frozen_ = true; }
+
+  size_t size() const { return map_.size(); }
+
+  bool is_frozen() const { return frozen_; }
 
  private:
   bool frozen_ = false;

@@ -5,7 +5,7 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "src/wasm/wasm-interpreter.h"
 
 #include "test/common/wasm/wasm-macro-gen.h"

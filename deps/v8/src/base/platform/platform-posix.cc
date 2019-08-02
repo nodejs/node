@@ -678,11 +678,6 @@ int OS::VSNPrintF(char* str,
 // POSIX string support.
 //
 
-char* OS::StrChr(char* str, int c) {
-  return strchr(str, c);
-}
-
-
 void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
   strncpy(dest, src, n);
 }

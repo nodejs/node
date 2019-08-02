@@ -22,6 +22,7 @@
       return r + "S";
     }, "H");
   }
+  %PrepareFunctionForOptimization(eagerDeoptInCalled);
   eagerDeoptInCalled();
   eagerDeoptInCalled();
   %OptimizeFunctionOnNextCall(eagerDeoptInCalled);
@@ -38,7 +39,8 @@
       a = [,,,];  // also a holey smi array.
     }
     return a.reduce((r,v,i,o)=>r+v);
-  }
+  };
+  %PrepareFunctionForOptimization(nothingThere);
   nothingThere();
   nothingThere();
   %OptimizeFunctionOnNextCall(nothingThere);
@@ -62,6 +64,7 @@
   } catch (e) {
     assertTrue(re.exec(e.stack) !== null);
   }
+  %PrepareFunctionForOptimization(alwaysThrows);
   try { alwaysThrows(); } catch (e) {}
   try { alwaysThrows(); } catch (e) {}
   %OptimizeFunctionOnNextCall(alwaysThrows);

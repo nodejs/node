@@ -7,7 +7,7 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/base/threaded-list.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -193,7 +193,7 @@ class Variable final : public ZoneObject {
                                       : kNeedsInitialization;
   }
 
-  typedef base::ThreadedList<Variable> List;
+  using List = base::ThreadedList<Variable>;
 
  private:
   Scope* scope_;

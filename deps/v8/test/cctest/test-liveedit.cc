@@ -27,11 +27,11 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/debug/liveedit.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -46,8 +46,8 @@ void CompareStringsOneWay(const char* s1, const char* s2,
   changes->clear();
   LiveEdit::CompareStrings(isolate, i_s1, i_s2, changes);
 
-  int len1 = StrLength(s1);
-  int len2 = StrLength(s2);
+  int len1 = static_cast<int>(strlen(s1));
+  int len2 = static_cast<int>(strlen(s2));
 
   int pos1 = 0;
   int pos2 = 0;
@@ -208,7 +208,7 @@ void PatchFunctions(v8::Local<v8::Context> context, const char* source_a,
       v8::Script::Compile(context, v8_str(isolate, source_a)).ToLocalChecked();
   script_a->Run(context).ToLocalChecked();
   i::Handle<i::Script> i_script_a(
-      i::Script::cast(v8::Utils::OpenHandle(*script_a)->shared()->script()),
+      i::Script::cast(v8::Utils::OpenHandle(*script_a)->shared().script()),
       i_isolate);
 
   if (result) {
@@ -353,6 +353,7 @@ TEST(LiveEditPatchFunctions) {
   i::FLAG_allow_natives_syntax = true;
   PatchFunctions(context,
                  "function foo(a, b) { return a + b; }; "
+                 "%PrepareFunctionForOptimization(foo);"
                  "%OptimizeFunctionOnNextCall(foo); foo(1,2);",
                  "function foo(a, b) { return a * b; };");
   CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo(5,7)")
@@ -540,7 +541,7 @@ TEST(LiveEditFunctionExpression) {
   v8::Local<v8::Function> f =
       script->Run(context).ToLocalChecked().As<v8::Function>();
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()),
+      i::Script::cast(v8::Utils::OpenHandle(*script)->shared().script()),
       i_isolate);
   debug::LiveEditResult result;
   LiveEdit::PatchScript(

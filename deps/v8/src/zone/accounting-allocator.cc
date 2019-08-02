@@ -4,8 +4,8 @@
 
 #include "src/zone/accounting-allocator.h"
 
-#include "src/allocation.h"
 #include "src/base/logging.h"
+#include "src/utils/allocation.h"
 #include "src/zone/zone-segment.h"
 
 namespace v8 {

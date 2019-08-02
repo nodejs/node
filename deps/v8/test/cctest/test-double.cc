@@ -27,11 +27,11 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/base/platform/platform.h"
-#include "src/diy-fp.h"
-#include "src/double.h"
+#include "src/numbers/diy-fp.h"
+#include "src/numbers/double.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

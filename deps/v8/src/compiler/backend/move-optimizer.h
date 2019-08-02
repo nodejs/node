@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_BACKEND_MOVE_OPTIMIZER_H_
 #define V8_COMPILER_BACKEND_MOVE_OPTIMIZER_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

@@ -4,8 +4,8 @@
 
 #include "src/compiler/common-node-cache.h"
 
+#include "src/codegen/external-reference.h"
 #include "src/compiler/node.h"
-#include "src/external-reference.h"
 
 namespace v8 {
 namespace internal {

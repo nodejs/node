@@ -4,25 +4,26 @@
 
 #include "src/profiler/profiler-listener.h"
 
-#include "src/deoptimizer.h"
-#include "src/handles-inl.h"
-#include "src/objects-inl.h"
+#include "src/codegen/reloc-info.h"
+#include "src/codegen/source-position-table.h"
+#include "src/deoptimizer/deoptimizer.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
-#include "src/reloc-info.h"
-#include "src/source-position-table.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
 namespace internal {
 
 ProfilerListener::ProfilerListener(Isolate* isolate,
-                                   CodeEventObserver* observer)
-    : isolate_(isolate), observer_(observer) {}
+                                   CodeEventObserver* observer,
+                                   CpuProfilingNamingMode naming_mode)
+    : isolate_(isolate), observer_(observer), naming_mode_(naming_mode) {}
 
 ProfilerListener::~ProfilerListener() = default;
 
@@ -39,12 +40,12 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                        AbstractCode code, const char* name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = code->InstructionStart();
+  rec->instruction_start = code.InstructionStart();
   rec->entry = new CodeEntry(tag, GetName(name), CodeEntry::kEmptyResourceName,
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                             code->InstructionStart());
-  rec->instruction_size = code->InstructionSize();
+                             code.InstructionStart());
+  rec->instruction_size = code.InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -52,12 +53,12 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                        AbstractCode code, Name name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = code->InstructionStart();
+  rec->instruction_start = code.InstructionStart();
   rec->entry = new CodeEntry(tag, GetName(name), CodeEntry::kEmptyResourceName,
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                             code->InstructionStart());
-  rec->instruction_size = code->InstructionSize();
+                             code.InstructionStart());
+  rec->instruction_size = code.InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -67,15 +68,15 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                        Name script_name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = code->InstructionStart();
-  rec->entry = new CodeEntry(tag, GetName(shared->DebugName()),
+  rec->instruction_start = code.InstructionStart();
+  rec->entry = new CodeEntry(tag, GetName(shared.DebugName()),
                              GetName(InferScriptName(script_name, shared)),
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                             code->InstructionStart());
-  DCHECK(!code->IsCode());
+                             code.InstructionStart());
+  DCHECK(!code.IsCode());
   rec->entry->FillFunctionInfo(shared);
-  rec->instruction_size = code->InstructionSize();
+  rec->instruction_size = code.InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -100,15 +101,15 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                        Name script_name, int line, int column) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = abstract_code->InstructionStart();
+  rec->instruction_start = abstract_code.InstructionStart();
   std::unique_ptr<SourcePositionTable> line_table;
   std::unordered_map<int, std::vector<CodeEntryAndLineNumber>> inline_stacks;
   std::unordered_set<std::unique_ptr<CodeEntry>, CodeEntry::Hasher,
                      CodeEntry::Equals>
       cached_inline_entries;
   bool is_shared_cross_origin = false;
-  if (shared->script()->IsScript()) {
-    Script script = Script::cast(shared->script());
+  if (shared.script().IsScript()) {
+    Script script = Script::cast(shared.script());
     line_table.reset(new SourcePositionTable());
     HandleScope scope(isolate_);
 
@@ -119,23 +120,26 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
     // profiler as is stored on the code object, except that we transform source
     // positions to line numbers here, because we only care about attributing
     // ticks to a given line.
-    for (SourcePositionTableIterator it(abstract_code->source_position_table());
+    for (SourcePositionTableIterator it(abstract_code.source_position_table());
          !it.done(); it.Advance()) {
       int position = it.source_position().ScriptOffset();
-      int line_number = script->GetLineNumber(position) + 1;
       int inlining_id = it.source_position().InliningId();
 
-      // TODO(953309): Fix this.
-      if (line_number == 0) continue;
-
-      line_table->SetPosition(it.code_offset(), line_number, inlining_id);
-
-      if (inlining_id != SourcePosition::kNotInlined) {
-        DCHECK(abstract_code->IsCode());
-        Code code = abstract_code->GetCode();
+      if (inlining_id == SourcePosition::kNotInlined) {
+        int line_number = script.GetLineNumber(position) + 1;
+        line_table->SetPosition(it.code_offset(), line_number, inlining_id);
+      } else {
+        DCHECK(abstract_code.IsCode());
+        Code code = abstract_code.GetCode();
         std::vector<SourcePositionInfo> stack =
             it.source_position().InliningStack(handle(code, isolate_));
         DCHECK(!stack.empty());
+
+        // When we have an inlining id and we are doing cross-script inlining,
+        // then the script of the inlined frames may be different to the script
+        // of |shared|.
+        int line_number = stack.front().line + 1;
+        line_table->SetPosition(it.code_offset(), line_number, inlining_id);
 
         std::vector<CodeEntryAndLineNumber> inline_stack;
         for (SourcePositionInfo& pos_info : stack) {
@@ -147,7 +151,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
               1;
 
           const char* resource_name =
-              (pos_info.script->name()->IsName())
+              (pos_info.script->name().IsName())
                   ? GetName(Name::cast(pos_info.script->name()))
                   : CodeEntry::kEmptyResourceName;
 
@@ -163,9 +167,9 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 
           std::unique_ptr<CodeEntry> inline_entry =
               base::make_unique<CodeEntry>(
-                  tag, GetName(pos_info.shared->DebugName()), resource_name,
+                  tag, GetFunctionName(*pos_info.shared), resource_name,
                   start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
-                  code->InstructionStart(), inline_is_shared_cross_origin);
+                  code.InstructionStart(), inline_is_shared_cross_origin);
           inline_entry->FillFunctionInfo(*pos_info.shared);
 
           // Create a canonical CodeEntry for each inlined frame and then re-use
@@ -182,9 +186,9 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
     }
   }
   rec->entry =
-      new CodeEntry(tag, GetName(shared->DebugName()),
+      new CodeEntry(tag, GetFunctionName(shared),
                     GetName(InferScriptName(script_name, shared)), line, column,
-                    std::move(line_table), abstract_code->InstructionStart(),
+                    std::move(line_table), abstract_code.InstructionStart(),
                     is_shared_cross_origin);
   if (!inline_stacks.empty()) {
     rec->entry->SetInlineStacks(std::move(cached_inline_entries),
@@ -192,7 +196,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   }
 
   rec->entry->FillFunctionInfo(shared);
-  rec->instruction_size = abstract_code->InstructionSize();
+  rec->instruction_size = abstract_code.InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -203,7 +207,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
   rec->entry = new CodeEntry(
-      tag, GetName(name.start()), CodeEntry::kWasmResourceNamePrefix,
+      tag, GetName(name.begin()), CodeEntry::kWasmResourceNamePrefix,
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
       nullptr, code->instruction_start(), true);
   rec->instruction_size = code->instructions().length();
@@ -213,8 +217,8 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_MOVE);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
-  rec->from_instruction_start = from->InstructionStart();
-  rec->to_instruction_start = to->InstructionStart();
+  rec->from_instruction_start = from.InstructionStart();
+  rec->to_instruction_start = to.InstructionStart();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -222,8 +226,8 @@ void ProfilerListener::CodeDisableOptEvent(AbstractCode code,
                                            SharedFunctionInfo shared) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);
   CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
-  rec->instruction_start = code->InstructionStart();
-  rec->bailout_reason = GetBailoutReason(shared->disable_optimization_reason());
+  rec->instruction_start = code.InstructionStart();
+  rec->bailout_reason = GetBailoutReason(shared.disable_optimization_reason());
   DispatchCodeEvent(evt_rec);
 }
 
@@ -232,7 +236,7 @@ void ProfilerListener::CodeDeoptEvent(Code code, DeoptimizeKind kind,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DEOPT);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
-  rec->instruction_start = code->InstructionStart();
+  rec->instruction_start = code.InstructionStart();
   rec->deopt_reason = DeoptimizeReasonToString(info.deopt_reason);
   rec->deopt_id = info.deopt_id;
   rec->pc = pc;
@@ -257,12 +261,12 @@ void ProfilerListener::GetterCallbackEvent(Name name, Address entry_point) {
 void ProfilerListener::RegExpCodeCreateEvent(AbstractCode code, String source) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = code->InstructionStart();
+  rec->instruction_start = code.InstructionStart();
   rec->entry = new CodeEntry(
       CodeEventListener::REG_EXP_TAG, GetConsName("RegExp: ", source),
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, nullptr, code->InstructionStart());
-  rec->instruction_size = code->InstructionSize();
+      CpuProfileNode::kNoColumnNumberInfo, nullptr, code.InstructionStart());
+  rec->instruction_size = code.InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -277,10 +281,22 @@ void ProfilerListener::SetterCallbackEvent(Name name, Address entry_point) {
 }
 
 Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
-  if (name->IsString() && String::cast(name)->length()) return name;
-  if (!info->script()->IsScript()) return name;
-  Object source_url = Script::cast(info->script())->source_url();
-  return source_url->IsName() ? Name::cast(source_url) : name;
+  if (name.IsString() && String::cast(name).length()) return name;
+  if (!info.script().IsScript()) return name;
+  Object source_url = Script::cast(info.script()).source_url();
+  return source_url.IsName() ? Name::cast(source_url) : name;
+}
+
+const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {
+  DisallowHeapAllocation no_gc;
+  switch (naming_mode_) {
+    case kDebugNaming:
+      return GetName(shared.DebugName());
+    case kStandardNaming:
+      return GetName(shared.Name());
+    default:
+      UNREACHABLE();
+  }
 }
 
 void ProfilerListener::AttachDeoptInlinedFrames(Code code,

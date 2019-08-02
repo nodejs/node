@@ -197,6 +197,7 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
     a[b] = c;
   }
 
+  %PrepareFunctionForOptimization(grow_store);
   a = new Array(1);
   grow_store(a,1,1);
   grow_store(a,2,1);
@@ -216,6 +217,7 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   function f(o, k, v) {
     o[k] = v;
   }
+  %PrepareFunctionForOptimization(f);
 
   a = [3.5];
   f(a, 1, "hi");  // DOUBLE packed array -> tagged packed grow
@@ -238,6 +240,7 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   function f(o, k, v) {
     o[k] = v;
   }
+  %PrepareFunctionForOptimization(f);
 
   a = [3.5];
   f(a, 0, "hi");  // DOUBLE packed array -> tagged packed grow

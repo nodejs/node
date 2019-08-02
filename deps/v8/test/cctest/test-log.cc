@@ -29,24 +29,23 @@
 
 #include <unordered_set>
 #include <vector>
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/compilation-cache.h"
-#include "src/log-utils.h"
-#include "src/log.h"
-#include "src/objects-inl.h"
-#include "src/ostreams.h"
+#include "src/codegen/compilation-cache.h"
+#include "src/execution/vm-state-inl.h"
+#include "src/init/v8.h"
+#include "src/logging/log-utils.h"
+#include "src/logging/log.h"
+#include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/natives.h"
-#include "src/v8.h"
-#include "src/version.h"
-#include "src/vm-state-inl.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/version.h"
 #include "test/cctest/cctest.h"
 
 using v8::internal::Address;
 using v8::internal::EmbeddedVector;
 using v8::internal::Logger;
-using v8::internal::StrLength;
 
 namespace {
 
@@ -182,9 +181,8 @@ class ScopedLoggerInitializer {
             printf("%s\n", log_.at(i).c_str());
           }
           printf("%zu\n", current);
-          V8_Fatal(__FILE__, __LINE__, "%s, ... %p apperead twice:\n    %s",
-                   search_term.c_str(), reinterpret_cast<void*>(address),
-                   current_line.c_str());
+          FATAL("%s, ... %p apperead twice:\n    %s", search_term.c_str(),
+                reinterpret_cast<void*>(address), current_line.c_str());
         }
       }
       map.insert({address, current_line});
@@ -287,15 +285,13 @@ namespace {
 class SimpleExternalString : public v8::String::ExternalStringResource {
  public:
   explicit SimpleExternalString(const char* source)
-      : utf_source_(StrLength(source)) {
-    for (int i = 0; i < utf_source_.length(); ++i)
-      utf_source_[i] = source[i];
-  }
+      : utf_source_(i::OwnedVector<uint16_t>::Of(i::CStrVector(source))) {}
   ~SimpleExternalString() override = default;
-  size_t length() const override { return utf_source_.length(); }
-  const uint16_t* data() const override { return utf_source_.start(); }
+  size_t length() const override { return utf_source_.size(); }
+  const uint16_t* data() const override { return utf_source_.begin(); }
+
  private:
-  i::ScopedVector<uint16_t> utf_source_;
+  i::OwnedVector<uint16_t> utf_source_;
 };
 
 }  // namespace
@@ -367,7 +363,7 @@ UNINITIALIZED_TEST(LogCallbacks) {
     i::EmbeddedVector<char, 100> suffix_buffer;
     i::SNPrintF(suffix_buffer, ",0x%" V8PRIxPTR ",1,method1", ObjMethod1_entry);
     CHECK(logger.ContainsLine(
-        {"code-creation,Callback,-2,", std::string(suffix_buffer.start())}));
+        {"code-creation,Callback,-2,", std::string(suffix_buffer.begin())}));
   }
   isolate->Dispose();
 }
@@ -412,7 +408,7 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
     i::SNPrintF(prop1_getter_record, ",0x%" V8PRIxPTR ",1,get prop1",
                 Prop1Getter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
-                               std::string(prop1_getter_record.start())}));
+                               std::string(prop1_getter_record.begin())}));
 
     Address Prop1Setter_entry = reinterpret_cast<Address>(Prop1Setter);
 #if USES_FUNCTION_DESCRIPTORS
@@ -422,7 +418,7 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
     i::SNPrintF(prop1_setter_record, ",0x%" V8PRIxPTR ",1,set prop1",
                 Prop1Setter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
-                               std::string(prop1_setter_record.start())}));
+                               std::string(prop1_setter_record.begin())}));
 
     Address Prop2Getter_entry = reinterpret_cast<Address>(Prop2Getter);
 #if USES_FUNCTION_DESCRIPTORS
@@ -432,7 +428,7 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
     i::SNPrintF(prop2_getter_record, ",0x%" V8PRIxPTR ",1,get prop2",
                 Prop2Getter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
-                               std::string(prop2_getter_record.start())}));
+                               std::string(prop2_getter_record.begin())}));
   }
   isolate->Dispose();
 }
@@ -480,7 +476,7 @@ UNINITIALIZED_TEST(EquivalenceOfLoggingAndTraversal) {
     i::Vector<const char> source =
         i::NativesCollection<i::TEST>::GetScriptsSource();
     v8::Local<v8::String> source_str =
-        v8::String::NewFromUtf8(isolate, source.start(),
+        v8::String::NewFromUtf8(isolate, source.begin(),
                                 v8::NewStringType::kNormal, source.length())
             .ToLocalChecked();
     v8::TryCatch try_catch(isolate);
@@ -498,9 +494,9 @@ UNINITIALIZED_TEST(EquivalenceOfLoggingAndTraversal) {
     if (!result->IsTrue()) {
       v8::Local<v8::String> s = result->ToString(logger.env()).ToLocalChecked();
       i::ScopedVector<char> data(s->Utf8Length(isolate) + 1);
-      CHECK(data.start());
-      s->WriteUtf8(isolate, data.start());
-      FATAL("%s\n", data.start());
+      CHECK(data.begin());
+      s->WriteUtf8(isolate, data.begin());
+      FATAL("%s\n", data.begin());
     }
   }
   isolate->Dispose();
@@ -520,7 +516,7 @@ UNINITIALIZED_TEST(LogVersion) {
                 i::Version::GetMinor(), i::Version::GetBuild(),
                 i::Version::GetPatch(), i::Version::IsCandidate());
     CHECK(
-        logger.ContainsLine({"v8-version,", std::string(line_buffer.start())}));
+        logger.ContainsLine({"v8-version,", std::string(line_buffer.begin())}));
   }
   isolate->Dispose();
 }
@@ -603,6 +599,7 @@ UNINITIALIZED_TEST(LogAll) {
         let result;
 
         // Warm up the ICs.
+        %PrepareFunctionForOptimization(testAddFn);
         for (let i = 0; i < 100000; i++) {
           result = testAddFn(i, i);
         };
@@ -937,28 +934,28 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
   size_t i = 0;
   for (i::HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
-    if (!obj->IsMap()) continue;
+    if (!obj.IsMap()) continue;
     i++;
-    uintptr_t address = obj->ptr();
+    uintptr_t address = obj.ptr();
     if (map_create_addresses.find(address) == map_create_addresses.end()) {
       // logger->PrintLog();
-      i::Map::cast(obj)->Print();
-      V8_Fatal(__FILE__, __LINE__,
-               "Map (%p, #%zu) creation not logged during startup with "
-               "--trace-maps!"
-               "\n# Expected Log Line: map-create, ... %p",
-               reinterpret_cast<void*>(obj->ptr()), i,
-               reinterpret_cast<void*>(obj->ptr()));
+      i::Map::cast(obj).Print();
+      FATAL(
+          "Map (%p, #%zu) creation not logged during startup with "
+          "--trace-maps!"
+          "\n# Expected Log Line: map-create, ... %p",
+          reinterpret_cast<void*>(obj.ptr()), i,
+          reinterpret_cast<void*>(obj.ptr()));
     } else if (map_details_addresses.find(address) ==
                map_details_addresses.end()) {
       // logger->PrintLog();
-      i::Map::cast(obj)->Print();
-      V8_Fatal(__FILE__, __LINE__,
-               "Map (%p, #%zu) details not logged during startup with "
-               "--trace-maps!"
-               "\n# Expected Log Line: map-details, ... %p",
-               reinterpret_cast<void*>(obj->ptr()), i,
-               reinterpret_cast<void*>(obj->ptr()));
+      i::Map::cast(obj).Print();
+      FATAL(
+          "Map (%p, #%zu) details not logged during startup with "
+          "--trace-maps!"
+          "\n# Expected Log Line: map-details, ... %p",
+          reinterpret_cast<void*>(obj.ptr()), i,
+          reinterpret_cast<void*>(obj.ptr()));
     }
   }
 }
@@ -1260,12 +1257,12 @@ UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
     i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
                 builtin->InstructionStart(), builtin->InstructionSize());
     CHECK(logger.ContainsLine(
-        {"code-creation,Builtin,3,", std::string(buffer.start())}));
+        {"code-creation,Builtin,3,", std::string(buffer.begin())}));
 
     i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,", builtin->InstructionStart(),
                 builtin->InstructionSize());
     CHECK(!logger.ContainsLine(
-        {"code-creation,LazyCompile,3,", std::string(buffer.start())}));
+        {"code-creation,LazyCompile,3,", std::string(buffer.begin())}));
   }
   isolate->Dispose();
 }

@@ -8,16 +8,17 @@
 #include <iosfwd>
 
 #include "src/base/compiler-specific.h"
+#include "src/codegen/machine-type.h"
+#include "src/common/globals.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
-#include "src/deoptimize-reason.h"
-#include "src/globals.h"
-#include "src/handles.h"
-#include "src/machine-type.h"
-#include "src/maybe-handles.h"
-#include "src/objects.h"
-#include "src/type-hints.h"
-#include "src/vector-slot-pair.h"
+#include "src/compiler/vector-slot-pair.h"
+#include "src/compiler/write-barrier-kind.h"
+#include "src/deoptimizer/deoptimize-reason.h"
+#include "src/handles/handles.h"
+#include "src/handles/maybe-handles.h"
+#include "src/objects/objects.h"
+#include "src/objects/type-hints.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {
@@ -55,6 +56,7 @@ struct FieldAccess {
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
   LoadSensitivity load_sensitivity;     // load safety for poisoning.
+  PropertyConstness constness;  // whether the field is assigned only once
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -62,12 +64,14 @@ struct FieldAccess {
         type(Type::None()),
         machine_type(MachineType::None()),
         write_barrier_kind(kFullWriteBarrier),
-        load_sensitivity(LoadSensitivity::kUnsafe) {}
+        load_sensitivity(LoadSensitivity::kUnsafe),
+        constness(PropertyConstness::kMutable) {}
 
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
               MaybeHandle<Map> map, Type type, MachineType machine_type,
               WriteBarrierKind write_barrier_kind,
-              LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe)
+              LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe,
+              PropertyConstness constness = PropertyConstness::kMutable)
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -75,7 +79,8 @@ struct FieldAccess {
         type(type),
         machine_type(machine_type),
         write_barrier_kind(write_barrier_kind),
-        load_sensitivity(load_sensitivity) {}
+        load_sensitivity(load_sensitivity),
+        constness(constness) {}
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -136,6 +141,30 @@ V8_EXPORT_PRIVATE ElementAccess const& ElementAccessOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
 ExternalArrayType ExternalArrayTypeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+
+// An access descriptor for loads/stores of CSA-accessible structures.
+struct ObjectAccess {
+  MachineType machine_type;             // machine type of the field.
+  WriteBarrierKind write_barrier_kind;  // write barrier hint.
+
+  ObjectAccess()
+      : machine_type(MachineType::None()),
+        write_barrier_kind(kFullWriteBarrier) {}
+
+  ObjectAccess(MachineType machine_type, WriteBarrierKind write_barrier_kind)
+      : machine_type(machine_type), write_barrier_kind(write_barrier_kind) {}
+
+  int tag() const { return kHeapObjectTag; }
+};
+
+V8_EXPORT_PRIVATE bool operator==(ObjectAccess const&, ObjectAccess const&);
+
+size_t hash_value(ObjectAccess const&);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ObjectAccess const&);
+
+V8_EXPORT_PRIVATE ObjectAccess const& ObjectAccessOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
 
 // The ConvertReceiverMode is used as parameter by ConvertReceiver operators.
 ConvertReceiverMode ConvertReceiverModeOf(Operator const* op)
@@ -480,15 +509,21 @@ bool IsRestLengthOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class AllocateParameters {
  public:
-  AllocateParameters(Type type, AllocationType allocation_type)
-      : type_(type), allocation_type_(allocation_type) {}
+  AllocateParameters(
+      Type type, AllocationType allocation_type,
+      AllowLargeObjects allow_large_objects = AllowLargeObjects::kFalse)
+      : type_(type),
+        allocation_type_(allocation_type),
+        allow_large_objects_(allow_large_objects) {}
 
   Type type() const { return type_; }
   AllocationType allocation_type() const { return allocation_type_; }
+  AllowLargeObjects allow_large_objects() const { return allow_large_objects_; }
 
  private:
   Type type_;
   AllocationType allocation_type_;
+  AllowLargeObjects allow_large_objects_;
 };
 
 bool IsCheckedWithFeedback(const Operator* op);
@@ -498,6 +533,9 @@ size_t hash_value(AllocateParameters);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, AllocateParameters);
 
 bool operator==(AllocateParameters const&, AllocateParameters const&);
+
+const AllocateParameters& AllocateParametersOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
 
 AllocationType AllocationTypeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
@@ -617,6 +655,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* ReferenceEqual();
   const Operator* SameValue();
+  const Operator* SameValueNumbersOnly();
 
   const Operator* TypeOf();
 
@@ -788,20 +827,15 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* Allocate(Type type,
                            AllocationType allocation = AllocationType::kYoung);
   const Operator* AllocateRaw(
-      Type type, AllocationType allocation = AllocationType::kYoung);
+      Type type, AllocationType allocation = AllocationType::kYoung,
+      AllowLargeObjects allow_large_objects = AllowLargeObjects::kFalse);
 
   const Operator* LoadFieldByIndex();
   const Operator* LoadField(FieldAccess const&);
   const Operator* StoreField(FieldAccess const&);
 
-  const Operator* LoadMessage();
-  const Operator* StoreMessage();
-
   // load-element [base + index]
   const Operator* LoadElement(ElementAccess const&);
-
-  // load-stack-argument [base + index]
-  const Operator* LoadStackArgument();
 
   // store-element [base + index], value
   const Operator* StoreElement(ElementAccess const&);
@@ -819,16 +853,22 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* TransitionAndStoreNonNumberElement(Handle<Map> fast_map,
                                                      Type value_type);
 
+  // load-from-object [base + offset]
+  const Operator* LoadFromObject(ObjectAccess const&);
+
+  // store-to-object [base + offset], value
+  const Operator* StoreToObject(ObjectAccess const&);
+
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);
 
-  // load-data-view-element buffer, [base + byte_offset + index]
+  // load-data-view-element object, [base + index]
   const Operator* LoadDataViewElement(ExternalArrayType const&);
 
   // store-typed-element buffer, [base + external + index], value
   const Operator* StoreTypedElement(ExternalArrayType const&);
 
-  // store-data-view-element buffer, [base + byte_offset + index], value
+  // store-data-view-element object, [base + index], value
   const Operator* StoreDataViewElement(ExternalArrayType const&);
 
   // Abort (for terminating execution on internal error).

@@ -4,6 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
+%PrepareFunctionForOptimization(print);
 try {
   %OptimizeFunctionOnNextCall(print);
 } catch(e) { }
@@ -11,5 +12,6 @@ try {
 try {
   function* f() {
   }
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
 } catch(e) { }

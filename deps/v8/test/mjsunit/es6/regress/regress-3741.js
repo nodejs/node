@@ -19,6 +19,7 @@ function f24(deopt) {
 }
 
 
+%PrepareFunctionForOptimization(f24);
 for (var j = 0; j < 10; ++j) {
   f24(12);
 }

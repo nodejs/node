@@ -4,7 +4,7 @@
 
 #include "src/zone/zone-segment.h"
 
-#include "src/msan.h"
+#include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {

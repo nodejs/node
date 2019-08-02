@@ -9,8 +9,8 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/frame-constants.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/execution/frame-constants.h"
 
 namespace v8 {
 namespace internal {

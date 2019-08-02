@@ -5,11 +5,11 @@
 #ifndef V8_TEST_CCTEST_TEST_API_H_
 #define V8_TEST_CCTEST_TEST_API_H_
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/api.h"
-#include "src/isolate.h"
-#include "src/vm-state.h"
+#include "src/api/api.h"
+#include "src/execution/isolate.h"
+#include "src/execution/vm-state.h"
 #include "test/cctest/cctest.h"
 
 template <typename T>
@@ -19,9 +19,9 @@ static void CheckReturnValue(const T& t, i::Address callback) {
   CHECK_EQ(CcTest::isolate(), t.GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(t.GetIsolate());
   CHECK_EQ(t.GetIsolate(), rv.GetIsolate());
-  CHECK((*o)->IsTheHole(isolate) || (*o)->IsUndefined(isolate));
+  CHECK((*o).IsTheHole(isolate) || (*o).IsUndefined(isolate));
   // Verify reset
-  bool is_runtime = (*o)->IsTheHole(isolate);
+  bool is_runtime = (*o).IsTheHole(isolate);
   if (is_runtime) {
     CHECK(rv.Get()->IsUndefined());
   } else {
@@ -29,10 +29,10 @@ static void CheckReturnValue(const T& t, i::Address callback) {
     CHECK_EQ(*v, *o);
   }
   rv.Set(true);
-  CHECK(!(*o)->IsTheHole(isolate) && !(*o)->IsUndefined(isolate));
+  CHECK(!(*o).IsTheHole(isolate) && !(*o).IsUndefined(isolate));
   rv.Set(v8::Local<v8::Object>());
-  CHECK((*o)->IsTheHole(isolate) || (*o)->IsUndefined(isolate));
-  CHECK_EQ(is_runtime, (*o)->IsTheHole(isolate));
+  CHECK((*o).IsTheHole(isolate) || (*o).IsUndefined(isolate));
+  CHECK_EQ(is_runtime, (*o).IsTheHole(isolate));
   // If CPU profiler is active check that when API callback is invoked
   // VMState is set to EXTERNAL.
   if (isolate->is_profiling()) {

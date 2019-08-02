@@ -18,6 +18,7 @@ function h() {
   return g();
 }
 
+%PrepareFunctionForOptimization(h);
 h();
 h();
 

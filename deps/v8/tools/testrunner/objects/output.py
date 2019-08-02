@@ -34,7 +34,8 @@ from ..local import utils
 
 class Output(object):
 
-  def __init__(self, exit_code, timed_out, stdout, stderr, pid, duration):
+  def __init__(self, exit_code=0, timed_out=False, stdout=None, stderr=None,
+               pid=None, duration=None):
     self.exit_code = exit_code
     self.timed_out = timed_out
     self.stdout = stdout
@@ -61,3 +62,16 @@ class Output(object):
 
   def HasTimedOut(self):
     return self.timed_out
+
+  def IsSuccess(self):
+    return not self.HasCrashed() and not self.HasTimedOut()
+
+
+class _NullOutput(Output):
+  """Useful to signal that the binary has not been run."""
+  def __init__(self):
+    super(_NullOutput, self).__init__()
+
+
+# Default instance of the _NullOutput class above.
+NULL_OUTPUT = _NullOutput()

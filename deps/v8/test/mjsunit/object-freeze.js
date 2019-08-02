@@ -574,3 +574,222 @@ arr[2] = 'c';
 assertEquals(arr[2], undefined);
 arr.length = 1;
 assertEquals(arr.length, 2);
+
+// Start testing with holey array
+// Test holey element array built-in functions with freeze.
+function testHoleyFrozenArray1(obj) {
+  assertTrue(Object.isSealed(obj));
+  // Verify that the value can't be written
+  obj1 = new Array(...obj);
+  var length = obj.length;
+  for (var i = 0; i < length-1; i++) {
+    obj[i] = 'new';
+    assertEquals(obj1[i], obj[i]);
+  }
+  // for symbol we cannot compare directly
+  assertTrue(typeof obj[length-1] == 'symbol');
+
+  // Verify that the length can't be written by builtins.
+  assertTrue(Array.isArray(obj));
+  assertThrows(function() { obj.pop(); }, TypeError);
+  assertThrows(function() { obj.push(); }, TypeError);
+  assertThrows(function() { obj.shift(); }, TypeError);
+  assertThrows(function() { obj.unshift(); }, TypeError);
+  assertThrows(function() { obj.copyWithin(0,0); }, TypeError);
+  assertThrows(function() { obj.fill(0); }, TypeError);
+  assertThrows(function() { obj.reverse(); }, TypeError);
+  assertThrows(function() { obj.sort(); }, TypeError);
+  assertThrows(function() { obj.splice(0); }, TypeError);
+  assertThrows(function() { obj.splice(0, 0); }, TypeError);
+  assertTrue(Object.isFrozen(obj));
+
+  // Verify search, filter, iterator
+  assertEquals(obj.lastIndexOf(1), 2);
+  assertEquals(obj.indexOf('a'), 5);
+  assertEquals(obj.indexOf(undefined), 0);
+  assertFalse(obj.includes(Symbol("test")));
+  assertTrue(obj.includes(undefined));
+  assertFalse(obj.includes(NaN));
+  assertTrue(obj.includes());
+  assertEquals(obj.find(x => x==0), undefined);
+  assertEquals(obj.findIndex(x => x=='a'), 5);
+  assertTrue(obj.some(x => typeof x == 'symbol'));
+  assertFalse(obj.every(x => x == -1));
+  var filteredArray = obj.filter(e => typeof e == "symbol");
+  assertEquals(filteredArray.length, 1);
+  assertEquals(obj.map(x => x), obj);
+  var countPositiveNumber = 0;
+  obj.forEach(function(item, index) {
+    if (item === 1) {
+      countPositiveNumber++;
+      assertEquals(index, 2);
+    }
+  });
+  assertEquals(countPositiveNumber, 1);
+  assertEquals(obj.length, obj.concat([]).length);
+  var iterator = obj.values();
+  assertEquals(iterator.next().value, undefined);
+  assertEquals(iterator.next().value, null);
+  var iterator = obj.keys();
+  assertEquals(iterator.next().value, 0);
+  assertEquals(iterator.next().value, 1);
+  var iterator = obj.entries();
+  assertEquals(iterator.next().value, [0, undefined]);
+  assertEquals(iterator.next().value, [1, null]);
+}
+
+obj = [undefined, null, 1, , -1, 'a', Symbol("test")];
+assertTrue(%HasHoleyElements(obj));
+Object.freeze(obj);
+testHoleyFrozenArray1(obj);
+
+// Verify change from sealed to frozen
+obj = [undefined, null, 1, , -1, 'a', Symbol("test")];
+assertTrue(%HasHoleyElements(obj));
+Object.seal(obj);
+Object.freeze(obj);
+assertTrue(Object.isSealed(obj));
+testHoleyFrozenArray1(obj);
+
+// Verify change from non-extensible to frozen
+obj = [undefined, null, 1, ,-1, 'a', Symbol("test")];
+assertTrue(%HasHoleyElements(obj));
+Object.preventExtensions(obj);
+Object.freeze(obj);
+assertTrue(Object.isSealed(obj));
+testHoleyFrozenArray1(obj);
+
+// Verify flat, map, slice, flatMap, join, reduce, reduceRight for frozen packed array
+function testHoleyFrozenArray2(arr) {
+  assertTrue(Object.isFrozen(arr));
+  assertTrue(Array.isArray(arr));
+  assertEquals(arr.map(x => [x]), [, ['a'], ['b'], ['c']]);
+  assertEquals(arr.flatMap(x => [x]), ["a", "b", "c"]);
+  assertEquals(arr.flat(), ["a", "b", "c"]);
+  assertEquals(arr.join('-'), "-a-b-c");
+  const reducer = (accumulator, currentValue) => accumulator + currentValue;
+  assertEquals(arr.reduce(reducer), "abc");
+  assertEquals(arr.reduceRight(reducer), "cba");
+  assertEquals(arr.slice(0, 1), [,]);
+  assertEquals(arr.slice(1, 2), ["a"]);
+}
+var arr1 = [, 'a', 'b', 'c'];
+assertTrue(%HasHoleyElements(arr1));
+Object.freeze(arr1);
+testHoleyFrozenArray2(arr1);
+
+// Verify change from sealed to frozen
+var arr2 = [, 'a', 'b', 'c'];
+assertTrue(%HasHoleyElements(arr2));
+Object.seal(arr2);
+Object.freeze(arr2);
+testHoleyFrozenArray2(arr2);
+
+// Verify change from non-extensible to frozen
+var arr2 = [, 'a', 'b', 'c'];
+assertTrue(%HasHoleyElements(arr2));
+Object.preventExtensions(arr2);
+Object.freeze(arr2);
+testHoleyFrozenArray2(arr2);
+
+// Test regression with Object.defineProperty
+var obj = ['a', , 'b'];
+obj.propertyA = 42;
+obj[0] = true;
+Object.freeze(obj);
+assertThrows(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+  });
+}, TypeError);
+assertEquals(42, obj.propertyA);
+assertThrows(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+    writable: false,
+  });
+}, TypeError);
+assertDoesNotThrow(function() {obj.propertyA = 2;});
+assertEquals(obj.propertyA, 42);
+assertThrows(function() {
+  Object.defineProperty(obj, 'abc', {
+    value: obj,
+  });
+}, TypeError);
+
+// Regression test with simple holey array
+var arr = [, 'a'];
+Object.freeze(arr);
+arr[1] = 'b';
+assertEquals(arr[1], 'a');
+arr[0] = 1;
+assertEquals(arr[0], undefined);
+
+// Test regression Array.concat with double
+var arr = ['a', , 'b'];
+Object.freeze(arr);
+arr = arr.concat(0.5);
+assertEquals(arr, ['a', ,'b', 0.5]);
+Object.freeze(arr);
+arr = arr.concat([1.5, 'c']);
+assertEquals(arr, ['a', ,'b', 0.5, 1.5, 'c']);
+
+// Regression test with change length
+var arr = ['a', ,'b'];
+Object.freeze(arr);
+assertEquals(arr.length, 3);
+arr.length = 4;
+assertEquals(arr.length, 3);
+arr[3] = 'c';
+assertEquals(arr[2], 'b');
+assertEquals(arr[3], undefined);
+arr.length = 2;
+assertEquals(arr.length, 3);
+
+// Change length with holey entries at the end
+var arr = ['a', ,];
+Object.freeze(arr);
+assertEquals(arr.length, 2);
+arr.length = 0;
+assertEquals(arr.length, 2);
+arr.length = 3;
+assertEquals(arr.length, 2);
+arr.length = 0;
+assertEquals(arr.length, 2);
+
+// Spread with array
+var arr = ['a', 'b', 'c'];
+Object.freeze(arr);
+var arrSpread = [...arr];
+assertEquals(arrSpread.length, arr.length);
+assertEquals(arrSpread[0], 'a');
+assertEquals(arrSpread[1], 'b');
+assertEquals(arrSpread[2], 'c');
+
+// Spread with array-like
+function returnArgs() {
+  return Object.freeze(arguments);
+}
+var arrLike = returnArgs('a', 'b', 'c');
+assertTrue(Object.isFrozen(arrLike));
+var arrSpread = [...arrLike];
+assertEquals(arrSpread.length, arrLike.length);
+assertEquals(arrSpread[0], 'a');
+assertEquals(arrSpread[1], 'b');
+assertEquals(arrSpread[2], 'c');
+
+// Spread with holey
+function countArgs() {
+  return arguments.length;
+}
+var arr = [, 'b','c'];
+Object.freeze(arr);
+assertEquals(countArgs(...arr), 3);
+assertEquals(countArgs(...[...arr]), 3);
+assertEquals(countArgs.apply(this, [...arr]), 3);
+function checkUndefined() {
+  return arguments[0] === undefined;
+}
+assertTrue(checkUndefined(...arr));
+assertTrue(checkUndefined(...[...arr]));
+assertTrue(checkUndefined.apply(this, [...arr]));

@@ -34,6 +34,7 @@
     var result = c.z;
     assertEquals(expected, result);
   }
+  %PrepareFunctionForOptimization(f);
   f("a");
   f("a");
   f("a");
@@ -74,6 +75,7 @@
     var result = c.z;
     assertEquals(expected, result);
   }
+  %PrepareFunctionForOptimization(f);
   f("a");
   f("a");
   f("a");

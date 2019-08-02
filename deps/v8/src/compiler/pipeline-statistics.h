@@ -9,8 +9,8 @@
 #include <string>
 
 #include "src/base/platform/elapsed-timer.h"
-#include "src/compilation-statistics.h"
 #include "src/compiler/zone-stats.h"
+#include "src/diagnostics/compilation-statistics.h"
 
 namespace v8 {
 namespace internal {

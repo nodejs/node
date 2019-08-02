@@ -5,9 +5,9 @@
 #ifndef V8_CCTEST_COMPILER_CALL_TESTER_H_
 #define V8_CCTEST_COMPILER_CALL_TESTER_H_
 
-#include "src/handles.h"
+#include "src/execution/simulator.h"
+#include "src/handles/handles.h"
 #include "src/objects/code.h"
-#include "src/simulator.h"
 #include "test/cctest/compiler/c-signature.h"
 
 namespace v8 {

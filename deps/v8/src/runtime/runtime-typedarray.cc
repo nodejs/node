@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arguments-inl.h"
-#include "src/counters.h"
-#include "src/elements.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/message-template.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/message-template.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/objects/elements.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
@@ -60,19 +60,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   return accessor->CopyElements(source, target, length);
 }
 
-RUNTIME_FUNCTION(Runtime_TypedArrayGetLength) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
-  return holder->length();
-}
-
-RUNTIME_FUNCTION(Runtime_ArrayBufferViewWasDetached) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  return isolate->heap()->ToBoolean(JSTypedArray::cast(args[0])->WasDetached());
-}
-
 RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -108,26 +95,40 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(Object, target_obj, 0);
+  // Validation is handled in the Torque builtin.
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, array, 0);
+  DCHECK(!array->WasDetached());
 
-  Handle<JSTypedArray> array;
-  const char* method = "%TypedArray%.prototype.sort";
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, array, JSTypedArray::Validate(isolate, target_obj, method));
-
-  // This line can be removed when JSTypedArray::Validate throws
-  // if array.[[ViewedArrayBuffer]] is detached(v8:4648)
-  if (V8_UNLIKELY(array->WasDetached())) return *array;
-
-  size_t length = array->length_value();
+  size_t length = array->length();
   if (length <= 1) return *array;
 
-  Handle<FixedTypedArrayBase> elements(
-      FixedTypedArrayBase::cast(array->elements()), isolate);
+  // In case of a SAB, the data is copied into temporary memory, as
+  // std::sort might crash in case the underlying data is concurrently
+  // modified while sorting.
+  CHECK(array->buffer().IsJSArrayBuffer());
+  Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(array->buffer()), isolate);
+  const bool copy_data = buffer->is_shared();
+
+  Handle<ByteArray> array_copy;
+  if (copy_data) {
+    const size_t bytes = array->byte_length();
+    // TODO(szuend): Re-check this approach once support for larger typed
+    //               arrays has landed.
+    CHECK_LE(bytes, INT_MAX);
+    array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
+    std::memcpy(static_cast<void*>(array_copy->GetDataStartAddress()),
+                static_cast<void*>(array->DataPtr()), bytes);
+  }
+
+  DisallowHeapAllocation no_gc;
+
   switch (array->type()) {
 #define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)                          \
   case kExternal##Type##Array: {                                           \
-    ctype* data = static_cast<ctype*>(elements->DataPtr());                \
+    ctype* data =                                                          \
+        copy_data                                                          \
+            ? reinterpret_cast<ctype*>(array_copy->GetDataStartAddress())  \
+            : static_cast<ctype*>(array->DataPtr());                       \
     if (kExternal##Type##Array == kExternalFloat64Array ||                 \
         kExternal##Type##Array == kExternalFloat32Array) {                 \
       if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {        \
@@ -153,13 +154,14 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
 #undef TYPED_ARRAY_SORT
   }
 
-  return *array;
-}
+  if (copy_data) {
+    DCHECK(!array_copy.is_null());
+    const size_t bytes = array->byte_length();
+    std::memcpy(static_cast<void*>(array->DataPtr()),
+                static_cast<void*>(array_copy->GetDataStartAddress()), bytes);
+  }
 
-RUNTIME_FUNCTION(Runtime_IsTypedArray) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  return isolate->heap()->ToBoolean(args[0]->IsJSTypedArray());
+  return *array;
 }
 
 // 22.2.3.23 %TypedArray%.prototype.set ( overloaded [ , offset ] )
@@ -194,7 +196,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
                                      Object::ToLength(isolate, len));
 
-  if (uint_offset + len->Number() > target->length_value()) {
+  if (uint_offset + len->Number() > target->length()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
   }

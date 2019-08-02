@@ -5,6 +5,7 @@
 // Flags: --allow-natives-syntax
 
 async function* gen([[notIterable]] = [null]) {}
+%PrepareFunctionForOptimization(gen);
 assertThrows(() => gen(), TypeError);
 assertThrows(() => gen(), TypeError);
 %OptimizeFunctionOnNextCall(gen);

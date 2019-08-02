@@ -5,7 +5,7 @@
 
 import os.path
 import sys
-import optparse
+import argparse
 import collections
 import functools
 import re
@@ -16,6 +16,13 @@ except ImportError:
     import simplejson as json
 
 import pdl
+
+try:
+    unicode
+except NameError:
+    # Define unicode for Py3
+    def unicode(s, *_):
+        return s
 
 # Path handling for libraries and templates
 # Paths have to be normalized because Jinja uses the exact template path to
@@ -53,28 +60,17 @@ def read_config():
         return collections.namedtuple('X', keys)(*values)
 
     try:
-        cmdline_parser = optparse.OptionParser()
-        cmdline_parser.add_option("--output_base")
-        cmdline_parser.add_option("--jinja_dir")
-        cmdline_parser.add_option("--config")
-        cmdline_parser.add_option("--config_value", action="append", type="string")
-        arg_options, _ = cmdline_parser.parse_args()
+        cmdline_parser = argparse.ArgumentParser()
+        cmdline_parser.add_argument("--output_base", type=unicode, required=True)
+        cmdline_parser.add_argument("--jinja_dir", type=unicode, required=True)
+        cmdline_parser.add_argument("--config", type=unicode, required=True)
+        cmdline_parser.add_argument("--config_value", default=[], action="append")
+        arg_options = cmdline_parser.parse_args()
         jinja_dir = arg_options.jinja_dir
-        if not jinja_dir:
-            raise Exception("jinja directory must be specified")
-        jinja_dir = jinja_dir.decode('utf8')
         output_base = arg_options.output_base
-        if not output_base:
-            raise Exception("Base output directory must be specified")
-        output_base = output_base.decode('utf8')
         config_file = arg_options.config
-        if not config_file:
-            raise Exception("Config file name must be specified")
-        config_file = config_file.decode('utf8')
         config_base = os.path.dirname(config_file)
         config_values = arg_options.config_value
-        if not config_values:
-            config_values = []
     except Exception:
         # Work with python 2 and 3 http://docs.python.org/py3k/howto/pyporting.html
         exc = sys.exc_info()[1]

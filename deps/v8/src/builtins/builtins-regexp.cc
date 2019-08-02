@@ -4,11 +4,11 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/objects/objects-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-utils.h"
-#include "src/string-builder-inl.h"
+#include "src/strings/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {

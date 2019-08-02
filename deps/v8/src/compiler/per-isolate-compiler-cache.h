@@ -6,7 +6,7 @@
 #define V8_COMPILER_PER_ISOLATE_COMPILER_CACHE_H_
 
 #include "src/compiler/refs-map.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

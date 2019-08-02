@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "src/allocation.h"
-#include "src/objects-inl.h"
+#include "src/utils/allocation.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -33,7 +33,7 @@ const char* StringsStorage::GetCopy(const char* src) {
     Vector<char> dst = Vector<char>::New(len + 1);
     StrNCpy(dst, src, len);
     dst[len] = '\0';
-    entry->key = dst.start();
+    entry->key = dst.begin();
     entry->value = entry->key;
   }
   return reinterpret_cast<const char*>(entry->value);
@@ -63,21 +63,21 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
   Vector<char> str = Vector<char>::New(1024);
   int len = VSNPrintF(str, format, args);
   if (len == -1) {
-    DeleteArray(str.start());
+    DeleteArray(str.begin());
     return GetCopy(format);
   }
-  return AddOrDisposeString(str.start(), len);
+  return AddOrDisposeString(str.begin(), len);
 }
 
 const char* StringsStorage::GetName(Name name) {
-  if (name->IsString()) {
+  if (name.IsString()) {
     String str = String::cast(name);
-    int length = Min(FLAG_heap_snapshot_string_limit, str->length());
+    int length = Min(FLAG_heap_snapshot_string_limit, str.length());
     int actual_length = 0;
-    std::unique_ptr<char[]> data = str->ToCString(
+    std::unique_ptr<char[]> data = str.ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
     return AddOrDisposeString(data.release(), actual_length);
-  } else if (name->IsSymbol()) {
+  } else if (name.IsSymbol()) {
     return "<symbol>";
   }
   return "";
@@ -88,11 +88,11 @@ const char* StringsStorage::GetName(int index) {
 }
 
 const char* StringsStorage::GetConsName(const char* prefix, Name name) {
-  if (name->IsString()) {
+  if (name.IsString()) {
     String str = String::cast(name);
-    int length = Min(FLAG_heap_snapshot_string_limit, str->length());
+    int length = Min(FLAG_heap_snapshot_string_limit, str.length());
     int actual_length = 0;
-    std::unique_ptr<char[]> data = str->ToCString(
+    std::unique_ptr<char[]> data = str.ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
 
     int cons_length = actual_length + static_cast<int>(strlen(prefix)) + 1;
@@ -100,7 +100,7 @@ const char* StringsStorage::GetConsName(const char* prefix, Name name) {
     snprintf(cons_result, cons_length, "%s%s", prefix, data.get());
 
     return AddOrDisposeString(cons_result, cons_length);
-  } else if (name->IsSymbol()) {
+  } else if (name.IsSymbol()) {
     return "<symbol>";
   }
   return "";

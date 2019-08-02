@@ -34,6 +34,7 @@ function test_div_no_deopt_minus_zero() {
   assertTrue(0 === (Math.floor((zero_in_array[0] | 0) / -1) | 0));
 }
 
+%PrepareFunctionForOptimization(test_div_no_deopt_minus_zero);
 test_div_no_deopt_minus_zero();
 test_div_no_deopt_minus_zero();
 %OptimizeFunctionOnNextCall(test_div_no_deopt_minus_zero);

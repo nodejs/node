@@ -7,7 +7,7 @@
 
 #include "src/parsing/preparse-data.h"
 
-#include "src/assert-scope.h"
+#include "src/common/assert-scope.h"
 
 namespace v8 {
 namespace internal {

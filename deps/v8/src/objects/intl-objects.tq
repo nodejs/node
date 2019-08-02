@@ -1,0 +1,64 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-number-format.h'
+#include 'src/objects/js-objects.h'
+#include 'src/objects/js-plural-rules.h'
+#include 'src/objects/js-relative-time-format.h'
+#include 'src/objects/js-date-time-format.h'
+#include 'src/objects/js-list-format.h'
+#include 'src/objects/js-locale.h'
+#include 'src/objects/js-segment-iterator.h'
+#include 'src/objects/js-segmenter.h'
+
+extern class JSDateTimeFormat extends JSObject {
+  icu_locale: Foreign;                // Managed<icu::Locale>
+  icu_simple_date_format: Foreign;    // Managed<icu::SimpleDateFormat>
+  icu_date_interval_format: Foreign;  // Managed<icu::DateIntervalFormat>
+  bound_format: JSFunction | Undefined;
+  flags: Smi;
+}
+
+extern class JSListFormat extends JSObject {
+  locale: String;
+  icu_formatter: Foreign;  // Managed<icu::ListFormatter>
+  flags: Smi;
+}
+
+extern class JSNumberFormat extends JSObject {
+  locale: String;
+  icu_number_formatter:
+      Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
+  bound_format: JSFunction | Undefined;
+  flags: Smi;
+}
+
+extern class JSPluralRules extends JSObject {
+  locale: String;
+  flags: Smi;
+  icu_plural_rules: Foreign;    // Managed<icu::PluralRules>
+  icu_decimal_format: Foreign;  // Managed<icu::DecimalFormat>
+}
+
+extern class JSRelativeTimeFormat extends JSObject {
+  locale: String;
+  icu_formatter: Foreign;  // Managed<icu::RelativeDateTimeFormatter>
+  flags: Smi;
+}
+
+extern class JSLocale extends JSObject {
+  icu_locale: Foreign;  // Managed<icu::Locale>
+}
+
+extern class JSSegmenter extends JSObject {
+  locale: String;
+  icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
+  flags: Smi;
+}
+
+extern class JSSegmentIterator extends JSObject {
+  icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
+  unicode_string: Foreign;      // Managed<icu::UnicodeString>
+  flags: Smi;
+}

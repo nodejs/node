@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_SLOTS_H_
 #define V8_OBJECTS_SLOTS_H_
 
-#include "src/globals.h"
-#include "src/v8memory.h"
+#include "src/common/globals.h"
+#include "src/common/v8memory.h"
 
 namespace v8 {
 namespace internal {

@@ -8,6 +8,7 @@ var intarray = new BigInt64Array(8);
 var uintarray = new BigUint64Array(8);
 
 function test(f) {
+  %PrepareFunctionForOptimization(f);
   f();
   f();  // Make sure we test ICs.
   f();

@@ -6,7 +6,7 @@
 #define V8_EXTENSIONS_GC_EXTENSION_H_
 
 #include "include/v8.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

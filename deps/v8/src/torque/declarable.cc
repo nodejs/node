@@ -7,6 +7,7 @@
 
 #include "src/torque/declarable.h"
 #include "src/torque/global-context.h"
+#include "src/torque/type-visitor.h"
 
 namespace v8 {
 namespace internal {
@@ -125,6 +126,22 @@ bool Namespace::IsDefaultNamespace() const {
 }
 
 bool Namespace::IsTestNamespace() const { return name() == kTestNamespaceName; }
+
+const Type* TypeAlias::Resolve() const {
+  if (!type_) {
+    CurrentScope::Scope scope_activator(ParentScope());
+    CurrentSourcePosition::Scope position_activator(Position());
+    TypeDeclaration* decl = *delayed_;
+    if (being_resolved_) {
+      std::stringstream s;
+      s << "Cannot create type " << decl->name->value
+        << " due to circular dependencies.";
+      ReportError(s.str());
+    }
+    type_ = TypeVisitor::ComputeType(decl);
+  }
+  return *type_;
+}
 
 }  // namespace torque
 }  // namespace internal

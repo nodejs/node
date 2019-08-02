@@ -45,6 +45,7 @@ assertEquals([1, 1, 1], f1(1));
 function f1_(x) {
   return [...[x, x, x]];
 }
+%PrepareFunctionForOptimization(f1_);
 assertEquals([1, 1, 1], f1_(1));
 %OptimizeFunctionOnNextCall(f1_);
 assertEquals([1, 1, 1], f1_(1));
@@ -64,6 +65,7 @@ assertEquals([1, 1, 1, ,], f2(1));
 function f2_(x) {
   return [...[x, x, x], ,];
 }
+%PrepareFunctionForOptimization(f2_);
 assertEquals([1, 1, 1, ,], f2_(1));
 %OptimizeFunctionOnNextCall(f2_);
 assertEquals([1, 1, 1, ,], f2_(1));
@@ -83,6 +85,7 @@ assertEquals([1, 0.1, "1", , ], f3(g(1, 0.1, "1")));
 function f3_(it) {
   return [...it, ,];
 }
+%PrepareFunctionForOptimization(f3_);
 assertEquals([1, 0.1, "1", , ], f3_(g(1, 0.1, "1")));
 %OptimizeFunctionOnNextCall(f3_);
 assertEquals([1, 0.1, "1", , ], f3_(g(1, 0.1, "1")));
@@ -102,6 +105,7 @@ assertEquals([1, 1, 1], f4(1));
 function f4_(x) {
   return [...[x, x, x]];
 }
+%PrepareFunctionForOptimization(f4_);
 assertEquals([1, 1, 1], f4_(1));
 %OptimizeFunctionOnNextCall(f4_);
 assertEquals([1, 1, 1], f4_(1));
@@ -121,6 +125,7 @@ assertEquals([1, 1, 1, ,], f5(1));
 function f5_(x) {
   return [...[x, x, x], ,];
 }
+%PrepareFunctionForOptimization(f5_);
 assertEquals([1, 1, 1, ,], f5_(1));
 %OptimizeFunctionOnNextCall(f5_);
 assertEquals([1, 1, 1, ,], f5_(1));
@@ -140,6 +145,7 @@ assertEquals([1, 0.1, "1", , ], f6(g(1, 0.1, "1")));
 function f6_(it) {
   return [...it, ,];
 }
+%PrepareFunctionForOptimization(f6_);
 assertEquals([1, 0.1, "1", , ], f6_(g(1, 0.1, "1")));
 %OptimizeFunctionOnNextCall(f6_);
 assertEquals([1, 0.1, "1", , ], f6_(g(1, 0.1, "1")));
@@ -159,6 +165,7 @@ assertEquals([1, 0.1, "1"], f7(G(1, 0.1, "1")));
 function f7_(it) {
   return [...it];
 }
+%PrepareFunctionForOptimization(f7_);
 assertEquals([1, 0.1, "1"], f7_(G(1, 0.1, "1")));
 %OptimizeFunctionOnNextCall(f7_);
 assertEquals([1, 0.1, "1"], f7_(G(1, 0.1, "1")));
@@ -178,6 +185,7 @@ assertEquals([1, 0.1, "1", , ], f8(G(1, 0.1, "1")));
 function f8_(it) {
   return [...it, ,];
 }
+%PrepareFunctionForOptimization(f8_);
 assertEquals([1, 0.1, "1", , ], f8_(G(1, 0.1, "1")));
 %OptimizeFunctionOnNextCall(f8_);
 assertEquals([1, 0.1, "1", , ], f8_(G(1, 0.1, "1")));
@@ -190,6 +198,7 @@ assertEquals([1, 0.1, "1", , ], f8_(G(1, 0.1, "1")));
 function* f9() {
   for (let i = 0; i < 160000; ++i) yield i;
 }
+%PrepareFunctionForOptimization(f9);
 let a = [...f9()];
 assertEquals(160000, a.length);
 assertEquals(0, a[0]);
@@ -263,6 +272,7 @@ function f10(b) {
     ...b];
   return x.length;
 }
+%PrepareFunctionForOptimization(f10);
 assertEquals(4335, f10([3.3, 3.3, 3.3]));
 assertEquals(4335, f10([{}, "", 3.3]));
 %OptimizeFunctionOnNextCall(f10);

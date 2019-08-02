@@ -670,11 +670,6 @@ int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
 }
 
 
-char* OS::StrChr(char* str, int c) {
-  return const_cast<char*>(strchr(str, c));
-}
-
-
 void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
   // Use _TRUNCATE or strncpy_s crashes (by design) if buffer is too small.
   size_t buffer_size = static_cast<size_t>(length);

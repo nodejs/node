@@ -10,14 +10,12 @@
 #include "src/base/ieee754.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/boxed-float.h"
-#include "src/objects-inl.h"
-#include "src/utils.h"
+#include "src/utils/boxed-float.h"
+#include "src/utils/utils.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
-#include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
-
 
 namespace v8 {
 namespace internal {
@@ -3998,6 +3996,87 @@ TEST(RunFloat64MulP) {
   }
 }
 
+TEST(RunFloat32MulAndFloat32Neg) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
+                                             MachineType::Float32());
+  m.Return(m.Float32Neg(m.Float32Mul(m.Parameter(0), m.Parameter(1))));
+
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(-(i * j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat64MulAndFloat64Neg) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  m.Return(m.Float64Neg(m.Float64Mul(m.Parameter(0), m.Parameter(1))));
+
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(-(i * j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat32NegAndFloat32Mul1) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
+                                             MachineType::Float32());
+  m.Return(m.Float32Mul(m.Float32Neg(m.Parameter(0)), m.Parameter(1)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ((-i * j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat64NegAndFloat64Mul1) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  m.Return(m.Float64Mul(m.Float64Neg(m.Parameter(0)), m.Parameter(1)));
+
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ((-i * j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat32NegAndFloat32Mul2) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
+                                             MachineType::Float32());
+  m.Return(m.Float32Mul(m.Parameter(0), m.Float32Neg(m.Parameter(1))));
+
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ((i * -j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat64NegAndFloat64Mul2) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  m.Return(m.Float64Mul(m.Parameter(0), m.Float64Neg(m.Parameter(1))));
+
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ((i * -j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat32NegAndFloat32Mul3) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
+                                             MachineType::Float32());
+  m.Return(
+      m.Float32Mul(m.Float32Neg(m.Parameter(0)), m.Float32Neg(m.Parameter(1))));
+
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ((-i * -j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat64NegAndFloat64Mul3) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  m.Return(
+      m.Float64Mul(m.Float64Neg(m.Parameter(0)), m.Float64Neg(m.Parameter(1))));
+
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ((-i * -j), m.Call(i, j)); }
+  }
+}
 
 TEST(RunFloat64MulAndFloat64Add1) {
   BufferedRawMachineAssemblerTester<double> m(
@@ -6797,15 +6876,13 @@ TEST(RunBitcastInt32ToFloat32) {
 
 
 TEST(RunComputedCodeObject) {
-  GraphBuilderTester<int32_t> a;
+  RawMachineAssemblerTester<int32_t> a;
   a.Return(a.Int32Constant(33));
-  a.End();
-  Handle<Code> code_a = a.GetCode();
+  CHECK_EQ(33, a.Call());
 
-  GraphBuilderTester<int32_t> b;
+  RawMachineAssemblerTester<int32_t> b;
   b.Return(b.Int32Constant(44));
-  b.End();
-  Handle<Code> code_b = b.GetCode();
+  CHECK_EQ(44, b.Call());
 
   RawMachineAssemblerTester<int32_t> r(MachineType::Int32());
   RawMachineLabel tlabel;
@@ -6813,10 +6890,10 @@ TEST(RunComputedCodeObject) {
   RawMachineLabel merge;
   r.Branch(r.Parameter(0), &tlabel, &flabel);
   r.Bind(&tlabel);
-  Node* fa = r.HeapConstant(code_a);
+  Node* fa = r.HeapConstant(a.GetCode());
   r.Goto(&merge);
   r.Bind(&flabel);
-  Node* fb = r.HeapConstant(code_b);
+  Node* fb = r.HeapConstant(b.GetCode());
   r.Goto(&merge);
   r.Bind(&merge);
   Node* phi = r.Phi(MachineRepresentation::kWord32, fa, fb);

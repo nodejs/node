@@ -274,5 +274,25 @@ TEST(DefaultWorkerThreadsTaskRunnerUnittest, NoIdleTasks) {
   runner.Terminate();
 }
 
+TEST(DefaultWorkerThreadsTaskRunnerUnittest, RunsTasksOnCurrentThread) {
+  DefaultWorkerThreadsTaskRunner runner(1, RealTime);
+
+  base::Semaphore semaphore(0);
+
+  EXPECT_FALSE(runner.RunsTasksOnCurrentThread());
+
+  std::unique_ptr<TestTask> task1 = base::make_unique<TestTask>([&] {
+    EXPECT_TRUE(runner.RunsTasksOnCurrentThread());
+    semaphore.Signal();
+  });
+  runner.PostTask(std::move(task1));
+
+  semaphore.Wait();
+  EXPECT_FALSE(runner.RunsTasksOnCurrentThread());
+
+  runner.Terminate();
+  EXPECT_FALSE(runner.RunsTasksOnCurrentThread());
+}
+
 }  // namespace platform
 }  // namespace v8

@@ -6,15 +6,15 @@
 
 #include "src/regexp/arm/regexp-macro-assembler-arm.h"
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/heap/factory.h"
-#include "src/log.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/logging/log.h"
+#include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/snapshot/embedded-data.h"
-#include "src/unicode.h"
+#include "src/snapshot/embedded/embedded-data.h"
+#include "src/strings/unicode.h"
 
 namespace v8 {
 namespace internal {
@@ -671,7 +671,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   __ bind(&stack_ok);
 
   // Allocate space on stack for registers.
-  __ sub(sp, sp, Operand(num_registers_ * kPointerSize));
+  __ AllocateStackSpace(num_registers_ * kPointerSize);
   // Load string end.
   __ ldr(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
   // Load input start.
@@ -884,8 +884,9 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(isolate(), &code_desc);
-  Handle<Code> code = isolate()->factory()->NewCode(code_desc, Code::REGEXP,
-                                                    masm_->CodeObject());
+  Handle<Code> code = Factory::CodeBuilder(isolate(), code_desc, Code::REGEXP)
+                          .set_self_reference(masm_->CodeObject())
+                          .Build();
   PROFILE(masm_->isolate(),
           RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
@@ -1057,7 +1058,7 @@ void RegExpMacroAssemblerARM::CallCheckStackGuardState() {
   // We need to make room for the return address on the stack.
   int stack_alignment = base::OS::ActivationFrameAlignment();
   DCHECK(IsAligned(stack_alignment, kPointerSize));
-  __ sub(sp, sp, Operand(stack_alignment));
+  __ AllocateStackSpace(stack_alignment);
 
   // r0 will point to the return address, placed by DirectCEntry.
   __ mov(r0, sp);

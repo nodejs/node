@@ -59,5 +59,6 @@ function gen(i) {
 
 for (var i = 1; i < 10; i++) {
   var f = gen(i);
+  %PrepareFunctionForOptimization(f);
   assertEquals(1979, f());
 }

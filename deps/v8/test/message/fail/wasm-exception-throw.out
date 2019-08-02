@@ -1,0 +1,4 @@
+wasm-function[0]:3: RuntimeError: wasm exception
+RuntimeError: wasm exception
+    at throw0 (wasm-function[0]:3)
+    at *%(basename)s:17:18

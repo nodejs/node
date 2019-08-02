@@ -4,14 +4,14 @@
 
 #include "src/compiler/linkage.h"
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/node.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
-#include "src/macro-assembler.h"
-#include "src/optimized-compilation-info.h"
 
 namespace v8 {
 namespace internal {
@@ -36,6 +36,9 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
       break;
     case CallDescriptor::kCallAddress:
       os << "Addr";
+      break;
+    case CallDescriptor::kCallWasmCapiFunction:
+      os << "WasmExit";
       break;
     case CallDescriptor::kCallWasmFunction:
       os << "WasmFunction";
@@ -149,6 +152,8 @@ int CallDescriptor::CalculateFixedFrameSize() const {
     case kCallWasmFunction:
     case kCallWasmImportWrapper:
       return WasmCompiledFrameConstants::kFixedSlotCount;
+    case kCallWasmCapiFunction:
+      return WasmExitFrameConstants::kFixedSlotCount;
   }
   UNREACHABLE();
 }
@@ -161,7 +166,7 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
     // plus the receiver.
     SharedFunctionInfo shared = info->closure()->shared();
     return GetJSCallDescriptor(zone, info->is_osr(),
-                               1 + shared->internal_formal_parameter_count(),
+                               1 + shared.internal_formal_parameter_count(),
                                CallDescriptor::kCanUseRoots);
   }
   return nullptr;  // TODO(titzer): ?
@@ -197,6 +202,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
 
     // Some inline intrinsics are also safe to call without a FrameState.
     case Runtime::kInlineCreateIterResultObject:
+    case Runtime::kInlineIncBlockCounter:
     case Runtime::kInlineGeneratorClose:
     case Runtime::kInlineGeneratorGetResumeMode:
     case Runtime::kInlineCreateJSGeneratorObject:
@@ -204,7 +210,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kInlineIsJSReceiver:
     case Runtime::kInlineIsRegExp:
     case Runtime::kInlineIsSmi:
-    case Runtime::kInlineIsTypedArray:
       return false;
 
     default:

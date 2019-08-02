@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/hash-seed-inl.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-random-iterator.h"
-#include "src/objects-inl.h"
+#include "src/numbers/hash-seed-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
@@ -184,7 +184,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), 0);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_0);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0).Number(), heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
 }
 
@@ -331,7 +331,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_1);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0).Number(), heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
 
   iterator.GoToIndex(18);
@@ -488,7 +488,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_0);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0).Number(), heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   ++iterator;
@@ -507,7 +507,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_1);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0).Number(), heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   ++iterator;
@@ -968,7 +968,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_1);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0).Number(), heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -987,7 +987,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_0);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0).Number(), heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
   ASSERT_FALSE(iterator.IsValid());

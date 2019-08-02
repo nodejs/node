@@ -140,6 +140,18 @@
       kExprCatch, catchstmt, kExprEnd
 
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
+#define WASM_SELECT_I(tval, fval, cond) \
+  tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalI32
+#define WASM_SELECT_L(tval, fval, cond) \
+  tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalI64
+#define WASM_SELECT_F(tval, fval, cond) \
+  tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalF32
+#define WASM_SELECT_D(tval, fval, cond) \
+  tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalF64
+#define WASM_SELECT_R(tval, fval, cond) \
+  tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalAnyRef
+#define WASM_SELECT_A(tval, fval, cond) \
+  tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalAnyFunc
 
 #define WASM_RETURN0 kExprReturn
 #define WASM_RETURN1(val) val, kExprReturn
@@ -346,6 +358,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
       static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 56)
 
 #define WASM_REF_NULL kExprRefNull
+#define WASM_REF_FUNC(val) kExprRefFunc, val
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 
 #define WASM_GET_LOCAL(index) kExprGetLocal, static_cast<byte>(index)
@@ -618,6 +631,13 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_ELEM_DROP(seg) WASM_NUMERIC_OP(kExprElemDrop), U32V_1(seg)
 #define WASM_TABLE_COPY(dst, src, size) \
   dst, src, size, WASM_NUMERIC_OP(kExprTableCopy), TABLE_ZERO, TABLE_ZERO
+#define WASM_TABLE_GROW(table, initial_value, delta)     \
+  initial_value, delta, WASM_NUMERIC_OP(kExprTableGrow), \
+      static_cast<byte>(table)
+#define WASM_TABLE_SIZE(table) \
+  WASM_NUMERIC_OP(kExprTableSize), static_cast<byte>(table)
+#define WASM_TABLE_FILL(table, times, value, start) \
+  times, value, start, WASM_NUMERIC_OP(kExprTableFill), static_cast<byte>(table)
 
 //------------------------------------------------------------------------------
 // Memory Operations.

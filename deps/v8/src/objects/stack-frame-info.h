@@ -21,12 +21,18 @@ class StackFrameInfo : public Struct {
   DECL_INT_ACCESSORS(line_number)
   DECL_INT_ACCESSORS(column_number)
   DECL_INT_ACCESSORS(script_id)
+  DECL_INT_ACCESSORS(promise_all_index)
   DECL_ACCESSORS(script_name, Object)
   DECL_ACCESSORS(script_name_or_source_url, Object)
   DECL_ACCESSORS(function_name, Object)
+  DECL_ACCESSORS(wasm_module_name, Object)
   DECL_BOOLEAN_ACCESSORS(is_eval)
   DECL_BOOLEAN_ACCESSORS(is_constructor)
   DECL_BOOLEAN_ACCESSORS(is_wasm)
+  DECL_BOOLEAN_ACCESSORS(is_user_java_script)
+  DECL_BOOLEAN_ACCESSORS(is_toplevel)
+  DECL_BOOLEAN_ACCESSORS(is_async)
+  DECL_BOOLEAN_ACCESSORS(is_promise_all)
   DECL_INT_ACCESSORS(flag)
 
   DECL_CAST(StackFrameInfo)
@@ -43,6 +49,10 @@ class StackFrameInfo : public Struct {
   static const int kIsEvalBit = 0;
   static const int kIsConstructorBit = 1;
   static const int kIsWasmBit = 2;
+  static const int kIsUserJavaScriptBit = 3;
+  static const int kIsToplevelBit = 4;
+  static const int kIsAsyncBit = 5;
+  static const int kIsPromiseAllBit = 6;
 
   OBJECT_CONSTRUCTORS(StackFrameInfo, Struct);
 };
@@ -72,14 +82,20 @@ class StackTraceFrame : public Struct {
   static int GetLineNumber(Handle<StackTraceFrame> frame);
   static int GetColumnNumber(Handle<StackTraceFrame> frame);
   static int GetScriptId(Handle<StackTraceFrame> frame);
+  static int GetPromiseAllIndex(Handle<StackTraceFrame> frame);
 
   static Handle<Object> GetFileName(Handle<StackTraceFrame> frame);
   static Handle<Object> GetScriptNameOrSourceUrl(Handle<StackTraceFrame> frame);
   static Handle<Object> GetFunctionName(Handle<StackTraceFrame> frame);
+  static Handle<Object> GetWasmModuleName(Handle<StackTraceFrame> frame);
 
   static bool IsEval(Handle<StackTraceFrame> frame);
   static bool IsConstructor(Handle<StackTraceFrame> frame);
   static bool IsWasm(Handle<StackTraceFrame> frame);
+  static bool IsUserJavaScript(Handle<StackTraceFrame> frame);
+  static bool IsToplevel(Handle<StackTraceFrame> frame);
+  static bool IsAsync(Handle<StackTraceFrame> frame);
+  static bool IsPromiseAll(Handle<StackTraceFrame> frame);
 
  private:
   OBJECT_CONSTRUCTORS(StackTraceFrame, Struct);

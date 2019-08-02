@@ -8,10 +8,10 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
-#include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
-#include "src/counters.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/regexp-match-info.h"
@@ -35,61 +35,46 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::IntPtrZero() {
 
 TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
     TNode<Context> context, TNode<Smi> length, TNode<Smi> index,
-    TNode<String> input) {
-#ifdef DEBUG
-  TNode<Smi> max_length = SmiConstant(JSArray::kInitialMaxFastElementArray);
-  CSA_ASSERT(this, SmiLessThanOrEqual(length, max_length));
-#endif  // DEBUG
+    TNode<String> input, TNode<FixedArray>* elements_out) {
+  CSA_ASSERT(this, SmiLessThanOrEqual(
+                       length, SmiConstant(JSArray::kMaxFastArrayLength)));
+  CSA_ASSERT(this, SmiGreaterThan(length, SmiConstant(0)));
 
-  // Allocate the JSRegExpResult together with its elements fixed array.
-  // Initial preparations first.
+  // Allocate.
 
-  TNode<IntPtrT> length_intptr = SmiUntag(length);
   const ElementsKind elements_kind = PACKED_ELEMENTS;
+  TNode<Map> map = CAST(LoadContextElement(LoadNativeContext(context),
+                                           Context::REGEXP_RESULT_MAP_INDEX));
+  Node* no_allocation_site = nullptr;
+  TNode<IntPtrT> length_intptr = SmiUntag(length);
+  TNode<IntPtrT> capacity = length_intptr;
 
-  TNode<IntPtrT> elements_size = GetFixedArrayAllocationSize(
-      length_intptr, elements_kind, INTPTR_PARAMETERS);
-  TNode<IntPtrT> total_size =
-      IntPtrAdd(elements_size, IntPtrConstant(JSRegExpResult::kSize));
+  // Note: The returned `elements` may be in young large object space, but
+  // `array` is guaranteed to be in new space so we could skip write barriers
+  // below.
+  TNode<JSArray> array;
+  TNode<FixedArrayBase> elements;
+  std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
+      elements_kind, map, length, no_allocation_site, capacity,
+      INTPTR_PARAMETERS, kAllowLargeObjectAllocation, JSRegExpResult::kSize);
 
-  static const int kRegExpResultOffset = 0;
-  static const int kElementsOffset =
-      kRegExpResultOffset + JSRegExpResult::kSize;
+  // Finish result initialization.
 
-  // The folded allocation.
-
-  TNode<HeapObject> result = Allocate(total_size);
-  TNode<HeapObject> elements = InnerAllocate(result, kElementsOffset);
-
-  // Initialize the JSRegExpResult.
-
-  TNode<Context> native_context = LoadNativeContext(context);
-  TNode<Map> map = CAST(
-      LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX));
-  StoreMapNoWriteBarrier(result, map);
-
-  StoreObjectFieldNoWriteBarrier(result, JSArray::kPropertiesOrHashOffset,
-                                 EmptyFixedArrayConstant());
-  StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, elements);
-  StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset, length);
+  TNode<JSRegExpResult> result = CAST(array);
 
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kIndexOffset, index);
-  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kInputOffset, input);
+  // TODO(jgruber,tebbi): Could skip barrier but the MemoryOptimizer complains.
+  StoreObjectField(result, JSRegExpResult::kInputOffset, input);
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kGroupsOffset,
                                  UndefinedConstant());
 
-  // Initialize the elements.
-
-  DCHECK(!IsDoubleElementsKind(elements_kind));
-  const RootIndex map_index = RootIndex::kFixedArrayMap;
-  DCHECK(RootsTable::IsImmortalImmovable(map_index));
-  StoreMapNoWriteBarrier(elements, map_index);
-  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
+  // Finish elements initialization.
 
   FillFixedArrayWithValue(elements_kind, elements, IntPtrZero(), length_intptr,
                           RootIndex::kUndefinedValue);
 
-  return CAST(result);
+  if (elements_out) *elements_out = CAST(elements);
+  return result;
 }
 
 TNode<Object> RegExpBuiltinsAssembler::RegExpCreate(
@@ -177,11 +162,11 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   TNode<String> first =
       CAST(CallBuiltin(Builtins::kSubString, context, string, start, end));
 
-  TNode<JSRegExpResult> result =
-      AllocateRegExpResult(context, num_results, start, string);
-  TNode<FixedArray> result_elements = CAST(LoadElements(result));
+  TNode<FixedArray> result_elements;
+  TNode<JSRegExpResult> result = AllocateRegExpResult(
+      context, num_results, start, string, &result_elements);
 
-  UnsafeStoreFixedArrayElement(result_elements, 0, first, SKIP_WRITE_BARRIER);
+  UnsafeStoreFixedArrayElement(result_elements, 0, first);
 
   // If no captures exist we can skip named capture handling as well.
   GotoIf(SmiEqual(num_results, SmiConstant(1)), &out);
@@ -1923,6 +1908,22 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
     Variable* vars[] = {array.var_array(), array.var_length(),
                         array.var_capacity()};
     Label loop(this, 3, vars), out(this);
+
+    // Check if the regexp is an ATOM type. If then, keep the literal string to
+    // search for so that we can avoid calling substring in the loop below.
+    TVARIABLE(BoolT, var_atom, Int32FalseConstant());
+    TVARIABLE(String, var_search_string, EmptyStringConstant());
+    if (is_fastpath) {
+      TNode<JSRegExp> maybe_atom_regexp = CAST(regexp);
+      TNode<FixedArray> data =
+          CAST(LoadObjectField(maybe_atom_regexp, JSRegExp::kDataOffset));
+      GotoIfNot(SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
+                         SmiConstant(JSRegExp::ATOM)),
+                &loop);
+      var_search_string =
+          CAST(LoadFixedArrayElement(data, JSRegExp::kAtomPatternIndex));
+      var_atom = Int32TrueConstant();
+    }
     Goto(&loop);
 
     BIND(&loop);
@@ -1937,13 +1938,22 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
             RegExpPrototypeExecBodyWithoutResult(CAST(context), CAST(regexp),
                                                  string, &if_didnotmatch, true);
 
-        Node* const match_from = UnsafeLoadFixedArrayElement(
-            match_indices, RegExpMatchInfo::kFirstCaptureIndex);
-        Node* const match_to = UnsafeLoadFixedArrayElement(
-            match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
+        Label dosubstring(this), donotsubstring(this);
+        Branch(var_atom.value(), &donotsubstring, &dosubstring);
 
-        var_match.Bind(CallBuiltin(Builtins::kSubString, context, string,
-                                   match_from, match_to));
+        BIND(&dosubstring);
+        {
+          Node* const match_from = UnsafeLoadFixedArrayElement(
+              match_indices, RegExpMatchInfo::kFirstCaptureIndex);
+          Node* const match_to = UnsafeLoadFixedArrayElement(
+              match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
+          var_match.Bind(CallBuiltin(Builtins::kSubString, context, string,
+                                     match_from, match_to));
+          Goto(&if_didmatch);
+        }
+
+        BIND(&donotsubstring);
+        var_match.Bind(var_search_string.value());
         Goto(&if_didmatch);
       } else {
         DCHECK(!is_fastpath);
@@ -2683,213 +2693,6 @@ TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
   BIND(&runtime);
   args.PopAndReturn(CallRuntime(Runtime::kRegExpSplit, context, receiver,
                                 string, maybe_limit));
-}
-
-Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
-    Node* context, Node* regexp, Node* string, Node* replace_callable) {
-  // The fast path is reached only if {receiver} is a global unmodified
-  // JSRegExp instance and {replace_callable} is callable.
-
-  CSA_ASSERT(this, IsFastRegExp(context, regexp));
-  CSA_ASSERT(this, IsCallable(replace_callable));
-  CSA_ASSERT(this, IsString(string));
-
-  Isolate* const isolate = this->isolate();
-
-  Node* const undefined = UndefinedConstant();
-  TNode<IntPtrT> int_one = IntPtrConstant(1);
-
-  Node* const native_context = LoadNativeContext(context);
-
-  Label out(this);
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-
-  // Set last index to 0.
-  FastStoreLastIndex(regexp, SmiZero());
-
-  // Allocate {result_array}.
-  Node* result_array;
-  {
-    ElementsKind kind = PACKED_ELEMENTS;
-    TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
-    TNode<IntPtrT> capacity = IntPtrConstant(16);
-    TNode<Smi> length = SmiZero();
-    Node* const allocation_site = nullptr;
-    ParameterMode capacity_mode = CodeStubAssembler::INTPTR_PARAMETERS;
-
-    result_array = AllocateJSArray(kind, array_map, capacity, length,
-                                   allocation_site, capacity_mode);
-  }
-
-  // Call into runtime for RegExpExecMultiple.
-  TNode<FixedArray> last_match_info = CAST(LoadContextElement(
-      native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX));
-  Node* const res = CallRuntime(Runtime::kRegExpExecMultiple, context, regexp,
-                                string, last_match_info, result_array);
-
-  // Reset last index to 0.
-  FastStoreLastIndex(regexp, SmiZero());
-
-  // If no matches, return the subject string.
-  var_result.Bind(string);
-  GotoIf(IsNull(res), &out);
-
-  // Reload last match info since it might have changed.
-  last_match_info = CAST(LoadContextElement(
-      native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX));
-
-  Node* const res_length = LoadJSArrayLength(res);
-  TNode<FixedArray> const res_elems = CAST(LoadElements(res));
-
-  TNode<Smi> const num_capture_registers = CAST(LoadFixedArrayElement(
-      last_match_info, RegExpMatchInfo::kNumberOfCapturesIndex));
-
-  Label if_hasexplicitcaptures(this), if_noexplicitcaptures(this),
-      create_result(this);
-  Branch(SmiEqual(num_capture_registers, SmiConstant(2)),
-         &if_noexplicitcaptures, &if_hasexplicitcaptures);
-
-  BIND(&if_noexplicitcaptures);
-  {
-    // If the number of captures is two then there are no explicit captures in
-    // the regexp, just the implicit capture that captures the whole match. In
-    // this case we can simplify quite a bit and end up with something faster.
-    // The builder will consist of some integers that indicate slices of the
-    // input string and some replacements that were returned from the replace
-    // function.
-
-    TVARIABLE(Smi, var_match_start, SmiZero());
-
-    TNode<IntPtrT> const end = SmiUntag(res_length);
-    TVARIABLE(IntPtrT, var_i, IntPtrZero());
-
-    Variable* vars[] = {&var_i, &var_match_start};
-    Label loop(this, 2, vars);
-    Goto(&loop);
-    BIND(&loop);
-    {
-      GotoIfNot(IntPtrLessThan(var_i.value(), end), &create_result);
-
-      Node* const elem = LoadFixedArrayElement(res_elems, var_i.value());
-
-      Label if_issmi(this), if_isstring(this), loop_epilogue(this);
-      Branch(TaggedIsSmi(elem), &if_issmi, &if_isstring);
-
-      BIND(&if_issmi);
-      {
-        TNode<Smi> smi_elem = CAST(elem);
-        // Integers represent slices of the original string.
-        Label if_isnegativeorzero(this), if_ispositive(this);
-        BranchIfSmiLessThanOrEqual(smi_elem, SmiZero(), &if_isnegativeorzero,
-                                   &if_ispositive);
-
-        BIND(&if_ispositive);
-        {
-          TNode<IntPtrT> int_elem = SmiUntag(smi_elem);
-          TNode<IntPtrT> new_match_start =
-              Signed(IntPtrAdd(WordShr(int_elem, IntPtrConstant(11)),
-                               WordAnd(int_elem, IntPtrConstant(0x7FF))));
-          var_match_start = SmiTag(new_match_start);
-          Goto(&loop_epilogue);
-        }
-
-        BIND(&if_isnegativeorzero);
-        {
-          var_i = IntPtrAdd(var_i.value(), int_one);
-
-          TNode<Smi> const next_elem =
-              CAST(LoadFixedArrayElement(res_elems, var_i.value()));
-
-          var_match_start = SmiSub(next_elem, smi_elem);
-          Goto(&loop_epilogue);
-        }
-      }
-
-      BIND(&if_isstring);
-      {
-        CSA_ASSERT(this, IsString(elem));
-
-        Callable call_callable = CodeFactory::Call(isolate);
-        TNode<Smi> match_start = var_match_start.value();
-        Node* const replacement_obj =
-            CallJS(call_callable, context, replace_callable, undefined, elem,
-                   match_start, string);
-
-        TNode<String> const replacement_str =
-            ToString_Inline(context, replacement_obj);
-        StoreFixedArrayElement(res_elems, var_i.value(), replacement_str);
-
-        TNode<Smi> const elem_length = LoadStringLengthAsSmi(elem);
-        var_match_start = SmiAdd(match_start, elem_length);
-
-        Goto(&loop_epilogue);
-      }
-
-      BIND(&loop_epilogue);
-      {
-        var_i = IntPtrAdd(var_i.value(), int_one);
-        Goto(&loop);
-      }
-    }
-  }
-
-  BIND(&if_hasexplicitcaptures);
-  {
-    Node* const from = IntPtrZero();
-    Node* const to = SmiUntag(res_length);
-    const int increment = 1;
-
-    BuildFastLoop(
-        from, to,
-        [this, res_elems, isolate, native_context, context, undefined,
-         replace_callable](Node* index) {
-          Node* const elem = LoadFixedArrayElement(res_elems, index);
-
-          Label do_continue(this);
-          GotoIf(TaggedIsSmi(elem), &do_continue);
-
-          // elem must be an Array.
-          // Use the apply argument as backing for global RegExp
-          // properties.
-
-          CSA_ASSERT(this, HasInstanceType(elem, JS_ARRAY_TYPE));
-
-          // TODO(jgruber): Remove indirection through
-          // Call->ReflectApply.
-          Callable call_callable = CodeFactory::Call(isolate);
-          Node* const reflect_apply =
-              LoadContextElement(native_context, Context::REFLECT_APPLY_INDEX);
-
-          Node* const replacement_obj =
-              CallJS(call_callable, context, reflect_apply, undefined,
-                     replace_callable, undefined, elem);
-
-          // Overwrite the i'th element in the results with the string
-          // we got back from the callback function.
-
-          TNode<String> const replacement_str =
-              ToString_Inline(context, replacement_obj);
-          StoreFixedArrayElement(res_elems, index, replacement_str);
-
-          Goto(&do_continue);
-          BIND(&do_continue);
-        },
-        increment, CodeStubAssembler::INTPTR_PARAMETERS,
-        CodeStubAssembler::IndexAdvanceMode::kPost);
-
-    Goto(&create_result);
-  }
-
-  BIND(&create_result);
-  {
-    Node* const result = CallRuntime(Runtime::kStringBuilderConcat, context,
-                                     res, res_length, string);
-    var_result.Bind(result);
-    Goto(&out);
-  }
-
-  BIND(&out);
-  return var_result.value();
 }
 
 class RegExpStringIteratorAssembler : public RegExpBuiltinsAssembler {

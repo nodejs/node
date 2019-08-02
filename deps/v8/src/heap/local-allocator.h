@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_LOCAL_ALLOCATOR_H_
 #define V8_HEAP_LOCAL_ALLOCATOR_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 

@@ -42,9 +42,7 @@ namespace object {
     }
     label IfSlow {
       const result: JSObject = NewJSObject();
-      const fastIteratorResultMap: Map =
-          Cast<Map>(LoadNativeContext(context)[ITERATOR_RESULT_MAP_INDEX])
-          otherwise unreachable;
+      const fastIteratorResultMap: Map = GetIteratorResultMap();
       let i: iterator::IteratorRecord = iterator::GetIterator(iterable);
       try {
         assert(!IsNullOrUndefined(i.object));

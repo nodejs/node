@@ -93,11 +93,11 @@ assertEquals(undefined, Object.getOwnPropertyDescriptor(proxy, "nonexistent"));
 // (Inv-4) "A property cannot be reported as existent, if it does not exist as
 // an own property of the target object and the target object is not
 // extensible."
-var existent_desc = {value: "yes"};
+var existent_desc = {value: "yes", writable: true};
 handler.getOwnPropertyDescriptor = function() { return existent_desc; };
 assertThrows('Object.getOwnPropertyDescriptor(proxy, "nonexistent")');
 assertEquals(
-    {value: "yes", writable: false, enumerable: false, configurable: false},
+    {value: "yes", writable: true, enumerable: false, configurable: false},
     Object.getOwnPropertyDescriptor(proxy, "configurable"));
 
 // Checking individual bailout points in the implementation:

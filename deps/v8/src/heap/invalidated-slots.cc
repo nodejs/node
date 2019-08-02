@@ -24,7 +24,7 @@ InvalidatedSlotsFilter::InvalidatedSlotsFilter(MemoryChunk* chunk) {
   iterator_end_ = invalidated_slots->end();
   sentinel_ = chunk->area_end();
   if (iterator_ != iterator_end_) {
-    invalidated_start_ = iterator_->first->address();
+    invalidated_start_ = iterator_->first.address();
     invalidated_end_ = invalidated_start_ + iterator_->second;
   } else {
     invalidated_start_ = sentinel_;

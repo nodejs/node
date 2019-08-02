@@ -4,7 +4,7 @@
 
 #include "src/interpreter/bytecode-array-writer.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"
@@ -12,8 +12,8 @@
 #include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
-#include "src/log.h"
-#include "src/objects-inl.h"
+#include "src/logging/log.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -445,7 +445,6 @@ void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
   switch (reserved_operand_size) {
     case OperandSize::kNone:
       UNREACHABLE();
-      break;
     case OperandSize::kByte:
       node->update_operand0(k8BitJumpPlaceholder);
       break;

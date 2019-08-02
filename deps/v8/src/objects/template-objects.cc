@@ -5,11 +5,11 @@
 #include "src/objects/template-objects.h"
 
 #include "src/base/functional.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
 #include "src/objects/template-objects-inl.h"
-#include "src/property-descriptor.h"
 
 namespace v8 {
 namespace internal {
@@ -23,20 +23,20 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
 
   // Check the template weakmap to see if the template object already exists.
   Handle<EphemeronHashTable> template_weakmap =
-      native_context->template_weakmap()->IsUndefined(isolate)
+      native_context->template_weakmap().IsUndefined(isolate)
           ? EphemeronHashTable::New(isolate, 0)
           : handle(EphemeronHashTable::cast(native_context->template_weakmap()),
                    isolate);
 
   uint32_t hash = shared_info->Hash();
   Object maybe_cached_template = template_weakmap->Lookup(shared_info, hash);
-  while (!maybe_cached_template->IsTheHole()) {
+  while (!maybe_cached_template.IsTheHole()) {
     CachedTemplateObject cached_template =
         CachedTemplateObject::cast(maybe_cached_template);
-    if (cached_template->slot_id() == slot_id)
-      return handle(cached_template->template_object(), isolate);
+    if (cached_template.slot_id() == slot_id)
+      return handle(cached_template.template_object(), isolate);
 
-    maybe_cached_template = cached_template->next();
+    maybe_cached_template = cached_template.next();
   }
 
   // Create the raw object from the {raw_strings}.

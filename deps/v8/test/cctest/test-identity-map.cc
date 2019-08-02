@@ -4,11 +4,11 @@
 
 #include <set>
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
-#include "src/identity-map.h"
-#include "src/isolate.h"
-#include "src/objects.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/utils/identity-map.h"
+#include "src/objects/objects.h"
 #include "src/zone/zone.h"
 #include "test/cctest/cctest.h"
 

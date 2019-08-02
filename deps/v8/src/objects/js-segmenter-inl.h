@@ -9,8 +9,8 @@
 #ifndef V8_OBJECTS_JS_SEGMENTER_INL_H_
 #define V8_OBJECTS_JS_SEGMENTER_INL_H_
 
-#include "src/objects-inl.h"
 #include "src/objects/js-segmenter.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,7 +23,7 @@ OBJECT_CONSTRUCTORS_IMPL(JSSegmenter, JSObject)
 // Base segmenter accessors.
 ACCESSORS(JSSegmenter, locale, String, kLocaleOffset)
 ACCESSORS(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
-          kICUBreakIteratorOffset)
+          kIcuBreakIteratorOffset)
 SMI_ACCESSORS(JSSegmenter, flags, kFlagsOffset)
 
 inline void JSSegmenter::set_granularity(Granularity granularity) {

@@ -25,6 +25,7 @@ function TestSetWithModifiedIterator(ctor) {
 
   arrayIteratorProto.next = originalNext;
 }
+%PrepareFunctionForOptimization(TestSetWithModifiedIterator);
 TestSetWithModifiedIterator(Set);
 TestSetWithModifiedIterator(Set);
 TestSetWithModifiedIterator(Set);
@@ -33,6 +34,7 @@ TestSetWithModifiedIterator(Set);
 assertOptimized(TestSetWithModifiedIterator);
 %DeoptimizeFunction(TestSetWithModifiedIterator);
 
+%PrepareFunctionForOptimization(TestSetWithModifiedIterator);
 TestSetWithModifiedIterator(WeakSet);
 TestSetWithModifiedIterator(WeakSet);
 TestSetWithModifiedIterator(WeakSet);
@@ -63,6 +65,7 @@ function TestMapWithModifiedIterator(ctor) {
 
   arrayIteratorProto.next = originalNext;
 }
+%PrepareFunctionForOptimization(TestMapWithModifiedIterator);
 TestMapWithModifiedIterator(Map);
 TestMapWithModifiedIterator(Map);
 TestMapWithModifiedIterator(Map);
@@ -71,6 +74,7 @@ TestMapWithModifiedIterator(Map);
 assertOptimized(TestMapWithModifiedIterator);
 %DeoptimizeFunction(TestMapWithModifiedIterator);
 
+%PrepareFunctionForOptimization(TestMapWithModifiedIterator);
 TestMapWithModifiedIterator(WeakMap);
 TestMapWithModifiedIterator(WeakMap);
 TestMapWithModifiedIterator(WeakMap);

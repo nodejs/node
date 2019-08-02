@@ -734,7 +734,7 @@ assertEq(tbl.length, 1);
 assertEq(tbl.grow(1, 4), 1);
 assertEq(tbl.length, 2);
 assertEq(tbl.length, 2);
-assertThrows(() => tbl.grow(1), Error, /maximum table size exceeded/);
+assertThrows(() => tbl.grow(1), Error, /failed to grow table by \d+/);
 assertThrows(
     () => tbl.grow(Infinity), TypeError, /must be convertible to a valid number/);
 assertThrows(

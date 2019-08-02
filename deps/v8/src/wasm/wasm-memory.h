@@ -10,8 +10,8 @@
 #include <unordered_set>
 
 #include "src/base/platform/mutex.h"
-#include "src/flags.h"
-#include "src/handles.h"
+#include "src/flags/flags.h"
+#include "src/handles/handles.h"
 #include "src/objects/js-array-buffer.h"
 
 namespace v8 {
@@ -107,10 +107,8 @@ class WasmMemoryTracker {
   V8_EXPORT_PRIVATE const AllocationData* FindAllocationData(
       const void* buffer_start);
 
-  // Checks if a buffer points to a Wasm memory and if so does any necessary
-  // work to reclaim the buffer. If this function returns false, the caller must
-  // free the buffer manually.
-  bool FreeMemoryIfIsWasmMemory(Isolate* isolate, const void* buffer_start);
+  // Free Memory allocated by the Wasm memory tracker
+  bool FreeWasmMemory(Isolate* isolate, const void* buffer_start);
 
   void MarkWasmMemoryNotGrowable(Handle<JSArrayBuffer> buffer);
 

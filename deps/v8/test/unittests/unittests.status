@@ -34,4 +34,9 @@
   '*': [SKIP],
 }], # variant == jitless and not embedded_builtins
 
+['system == windows and asan', {
+  # BUG(893437).
+  'Torque*': [SKIP],
+}],  # 'system == windows and asan'
+
 ]

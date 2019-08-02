@@ -167,10 +167,10 @@ class JSRegExp : public JSObject {
   // Descriptor array index to important methods in the prototype.
   static const int kExecFunctionDescriptorIndex = 1;
   static const int kSymbolMatchFunctionDescriptorIndex = 13;
-  static const int kSymbolReplaceFunctionDescriptorIndex = 14;
-  static const int kSymbolSearchFunctionDescriptorIndex = 15;
-  static const int kSymbolSplitFunctionDescriptorIndex = 16;
-  static const int kSymbolMatchAllFunctionDescriptorIndex = 17;
+  static const int kSymbolMatchAllFunctionDescriptorIndex = 14;
+  static const int kSymbolReplaceFunctionDescriptorIndex = 15;
+  static const int kSymbolSearchFunctionDescriptorIndex = 16;
+  static const int kSymbolSplitFunctionDescriptorIndex = 17;
 
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;

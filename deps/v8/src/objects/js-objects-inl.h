@@ -7,20 +7,20 @@
 
 #include "src/objects/js-objects.h"
 
-#include "src/feedback-vector.h"
-#include "src/field-index-inl.h"
 #include "src/heap/heap-write-barrier.h"
-#include "src/keys.h"
-#include "src/lookup-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/feedback-vector.h"
+#include "src/objects/field-index-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/keys.h"
+#include "src/objects/lookup-inl.h"
 #include "src/objects/property-array-inl.h"
+#include "src/objects/prototype-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi-inl.h"
-#include "src/prototype-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -109,21 +109,21 @@ V8_WARN_UNUSED_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
 
 bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject object) {
   DisallowHeapAllocation no_gc;
-  HeapObject prototype = HeapObject::cast(object->map()->prototype());
+  HeapObject prototype = HeapObject::cast(object.map().prototype());
   ReadOnlyRoots roots(isolate);
   HeapObject null = roots.null_value();
   FixedArrayBase empty_fixed_array = roots.empty_fixed_array();
   FixedArrayBase empty_slow_element_dictionary =
       roots.empty_slow_element_dictionary();
   while (prototype != null) {
-    Map map = prototype->map();
-    if (map->IsCustomElementsReceiverMap()) return false;
-    FixedArrayBase elements = JSObject::cast(prototype)->elements();
+    Map map = prototype.map();
+    if (map.IsCustomElementsReceiverMap()) return false;
+    FixedArrayBase elements = JSObject::cast(prototype).elements();
     if (elements != empty_fixed_array &&
         elements != empty_slow_element_dictionary) {
       return false;
     }
-    prototype = HeapObject::cast(map->prototype());
+    prototype = HeapObject::cast(map.prototype());
   }
   return true;
 }
@@ -137,7 +137,7 @@ FixedArrayBase JSObject::elements() const {
 
 void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
   JSObject::ValidateElements(*object);
-  ElementsKind elements_kind = object->map()->elements_kind();
+  ElementsKind elements_kind = object->map().elements_kind();
   if (!IsObjectElementsKind(elements_kind)) {
     if (IsHoleyElementsKind(elements_kind)) {
       TransitionElementsKind(object, HOLEY_ELEMENTS);
@@ -167,8 +167,8 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object, TSlot objects,
       if (current == the_hole) {
         is_holey = true;
         target_kind = GetHoleyElementsKind(target_kind);
-      } else if (!current->IsSmi()) {
-        if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && current->IsNumber()) {
+      } else if (!current.IsSmi()) {
+        if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && current.IsNumber()) {
           if (IsSmiElementsKind(target_kind)) {
             if (is_holey) {
               target_kind = HOLEY_DOUBLE_ELEMENTS;
@@ -226,13 +226,13 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
 void JSObject::SetMapAndElements(Handle<JSObject> object, Handle<Map> new_map,
                                  Handle<FixedArrayBase> value) {
   JSObject::MigrateToMap(object, new_map);
-  DCHECK((object->map()->has_fast_smi_or_object_elements() ||
+  DCHECK((object->map().has_fast_smi_or_object_elements() ||
           (*value == object->GetReadOnlyRoots().empty_fixed_array()) ||
-          object->map()->has_fast_string_wrapper_elements()) ==
+          object->map().has_fast_string_wrapper_elements()) ==
          (value->map() == object->GetReadOnlyRoots().fixed_array_map() ||
           value->map() == object->GetReadOnlyRoots().fixed_cow_array_map()));
   DCHECK((*value == object->GetReadOnlyRoots().empty_fixed_array()) ||
-         (object->map()->has_fast_double_elements() ==
+         (object->map().has_fast_double_elements() ==
           value->IsFixedDoubleArray()));
   object->set_elements(*value);
 }
@@ -243,16 +243,16 @@ void JSObject::set_elements(FixedArrayBase value, WriteBarrierMode mode) {
 }
 
 void JSObject::initialize_elements() {
-  FixedArrayBase elements = map()->GetInitialElements();
+  FixedArrayBase elements = map().GetInitialElements();
   WRITE_FIELD(*this, kElementsOffset, elements);
 }
 
 InterceptorInfo JSObject::GetIndexedInterceptor() {
-  return map()->GetIndexedInterceptor();
+  return map().GetIndexedInterceptor();
 }
 
 InterceptorInfo JSObject::GetNamedInterceptor() {
-  return map()->GetNamedInterceptor();
+  return map().GetNamedInterceptor();
 }
 
 int JSObject::GetHeaderSize() const { return GetHeaderSize(map()); }
@@ -261,10 +261,10 @@ int JSObject::GetHeaderSize(const Map map) {
   // Check for the most common kind of JavaScript object before
   // falling into the generic switch. This speeds up the internal
   // field operations considerably on average.
-  InstanceType instance_type = map->instance_type();
+  InstanceType instance_type = map.instance_type();
   return instance_type == JS_OBJECT_TYPE
              ? JSObject::kHeaderSize
-             : GetHeaderSize(instance_type, map->has_prototype_slot());
+             : GetHeaderSize(instance_type, map.has_prototype_slot());
 }
 
 // static
@@ -279,7 +279,7 @@ int JSObject::GetEmbedderFieldsStartOffset() {
 
 // static
 int JSObject::GetEmbedderFieldCount(const Map map) {
-  int instance_size = map->instance_size();
+  int instance_size = map.instance_size();
   if (instance_size == kVariableSizeSentinel) return 0;
   // Embedder fields are located after the object header, whereas in-object
   // properties are located at the end of the object. We don't have to round up
@@ -288,7 +288,7 @@ int JSObject::GetEmbedderFieldCount(const Map map) {
   // kSystemPointerSize) anyway.
   return (((instance_size - GetEmbedderFieldsStartOffset(map)) >>
            kTaggedSizeLog2) -
-          map->GetInObjectProperties()) /
+          map.GetInObjectProperties()) /
          kEmbedderDataSlotSizeInTaggedSlots;
 }
 
@@ -316,7 +316,7 @@ void JSObject::SetEmbedderField(int index, Smi value) {
 
 bool JSObject::IsUnboxedDoubleField(FieldIndex index) {
   if (!FLAG_unbox_double_fields) return false;
-  return map()->IsUnboxedDoubleField(index);
+  return map().IsUnboxedDoubleField(index);
 }
 
 // Access fast-case object properties at index. The use of these routines
@@ -327,27 +327,35 @@ Object JSObject::RawFastPropertyAt(FieldIndex index) {
   if (index.is_inobject()) {
     return READ_FIELD(*this, index.offset());
   } else {
-    return property_array()->get(index.outobject_array_index());
+    return property_array().get(index.outobject_array_index());
   }
 }
 
 double JSObject::RawFastDoublePropertyAt(FieldIndex index) {
   DCHECK(IsUnboxedDoubleField(index));
-  return READ_DOUBLE_FIELD(*this, index.offset());
+  return ReadField<double>(index.offset());
 }
 
 uint64_t JSObject::RawFastDoublePropertyAsBitsAt(FieldIndex index) {
   DCHECK(IsUnboxedDoubleField(index));
-  return READ_UINT64_FIELD(*this, index.offset());
+  return ReadField<uint64_t>(index.offset());
 }
 
-void JSObject::RawFastPropertyAtPut(FieldIndex index, Object value) {
+void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
+                                            WriteBarrierMode mode) {
+  DCHECK(index.is_inobject());
+  int offset = index.offset();
+  WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+}
+
+void JSObject::RawFastPropertyAtPut(FieldIndex index, Object value,
+                                    WriteBarrierMode mode) {
   if (index.is_inobject()) {
-    int offset = index.offset();
-    WRITE_FIELD(*this, offset, value);
-    WRITE_BARRIER(*this, offset, value);
+    RawFastInobjectPropertyAtPut(index, value, mode);
   } else {
-    property_array()->set(index.outobject_array_index(), value);
+    DCHECK_EQ(UPDATE_WRITE_BARRIER, mode);
+    property_array().set(index.outobject_array_index(), value);
   }
 }
 
@@ -363,10 +371,10 @@ void JSObject::RawFastDoublePropertyAsBitsAtPut(FieldIndex index,
 
 void JSObject::FastPropertyAtPut(FieldIndex index, Object value) {
   if (IsUnboxedDoubleField(index)) {
-    DCHECK(value->IsMutableHeapNumber());
+    DCHECK(value.IsMutableHeapNumber());
     // Ensure that all bits of the double value are preserved.
     RawFastDoublePropertyAsBitsAtPut(
-        index, MutableHeapNumber::cast(value)->value_as_bits());
+        index, MutableHeapNumber::cast(value).value_as_bits());
   } else {
     RawFastPropertyAtPut(index, value);
   }
@@ -379,26 +387,24 @@ void JSObject::WriteToField(int descriptor, PropertyDetails details,
   DisallowHeapAllocation no_gc;
   FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
   if (details.representation().IsDouble()) {
-    // Nothing more to be done.
-    if (value->IsUninitialized()) {
-      return;
-    }
     // Manipulating the signaling NaN used for the hole and uninitialized
     // double field sentinel in C++, e.g. with bit_cast or value()/set_value(),
     // will change its value on ia32 (the x87 stack is used to return values
     // and stores to the stack silently clear the signalling bit).
     uint64_t bits;
-    if (value->IsSmi()) {
+    if (value.IsSmi()) {
       bits = bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
+    } else if (value.IsUninitialized()) {
+      bits = kHoleNanInt64;
     } else {
-      DCHECK(value->IsHeapNumber());
-      bits = HeapNumber::cast(value)->value_as_bits();
+      DCHECK(value.IsHeapNumber());
+      bits = HeapNumber::cast(value).value_as_bits();
     }
     if (IsUnboxedDoubleField(index)) {
       RawFastDoublePropertyAsBitsAtPut(index, bits);
     } else {
       auto box = MutableHeapNumber::cast(RawFastPropertyAt(index));
-      box->set_value_as_bits(bits);
+      box.set_value_as_bits(bits);
     }
   } else {
     RawFastPropertyAtPut(index, value);
@@ -406,7 +412,7 @@ void JSObject::WriteToField(int descriptor, PropertyDetails details,
 }
 
 int JSObject::GetInObjectPropertyOffset(int index) {
-  return map()->GetInObjectPropertyOffset(index);
+  return map().GetInObjectPropertyOffset(index);
 }
 
 Object JSObject::InObjectPropertyAt(int index) {
@@ -425,15 +431,15 @@ Object JSObject::InObjectPropertyAtPut(int index, Object value,
 
 void JSObject::InitializeBody(Map map, int start_offset,
                               Object pre_allocated_value, Object filler_value) {
-  DCHECK_IMPLIES(filler_value->IsHeapObject(),
+  DCHECK_IMPLIES(filler_value.IsHeapObject(),
                  !ObjectInYoungGeneration(filler_value));
-  DCHECK_IMPLIES(pre_allocated_value->IsHeapObject(),
+  DCHECK_IMPLIES(pre_allocated_value.IsHeapObject(),
                  !ObjectInYoungGeneration(pre_allocated_value));
-  int size = map->instance_size();
+  int size = map.instance_size();
   int offset = start_offset;
   if (filler_value != pre_allocated_value) {
     int end_of_pre_allocated_offset =
-        size - (map->UnusedPropertyFields() * kTaggedSize);
+        size - (map.UnusedPropertyFields() * kTaggedSize);
     DCHECK_LE(kHeaderSize, end_of_pre_allocated_offset);
     while (offset < end_of_pre_allocated_offset) {
       WRITE_FIELD(*this, offset, pre_allocated_value);
@@ -464,12 +470,12 @@ ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 
 FeedbackVector JSFunction::feedback_vector() const {
   DCHECK(has_feedback_vector());
-  return FeedbackVector::cast(raw_feedback_cell()->value());
+  return FeedbackVector::cast(raw_feedback_cell().value());
 }
 
 ClosureFeedbackCellArray JSFunction::closure_feedback_cell_array() const {
   DCHECK(has_closure_feedback_cell_array());
-  return ClosureFeedbackCellArray::cast(raw_feedback_cell()->value());
+  return ClosureFeedbackCellArray::cast(raw_feedback_cell().value());
 }
 
 // Code objects that are marked for deoptimization are not considered to be
@@ -479,69 +485,69 @@ ClosureFeedbackCellArray JSFunction::closure_feedback_cell_array() const {
 // TODO(jupvfranco): rename this function. Maybe RunOptimizedCode,
 // or IsValidOptimizedCode.
 bool JSFunction::IsOptimized() {
-  return is_compiled() && code()->kind() == Code::OPTIMIZED_FUNCTION &&
-         !code()->marked_for_deoptimization();
+  return is_compiled() && code().kind() == Code::OPTIMIZED_FUNCTION &&
+         !code().marked_for_deoptimization();
 }
 
 bool JSFunction::HasOptimizedCode() {
   return IsOptimized() ||
-         (has_feedback_vector() && feedback_vector()->has_optimized_code() &&
-          !feedback_vector()->optimized_code()->marked_for_deoptimization());
+         (has_feedback_vector() && feedback_vector().has_optimized_code() &&
+          !feedback_vector().optimized_code().marked_for_deoptimization());
 }
 
 bool JSFunction::HasOptimizationMarker() {
-  return has_feedback_vector() && feedback_vector()->has_optimization_marker();
+  return has_feedback_vector() && feedback_vector().has_optimization_marker();
 }
 
 void JSFunction::ClearOptimizationMarker() {
   DCHECK(has_feedback_vector());
-  feedback_vector()->ClearOptimizationMarker();
+  feedback_vector().ClearOptimizationMarker();
 }
 
 // Optimized code marked for deoptimization will tier back down to running
 // interpreted on its next activation, and already doesn't count as IsOptimized.
 bool JSFunction::IsInterpreted() {
-  return is_compiled() && (code()->is_interpreter_trampoline_builtin() ||
-                           (code()->kind() == Code::OPTIMIZED_FUNCTION &&
-                            code()->marked_for_deoptimization()));
+  return is_compiled() && (code().is_interpreter_trampoline_builtin() ||
+                           (code().kind() == Code::OPTIMIZED_FUNCTION &&
+                            code().marked_for_deoptimization()));
 }
 
 bool JSFunction::ChecksOptimizationMarker() {
-  return code()->checks_optimization_marker();
+  return code().checks_optimization_marker();
 }
 
 bool JSFunction::IsMarkedForOptimization() {
-  return has_feedback_vector() && feedback_vector()->optimization_marker() ==
+  return has_feedback_vector() && feedback_vector().optimization_marker() ==
                                       OptimizationMarker::kCompileOptimized;
 }
 
 bool JSFunction::IsMarkedForConcurrentOptimization() {
   return has_feedback_vector() &&
-         feedback_vector()->optimization_marker() ==
+         feedback_vector().optimization_marker() ==
              OptimizationMarker::kCompileOptimizedConcurrent;
 }
 
 bool JSFunction::IsInOptimizationQueue() {
-  return has_feedback_vector() && feedback_vector()->optimization_marker() ==
+  return has_feedback_vector() && feedback_vector().optimization_marker() ==
                                       OptimizationMarker::kInOptimizationQueue;
 }
 
 void JSFunction::CompleteInobjectSlackTrackingIfActive() {
   if (!has_prototype_slot()) return;
-  if (has_initial_map() && initial_map()->IsInobjectSlackTrackingInProgress()) {
-    initial_map()->CompleteInobjectSlackTracking(GetIsolate());
+  if (has_initial_map() && initial_map().IsInobjectSlackTrackingInProgress()) {
+    initial_map().CompleteInobjectSlackTracking(GetIsolate());
   }
 }
 
 AbstractCode JSFunction::abstract_code() {
   if (IsInterpreted()) {
-    return AbstractCode::cast(shared()->GetBytecodeArray());
+    return AbstractCode::cast(shared().GetBytecodeArray());
   } else {
     return AbstractCode::cast(code());
   }
 }
 
-int JSFunction::length() { return shared()->length(); }
+int JSFunction::length() { return shared().length(); }
 
 Code JSFunction::code() const {
   return Code::cast(RELAXED_READ_FIELD(*this, kCodeOffset));
@@ -570,14 +576,14 @@ void JSFunction::set_shared(SharedFunctionInfo value, WriteBarrierMode mode) {
 }
 
 void JSFunction::ClearOptimizedCodeSlot(const char* reason) {
-  if (has_feedback_vector() && feedback_vector()->has_optimized_code()) {
+  if (has_feedback_vector() && feedback_vector().has_optimized_code()) {
     if (FLAG_trace_opt) {
       PrintF("[evicting entry from optimizing code feedback slot (%s) for ",
              reason);
       ShortPrint();
       PrintF("]\n");
     }
-    feedback_vector()->ClearOptimizedCode();
+    feedback_vector().ClearOptimizedCode();
   }
 }
 
@@ -586,17 +592,17 @@ void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
   DCHECK(ChecksOptimizationMarker());
   DCHECK(!HasOptimizedCode());
 
-  feedback_vector()->SetOptimizationMarker(marker);
+  feedback_vector().SetOptimizationMarker(marker);
 }
 
 bool JSFunction::has_feedback_vector() const {
-  return shared()->is_compiled() &&
-         raw_feedback_cell()->value()->IsFeedbackVector();
+  return shared().is_compiled() &&
+         raw_feedback_cell().value().IsFeedbackVector();
 }
 
 bool JSFunction::has_closure_feedback_cell_array() const {
-  return shared()->is_compiled() &&
-         raw_feedback_cell()->value()->IsClosureFeedbackCellArray();
+  return shared().is_compiled() &&
+         raw_feedback_cell().value().IsClosureFeedbackCellArray();
 }
 
 Context JSFunction::context() {
@@ -604,57 +610,57 @@ Context JSFunction::context() {
 }
 
 bool JSFunction::has_context() const {
-  return READ_FIELD(*this, kContextOffset)->IsContext();
+  return READ_FIELD(*this, kContextOffset).IsContext();
 }
 
-JSGlobalProxy JSFunction::global_proxy() { return context()->global_proxy(); }
+JSGlobalProxy JSFunction::global_proxy() { return context().global_proxy(); }
 
 NativeContext JSFunction::native_context() {
-  return context()->native_context();
+  return context().native_context();
 }
 
 void JSFunction::set_context(Object value) {
-  DCHECK(value->IsUndefined() || value->IsContext());
+  DCHECK(value.IsUndefined() || value.IsContext());
   WRITE_FIELD(*this, kContextOffset, value);
   WRITE_BARRIER(*this, kContextOffset, value);
 }
 
 ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map, Object,
-                  kPrototypeOrInitialMapOffset, map()->has_prototype_slot())
+                  kPrototypeOrInitialMapOffset, map().has_prototype_slot())
 
 bool JSFunction::has_prototype_slot() const {
-  return map()->has_prototype_slot();
+  return map().has_prototype_slot();
 }
 
 Map JSFunction::initial_map() { return Map::cast(prototype_or_initial_map()); }
 
 bool JSFunction::has_initial_map() {
   DCHECK(has_prototype_slot());
-  return prototype_or_initial_map()->IsMap();
+  return prototype_or_initial_map().IsMap();
 }
 
 bool JSFunction::has_instance_prototype() {
   DCHECK(has_prototype_slot());
-  return has_initial_map() || !prototype_or_initial_map()->IsTheHole();
+  return has_initial_map() || !prototype_or_initial_map().IsTheHole();
 }
 
 bool JSFunction::has_prototype() {
   DCHECK(has_prototype_slot());
-  return map()->has_non_instance_prototype() || has_instance_prototype();
+  return map().has_non_instance_prototype() || has_instance_prototype();
 }
 
 bool JSFunction::has_prototype_property() {
   return (has_prototype_slot() && IsConstructor()) ||
-         IsGeneratorFunction(shared()->kind());
+         IsGeneratorFunction(shared().kind());
 }
 
 bool JSFunction::PrototypeRequiresRuntimeLookup() {
-  return !has_prototype_property() || map()->has_non_instance_prototype();
+  return !has_prototype_property() || map().has_non_instance_prototype();
 }
 
 HeapObject JSFunction::instance_prototype() {
   DCHECK(has_instance_prototype());
-  if (has_initial_map()) return initial_map()->prototype();
+  if (has_initial_map()) return initial_map().prototype();
   // When there is no initial map and the prototype is a JSReceiver, the
   // initial map field is used for the prototype field.
   return HeapObject::cast(prototype_or_initial_map());
@@ -664,19 +670,19 @@ Object JSFunction::prototype() {
   DCHECK(has_prototype());
   // If the function's prototype property has been set to a non-JSReceiver
   // value, that value is stored in the constructor field of the map.
-  if (map()->has_non_instance_prototype()) {
-    Object prototype = map()->GetConstructor();
+  if (map().has_non_instance_prototype()) {
+    Object prototype = map().GetConstructor();
     // The map must have a prototype in that field, not a back pointer.
-    DCHECK(!prototype->IsMap());
-    DCHECK(!prototype->IsFunctionTemplateInfo());
+    DCHECK(!prototype.IsMap());
+    DCHECK(!prototype.IsFunctionTemplateInfo());
     return prototype;
   }
   return instance_prototype();
 }
 
 bool JSFunction::is_compiled() const {
-  return code()->builtin_index() != Builtins::kCompileLazy &&
-         shared()->is_compiled();
+  return code().builtin_index() != Builtins::kCompileLazy &&
+         shared().is_compiled();
 }
 
 bool JSFunction::NeedsResetDueToFlushedBytecode() {
@@ -686,14 +692,14 @@ bool JSFunction::NeedsResetDueToFlushedBytecode() {
   Object maybe_shared = ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
   Object maybe_code = RELAXED_READ_FIELD(*this, kCodeOffset);
 
-  if (!maybe_shared->IsSharedFunctionInfo() || !maybe_code->IsCode()) {
+  if (!maybe_shared.IsSharedFunctionInfo() || !maybe_code.IsCode()) {
     return false;
   }
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
   Code code = Code::cast(maybe_code);
-  return !shared->is_compiled() &&
-         code->builtin_index() != Builtins::kCompileLazy;
+  return !shared.is_compiled() &&
+         code.builtin_index() != Builtins::kCompileLazy;
 }
 
 void JSFunction::ResetIfBytecodeFlushed() {
@@ -701,8 +707,7 @@ void JSFunction::ResetIfBytecodeFlushed() {
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
     set_code(GetIsolate()->builtins()->builtin(i::Builtins::kCompileLazy));
-    raw_feedback_cell()->set_value(
-        ReadOnlyRoots(GetIsolate()).undefined_value());
+    raw_feedback_cell().reset();
   }
 }
 
@@ -718,22 +723,40 @@ ACCESSORS(JSDate, hour, Object, kHourOffset)
 ACCESSORS(JSDate, min, Object, kMinOffset)
 ACCESSORS(JSDate, sec, Object, kSecOffset)
 
+bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
+  return shared_info().IsUndefined();
+}
+
+int JSMessageObject::GetStartPosition() const {
+  DCHECK(DidEnsureSourcePositionsAvailable());
+  return start_position();
+}
+
+int JSMessageObject::GetEndPosition() const {
+  DCHECK(DidEnsureSourcePositionsAvailable());
+  return end_position();
+}
+
 MessageTemplate JSMessageObject::type() const {
   Object value = READ_FIELD(*this, kMessageTypeOffset);
   return MessageTemplateFromInt(Smi::ToInt(value));
 }
+
 void JSMessageObject::set_type(MessageTemplate value) {
   WRITE_FIELD(*this, kMessageTypeOffset, Smi::FromInt(static_cast<int>(value)));
 }
+
 ACCESSORS(JSMessageObject, argument, Object, kArgumentsOffset)
 ACCESSORS(JSMessageObject, script, Script, kScriptOffset)
 ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
+ACCESSORS(JSMessageObject, shared_info, HeapObject, kSharedInfoOffset)
+ACCESSORS(JSMessageObject, bytecode_offset, Smi, kBytecodeOffsetOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
 SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
 
 ElementsKind JSObject::GetElementsKind() const {
-  ElementsKind kind = map()->elements_kind();
+  ElementsKind kind = map().elements_kind();
 #if VERIFY_HEAP && DEBUG
   FixedArrayBase fixed_array =
       FixedArrayBase::unchecked_cast(READ_FIELD(*this, kElementsOffset));
@@ -741,22 +764,21 @@ ElementsKind JSObject::GetElementsKind() const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine()) {
-    Map map = fixed_array->map();
+    Map map = fixed_array.map();
     if (IsSmiOrObjectElementsKind(kind)) {
       DCHECK(map == GetReadOnlyRoots().fixed_array_map() ||
              map == GetReadOnlyRoots().fixed_cow_array_map());
     } else if (IsDoubleElementsKind(kind)) {
-      DCHECK(fixed_array->IsFixedDoubleArray() ||
+      DCHECK(fixed_array.IsFixedDoubleArray() ||
              fixed_array == GetReadOnlyRoots().empty_fixed_array());
     } else if (kind == DICTIONARY_ELEMENTS) {
-      DCHECK(fixed_array->IsFixedArray());
-      DCHECK(fixed_array->IsDictionary());
+      DCHECK(fixed_array.IsFixedArray());
+      DCHECK(fixed_array.IsNumberDictionary());
     } else {
-      DCHECK(kind > DICTIONARY_ELEMENTS ||
-             IsPackedFrozenOrSealedElementsKind(kind));
+      DCHECK(kind > DICTIONARY_ELEMENTS || IsFrozenOrSealedElementsKind(kind));
     }
     DCHECK(!IsSloppyArgumentsElementsKind(kind) ||
-           (elements()->IsFixedArray() && elements()->length() >= 2));
+           (elements().IsFixedArray() && elements().length() >= 2));
   }
 #endif
   return kind;
@@ -797,7 +819,11 @@ bool JSObject::HasPackedElements() {
 }
 
 bool JSObject::HasFrozenOrSealedElements() {
-  return IsPackedFrozenOrSealedElementsKind(GetElementsKind());
+  return IsFrozenOrSealedElementsKind(GetElementsKind());
+}
+
+bool JSObject::HasSealedElements() {
+  return IsSealedElementsKind(GetElementsKind());
 }
 
 bool JSObject::HasFastArgumentsElements() {
@@ -824,25 +850,24 @@ bool JSObject::HasSlowStringWrapperElements() {
   return GetElementsKind() == SLOW_STRING_WRAPPER_ELEMENTS;
 }
 
-bool JSObject::HasFixedTypedArrayElements() {
+bool JSObject::HasTypedArrayElements() {
   DCHECK(!elements().is_null());
-  return map()->has_fixed_typed_array_elements();
+  return map().has_typed_array_elements();
 }
 
-#define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype)            \
-  bool JSObject::HasFixed##Type##Elements() {                          \
-    FixedArrayBase array = elements();                                 \
-    return array->map()->instance_type() == FIXED_##TYPE##_ARRAY_TYPE; \
+#define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype) \
+  bool JSObject::HasFixed##Type##Elements() {               \
+    return map().elements_kind() == TYPE##_ELEMENTS;        \
   }
 
 TYPED_ARRAYS(FIXED_TYPED_ELEMENTS_CHECK)
 
 #undef FIXED_TYPED_ELEMENTS_CHECK
 
-bool JSObject::HasNamedInterceptor() { return map()->has_named_interceptor(); }
+bool JSObject::HasNamedInterceptor() { return map().has_named_interceptor(); }
 
 bool JSObject::HasIndexedInterceptor() {
-  return map()->has_indexed_interceptor();
+  return map().has_indexed_interceptor();
 }
 
 void JSGlobalObject::set_global_dictionary(GlobalDictionary dictionary) {
@@ -865,7 +890,7 @@ void JSReceiver::initialize_properties() {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(!ObjectInYoungGeneration(roots.empty_fixed_array()));
   DCHECK(!ObjectInYoungGeneration(roots.empty_property_dictionary()));
-  if (map()->is_dictionary_map()) {
+  if (map().is_dictionary_map()) {
     WRITE_FIELD(*this, kPropertiesOrHashOffset,
                 roots.empty_property_dictionary());
   } else {
@@ -874,10 +899,11 @@ void JSReceiver::initialize_properties() {
 }
 
 bool JSReceiver::HasFastProperties() const {
-  DCHECK(
-      raw_properties_or_hash()->IsSmi() ||
-      (raw_properties_or_hash()->IsDictionary() == map()->is_dictionary_map()));
-  return !map()->is_dictionary_map();
+  DCHECK(raw_properties_or_hash().IsSmi() ||
+         ((raw_properties_or_hash().IsGlobalDictionary() ||
+           raw_properties_or_hash().IsNameDictionary()) ==
+          map().is_dictionary_map()));
+  return !map().is_dictionary_map();
 }
 
 NameDictionary JSReceiver::property_dictionary() const {
@@ -885,7 +911,7 @@ NameDictionary JSReceiver::property_dictionary() const {
   DCHECK(!HasFastProperties());
 
   Object prop = raw_properties_or_hash();
-  if (prop->IsSmi()) {
+  if (prop.IsSmi()) {
     return GetReadOnlyRoots().empty_property_dictionary();
   }
 
@@ -898,7 +924,7 @@ PropertyArray JSReceiver::property_array() const {
   DCHECK(HasFastProperties());
 
   Object prop = raw_properties_or_hash();
-  if (prop->IsSmi() || prop == GetReadOnlyRoots().empty_fixed_array()) {
+  if (prop.IsSmi() || prop == GetReadOnlyRoots().empty_fixed_array()) {
     return GetReadOnlyRoots().empty_property_array();
   }
 
@@ -969,7 +995,7 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnElementAttributes(
 }
 
 bool JSGlobalObject::IsDetached() {
-  return global_proxy()->IsDetachedFrom(*this);
+  return global_proxy().IsDetachedFrom(*this);
 }
 
 bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject global) const {
@@ -992,6 +1018,17 @@ ACCESSORS(JSAsyncFromSyncIterator, next, Object, kNextOffset)
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
 
+// If the fast-case backing storage takes up much more memory than a dictionary
+// backing storage would, the object should have slow elements.
+// static
+static inline bool ShouldConvertToSlowElements(uint32_t used_elements,
+                                               uint32_t new_capacity) {
+  uint32_t size_threshold = NumberDictionary::kPreferFastElementsSizeFactor *
+                            NumberDictionary::ComputeCapacity(used_elements) *
+                            NumberDictionary::kEntrySize;
+  return size_threshold <= new_capacity;
+}
+
 static inline bool ShouldConvertToSlowElements(JSObject object,
                                                uint32_t capacity,
                                                uint32_t index,
@@ -1011,13 +1048,8 @@ static inline bool ShouldConvertToSlowElements(JSObject object,
        ObjectInYoungGeneration(object))) {
     return false;
   }
-  // If the fast-case backing storage takes up much more memory than a
-  // dictionary backing storage would, the object should have slow elements.
-  int used_elements = object->GetFastElementsUsage();
-  uint32_t size_threshold = NumberDictionary::kPreferFastElementsSizeFactor *
-                            NumberDictionary::ComputeCapacity(used_elements) *
-                            NumberDictionary::kEntrySize;
-  return size_threshold <= *new_capacity;
+  return ShouldConvertToSlowElements(object.GetFastElementsUsage(),
+                                     *new_capacity);
 }
 
 }  // namespace internal

@@ -33,6 +33,7 @@ function f() {
   assertEquals(-1.0, Math.round(-0.5000000000000001));
 }
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

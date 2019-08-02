@@ -6,9 +6,9 @@
 // former isn't available in V8.
 #include <regex>  // NOLINT(build/c++11)
 
-#include "src/api-inl.h"
-#include "src/disassembler.h"
-#include "src/objects-inl.h"
+#include "src/api/api-inl.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -20,8 +20,8 @@ std::string DisassembleFunction(const char* function) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(context, v8_str(function)).ToLocalChecked())));
 
-  Address begin = f->code()->raw_instruction_start();
-  Address end = f->code()->raw_instruction_end();
+  Address begin = f->code().raw_instruction_start();
+  Address end = f->code().raw_instruction_end();
   Isolate* isolate = CcTest::i_isolate();
   std::ostringstream os;
   Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
@@ -65,6 +65,7 @@ TEST(DisasmPoisonMonomorphicLoad) {
 
   CompileRun(
       "function mono(o) { return o.x; };"
+      "%PrepareFunctionForOptimization(mono);"
       "mono({ x : 1 });"
       "mono({ x : 1 });"
       "%OptimizeFunctionOnNextCall(mono);"
@@ -146,6 +147,7 @@ TEST(DisasmPoisonPolymorphicLoad) {
       "let o1 = { x : 1 };"
       "let o2 = { y : 1 };"
       "o2.x = 2;"
+      "%PrepareFunctionForOptimization(poly);"
       "poly(o1);"
       "poly(o2);"
       "poly(o1);"

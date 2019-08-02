@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_HEAP_OBJECT_H_
 #define V8_OBJECTS_HEAP_OBJECT_H_
 
-#include "src/globals.h"
-#include "src/roots.h"
+#include "src/common/globals.h"
+#include "src/roots/roots.h"
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -85,7 +85,10 @@ class HeapObject : public Object {
 #undef DECL_STRUCT_PREDICATE
 
   // Converts an address to a HeapObject pointer.
-  static inline HeapObject FromAddress(Address address);
+  static inline HeapObject FromAddress(Address address) {
+    DCHECK_TAG_ALIGNED(address);
+    return HeapObject(address + kHeapObjectTag);
+  }
 
   // Returns the address of this HeapObject.
   inline Address address() const { return ptr() - kHeapObjectTag; }
@@ -196,6 +199,9 @@ class HeapObject : public Object {
 
   OBJECT_CONSTRUCTORS(HeapObject, Object);
 };
+
+OBJECT_CONSTRUCTORS_IMPL(HeapObject, Object)
+CAST_ACCESSOR(HeapObject)
 
 // Helper class for objects that can never be in RO space.
 class NeverReadOnlySpaceObject {

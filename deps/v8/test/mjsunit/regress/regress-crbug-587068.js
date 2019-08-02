@@ -7,6 +7,7 @@
 // The Crankshaft fast case for String.fromCharCode used to unconditionally
 // deoptimize on non int32 indices.
 function foo(i) { return String.fromCharCode(i); }
+%PrepareFunctionForOptimization(foo);
 foo(33);
 foo(33);
 %OptimizeFunctionOnNextCall(foo);

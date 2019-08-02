@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/ast/ast-value-factory.h"
-#include "src/handles-inl.h"
-#include "src/hash-seed-inl.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/interpreter/constant-array-builder.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/numbers/hash-seed-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -158,12 +158,12 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
     for (size_t i = 0; i < k8BitCapacity - reserved; i++) {
       Object value = constant_array->get(static_cast<int>(i));
       Smi smi = Smi::FromInt(static_cast<int>(i));
-      CHECK(value->SameValue(smi));
+      CHECK(value.SameValue(smi));
     }
     for (size_t i = k8BitCapacity; i < 2 * k8BitCapacity + reserved; i++) {
       Object value = constant_array->get(static_cast<int>(i));
       Smi smi = Smi::FromInt(static_cast<int>(i - reserved));
-      CHECK(value->SameValue(smi));
+      CHECK(value.SameValue(smi));
     }
   }
 }
@@ -209,7 +209,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
              static_cast<int>(k8BitCapacity + reserved));
     for (size_t i = 0; i < k8BitCapacity + reserved; i++) {
       Object value = constant_array->get(static_cast<int>(i));
-      CHECK(value->SameValue(*isolate()->factory()->NewNumberFromSize(i)));
+      CHECK(value.SameValue(*isolate()->factory()->NewNumberFromSize(i)));
     }
   }
 }
@@ -240,9 +240,9 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
   for (size_t i = 0; i < k8BitCapacity; i++) {
     Object original = constant_array->get(static_cast<int>(k8BitCapacity + i));
     Object duplicate = constant_array->get(static_cast<int>(i));
-    CHECK(original->SameValue(duplicate));
+    CHECK(original.SameValue(duplicate));
     Handle<Object> reference = isolate()->factory()->NewNumberFromSize(i);
-    CHECK(original->SameValue(*reference));
+    CHECK(original.SameValue(*reference));
   }
 }
 
@@ -304,13 +304,13 @@ TEST_F(ConstantArrayBuilderTest, HolesWithUnusedReservations) {
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), k8BitCapacity + 1);
   for (int i = kNumberOfHoles; i < k8BitCapacity; i++) {
-    CHECK(constant_array->get(i)->SameValue(
+    CHECK(constant_array->get(i).SameValue(
         *isolate()->factory()->the_hole_value()));
   }
   CHECK(!constant_array->get(kNumberOfHoles - 1)
-             ->SameValue(*isolate()->factory()->the_hole_value()));
+             .SameValue(*isolate()->factory()->the_hole_value()));
   CHECK(!constant_array->get(k8BitCapacity)
-             ->SameValue(*isolate()->factory()->the_hole_value()));
+             .SameValue(*isolate()->factory()->the_hole_value()));
 }
 
 TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
@@ -354,7 +354,7 @@ TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
     } else {
       expected = isolate()->factory()->the_hole_value();
     }
-    CHECK(constant_array->get(i)->SameValue(*expected));
+    CHECK(constant_array->get(i).SameValue(*expected));
   }
 }
 

@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/heap-inl.h"

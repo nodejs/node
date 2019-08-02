@@ -7,7 +7,6 @@
 #include <iomanip>
 
 #include "src/base/flags.h"
-#include "src/bootstrapper.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
@@ -18,7 +17,8 @@
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/objects-inl.h"
+#include "src/init/bootstrapper.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -317,6 +317,7 @@ class Typer::Visitor : public Reducer {
   static Type NumberLessThanOrEqualTyper(Type, Type, Typer*);
   static Type ReferenceEqualTyper(Type, Type, Typer*);
   static Type SameValueTyper(Type, Type, Typer*);
+  static Type SameValueNumbersOnlyTyper(Type, Type, Typer*);
   static Type StringFromSingleCharCodeTyper(Type, Typer*);
   static Type StringFromSingleCodePointTyper(Type, Typer*);
 
@@ -485,12 +486,12 @@ Typer::Visitor::ComparisonOutcome Typer::Visitor::Invert(
 }
 
 Type Typer::Visitor::FalsifyUndefined(ComparisonOutcome outcome, Typer* t) {
+  if (outcome == 0) return Type::None();
   if ((outcome & kComparisonFalse) != 0 ||
       (outcome & kComparisonUndefined) != 0) {
     return (outcome & kComparisonTrue) != 0 ? Type::Boolean()
                                             : t->singleton_false_;
   }
-  // Type should be non empty, so we know it should be true.
   DCHECK_NE(0, outcome & kComparisonTrue);
   return t->singleton_true_;
 }
@@ -623,17 +624,20 @@ Type Typer::Visitor::ToString(Type type, Typer* t) {
 
 Type Typer::Visitor::ObjectIsArrayBufferView(Type type, Typer* t) {
   // TODO(turbofan): Introduce a Type::ArrayBufferView?
+  CHECK(!type.IsNone());
   if (!type.Maybe(Type::OtherObject())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsBigInt(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::BigInt())) return t->singleton_true_;
   if (!type.Maybe(Type::BigInt())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsCallable(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::Callable())) return t->singleton_true_;
   if (!type.Maybe(Type::Callable())) return t->singleton_false_;
   return Type::Boolean();
@@ -641,53 +645,62 @@ Type Typer::Visitor::ObjectIsCallable(Type type, Typer* t) {
 
 Type Typer::Visitor::ObjectIsConstructor(Type type, Typer* t) {
   // TODO(turbofan): Introduce a Type::Constructor?
+  CHECK(!type.IsNone());
   if (!type.Maybe(Type::Callable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsDetectableCallable(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::DetectableCallable())) return t->singleton_true_;
   if (!type.Maybe(Type::DetectableCallable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsMinusZero(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::MinusZero())) return t->singleton_true_;
   if (!type.Maybe(Type::MinusZero())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::NumberIsMinusZero(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::MinusZero())) return t->singleton_true_;
   if (!type.Maybe(Type::MinusZero())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsNaN(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::NaN())) return t->singleton_true_;
   if (!type.Maybe(Type::NaN())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::NumberIsNaN(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::NaN())) return t->singleton_true_;
   if (!type.Maybe(Type::NaN())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsNonCallable(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::NonCallable())) return t->singleton_true_;
   if (!type.Maybe(Type::NonCallable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsNumber(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::Number())) return t->singleton_true_;
   if (!type.Maybe(Type::Number())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsReceiver(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::Receiver())) return t->singleton_true_;
   if (!type.Maybe(Type::Receiver())) return t->singleton_false_;
   return Type::Boolean();
@@ -699,18 +712,21 @@ Type Typer::Visitor::ObjectIsSmi(Type type, Typer* t) {
 }
 
 Type Typer::Visitor::ObjectIsString(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::String())) return t->singleton_true_;
   if (!type.Maybe(Type::String())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsSymbol(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::Symbol())) return t->singleton_true_;
   if (!type.Maybe(Type::Symbol())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsUndetectable(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::Undetectable())) return t->singleton_true_;
   if (!type.Maybe(Type::Undetectable())) return t->singleton_false_;
   return Type::Boolean();
@@ -994,9 +1010,12 @@ Type Typer::Visitor::TypeDeadValue(Node* node) { return Type::None(); }
 
 Type Typer::Visitor::TypeUnreachable(Node* node) { return Type::None(); }
 
+Type Typer::Visitor::TypeStaticAssert(Node* node) { UNREACHABLE(); }
+
 // JS comparison operators.
 
 Type Typer::Visitor::JSEqualTyper(Type lhs, Type rhs, Typer* t) {
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return t->singleton_false_;
   if (lhs.Is(Type::NullOrUndefined()) && rhs.Is(Type::NullOrUndefined())) {
     return t->singleton_true_;
@@ -1046,6 +1065,8 @@ Typer::Visitor::ComparisonOutcome Typer::Visitor::NumberCompareTyper(Type lhs,
   DCHECK(lhs.Is(Type::Number()));
   DCHECK(rhs.Is(Type::Number()));
 
+  if (lhs.IsNone() || rhs.IsNone()) return {};
+
   // Shortcut for NaNs.
   if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return kComparisonUndefined;
 
@@ -1058,11 +1079,9 @@ Typer::Visitor::ComparisonOutcome Typer::Visitor::NumberCompareTyper(Type lhs,
   } else if (lhs.Max() < rhs.Min()) {
     result = kComparisonTrue;
   } else {
-    // We cannot figure out the result, return both true and false. (We do not
-    // have to return undefined because that cannot affect the result of
-    // FalsifyUndefined.)
     return ComparisonOutcome(kComparisonTrue) |
-           ComparisonOutcome(kComparisonFalse);
+           ComparisonOutcome(kComparisonFalse) |
+           ComparisonOutcome(kComparisonUndefined);
   }
   // Add the undefined if we could see NaN.
   if (lhs.Maybe(Type::NaN()) || rhs.Maybe(Type::NaN())) {
@@ -1804,7 +1823,6 @@ Type Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineIsSmi:
       return TypeUnaryOp(node, ObjectIsSmi);
     case Runtime::kInlineIsArray:
-    case Runtime::kInlineIsTypedArray:
     case Runtime::kInlineIsRegExp:
       return Type::Boolean();
     case Runtime::kInlineCreateIterResultObject:
@@ -1815,7 +1833,7 @@ Type Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return TypeUnaryOp(node, ToNumber);
     case Runtime::kInlineToObject:
       return TypeUnaryOp(node, ToObject);
-    case Runtime::kInlineToString:
+    case Runtime::kInlineToStringRT:
       return TypeUnaryOp(node, ToString);
     case Runtime::kHasInPrototypeChain:
       return Type::Boolean();
@@ -1987,8 +2005,17 @@ Type Typer::Visitor::SameValueTyper(Type lhs, Type rhs, Typer* t) {
   return t->operation_typer()->SameValue(lhs, rhs);
 }
 
+// static
+Type Typer::Visitor::SameValueNumbersOnlyTyper(Type lhs, Type rhs, Typer* t) {
+  return t->operation_typer()->SameValueNumbersOnly(lhs, rhs);
+}
+
 Type Typer::Visitor::TypeSameValue(Node* node) {
   return TypeBinaryOp(node, SameValueTyper);
+}
+
+Type Typer::Visitor::TypeSameValueNumbersOnly(Node* node) {
+  return TypeBinaryOp(node, SameValueNumbersOnlyTyper);
 }
 
 Type Typer::Visitor::TypeNumberSameValue(Node* node) { UNREACHABLE(); }
@@ -2137,15 +2164,11 @@ Type Typer::Visitor::TypeLoadField(Node* node) {
   return FieldAccessOf(node->op()).type;
 }
 
-Type Typer::Visitor::TypeLoadMessage(Node* node) { return Type::Any(); }
-
 Type Typer::Visitor::TypeLoadElement(Node* node) {
   return ElementAccessOf(node->op()).type;
 }
 
-Type Typer::Visitor::TypeLoadStackArgument(Node* node) {
-  return Type::NonInternal();
-}
+Type Typer::Visitor::TypeLoadFromObject(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeLoadTypedElement(Node* node) {
   switch (ExternalArrayTypeOf(node->op())) {
@@ -2170,9 +2193,10 @@ Type Typer::Visitor::TypeLoadDataViewElement(Node* node) {
 }
 
 Type Typer::Visitor::TypeStoreField(Node* node) { UNREACHABLE(); }
-Type Typer::Visitor::TypeStoreMessage(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeStoreElement(Node* node) { UNREACHABLE(); }
+
+Type Typer::Visitor::TypeStoreToObject(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeTransitionAndStoreElement(Node* node) {
   UNREACHABLE();

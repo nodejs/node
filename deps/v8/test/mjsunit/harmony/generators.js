@@ -6,6 +6,7 @@
 
 
 function MaybeOptimizeOrDeoptimize(f) {
+  %PrepareFunctionForOptimization(f);
   let x = Math.random();  // --random-seed makes this deterministic
   if (x <= 0.33) {
     %OptimizeFunctionOnNextCall(f);

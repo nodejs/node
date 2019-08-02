@@ -25,6 +25,18 @@ struct SourceRange {
                                     int end = kNoSourcePosition) {
     return that.IsEmpty() ? Empty() : SourceRange(that.end, end);
   }
+
+  static constexpr int kFunctionLiteralSourcePosition = -2;
+  STATIC_ASSERT(kFunctionLiteralSourcePosition == kNoSourcePosition - 1);
+
+  // Source ranges associated with a function literal do not contain real
+  // source positions; instead, they are created with special marker values.
+  // These are later recognized and rewritten during processing in
+  // Coverage::Collect().
+  static SourceRange FunctionLiteralMarkerRange() {
+    return {kFunctionLiteralSourcePosition, kFunctionLiteralSourcePosition};
+  }
+
   int32_t start, end;
 };
 
@@ -35,6 +47,7 @@ struct SourceRange {
   V(Block)                       \
   V(CaseClause)                  \
   V(Conditional)                 \
+  V(FunctionLiteral)             \
   V(IfStatement)                 \
   V(IterationStatement)          \
   V(JumpStatement)               \
@@ -153,6 +166,18 @@ class ConditionalSourceRanges final : public AstNodeSourceRanges {
  private:
   SourceRange then_range_;
   SourceRange else_range_;
+};
+
+class FunctionLiteralSourceRanges final : public AstNodeSourceRanges {
+ public:
+  SourceRange GetRange(SourceRangeKind kind) override {
+    DCHECK(HasRange(kind));
+    return SourceRange::FunctionLiteralMarkerRange();
+  }
+
+  bool HasRange(SourceRangeKind kind) override {
+    return kind == SourceRangeKind::kBody;
+  }
 };
 
 class IfStatementSourceRanges final : public AstNodeSourceRanges {

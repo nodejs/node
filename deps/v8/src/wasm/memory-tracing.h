@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-#include "src/machine-type.h"
+#include "src/codegen/machine-type.h"
 #include "src/wasm/wasm-tier.h"
 
 namespace v8 {

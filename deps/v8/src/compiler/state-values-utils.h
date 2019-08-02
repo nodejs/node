@@ -6,9 +6,9 @@
 #define V8_COMPILER_STATE_VALUES_UTILS_H_
 
 #include <array>
+#include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

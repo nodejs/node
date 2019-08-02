@@ -5,7 +5,7 @@
 #include <limits>
 #include <map>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/objects/slots.h"
@@ -216,8 +216,8 @@ TEST(TypedSlotSet, Merge) {
   TypedSlotSet set0(0), set1(0);
   static const uint32_t kEntries = 10000;
   for (uint32_t i = 0; i < kEntries; i++) {
-    set0.Insert(EMBEDDED_OBJECT_SLOT, 2 * i);
-    set1.Insert(EMBEDDED_OBJECT_SLOT, 2 * i + 1);
+    set0.Insert(FULL_EMBEDDED_OBJECT_SLOT, 2 * i);
+    set1.Insert(FULL_EMBEDDED_OBJECT_SLOT, 2 * i + 1);
   }
   uint32_t count = 0;
   set0.Merge(&set1);

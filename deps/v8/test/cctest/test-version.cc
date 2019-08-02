@@ -25,9 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/version.h"
+#include "src/utils/version.h"
 #include "test/cctest/cctest.h"
 
 
@@ -55,17 +55,17 @@ static void CheckVersion(int major, int minor, int build, int patch,
   // Test version without specific SONAME.
   SetVersion(major, minor, build, patch, embedder, candidate, "");
   Version::GetString(version_str);
-  CHECK_EQ(0, strcmp(expected_version_string, version_str.start()));
+  CHECK_EQ(0, strcmp(expected_version_string, version_str.begin()));
   Version::GetSONAME(soname_str);
-  CHECK_EQ(0, strcmp(expected_generic_soname, soname_str.start()));
+  CHECK_EQ(0, strcmp(expected_generic_soname, soname_str.begin()));
 
   // Test version with specific SONAME.
   const char* soname = "libv8.so.1";
   SetVersion(major, minor, build, patch, embedder, candidate, soname);
   Version::GetString(version_str);
-  CHECK_EQ(0, strcmp(expected_version_string, version_str.start()));
+  CHECK_EQ(0, strcmp(expected_version_string, version_str.begin()));
   Version::GetSONAME(soname_str);
-  CHECK_EQ(0, strcmp(soname, soname_str.start()));
+  CHECK_EQ(0, strcmp(soname, soname_str.begin()));
 }
 
 

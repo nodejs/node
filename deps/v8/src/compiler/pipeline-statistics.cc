@@ -4,11 +4,11 @@
 
 #include <memory>
 
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/zone-stats.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
-#include "src/optimized-compilation-info.h"
 #include "src/tracing/trace-event.h"
 
 namespace v8 {
@@ -66,8 +66,7 @@ PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
       phase_name_(nullptr) {
   if (info->has_shared_info()) {
     source_size_ = static_cast<size_t>(info->shared_info()->SourceSize());
-    std::unique_ptr<char[]> name =
-        info->shared_info()->DebugName()->ToCString();
+    std::unique_ptr<char[]> name = info->shared_info()->DebugName().ToCString();
     function_name_ = name.get();
   }
   total_stats_.Begin(this);

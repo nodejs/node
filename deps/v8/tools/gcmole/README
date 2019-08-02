@@ -27,7 +27,7 @@ PREREQUISITES -----------------------------------------------------------------
 
     Follow the instructions on http://clang.llvm.org/get_started.html.
 
-    Make sure to pass -DCMAKE_BUILD_TYPE=Release to cmake to get Release build
+    Make sure to pass -DCMAKE_BUILD_TYPE=Release to cmake to get Release build 
     instead of a Debug one.
 
 (3) Build gcmole Clang plugin (libgcmole.so)

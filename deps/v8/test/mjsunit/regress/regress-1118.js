@@ -31,21 +31,25 @@
 // should be able to construct a receiver from all optimized stack frames.
 
 function A() { }
+%EnsureFeedbackVectorForFunction(A);
 A.prototype.f = function() { }
 
 function B() { }
+%EnsureFeedbackVectorForFunction(B);
 
 var o = new A();
 
 // This function throws if o does not have an f property, and should not be
 // inlined.
 function g() { try { return o.f(); } finally { }}
+%EnsureFeedbackVectorForFunction(g);
 
 // This function should be optimized via OSR.
 function h() {
   for (var i = 0; i < 10; i++) %OptimizeOsr();
   g();
 }
+%PrepareFunctionForOptimization(h);
 
 h();
 o = new B();

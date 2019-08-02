@@ -6,11 +6,11 @@
 
 #include "src/debug/debug.h"
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/liveedit.h"
-#include "src/frames-inl.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

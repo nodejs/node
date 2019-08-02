@@ -11,18 +11,18 @@ Requesting all breakable locations in wasm script 0
 4 breakable location(s):
 [0] 2:2 ||   >nop
 [1] 3:2 ||   >i32.const 12
-[2] 4:2 ||   >set_local 0
+[2] 4:2 ||   >local.set 0
 [3] 5:0 || >end
 Requesting breakable locations in lines [0,3)
 1 breakable location(s):
 [0] 2:2 ||   >nop
 Requesting breakable locations in lines [4,6)
 2 breakable location(s):
-[0] 4:2 ||   >set_local 0
+[0] 4:2 ||   >local.set 0
 [1] 5:0 || >end
 Requesting all breakable locations in wasm script 1
 7 breakable location(s):
-[0] 1:2 ||   >get_local 0
+[0] 1:2 ||   >local.get 0
 [1] 2:2 ||   >if
 [2] 3:4 ||     >block
 [3] 4:6 ||       >call 0
@@ -31,7 +31,7 @@ Requesting all breakable locations in wasm script 1
 [6] 7:0 || >end
 Requesting breakable locations in lines [0,3)
 2 breakable location(s):
-[0] 1:2 ||   >get_local 0
+[0] 1:2 ||   >local.get 0
 [1] 2:2 ||   >if
 Requesting breakable locations in lines [4,6)
 2 breakable location(s):

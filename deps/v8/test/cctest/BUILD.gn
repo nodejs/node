@@ -6,6 +6,11 @@ import("../../gni/v8.gni")
 
 v8_executable("cctest") {
   testonly = true
+
+  sources = [
+    "cctest.cc",
+  ]
+
   deps = [
     ":cctest_sources",
   ]
@@ -57,7 +62,7 @@ v8_source_set("cctest_sources") {
     "../common/wasm/flag-utils.h",
     "../common/wasm/test-signatures.h",
     "../common/wasm/wasm-macro-gen.h",
-    "cctest.cc",
+    "collector.h",
     "compiler/c-signature.h",
     "compiler/call-tester.h",
     "compiler/code-assembler-tester.h",
@@ -125,6 +130,7 @@ v8_source_set("cctest_sources") {
     "heap/test-heap.cc",
     "heap/test-incremental-marking.cc",
     "heap/test-invalidated-slots.cc",
+    "heap/test-iterators.cc",
     "heap/test-lab.cc",
     "heap/test-mark-compact.cc",
     "heap/test-page-promotion.cc",
@@ -160,6 +166,7 @@ v8_source_set("cctest_sources") {
     "test-allocation.cc",
     "test-api-accessors.cc",
     "test-api-interceptors.cc",
+    "test-api-stack-traces.cc",
     "test-api.cc",
     "test-api.h",
     "test-array-list.cc",
@@ -404,6 +411,10 @@ v8_source_set("cctest_sources") {
 
     # MSVS wants this for gay-{precision,shortest}.cc.
     cflags += [ "/bigobj" ]
+  }
+
+  if (v8_use_perfetto) {
+    deps += [ "//third_party/perfetto/protos/perfetto/trace/chrome:minimal_complete_lite" ]
   }
 }
 

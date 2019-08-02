@@ -6,7 +6,7 @@
 #define V8_COMPILER_COMPILATION_DEPENDENCIES_H_
 
 #include "src/compiler/js-heap-broker.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -107,16 +107,28 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   SlackTrackingPrediction DependOnInitialMapInstanceSizePrediction(
       const JSFunctionRef& function);
 
+  // The methods below allow for gathering dependencies without actually
+  // recording them. They can be recorded at a later time (or they can be
+  // ignored). For example,
+  //   DependOnTransition(map);
+  // is equivalent to:
+  //   RecordDependency(TransitionDependencyOffTheRecord(map));
+  class Dependency;
+  void RecordDependency(Dependency const* dependency);
+  Dependency const* TransitionDependencyOffTheRecord(
+      const MapRef& target_map) const;
+  Dependency const* FieldRepresentationDependencyOffTheRecord(
+      const MapRef& map, int descriptor) const;
+  Dependency const* FieldTypeDependencyOffTheRecord(const MapRef& map,
+                                                    int descriptor) const;
+
   // Exposed only for testing purposes.
   bool AreValid() const;
-
-  // Exposed only because C++.
-  class Dependency;
 
  private:
   Zone* const zone_;
   JSHeapBroker* const broker_;
-  ZoneForwardList<Dependency*> dependencies_;
+  ZoneForwardList<Dependency const*> dependencies_;
 };
 
 }  // namespace compiler

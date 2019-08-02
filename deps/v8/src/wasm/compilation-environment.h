@@ -119,13 +119,17 @@ class CompilationState {
   void AddCallback(callback_t);
 
   bool failed() const;
+  V8_EXPORT_PRIVATE bool baseline_compilation_finished() const;
+  V8_EXPORT_PRIVATE bool top_tier_compilation_finished() const;
 
-  void OnFinishedUnit(WasmCode*);
-  void OnFinishedUnits(Vector<WasmCode*>);
+  // Override {operator delete} to avoid implicit instantiation of {operator
+  // delete} with {size_t} argument. The {size_t} argument would be incorrect.
+  void operator delete(void* ptr) { ::operator delete(ptr); }
 
  private:
+  // NativeModule is allowed to call the static {New} method.
   friend class NativeModule;
-  friend class WasmCompilationUnit;
+
   CompilationState() = delete;
 
   // The CompilationState keeps a {std::weak_ptr} back to the {NativeModule}

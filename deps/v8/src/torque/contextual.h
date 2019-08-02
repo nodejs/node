@@ -67,6 +67,9 @@ class ContextualVariable {
 
  private:
   V8_EXPORT_PRIVATE static VarType*& Top();
+
+  static bool HasScope() { return Top() != nullptr; }
+  friend class MessageBuilder;
 };
 
 // Usage: DECLARE_CONTEXTUAL_VARIABLE(VarName, VarType)

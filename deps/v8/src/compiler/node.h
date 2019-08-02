@@ -5,10 +5,10 @@
 #ifndef V8_COMPILER_NODE_H_
 #define V8_COMPILER_NODE_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
-#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

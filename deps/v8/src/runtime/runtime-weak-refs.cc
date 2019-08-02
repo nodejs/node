@@ -3,13 +3,13 @@
 // found in the LICENSE file.
 
 #include "include/v8.h"
-#include "src/api.h"
-#include "src/arguments-inl.h"
-#include "src/counters.h"
-#include "src/execution.h"
-#include "src/handles-inl.h"
-#include "src/objects-inl.h"
+#include "src/api/api.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/execution.h"
+#include "src/handles/handles-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {

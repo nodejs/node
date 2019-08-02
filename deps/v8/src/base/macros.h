@@ -8,7 +8,6 @@
 #include <limits>
 
 #include "src/base/compiler-specific.h"
-#include "src/base/format-macros.h"
 #include "src/base/logging.h"
 
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.

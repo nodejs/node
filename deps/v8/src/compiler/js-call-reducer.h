@@ -9,7 +9,7 @@
 #include "src/compiler/frame-states.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/node-properties.h"
-#include "src/deoptimize-reason.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 
 namespace v8 {
 namespace internal {
@@ -122,6 +122,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringPrototypeStringAt(
       const Operator* string_access_operator, Node* node);
   Reduction ReduceStringPrototypeCharAt(Node* node);
+  Reduction ReduceStringPrototypeStartsWith(Node* node);
 
 #ifdef V8_INTL_SUPPORT
   Reduction ReduceStringPrototypeToLowerCaseIntl(Node* node);
@@ -189,11 +190,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberParseInt(Node* node);
 
   Reduction ReduceNumberConstructor(Node* node);
-
-  Node* InsertMapChecksIfUnreliableReceiverMaps(
-      NodeProperties::InferReceiverMapsResult result,
-      ZoneHandleSet<Map> const& receiver_maps, VectorSlotPair const& feedback,
-      Node* receiver, Node* effect, Node* control);
 
   // Returns the updated {to} node, and updates control and effect along the
   // way.

@@ -5,7 +5,7 @@
 #ifndef V8_INTERPRETER_BYTECODE_JUMP_TABLE_H_
 #define V8_INTERPRETER_BYTECODE_JUMP_TABLE_H_
 
-#include "src/bit-vector.h"
+#include "src/utils/bit-vector.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

@@ -18,6 +18,7 @@ contextGroup.addScript(`
   function bar() {
     return 2;
   }
+  %PrepareFunctionForOptimization(foo);
   foo();
   foo();
   %OptimizeFunctionOnNextCall(foo);

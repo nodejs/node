@@ -6,10 +6,10 @@
 #define V8_INTERPRETER_CONSTANT_ARRAY_BUILDER_H_
 
 #include "src/ast/ast-value-factory.h"
-#include "src/globals.h"
-#include "src/identity-map.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/smi.h"
+#include "src/utils/identity-map.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

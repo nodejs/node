@@ -14,17 +14,39 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/template-utils.h"
 
-[[noreturn]] PRINTF_FORMAT(3, 4) V8_BASE_EXPORT V8_NOINLINE
-    void V8_Fatal(const char* file, int line, const char* format, ...);
-
 V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
                                           const char* message);
 
 #ifdef DEBUG
+// In debug, include file, line, and full error message for all
+// FATAL() calls.
+[[noreturn]] PRINTF_FORMAT(3, 4) V8_BASE_EXPORT V8_NOINLINE
+    void V8_Fatal(const char* file, int line, const char* format, ...);
 #define FATAL(...) V8_Fatal(__FILE__, __LINE__, __VA_ARGS__)
+
+#elif !defined(OFFICIAL_BUILD)
+// In non-official release, include full error message, but drop file & line
+// numbers. It saves binary size to drop the |file| & |line| as opposed to just
+// passing in "", 0 for them.
+[[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
+    void V8_Fatal(const char* format, ...);
+#define FATAL(...) V8_Fatal(__VA_ARGS__)
 #else
-#define FATAL(...) V8_Fatal("", 0, __VA_ARGS__)
+// In official builds, include only messages that contain parameters because
+// single-message errors can always be derived from stack traces.
+[[noreturn]] V8_BASE_EXPORT V8_NOINLINE void V8_FatalNoContext();
+[[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
+    void V8_Fatal(const char* format, ...);
+// FATAL(msg) -> V8_FatalNoContext()
+// FATAL(msg, ...) -> V8_Fatal()
+#define FATAL_HELPER(_7, _6, _5, _4, _3, _2, _1, _0, ...) _0
+#define FATAL_DISCARD_ARG(arg) V8_FatalNoContext()
+#define FATAL(...)                                                            \
+  FATAL_HELPER(__VA_ARGS__, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, \
+               V8_Fatal, V8_Fatal, FATAL_DISCARD_ARG)                         \
+  (__VA_ARGS__)
 #endif
+
 #define UNIMPLEMENTED() FATAL("unimplemented code")
 #define UNREACHABLE() FATAL("unreachable code")
 
@@ -38,6 +60,14 @@ V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
 V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
                                                               const char*));
 
+// In official builds, assume all check failures can be debugged given just the
+// stack trace.
+#if !defined(DEBUG) && defined(OFFICIAL_BUILD)
+#define CHECK_FAILED_HANDLER(message) FATAL("ignored")
+#else
+#define CHECK_FAILED_HANDLER(message) FATAL("Check failed: %s.", message)
+#endif
+
 // CHECK dies with a fatal error if condition is not true.  It is *not*
 // controlled by DEBUG, so the check will be executed regardless of
 // compilation mode.
@@ -47,7 +77,7 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 #define CHECK_WITH_MSG(condition, message) \
   do {                                     \
     if (V8_UNLIKELY(!(condition))) {       \
-      FATAL("Check failed: %s.", message); \
+      CHECK_FAILED_HANDLER(message);       \
     }                                      \
   } while (false)
 #define CHECK(condition) CHECK_WITH_MSG(condition, #condition)

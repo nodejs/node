@@ -10,7 +10,7 @@
 #include <unistd.h>  // NOLINT
 #endif
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "test/cctest/cctest.h"
 
@@ -20,7 +20,7 @@ using v8::IdleTask;
 using v8::Isolate;
 using v8::Task;
 
-#include "src/allocation.h"
+#include "src/utils/allocation.h"
 #include "src/zone/accounting-allocator.h"
 
 // ASAN isn't configured to return nullptr, so skip all of these tests.

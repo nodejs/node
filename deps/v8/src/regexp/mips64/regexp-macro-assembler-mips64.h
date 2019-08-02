@@ -5,8 +5,8 @@
 #ifndef V8_REGEXP_MIPS64_REGEXP_MACRO_ASSEMBLER_MIPS64_H_
 #define V8_REGEXP_MIPS64_REGEXP_MACRO_ASSEMBLER_MIPS64_H_
 
-#include "src/macro-assembler.h"
-#include "src/mips64/assembler-mips64.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/mips64/assembler-mips64.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {

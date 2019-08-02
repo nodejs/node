@@ -29,6 +29,7 @@
 // Flags: --allow-natives-syntax --nostress-opt --opt
 
 function test(f, iterations) {
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   // Some of the tests need to learn until they stabilize.

@@ -39,7 +39,7 @@ class ConfigTest(unittest.TestCase):
     self.assertEqual(
         [
           '--first-config=ignition',
-          '--second-config=ignition_turbo',
+          '--second-config=ignition_turbo_no_ic',
           '--second-d8=d8',
         ],
         v8_fuzz_config.Config('foo', Rng()).choose_foozzie_flags(),

@@ -10,8 +10,8 @@
 #include <iosfwd>
 #include <memory>
 
-#include "src/globals.h"
-#include "src/handles.h"
+#include "src/common/globals.h"
+#include "src/handles/handles.h"
 
 namespace v8 {
 namespace internal {

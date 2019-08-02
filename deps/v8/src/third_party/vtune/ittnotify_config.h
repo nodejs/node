@@ -210,9 +210,9 @@
 /* OS communication functions */
 #if ITT_PLATFORM==ITT_PLATFORM_WIN
 #include <windows.h>
-typedef HMODULE           lib_t;
-typedef DWORD             TIDT;
-typedef CRITICAL_SECTION  mutex_t;
+using lib_t = HMODULE;
+using TIDT = DWORD;
+using mutex_t = CRITICAL_SECTION;
 #define MUTEX_INITIALIZER { 0 }
 #define strong_alias(name, aliasname) /* empty for Windows */
 #else  /* ITT_PLATFORM==ITT_PLATFORM_WIN */
@@ -225,8 +225,8 @@ typedef CRITICAL_SECTION  mutex_t;
 #endif /* _GNU_SOURCE */
 #include <pthread.h>
 typedef void*             lib_t;
-typedef pthread_t         TIDT;
-typedef pthread_mutex_t   mutex_t;
+using TIDT = pthread_t;
+using mutex_t = pthread_mutex_t;
 #define MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
 #define _strong_alias(name, aliasname) extern __typeof (name) aliasname __attribute__ ((alias (#name)));
 #define strong_alias(name, aliasname) _strong_alias(name, aliasname)

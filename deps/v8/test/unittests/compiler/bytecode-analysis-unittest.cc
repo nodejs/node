@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/compiler/bytecode-analysis.h"
 #include "src/interpreter/bytecode-array-builder.h"
@@ -10,7 +10,7 @@
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/control-flow-builders.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 

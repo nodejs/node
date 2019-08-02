@@ -7,10 +7,10 @@
 
 #include <unordered_map>
 
-#include "src/allocation.h"
 #include "src/base/platform/mutex.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/js-array-buffer.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

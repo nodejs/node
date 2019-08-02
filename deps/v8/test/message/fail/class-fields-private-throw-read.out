@@ -1,6 +1,6 @@
-*%(basename)s:9: TypeError: Read of private field #x from an object which did not contain the field
+*%(basename)s:7: TypeError: Read of private field #x from an object which did not contain the field
   eq(o) { return this.#x === o.#x; }
                                ^
 TypeError: Read of private field #x from an object which did not contain the field
-    at X.eq (*%(basename)s:9:32)
-    at *%(basename)s:12:9
+    at X.eq (*%(basename)s:7:32)
+    at *%(basename)s:10:9

@@ -11,9 +11,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addFunction('id', kSig_i_i)
          .addBody([kExprGetLocal, 0])
-         .giveCompilationHint(kCompilationHintStrategyLazy,
-                              kCompilationHintTierOptimized,
-                              kCompilationHintTierBaseline)
+         .setCompilationHint(kCompilationHintStrategyLazy,
+                             kCompilationHintTierOptimized,
+                             kCompilationHintTierBaseline)
          .exportFunc();
   let bytes = builder.toBuffer();
   assertPromiseResult(WebAssembly.compile(bytes)
@@ -27,9 +27,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addFunction('id', kSig_i_l)
          .addBody([kExprGetLocal, 0])
-         .giveCompilationHint(kCompilationHintStrategyLazy,
-                              kCompilationHintTierDefault,
-                              kCompilationHintTierDefault)
+         .setCompilationHint(kCompilationHintStrategyLazy,
+                             kCompilationHintTierDefault,
+                             kCompilationHintTierDefault)
          .exportFunc();
   let bytes = builder.toBuffer();
   assertPromiseResult(WebAssembly.compile(bytes)
@@ -50,9 +50,23 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addFunction('id', kSig_i_i)
          .addBody([kExprGetLocal, 0])
-         .giveCompilationHint(kCompilationHintStrategyLazy,
-                              kCompilationHintTierDefault,
-                              kCompilationHintTierDefault)
+         .setCompilationHint(kCompilationHintStrategyLazy,
+                             kCompilationHintTierDefault,
+                             kCompilationHintTierDefault)
+         .exportFunc();
+  let bytes = builder.toBuffer();
+  assertPromiseResult(WebAssembly.instantiate(bytes)
+    .then(({module, instance}) => assertEquals(42, instance.exports.id(42))));
+})();
+
+(function testCompileLazyBaselineEagerTopTierModule() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('id', kSig_i_i)
+         .addBody([kExprGetLocal, 0])
+         .setCompilationHint(kCompilationHintStrategyLazyBaselineEagerTopTier,
+                             kCompilationHintTierDefault,
+                             kCompilationHintTierDefault)
          .exportFunc();
   let bytes = builder.toBuffer();
   assertPromiseResult(WebAssembly.instantiate(bytes)

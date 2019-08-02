@@ -36,6 +36,7 @@ function get(obj, key) {
   return obj[key];
 }
 
+%PrepareFunctionForOptimization(get);
 get(o, "foo");
 get(o, "foo");
 get(o, "foo");

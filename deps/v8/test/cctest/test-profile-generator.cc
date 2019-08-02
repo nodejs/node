@@ -28,12 +28,12 @@
 // Tests of profiles generator and utilities.
 
 #include "include/v8-profiler.h"
-#include "src/api-inl.h"
-#include "src/log.h"
-#include "src/objects-inl.h"
+#include "src/api/api-inl.h"
+#include "src/init/v8.h"
+#include "src/logging/log.h"
+#include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
-#include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
 
@@ -380,7 +380,7 @@ TEST(RecordTickSample) {
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
-  profiles.StartProfiling("", false);
+  profiles.StartProfiling("");
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -448,7 +448,7 @@ TEST(SampleIds) {
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
-  profiles.StartProfiling("", true);
+  profiles.StartProfiling("", {CpuProfilingMode::kLeafNodeLineNumbers});
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -502,7 +502,7 @@ TEST(NoSamples) {
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
-  profiles.StartProfiling("", false);
+  profiles.StartProfiling("");
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
@@ -590,10 +590,10 @@ TEST(Issue51919) {
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     i::Vector<char> title = i::Vector<char>::New(16);
     i::SNPrintF(title, "%d", i);
-    CHECK(collection.StartProfiling(title.start(), false));
-    titles[i] = title.start();
+    CHECK(collection.StartProfiling(title.begin()));
+    titles[i] = title.begin();
   }
-  CHECK(!collection.StartProfiling("maximum", false));
+  CHECK(!collection.StartProfiling("maximum"));
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i)
     i::DeleteArray(titles[i]);
 }
@@ -678,7 +678,7 @@ int GetFunctionLineNumber(CpuProfiler& profiler, LocalContext& env,
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           env->Global()->Get(env.local(), v8_str(name)).ToLocalChecked())));
   CodeEntry* func_entry =
-      code_map->FindEntry(func->abstract_code()->InstructionStart());
+      code_map->FindEntry(func->abstract_code().InstructionStart());
   if (!func_entry) FATAL("%s", name);
   return func_entry->line_number();
 }
@@ -734,6 +734,7 @@ TEST(BailoutReason) {
   USE(i_function);
 
   CompileRun(
+      "%PrepareFunctionForOptimization(Debugger);"
       "%OptimizeFunctionOnNextCall(Debugger);"
       "%NeverOptimizeFunction(Debugger);"
       "Debugger();"

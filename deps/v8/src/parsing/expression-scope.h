@@ -6,8 +6,8 @@
 #define V8_PARSING_EXPRESSION_SCOPE_H_
 
 #include "src/ast/scopes.h"
-#include "src/function-kind.h"
-#include "src/message-template.h"
+#include "src/execution/message-template.h"
+#include "src/objects/function-kind.h"
 #include "src/parsing/scanner.h"
 #include "src/zone/zone.h"  // For ScopedPtrList.
 

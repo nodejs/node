@@ -9,7 +9,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
@@ -60,7 +60,7 @@ class AsmOverloadedFunctionType;
 
 class AsmValueType {
  public:
-  typedef uint32_t bitset_t;
+  using bitset_t = uint32_t;
 
   enum : uint32_t {
 #define DEFINE_TAG(CamelName, string_name, number, parent_types) \

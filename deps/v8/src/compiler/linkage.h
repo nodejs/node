@@ -7,15 +7,15 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
+#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/register-arch.h"
+#include "src/codegen/reglist.h"
+#include "src/codegen/signature.h"
+#include "src/common/globals.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/operator.h"
-#include "src/globals.h"
-#include "src/interface-descriptors.h"
-#include "src/machine-type.h"
-#include "src/register-arch.h"
-#include "src/reglist.h"
 #include "src/runtime/runtime.h"
-#include "src/signature.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -175,6 +175,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kCallCodeObject,         // target is a Code object
     kCallJSFunction,         // target is a JSFunction object
     kCallAddress,            // target is a machine pointer
+    kCallWasmCapiFunction,   // target is a Wasm C API function
     kCallWasmFunction,       // target is a wasm function
     kCallWasmImportWrapper,  // target is a wasm import wrapper
     kCallBuiltinPointer,     // target is a builtin pointer
@@ -235,6 +236,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // Returns {true} if this descriptor is a call to a WebAssembly function.
   bool IsWasmImportWrapper() const { return kind_ == kCallWasmImportWrapper; }
+
+  // Returns {true} if this descriptor is a call to a Wasm C API function.
+  bool IsWasmCapiFunction() const { return kind_ == kCallWasmCapiFunction; }
 
   bool RequiresFrameAsIncoming() const {
     return IsCFunctionCall() || IsJSFunctionCall() || IsWasmFunctionCall();

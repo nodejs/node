@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/base/template-utils.h"
 #include "test/cctest/cctest.h"

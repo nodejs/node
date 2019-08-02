@@ -7,7 +7,7 @@
 
 #include "src/objects/module.h"
 
-#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/scope-info.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -40,7 +40,7 @@ SMI_ACCESSORS(Module, hash, kHashOffset)
 ModuleInfo Module::info() const {
   return (status() >= kEvaluating)
              ? ModuleInfo::cast(code())
-             : GetSharedFunctionInfo()->scope_info()->ModuleDescriptorInfo();
+             : GetSharedFunctionInfo().scope_info().ModuleDescriptorInfo();
 }
 
 CAST_ACCESSOR(JSModuleNamespace)
@@ -84,12 +84,12 @@ FixedArray ModuleInfo::module_request_positions() const {
 
 #ifdef DEBUG
 bool ModuleInfo::Equals(ModuleInfo other) const {
-  return regular_exports() == other->regular_exports() &&
-         regular_imports() == other->regular_imports() &&
-         special_exports() == other->special_exports() &&
-         namespace_imports() == other->namespace_imports() &&
-         module_requests() == other->module_requests() &&
-         module_request_positions() == other->module_request_positions();
+  return regular_exports() == other.regular_exports() &&
+         regular_imports() == other.regular_imports() &&
+         special_exports() == other.special_exports() &&
+         namespace_imports() == other.namespace_imports() &&
+         module_requests() == other.module_requests() &&
+         module_request_positions() == other.module_request_positions();
 }
 #endif
 

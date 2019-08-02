@@ -4,11 +4,11 @@
 
 #include "src/ic/handler-configuration.h"
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/maybe-object.h"
-#include "src/transitions.h"
+#include "src/objects/transitions.h"
 
 namespace v8 {
 namespace internal {
@@ -202,7 +202,7 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
     Handle<DescriptorArray> descriptors(transition_map->instance_descriptors(),
                                         isolate);
     PropertyDetails details = descriptors->GetDetails(descriptor);
-    if (descriptors->GetKey(descriptor)->IsPrivate()) {
+    if (descriptors->GetKey(descriptor).IsPrivate()) {
       DCHECK_EQ(DONT_ENUM, details.attributes());
     } else {
       DCHECK_EQ(NONE, details.attributes());

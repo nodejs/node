@@ -10,7 +10,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/name.h"
 #include "src/objects/smi.h"
-#include "src/unicode-decoder.h"
+#include "src/strings/unicode-decoder.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -142,9 +142,15 @@ class String : public Name {
     friend class IterableSubString;
   };
 
+  void MakeThin(Isolate* isolate, String canonical);
+
   template <typename Char>
   V8_INLINE Vector<const Char> GetCharVector(
       const DisallowHeapAllocation& no_gc);
+
+  // Get chars from sequential or external strings.
+  template <typename Char>
+  inline const Char* GetChars(const DisallowHeapAllocation& no_gc);
 
   // Get and set the length of the string.
   inline int length() const;
@@ -268,14 +274,16 @@ class String : public Name {
   inline bool Equals(String other);
   inline static bool Equals(Isolate* isolate, Handle<String> one,
                             Handle<String> two);
-  V8_EXPORT_PRIVATE bool IsUtf8EqualTo(Vector<const char> str,
-                                       bool allow_prefix_match = false);
 
   // Dispatches to Is{One,Two}ByteEqualTo.
   template <typename Char>
   bool IsEqualTo(Vector<const Char> str);
 
+  V8_EXPORT_PRIVATE bool HasOneBytePrefix(Vector<const char> str);
   V8_EXPORT_PRIVATE bool IsOneByteEqualTo(Vector<const uint8_t> str);
+  V8_EXPORT_PRIVATE bool IsOneByteEqualTo(Vector<const char> str) {
+    return IsOneByteEqualTo(Vector<const uint8_t>::cast(str));
+  }
   bool IsTwoByteEqualTo(Vector<const uc16> str);
 
   // Return a UTF8 representation of the string.  The string is null
@@ -333,8 +341,6 @@ class String : public Name {
   DEFINE_FIELD_OFFSET_CONSTANTS(Name::kHeaderSize,
                                 TORQUE_GENERATED_STRING_FIELDS)
 
-  static const int kHeaderSize = kSize;
-
   // Max char codes.
   static const int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
   static const uint32_t kMaxOneByteCharCodeU = unibrow::Latin1::kMaxChar;
@@ -366,59 +372,51 @@ class String : public Name {
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   static void WriteToFlat(String source, sinkchar* sink, int from, int to);
 
-  // The return value may point to the first aligned word containing the first
-  // non-one-byte character, rather than directly to the non-one-byte character.
-  // If the return value is >= the passed length, the entire string was
-  // one-byte.
-  static inline int NonAsciiStart(const char* chars, int length) {
-    const char* start = chars;
-    const char* limit = chars + length;
+  static inline bool IsAscii(const char* chars, int length) {
+    return IsAscii(reinterpret_cast<const uint8_t*>(chars), length);
+  }
 
-    if (length >= kIntptrSize) {
-      // Check unaligned bytes.
-      while (!IsAligned(reinterpret_cast<intptr_t>(chars), sizeof(uintptr_t))) {
-        if (static_cast<uint8_t>(*chars) > unibrow::Utf8::kMaxOneByteChar) {
+  static inline bool IsAscii(const uint8_t* chars, int length) {
+    return NonAsciiStart(chars, length) >= length;
+  }
+
+  static inline int NonOneByteStart(const uc16* chars, int length) {
+    DCHECK(IsAligned(reinterpret_cast<Address>(chars), sizeof(uc16)));
+    const uint16_t* start = chars;
+    const uint16_t* limit = chars + length;
+
+    if (static_cast<size_t>(length) >= kUIntptrSize) {
+      // Check unaligned chars.
+      while (!IsAligned(reinterpret_cast<Address>(chars), kUIntptrSize)) {
+        if (*chars > unibrow::Latin1::kMaxChar) {
           return static_cast<int>(chars - start);
         }
         ++chars;
       }
+
       // Check aligned words.
-      DCHECK_EQ(unibrow::Utf8::kMaxOneByteChar, 0x7F);
-      const uintptr_t non_one_byte_mask = kUintptrAllBitsSet / 0xFF * 0x80;
+      STATIC_ASSERT(unibrow::Latin1::kMaxChar == 0xFF);
+#ifdef V8_TARGET_LITTLE_ENDIAN
+      const uintptr_t non_one_byte_mask = kUintptrAllBitsSet / 0xFFFF * 0xFF00;
+#else
+      const uintptr_t non_one_byte_mask = kUintptrAllBitsSet / 0xFFFF * 0x00FF;
+#endif
       while (chars + sizeof(uintptr_t) <= limit) {
         if (*reinterpret_cast<const uintptr_t*>(chars) & non_one_byte_mask) {
-          return static_cast<int>(chars - start);
+          break;
         }
-        chars += sizeof(uintptr_t);
+        chars += (sizeof(uintptr_t) / sizeof(uc16));
       }
     }
-    // Check remaining unaligned bytes.
+
+    // Check remaining unaligned chars, or find non-one-byte char in word.
     while (chars < limit) {
-      if (static_cast<uint8_t>(*chars) > unibrow::Utf8::kMaxOneByteChar) {
+      if (*chars > unibrow::Latin1::kMaxChar) {
         return static_cast<int>(chars - start);
       }
       ++chars;
     }
 
-    return static_cast<int>(chars - start);
-  }
-
-  static inline bool IsAscii(const char* chars, int length) {
-    return NonAsciiStart(chars, length) >= length;
-  }
-
-  static inline bool IsAscii(const uint8_t* chars, int length) {
-    return NonAsciiStart(reinterpret_cast<const char*>(chars), length) >=
-           length;
-  }
-
-  static inline int NonOneByteStart(const uc16* chars, int length) {
-    const uc16* limit = chars + length;
-    const uc16* start = chars;
-    while (chars < limit) {
-      if (*chars > kMaxOneByteCharCodeU) return static_cast<int>(chars - start);
-      ++chars;
-    }
     return static_cast<int>(chars - start);
   }
 
@@ -505,9 +503,10 @@ class InternalizedString : public String {
 class SeqOneByteString : public SeqString {
  public:
   static const bool kHasOneByteEncoding = true;
+  using Char = uint8_t;
 
   // Dispatched behavior.
-  inline uint16_t SeqOneByteStringGet(int index);
+  inline uint8_t Get(int index);
   inline void SeqOneByteStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
@@ -546,9 +545,10 @@ class SeqOneByteString : public SeqString {
 class SeqTwoByteString : public SeqString {
  public:
   static const bool kHasOneByteEncoding = false;
+  using Char = uint16_t;
 
   // Dispatched behavior.
-  inline uint16_t SeqTwoByteStringGet(int index);
+  inline uint16_t Get(int index);
   inline void SeqTwoByteStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
@@ -610,7 +610,7 @@ class ConsString : public String {
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
-  V8_EXPORT_PRIVATE uint16_t ConsStringGet(int index);
+  V8_EXPORT_PRIVATE uint16_t Get(int index);
 
   DECL_CAST(ConsString)
 
@@ -642,7 +642,7 @@ class ThinString : public String {
   inline void set_actual(String s,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  V8_EXPORT_PRIVATE uint16_t ThinStringGet(int index);
+  V8_EXPORT_PRIVATE uint16_t Get(int index);
 
   DECL_CAST(ThinString)
   DECL_VERIFIER(ThinString)
@@ -676,7 +676,7 @@ class SlicedString : public String {
   inline void set_offset(int offset);
 
   // Dispatched behavior.
-  V8_EXPORT_PRIVATE uint16_t SlicedStringGet(int index);
+  V8_EXPORT_PRIVATE uint16_t Get(int index);
 
   DECL_CAST(SlicedString)
 
@@ -728,6 +728,7 @@ class ExternalString : public String {
   inline void DisposeResource();
 
   STATIC_ASSERT(kResourceOffset == Internals::kStringResourceOffset);
+  static const int kSizeOfAllExternalStrings = kHeaderSize;
 
   OBJECT_CONSTRUCTORS(ExternalString, String);
 };
@@ -758,11 +759,17 @@ class ExternalOneByteString : public ExternalString {
   inline const uint8_t* GetChars();
 
   // Dispatched behavior.
-  inline uint16_t ExternalOneByteStringGet(int index);
+  inline uint8_t Get(int index);
 
   DECL_CAST(ExternalOneByteString)
 
   class BodyDescriptor;
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      ExternalString::kHeaderSize,
+      TORQUE_GENERATED_EXTERNAL_ONE_BYTE_STRING_FIELDS)
+
+  STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
 
   OBJECT_CONSTRUCTORS(ExternalOneByteString, ExternalString);
 };
@@ -793,7 +800,7 @@ class ExternalTwoByteString : public ExternalString {
   inline const uint16_t* GetChars();
 
   // Dispatched behavior.
-  inline uint16_t ExternalTwoByteStringGet(int index);
+  inline uint16_t Get(int index);
 
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(unsigned start);
@@ -801,6 +808,12 @@ class ExternalTwoByteString : public ExternalString {
   DECL_CAST(ExternalTwoByteString)
 
   class BodyDescriptor;
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      ExternalString::kHeaderSize,
+      TORQUE_GENERATED_EXTERNAL_TWO_BYTE_STRING_FIELDS)
+
+  STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
 
   OBJECT_CONSTRUCTORS(ExternalTwoByteString, ExternalString);
 };
@@ -893,6 +906,21 @@ class StringCharacterStream {
   };
   const uint8_t* end_;
   DISALLOW_COPY_AND_ASSIGN(StringCharacterStream);
+};
+
+template <typename Char>
+struct CharTraits;
+
+template <>
+struct CharTraits<uint8_t> {
+  using String = SeqOneByteString;
+  using ExternalString = ExternalOneByteString;
+};
+
+template <>
+struct CharTraits<uint16_t> {
+  using String = SeqTwoByteString;
+  using ExternalString = ExternalTwoByteString;
 };
 
 }  // namespace internal

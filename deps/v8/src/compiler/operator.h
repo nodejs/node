@@ -10,8 +10,8 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/base/functional.h"
-#include "src/globals.h"
-#include "src/handles.h"
+#include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

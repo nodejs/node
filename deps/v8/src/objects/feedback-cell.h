@@ -37,23 +37,18 @@ class FeedbackCell : public Struct {
   DECL_PRINTER(FeedbackCell)
   DECL_VERIFIER(FeedbackCell)
 
-// Layout description.
-#define FEEDBACK_CELL_FIELDS(V)         \
-  V(kValueOffset, kTaggedSize)          \
-  /* Non-pointer fields */              \
-  V(kInterruptBudgetOffset, kInt32Size) \
-  /* Total size. */                     \
-  V(kUnalignedSize, 0)
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_FEEDBACK_CELL_FIELDS)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FEEDBACK_CELL_FIELDS)
-#undef FEEDBACK_CELL_FIELDS
-
-  static const int kSize = RoundUp<kObjectAlignment>(int{kUnalignedSize});
+  static const int kUnalignedSize = kSize;
+  static const int kAlignedSize = RoundUp<kObjectAlignment>(int{kSize});
 
   inline void clear_padding();
+  inline void reset();
 
   using BodyDescriptor =
-      FixedBodyDescriptor<kValueOffset, kInterruptBudgetOffset, kSize>;
+      FixedBodyDescriptor<kValueOffset, kInterruptBudgetOffset, kAlignedSize>;
 
   OBJECT_CONSTRUCTORS(FeedbackCell, Struct);
 };

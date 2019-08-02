@@ -9,6 +9,7 @@ function fn(a) {
   return b;
 }
 
+%PrepareFunctionForOptimization(fn);
 fn('a');
 fn('a');
 %OptimizeFunctionOnNextCall(fn);

@@ -4,13 +4,15 @@
 
 #include "src/wasm/wasm-engine.h"
 
-#include "src/code-tracer.h"
-#include "src/compilation-statistics.h"
-#include "src/counters.h"
-#include "src/objects-inl.h"
+#include "src/base/platform/time.h"
+#include "src/diagnostics/code-tracer.h"
+#include "src/diagnostics/compilation-statistics.h"
+#include "src/execution/frames.h"
+#include "src/logging/counters.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-promise.h"
-#include "src/ostreams.h"
+#include "src/objects/objects-inl.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
@@ -21,6 +23,11 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+#define TRACE_CODE_GC(...)                                         \
+  do {                                                             \
+    if (FLAG_trace_wasm_code_gc) PrintF("[wasm-gc] " __VA_ARGS__); \
+  } while (false)
 
 namespace {
 // A task to log a set of {WasmCode} objects in an isolate. It does not own any
@@ -87,12 +94,29 @@ class WasmGCForegroundTask : public Task {
     DCHECK_NOT_NULL(isolate);
   }
 
+  ~WasmGCForegroundTask() {
+    // If the isolate is already shutting down, the platform can delete this
+    // task without ever executing it. For that case, we need to deregister the
+    // task from the engine to avoid UAF.
+    if (isolate_) {
+      WasmEngine* engine = isolate_->wasm_engine();
+      engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
+    }
+  }
+
   void Run() final {
     if (isolate_ == nullptr) return;  // cancelled.
     WasmEngine* engine = isolate_->wasm_engine();
     // If the foreground task is executing, there is no wasm code active. Just
     // report an empty set of live wasm code.
+#ifdef ENABLE_SLOW_DCHECKS
+    for (StackFrameIterator it(isolate_); !it.done(); it.Advance()) {
+      DCHECK_NE(StackFrame::WASM_COMPILED, it.frame()->type());
+    }
+#endif
     engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
+    // Cancel to signal to the destructor that this task executed.
+    Cancel();
   }
 
   void Cancel() { isolate_ = nullptr; }
@@ -104,6 +128,11 @@ class WasmGCForegroundTask : public Task {
 }  // namespace
 
 struct WasmEngine::CurrentGCInfo {
+  explicit CurrentGCInfo(int8_t gc_sequence_index)
+      : gc_sequence_index(gc_sequence_index) {
+    DCHECK_NE(0, gc_sequence_index);
+  }
+
   // Set of isolates that did not scan their stack yet for used WasmCode, and
   // their scheduled foreground task.
   std::unordered_map<Isolate*, WasmGCForegroundTask*> outstanding_isolates;
@@ -111,11 +140,28 @@ struct WasmEngine::CurrentGCInfo {
   // Set of dead code. Filled with all potentially dead code on initialization.
   // Code that is still in-use is removed by the individual isolates.
   std::unordered_set<WasmCode*> dead_code;
+
+  // The number of GCs triggered in the native module that triggered this GC.
+  // This is stored in the histogram for each participating isolate during
+  // execution of that isolate's foreground task.
+  const int8_t gc_sequence_index;
+
+  // If during this GC, another GC was requested, we skipped that other GC (we
+  // only run one GC at a time). Remember though to trigger another one once
+  // this one finishes. {next_gc_sequence_index} is 0 if no next GC is needed,
+  // and >0 otherwise. It stores the {num_code_gcs_triggered} of the native
+  // module which triggered the next GC.
+  int8_t next_gc_sequence_index = 0;
+
+  // The start time of this GC; used for tracing and sampled via {Counters}.
+  // Can be null ({TimeTicks::IsNull()}) if timer is not high resolution.
+  base::TimeTicks start_time;
 };
 
 struct WasmEngine::IsolateInfo {
   explicit IsolateInfo(Isolate* isolate)
-      : log_codes(WasmCode::ShouldBeLogged(isolate)) {
+      : log_codes(WasmCode::ShouldBeLogged(isolate)),
+        async_counters(isolate->async_counters()) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Platform* platform = V8::GetCurrentPlatform();
     foreground_task_runner = platform->GetForegroundTaskRunner(v8_isolate);
@@ -144,16 +190,27 @@ struct WasmEngine::IsolateInfo {
 
   // The foreground task runner of the isolate (can be called from background).
   std::shared_ptr<v8::TaskRunner> foreground_task_runner;
+
+  const std::shared_ptr<Counters> async_counters;
 };
 
 struct WasmEngine::NativeModuleInfo {
   // Set of isolates using this NativeModule.
   std::unordered_set<Isolate*> isolates;
 
-  // Set of potentially dead code. The ref-count of these code objects was
-  // incremented for each Isolate that might still execute the code, and is
-  // decremented on {RemoveIsolate} or on a GC.
+  // Set of potentially dead code. This set holds one ref for each code object,
+  // until code is detected to be really dead. At that point, the ref count is
+  // decremented and code is move to the {dead_code} set. If the code is finally
+  // deleted, it is also removed from {dead_code}.
   std::unordered_set<WasmCode*> potentially_dead_code;
+
+  // Code that is not being executed in any isolate any more, but the ref count
+  // did not drop to zero yet.
+  std::unordered_set<WasmCode*> dead_code;
+
+  // Number of code GCs triggered because code in this native module became
+  // potentially dead.
+  int8_t num_code_gcs_triggered = 0;
 };
 
 WasmEngine::WasmEngine()
@@ -206,7 +263,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // object.
   Handle<ByteArray> asm_js_offset_table =
       isolate->factory()->NewByteArray(asm_js_offset_table_bytes.length());
-  asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.start(),
+  asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.begin(),
                                asm_js_offset_table_bytes.length());
 
   return AsmWasmData::New(isolate, std::move(native_module), export_wrappers,
@@ -217,7 +274,7 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
     Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
     Handle<Script> script) {
   std::shared_ptr<NativeModule> native_module =
-      asm_wasm_data->managed_native_module()->get();
+      asm_wasm_data->managed_native_module().get();
   Handle<FixedArray> export_wrappers =
       handle(asm_wasm_data->export_wrappers(), isolate);
   size_t code_size_estimate =
@@ -319,10 +376,11 @@ void WasmEngine::AsyncInstantiate(
 void WasmEngine::AsyncCompile(
     Isolate* isolate, const WasmFeatures& enabled,
     std::shared_ptr<CompilationResultResolver> resolver,
-    const ModuleWireBytes& bytes, bool is_shared) {
+    const ModuleWireBytes& bytes, bool is_shared,
+    const char* api_method_name_for_errors) {
   if (!FLAG_wasm_async_compilation) {
     // Asynchronous compilation disabled; fall back on synchronous compilation.
-    ErrorThrower thrower(isolate, "WasmCompile");
+    ErrorThrower thrower(isolate, api_method_name_for_errors);
     MaybeHandle<WasmModuleObject> module_object;
     if (is_shared) {
       // Make a copy of the wire bytes to avoid concurrent modification.
@@ -345,9 +403,9 @@ void WasmEngine::AsyncCompile(
 
   if (FLAG_wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
-        StartStreamingCompilation(isolate, enabled,
-                                  handle(isolate->context(), isolate),
-                                  std::move(resolver));
+        StartStreamingCompilation(
+            isolate, enabled, handle(isolate->context(), isolate),
+            api_method_name_for_errors, std::move(resolver));
     streaming_decoder->OnBytesReceived(bytes.module_bytes());
     streaming_decoder->Finish();
     return;
@@ -357,18 +415,20 @@ void WasmEngine::AsyncCompile(
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
   memcpy(copy.get(), bytes.start(), bytes.length());
 
-  AsyncCompileJob* job = CreateAsyncCompileJob(
-      isolate, enabled, std::move(copy), bytes.length(),
-      handle(isolate->context(), isolate), std::move(resolver));
+  AsyncCompileJob* job =
+      CreateAsyncCompileJob(isolate, enabled, std::move(copy), bytes.length(),
+                            handle(isolate->context(), isolate),
+                            api_method_name_for_errors, std::move(resolver));
   job->Start();
 }
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
     Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
+    const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
   AsyncCompileJob* job =
       CreateAsyncCompileJob(isolate, enabled, std::unique_ptr<byte[]>(nullptr),
-                            0, context, std::move(resolver));
+                            0, context, api_method_name, std::move(resolver));
   return job->CreateStreamingDecoder();
 }
 
@@ -434,10 +494,11 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     Isolate* isolate, const WasmFeatures& enabled,
     std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
+    const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
   AsyncCompileJob* job =
       new AsyncCompileJob(isolate, enabled, std::move(bytes_copy), length,
-                          context, std::move(resolver));
+                          context, api_method_name, std::move(resolver));
   // Pass ownership to the unique_ptr in {async_compile_jobs_}.
   base::MutexGuard guard(&mutex_);
   async_compile_jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
@@ -482,6 +543,15 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
   }
 }
 
+namespace {
+int GetGCTimeMicros(base::TimeTicks start) {
+  DCHECK(!start.IsNull());
+  int64_t duration_us = (base::TimeTicks::Now() - start).InMicroseconds();
+  return static_cast<int>(
+      std::min(std::max(int64_t{0}, duration_us), int64_t{kMaxInt}));
+}
+}  // namespace
+
 void WasmEngine::AddIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   DCHECK_EQ(0, isolates_.count(isolate));
@@ -501,6 +571,13 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
     for (auto* native_module : engine->isolates_[isolate]->native_modules) {
       native_module->SampleCodeSize(counters, NativeModule::kSampling);
     }
+    // If there is an ongoing code GC, sample its time here. This will record
+    // samples for very long-running or never ending GCs.
+    if (engine->current_gc_info_ &&
+        !engine->current_gc_info_->start_time.IsNull()) {
+      isolate->counters()->wasm_code_gc_time()->AddSample(
+          GetGCTimeMicros(engine->current_gc_info_->start_time));
+    }
   };
   isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,
                                          nullptr);
@@ -518,15 +595,13 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
     auto* info = native_modules_[native_module].get();
     info->isolates.erase(isolate);
     if (current_gc_info_) {
-      auto it = current_gc_info_->outstanding_isolates.find(isolate);
-      if (it != current_gc_info_->outstanding_isolates.end()) {
-        if (auto* gc_task = it->second) gc_task->Cancel();
-        current_gc_info_->outstanding_isolates.erase(it);
-      }
       for (WasmCode* code : info->potentially_dead_code) {
         current_gc_info_->dead_code.erase(code);
       }
     }
+  }
+  if (current_gc_info_) {
+    if (RemoveIsolateFromCurrentGC(isolate)) PotentiallyFinishCurrentGC();
   }
   if (auto* task = info->log_codes_task) task->Cancel();
   if (!info->code_to_log.empty()) {
@@ -548,6 +623,8 @@ void WasmEngine::LogCode(WasmCode* code) {
           &mutex_, &info->log_codes_task, isolate, this);
       info->log_codes_task = new_task.get();
       info->foreground_task_runner->PostTask(std::move(new_task));
+    }
+    if (info->code_to_log.empty()) {
       isolate->stack_guard()->RequestLogWasmCode();
     }
     info->code_to_log.push_back(code);
@@ -597,34 +674,46 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 }
 
 void WasmEngine::FreeNativeModule(NativeModule* native_module) {
-  {
-    base::MutexGuard guard(&mutex_);
-    auto it = native_modules_.find(native_module);
-    DCHECK_NE(native_modules_.end(), it);
-    for (Isolate* isolate : it->second->isolates) {
-      DCHECK_EQ(1, isolates_.count(isolate));
-      IsolateInfo* info = isolates_[isolate].get();
-      DCHECK_EQ(1, info->native_modules.count(native_module));
-      info->native_modules.erase(native_module);
-      // If there are {WasmCode} objects of the deleted {NativeModule}
-      // outstanding to be logged in this isolate, remove them. Decrementing the
-      // ref count is not needed, since the {NativeModule} dies anyway.
-      size_t remaining = info->code_to_log.size();
-      if (remaining > 0) {
-        for (size_t i = 0; i < remaining; ++i) {
-          while (i < remaining &&
-                 info->code_to_log[i]->native_module() == native_module) {
-            // Move the last remaining item to this slot (this can be the same
-            // as {i}, which is OK).
-            info->code_to_log[i] = info->code_to_log[--remaining];
-          }
+  base::MutexGuard guard(&mutex_);
+  auto it = native_modules_.find(native_module);
+  DCHECK_NE(native_modules_.end(), it);
+  for (Isolate* isolate : it->second->isolates) {
+    DCHECK_EQ(1, isolates_.count(isolate));
+    IsolateInfo* info = isolates_[isolate].get();
+    DCHECK_EQ(1, info->native_modules.count(native_module));
+    info->native_modules.erase(native_module);
+    // If there are {WasmCode} objects of the deleted {NativeModule}
+    // outstanding to be logged in this isolate, remove them. Decrementing the
+    // ref count is not needed, since the {NativeModule} dies anyway.
+    size_t remaining = info->code_to_log.size();
+    if (remaining > 0) {
+      for (size_t i = 0; i < remaining; ++i) {
+        while (i < remaining &&
+               info->code_to_log[i]->native_module() == native_module) {
+          // Move the last remaining item to this slot (this can be the same
+          // as {i}, which is OK).
+          info->code_to_log[i] = info->code_to_log[--remaining];
         }
-        info->code_to_log.resize(remaining);
+      }
+      info->code_to_log.resize(remaining);
+    }
+  }
+  // If there is a GC running which has references to code contained in the
+  // deleted {NativeModule}, remove those references.
+  if (current_gc_info_) {
+    for (auto it = current_gc_info_->dead_code.begin(),
+              end = current_gc_info_->dead_code.end();
+         it != end;) {
+      if ((*it)->native_module() == native_module) {
+        it = current_gc_info_->dead_code.erase(it);
+      } else {
+        ++it;
       }
     }
-    native_modules_.erase(it);
+    TRACE_CODE_GC("Native module %p died, reducing dead code objects to %zu.\n",
+                  native_module, current_gc_info_->dead_code.size());
   }
-  code_manager_.FreeNativeModule(native_module);
+  native_modules_.erase(it);
 }
 
 namespace {
@@ -663,53 +752,104 @@ void WasmEngine::SampleTopTierCodeSizeInAllIsolates(
 
 void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
                                      Vector<WasmCode*> live_code) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "ReportLiveCodeForGC");
+  TRACE_CODE_GC("Isolate %d reporting %zu live code objects.\n", isolate->id(),
+                live_code.size());
   base::MutexGuard guard(&mutex_);
-  DCHECK_NOT_NULL(current_gc_info_);
-  auto outstanding_isolate_it =
-      current_gc_info_->outstanding_isolates.find(isolate);
-  DCHECK_NE(current_gc_info_->outstanding_isolates.end(),
-            outstanding_isolate_it);
-  auto* fg_task = outstanding_isolate_it->second;
-  if (fg_task) fg_task->Cancel();
-  current_gc_info_->outstanding_isolates.erase(outstanding_isolate_it);
+  // This report might come in late (note that we trigger both a stack guard and
+  // a foreground task). In that case, ignore it.
+  if (current_gc_info_ == nullptr) return;
+  if (!RemoveIsolateFromCurrentGC(isolate)) return;
+  isolate->counters()->wasm_module_num_triggered_code_gcs()->AddSample(
+      current_gc_info_->gc_sequence_index);
   for (WasmCode* code : live_code) current_gc_info_->dead_code.erase(code);
+  PotentiallyFinishCurrentGC();
+}
 
-  if (current_gc_info_->outstanding_isolates.empty()) {
-    std::unordered_map<NativeModule*, std::vector<WasmCode*>>
-        dead_code_per_native_module;
-    for (WasmCode* code : current_gc_info_->dead_code) {
-      dead_code_per_native_module[code->native_module()].push_back(code);
-    }
-    for (auto& entry : dead_code_per_native_module) {
-      entry.first->FreeCode(VectorOf(entry.second));
-    }
-    current_gc_info_.reset();
+void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
+  wasm::WasmCodeRefScope code_ref_scope;
+  std::unordered_set<wasm::WasmCode*> live_wasm_code;
+  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+    StackFrame* const frame = it.frame();
+    if (frame->type() != StackFrame::WASM_COMPILED) continue;
+    live_wasm_code.insert(WasmCompiledFrame::cast(frame)->wasm_code());
   }
+
+  ReportLiveCodeForGC(isolate,
+                      OwnedVector<WasmCode*>::Of(live_wasm_code).as_vector());
 }
 
 bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
   base::MutexGuard guard(&mutex_);
   auto it = native_modules_.find(code->native_module());
   DCHECK_NE(native_modules_.end(), it);
-  auto added = it->second->potentially_dead_code.insert(code);
+  NativeModuleInfo* info = it->second.get();
+  if (info->dead_code.count(code)) return false;  // Code is already dead.
+  auto added = info->potentially_dead_code.insert(code);
   if (!added.second) return false;  // An entry already existed.
   new_potentially_dead_code_size_ += code->instructions().size();
-  // Trigger a GC if 1MiB plus 10% of committed code are potentially dead.
-  size_t dead_code_limit = 1 * MB + code_manager_.committed_code_space() / 10;
-  if (FLAG_wasm_code_gc && new_potentially_dead_code_size_ > dead_code_limit &&
-      !current_gc_info_) {
-    TriggerGC();
+  if (FLAG_wasm_code_gc) {
+    // Trigger a GC if 64kB plus 10% of committed code are potentially dead.
+    size_t dead_code_limit =
+        FLAG_stress_wasm_code_gc
+            ? 0
+            : 64 * KB + code_manager_.committed_code_space() / 10;
+    if (new_potentially_dead_code_size_ > dead_code_limit) {
+      bool inc_gc_count =
+          info->num_code_gcs_triggered < std::numeric_limits<int8_t>::max();
+      if (current_gc_info_ == nullptr) {
+        if (inc_gc_count) ++info->num_code_gcs_triggered;
+        TRACE_CODE_GC(
+            "Triggering GC (potentially dead: %zu bytes; limit: %zu bytes).\n",
+            new_potentially_dead_code_size_, dead_code_limit);
+        TriggerGC(info->num_code_gcs_triggered);
+      } else if (current_gc_info_->next_gc_sequence_index == 0) {
+        if (inc_gc_count) ++info->num_code_gcs_triggered;
+        TRACE_CODE_GC(
+            "Scheduling another GC after the current one (potentially dead: "
+            "%zu bytes; limit: %zu bytes).\n",
+            new_potentially_dead_code_size_, dead_code_limit);
+        current_gc_info_->next_gc_sequence_index = info->num_code_gcs_triggered;
+        DCHECK_NE(0, current_gc_info_->next_gc_sequence_index);
+      }
+    }
   }
   return true;
 }
 
-void WasmEngine::TriggerGC() {
+void WasmEngine::FreeDeadCode(const DeadCodeMap& dead_code) {
+  base::MutexGuard guard(&mutex_);
+  FreeDeadCodeLocked(dead_code);
+}
+
+void WasmEngine::FreeDeadCodeLocked(const DeadCodeMap& dead_code) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "FreeDeadCode");
+  DCHECK(!mutex_.TryLock());
+  for (auto& dead_code_entry : dead_code) {
+    NativeModule* native_module = dead_code_entry.first;
+    const std::vector<WasmCode*>& code_vec = dead_code_entry.second;
+    DCHECK_EQ(1, native_modules_.count(native_module));
+    auto* info = native_modules_[native_module].get();
+    TRACE_CODE_GC("Freeing %zu code object%s of module %p.\n", code_vec.size(),
+                  code_vec.size() == 1 ? "" : "s", native_module);
+    for (WasmCode* code : code_vec) {
+      DCHECK_EQ(1, info->dead_code.count(code));
+      info->dead_code.erase(code);
+    }
+    native_module->FreeCode(VectorOf(code_vec));
+  }
+}
+
+void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
   DCHECK_NULL(current_gc_info_);
   DCHECK(FLAG_wasm_code_gc);
-  current_gc_info_.reset(new CurrentGCInfo());
+  new_potentially_dead_code_size_ = 0;
+  current_gc_info_.reset(new CurrentGCInfo(gc_sequence_index));
+  if (base::TimeTicks::IsHighResolution()) {
+    current_gc_info_->start_time = base::TimeTicks::Now();
+  }
   // Add all potentially dead code to this GC, and trigger a GC task in each
   // isolate.
-  // TODO(clemensh): Also trigger a stack check interrupt.
   for (auto& entry : native_modules_) {
     NativeModuleInfo* info = entry.second.get();
     if (info->potentially_dead_code.empty()) continue;
@@ -722,11 +862,72 @@ void WasmEngine::TriggerGC() {
         isolates_[isolate]->foreground_task_runner->PostTask(
             std::move(new_task));
       }
+      isolate->stack_guard()->RequestWasmCodeGC();
     }
     for (WasmCode* code : info->potentially_dead_code) {
       current_gc_info_->dead_code.insert(code);
     }
   }
+  TRACE_CODE_GC(
+      "Starting GC. Total number of potentially dead code objects: %zu\n",
+      current_gc_info_->dead_code.size());
+}
+
+bool WasmEngine::RemoveIsolateFromCurrentGC(Isolate* isolate) {
+  DCHECK(!mutex_.TryLock());
+  DCHECK_NOT_NULL(current_gc_info_);
+  auto it = current_gc_info_->outstanding_isolates.find(isolate);
+  if (it == current_gc_info_->outstanding_isolates.end()) return false;
+  if (auto* fg_task = it->second) fg_task->Cancel();
+  current_gc_info_->outstanding_isolates.erase(it);
+  return true;
+}
+
+void WasmEngine::PotentiallyFinishCurrentGC() {
+  DCHECK(!mutex_.TryLock());
+  TRACE_CODE_GC(
+      "Remaining dead code objects: %zu; outstanding isolates: %zu.\n",
+      current_gc_info_->dead_code.size(),
+      current_gc_info_->outstanding_isolates.size());
+
+  // If there are more outstanding isolates, return immediately.
+  if (!current_gc_info_->outstanding_isolates.empty()) return;
+
+  // All remaining code in {current_gc_info->dead_code} is really dead.
+  // Move it from the set of potentially dead code to the set of dead code,
+  // and decrement its ref count.
+  size_t num_freed = 0;
+  DeadCodeMap dead_code;
+  for (WasmCode* code : current_gc_info_->dead_code) {
+    DCHECK_EQ(1, native_modules_.count(code->native_module()));
+    auto* native_module_info = native_modules_[code->native_module()].get();
+    DCHECK_EQ(1, native_module_info->potentially_dead_code.count(code));
+    native_module_info->potentially_dead_code.erase(code);
+    DCHECK_EQ(0, native_module_info->dead_code.count(code));
+    native_module_info->dead_code.insert(code);
+    if (code->DecRefOnDeadCode()) {
+      dead_code[code->native_module()].push_back(code);
+      ++num_freed;
+    }
+  }
+
+  FreeDeadCodeLocked(dead_code);
+
+  int duration_us = 0;
+  if (!current_gc_info_->start_time.IsNull()) {
+    duration_us = GetGCTimeMicros(current_gc_info_->start_time);
+    for (auto& entry : isolates_) {
+      entry.second->async_counters->wasm_code_gc_time()->AddSample(duration_us);
+    }
+  }
+
+  TRACE_CODE_GC("Took %d us; found %zu dead code objects, freed %zu.\n",
+                duration_us, current_gc_info_->dead_code.size(), num_freed);
+  USE(num_freed);
+
+  int8_t next_gc_sequence_index = current_gc_info_->next_gc_sequence_index;
+  current_gc_info_.reset();
+  if (next_gc_sequence_index != 0) TriggerGC(next_gc_sequence_index);
 }
 
 namespace {
@@ -765,6 +966,8 @@ uint32_t max_table_init_entries() {
   return std::min(uint32_t{kV8MaxWasmTableInitEntries},
                   FLAG_wasm_max_table_size);
 }
+
+#undef TRACE_CODE_GC
 
 }  // namespace wasm
 }  // namespace internal

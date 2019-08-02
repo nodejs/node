@@ -7,11 +7,11 @@
 
 #include <vector>
 
-#include "src/feedback-vector.h"
+#include "src/execution/isolate.h"
+#include "src/execution/message-template.h"
 #include "src/heap/factory.h"
 #include "src/ic/stub-cache.h"
-#include "src/isolate.h"
-#include "src/message-template.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/smi.h"
@@ -38,7 +38,6 @@ class IC {
   virtual ~IC() = default;
 
   State state() const { return state_; }
-  inline Address address() const;
 
   // Compute the current IC state based on the target stub, receiver and name.
   void UpdateState(Handle<Object> receiver, Handle<Object> name);
@@ -80,9 +79,7 @@ class IC {
   // Get the caller function object.
   JSFunction GetHostFunction() const;
 
-  inline bool AddressIsDeoptimizedCode() const;
-  inline static bool AddressIsDeoptimizedCode(Isolate* isolate,
-                                              Address address);
+  inline bool HostIsDeoptimizedCode() const;
 
   bool is_vector_set() { return vector_set_; }
   inline bool vector_needs_update();
@@ -337,6 +334,12 @@ enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };
 
 enum KeyedStoreIncrementLength { kDontIncrementLength, kIncrementLength };
 
+enum class TransitionMode {
+  kNoTransition,
+  kTransitionToDouble,
+  kTransitionToObject
+};
+
 class KeyedStoreIC : public StoreIC {
  public:
   KeyedAccessStoreMode GetKeyedAccessStoreMode() {
@@ -354,7 +357,7 @@ class KeyedStoreIC : public StoreIC {
  protected:
   void UpdateStoreElement(Handle<Map> receiver_map,
                           KeyedAccessStoreMode store_mode,
-                          bool receiver_was_cow);
+                          Handle<Map> new_receiver_map);
 
   Handle<Code> slow_stub() const override {
     return BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
@@ -362,7 +365,7 @@ class KeyedStoreIC : public StoreIC {
 
  private:
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
-                                     KeyedAccessStoreMode store_mode);
+                                     TransitionMode transition_mode);
 
   Handle<Object> StoreElementHandler(Handle<Map> receiver_map,
                                      KeyedAccessStoreMode store_mode);

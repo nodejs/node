@@ -39,7 +39,7 @@ void ReadAndParseTorqueFile(const std::string& path) {
   }
 
   if (!maybe_content) {
-    ReportErrorWithoutPosition("Cannot open file path/uri: ", path);
+    Error("Cannot open file path/uri: ", path).Throw();
   }
 
   ParseTorque(*maybe_content);
@@ -47,58 +47,54 @@ void ReadAndParseTorqueFile(const std::string& path) {
 
 void CompileCurrentAst(TorqueCompilerOptions options) {
   GlobalContext::Scope global_context(std::move(CurrentAst::Get()));
-  if (options.verbose) GlobalContext::SetVerbose();
   if (options.collect_language_server_data) {
     GlobalContext::SetCollectLanguageServerData();
   }
+  if (options.force_assert_statements) {
+    GlobalContext::SetForceAssertStatements();
+  }
   TypeOracle::Scope type_oracle;
 
-  DeclarationVisitor declaration_visitor;
+  // Two-step process of predeclaration + resolution allows to resolve type
+  // declarations independent of the order they are given.
+  PredeclarationVisitor::Predeclare(GlobalContext::Get().ast());
+  PredeclarationVisitor::ResolvePredeclarations();
 
-  declaration_visitor.Visit(GlobalContext::Get().ast());
-  declaration_visitor.FinalizeStructsAndClasses();
+  // Process other declarations.
+  DeclarationVisitor::Visit(GlobalContext::Get().ast());
+
+  // A class types' fields are resolved here, which allows two class fields to
+  // mutually refer to each others.
+  TypeOracle::FinalizeClassTypes();
+
+  std::string output_directory = options.output_directory;
 
   ImplementationVisitor implementation_visitor;
+  implementation_visitor.SetDryRun(output_directory.length() == 0);
+
   for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
     implementation_visitor.BeginNamespaceFile(n);
   }
 
   implementation_visitor.VisitAllDeclarables();
 
-  std::string output_directory = options.output_directory;
-  if (output_directory.length() != 0) {
-    std::string output_header_path = output_directory;
-    output_header_path += "/builtin-definitions-from-dsl.h";
-    implementation_visitor.GenerateBuiltinDefinitions(output_header_path);
+  implementation_visitor.GenerateBuiltinDefinitions(output_directory);
+  implementation_visitor.GenerateClassFieldOffsets(output_directory);
+  implementation_visitor.GeneratePrintDefinitions(output_directory);
+  implementation_visitor.GenerateClassDefinitions(output_directory);
+  implementation_visitor.GenerateClassVerifiers(output_directory);
+  implementation_visitor.GenerateExportedMacrosAssembler(output_directory);
+  implementation_visitor.GenerateCSATypes(output_directory);
 
-    output_header_path = output_directory + "/class-definitions-from-dsl.h";
-    implementation_visitor.GenerateClassDefinitions(output_header_path);
-
-    std::string output_source_path =
-        output_directory + "/objects-printer-from-dsl.cc";
-    implementation_visitor.GeneratePrintDefinitions(output_source_path);
-
-    for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
-      implementation_visitor.EndNamespaceFile(n);
-      implementation_visitor.GenerateImplementation(output_directory, n);
-    }
+  for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
+    implementation_visitor.EndNamespaceFile(n);
+    implementation_visitor.GenerateImplementation(output_directory, n);
   }
 
-  if (LintErrorStatus::HasLintErrors()) std::abort();
-}
-
-TorqueCompilerResult CollectResultFromContextuals() {
-  TorqueCompilerResult result;
-  result.source_file_map = SourceFileMap::Get();
-  result.language_server_data = LanguageServerData::Get();
-  return result;
-}
-
-TorqueCompilerResult ResultFromError(TorqueError& error) {
-  TorqueCompilerResult result;
-  result.source_file_map = SourceFileMap::Get();
-  result.error = error;
-  return result;
+  if (GlobalContext::collect_language_server_data()) {
+    LanguageServerData::SetGlobalContext(std::move(GlobalContext::Get()));
+    LanguageServerData::SetTypeOracle(std::move(TypeOracle::Get()));
+  }
 }
 
 }  // namespace
@@ -108,17 +104,23 @@ TorqueCompilerResult CompileTorque(const std::string& source,
   SourceFileMap::Scope source_map_scope;
   CurrentSourceFile::Scope no_file_scope(SourceFileMap::AddSource("<torque>"));
   CurrentAst::Scope ast_scope;
-  LintErrorStatus::Scope lint_error_status_scope;
+  TorqueMessages::Scope messages_scope;
   LanguageServerData::Scope server_data_scope;
 
+  TorqueCompilerResult result;
   try {
     ParseTorque(source);
     CompileCurrentAst(options);
-  } catch (TorqueError& error) {
-    return ResultFromError(error);
+  } catch (TorqueAbortCompilation&) {
+    // Do nothing. The relevant TorqueMessage is part of the
+    // TorqueMessages contextual.
   }
 
-  return CollectResultFromContextuals();
+  result.source_file_map = SourceFileMap::Get();
+  result.language_server_data = std::move(LanguageServerData::Get());
+  result.messages = std::move(TorqueMessages::Get());
+
+  return result;
 }
 
 TorqueCompilerResult CompileTorque(std::vector<std::string> files,
@@ -126,16 +128,23 @@ TorqueCompilerResult CompileTorque(std::vector<std::string> files,
   SourceFileMap::Scope source_map_scope;
   CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
   CurrentAst::Scope ast_scope;
-  LintErrorStatus::Scope lint_error_status_scope;
+  TorqueMessages::Scope messages_scope;
   LanguageServerData::Scope server_data_scope;
 
+  TorqueCompilerResult result;
   try {
     for (const auto& path : files) ReadAndParseTorqueFile(path);
     CompileCurrentAst(options);
-  } catch (TorqueError& error) {
-    return ResultFromError(error);
+  } catch (TorqueAbortCompilation&) {
+    // Do nothing. The relevant TorqueMessage is part of the
+    // TorqueMessages contextual.
   }
-  return CollectResultFromContextuals();
+
+  result.source_file_map = SourceFileMap::Get();
+  result.language_server_data = std::move(LanguageServerData::Get());
+  result.messages = std::move(TorqueMessages::Get());
+
+  return result;
 }
 
 }  // namespace torque

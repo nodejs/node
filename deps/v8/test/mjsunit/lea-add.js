@@ -59,24 +59,28 @@ function d() {
   return sum;
 }
 
+%PrepareFunctionForOptimization(a);
 a();
 a();
 %OptimizeFunctionOnNextCall(a);
 assertEquals(124750, a());
 assertEquals(124750, a());
 
+%PrepareFunctionForOptimization(b);
 b();
 b();
 %OptimizeFunctionOnNextCall(b);
 assertEquals(-125250, b());
 assertEquals(-125250, b());
 
+%PrepareFunctionForOptimization(c);
 c();
 c();
 %OptimizeFunctionOnNextCall(c);
 assertEquals(-1073741698750, c());
 assertEquals(-1073741698750, c());
 
+%PrepareFunctionForOptimization(d);
 d();
 d();
 %OptimizeFunctionOnNextCall(d);

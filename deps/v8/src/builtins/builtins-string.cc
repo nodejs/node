@@ -4,18 +4,18 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/conversions.h"
-#include "src/counters.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/objects-inl.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions.h"
+#include "src/objects/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif
 #include "src/regexp/regexp-utils.h"
-#include "src/string-builder-inl.h"
-#include "src/string-case.h"
-#include "src/unicode-inl.h"
-#include "src/unicode.h"
+#include "src/strings/string-builder-inl.h"
+#include "src/strings/string-case.h"
+#include "src/strings/unicode-inl.h"
+#include "src/strings/unicode.h"
 
 namespace v8 {
 namespace internal {
@@ -261,23 +261,23 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   uc32 current = stream.GetNext();
-  bool ignore_overflow = Converter::kIsToLower || result->IsSeqTwoByteString();
+  bool ignore_overflow = Converter::kIsToLower || result.IsSeqTwoByteString();
   for (int i = 0; i < result_length;) {
     bool has_next = stream.HasMore();
     uc32 next = has_next ? stream.GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
     if (char_length == 0) {
       // The case conversion of this character is the character itself.
-      result->Set(i, current);
+      result.Set(i, current);
       i++;
     } else if (char_length == 1 &&
                (ignore_overflow || !ToUpperOverflows(current))) {
       // Common case: converting the letter resulted in one character.
       DCHECK(static_cast<uc32>(chars[0]) != current);
-      result->Set(i, chars[0]);
+      result.Set(i, chars[0]);
       has_changed_character = true;
       i++;
-    } else if (result_length == string->length()) {
+    } else if (result_length == string.length()) {
       bool overflows = ToUpperOverflows(current);
       // We've assumed that the result would be as long as the
       // input but here is a character that converts to several
@@ -318,7 +318,7 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
                                              : Smi::FromInt(current_length);
     } else {
       for (int j = 0; j < char_length; j++) {
-        result->Set(i, chars[j]);
+        result.Set(i, chars[j]);
         i++;
       }
       has_changed_character = true;
@@ -361,7 +361,7 @@ V8_WARN_UNUSED_RESULT static Object ConvertCase(
     bool has_changed_character = false;
     int index_to_first_unprocessed = FastAsciiConvert<Converter::kIsToLower>(
         reinterpret_cast<char*>(result->GetChars(no_gc)),
-        reinterpret_cast<const char*>(flat_content.ToOneByteVector().start()),
+        reinterpret_cast<const char*>(flat_content.ToOneByteVector().begin()),
         length, &has_changed_character);
     // If not ASCII, we discard the result and take the 2 byte path.
     if (index_to_first_unprocessed == length)
@@ -376,9 +376,9 @@ V8_WARN_UNUSED_RESULT static Object ConvertCase(
   }
 
   Object answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (answer->IsException(isolate) || answer->IsString()) return answer;
+  if (answer.IsException(isolate) || answer.IsString()) return answer;
 
-  DCHECK(answer->IsSmi());
+  DCHECK(answer.IsSmi());
   length = Smi::ToInt(answer);
   if (s->IsOneByteRepresentation() && length > 0) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

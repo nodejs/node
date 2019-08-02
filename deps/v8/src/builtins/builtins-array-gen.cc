@@ -9,19 +9,18 @@
 #include "src/builtins/builtins-typed-array-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
-#include "src/frame-constants.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/execution/frame-constants.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/property-cell.h"
-#include "torque-generated/builtins-typed-array-createtypedarray-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
 
 using Node = compiler::Node;
-using IteratorRecord = IteratorBuiltinsFromDSLAssembler::IteratorRecord;
+using IteratorRecord = TorqueStructIteratorRecord;
 
 ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     compiler::CodeAssemblerState* state)
@@ -37,15 +36,14 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     TNode<Smi> length = CAST(len_);
     const char* method_name = "%TypedArray%.prototype.map";
 
-    TypedArrayCreatetypedarrayBuiltinsFromDSLAssembler typedarray_asm(state());
-    TNode<JSTypedArray> a = typedarray_asm.TypedArraySpeciesCreateByLength(
+    TNode<JSTypedArray> a = TypedArraySpeciesCreateByLength(
         context(), method_name, original_array, length);
     // In the Spec and our current implementation, the length check is already
     // performed in TypedArraySpeciesCreate.
-    CSA_ASSERT(this, SmiLessThanOrEqual(CAST(len_), LoadJSTypedArrayLength(a)));
+    CSA_ASSERT(this, UintPtrLessThanOrEqual(SmiUntag(CAST(len_)),
+                                            LoadJSTypedArrayLength(a)));
     fast_typed_array_target_ =
-        Word32Equal(LoadInstanceType(LoadElements(original_array)),
-                    LoadInstanceType(LoadElements(a)));
+        Word32Equal(LoadElementsKind(original_array), LoadElementsKind(a));
     a_.Bind(a);
   }
 
@@ -149,8 +147,8 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     Label throw_not_typed_array(this, Label::kDeferred);
 
     GotoIf(TaggedIsSmi(receiver_), &throw_not_typed_array);
-    GotoIfNot(HasInstanceType(CAST(receiver_), JS_TYPED_ARRAY_TYPE),
-              &throw_not_typed_array);
+    TNode<Map> typed_array_map = LoadMap(CAST(receiver_));
+    GotoIfNot(IsJSTypedArrayMap(typed_array_map), &throw_not_typed_array);
 
     TNode<JSTypedArray> typed_array = CAST(receiver_);
     o_ = typed_array;
@@ -159,7 +157,7 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
         LoadJSArrayBufferViewBuffer(typed_array);
     ThrowIfArrayBufferIsDetached(context_, array_buffer, name_);
 
-    len_ = LoadJSTypedArrayLength(typed_array);
+    len_ = ChangeUintPtrToTagged(LoadJSTypedArrayLength(typed_array));
 
     Label throw_not_callable(this, Label::kDeferred);
     Label distinguish_types(this);
@@ -177,13 +175,13 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     BIND(&unexpected_instance_type);
     Unreachable();
 
-    std::vector<int32_t> instance_types = {
-#define INSTANCE_TYPE(Type, type, TYPE, ctype) FIXED_##TYPE##_ARRAY_TYPE,
-        TYPED_ARRAYS(INSTANCE_TYPE)
-#undef INSTANCE_TYPE
+    std::vector<int32_t> elements_kinds = {
+#define ELEMENTS_KIND(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
+        TYPED_ARRAYS(ELEMENTS_KIND)
+#undef ELEMENTS_KIND
     };
     std::list<Label> labels;
-    for (size_t i = 0; i < instance_types.size(); ++i) {
+    for (size_t i = 0; i < elements_kinds.size(); ++i) {
       labels.emplace_back(this);
     }
     std::vector<Label*> label_ptrs;
@@ -201,16 +199,15 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
       k_.Bind(NumberDec(len()));
     }
     CSA_ASSERT(this, IsSafeInteger(k()));
-    Node* instance_type = LoadInstanceType(LoadElements(typed_array));
-    Switch(instance_type, &unexpected_instance_type, instance_types.data(),
+    TNode<Int32T> elements_kind = LoadMapElementsKind(typed_array_map);
+    Switch(elements_kind, &unexpected_instance_type, elements_kinds.data(),
            label_ptrs.data(), labels.size());
 
     size_t i = 0;
     for (auto it = labels.begin(); it != labels.end(); ++i, ++it) {
       BIND(&*it);
       Label done(this);
-      source_elements_kind_ = ElementsKindForInstanceType(
-          static_cast<InstanceType>(instance_types[i]));
+      source_elements_kind_ = static_cast<ElementsKind>(elements_kinds[i]);
       // TODO(tebbi): Silently cancelling the loop on buffer detachment is a
       // spec violation. Should go to &throw_detached and throw a TypeError
       // instead.
@@ -224,21 +221,6 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     }
   }
 
-  ElementsKind ArrayBuiltinsAssembler::ElementsKindForInstanceType(
-      InstanceType type) {
-    switch (type) {
-#define INSTANCE_TYPE_TO_ELEMENTS_KIND(Type, type, TYPE, ctype) \
-  case FIXED_##TYPE##_ARRAY_TYPE:                               \
-    return TYPE##_ELEMENTS;
-
-      TYPED_ARRAYS(INSTANCE_TYPE_TO_ELEMENTS_KIND)
-#undef INSTANCE_TYPE_TO_ELEMENTS_KIND
-
-      default:
-        UNREACHABLE();
-    }
-  }
-
   void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
       Node* array_buffer, const CallResultProcessor& processor, Label* detached,
       ForEachDirection direction, TNode<JSTypedArray> typed_array) {
@@ -246,13 +228,7 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
 
     FastLoopBody body = [&](Node* index) {
       GotoIf(IsDetachedBuffer(array_buffer), detached);
-      Node* elements = LoadElements(typed_array);
-      Node* base_ptr =
-          LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
-      Node* external_ptr =
-          LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
-                          MachineType::Pointer());
-      Node* data_ptr = IntPtrAdd(BitcastTaggedToWord(base_ptr), external_ptr);
+      TNode<RawPtrT> data_ptr = LoadJSTypedArrayBackingStore(typed_array);
       Node* value = LoadFixedTypedArrayElementAsTagged(
           data_ptr, index, source_elements_kind_, SMI_PARAMETERS);
       k_.Bind(index);
@@ -551,8 +527,8 @@ TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
   TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
 
   CSA_ASSERT(this,
-             Word32Or(Word32BinaryNot(
-                          IsHoleyFastElementsKind(LoadElementsKind(array))),
+             Word32Or(Word32BinaryNot(IsHoleyFastElementsKindForRead(
+                          LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
   ParameterMode mode = OptimalParameterMode();
@@ -571,8 +547,8 @@ TF_BUILTIN(CloneFastJSArrayFillingHoles, ArrayBuiltinsAssembler) {
   TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
 
   CSA_ASSERT(this,
-             Word32Or(Word32BinaryNot(
-                          IsHoleyFastElementsKind(LoadElementsKind(array))),
+             Word32Or(Word32BinaryNot(IsHoleyFastElementsKindForRead(
+                          LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
   ParameterMode mode = OptimalParameterMode();
@@ -936,7 +912,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
 
   // Take slow path if not a JSArray, if retrieving elements requires
   // traversing prototype, or if access checks are required.
-  BranchIfFastJSArray(receiver, context, &init_index, &call_runtime);
+  BranchIfFastJSArrayForRead(receiver, context, &init_index, &call_runtime);
 
   BIND(&init_index);
   VARIABLE(index_var, MachineType::PointerRepresentation(), intptr_zero);
@@ -994,12 +970,16 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
   STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
   STATIC_ASSERT(PACKED_ELEMENTS == 2);
   STATIC_ASSERT(HOLEY_ELEMENTS == 3);
-  GotoIf(Uint32LessThanOrEqual(elements_kind, Int32Constant(HOLEY_ELEMENTS)),
+  GotoIf(IsElementsKindLessThanOrEqual(elements_kind, HOLEY_ELEMENTS),
          &if_smiorobjects);
-  GotoIf(Word32Equal(elements_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
-         &if_packed_doubles);
-  GotoIf(Word32Equal(elements_kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
+  GotoIf(
+      ElementsKindEqual(elements_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
+      &if_packed_doubles);
+  GotoIf(ElementsKindEqual(elements_kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
          &if_holey_doubles);
+  GotoIf(
+      IsElementsKindLessThanOrEqual(elements_kind, LAST_FROZEN_ELEMENTS_KIND),
+      &if_smiorobjects);
   Goto(&return_not_found);
 
   BIND(&if_smiorobjects);
@@ -1637,6 +1617,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   BIND(&if_typedarray);
   {
     // If {array} is a JSTypedArray, the {index} must always be a Smi.
+    // TODO(v8:4153): Update this and the relevant TurboFan code.
     CSA_ASSERT(this, TaggedIsSmi(index));
 
     // Check that the {array}s buffer wasn't detached.
@@ -1646,8 +1627,9 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     // [[ArrayIteratorNextIndex]] anymore, since a JSTypedArray's
     // length cannot change anymore, so this {iterator} will never
     // produce values again anyways.
-    TNode<Smi> length = LoadJSTypedArrayLength(CAST(array));
-    GotoIfNot(SmiBelow(CAST(index), length), &allocate_iterator_result);
+    TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(array));
+    GotoIfNot(UintPtrLessThan(SmiUntag(CAST(index)), length),
+              &allocate_iterator_result);
     StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
                                    SmiInc(CAST(index)));
 
@@ -1660,14 +1642,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
            &allocate_iterator_result);
 
     TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
-    Node* elements = LoadElements(CAST(array));
-    Node* base_ptr =
-        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
-    Node* external_ptr =
-        LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
-                        MachineType::Pointer());
-    TNode<WordT> data_ptr =
-        IntPtrAdd(BitcastTaggedToWord(base_ptr), external_ptr);
+    TNode<RawPtrT> data_ptr = LoadJSTypedArrayBackingStore(CAST(array));
     var_value.Bind(LoadFixedTypedArrayElementAsTagged(data_ptr, CAST(index),
                                                       elements_kind));
     Goto(&allocate_entry_if_needed);
@@ -2200,7 +2175,7 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
 
 void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
     ElementsKind kind, AllocationSiteOverrideMode mode) {
-  typedef ArrayNoArgumentConstructorDescriptor Descriptor;
+  using Descriptor = ArrayNoArgumentConstructorDescriptor;
   Node* native_context = LoadObjectField(Parameter(Descriptor::kFunction),
                                          JSFunction::kContextOffset);
   bool track_allocation_site =
@@ -2216,7 +2191,7 @@ void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
 
 void ArrayBuiltinsAssembler::GenerateArraySingleArgumentConstructor(
     ElementsKind kind, AllocationSiteOverrideMode mode) {
-  typedef ArraySingleArgumentConstructorDescriptor Descriptor;
+  using Descriptor = ArraySingleArgumentConstructorDescriptor;
   Node* context = Parameter(Descriptor::kContext);
   Node* function = Parameter(Descriptor::kFunction);
   Node* native_context = LoadObjectField(function, JSFunction::kContextOffset);
@@ -2310,7 +2285,7 @@ GENERATE_ARRAY_CTOR(SingleArgument, HoleyDouble, HOLEY_DOUBLE_ELEMENTS,
 #undef GENERATE_ARRAY_CTOR
 
 TF_BUILTIN(InternalArrayNoArgumentConstructor_Packed, ArrayBuiltinsAssembler) {
-  typedef ArrayNoArgumentConstructorDescriptor Descriptor;
+  using Descriptor = ArrayNoArgumentConstructorDescriptor;
   TNode<Map> array_map =
       CAST(LoadObjectField(Parameter(Descriptor::kFunction),
                            JSFunction::kPrototypeOrInitialMapOffset));

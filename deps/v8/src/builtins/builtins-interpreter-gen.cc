@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins.h"
-#include "src/globals.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

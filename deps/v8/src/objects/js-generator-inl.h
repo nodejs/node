@@ -8,7 +8,7 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise-inl.h"
 
-#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/objects/objects-inl.h"  // Needed for write barriers
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

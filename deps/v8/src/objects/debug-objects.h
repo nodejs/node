@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_DEBUG_OBJECTS_H_
 #define V8_OBJECTS_DEBUG_OBJECTS_H_
 
-#include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/objects.h"
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -168,21 +168,9 @@ class DebugInfo : public Struct {
   DECL_PRINTER(DebugInfo)
   DECL_VERIFIER(DebugInfo)
 
-// Layout description.
-#define DEBUG_INFO_FIELDS(V)                   \
-  V(kSharedFunctionInfoOffset, kTaggedSize)    \
-  V(kDebuggerHintsOffset, kTaggedSize)         \
-  V(kScriptOffset, kTaggedSize)                \
-  V(kOriginalBytecodeArrayOffset, kTaggedSize) \
-  V(kDebugBytecodeArrayOffset, kTaggedSize)    \
-  V(kBreakPointsStateOffset, kTaggedSize)      \
-  V(kFlagsOffset, kTaggedSize)                 \
-  V(kCoverageInfoOffset, kTaggedSize)          \
-  /* Total size. */                            \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, DEBUG_INFO_FIELDS)
-#undef DEBUG_INFO_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_DEBUG_INFO_FIELDS)
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
@@ -247,11 +235,6 @@ class CoverageInfo : public FixedArray {
   // Print debug info.
   void Print(std::unique_ptr<char[]> function_name);
 
- private:
-  static int FirstIndexForSlot(int slot_index) {
-    return kFirstSlotIndex + slot_index * kSlotIndexCount;
-  }
-
   static const int kFirstSlotIndex = 0;
 
   // Each slot is assigned a group of indices starting at kFirstSlotIndex.
@@ -259,7 +242,17 @@ class CoverageInfo : public FixedArray {
   static const int kSlotStartSourcePositionIndex = 0;
   static const int kSlotEndSourcePositionIndex = 1;
   static const int kSlotBlockCountIndex = 2;
-  static const int kSlotIndexCount = 3;
+  static const int kSlotPaddingIndex = 3;  // Padding to make the index count 4.
+  static const int kSlotIndexCount = 4;
+
+  static const int kSlotIndexCountLog2 = 2;
+  static const int kSlotIndexCountMask = (kSlotIndexCount - 1);
+  STATIC_ASSERT(1 << kSlotIndexCountLog2 == kSlotIndexCount);
+
+ private:
+  static int FirstIndexForSlot(int slot_index) {
+    return kFirstSlotIndex + slot_index * kSlotIndexCount;
+  }
 
   OBJECT_CONSTRUCTORS(CoverageInfo, FixedArray);
 };

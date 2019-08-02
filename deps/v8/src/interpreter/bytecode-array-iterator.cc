@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/objects-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

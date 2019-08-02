@@ -17,6 +17,7 @@ function foo() {
   }
   return sum;
 }
+%PrepareFunctionForOptimization(foo);
 
 assertEquals(30, foo());
 assertEquals(30, foo());
@@ -36,6 +37,7 @@ function bar(a) {
   }
   return sum;
 }
+%PrepareFunctionForOptimization(bar);
 
 assertEquals(1, bar(1));
 assertEquals(1, bar(1));

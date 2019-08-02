@@ -8,12 +8,12 @@
 #include <vector>
 
 #include "include/v8.h"
-#include "src/counters.h"
-#include "src/globals.h"
-#include "src/handles.h"
-#include "src/objects-inl.h"
+#include "src/common/globals.h"
+#include "src/handles/handles.h"
+#include "src/logging/counters.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/scanner.h"
-#include "src/unicode-inl.h"
+#include "src/strings/unicode-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -22,11 +22,11 @@ class ScopedExternalStringLock {
  public:
   explicit ScopedExternalStringLock(ExternalString string) {
     DCHECK(!string.is_null());
-    if (string->IsExternalOneByteString()) {
-      resource_ = ExternalOneByteString::cast(string)->resource();
+    if (string.IsExternalOneByteString()) {
+      resource_ = ExternalOneByteString::cast(string).resource();
     } else {
-      DCHECK(string->IsExternalTwoByteString());
-      resource_ = ExternalTwoByteString::cast(string)->resource();
+      DCHECK(string.IsExternalTwoByteString());
+      resource_ = ExternalTwoByteString::cast(string).resource();
     }
     DCHECK(resource_);
     resource_->Lock();
@@ -48,21 +48,6 @@ class ScopedExternalStringLock {
 namespace {
 const unibrow::uchar kUtf8Bom = 0xFEFF;
 }  // namespace
-
-template <typename Char>
-struct CharTraits;
-
-template <>
-struct CharTraits<uint8_t> {
-  using String = SeqOneByteString;
-  using ExternalString = ExternalOneByteString;
-};
-
-template <>
-struct CharTraits<uint16_t> {
-  using String = SeqTwoByteString;
-  using ExternalString = ExternalTwoByteString;
-};
 
 template <typename Char>
 struct Range {
@@ -115,7 +100,7 @@ class ExternalStringStream {
   ExternalStringStream(ExternalString string, size_t start_offset,
                        size_t length)
       : lock_(string),
-        data_(string->GetChars() + start_offset),
+        data_(string.GetChars() + start_offset),
         length_(length) {}
 
   ExternalStringStream(const ExternalStringStream& other) V8_NOEXCEPT
@@ -761,9 +746,9 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
   size_t start_offset = 0;
   if (data->IsSlicedString()) {
     SlicedString string = SlicedString::cast(*data);
-    start_offset = string->offset();
-    String parent = string->parent();
-    if (parent->IsThinString()) parent = ThinString::cast(parent)->actual();
+    start_offset = string.offset();
+    String parent = string.parent();
+    if (parent.IsThinString()) parent = ThinString::cast(parent).actual();
     data = handle(parent, isolate);
   } else {
     data = String::Flatten(isolate, data);

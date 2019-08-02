@@ -10,6 +10,8 @@
 
 #include "src/base/macros.h"
 #include "src/base/optional.h"
+#include "src/torque/declarable.h"
+#include "src/torque/global-context.h"
 #include "src/torque/source-positions.h"
 
 namespace v8 {
@@ -21,6 +23,13 @@ using DefinitionMapping = std::pair<SourcePosition, SourcePosition>;
 // TODO(szuend): Support overlapping source positions when we start adding them.
 using Definitions = std::vector<DefinitionMapping>;
 using DefinitionsMap = std::map<SourceId, Definitions>;
+
+// Symbols are used to answer search queries (either workspace or document
+// scope). For now, declarables are stored directly without converting them
+// into a custom format. Symbols are grouped by sourceId to implement document
+// scoped searches.
+using Symbols = std::vector<Declarable*>;
+using SymbolsMap = std::map<SourceId, Symbols>;
 
 // This contextual class holds all the necessary data to answer incoming
 // LSP requests. It is reset for each compilation step and all information
@@ -35,8 +44,28 @@ class LanguageServerData : public ContextualClass<LanguageServerData> {
   V8_EXPORT_PRIVATE static base::Optional<SourcePosition> FindDefinition(
       SourceId source, LineAndColumn pos);
 
+  static void SetGlobalContext(GlobalContext global_context) {
+    Get().global_context_ =
+        base::make_unique<GlobalContext>(std::move(global_context));
+    Get().PrepareAllDeclarableSymbols();
+  }
+
+  static void SetTypeOracle(TypeOracle type_oracle) {
+    Get().type_oracle_ = base::make_unique<TypeOracle>(std::move(type_oracle));
+  }
+
+  static const Symbols& SymbolsForSourceId(SourceId id) {
+    return Get().symbols_map_[id];
+  }
+
  private:
+  // Splits all declarables up by SourceId and filters out auto-generated ones.
+  void PrepareAllDeclarableSymbols();
+
   DefinitionsMap definitions_map_;
+  SymbolsMap symbols_map_;
+  std::unique_ptr<GlobalContext> global_context_;
+  std::unique_ptr<TypeOracle> type_oracle_;
 };
 
 }  // namespace torque

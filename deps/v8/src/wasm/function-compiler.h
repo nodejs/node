@@ -5,7 +5,7 @@
 #ifndef V8_WASM_FUNCTION_COMPILER_H_
 #define V8_WASM_FUNCTION_COMPILER_H_
 
-#include "src/code-desc.h"
+#include "src/codegen/code-desc.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder.h"
@@ -19,18 +19,10 @@ namespace internal {
 class AssemblerBuffer;
 class Counters;
 
-namespace compiler {
-class InterpreterCompilationUnit;
-class Pipeline;
-class TurbofanWasmCompilationUnit;
-}  // namespace compiler
-
 namespace wasm {
 
-class LiftoffCompilationUnit;
 class NativeModule;
 class WasmCode;
-class WasmCompilationUnit;
 class WasmEngine;
 struct WasmFunction;
 
@@ -70,39 +62,29 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
  public:
   static ExecutionTier GetDefaultExecutionTier(const WasmModule*);
 
-  WasmCompilationUnit(int index, ExecutionTier);
-
-  ~WasmCompilationUnit();
+  WasmCompilationUnit(int index, ExecutionTier tier)
+      : func_index_(index), tier_(tier) {}
 
   WasmCompilationResult ExecuteCompilation(
       WasmEngine*, CompilationEnv*, const std::shared_ptr<WireBytesStorage>&,
       Counters*, WasmFeatures* detected);
 
   ExecutionTier tier() const { return tier_; }
+  int func_index() const { return func_index_; }
 
   static void CompileWasmFunction(Isolate*, NativeModule*,
                                   WasmFeatures* detected, const WasmFunction*,
                                   ExecutionTier);
 
  private:
-  friend class LiftoffCompilationUnit;
-  friend class compiler::TurbofanWasmCompilationUnit;
-  friend class compiler::InterpreterCompilationUnit;
-
-  const int func_index_;
+  int func_index_;
   ExecutionTier tier_;
-
-  // LiftoffCompilationUnit, set if {tier_ == kLiftoff}.
-  std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;
-  // TurbofanWasmCompilationUnit, set if {tier_ == kTurbofan}.
-  std::unique_ptr<compiler::TurbofanWasmCompilationUnit> turbofan_unit_;
-  // InterpreterCompilationUnit, set if {tier_ == kInterpreter}.
-  std::unique_ptr<compiler::InterpreterCompilationUnit> interpreter_unit_;
-
-  void SwitchTier(ExecutionTier new_tier);
-
-  DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };
+
+// {WasmCompilationUnit} should be trivially copyable and small enough so we can
+// efficiently pass it by value.
+ASSERT_TRIVIALLY_COPYABLE(WasmCompilationUnit);
+STATIC_ASSERT(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 
 }  // namespace wasm
 }  // namespace internal

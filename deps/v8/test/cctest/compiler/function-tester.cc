@@ -4,14 +4,14 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
-#include "src/api-inl.h"
-#include "src/assembler.h"
+#include "src/api/api-inl.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
-#include "src/execution.h"
-#include "src/handles.h"
-#include "src/objects-inl.h"
-#include "src/optimized-compilation-info.h"
+#include "src/execution/execution.h"
+#include "src/handles/handles.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "test/cctest/cctest.h"
 
@@ -137,7 +137,7 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
     p = *f.function;
   }
   return Handle<JSFunction>(
-      p, p->GetIsolate());  // allocated in outer handle scope.
+      p, p.GetIsolate());  // allocated in outer handle scope.
 }
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {

@@ -36,6 +36,7 @@ function read(a, index) {
   return result;
 }
 
+%PrepareFunctionForOptimization(read);
 var a = new Int8Array(0x2000001);
 read(a, 0);
 read(a, 0);

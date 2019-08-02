@@ -7,7 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/iterator.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"

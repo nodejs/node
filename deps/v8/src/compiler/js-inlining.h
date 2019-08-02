@@ -51,7 +51,6 @@ class JSInliner final : public AdvancedReducer {
   // TODO(neis): Make heap broker a component of JSGraph?
   JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const { return jsgraph_->isolate(); }
-  Handle<Context> native_context() const;
 
   Zone* const local_zone_;
   OptimizedCompilationInfo* info_;
@@ -59,15 +58,13 @@ class JSInliner final : public AdvancedReducer {
   JSHeapBroker* const broker_;
   SourcePositionTable* const source_positions_;
 
-  bool DetermineCallTarget(Node* node,
-                           Handle<SharedFunctionInfo>& shared_info_out);
-  void DetermineCallContext(Node* node, Node*& context_out,
-                            Handle<FeedbackVector>& feedback_vector_out);
+  base::Optional<SharedFunctionInfoRef> DetermineCallTarget(Node* node);
+  FeedbackVectorRef DetermineCallContext(Node* node, Node*& context_out);
 
   Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                    int parameter_count, BailoutId bailout_id,
                                    FrameStateType frame_state_type,
-                                   Handle<SharedFunctionInfo> shared,
+                                   SharedFunctionInfoRef shared,
                                    Node* context = nullptr);
 
   Reduction InlineCall(Node* call, Node* new_target, Node* context,

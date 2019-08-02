@@ -7,10 +7,10 @@
 #include <stdint.h>
 
 #include "include/v8.h"
-#include "src/api.h"
+#include "src/api/api.h"
+#include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
-#include "src/isolate-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/flag-utils.h"
@@ -69,10 +69,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   bool done = false;
   auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  constexpr const char* kAPIMethodName = "WasmAsyncFuzzer.compile";
   i_isolate->wasm_engine()->AsyncCompile(
       i_isolate, enabled_features,
       std::make_shared<AsyncFuzzerResolver>(i_isolate, &done),
-      ModuleWireBytes(data, data + size), false);
+      ModuleWireBytes(data, data + size), false, kAPIMethodName);
 
   // Wait for the promise to resolve.
   while (!done) {

@@ -6,7 +6,7 @@
 
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

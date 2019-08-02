@@ -28,8 +28,8 @@
 #include "test/cctest/trace-extension.h"
 
 #include "include/v8-profiler.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/objects/smi.h"
-#include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -77,9 +77,9 @@ Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& args) {
   uint64_t kSmiValueMask =
       (static_cast<uintptr_t>(1) << (kSmiValueSize - 1)) - 1;
   uint64_t low_bits =
-      Smi(*reinterpret_cast<Address*>(*args[0]))->value() & kSmiValueMask;
+      Smi(*reinterpret_cast<Address*>(*args[0])).value() & kSmiValueMask;
   uint64_t high_bits =
-      Smi(*reinterpret_cast<Address*>(*args[1]))->value() & kSmiValueMask;
+      Smi(*reinterpret_cast<Address*>(*args[1])).value() & kSmiValueMask;
   Address fp =
       static_cast<Address>((high_bits << (kSmiValueSize - 1)) | low_bits);
 #else

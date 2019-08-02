@@ -28,6 +28,7 @@ Debug.setListener(listener);
     } catch (e) {
     }
   }
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);

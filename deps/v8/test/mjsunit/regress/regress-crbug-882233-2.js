@@ -12,6 +12,7 @@ function shift_array() {
   return array.shift();
 }
 
+%PrepareFunctionForOptimization(shift_array);
 assertThrows(shift_array);
 assertThrows(shift_array);
 %OptimizeFunctionOnNextCall(shift_array);
@@ -25,6 +26,7 @@ function shift_object() {
   return object.shift();
 }
 
+%PrepareFunctionForOptimization(shift_object);
 assertThrows(shift_object);
 assertThrows(shift_object);
 %OptimizeFunctionOnNextCall(shift_object);

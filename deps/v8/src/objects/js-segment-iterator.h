@@ -9,11 +9,11 @@
 #ifndef V8_OBJECTS_JS_SEGMENT_ITERATOR_H_
 #define V8_OBJECTS_JS_SEGMENT_ITERATOR_H_
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects.h"
 #include "src/objects/js-segmenter.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects.h"
 #include "unicode/uversion.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -90,16 +90,8 @@ class JSSegmentIterator : public JSObject {
   DECL_INT_ACCESSORS(flags)
 
 // Layout description.
-#define SEGMENTER_FIELDS(V)               \
-  /* Pointer fields. */                   \
-  V(kICUBreakIteratorOffset, kTaggedSize) \
-  V(kUnicodeStringOffset, kTaggedSize)    \
-  V(kFlagsOffset, kTaggedSize)            \
-  /* Total Size */                        \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, SEGMENTER_FIELDS)
-#undef SEGMENTER_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSSEGMENT_ITERATOR_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSSegmentIterator, JSObject);
 };

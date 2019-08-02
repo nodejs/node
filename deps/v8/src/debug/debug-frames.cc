@@ -4,8 +4,8 @@
 
 #include "src/debug/debug-frames.h"
 
-#include "src/accessors.h"
-#include "src/frames-inl.h"
+#include "src/builtins/accessors.h"
+#include "src/execution/frames-inl.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -47,7 +47,7 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
     wasm_interpreted_frame_ =
         WasmInterpreterEntryFrame::cast(frame_)
             ->debug_info()
-            ->GetInterpretedFrame(frame_->fp(), inlined_frame_index);
+            .GetInterpretedFrame(frame_->fp(), inlined_frame_index);
     DCHECK(wasm_interpreted_frame_);
   }
 }
@@ -97,9 +97,9 @@ bool FrameInspector::ParameterIsShadowedByContextLocal(
 RedirectActiveFunctions::RedirectActiveFunctions(SharedFunctionInfo shared,
                                                  Mode mode)
     : shared_(shared), mode_(mode) {
-  DCHECK(shared->HasBytecodeArray());
+  DCHECK(shared.HasBytecodeArray());
   if (mode == Mode::kUseDebugBytecode) {
-    DCHECK(shared->HasDebugInfo());
+    DCHECK(shared.HasDebugInfo());
   }
 }
 
@@ -109,12 +109,12 @@ void RedirectActiveFunctions::VisitThread(Isolate* isolate,
     JavaScriptFrame* frame = it.frame();
     JSFunction function = frame->function();
     if (!frame->is_interpreted()) continue;
-    if (function->shared() != shared_) continue;
+    if (function.shared() != shared_) continue;
     InterpretedFrame* interpreted_frame =
         reinterpret_cast<InterpretedFrame*>(frame);
     BytecodeArray bytecode = mode_ == Mode::kUseDebugBytecode
-                                 ? shared_->GetDebugInfo()->DebugBytecodeArray()
-                                 : shared_->GetBytecodeArray();
+                                 ? shared_.GetDebugInfo().DebugBytecodeArray()
+                                 : shared_.GetBytecodeArray();
     interpreted_frame->PatchBytecodeArray(bytecode);
   }
 }

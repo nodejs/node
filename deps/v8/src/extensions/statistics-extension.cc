@@ -4,9 +4,9 @@
 
 #include "src/extensions/statistics-extension.h"
 
-#include "src/counters.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
-#include "src/isolate.h"
+#include "src/logging/counters.h"
 
 namespace v8 {
 namespace internal {
@@ -129,16 +129,16 @@ void StatisticsExtension::GetCounters(
   int source_position_table_total = 0;
   for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
-    if (obj->IsCode()) {
+    if (obj.IsCode()) {
       Code code = Code::cast(obj);
-      reloc_info_total += code->relocation_info()->Size();
-      ByteArray source_position_table = code->SourcePositionTable();
-      if (source_position_table->length() > 0) {
-        source_position_table_total += code->SourcePositionTable()->Size();
+      reloc_info_total += code.relocation_info().Size();
+      ByteArray source_position_table = code.SourcePositionTable();
+      if (source_position_table.length() > 0) {
+        source_position_table_total += code.SourcePositionTable().Size();
       }
-    } else if (obj->IsBytecodeArray()) {
+    } else if (obj.IsBytecodeArray()) {
       source_position_table_total +=
-          BytecodeArray::cast(obj)->SourcePositionTable()->Size();
+          BytecodeArray::cast(obj).SourcePositionTable().Size();
     }
   }
 

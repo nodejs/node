@@ -10,8 +10,8 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/hashmap.h"
-#include "src/handles.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
+#include "src/handles/handles.h"
 
 namespace v8 {
 namespace internal {
@@ -87,7 +87,7 @@ class V8_EXPORT_PRIVATE AddressToTraceMap {
     unsigned trace_node_id;
   };
   // [start, end) -> trace
-  typedef std::map<Address, RangeStack> RangeMap;
+  using RangeMap = std::map<Address, RangeStack>;
 
   void RemoveRange(Address start, Address end);
 

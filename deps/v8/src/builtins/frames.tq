@@ -141,6 +141,7 @@ Cast<ArgumentsAdaptorFrame>(implicit context: Context)(f: Frame):
 // beginning of builtin code while the target value is still in the register
 // and the former should be used in slow paths in order to reduce register
 // pressure on the fast path.
+@export
 macro LoadTargetFromFrame(): JSFunction {
   return LoadFramePointer().function;
 }
