@@ -489,6 +489,17 @@ added: v11.4.0
 
 Is `true` if it is safe to call [`writable.write()`][stream-write].
 
+##### writable.writableEnded
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` after [`writable.end()`][] has been called. This property
+does not indicate whether the data has been flushed, for this use
+[`writable.writableFinished`][] instead.
+
 ##### writable.writableFinished
 <!-- YAML
 added: v12.6.0
@@ -2696,7 +2707,9 @@ contain multi-byte characters.
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
 [`writable.cork()`]: #stream_writable_cork
+[`writable.end()`]: #stream_writable_end_chunk_encoding_callback
 [`writable.uncork()`]: #stream_writable_uncork
+[`writable.writableFinished`]: #stream_writable_writablefinished
 [`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options
 [API for Stream Consumers]: #stream_api_for_stream_consumers
 [API for Stream Implementers]: #stream_api_for_stream_implementers
