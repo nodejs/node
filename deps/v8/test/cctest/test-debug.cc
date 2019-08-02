@@ -94,7 +94,8 @@ static i::Handle<i::BreakPoint> SetBreakPoint(v8::Local<v8::Function> fun,
   i::Handle<i::BreakPoint> break_point =
       isolate->factory()->NewBreakPoint(++break_point_index, condition_string);
 
-  debug->SetBreakPoint(function, break_point, &position);
+  debug->SetBreakpoint(handle(function->shared(), isolate), break_point,
+                       &position);
   return break_point;
 }
 

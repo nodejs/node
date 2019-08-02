@@ -235,6 +235,11 @@ class ActualScript : public V8DebuggerScript {
                                    id);
   }
 
+  bool setBreakpointOnRun(int* id) const override {
+    v8::HandleScope scope(m_isolate);
+    return script()->SetBreakpointOnScriptEntry(id);
+  }
+
   const String16& hash() const override {
     if (!m_hash.isEmpty()) return m_hash;
     v8::HandleScope scope(m_isolate);
@@ -423,6 +428,8 @@ class WasmVirtualScript : public V8DebuggerScript {
                                           v8ScriptId, scriptId());
     return true;
   }
+
+  bool setBreakpointOnRun(int*) const override { return false; }
 
   const String16& hash() const override {
     if (m_hash.isEmpty()) {

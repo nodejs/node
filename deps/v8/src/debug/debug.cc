@@ -589,13 +589,12 @@ bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point,
   return result->BooleanValue(isolate_);
 }
 
-bool Debug::SetBreakPoint(Handle<JSFunction> function,
+bool Debug::SetBreakpoint(Handle<SharedFunctionInfo> shared,
                           Handle<BreakPoint> break_point,
                           int* source_position) {
   HandleScope scope(isolate_);
 
   // Make sure the function is compiled and has set up the debug info.
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
   if (!EnsureBreakInfo(shared)) return false;
   PrepareFunctionForDebugExecution(shared);
 
@@ -750,13 +749,13 @@ int Debug::GetFunctionDebuggingId(Handle<JSFunction> function) {
   return id;
 }
 
-bool Debug::SetBreakpointForFunction(Handle<JSFunction> function,
+bool Debug::SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
                                      Handle<String> condition, int* id) {
   *id = ++thread_local_.last_breakpoint_id_;
   Handle<BreakPoint> breakpoint =
       isolate_->factory()->NewBreakPoint(*id, condition);
   int source_position = 0;
-  return SetBreakPoint(function, breakpoint, &source_position);
+  return SetBreakpoint(shared, breakpoint, &source_position);
 }
 
 void Debug::RemoveBreakpoint(int id) {

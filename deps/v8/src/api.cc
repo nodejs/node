@@ -9430,6 +9430,19 @@ bool debug::Script::SetBreakpoint(v8::Local<v8::String> condition,
   return true;
 }
 
+bool debug::Script::SetBreakpointOnScriptEntry(BreakpointId* id) const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
+  i::SharedFunctionInfo::ScriptIterator it(isolate, *script);
+  for (i::SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
+    if (sfi->is_toplevel()) {
+      return isolate->debug()->SetBreakpointForFunction(
+          handle(sfi, isolate), isolate->factory()->empty_string(), id);
+    }
+  }
+  return false;
+}
+
 void debug::RemoveBreakpoint(Isolate* v8_isolate, BreakpointId id) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::HandleScope handle_scope(isolate);
@@ -9823,8 +9836,8 @@ bool debug::SetFunctionBreakpoint(v8::Local<v8::Function> function,
   i::Handle<i::String> condition_string =
       condition.IsEmpty() ? isolate->factory()->empty_string()
                           : Utils::OpenHandle(*condition);
-  return isolate->debug()->SetBreakpointForFunction(jsfunction,
-                                                    condition_string, id);
+  return isolate->debug()->SetBreakpointForFunction(
+      handle(jsfunction->shared(), isolate), condition_string, id);
 }
 
 debug::PostponeInterruptsScope::PostponeInterruptsScope(v8::Isolate* isolate)

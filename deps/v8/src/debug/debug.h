@@ -227,7 +227,7 @@ class V8_EXPORT_PRIVATE Debug {
   Handle<FixedArray> GetLoadedScripts();
 
   // Break point handling.
-  bool SetBreakPoint(Handle<JSFunction> function,
+  bool SetBreakpoint(Handle<SharedFunctionInfo> shared,
                      Handle<BreakPoint> break_point, int* source_position);
   void ClearBreakPoint(Handle<BreakPoint> break_point);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
@@ -235,7 +235,7 @@ class V8_EXPORT_PRIVATE Debug {
 
   bool SetBreakPointForScript(Handle<Script> script, Handle<String> condition,
                               int* source_position, int* id);
-  bool SetBreakpointForFunction(Handle<JSFunction> function,
+  bool SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
                                 Handle<String> condition, int* id);
   void RemoveBreakpoint(int id);
 
