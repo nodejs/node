@@ -854,7 +854,7 @@ Maybe<URL> PackageExportsResolve(Environment* env,
   Local<String> subpath = String::NewFromUtf8(isolate,
       pkg_subpath.c_str(), v8::NewStringType::kNormal).ToLocalChecked();
 
-  if (exports_obj->Has(context, subpath).FromJust()) {
+  if (exports_obj->HasOwnProperty(context, subpath).FromJust()) {
     Local<Value> target = exports_obj->Get(context, subpath).ToLocalChecked();
     if (target->IsString()) {
       Utf8Value target_utf8(isolate, target.As<v8::String>());
