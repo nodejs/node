@@ -6,24 +6,24 @@ const net = require('net');
 
 const tests = [];
 
-function test(fn) {
+const test = (fn) => {
   if (!tests.length) {
     process.nextTick(run);
   }
   tests.push(fn);
 }
 
-function run() {
+const run = () => {
   const fn = tests.shift();
   if (fn) fn(run);
 }
 
-function done(server, socket, cb) {
+const done = (server, socket, cb) => {
   socket.destroy();
   server.close(cb);
 }
 
-function serverTest(withPipeline, cb) {
+const serverTest = (withPipeline, cb) => {
   let gotAll = false;
   let timedout = false;
   const server = http.createServer(common.mustCall((req, res) => {
