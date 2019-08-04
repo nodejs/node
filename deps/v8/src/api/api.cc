@@ -883,17 +883,13 @@ void V8::SetDcheckErrorHandler(DcheckErrorCallback that) {
 }
 
 void V8::SetFlagsFromString(const char* str) {
-  SetFlagsFromString(str, strlen(str));
-}
-
-void V8::SetFlagsFromString(const char* str, size_t length) {
-  i::FlagList::SetFlagsFromString(str, length);
-  i::FlagList::EnforceFlagImplications();
+  SetFlagsFromString(str, static_cast<int>(strlen(str)));
 }
 
 void V8::SetFlagsFromString(const char* str, int length) {
   CHECK_LE(0, length);
-  SetFlagsFromString(str, static_cast<size_t>(length));
+  i::FlagList::SetFlagsFromString(str, static_cast<size_t>(length));
+  i::FlagList::EnforceFlagImplications();
 }
 
 void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
@@ -1046,6 +1042,11 @@ void V8::MoveGlobalReference(internal::Address** from, internal::Address** to) {
 void V8::MoveTracedGlobalReference(internal::Address** from,
                                    internal::Address** to) {
   i::GlobalHandles::MoveTracedGlobal(from, to);
+}
+
+void V8::RegisterExternallyReferencedObject(i::Address* location,
+                                            i::Isolate* isolate) {
+  isolate->heap()->RegisterExternallyReferencedObject(location);
 }
 
 void V8::MakeWeak(i::Address* location, void* parameter,
@@ -1617,6 +1618,10 @@ void FunctionTemplate::SetAcceptAnyReceiver(bool value) {
   auto isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   info->set_accept_any_receiver(value);
+}
+
+void FunctionTemplate::SetHiddenPrototype(bool value) {
+  /* No-op for ABI compatibility. */
 }
 
 void FunctionTemplate::ReadOnlyPrototype() {
@@ -3488,6 +3493,12 @@ MaybeLocal<String> Value::ToString(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
+
+Local<String> Value::ToString(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToString(isolate->GetCurrentContext()), String);
+}
+
+
 MaybeLocal<String> Value::ToDetailString(Local<Context> context) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsString()) return ToApiHandle<String>(obj);
@@ -3509,6 +3520,11 @@ MaybeLocal<Object> Value::ToObject(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
+
+Local<v8::Object> Value::ToObject(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToObject(isolate->GetCurrentContext()), Object);
+}
+
 MaybeLocal<BigInt> Value::ToBigInt(Local<Context> context) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsBigInt()) return ToApiHandle<BigInt>(obj);
@@ -3524,6 +3540,11 @@ bool Value::BooleanValue(Isolate* v8_isolate) const {
   return Utils::OpenHandle(this)->BooleanValue(
       reinterpret_cast<i::Isolate*>(v8_isolate));
 }
+
+MaybeLocal<Boolean> Value::ToBoolean(Local<Context> context) const {
+  return ToBoolean(context->GetIsolate());
+}
+
 
 Local<Boolean> Value::ToBoolean(Isolate* v8_isolate) const {
   auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -3542,6 +3563,12 @@ MaybeLocal<Number> Value::ToNumber(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
+
+Local<Number> Value::ToNumber(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToNumber(isolate->GetCurrentContext()), Number);
+}
+
+
 MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return ToApiHandle<Integer>(obj);
@@ -3553,6 +3580,12 @@ MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
+
+Local<Integer> Value::ToInteger(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToInteger(isolate->GetCurrentContext()), Integer);
+}
+
+
 MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return ToApiHandle<Int32>(obj);
@@ -3563,6 +3596,12 @@ MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
   RETURN_ON_FAILED_EXECUTION(Int32);
   RETURN_ESCAPED(result);
 }
+
+
+Local<Int32> Value::ToInt32(Isolate* isolate) const {
+  RETURN_TO_LOCAL_UNCHECKED(ToInt32(isolate->GetCurrentContext()), Int32);
+}
+
 
 MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
@@ -3789,6 +3828,13 @@ void v8::RegExp::CheckCast(v8::Value* that) {
   Utils::ApiCheck(obj->IsJSRegExp(), "v8::RegExp::Cast()",
                   "Could not convert to regular expression");
 }
+
+
+Maybe<bool> Value::BooleanValue(Local<Context> context) const {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  return Just(Utils::OpenHandle(this)->BooleanValue(isolate));
+}
+
 
 Maybe<double> Value::NumberValue(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
@@ -6115,9 +6161,9 @@ inline int StringLength(const uint16_t* string) {
 
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           NewStringType type,
+                                           v8::NewStringType type,
                                            i::Vector<const char> string) {
-  if (type == NewStringType::kInternalized) {
+  if (type == v8::NewStringType::kInternalized) {
     return factory->InternalizeUtf8String(string);
   }
   return factory->NewStringFromUtf8(string);
@@ -6125,9 +6171,9 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           NewStringType type,
+                                           v8::NewStringType type,
                                            i::Vector<const uint8_t> string) {
-  if (type == NewStringType::kInternalized) {
+  if (type == v8::NewStringType::kInternalized) {
     return factory->InternalizeString(string);
   }
   return factory->NewStringFromOneByte(string);
@@ -6135,13 +6181,14 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           NewStringType type,
+                                           v8::NewStringType type,
                                            i::Vector<const uint16_t> string) {
-  if (type == NewStringType::kInternalized) {
+  if (type == v8::NewStringType::kInternalized) {
     return factory->InternalizeString(string);
   }
   return factory->NewStringFromTwoByte(string);
 }
+
 
 STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
 
@@ -6167,21 +6214,43 @@ STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
     result = Utils::ToLocal(handle_result);                                \
   }
 
+Local<String> String::NewFromUtf8(Isolate* isolate,
+                                  const char* data,
+                                  NewStringType type,
+                                  int length) {
+  NEW_STRING(isolate, String, NewFromUtf8, char, data,
+             static_cast<v8::NewStringType>(type), length);
+  RETURN_TO_LOCAL_UNCHECKED(result, String);
+}
+
+
 MaybeLocal<String> String::NewFromUtf8(Isolate* isolate, const char* data,
-                                       NewStringType type, int length) {
+                                       v8::NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromUtf8, char, data, type, length);
   return result;
 }
 
+
 MaybeLocal<String> String::NewFromOneByte(Isolate* isolate, const uint8_t* data,
-                                          NewStringType type, int length) {
+                                          v8::NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromOneByte, uint8_t, data, type, length);
   return result;
 }
 
+
+Local<String> String::NewFromTwoByte(Isolate* isolate,
+                                     const uint16_t* data,
+                                     NewStringType type,
+                                     int length) {
+  NEW_STRING(isolate, String, NewFromTwoByte, uint16_t, data,
+             static_cast<v8::NewStringType>(type), length);
+  RETURN_TO_LOCAL_UNCHECKED(result, String);
+}
+
+
 MaybeLocal<String> String::NewFromTwoByte(Isolate* isolate,
                                           const uint16_t* data,
-                                          NewStringType type, int length) {
+                                          v8::NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromTwoByte, uint16_t, data, type, length);
   return result;
 }
@@ -6247,6 +6316,13 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
     return Utils::ToLocal(i_isolate->factory()->empty_string());
   }
 }
+
+
+Local<String> v8::String::NewExternal(
+    Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
+  RETURN_TO_LOCAL_UNCHECKED(NewExternalOneByte(isolate, resource), String);
+}
+
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   i::DisallowHeapAllocation no_allocation;
@@ -6521,13 +6597,22 @@ double v8::Date::ValueOf() const {
 
 // Assert that the static TimeZoneDetection cast in
 // DateTimeConfigurationChangeNotification is valid.
-#define TIME_ZONE_DETECTION_ASSERT_EQ(value)                     \
-  STATIC_ASSERT(                                                 \
-      static_cast<int>(v8::Isolate::TimeZoneDetection::value) == \
-      static_cast<int>(base::TimezoneCache::TimeZoneDetection::value));
+#define TIME_ZONE_DETECTION_ASSERT_EQ(value)                               \
+  STATIC_ASSERT(                                                           \
+      static_cast<int>(v8::Isolate::TimeZoneDetection::value) ==           \
+      static_cast<int>(base::TimezoneCache::TimeZoneDetection::value));    \
+  STATIC_ASSERT(static_cast<int>(v8::Isolate::TimeZoneDetection::value) == \
+                static_cast<int>(v8::Date::TimeZoneDetection::value));
 TIME_ZONE_DETECTION_ASSERT_EQ(kSkip)
 TIME_ZONE_DETECTION_ASSERT_EQ(kRedetect)
 #undef TIME_ZONE_DETECTION_ASSERT_EQ
+
+// static
+void v8::Date::DateTimeConfigurationChangeNotification(
+    Isolate* isolate, TimeZoneDetection time_zone_detection) {
+  isolate->DateTimeConfigurationChangeNotification(
+      static_cast<v8::Isolate::TimeZoneDetection>(time_zone_detection));
+}
 
 MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
                                        Local<String> pattern, Flags flags) {
@@ -9797,6 +9882,10 @@ int CpuProfile::GetSamplesCount() const {
   return reinterpret_cast<const i::CpuProfile*>(this)->samples_count();
 }
 
+CpuProfiler* CpuProfiler::New(Isolate* isolate) {
+  return New(isolate, kDebugNaming);
+}
+
 CpuProfiler* CpuProfiler::New(Isolate* isolate, CpuProfilingNamingMode mode) {
   return reinterpret_cast<CpuProfiler*>(
       new i::CpuProfiler(reinterpret_cast<i::Isolate*>(isolate), mode));
@@ -9836,6 +9925,12 @@ void CpuProfiler::StartProfiling(Local<String> title, bool record_samples) {
       record_samples ? CpuProfilingOptions::kNoSampleLimit : 0);
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), options);
+}
+
+void CpuProfiler::StartProfiling(Local<String> title, CpuProfilingMode mode,
+                                 bool record_samples) {
+  StartProfiling(title, mode, record_samples,
+                 CpuProfilingOptions::kNoSampleLimit);
 }
 
 void CpuProfiler::StartProfiling(Local<String> title, CpuProfilingMode mode,
