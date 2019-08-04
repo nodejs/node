@@ -787,15 +787,19 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 
 **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_)
 > 1. If _target_ is a String, then
->    1. If _target_ does not start with _"./"_, or _subpath_ has non-zero
->       length and _target_ does not end with _"/"_, then
->       1. Throw a _Module Not Found_ error.
+>    1. If _target_ does not start with _"./"_, throw a _Module Not Found_
+>       error.
+>    1. If _subpath_ has non-zero length or _target_ does not end with _"/"_,
+>       throw a _Module Not Found_ error.
+>    1. If _target_ or _subpath_ contain any _"node_modules"_ segments including
+>       _"node_modules"_ percent-encoding, throw a _Module Not Found_ error.
 >    1. Let _resolvedTarget_ be the URL resolution of the concatenation of
 >       _packageURL_ and _target_.
 >    1. If _resolvedTarget_ is contained in _packageURL_, then
 >       1. Let _resolved_ be the URL resolution of the concatenation of
 >          _subpath_ and _resolvedTarget_.
->       1. If _resolved_ is contained in _packageURL_, then
+>       1. If _resolved_ is contained in _packageURL_ and contains no
+>          _"node_modules"_ segments, then
 >          1. Return _resolved_.
 > 1. Otherwise, if _target_ is an Array, then
 >    1. For each item _targetValue_ in _target_, do
@@ -827,6 +831,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 **READ_PACKAGE_SCOPE**(_url_)
 > 1. Let _scopeURL_ be _url_.
 > 1. While _scopeURL_ is not the file system root,
+>    1. If _scopeURL_ ends in a _"node_modules"_ path segment, return **null**.
 >    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_scopeURL_).
 >    1. If _pjson_ is not **null**, then
 >       1. Return _pjson_.

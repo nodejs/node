@@ -55,6 +55,8 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
     // Missing / invalid fallbacks
     ['pkgexports/nofallback1', './nofallback1'],
     ['pkgexports/nofallback2', './nofallback2'],
+    // Reaching into nested node_modules
+    ['pkgexports/nodemodules', './nodemodules'],
   ]);
 
   for (const [specifier, subpath] of undefinedExports) {

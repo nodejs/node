@@ -633,6 +633,12 @@ Maybe<const PackageConfig*> GetPackageScopeConfig(Environment* env,
                                                   const URL& base) {
   URL pjson_url("./package.json", &resolved);
   while (true) {
+    std::string pjson_url_path = pjson_url.path();
+    if (pjson_url_path.length() > 25 &&
+        pjson_url_path.substr(pjson_url_path.length() - 25, 25) ==
+        "node_modules/package.json") {
+      break;
+    }
     Maybe<const PackageConfig*> pkg_cfg =
         GetPackageConfig(env, pjson_url.ToFilePath(), base);
     if (pkg_cfg.IsNothing()) return pkg_cfg;
@@ -643,14 +649,13 @@ Maybe<const PackageConfig*> GetPackageScopeConfig(Environment* env,
 
     // Terminates at root where ../package.json equals ../../package.json
     // (can't just check "/package.json" for Windows support).
-    if (pjson_url.path() == last_pjson_url.path()) {
-      auto entry = env->package_json_cache.emplace(pjson_url.ToFilePath(),
-          PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "",
-                          PackageType::None, Global<Value>() });
-      const PackageConfig* pcfg = &entry.first->second;
-      return Just(pcfg);
-    }
+    if (pjson_url.path() == last_pjson_url.path()) break;
   }
+  auto entry = env->package_json_cache.emplace(pjson_url.ToFilePath(),
+  PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "",
+                  PackageType::None, Global<Value>() });
+  const PackageConfig* pcfg = &entry.first->second;
+  return Just(pcfg);
 }
 
 /*
@@ -824,11 +829,15 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
     URL resolved(target, pjson_url);
     std::string resolved_path = resolved.path();
     std::string pkg_path = URL(".", pjson_url).path();
-    if (resolved_path.find(pkg_path) == 0) {
+    if (resolved_path.find(pkg_path) == 0 &&
+        resolved_path.find("/node_modules/", pkg_path.length() - 1) ==
+        std::string::npos) {
       if (subpath.length() == 0) return Just(resolved);
       URL subpath_resolved(subpath, resolved);
       std::string subpath_resolved_path = subpath_resolved.path();
-      if (subpath_resolved_path.find(pkg_path) == 0) {
+      if (subpath_resolved_path.find(pkg_path) == 0 &&
+          subpath_resolved_path.find("/node_modules/", pkg_path.length() - 1)
+          == std::string::npos) {
         return Just(subpath_resolved);
       }
     }
