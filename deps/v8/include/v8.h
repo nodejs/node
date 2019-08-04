@@ -123,6 +123,7 @@ class ExternalString;
 class Isolate;
 class LocalEmbedderHeapTracer;
 class MicrotaskQueue;
+class NeverReadOnlySpaceObject;
 struct ScriptStreamingData;
 template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
@@ -545,6 +546,38 @@ template <class T> class PersistentBase {
    * label is valid as long as the handle is valid.
    */
   V8_INLINE void AnnotateStrongRetainer(const char* label);
+
+  /**
+   * Allows the embedder to tell the v8 garbage collector that a certain object
+   * is alive. Only allowed when the embedder is asked to trace its heap by
+   * EmbedderHeapTracer.
+   */
+  V8_DEPRECATED(
+      "Used TracedGlobal and EmbedderHeapTracer::RegisterEmbedderReference",
+      V8_INLINE void RegisterExternalReference(Isolate* isolate) const);
+
+  /**
+   * Marks the reference to this object independent. Garbage collector is free
+   * to ignore any object groups containing this object. Weak callback for an
+   * independent handle should not assume that it will be preceded by a global
+   * GC prologue callback or followed by a global GC epilogue callback.
+   */
+  V8_DEPRECATED(
+      "Weak objects are always considered independent. "
+      "Use TracedGlobal when trying to use EmbedderHeapTracer. "
+      "Use a strong handle when trying to keep an object alive.",
+      V8_INLINE void MarkIndependent());
+
+  /**
+   * Marks the reference to this object as active. The scavenge garbage
+   * collection should not reclaim the objects marked as active, even if the
+   * object held by the handle is otherwise unreachable.
+   *
+   * This bit is cleared after the each garbage collection pass.
+   */
+  V8_DEPRECATED("Use TracedGlobal.", V8_INLINE void MarkActive());
+
+  V8_DEPRECATED("See MarkIndependent.", V8_INLINE bool IsIndependent() const);
 
   /** Returns true if the handle's reference is weak.  */
   V8_INLINE bool IsWeak() const;
@@ -2613,6 +2646,9 @@ class V8_EXPORT Value : public Data {
 
   V8_WARN_UNUSED_RESULT MaybeLocal<BigInt> ToBigInt(
       Local<Context> context) const;
+  V8_DEPRECATED("ToBoolean can never throw. Use Local version.",
+                V8_WARN_UNUSED_RESULT MaybeLocal<Boolean> ToBoolean(
+                    Local<Context> context) const);
   V8_WARN_UNUSED_RESULT MaybeLocal<Number> ToNumber(
       Local<Context> context) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<String> ToString(
@@ -2628,6 +2664,16 @@ class V8_EXPORT Value : public Data {
   V8_WARN_UNUSED_RESULT MaybeLocal<Int32> ToInt32(Local<Context> context) const;
 
   Local<Boolean> ToBoolean(Isolate* isolate) const;
+  V8_DEPRECATED("Use maybe version",
+                Local<Number> ToNumber(Isolate* isolate) const);
+  V8_DEPRECATED("Use maybe version",
+                Local<String> ToString(Isolate* isolate) const);
+  V8_DEPRECATED("Use maybe version",
+                Local<Object> ToObject(Isolate* isolate) const);
+  V8_DEPRECATED("Use maybe version",
+                Local<Integer> ToInteger(Isolate* isolate) const);
+  V8_DEPRECATED("Use maybe version",
+                Local<Int32> ToInt32(Isolate* isolate) const);
 
   /**
    * Attempts to convert a string to an array index.
@@ -2638,6 +2684,9 @@ class V8_EXPORT Value : public Data {
 
   bool BooleanValue(Isolate* isolate) const;
 
+  V8_DEPRECATED("BooleanValue can never throw. Use Isolate version.",
+                V8_WARN_UNUSED_RESULT Maybe<bool> BooleanValue(
+                    Local<Context> context) const);
   V8_WARN_UNUSED_RESULT Maybe<double> NumberValue(Local<Context> context) const;
   V8_WARN_UNUSED_RESULT Maybe<int64_t> IntegerValue(
       Local<Context> context) const;
@@ -2957,23 +3006,43 @@ class V8_EXPORT String : public Name {
 
   V8_INLINE static String* Cast(v8::Value* obj);
 
+  // TODO(dcarney): remove with deprecation of New functions.
+  enum NewStringType {
+    kNormalString = static_cast<int>(v8::NewStringType::kNormal),
+    kInternalizedString = static_cast<int>(v8::NewStringType::kInternalized)
+  };
+
+  /** Allocates a new string from UTF-8 data.*/
+  static V8_DEPRECATED(
+      "Use maybe version",
+      Local<String> NewFromUtf8(Isolate* isolate, const char* data,
+                                NewStringType type = kNormalString,
+                                int length = -1));
+
   /** Allocates a new string from UTF-8 data. Only returns an empty value when
    * length > kMaxLength. **/
   static V8_WARN_UNUSED_RESULT MaybeLocal<String> NewFromUtf8(
-      Isolate* isolate, const char* data,
-      NewStringType type = NewStringType::kNormal, int length = -1);
+      Isolate* isolate, const char* data, v8::NewStringType type,
+      int length = -1);
 
   /** Allocates a new string from Latin-1 data.  Only returns an empty value
    * when length > kMaxLength. **/
   static V8_WARN_UNUSED_RESULT MaybeLocal<String> NewFromOneByte(
-      Isolate* isolate, const uint8_t* data,
-      NewStringType type = NewStringType::kNormal, int length = -1);
+      Isolate* isolate, const uint8_t* data, v8::NewStringType type,
+      int length = -1);
+
+  /** Allocates a new string from UTF-16 data.*/
+  static V8_DEPRECATED(
+      "Use maybe version",
+      Local<String> NewFromTwoByte(Isolate* isolate, const uint16_t* data,
+                                   NewStringType type = kNormalString,
+                                   int length = -1));
 
   /** Allocates a new string from UTF-16 data. Only returns an empty value when
    * length > kMaxLength. **/
   static V8_WARN_UNUSED_RESULT MaybeLocal<String> NewFromTwoByte(
-      Isolate* isolate, const uint16_t* data,
-      NewStringType type = NewStringType::kNormal, int length = -1);
+      Isolate* isolate, const uint16_t* data, v8::NewStringType type,
+      int length = -1);
 
   /**
    * Creates a new string by concatenating the left and the right strings
@@ -3012,6 +3081,10 @@ class V8_EXPORT String : public Name {
    * should the underlying buffer be deallocated or modified except through the
    * destructor of the external string resource.
    */
+  static V8_DEPRECATED(
+      "Use maybe version",
+      Local<String> NewExternal(Isolate* isolate,
+                                ExternalOneByteStringResource* resource));
   static V8_WARN_UNUSED_RESULT MaybeLocal<String> NewExternalOneByte(
       Isolate* isolate, ExternalOneByteStringResource* resource);
 
@@ -3953,6 +4026,9 @@ class ReturnValue {
     TYPE_CHECK(T, S);
   }
   // Local setters
+  template <typename S>
+  V8_INLINE V8_DEPRECATED("Use Global<> instead",
+                          void Set(const Persistent<S>& handle));
   template <typename S>
   V8_INLINE void Set(const Global<S>& handle);
   template <typename S>
@@ -5344,6 +5420,38 @@ class V8_EXPORT Date : public Object {
 
   V8_INLINE static Date* Cast(Value* obj);
 
+  /**
+   * Time zone redetection indicator for
+   * DateTimeConfigurationChangeNotification.
+   *
+   * kSkip indicates V8 that the notification should not trigger redetecting
+   * host time zone. kRedetect indicates V8 that host time zone should be
+   * redetected, and used to set the default time zone.
+   *
+   * The host time zone detection may require file system access or similar
+   * operations unlikely to be available inside a sandbox. If v8 is run inside a
+   * sandbox, the host time zone has to be detected outside the sandbox before
+   * calling DateTimeConfigurationChangeNotification function.
+   */
+  enum class TimeZoneDetection { kSkip, kRedetect };
+
+  /**
+   * Notification that the embedder has changed the time zone,
+   * daylight savings time, or other date / time configuration
+   * parameters.  V8 keeps a cache of various values used for
+   * date / time computation.  This notification will reset
+   * those cached values for the current context so that date /
+   * time configuration changes would be reflected in the Date
+   * object.
+   *
+   * This API should not be called more than needed as it will
+   * negatively impact the performance of date operations.
+   */
+  V8_DEPRECATED("Use Isolate::DateTimeConfigurationChangeNotification",
+                static void DateTimeConfigurationChangeNotification(
+                    Isolate* isolate, TimeZoneDetection time_zone_detection =
+                                          TimeZoneDetection::kSkip));
+
  private:
   static void CheckCast(Value* obj);
 };
@@ -6056,6 +6164,21 @@ class V8_EXPORT FunctionTemplate : public Template {
    * function call.  Currently defaults to true, but this is subject to change.
    */
   void SetAcceptAnyReceiver(bool value);
+
+  /**
+   * Determines whether the __proto__ accessor ignores instances of
+   * the function template.  If instances of the function template are
+   * ignored, __proto__ skips all instances and instead returns the
+   * next object in the prototype chain.
+   *
+   * Call with a value of true to make the __proto__ accessor ignore
+   * instances of the function template.  Call with a value of false
+   * to make the __proto__ accessor not ignore instances of the
+   * function template.  By default, instances of a function template
+   * are not ignored.
+   */
+  V8_DEPRECATED("This feature is incompatible with ES6+.",
+                void SetHiddenPrototype(bool value));
 
   /**
    * Sets the ReadOnly flag in the attributes of the 'prototype' property
@@ -8905,9 +9028,7 @@ class V8_EXPORT V8 {
    * Sets V8 flags from a string.
    */
   static void SetFlagsFromString(const char* str);
-  static void SetFlagsFromString(const char* str, size_t length);
-  V8_DEPRECATED("use size_t version",
-                static void SetFlagsFromString(const char* str, int length));
+  static void SetFlagsFromString(const char* str, int length);
 
   /**
    * Sets V8 flags from the command line.
@@ -9080,6 +9201,9 @@ class V8_EXPORT V8 {
   static void AnnotateStrongRetainer(internal::Address* location,
                                      const char* label);
   static Value* Eternalize(Isolate* isolate, Value* handle);
+
+  static void RegisterExternallyReferencedObject(internal::Address* location,
+                                                 internal::Isolate* isolate);
 
   template <class K, class V, class T>
   friend class PersistentValueMapBase;
@@ -10037,6 +10161,14 @@ void Persistent<T, M>::Copy(const Persistent<S, M2>& that) {
 }
 
 template <class T>
+bool PersistentBase<T>::IsIndependent() const {
+  typedef internal::Internals I;
+  if (this->IsEmpty()) return false;
+  return I::GetNodeFlag(reinterpret_cast<internal::Address*>(this->val_),
+                        I::kNodeIsIndependentShift);
+}
+
+template <class T>
 bool PersistentBase<T>::IsWeak() const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
@@ -10101,6 +10233,31 @@ void PersistentBase<T>::AnnotateStrongRetainer(const char* label) {
   V8::AnnotateStrongRetainer(reinterpret_cast<internal::Address*>(this->val_),
                              label);
 }
+
+template <class T>
+void PersistentBase<T>::RegisterExternalReference(Isolate* isolate) const {
+  if (IsEmpty()) return;
+  V8::RegisterExternallyReferencedObject(
+      reinterpret_cast<internal::Address*>(this->val_),
+      reinterpret_cast<internal::Isolate*>(isolate));
+}
+
+template <class T>
+void PersistentBase<T>::MarkIndependent() {
+  typedef internal::Internals I;
+  if (this->IsEmpty()) return;
+  I::UpdateNodeFlag(reinterpret_cast<internal::Address*>(this->val_), true,
+                    I::kNodeIsIndependentShift);
+}
+
+template <class T>
+void PersistentBase<T>::MarkActive() {
+  typedef internal::Internals I;
+  if (this->IsEmpty()) return;
+  I::UpdateNodeFlag(reinterpret_cast<internal::Address*>(this->val_), true,
+                    I::kNodeIsActiveShift);
+}
+
 
 template <class T>
 void PersistentBase<T>::SetWrapperClassId(uint16_t class_id) {
@@ -10251,6 +10408,17 @@ void TracedGlobal<T>::SetFinalizationCallback(
 
 template <typename T>
 ReturnValue<T>::ReturnValue(internal::Address* slot) : value_(slot) {}
+
+template<typename T>
+template<typename S>
+void ReturnValue<T>::Set(const Persistent<S>& handle) {
+  TYPE_CHECK(T, S);
+  if (V8_UNLIKELY(handle.IsEmpty())) {
+    *value_ = GetDefaultValue();
+  } else {
+    *value_ = *reinterpret_cast<internal::Address*>(*handle);
+  }
+}
 
 template <typename T>
 template <typename S>
