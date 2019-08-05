@@ -510,29 +510,6 @@ size_t rand_pool_acquire_entropy(RAND_POOL *pool)
     bytes_needed = rand_pool_bytes_needed(pool, 1 /*entropy_factor*/);
     {
         size_t i;
-#ifdef DEVRANDOM_WAIT
-        static int wait_done = 0;
-
-        /*
-         * On some implementations reading from /dev/urandom is possible
-         * before it is initialized. Therefore we wait for /dev/random
-         * to be readable to make sure /dev/urandom is initialized.
-         */
-        if (!wait_done && bytes_needed > 0) {
-             int f = open(DEVRANDOM_WAIT, O_RDONLY);
-
-             if (f >= 0) {
-                 fd_set fds;
-
-                 FD_ZERO(&fds);
-                 FD_SET(f, &fds);
-                 while (select(f+1, &fds, NULL, NULL, NULL) < 0
-                        && errno == EINTR);
-                 close(f);
-             }
-             wait_done = 1;
-        }
-#endif
 
         for (i = 0; bytes_needed > 0 && i < OSSL_NELEM(random_device_paths); i++) {
             ssize_t bytes = 0;
