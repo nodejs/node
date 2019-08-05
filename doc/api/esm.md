@@ -782,7 +782,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >          1. Let _subpath_ be the substring of _target_ starting at the index
 >             of the length of _directory_.
 >          1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_,
->             _subpath_.
+>             _subpath_).
 > 1. Throw a _Module Not Found_ error.
 
 **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_)
