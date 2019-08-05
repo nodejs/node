@@ -697,7 +697,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >    1. Note: _specifier_ is now a bare specifier.
 >    1. Set _resolvedURL_ the result of
 >       **PACKAGE_RESOLVE**(_specifier_, _parentURL_).
-> 1. If _resolvedURL_ contains any percent encodings of _"/"_ or _"\"_ (_"%2f"_
+> 1. If _resolvedURL_ contains any percent encodings of _"/"_ or _"\\"_ (_"%2f"_
 >    and _"%5C"_ respectively), then
 >    1. Throw an _Invalid Specifier_ error.
 > 1. If the file at _resolvedURL_ does not exist, then
