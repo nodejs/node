@@ -375,7 +375,7 @@ added: v8.0.0
 * Returns: {this}
 
 Destroy the stream. Optionally emit an `'error'` event, and emit a `'close'`
-event unless `emitClose` is set in `false`. After this call, the writable
+event (unless `emitClose` is set to `false`). After this call, the writable
 stream has ended and subsequent calls to `write()` or `end()` will result in
 an `ERR_STREAM_DESTROYED` error.
 This is a destructive and immediate way to destroy a stream. Previous calls to
@@ -935,7 +935,7 @@ added: v8.0.0
 * Returns: {this}
 
 Destroy the stream. Optionally emit an `'error'` event, and emit a `'close'`
-event unless `emitClose` is set in `false`. After this call, the readable
+event (unless `emitClose` is set to `false`). After this call, the readable
 stream will release any internal resources and subsequent calls to `push()`
 will be ignored.
 Implementors should not override this method, but instead implement
