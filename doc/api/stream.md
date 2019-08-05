@@ -1646,7 +1646,7 @@ Calling `Readable.from(string)` or `Readable.from(buffer)` will not have
 the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
 
-### stream.Transform.by(asyncGeneratorFunction, [options])
+### stream.Transform.by(asyncGeneratorFunction[, options])
 <!-- YAML
 added: REPLACEME
 -->
