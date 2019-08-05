@@ -20,10 +20,6 @@
 #include <fstream>
 #include <iomanip>
 
-#ifndef _WIN32
-extern char** environ;
-#endif
-
 constexpr int NODE_REPORT_VERSION = 1;
 constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
 constexpr double SEC_PER_MICROS = 1e-6;
@@ -552,6 +548,26 @@ static void PrintResourceUsage(JSONWriter* writer) {
 
 // Report operating system information.
 static void PrintSystemInformation(JSONWriter* writer) {
+  uv_env_item_t* envitems;
+  int envcount;
+  int r;
+
+  writer->json_objectstart("environmentVariables");
+
+  {
+    Mutex::ScopedLock lock(node::per_process::env_var_mutex);
+    r = uv_os_environ(&envitems, &envcount);
+  }
+
+  if (r == 0) {
+    for (int i = 0; i < envcount; i++)
+      writer->json_keyvalue(envitems[i].name, envitems[i].value);
+
+    uv_os_free_environ(envitems, envcount);
+  }
+
+  writer->json_objectend();
+
 #ifndef _WIN32
   static struct {
     const char* description;
@@ -576,45 +592,6 @@ static void PrintSystemInformation(JSONWriter* writer) {
     {"virtual_memory_kbytes", RLIMIT_AS}
 #endif
   };
-#endif  // _WIN32
-  writer->json_objectstart("environmentVariables");
-  Mutex::ScopedLock lock(node::per_process::env_var_mutex);
-#ifdef _WIN32
-  LPWSTR lpszVariable;
-  LPWCH lpvEnv;
-
-  // Get pointer to the environment block
-  lpvEnv = GetEnvironmentStringsW();
-  if (lpvEnv != nullptr) {
-    // Variable strings are separated by null bytes,
-    // and the block is terminated by a null byte.
-    lpszVariable = reinterpret_cast<LPWSTR>(lpvEnv);
-    while (*lpszVariable) {
-      DWORD size = WideCharToMultiByte(
-          CP_UTF8, 0, lpszVariable, -1, nullptr, 0, nullptr, nullptr);
-      char* str = new char[size];
-      WideCharToMultiByte(
-          CP_UTF8, 0, lpszVariable, -1, str, size, nullptr, nullptr);
-      std::string env(str);
-      int sep = env.rfind('=');
-      std::string key = env.substr(0, sep);
-      std::string value = env.substr(sep + 1);
-      writer->json_keyvalue(key, value);
-      lpszVariable += lstrlenW(lpszVariable) + 1;
-    }
-    FreeEnvironmentStringsW(lpvEnv);
-  }
-  writer->json_objectend();
-#else
-  std::string pair;
-  for (char** env = environ; *env != nullptr; ++env) {
-    std::string pair(*env);
-    int separator = pair.find('=');
-    std::string key = pair.substr(0, separator);
-    std::string str = pair.substr(separator + 1);
-    writer->json_keyvalue(key, str);
-  }
-  writer->json_objectend();
 
   writer->json_objectstart("userLimits");
   struct rlimit limit;
@@ -638,7 +615,7 @@ static void PrintSystemInformation(JSONWriter* writer) {
     }
   }
   writer->json_objectend();
-#endif
+#endif  // _WIN32
 
   PrintLoadedLibraries(writer);
 }
