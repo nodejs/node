@@ -1657,6 +1657,7 @@ transformed data is pushed to the stream with the `yield` keyword.
 * `options` {Object} Options provided to `new stream.Transform([options])`.
 By default, `Transform.by()` will set `options.objectMode` to `true`,
 unless this is explicitly opted out by setting `options.objectMode` to `false`.
+* Returns: {stream.Transform}
 
 A utility method for creating Transform Streams with async generator functions.
 The async generator is supplied a single argument, `source`, which is used to
