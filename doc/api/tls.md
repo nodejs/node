@@ -1358,6 +1358,10 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/28973
+    description: Added `privateKeyIdentifier` and `privateKeyEngine` options
+                 to get private key from an OpenSSL engine.
   - version: v12.11.0
     pr-url: https://github.com/nodejs/node/pull/29598
     description: Added `sigalgs` option to override supported signature
@@ -1462,6 +1466,12 @@ changes:
     occur in an array. `object.passphrase` is optional. Encrypted keys will be
     decrypted with `object.passphrase` if provided, or `options.passphrase` if
     it is not.
+  * `privateKeyEngine` {string} Name of an OpenSSL engine to get private key
+    from. Should be used together with `privateKeyIdentifier`.
+  * `privateKeyIdentifier` {string} Identifier of a private key managed by
+    an OpenSSL engine. Should be used together with `privateKeyEngine`.
+    Should not be set together with `key`, because both options define a
+    private key in different ways.
   * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
     of `TLSv1.3`, `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
     along with the `secureProtocol` option, use one or the other.
