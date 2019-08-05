@@ -14,16 +14,11 @@ const stream = require('stream');
     cb(new Error('write test error'));
   };
 
-  let firstError = false;
-  writable.on('finish', common.mustCall(function() {
-    assert.strictEqual(firstError, true);
-  }));
-
-  writable.on('prefinish', common.mustCall());
+  writable.on('finish', common.mustNotCall());
+  writable.on('prefinish', common.mustNotCall());
 
   writable.on('error', common.mustCall((er) => {
     assert.strictEqual(er.message, 'write test error');
-    firstError = true;
   }));
 
   writable.end('test');
@@ -36,16 +31,11 @@ const stream = require('stream');
     setImmediate(cb, new Error('write test error'));
   };
 
-  let firstError = false;
-  writable.on('finish', common.mustCall(function() {
-    assert.strictEqual(firstError, true);
-  }));
-
-  writable.on('prefinish', common.mustCall());
+  writable.on('finish', common.mustNotCall());
+  writable.on('prefinish', common.mustNotCall());
 
   writable.on('error', common.mustCall((er) => {
     assert.strictEqual(er.message, 'write test error');
-    firstError = true;
   }));
 
   writable.end('test');
@@ -62,16 +52,11 @@ const stream = require('stream');
     cb(new Error('writev test error'));
   };
 
-  let firstError = false;
-  writable.on('finish', common.mustCall(function() {
-    assert.strictEqual(firstError, true);
-  }));
-
-  writable.on('prefinish', common.mustCall());
+  writable.on('finish', common.mustNotCall());
+  writable.on('prefinish', common.mustNotCall());
 
   writable.on('error', common.mustCall((er) => {
     assert.strictEqual(er.message, 'writev test error');
-    firstError = true;
   }));
 
   writable.cork();
@@ -93,16 +78,11 @@ const stream = require('stream');
     setImmediate(cb, new Error('writev test error'));
   };
 
-  let firstError = false;
-  writable.on('finish', common.mustCall(function() {
-    assert.strictEqual(firstError, true);
-  }));
-
-  writable.on('prefinish', common.mustCall());
+  writable.on('finish', common.mustNotCall());
+  writable.on('prefinish', common.mustNotCall());
 
   writable.on('error', common.mustCall((er) => {
     assert.strictEqual(er.message, 'writev test error');
-    firstError = true;
   }));
 
   writable.cork();
@@ -123,14 +103,9 @@ const stream = require('stream');
   rs._read = () => {};
 
   const ws = new stream.Writable();
-  let firstError = false;
 
-  ws.on('finish', common.mustCall(function() {
-    assert.strictEqual(firstError, true);
-  }));
-  ws.on('error', common.mustCall(function() {
-    firstError = true;
-  }));
+  ws.on('finish', common.mustNotCall());
+  ws.on('error', common.mustCall());
 
   ws._write = (chunk, encoding, done) => {
     setImmediate(done, new Error());
