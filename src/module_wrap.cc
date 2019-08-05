@@ -867,20 +867,33 @@ Maybe<URL> PackageResolve(Environment* env,
                           const std::string& specifier,
                           const URL& base) {
   size_t sep_index = specifier.find('/');
-  if (specifier[0] == '@' && (sep_index == std::string::npos ||
-      specifier.length() == 0)) {
+  bool valid_package_name = true;
+  bool scope = false;
+  if (specifier[0] == '@') {
+    scope = true;
+    if (sep_index == std::string::npos || specifier.length() == 0) {
+      valid_package_name = false;
+    } else {
+      sep_index = specifier.find('/', sep_index + 1);
+    }
+  }
+  std::string pkg_name = specifier.substr(0,
+      sep_index == std::string::npos ? std::string::npos : sep_index);
+  // Package name can only have leading @, and cannot have percent-encoding or
+  // separators.
+  for (size_t i = 0; i < pkg_name.length(); i++) {
+    char c = pkg_name[i];
+    if (c == '%' || c == '\\') {
+      valid_package_name = false;
+      break;
+    }
+  }
+  if (!valid_package_name) {
     std::string msg = "Invalid package name '" + specifier +
       "' imported from " + base.ToFilePath();
     node::THROW_ERR_INVALID_MODULE_SPECIFIER(env, msg.c_str());
     return Nothing<URL>();
   }
-  bool scope = false;
-  if (specifier[0] == '@') {
-    scope = true;
-    sep_index = specifier.find('/', sep_index + 1);
-  }
-  std::string pkg_name = specifier.substr(0,
-      sep_index == std::string::npos ? std::string::npos : sep_index);
   std::string pkg_subpath;
   if ((sep_index == std::string::npos ||
       sep_index == specifier.length() - 1)) {
