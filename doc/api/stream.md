@@ -1688,7 +1688,6 @@ of the `WriteableStream` side of the transform. This is the same `encoding`
 value that would be passed as the second parameter to the `transform()` function
 option (or `_transform()` method) supplied to `stream.Transform`.
 
-
 ## API for Stream Implementers
 
 <!--type=misc-->
