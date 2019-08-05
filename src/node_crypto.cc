@@ -471,6 +471,9 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
 
   env->SetProtoMethod(t, "init", Init);
   env->SetProtoMethod(t, "setKey", SetKey);
+#ifndef OPENSSL_NO_ENGINE
+  env->SetProtoMethod(t, "setEngineKey", SetEngineKey);
+#endif  // !OPENSSL_NO_ENGINE
   env->SetProtoMethod(t, "setCert", SetCert);
   env->SetProtoMethod(t, "addCACert", AddCACert);
   env->SetProtoMethod(t, "addCRL", AddCRL);
@@ -763,6 +766,56 @@ void SecureContext::SetSigalgs(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, ERR_get_error());
   }
 }
+
+#ifndef OPENSSL_NO_ENGINE
+// Helpers for the smart pointer.
+void ENGINE_free_fn(ENGINE* engine) { ENGINE_free(engine); }
+
+void ENGINE_finish_and_free_fn(ENGINE* engine) {
+  ENGINE_finish(engine);
+  ENGINE_free(engine);
+}
+
+void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+
+  CHECK_EQ(args.Length(), 2);
+
+  char errmsg[1024];
+  const node::Utf8Value engine_id(env->isolate(), args[1]);
+  std::unique_ptr<ENGINE, std::function<void(ENGINE*)>> e =
+                         { LoadEngineById(*engine_id, &errmsg),
+                           ENGINE_free_fn };
+  if (e.get() == nullptr) {
+    return env->ThrowError(errmsg);
+  }
+
+  if (!ENGINE_init(e.get())) {
+    return env->ThrowError("ENGINE_init");
+  }
+
+  e.get_deleter() = ENGINE_finish_and_free_fn;
+
+  const node::Utf8Value key_name(env->isolate(), args[0]);
+  EVPKeyPointer key(ENGINE_load_private_key(e.get(), *key_name,
+                                            nullptr, nullptr));
+
+  if (!key) {
+    return ThrowCryptoError(env, ERR_get_error(), "ENGINE_load_private_key");
+  }
+
+  int rv = SSL_CTX_use_PrivateKey(sc->ctx_.get(), key.get());
+
+  if (rv == 0) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
+  }
+
+  sc->private_key_engine_ = std::move(e);
+}
+#endif  // !OPENSSL_NO_ENGINE
 
 int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
   X509_STORE* store = SSL_CTX_get_cert_store(ctx);
@@ -1438,9 +1491,6 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
 
 
 #ifndef OPENSSL_NO_ENGINE
-// Helper for the smart pointer.
-void ENGINE_free_fn(ENGINE* engine) { ENGINE_free(engine); }
-
 void SecureContext::SetClientCertEngine(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
