@@ -798,8 +798,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >    1. If _resolvedTarget_ is contained in _packageURL_, then
 >       1. Let _resolved_ be the URL resolution of the concatenation of
 >          _subpath_ and _resolvedTarget_.
->       1. If _resolved_ is contained in _packageURL_ and contains no
->          _"node_modules"_ segments, then
+>       1. If _resolved_ is contained in _packageURL_, then
 >          1. Return _resolved_.
 > 1. Otherwise, if _target_ is an Array, then
 >    1. For each item _targetValue_ in _target_, do
