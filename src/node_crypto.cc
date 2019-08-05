@@ -471,6 +471,9 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
 
   env->SetProtoMethod(t, "init", Init);
   env->SetProtoMethod(t, "setKey", SetKey);
+#ifndef OPENSSL_NO_ENGINE
+  env->SetProtoMethod(t, "setEngineKey", SetEngineKey);
+#endif  // !OPENSSL_NO_ENGINE
   env->SetProtoMethod(t, "setCert", SetCert);
   env->SetProtoMethod(t, "addCACert", AddCACert);
   env->SetProtoMethod(t, "addCRL", AddCRL);
@@ -763,6 +766,41 @@ void SecureContext::SetSigalgs(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, ERR_get_error());
   }
 }
+
+#ifndef OPENSSL_NO_ENGINE
+void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+
+  CHECK_EQ(args.Length(), 2);
+
+  char errmsg[1024];
+  const node::Utf8Value engine_id(env->isolate(), args[1]);
+  ENGINE* e = LoadEngineById(*engine_id, &errmsg);
+  if (e == nullptr) {
+    return env->ThrowError(errmsg);
+  }
+
+  if (!ENGINE_init(e)) {
+    return env->ThrowError("ENGINE_init");
+  }
+
+  const node::Utf8Value key_name(env->isolate(), args[0]);
+  EVPKeyPointer key(ENGINE_load_private_key(e, *key_name, nullptr, nullptr));
+
+  if (!key) {
+    return ThrowCryptoError(env, ERR_get_error(), "ENGINE_load_private_key");
+  }
+
+  int rv = SSL_CTX_use_PrivateKey(sc->ctx_.get(), key.get());
+
+  if (rv == 0) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
+  }
+}
+#endif  // !OPENSSL_NO_ENGINE
 
 int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
   X509_STORE* store = SSL_CTX_get_cert_store(ctx);
