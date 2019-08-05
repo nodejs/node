@@ -2677,7 +2677,6 @@ readable.on('data', (chunk) => {
 We can construct a Node.js Transform stream with an asynchronous
 generator function using the `Transform.by()` utility method.
 
-
 ```js
 const { Readable, Transform } = require('stream');
 
