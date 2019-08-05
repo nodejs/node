@@ -1037,16 +1037,18 @@ def configure_node(o):
   else:
     o['variables']['node_use_dtrace'] = 'false'
 
-  if options.node_use_large_pages and not flavor in ('linux', 'freebsd'):
+  if options.node_use_large_pages and not flavor in ('linux', 'freebsd', 'mac'):
     raise Exception(
-      'Large pages are supported only on Linux Systems.')
-  if options.node_use_large_pages and flavor in ('linux', 'freebsd'):
+      'Large pages are supported only on Linux, FreeBSD and MacOS Systems.')
+  if options.node_use_large_pages and flavor in ('linux', 'freebsd', 'mac'):
     if options.shared or options.enable_static:
       raise Exception(
         'Large pages are supported only while creating node executable.')
     if target_arch!="x64":
       raise Exception(
         'Large pages are supported only x64 platform.')
+    if flavor == 'mac':
+      print("macOS server with 32GB or more is recommended")
     if flavor == 'linux':
       # Example full version string: 2.6.32-696.28.1.el6.x86_64
       FULL_KERNEL_VERSION=os.uname()[2]
