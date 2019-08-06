@@ -1780,7 +1780,7 @@ cause a lot of issues. See <https://github.com/nodejs/node/issues/14328>.
 ### DEP0089: require('assert')
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.8.0
     pr-url: https://github.com/nodejs/node/pull/28892
     description: Deprecation revoked.
   - version:
