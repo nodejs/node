@@ -1021,7 +1021,7 @@ if (typeof Symbol !== 'undefined') {
 {
   const set = new Set();
   set.add(set);
-  assert.strictEqual(util.inspect(set), '<ref *1> Set { [Circular *1] }');
+  assert.strictEqual(util.inspect(set), 'Set { [Circular] }');
 }
 
 // Test Map.
@@ -1039,15 +1039,15 @@ if (typeof Symbol !== 'undefined') {
 {
   const map = new Map();
   map.set(map, 'map');
-  assert.strictEqual(inspect(map), "<ref *1> Map { [Circular *1] => 'map' }");
+  assert.strictEqual(inspect(map), "Map { [Circular] => 'map' }");
   map.set(map, map);
   assert.strictEqual(
     inspect(map),
-    '<ref *1> Map { [Circular *1] => [Circular *1] }'
+    'Map { [Circular] => [Circular] }'
   );
   map.delete(map);
   map.set('map', map);
-  assert.strictEqual(inspect(map), "<ref *1> Map { 'map' => [Circular *1] }");
+  assert.strictEqual(inspect(map), "Map { 'map' => [Circular] }");
 }
 
 // Test multiple circular references.
@@ -1060,9 +1060,9 @@ if (typeof Symbol !== 'undefined') {
 
   assert.strictEqual(
     inspect(obj),
-    '<ref *1> {\n' +
-    '  a: [ [Circular *1] ],\n' +
-    '  b: <ref *2> { inner: [Circular *2], obj: [Circular *1] }\n' +
+    '{\n' +
+    '  a: [ [Circular] ],\n' +
+    '  b: { inner: [Circular], obj: [Circular] }\n' +
     '}'
   );
 }
@@ -1262,9 +1262,9 @@ if (typeof Symbol !== 'undefined') {
   arr[0][0][0] = { a: 2 };
   assert.strictEqual(util.inspect(arr), '[ [ [ [Object] ] ] ]');
   arr[0][0][0] = arr;
-  assert.strictEqual(util.inspect(arr), '<ref *1> [ [ [ [Circular *1] ] ] ]');
+  assert.strictEqual(util.inspect(arr), '[ [ [ [Circular] ] ] ]');
   arr[0][0][0] = arr[0][0];
-  assert.strictEqual(util.inspect(arr), '[ [ <ref *1> [ [Circular *1] ] ] ]');
+  assert.strictEqual(util.inspect(arr), '[ [ [ [Circular] ] ] ]');
 }
 
 // Corner cases.
@@ -1631,7 +1631,7 @@ util.inspect(process);
     '      2,',
     '      [length]: 2',
     '    ]',
-    '  } => <ref *1> [Map Iterator] {',
+    '  } => [Map Iterator] {',
     '    Uint8Array [',
     '      [BYTES_PER_ELEMENT]: 1,',
     '      [length]: 0,',
@@ -1642,7 +1642,7 @@ util.inspect(process);
     '        foo: true',
     '      }',
     '    ],',
-    '    [Circular *1]',
+    '    [Circular]',
     '  },',
     '  [size]: 2',
     '}'
@@ -1670,7 +1670,7 @@ util.inspect(process);
     '    [byteOffset]: 0,',
     '    [buffer]: ArrayBuffer { byteLength: 0, foo: true }',
     '  ],',
-    '  [Set Iterator] { [ 1, 2, [length]: 2 ] } => <ref *1> [Map Iterator] {',
+    '  [Set Iterator] { [ 1, 2, [length]: 2 ] } => [Map Iterator] {',
     '    Uint8Array [',
     '      [BYTES_PER_ELEMENT]: 1,',
     '      [length]: 0,',
@@ -1678,7 +1678,7 @@ util.inspect(process);
     '      [byteOffset]: 0,',
     '      [buffer]: ArrayBuffer { byteLength: 0, foo: true }',
     '    ],',
-    '    [Circular *1]',
+    '    [Circular]',
     '  },',
     '  [size]: 2',
     '}'
@@ -1710,7 +1710,7 @@ util.inspect(process);
     '  [Set Iterator] {',
     '    [ 1,',
     '      2,',
-    '      [length]: 2 ] } => <ref *1> [Map Iterator] {',
+    '      [length]: 2 ] } => [Map Iterator] {',
     '    Uint8Array [',
     '      [BYTES_PER_ELEMENT]: 1,',
     '      [length]: 0,',
@@ -1719,7 +1719,7 @@ util.inspect(process);
     '      [buffer]: ArrayBuffer {',
     '        byteLength: 0,',
     '        foo: true } ],',
-    '    [Circular *1] },',
+    '    [Circular] },',
     '  [size]: 2 }'
   ].join('\n');
 
