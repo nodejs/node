@@ -700,6 +700,8 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >       1. Throw an _Invalid Specifier_ error.
 >    1. Set _packageName_ to the substring of _packageSpecifier_
 >       until the second _"/"_ separator or the end of the string.
+> 1. If _packageName_ starts with _"."_ or contains _"\\"_ or _"%"_, then
+>    1. Throw an _Invalid Specifier_ error.
 > 1. Let _packageSubpath_ be the substring of _packageSpecifier_ from the
 >    position at the length of _packageName_ plus one, if any.
 > 1. Assert: _packageName_ is a valid package name or scoped package name.

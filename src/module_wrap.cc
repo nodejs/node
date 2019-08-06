@@ -876,10 +876,12 @@ Maybe<URL> PackageResolve(Environment* env,
     } else {
       sep_index = specifier.find('/', sep_index + 1);
     }
+  } else if (specifier[0] == '.') {
+    valid_package_name = false;
   }
   std::string pkg_name = specifier.substr(0,
       sep_index == std::string::npos ? std::string::npos : sep_index);
-  // Package name can only have leading @, and cannot have percent-encoding or
+  // Package name cannot have leading . and cannot have percent-encoding or
   // separators.
   for (size_t i = 0; i < pkg_name.length(); i++) {
     char c = pkg_name[i];
