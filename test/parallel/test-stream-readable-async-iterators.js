@@ -271,6 +271,22 @@ async function tests() {
   }
 
   {
+    console.log('destroyed will not deadlock');
+    const readable = new Readable();
+    readable.destroy();
+    process.nextTick(async () => {
+      readable.on('close', common.mustNotCall());
+      let received = 0;
+      for await (const k of readable) {
+        // Just make linting pass. This should never run.
+        assert.strictEqual(k, 'hello');
+        received++;
+      }
+      assert.strictEqual(received, 0);
+    });
+  }
+
+  {
     console.log('push async');
     const max = 42;
     let readed = 0;
