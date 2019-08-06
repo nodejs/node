@@ -1,6 +1,6 @@
 # Query String
 
-<!--introduced_in=v0.10.0-->
+<!--introduced_in=v0.1.25-->
 
 > Stability: 2 - Stable
 
