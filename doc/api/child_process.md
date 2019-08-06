@@ -17,7 +17,7 @@ ls.stdout.on('data', (data) => {
 });
 
 ls.stderr.on('data', (data) => {
-  console.log(`stderr: ${data}`);
+  console.error(`stderr: ${data}`);
 });
 
 ls.on('close', (code) => {
@@ -93,7 +93,7 @@ When running on Windows, `.bat` and `.cmd` files can be invoked using
 spaces it needs to be quoted.
 
 ```js
-// On Windows Only ...
+// On Windows Only...
 const { spawn } = require('child_process');
 const bat = spawn('cmd.exe', ['/c', 'my.bat']);
 
@@ -102,7 +102,7 @@ bat.stdout.on('data', (data) => {
 });
 
 bat.stderr.on('data', (data) => {
-  console.log(data.toString());
+  console.error(data.toString());
 });
 
 bat.on('exit', (code) => {
@@ -171,10 +171,10 @@ need to be dealt with accordingly:
 ```js
 exec('"/path/to/test file/test.sh" arg1 arg2');
 // Double quotes are used so that the space in the path is not interpreted as
-// multiple arguments
+// a delimiter of multiple arguments.
 
 exec('echo "The \\$HOME variable is $HOME"');
-// The $HOME variable is escaped in the first instance, but not in the second
+// The $HOME variable is escaped in the first instance, but not in the second.
 ```
 
 **Never pass unsanitized user input to this function. Any input containing shell
@@ -202,7 +202,7 @@ exec('cat *.js missing_file | wc -l', (error, stdout, stderr) => {
     return;
   }
   console.log(`stdout: ${stdout}`);
-  console.log(`stderr: ${stderr}`);
+  console.error(`stderr: ${stderr}`);
 });
 ```
 
@@ -218,7 +218,7 @@ a `Promise` for an `Object` with `stdout` and `stderr` properties. The returned
 `ChildProcess` instance is attached to the `Promise` as a `child` property. In
 case of an error (including any error resulting in an exit code other than 0), a
 rejected promise is returned, with the same `error` object given in the
-callback, but with an additional two properties `stdout` and `stderr`.
+callback, but with two additional properties `stdout` and `stderr`.
 
 ```js
 const util = require('util');
@@ -227,7 +227,7 @@ const exec = util.promisify(require('child_process').exec);
 async function lsExample() {
   const { stdout, stderr } = await exec('ls');
   console.log('stdout:', stdout);
-  console.log('stderr:', stderr);
+  console.error('stderr:', stderr);
 }
 lsExample();
 ```
@@ -300,7 +300,7 @@ a `Promise` for an `Object` with `stdout` and `stderr` properties. The returned
 `ChildProcess` instance is attached to the `Promise` as a `child` property. In
 case of an error (including any error resulting in an exit code other than 0), a
 rejected promise is returned, with the same `error` object given in the
-callback, but with an additional two properties `stdout` and `stderr`.
+callback, but with two additional properties `stdout` and `stderr`.
 
 ```js
 const util = require('util');
@@ -458,7 +458,7 @@ ls.stdout.on('data', (data) => {
 });
 
 ls.stderr.on('data', (data) => {
-  console.log(`stderr: ${data}`);
+  console.error(`stderr: ${data}`);
 });
 
 ls.on('close', (code) => {
@@ -478,7 +478,7 @@ ps.stdout.on('data', (data) => {
 });
 
 ps.stderr.on('data', (data) => {
-  console.log(`ps stderr: ${data}`);
+  console.error(`ps stderr: ${data}`);
 });
 
 ps.on('close', (code) => {
@@ -493,7 +493,7 @@ grep.stdout.on('data', (data) => {
 });
 
 grep.stderr.on('data', (data) => {
-  console.log(`grep stderr: ${data}`);
+  console.error(`grep stderr: ${data}`);
 });
 
 grep.on('close', (code) => {
@@ -510,7 +510,7 @@ const { spawn } = require('child_process');
 const subprocess = spawn('bad_command');
 
 subprocess.on('error', (err) => {
-  console.log('Failed to start subprocess.');
+  console.error('Failed to start subprocess.');
 });
 ```
 
@@ -609,8 +609,8 @@ pipes between the parent and child. The value is one of the following:
 
 1. `'pipe'` - Create a pipe between the child process and the parent process.
    The parent end of the pipe is exposed to the parent as a property on the
-   `child_process` object as [`subprocess.stdio[fd]`][`stdio`]. Pipes created
-   for fds 0 - 2 are also available as [`subprocess.stdin`][],
+   `child_process` object as [`subprocess.stdio[fd]`][`subprocess.stdio`]. Pipes
+   created for fds 0 - 2 are also available as [`subprocess.stdin`][],
    [`subprocess.stdout`][] and [`subprocess.stderr`][], respectively.
 2. `'ipc'` - Create an IPC channel for passing messages/file descriptors
    between parent and child. A [`ChildProcess`][] may have at most one IPC
@@ -648,10 +648,10 @@ pipes between the parent and child. The value is one of the following:
 ```js
 const { spawn } = require('child_process');
 
-// Child will use parent's stdios
+// Child will use parent's stdios.
 spawn('prg', [], { stdio: 'inherit' });
 
-// Spawn child sharing only stderr
+// Spawn child sharing only stderr.
 spawn('prg', [], { stdio: ['pipe', 'pipe', process.stderr] });
 
 // Open an extra fd=4, to interact with programs presenting a
@@ -1033,7 +1033,7 @@ process of being received. This will most often be triggered immediately after
 calling `subprocess.disconnect()`.
 
 When the child process is a Node.js instance (e.g. spawned using
-[`child_process.fork()`]), the `process.disconnect()` method can be invoked
+[`child_process.fork()`][]), the `process.disconnect()` method can be invoked
 within the child process to close the IPC channel as well.
 
 ### subprocess.kill([signal])
@@ -1056,7 +1056,7 @@ grep.on('close', (code, signal) => {
     `child process terminated due to receipt of signal ${signal}`);
 });
 
-// Send SIGHUP to process
+// Send SIGHUP to process.
 grep.kill('SIGHUP');
 ```
 
@@ -1092,7 +1092,7 @@ const subprocess = spawn(
 );
 
 setTimeout(() => {
-  subprocess.kill(); // Does not terminate the node process in the shell
+  subprocess.kill(); // Does not terminate the Node.js process in the shell.
 }, 2000);
 ```
 
@@ -1291,12 +1291,12 @@ const special = fork('subprocess.js', ['special']);
 const server = require('net').createServer({ pauseOnConnect: true });
 server.on('connection', (socket) => {
 
-  // If this is special priority
+  // If this is special priority...
   if (socket.remoteAddress === '74.125.127.100') {
     special.send('socket', socket);
     return;
   }
-  // This is normal priority
+  // This is normal priority.
   normal.send('socket', socket);
 });
 server.listen(1337);
@@ -1384,9 +1384,9 @@ const child_process = require('child_process');
 
 const subprocess = child_process.spawn('ls', {
   stdio: [
-    0, // Use parent's stdin for child
-    'pipe', // Pipe child's stdout to parent
-    fs.openSync('err.out', 'w') // Direct child's stderr to a file
+    0, // Use parent's stdin for child.
+    'pipe', // Pipe child's stdout to parent.
+    fs.openSync('err.out', 'w') // Direct child's stderr to a file.
   ]
 });
 
@@ -1499,6 +1499,7 @@ unavailable.
 [`subprocess.send()`]: #child_process_subprocess_send_message_sendhandle_options_callback
 [`subprocess.stderr`]: #child_process_subprocess_stderr
 [`subprocess.stdin`]: #child_process_subprocess_stdin
+[`subprocess.stdio`]: #child_process_subprocess_stdio
 [`subprocess.stdout`]: #child_process_subprocess_stdout
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Default Windows Shell]: #child_process_default_windows_shell
