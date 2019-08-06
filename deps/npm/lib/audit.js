@@ -277,7 +277,7 @@ function auditCmd (args, cb) {
               output(`  ${actions.review.size} vulnerabilit${actions.review.size === 1 ? 'y' : 'ies'} required manual review and could not be updated`)
             }
             if (actions.major.size) {
-              output(`  ${actions.major.size} package update${actions.major.size === 1 ? '' : 's'} for ${actions.majorFixes.size} vuln${actions.majorFixes.size === 1 ? '' : 's'} involved breaking changes`)
+              output(`  ${actions.major.size} package update${actions.major.size === 1 ? '' : 's'} for ${actions.majorFixes.size} vulnerabilit${actions.majorFixes.size === 1 ? 'y' : 'ies'} involved breaking changes`)
               if (installMajor) {
                 output('  (installed due to `--force` option)')
               } else {

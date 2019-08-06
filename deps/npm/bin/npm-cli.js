@@ -62,6 +62,7 @@
   log.info('using', 'node@%s', process.version)
 
   process.on('uncaughtException', errorHandler)
+  process.on('unhandledRejection', errorHandler)
 
   if (conf.usage && npm.command !== 'help') {
     npm.argv.unshift(npm.command)
