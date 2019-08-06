@@ -5,9 +5,8 @@ const http = require('http')
 const mr = require('npm-registry-mock')
 const npm = require('../../lib/npm.js')
 const path = require('path')
-const rimraf = require('rimraf')
 const Tacks = require('tacks')
-const test = require('tap').test
+const t = require('tap')
 const which = require('which')
 
 const Dir = Tacks.Dir
@@ -44,12 +43,23 @@ const npmResponse = {
   }
 }
 
-test('setup', (t) => {
+let nodeServer
+
+t.teardown(() => {
+  if (server) {
+    server.close()
+  }
+  if (nodeServer) {
+    nodeServer.close()
+  }
+})
+
+t.test('setup', (t) => {
   const port = common.port + 1
-  http.createServer(function (q, s) {
+  nodeServer = http.createServer(function (q, s) {
     s.end(JSON.stringify([{lts: true, version: '0.0.0'}]))
-    this.close()
-  }).listen(port, () => {
+  })
+  nodeServer.listen(port, () => {
     node_url = 'http://localhost:' + port
     mr({port: common.port}, (err, s) => {
       t.ifError(err, 'registry mocked successfully')
@@ -78,7 +88,7 @@ test('setup', (t) => {
   })
 })
 
-test('npm doctor', function (t) {
+t.test('npm doctor', function (t) {
   npm.commands.doctor({'node-url': node_url}, true, function (e, list) {
     t.ifError(e, 'npm loaded successfully')
     t.same(list.length, 9, 'list should have 9 prop')
@@ -93,13 +103,29 @@ test('npm doctor', function (t) {
     which('git', function (e, resolvedPath) {
       t.ifError(e, 'git command is installed')
       t.same(list[4][1], resolvedPath, 'which git')
-      server.close()
       t.done()
     })
   })
 })
 
-test('cleanup', (t) => {
-  rimraf.sync(ROOT)
-  t.done()
+t.test('npm doctor works without registry', function (t) {
+  npm.config.set('registry', false)
+  npm.commands.doctor({'node-url': node_url}, true, function (e, list) {
+    t.ifError(e, 'npm loaded successfully')
+    t.same(list.length, 9, 'list should have 9 prop')
+    t.same(list[0][1], 'OK', 'npm ping')
+    t.same(list[1][1], 'v' + npm.version, 'npm -v')
+    t.same(list[2][1], process.version, 'node -v')
+    t.same(list[3][1], '', 'no registry, but no crash')
+    t.same(list[5][1], 'ok', 'Perms check on cached files')
+    t.same(list[6][1], 'ok', 'Perms check on global node_modules')
+    t.same(list[7][1], 'ok', 'Perms check on local node_modules')
+    t.match(list[8][1], /^verified \d+ tarballs?$/, 'Cache verified')
+    which('git', function (e, resolvedPath) {
+      t.ifError(e, 'git command is installed')
+      t.same(list[4][1], resolvedPath, 'which git')
+      server.close()
+      t.done()
+    })
+  })
 })

@@ -87,7 +87,7 @@ function makePretty (p) {
   const cacheStatus = p[8] ? `verified ${p[8].verifiedContent} tarballs` : 'notOk'
   const npmV = npm.version
   const nodeV = process.version.replace('v', '')
-  const registry = npm.config.get('registry')
+  const registry = npm.config.get('registry') || ''
   const list = [
     ['npm ping', ping],
     ['npm -v', 'v' + npmV],

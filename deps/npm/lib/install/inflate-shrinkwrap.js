@@ -74,7 +74,7 @@ function quotemeta (str) {
 }
 
 function tarballToVersion (name, tb) {
-  const registry = quotemeta(npm.config.get('registry'))
+  const registry = quotemeta(npm.config.get('registry') || '')
     .replace(/https?:/, 'https?:')
     .replace(/([^/])$/, '$1/')
   let matchRegTarball

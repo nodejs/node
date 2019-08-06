@@ -187,11 +187,12 @@ function errorHandler (er) {
   log.verbose('npm ', 'v' + npm.version)
 
   ;[
+    'code',
+    'syscall',
     'file',
     'path',
-    'code',
-    'errno',
-    'syscall'
+    'dest',
+    'errno'
   ].forEach(function (k) {
     var v = er[k]
     if (v) log.error(k, v)

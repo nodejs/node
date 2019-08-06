@@ -3,8 +3,6 @@ var path = require('path')
 
 var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -19,7 +17,8 @@ var cache = common.cache
 var server
 
 test('setup', function (t) {
-  setup()
+  mkdirp.sync(path.join(pkg, 'node_modules'))
+  process.chdir(pkg)
   t.comment('test for https://github.com/npm/npm/issues/3265')
   mr({ port: common.port }, function (er, s) {
     server = s
@@ -28,7 +27,6 @@ test('setup', function (t) {
 })
 
 test('npm cache - install from fork', function (t) {
-  setup()
   common.npm(
     [
       '--loglevel', 'silent',
@@ -60,7 +58,6 @@ test('npm cache - install from fork', function (t) {
 
 // Now install the real 1.5.1.
 test('npm cache - install from origin', function (t) {
-  setup()
   common.npm(
     [
       '--loglevel', 'silent',
@@ -91,17 +88,5 @@ test('npm cache - install from origin', function (t) {
 
 test('cleanup', function (t) {
   server.close()
-  cleanup()
   t.end()
 })
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
-
-function setup () {
-  mkdirp.sync(cache)
-  mkdirp.sync(path.join(pkg, 'node_modules'))
-  process.chdir(pkg)
-}
