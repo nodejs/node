@@ -36,6 +36,9 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
     // The file exists but isn't exported. The exports is a number which counts
     // as a non-null value without any properties, just like `{}`.
     ['pkgexports-number/hidden.js', './hidden.js'],
+  ]);
+
+  const invalidExports = new Map([
     // Even though 'pkgexports/sub/asdf.js' works, alternate "path-like"
     // variants do not to prevent confusion and accidental loopholes.
     ['pkgexports/sub/./../asdf.js', './sub/./../asdf.js'],
@@ -64,6 +67,17 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
       strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
       assertStartsWith(err.message, 'Package exports');
       assertIncludes(err.message, `do not define a '${subpath}' subpath`);
+    }));
+  }
+
+  for (const [specifier, subpath] of invalidExports) {
+    loadFixture(specifier).catch(mustCall((err) => {
+      strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
+      assertStartsWith(err.message, (isRequire ? 'Package exports' :
+        'Cannot resolve'));
+      assertIncludes(err.message, isRequire ?
+        `do not define a valid '${subpath}' subpath` :
+        `matched for '${subpath}'`);
     }));
   }
 
