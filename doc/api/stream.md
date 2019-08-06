@@ -502,6 +502,16 @@ Is `true` after [`writable.end()`][] has been called. This property
 does not indicate whether the data has been flushed, for this use
 [`writable.writableFinished`][] instead.
 
+##### `writable.writableCorked`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {integer}
+
+Number of times [`writable.uncork()`][stream-uncork] needs to be
+called in order to fully uncork the stream.
+
 ##### `writable.writableFinished`
 <!-- YAML
 added: v12.6.0
@@ -2842,6 +2852,7 @@ contain multi-byte characters.
 [stream-push]: #stream_readable_push_chunk_encoding
 [stream-read]: #stream_readable_read_size
 [stream-resume]: #stream_readable_resume
+[stream-uncork]: #stream_writable_uncork
 [stream-write]: #stream_writable_write_chunk_encoding_callback
 [Stream Three States]: #stream_three_states
 [writable-_destroy]: #stream_writable_destroy_err_callback
