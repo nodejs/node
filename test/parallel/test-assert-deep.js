@@ -28,8 +28,7 @@ function re(literals, ...values) {
       getters: true
     });
     // Need to escape special characters.
-    result += str;
-    result += literals[i + 1];
+    result += `${str}${literals[i + 1]}`;
   }
   return {
     code: 'ERR_ASSERTION',
@@ -605,11 +604,21 @@ assert.deepStrictEqual([ 1, 2, NaN, 4 ], [ 1, 2, NaN, 4 ]);
 {
   const boxedString = new String('test');
   const boxedSymbol = Object(Symbol());
+
+  const fakeBoxedSymbol = {};
+  Object.setPrototypeOf(fakeBoxedSymbol, Symbol.prototype);
+  Object.defineProperty(
+    fakeBoxedSymbol,
+    Symbol.toStringTag,
+    { enumerable: false, value: 'Symbol' }
+  );
+
   assertNotDeepOrStrict(new Boolean(true), Object(false));
   assertNotDeepOrStrict(Object(true), new Number(1));
   assertNotDeepOrStrict(new Number(2), new Number(1));
   assertNotDeepOrStrict(boxedSymbol, Object(Symbol()));
   assertNotDeepOrStrict(boxedSymbol, {});
+  assertNotDeepOrStrict(boxedSymbol, fakeBoxedSymbol);
   assertDeepAndStrictEqual(boxedSymbol, boxedSymbol);
   assertDeepAndStrictEqual(Object(true), Object(true));
   assertDeepAndStrictEqual(Object(2), Object(2));
@@ -618,6 +627,7 @@ assert.deepStrictEqual([ 1, 2, NaN, 4 ], [ 1, 2, NaN, 4 ]);
   assertNotDeepOrStrict(boxedString, Object('test'));
   boxedSymbol.slow = true;
   assertNotDeepOrStrict(boxedSymbol, {});
+  assertNotDeepOrStrict(boxedSymbol, fakeBoxedSymbol);
 }
 
 // Minus zero
