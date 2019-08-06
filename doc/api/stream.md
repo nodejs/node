@@ -2502,6 +2502,9 @@ and async iterators are provided below.
 })();
 ```
 
+Async iterators register a permanent error handler on the stream to prevent any
+unhandled post-destroy errors.
+
 #### Creating Readable Streams with Async Generators
 
 We can construct a Node.js Readable Stream from an asynchronous generator
