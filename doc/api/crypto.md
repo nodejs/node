@@ -1786,7 +1786,7 @@ and description of each available elliptic curve.
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v12.8.0
     pr-url: https://github.com/nodejs/node/pull/28805
     description: The `outputLength` option was added for XOF hash functions.
 -->
@@ -2592,7 +2592,7 @@ request.
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v12.8.0
     pr-url: https://github.com/nodejs/node/pull/28799
     description: The `maxmem` value can now be any safe integer.
   - version: v10.9.0
@@ -2649,7 +2649,7 @@ crypto.scrypt('secret', 'salt', 64, { N: 1024 }, (err, derivedKey) => {
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v12.8.0
     pr-url: https://github.com/nodejs/node/pull/28799
     description: The `maxmem` value can now be any safe integer.
   - version: v10.9.0

@@ -282,7 +282,7 @@ tied to the life cycle of the Agent.
 
 ### napi_set_instance_data
 <!-- YAML
-added: REPLACEME
+added: v12.8.0
 -->
 
 ```C
@@ -309,7 +309,7 @@ by the previous call, it will not be called.
 
 ### napi_get_instance_data
 <!-- YAML
-added: REPLACEME
+added: v12.8.0
 -->
 
 ```C
