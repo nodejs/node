@@ -2500,6 +2500,20 @@ Type: Runtime
 Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 `Promise` instead, or a listener to the worker’s `'exit'` event.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: http connection
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29015
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Prefer [`response.socket`][] over [`response.connection`] and
+[`request.socket`][] over [`request.connection`].
+
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
@@ -2555,6 +2569,10 @@ Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 [`process.env`]: process.html#process_process_env
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
+[`request.socket`]: http.html#http_request_socket
+[`request.connection`]: http.html#http_request_connection
+[`response.socket`]: http.html#http_response_socket
+[`response.connection`]: http.html#http_response_connection
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args

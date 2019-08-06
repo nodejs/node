@@ -2702,6 +2702,18 @@ added: v8.4.0
 The request authority pseudo header field. It can also be accessed via
 `req.headers[':authority']`.
 
+#### request.connection
+<!-- YAML
+added: v8.4.0
+deprecated: REPLACEME
+-->
+
+> Stability: 0 - Deprecated. Use [`request.socket`][].
+
+* {net.Socket|tls.TLSSocket}
+
+See [`request.socket`][].
+
 #### request.destroy([error])
 <!-- YAML
 added: v8.4.0
@@ -2995,7 +3007,10 @@ will result in a [`TypeError`][] being thrown.
 #### response.connection
 <!-- YAML
 added: v8.4.0
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated. Use [`response.socket`][].
 
 * {net.Socket|tls.TLSSocket}
 
@@ -3497,6 +3512,7 @@ following additional properties:
 [`net.Socket.prototype.unref()`]: net.html#net_socket_unref
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.connect()`]: net.html#net_net_connect
+[`request.socket`]: #http2_request_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http2_response_end_data_encoding_callback
 [`response.setHeader()`]: #http2_response_setheader_name_value
