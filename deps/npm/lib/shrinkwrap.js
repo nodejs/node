@@ -121,7 +121,7 @@ function shrinkwrapDeps (deps, top, tree, seen) {
       if (isRegistry(requested)) {
         pkginfo.resolved = child.package._resolved
       }
-      // no integrity for git deps as integirty hashes are based on the
+      // no integrity for git deps as integrity hashes are based on the
       // tarball and we can't (yet) create consistent tarballs from a stable
       // source.
       if (requested.type !== 'git') {

@@ -1,5 +1,5 @@
 {
-  "version": "6.10.2",
+  "version": "6.10.3",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -63,7 +63,7 @@
     "glob": "^7.1.4",
     "graceful-fs": "^4.2.0",
     "has-unicode": "~2.0.1",
-    "hosted-git-info": "^2.7.1",
+    "hosted-git-info": "^2.8.2",
     "iferr": "^1.0.2",
     "infer-owner": "^1.0.4",
     "inflight": "~1.0.6",
@@ -114,7 +114,7 @@
     "path-is-inside": "~1.0.2",
     "promise-inflight": "~1.0.1",
     "qrcode-terminal": "^0.12.0",
-    "query-string": "^6.8.1",
+    "query-string": "^6.8.2",
     "qw": "~1.0.1",
     "read": "~1.0.7",
     "read-cmd-shim": "~1.0.1",
@@ -277,7 +277,7 @@
   "devDependencies": {
     "deep-equal": "^1.0.1",
     "get-stream": "^4.1.0",
-    "licensee": "^7.0.2",
+    "licensee": "^7.0.3",
     "marked": "^0.6.3",
     "marked-man": "^0.6.0",
     "npm-registry-couchapp": "^2.7.3",

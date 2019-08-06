@@ -202,7 +202,7 @@ function parse(input, options) {
 		// http://w3.org/TR/2012/WD-url-20120524/#collect-url-parameters
 		value = value === undefined ? null : decode(value, options);
 
-		if (options.parseNumbers && !Number.isNaN(Number(value))) {
+		if (options.parseNumbers && !Number.isNaN(Number(value)) && (typeof value === 'string' && value.trim() !== '')) {
 			value = Number(value);
 		} else if (options.parseBooleans && value !== null && (value.toLowerCase() === 'true' || value.toLowerCase() === 'false')) {
 			value = value.toLowerCase() === 'true';
