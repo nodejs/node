@@ -1,3 +1,52 @@
+## v6.10.3 (2019-08-06):
+
+### BUGFIXES
+
+* [`27cccfbda`](https://github.com/npm/cli/commit/27cccfbdac8526cc807b07f416355949b1372a9b)
+  [#223](https://github.com/npm/cli/pull/223) vulns → vulnerabilities in
+  npm audit output ([@sapegin](https://github.com/sapegin))
+* [`d5e865eb7`](https://github.com/npm/cli/commit/d5e865eb79329665a927cc2767b4395c03045dbb)
+  [#222](https://github.com/npm/cli/pull/222)
+  [#226](https://github.com/npm/cli/pull/226) install, doctor: don't crash
+  if registry unset ([@dmitrydvorkin](https://github.com/dmitrydvorkin),
+  [@isaacs](https://github.com/isaacs))
+* [`5b3890226`](https://github.com/npm/cli/commit/5b389022652abeb0e1c278a152550eb95bc6c452)
+  [#227](https://github.com/npm/cli/pull/227)
+  [npm.community#9167](https://npm.community/t/npm-err-cb-never-called-permission-denied/9167/5)
+  Handle unhandledRejections, tell user what to do when encountering an
+  `EACCES` error in the cache.  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+
+* [`77516df6e`](https://github.com/npm/cli/commit/77516df6eac94a6d7acb5e9ca06feaa0868d779b)
+  `licensee@7.0.3` ([@isaacs](https://github.com/isaacs))
+* [`ceb993590`](https://github.com/npm/cli/commit/ceb993590e4e376a9a78264ce7bb4327fbbb37fe)
+  `query-string@6.8.2` ([@isaacs](https://github.com/isaacs))
+* [`4050b9189`](https://github.com/npm/cli/commit/4050b91898c60e9b22998cf82b70b9b822de592a)
+  `hosted-git-info@2.8.2`
+    * [#46](https://github.com/npm/hosted-git-info/issues/46)
+      [#43](https://github.com/npm/hosted-git-info/issues/43)
+      [#47](https://github.com/npm/hosted-git-info/pull/47)
+      [#44](https://github.com/npm/hosted-git-info/pull/44) Add support for
+      GitLab subgroups ([@mterrel](https://github.com/mterrel),
+      [@isaacs](https://github.com/isaacs),
+      [@ybiquitous](https://github.com/ybiquitous))
+    * [`3b1d629`](https://github.com/npm/hosted-git-info/commit/3b1d629)
+      [#48](https://github.com/npm/hosted-git-info/issues/48) fix http
+      protocol using sshurl by default
+      ([@fengmk2](https://github.com/fengmk2))
+    * [`5d4a8d7`](https://github.com/npm/hosted-git-info/commit/5d4a8d7)
+      ignore noCommittish on tarball url generation
+      ([@isaacs](https://github.com/isaacs))
+    * [`1692435`](https://github.com/npm/hosted-git-info/commit/1692435)
+      use gist tarball url that works for anonymous gists
+      ([@isaacs](https://github.com/isaacs))
+    * [`d5cf830`](https://github.com/npm/hosted-git-info/commit/d5cf8309be7af884032616c63ea302ce49dd321c)
+      Do not allow invalid gist urls ([@isaacs](https://github.com/isaacs))
+    * [`e518222`](https://github.com/npm/hosted-git-info/commit/e5182224351183ce619dd5ef00019ae700ed37b7)
+      Use LRU cache to prevent unbounded memory consumption
+      ([@iarna](https://github.com/iarna))
+
 ## v6.10.2 (2019-07-23):
 
 tl;dr - Fixes several issues with the cache when npm is run as `sudo` on

@@ -11,7 +11,7 @@ var moduleName = require('../utils/module-name.js')
 var isOnlyOptional = require('./is-only-optional.js')
 
 // we don't use get-requested because we're operating on files on disk, and
-// we don't want to extropolate from what _should_ be there.
+// we don't want to extrapolate from what _should_ be there.
 function pkgRequested (pkg) {
   return pkg._requested || (pkg._resolved && npa(pkg._resolved)) || (pkg._from && npa(pkg._from))
 }

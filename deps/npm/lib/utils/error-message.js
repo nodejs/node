@@ -2,6 +2,7 @@
 var npm = require('../npm.js')
 var util = require('util')
 var nameValidator = require('validate-npm-package-name')
+var npmlog = require('npmlog')
 
 module.exports = errorMessage
 
@@ -33,18 +34,42 @@ function errorMessage (er) {
 
     case 'EACCES':
     case 'EPERM':
-      short.push(['', er])
-      detail.push([
-        '',
-        [
-          '\nThe operation was rejected by your operating system.',
-          (process.platform === 'win32'
-            ? 'It\'s possible that the file was already in use (by a text editor or antivirus),\nor that you lack permissions to access it.'
-            : 'It is likely you do not have the permissions to access this file as the current user'),
-          '\nIf you believe this might be a permissions issue, please double-check the',
-          'permissions of the file and its containing directories, or try running',
-          'the command again as root/Administrator (though this is not recommended).'
-        ].join('\n')])
+      const isCachePath = typeof er.path === 'string' &&
+        er.path.startsWith(npm.config.get('cache'))
+      const isCacheDest = typeof er.dest === 'string' &&
+        er.dest.startsWith(npm.config.get('cache'))
+
+      const isWindows = process.platform === 'win32'
+
+      if (!isWindows && (isCachePath || isCacheDest)) {
+        // user probably doesn't need this, but still add it to the debug log
+        npmlog.verbose(er.stack)
+        short.push([
+          '',
+          [
+            '',
+            'Your cache folder contains root-owned files, due to a bug in',
+            'previous versions of npm which has since been addressed.',
+            '',
+            'To permanently fix this problem, please run:',
+            `  sudo chown -R ${process.getuid()}:${process.getgid()} ${JSON.stringify(npm.config.get('cache'))}`
+          ].join('\n')
+        ])
+      } else {
+        short.push(['', er])
+        detail.push([
+          '',
+          [
+            '\nThe operation was rejected by your operating system.',
+            (process.platform === 'win32'
+              ? 'It\'s possible that the file was already in use (by a text editor or antivirus),\n' +
+                'or that you lack permissions to access it.'
+              : 'It is likely you do not have the permissions to access this file as the current user'),
+            '\nIf you believe this might be a permissions issue, please double-check the',
+            'permissions of the file and its containing directories, or try running',
+            'the command again as root/Administrator.'
+          ].join('\n')])
+      }
       break
 
     case 'ELIFECYCLE':
