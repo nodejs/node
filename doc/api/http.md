@@ -568,7 +568,10 @@ been aborted.
 ### request.connection
 <!-- YAML
 added: v0.3.0
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated. Use [`request.socket`][].
 
 * {net.Socket}
 
@@ -1166,9 +1169,12 @@ will result in a [`TypeError`][] being thrown.
 ### response.connection
 <!-- YAML
 added: v0.3.0
+deprecated: REPLACEME
 -->
 
 * {net.Socket}
+
+> Stability: 0 - Deprecated. Use [`response.socket`][].
 
 See [`response.socket`][].
 
