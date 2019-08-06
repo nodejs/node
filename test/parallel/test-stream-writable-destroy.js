@@ -232,3 +232,49 @@ const assert = require('assert');
   write._undestroy();
   write.end();
 }
+
+{
+  const write = new Writable();
+
+  write.destroy();
+  write.on('error', common.expectsError({
+    type: Error,
+    code: 'ERR_STREAM_DESTROYED',
+    message: 'Cannot call write after a stream was destroyed'
+  }));
+  write.write('asd', common.expectsError({
+    type: Error,
+    code: 'ERR_STREAM_DESTROYED',
+    message: 'Cannot call write after a stream was destroyed'
+  }));
+}
+
+{
+  const write = new Writable({
+    write(chunk, enc, cb) { cb(); }
+  });
+
+  write.on('error', common.expectsError({
+    type: Error,
+    code: 'ERR_STREAM_DESTROYED',
+    message: 'Cannot call write after a stream was destroyed'
+  }));
+
+  write.cork();
+  write.write('asd', common.mustCall());
+  write.uncork();
+
+  write.cork();
+  write.write('asd', common.expectsError({
+    type: Error,
+    code: 'ERR_STREAM_DESTROYED',
+    message: 'Cannot call write after a stream was destroyed'
+  }));
+  write.destroy();
+  write.write('asd', common.expectsError({
+    type: Error,
+    code: 'ERR_STREAM_DESTROYED',
+    message: 'Cannot call write after a stream was destroyed'
+  }));
+  write.uncork();
+}
