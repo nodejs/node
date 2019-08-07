@@ -789,7 +789,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 > 1. If _target_ is a String, then
 >    1. If _target_ does not start with _"./"_, throw a _Module Not Found_
 >       error.
->    1. If _subpath_ has non-zero length or _target_ does not end with _"/"_,
+>    1. If _subpath_ has non-zero length and _target_ does not end with _"/"_,
 >       throw a _Module Not Found_ error.
 >    1. If _target_ or _subpath_ contain any _"node_modules"_ segments including
 >       _"node_modules"_ percent-encoding, throw a _Module Not Found_ error.
