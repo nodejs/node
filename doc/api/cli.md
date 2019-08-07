@@ -1191,9 +1191,8 @@ on synchronous system APIs. Node.js APIs that use the threadpool are:
 
 - all `fs` APIs, other than the file watcher APIs and those that are explicitly
   synchronous
-- `crypto.pbkdf2()`
-- `crypto.randomBytes()`, unless it is used without a callback
-- `crypto.randomFill()`
+- asynchronous crypto APIs such as `crypto.pbkdf2()`, `crypto.scrypt()`,
+  `crypto.randomBytes()`, `crypto.randomFill()`, `crypto.generateKeyPair()`
 - `dns.lookup()`
 - all `zlib` APIs, other than those that are explicitly synchronous
 
