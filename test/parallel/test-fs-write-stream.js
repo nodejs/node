@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
@@ -49,19 +49,6 @@ tmpdir.refresh();
   stream.on('drain', function() {
     assert.fail('\'drain\' event must not be emitted before ' +
                 'stream.write() has been called at least once.');
-  });
-  stream.destroy();
-}
-
-// Throws if data is not of type Buffer.
-{
-  const stream = fs.createWriteStream(file);
-  common.expectsError(() => {
-    stream._write(42, null, function() {});
-  }, {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "data" argument must be of type Buffer. Received type number'
   });
   stream.destroy();
 }
