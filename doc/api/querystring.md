@@ -119,7 +119,7 @@ given `obj` by iterating through the object's "own properties".
 
 It serializes the following types of values passed in `obj`:
 {string|number|boolean|string[]|number[]|boolean[]}
-Any other input values will be coerced to empty strings.
+Any other input values (including {null} and {undefined}) will be coerced to empty strings.
 
 ```js
 querystring.stringify({ foo: 'bar', baz: ['qux', 'quux'], corge: '' });
