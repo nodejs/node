@@ -34,12 +34,11 @@ server.on('stream', common.mustCall((stream) => {
       type: Error
     }
   );
-  stream.on('error', common.expectsError({
+  assert.strictEqual(stream.write('data', common.expectsError({
     type: Error,
     code: 'ERR_STREAM_WRITE_AFTER_END',
     message: 'write after end'
-  }));
-  assert.strictEqual(stream.write('data'), false);
+  })), false);
 }));
 
 server.listen(0, common.mustCall(() => {
