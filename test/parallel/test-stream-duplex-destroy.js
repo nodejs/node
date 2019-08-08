@@ -184,9 +184,10 @@ const assert = require('assert');
 
 {
   function MyDuplex() {
-    assert.strictEqual(this.destroyed, false);
-    this.destroyed = false;
     Duplex.call(this);
+    assert.strictEqual(this.destroyed, false);
+    this.destroyed = true;
+    assert.strictEqual(this.destroyed, true);
   }
 
   Object.setPrototypeOf(MyDuplex.prototype, Duplex.prototype);

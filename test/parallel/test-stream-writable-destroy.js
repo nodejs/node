@@ -193,9 +193,10 @@ const assert = require('assert');
 
 {
   function MyWritable() {
-    assert.strictEqual(this.destroyed, false);
-    this.destroyed = false;
     Writable.call(this);
+    assert.strictEqual(this.destroyed, false);
+    this.destroyed = true;
+    assert.strictEqual(this.destroyed, true);
   }
 
   Object.setPrototypeOf(MyWritable.prototype, Writable.prototype);

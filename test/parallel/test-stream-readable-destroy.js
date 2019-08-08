@@ -154,9 +154,10 @@ const assert = require('assert');
 
 {
   function MyReadable() {
-    assert.strictEqual(this.destroyed, false);
-    this.destroyed = false;
     Readable.call(this);
+    assert.strictEqual(this.destroyed, false);
+    this.destroyed = true;
+    assert.strictEqual(this.destroyed, true);
   }
 
   Object.setPrototypeOf(MyReadable.prototype, Readable.prototype);
