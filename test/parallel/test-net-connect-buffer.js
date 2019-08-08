@@ -69,12 +69,14 @@ tcp.listen(0, common.mustCall(function() {
     [],
     {}
   ].forEach((value) => {
-    common.expectsError(() => socket.write(value), {
+    // We need to check the callback since 'error' will only
+    // be emitted once per instance.
+    socket.write(value, common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "chunk" argument must be one of type string or Buffer. ' +
                `Received type ${typeof value}`
-    });
+    }));
   });
 
   // Write a string that contains a multi-byte character sequence to test that

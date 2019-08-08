@@ -410,10 +410,7 @@ const helloWorldBuffer = Buffer.from('hello world');
   w._final = common.mustCall(function(cb) {
     cb(new Error('test'));
   });
-  w._write = function(chunk, e, cb) {
-    process.nextTick(cb);
-  };
-  w.once('error', common.mustCall((err) => {
+  w.on('error', common.mustCall((err) => {
     assert.strictEqual(w._writableState.errorEmitted, true);
     assert.strictEqual(err.message, 'test');
     w.on('error', common.mustNotCall());

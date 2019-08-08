@@ -281,6 +281,9 @@ The stream is not closed when the `'error'` event is emitted unless the
 [`autoDestroy`][writable-new] option was set to `true` when creating the
 stream.
 
+After `'error'`, no further events other than `'close'` *should* be emitted
+(including `'error'` events).
+
 ##### Event: 'finish'
 <!-- YAML
 added: v0.9.4

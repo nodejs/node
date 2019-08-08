@@ -86,13 +86,7 @@ w._write = function(chunk, encoding, cb) {
 };
 
 r.on('end', common.mustCall(function() {
-  common.expectsError(function() {
-    r.unshift(Buffer.allocUnsafe(1));
-  }, {
-    code: 'ERR_STREAM_UNSHIFT_AFTER_END_EVENT',
-    type: Error,
-    message: 'stream.unshift() after end event'
-  });
+  r.unshift(Buffer.allocUnsafe(1));
   w.end();
 }));
 
