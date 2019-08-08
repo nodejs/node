@@ -56,12 +56,13 @@ tmpdir.refresh();
 // Throws if data is not of type Buffer.
 {
   const stream = fs.createWriteStream(file);
-  common.expectsError(() => {
-    stream._write(42, null, function() {});
-  }, {
+  stream.on('error', common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "data" argument must be of type Buffer. Received type number'
-  });
+    type: TypeError
+  }));
+  stream.write(42, null, common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  }));
   stream.destroy();
 }
