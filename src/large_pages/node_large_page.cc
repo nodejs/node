@@ -382,9 +382,25 @@ MoveTextRegionToLargePages(const text_region& r) {
     munmap(nmem, size);
     return -1;
   }
+  memcpy(tmem, nmem, size);
+  ret = mprotect(start, size, PROT_READ | PROT_WRITE | PROT_EXEC);
+  if (ret == -1) {
+    PrintSystemError(errno);
+    ret = munmap(tmem, size);
+    if (ret == -1) {
+      PrintSystemError(errno);
+    }
+    ret = munmap(nmem, size);
+    if (ret == -1) {
+      PrintSystemError(errno);
+    }
+    return -1;
+  }
+  memcpy(start, tmem, size);
+#else
+  memcpy(start, nmem, size);
 #endif
 
-  memcpy(start, nmem, size);
   ret = mprotect(start, size, PROT_READ | PROT_EXEC);
   if (ret == -1) {
     PrintSystemError(errno);
