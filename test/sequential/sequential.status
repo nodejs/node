@@ -25,6 +25,5 @@ test-http2-settings-flood: PASS,FLAKY
 [$system==freebsd]
 
 [$system==aix]
-# https://github.com/nodejs/node/pull/28469
-test-async-wrap-getasyncid: SKIP
+# https://github.com/nodejs/node/pull/29054
 test-buffer-creation-regression: SKIP
