@@ -1231,6 +1231,13 @@ deprecated: v13.0.0
 
 See [`response.socket`][].
 
+### response.cork()
+<!-- YAML
+added: REPLACEME
+-->
+
+See [`writable.cork()`][].
+
 ### response.end(\[data\[, encoding\]\]\[, callback\])
 <!-- YAML
 added: v0.1.90
@@ -1515,6 +1522,13 @@ response.statusMessage = 'Not found';
 
 After response header was sent to the client, this property indicates the
 status message which was sent out.
+
+### response.uncork()
+<!-- YAML
+added: REPLACEME
+-->
+
+See [`writable.uncork()`][].
 
 ### response.writableEnded
 <!-- YAML
@@ -2358,3 +2372,5 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`socket.unref()`]: net.html#net_socket_unref
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [`HPE_HEADER_OVERFLOW`]: errors.html#errors_hpe_header_overflow
+[`writable.cork()`]: stream.html#stream_writable_cork
+[`writable.uncork()`]: stream.html#stream_writable_uncork
