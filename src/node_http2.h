@@ -834,10 +834,6 @@ class Http2Session : public AsyncWrap {
 
   size_t self_size() const override { return sizeof(*this); }
 
-  char* stream_alloc() {
-    return stream_buf_;
-  }
-
   // Schedule an RstStream for after the current write finishes.
   inline void AddPendingRstStream(int32_t stream_id) {
     pending_rst_streams_.emplace_back(stream_id);
@@ -1062,9 +1058,9 @@ class Http2Session : public AsyncWrap {
   // use this to allow timeout tracking during long-lasting writes
   uint32_t chunks_sent_since_last_write_ = 0;
 
-  char* stream_buf_ = nullptr;
-  size_t stream_buf_size_ = 0;
-  v8::Local<v8::ArrayBuffer> stream_buf_ab_;
+  uv_buf_t stream_buf_ = uv_buf_init(nullptr, 0);
+  v8::Global<v8::ArrayBuffer> stream_buf_ab_;
+  uv_buf_t stream_buf_allocation_ = uv_buf_init(nullptr, 0);
 
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
   std::queue<Http2Ping*> outstanding_pings_;
