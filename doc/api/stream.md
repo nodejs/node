@@ -1143,6 +1143,15 @@ added: v12.3.0
 
 Getter for the property `objectMode` of a given `Readable` stream.
 
+##### readable.readableListening
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Getter for the property `readableListening` of a given `Readable` stream.
+
 ##### readable.resume()
 <!-- YAML
 added: v0.9.4
