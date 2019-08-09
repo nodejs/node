@@ -375,9 +375,24 @@ async function tests() {
     // eslint-disable-next-line no-unused-vars
     for await (const a of r) {
     }
-    // eslint-disable-next-line no-unused-vars
-    for await (const b of r) {
+    try {
+      // eslint-disable-next-line no-unused-vars
+      for await (const b of r) {
+      }
+    } catch (err) {
+      assert.strictEqual(err.code, 'ERR_STREAM_ITERATOR_EXISTS');
     }
+  }
+
+  {
+    console.log('creating multiple iterators');
+    const r = new Readable();
+    r[Symbol.asyncIterator]();
+    common.expectsError(() => {
+      r[Symbol.asyncIterator]();
+    }, {
+      code: 'ERR_STREAM_ITERATOR_EXISTS'
+    });
   }
 
   {

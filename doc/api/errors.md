@@ -1703,6 +1703,11 @@ An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 A stream method was called that cannot complete because the stream was
 destroyed using `stream.destroy()`.
 
+<a id="ERR_STREAM_ITERATOR_EXISTS"></a>
+### ERR_STREAM_ITERATOR_EXISTS
+
+Stream cannot be consumed by multiple iterators.
+
 <a id="ERR_STREAM_NULL_VALUES"></a>
 ### ERR_STREAM_NULL_VALUES
 

@@ -55,23 +55,14 @@ async function testMutualDestroy() {
       crlfDelay: Infinity
     });
 
-    const expectedLines = fileContent.split('\n');
-    if (expectedLines[expectedLines.length - 1] === '') {
-      expectedLines.pop();
-    }
-    expectedLines.splice(2);
-
-    const iteratedLines = [];
     for await (const k of rli) {
-      iteratedLines.push(k);
-      for await (const l of rli) {
-        iteratedLines.push(l);
-        break;
+      try {
+        for await (const l of rli) {
+        }
+      } catch (err) {
+        assert.strictEqual(err.code, 'ERR_STREAM_ITERATOR_EXISTS');
       }
-      assert.deepStrictEqual(iteratedLines, expectedLines);
     }
-
-    assert.deepStrictEqual(iteratedLines, expectedLines);
   }
 }
 

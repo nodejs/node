@@ -43,35 +43,4 @@ async function testSimple() {
   }
 }
 
-async function testMutual() {
-  for (const fileContent of testContents) {
-    fs.writeFileSync(filename, fileContent);
-
-    const readable = fs.createReadStream(filename);
-    const rli = readline.createInterface({
-      input: readable,
-      crlfDelay: Infinity
-    });
-
-    const expectedLines = fileContent.split('\n');
-    if (expectedLines[expectedLines.length - 1] === '') {
-      expectedLines.pop();
-    }
-    const iteratedLines = [];
-    let iterated = false;
-    for await (const k of rli) {
-      // This outer loop should only iterate once.
-      assert.strictEqual(iterated, false);
-      iterated = true;
-
-      iteratedLines.push(k);
-      for await (const l of rli) {
-        iteratedLines.push(l);
-      }
-      assert.deepStrictEqual(iteratedLines, expectedLines);
-    }
-    assert.deepStrictEqual(iteratedLines, expectedLines);
-  }
-}
-
-testSimple().then(testMutual).then(common.mustCall());
+testSimple().then(common.mustCall());
