@@ -2532,6 +2532,22 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 The `process._tickCallback` property was never documented as
 an officially supported API.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: `WriteStream.open()` and `ReadStream.open()` are internal
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29061
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+[`WriteStream.open()`][] and [`ReadStream.open()`][] are undocumented internal
+APIs that do not make sense to use in userland. File streams should always be
+opened through their corresponding factory methods [`fs.createWriteStream()`][]
+and [`fs.createReadStream()`][]) or by passing a file descriptor in options.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2542,10 +2558,12 @@ an officially supported API.
 [`Decipher`]: crypto.html#crypto_class_decipher
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
 [`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
+[`ReadStream.open()`]: fs.html#fs_class_fs_readstream
 [`Server.connections`]: net.html#net_server_connections
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback
 [`Server.listen({fd: <number>})`]: net.html#net_server_listen_handle_backlog_callback
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
+[`WriteStream.open()`]: fs.html#fs_class_fs_writestream
 [`assert`]: assert.html
 [`asyncResource.runInAsyncScope()`]: async_hooks.html#async_hooks_asyncresource_runinasyncscope_fn_thisarg_args
 [`child_process`]: child_process.html
@@ -2568,6 +2586,8 @@ an officially supported API.
 [`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.html#events_emitter_listenercount_eventname
 [`fs.access()`]: fs.html#fs_fs_access_path_mode_callback
+[`fs.createReadStream()`]: fs.html#fs_fs_createreadstream_path_options
+[`fs.createWriteStream()`]: fs.html#fs_fs_createwritestream_path_options
 [`fs.exists(path, callback)`]: fs.html#fs_fs_exists_path_callback
 [`fs.lchmod(path, mode, callback)`]: fs.html#fs_fs_lchmod_path_mode_callback
 [`fs.lchmodSync(path, mode)`]: fs.html#fs_fs_lchmodsync_path_mode
