@@ -1005,7 +1005,8 @@ class Http2Session : public AsyncWrap, public StreamListener {
   uint32_t chunks_sent_since_last_write_ = 0;
 
   uv_buf_t stream_buf_ = uv_buf_init(nullptr, 0);
-  v8::Local<v8::ArrayBuffer> stream_buf_ab_;
+  v8::Global<v8::ArrayBuffer> stream_buf_ab_;
+  uv_buf_t stream_buf_allocation_ = uv_buf_init(nullptr, 0);
 
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
   std::queue<Http2Ping*> outstanding_pings_;
