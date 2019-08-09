@@ -527,8 +527,8 @@ TEST(WeakGlobalHandlesScavenge) {
 
   // Scavenge treats weak pointers as normal roots.
   CcTest::CollectGarbage(NEW_SPACE);
-  CHECK((*h1)->IsString());
-  CHECK((*h2)->IsHeapNumber());
+  CHECK((*h1).IsString());
+  CHECK((*h2).IsHeapNumber());
   CHECK(!WeakPointerCleared);
   GlobalHandles::Destroy(h1.location());
   GlobalHandles::Destroy(h2.location());
