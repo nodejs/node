@@ -650,6 +650,7 @@ Http2Session::~Http2Session() {
     stream.second->session_ = nullptr;
   nghttp2_session_del(session_);
   CHECK_EQ(current_nghttp2_memory_, 0);
+  free(stream_buf_allocation_.base);
 }
 
 std::string Http2Session::diagnostic_name() const {
@@ -1259,7 +1260,17 @@ void Http2StreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     return;
   }
 
-  CHECK(!session->stream_buf_ab_.IsEmpty());
+  Local<ArrayBuffer> ab;
+  if (session->stream_buf_ab_.IsEmpty()) {
+    ab = ArrayBuffer::New(env->isolate(),
+                          session->stream_buf_allocation_.base,
+                          session->stream_buf_allocation_.len,
+                          v8::ArrayBufferCreationMode::kInternalized);
+    session->stream_buf_allocation_ = uv_buf_init(nullptr, 0);
+    session->stream_buf_ab_.Reset(env->isolate(), ab);
+  } else {
+    ab = session->stream_buf_ab_.Get(env->isolate());
+  }
 
   // There is a single large array buffer for the entire data read from the
   // network; create a slice of that array buffer and emit it as the
@@ -1271,7 +1282,7 @@ void Http2StreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   CHECK_LE(offset + buf.len, session->stream_buf_.len);
 
   Local<Object> buffer =
-      Buffer::New(env, session->stream_buf_ab_, offset, nread).ToLocalChecked();
+      Buffer::New(env, ab, offset, nread).ToLocalChecked();
 
   stream->CallJSOnreadMethod(nread, buffer);
 }
@@ -1803,31 +1814,40 @@ Http2Stream* Http2Session::SubmitRequest(
 }
 
 // Callback used to receive inbound data from the i/o stream
-void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
+void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
   Http2Scope h2scope(this);
   CHECK_NOT_NULL(stream_);
   Debug(this, "receiving %d bytes", nread);
-  IncrementCurrentSessionMemory(buf.len);
+  CHECK_EQ(stream_buf_allocation_.base, nullptr);
   CHECK(stream_buf_ab_.IsEmpty());
-
-  OnScopeLeave on_scope_leave([&]() {
-    // Once finished handling this write, reset the stream buffer.
-    // The memory has either been free()d or was handed over to V8.
-    DecrementCurrentSessionMemory(buf.len);
-    stream_buf_ab_ = Local<ArrayBuffer>();
-    stream_buf_ = uv_buf_init(nullptr, 0);
-  });
 
   // Only pass data on if nread > 0
   if (nread <= 0) {
-    free(buf.base);
+    free(buf_.base);
     if (nread < 0) {
       PassReadErrorToPreviousListener(nread);
     }
     return;
   }
+
+  // Shrink to the actual amount of used data.
+  uv_buf_t buf = buf_;
+  buf.base = Realloc(buf.base, nread);
+
+  IncrementCurrentSessionMemory(nread);
+  OnScopeLeave on_scope_leave([&]() {
+    // Once finished handling this write, reset the stream buffer.
+    // The memory has either been free()d or was handed over to V8.
+    // We use `nread` instead of `buf.size()` here, because the buffer is
+    // cleared as part of the `.ToArrayBuffer()` call below.
+    DecrementCurrentSessionMemory(nread);
+    stream_buf_ab_.Reset();
+    free(stream_buf_allocation_.base);
+    stream_buf_allocation_ = uv_buf_init(nullptr, 0);
+    stream_buf_ = uv_buf_init(nullptr, 0);
+  });
 
   // Make sure that there was no read previously active.
   CHECK_NULL(stream_buf_.base);
@@ -1845,13 +1865,10 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
 
   Isolate* isolate = env()->isolate();
 
-  // Create an array buffer for the read data. DATA frames will be emitted
-  // as slices of this array buffer to avoid having to copy memory.
-  stream_buf_ab_ =
-      ArrayBuffer::New(isolate,
-                        buf.base,
-                        nread,
-                        v8::ArrayBufferCreationMode::kInternalized);
+  // Store this so we can create an ArrayBuffer for read data from it.
+  // DATA frames will be emitted as slices of that ArrayBuffer to avoid having
+  // to copy memory.
+  stream_buf_allocation_ = buf;
 
   statistics_.data_received += nread;
   ssize_t ret = Write(&stream_buf_, 1);
