@@ -34,6 +34,7 @@ sNtSetInformationFile pNtSetInformationFile;
 sNtQueryVolumeInformationFile pNtQueryVolumeInformationFile;
 sNtQueryDirectoryFile pNtQueryDirectoryFile;
 sNtQuerySystemInformation pNtQuerySystemInformation;
+sNtQueryInformationProcess pNtQueryInformationProcess;
 
 /* Kernel32 function pointers */
 sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
@@ -103,6 +104,13 @@ void uv_winapi_init(void) {
       ntdll_module,
       "NtQuerySystemInformation");
   if (pNtQuerySystemInformation == NULL) {
+    uv_fatal_error(GetLastError(), "GetProcAddress");
+  }
+
+  pNtQueryInformationProcess = (sNtQueryInformationProcess) GetProcAddress(
+      ntdll_module,
+      "NtQueryInformationProcess");
+  if (pNtQueryInformationProcess == NULL) {
     uv_fatal_error(GetLastError(), "GetProcAddress");
   }
 

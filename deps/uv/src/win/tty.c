@@ -2280,6 +2280,8 @@ static void uv__determine_vterm_state(HANDLE handle) {
 
 static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param) {
   CONSOLE_SCREEN_BUFFER_INFO sb_info;
+  NTSTATUS status;
+  ULONG_PTR conhost_pid;
   MSG msg;
 
   if (!GetConsoleScreenBufferInfo(uv__tty_console_handle, &sb_info))
@@ -2288,14 +2290,29 @@ static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param) {
   uv__tty_console_width = sb_info.dwSize.X;
   uv__tty_console_height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
 
-  if (pSetWinEventHook == NULL)
+  if (pSetWinEventHook == NULL || pNtQueryInformationProcess == NULL)
     return 0;
+
+  status = pNtQueryInformationProcess(GetCurrentProcess(),
+                                      ProcessConsoleHostProcess,
+                                      &conhost_pid,
+                                      sizeof(conhost_pid),
+                                      NULL);
+
+  if (!NT_SUCCESS(status))
+    /* We couldn't retrieve our console host process, probably because this
+     * is a 32-bit process running on 64-bit Windows. Fall back to receiving
+     * console events from all processes. */
+    conhost_pid = 0;
+
+  /* Ensure the PID is a multiple of 4, which is required by SetWinEventHook */
+  conhost_pid &= ~(ULONG_PTR)0x3;
 
   if (!pSetWinEventHook(EVENT_CONSOLE_LAYOUT,
                         EVENT_CONSOLE_LAYOUT,
                         NULL,
                         uv__tty_console_resize_event,
-                        0,
+                        (DWORD)conhost_pid,
                         0,
                         WINEVENT_OUTOFCONTEXT))
     return 0;
