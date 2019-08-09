@@ -6,12 +6,6 @@ const assert = require('assert');
 const b = Buffer.allocUnsafe(1024);
 const c = Buffer.allocUnsafe(512);
 
-const errorProperty = {
-  code: 'ERR_OUT_OF_RANGE',
-  type: RangeError,
-  message: 'Index out of range'
-};
-
 let cntr = 0;
 
 {
@@ -116,7 +110,13 @@ b.copy(c, 0, 100, 10);
 // Copy throws at negative sourceStart
 common.expectsError(
   () => Buffer.allocUnsafe(5).copy(Buffer.allocUnsafe(5), 0, -1),
-  errorProperty);
+  {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError,
+    message: 'The value of "sourceStart" is out of range. ' +
+             'It must be >= 0. Received -1'
+  }
+);
 
 {
   // Check sourceEnd resets to targetEnd if former is greater than the latter
@@ -130,7 +130,14 @@ common.expectsError(
 
 // Throw with negative sourceEnd
 common.expectsError(
-  () => b.copy(c, 0, -1), errorProperty);
+  () => b.copy(c, 0, 0, -1),
+  {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError,
+    message: 'The value of "sourceEnd" is out of range. ' +
+             'It must be >= 0. Received -1'
+  }
+);
 
 // When sourceStart is greater than sourceEnd, zero copied
 assert.strictEqual(b.copy(c, 0, 100, 10), 0);
