@@ -967,7 +967,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'argument must be a buffer'
+    message: 'The "target" argument must be one of type Buffer or Uint8Array.' +
+             ' Received type undefined'
   });
 
 assert.throws(() => Buffer.from(), {
