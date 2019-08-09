@@ -489,6 +489,15 @@ added: v11.4.0
 
 Is `true` if it is safe to call [`writable.write()`][stream-write].
 
+##### writable.writableEmitClose
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Getter for the property `writableEmitClose` of a given `Writable` stream.
+
 ##### writable.writableFinished
 <!-- YAML
 added: v12.6.0
