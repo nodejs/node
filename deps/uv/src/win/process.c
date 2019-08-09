@@ -714,7 +714,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
 
   /* second pass: copy to UTF-16 environment block */
   dst_copy = (WCHAR*)uv__malloc(env_len * sizeof(WCHAR));
-  if (!dst_copy) {
+  if (dst_copy == NULL && env_len > 0) {
     return ERROR_OUTOFMEMORY;
   }
   env_copy = alloca(env_block_count * sizeof(WCHAR*));
@@ -739,7 +739,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
     }
   }
   *ptr_copy = NULL;
-  assert(env_len == (size_t) (ptr - dst_copy));
+  assert(env_len == 0 || env_len == (size_t) (ptr - dst_copy));
 
   /* sort our (UTF-16) copy */
   qsort(env_copy, env_block_count-1, sizeof(wchar_t*), qsort_wcscmp);

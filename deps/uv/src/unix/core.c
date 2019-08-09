@@ -50,11 +50,15 @@
 #endif
 
 #ifdef __APPLE__
+# include <crt_externs.h>
 # include <mach-o/dyld.h> /* _NSGetExecutablePath */
 # include <sys/filio.h>
 # if defined(O_CLOEXEC)
 #  define UV__O_CLOEXEC O_CLOEXEC
 # endif
+# define environ (*_NSGetEnviron())
+#else
+extern char** environ;
 #endif
 
 #if defined(__DragonFly__)      || \
@@ -1281,6 +1285,62 @@ int uv_os_get_passwd(uv_passwd_t* pwd) {
 int uv_translate_sys_error(int sys_errno) {
   /* If < 0 then it's already a libuv error. */
   return sys_errno <= 0 ? sys_errno : -sys_errno;
+}
+
+
+int uv_os_environ(uv_env_item_t** envitems, int* count) {
+  int i, j, cnt;
+  uv_env_item_t* envitem;
+
+  *envitems = NULL;
+  *count = 0;
+
+  for (i = 0; environ[i] != NULL; i++);
+
+  *envitems = uv__calloc(i, sizeof(**envitems));
+
+  if (envitems == NULL)
+    return UV_ENOMEM;
+
+  for (j = 0, cnt = 0; j < i; j++) {
+    char* buf;
+    char* ptr;
+
+    if (environ[j] == NULL)
+      break;
+
+    buf = uv__strdup(environ[j]);
+    if (buf == NULL)
+      goto fail;
+
+    ptr = strchr(buf, '=');
+    if (ptr == NULL) {
+      uv__free(buf);
+      continue;
+    }
+
+    *ptr = '\0';
+
+    envitem = &(*envitems)[cnt];
+    envitem->name = buf;
+    envitem->value = ptr + 1;
+
+    cnt++;
+  }
+
+  *count = cnt;
+  return 0;
+
+fail:
+  for (i = 0; i < cnt; i++) {
+    envitem = &(*envitems)[cnt];
+    uv__free(envitem->name);
+  }
+  uv__free(*envitems);
+
+  *envitems = NULL;
+  *count = 0;
+  return UV_ENOMEM;
 }
 
 

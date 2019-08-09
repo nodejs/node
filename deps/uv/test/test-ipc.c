@@ -838,10 +838,10 @@ static unsigned int write_until_data_queued() {
                  closed_handle_large_write_cb);
     ASSERT(r == 0);
     i++;
-  } while (((uv_stream_t*)&channel)->write_queue_size == 0 &&
+  } while (channel.write_queue_size == 0 &&
            i < ARRAY_SIZE(write_reqs));
 
-  return ((uv_stream_t*)&channel)->write_queue_size;
+  return channel.write_queue_size;
 }
 
 static void send_handle_and_close() {

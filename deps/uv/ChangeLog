@@ -1,3 +1,52 @@
+2019.08.10, Version 1.31.0 (Stable), 0a6771cee4c15184c924bfe9d397bdd0c3b206ba
+
+Changes since version 1.30.1:
+
+* win,fs: don't modify global file translation mode (Javier Blazquez)
+
+* win: fix uv_os_tmpdir when env var is 260 chars (Mustafa M)
+
+* win: prevent tty event explosion machine hang (Javier Blazquez)
+
+* win: add UV_FS_O_FILEMAP (João Reis)
+
+* win, fs: mkdir return UV_EINVAL for invalid names (Bartosz Sosnowski)
+
+* github: add root warning to template (cjihrig)
+
+* win: misc fs cleanup (cjihrig)
+
+* unix,win: add uv_fs_statfs() (cjihrig)
+
+* test: avoid AF_LOCAL (Carlo Marcelo Arenas Belón)
+
+* unix,win: add ability to retrieve all env variables (Saúl Ibarra Corretgé)
+
+* Revert "darwin: speed up uv_set_process_title()" (Ben Noordhuis)
+
+* doc: add %p to valgrind log-file arg (Zach Bjornson)
+
+* doc: fix typo in basics.rst (Nan Xiao)
+
+* ibmi: support Makefile build for IBM i (Xu Meng)
+
+* OpenBSD: only get active CPU core count (Ben Davies)
+
+* test: fix gcc 8 warnings for tests (Nhan Khong)
+
+* ibmi: use correct header files (Xu Meng)
+
+* unix: clear UV_HANDLE_READING flag before callback (zyxwvu Shi)
+
+* unix: fix unused-function warning on BSD (Nhan Khong)
+
+* test: fix test runner on MinGW (Crunkle)
+
+* win: remove try-except outside MSVC (Crunkle)
+
+* win: fix uv_spawn() ENOMEM on empty env (Ben Noordhuis)
+
+
 2019.07.03, Version 1.30.1 (Stable), 1551969c84c2f546a429dac169c7fdac3e38115e
 
 Changes since version 1.30.0:

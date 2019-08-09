@@ -49,6 +49,8 @@
 # include "uv/linux.h"
 #elif defined (__MVS__)
 # include "uv/os390.h"
+#elif defined(__PASE__)  /* __PASE__ and _AIX are both defined on IBM i */
+# include "uv/posix.h"  /* IBM i needs uv/posix.h, not uv/aix.h */
 #elif defined(_AIX)
 # include "uv/aix.h"
 #elif defined(__sun)
@@ -61,8 +63,7 @@
       defined(__OpenBSD__)         || \
       defined(__NetBSD__)
 # include "uv/bsd.h"
-#elif defined(__PASE__)   || \
-      defined(__CYGWIN__) || \
+#elif defined(__CYGWIN__) || \
       defined(__MSYS__)   || \
       defined(__GNU__)
 # include "uv/posix.h"
@@ -481,6 +482,7 @@ typedef struct {
 #endif
 
 /* fs open() flags supported on other platforms: */
+#define UV_FS_O_FILEMAP       0
 #define UV_FS_O_RANDOM        0
 #define UV_FS_O_SHORT_LIVED   0
 #define UV_FS_O_SEQUENTIAL    0

@@ -193,7 +193,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   if (sysctl(which, 2, &model, &size, NULL, 0))
     return UV__ERR(errno);
 
-  which[1] = HW_NCPU;
+  which[1] = HW_NCPUONLINE;
   size = sizeof(numcpus);
   if (sysctl(which, 2, &numcpus, &size, NULL, 0))
     return UV__ERR(errno);

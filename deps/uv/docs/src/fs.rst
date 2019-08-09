@@ -102,6 +102,24 @@ Data types
             UV_FS_CLOSEDIR
         } uv_fs_type;
 
+.. c:type:: uv_statfs_t
+
+    Reduced cross platform equivalent of ``struct statfs``.
+    Used in :c:func:`uv_fs_statfs`.
+
+    ::
+
+        typedef struct uv_statfs_s {
+            uint64_t f_type;
+            uint64_t f_bsize;
+            uint64_t f_blocks;
+            uint64_t f_bfree;
+            uint64_t f_bavail;
+            uint64_t f_files;
+            uint64_t f_ffree;
+            uint64_t f_spare[4];
+        } uv_statfs_t;
+
 .. c:type:: uv_dirent_t
 
     Cross platform (reduced) equivalent of ``struct dirent``.
@@ -200,6 +218,11 @@ API
 
     Equivalent to :man:`preadv(2)`.
 
+    .. warning::
+        On Windows, under non-MSVC environments (e.g. when GCC or Clang is used
+        to build libuv), files opened using ``UV_FS_O_FILEMAP`` may cause a fatal
+        crash if the memory mapped read operation fails.
+
 .. c:function:: int uv_fs_unlink(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
     Equivalent to :man:`unlink(2)`.
@@ -207,6 +230,11 @@ API
 .. c:function:: int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file file, const uv_buf_t bufs[], unsigned int nbufs, int64_t offset, uv_fs_cb cb)
 
     Equivalent to :man:`pwritev(2)`.
+
+    .. warning::
+        On Windows, under non-MSVC environments (e.g. when GCC or Clang is used
+        to build libuv), files opened using ``UV_FS_O_FILEMAP`` may cause a fatal
+        crash if the memory mapped write operation fails.
 
 .. c:function:: int uv_fs_mkdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode, uv_fs_cb cb)
 
@@ -289,6 +317,17 @@ API
 .. c:function:: int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
     Equivalent to :man:`stat(2)`, :man:`fstat(2)` and :man:`lstat(2)` respectively.
+
+.. c:function:: int uv_fs_statfs(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
+
+    Equivalent to :man:`statfs(2)`. On success, a `uv_statfs_t` is allocated
+    and returned via `req->ptr`. This memory is freed by `uv_fs_req_cleanup()`.
+
+    .. note::
+        Any fields in the resulting `uv_statfs_t` that are not supported by the
+        underlying operating system are set to zero.
+
+    .. versionadded:: 1.31.0
 
 .. c:function:: int uv_fs_rename(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb)
 
@@ -533,6 +572,14 @@ File open constants
         `UV_FS_O_EXLOCK` is only supported on macOS and Windows.
 
     .. versionchanged:: 1.17.0 support is added for Windows.
+
+.. c:macro:: UV_FS_O_FILEMAP
+
+    Use a memory file mapping to access the file. When using this flag, the
+    file cannot be open multiple times concurrently.
+
+    .. note::
+        `UV_FS_O_FILEMAP` is only supported on Windows.
 
 .. c:macro:: UV_FS_O_NOATIME
 

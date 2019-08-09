@@ -44,6 +44,10 @@
 # pragma clang diagnostic ignored "-Wc99-extensions"
 #endif
 
+#ifdef __GNUC__
+# pragma GCC diagnostic ignored "-Wvariadic-macros"
+#endif
+
 #define TEST_PORT 9123
 #define TEST_PORT_2 9124
 
