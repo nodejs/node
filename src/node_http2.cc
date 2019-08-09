@@ -20,6 +20,7 @@ using v8::ObjectTemplate;
 using v8::String;
 using v8::Uint32;
 using v8::Uint32Array;
+using v8::Uint8Array;
 using v8::Undefined;
 
 using node::performance::PerformanceEntry;
@@ -667,6 +668,15 @@ Http2Session::Http2Session(Environment* env,
 
   outgoing_storage_.reserve(4096);
   outgoing_buffers_.reserve(32);
+
+  {
+    // Make the js_fields_ property accessible to JS land.
+    Local<ArrayBuffer> ab =
+        ArrayBuffer::New(env->isolate(), js_fields_, kSessionUint8FieldCount);
+    Local<Uint8Array> uint8_arr =
+        Uint8Array::New(ab, 0, kSessionUint8FieldCount);
+    /*USE*/(wrap->Set(env->context(), env->fields_string(), uint8_arr));
+  }
 }
 
 void Http2Session::Unconsume() {
@@ -1090,7 +1100,8 @@ inline int Http2Session::OnFrameNotSent(nghttp2_session* handle,
   // Do not report if the frame was not sent due to the session closing
   if (error_code == NGHTTP2_ERR_SESSION_CLOSING ||
       error_code == NGHTTP2_ERR_STREAM_CLOSED ||
-      error_code == NGHTTP2_ERR_STREAM_CLOSING) {
+      error_code == NGHTTP2_ERR_STREAM_CLOSING ||
+      session->js_fields_[kSessionFrameErrorListenerCount] == 0) {
     return 0;
   }
 
@@ -1346,7 +1357,8 @@ inline void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
 // received. Notifies JS land about the priority change. Note that priorities
 // are considered advisory only, so this has no real effect other than to
 // simply let user code know that the priority has changed.
-inline void Http2Session::HandlePriorityFrame(const nghttp2_frame* frame) {
+void Http2Session::HandlePriorityFrame(const nghttp2_frame* frame) {
+  if (js_fields_[kSessionPriorityListenerCount] == 0) return;
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
   Local<Context> context = env()->context();
@@ -1413,7 +1425,8 @@ inline void Http2Session::HandleGoawayFrame(const nghttp2_frame* frame) {
 }
 
 // Called by OnFrameReceived when a complete ALTSVC frame has been received.
-inline void Http2Session::HandleAltSvcFrame(const nghttp2_frame* frame) {
+void Http2Session::HandleAltSvcFrame(const nghttp2_frame* frame) {
+  if (!(js_fields_[kBitfield] & (1 << kSessionHasAltsvcListeners))) return;
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
   Local<Context> context = env()->context();
@@ -1499,6 +1512,7 @@ inline void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
     return;
   }
 
+  if (!(js_fields_[kBitfield] & (1 << kSessionHasPingListeners))) return;
   // Notify the session that a ping occurred
   arg = Buffer::Copy(env(),
                       reinterpret_cast<const char*>(frame->ping.opaque_data),
@@ -1510,6 +1524,9 @@ inline void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
 inline void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
   bool ack = frame->hd.flags & NGHTTP2_FLAG_ACK;
   if (!ack) {
+    js_fields_[kBitfield] &= ~(1 << kSessionRemoteSettingsIsUpToDate);
+    if (!(js_fields_[kBitfield] & (1 << kSessionHasRemoteSettingsListeners)))
+      return;
     // This is not a SETTINGS acknowledgement, notify and return
     MakeCallback(env()->onsettings_string(), 0, nullptr);
     return;
@@ -3134,6 +3151,16 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, PADDING_BUF_FRAME_LENGTH);
   NODE_DEFINE_CONSTANT(target, PADDING_BUF_MAX_PAYLOAD_LENGTH);
   NODE_DEFINE_CONSTANT(target, PADDING_BUF_RETURN_VALUE);
+
+  NODE_DEFINE_CONSTANT(target, kBitfield);
+  NODE_DEFINE_CONSTANT(target, kSessionPriorityListenerCount);
+  NODE_DEFINE_CONSTANT(target, kSessionFrameErrorListenerCount);
+  NODE_DEFINE_CONSTANT(target, kSessionUint8FieldCount);
+
+  NODE_DEFINE_CONSTANT(target, kSessionHasRemoteSettingsListeners);
+  NODE_DEFINE_CONSTANT(target, kSessionRemoteSettingsIsUpToDate);
+  NODE_DEFINE_CONSTANT(target, kSessionHasPingListeners);
+  NODE_DEFINE_CONSTANT(target, kSessionHasAltsvcListeners);
 
   // Method to fetch the nghttp2 string description of an nghttp2 error code
   env->SetMethod(target, "nghttp2ErrorString", HttpErrorString);
