@@ -119,7 +119,7 @@ given `obj` by iterating through the object's "own properties".
 
 It serializes the following types of values passed in `obj`:
 {string|number|boolean|string[]|number[]|boolean[]}.
-Any other input values (including `null` and `undefined`) will be coerced to 
+Any other input values (including `null` and `undefined`) will be coerced to
 empty strings.
 
 ```js
