@@ -1259,7 +1259,13 @@ void Http2StreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     return;
   }
 
-  CHECK(!session->stream_buf_ab_.IsEmpty());
+  Local<ArrayBuffer> ab;
+  if (session->stream_buf_ab_.IsEmpty()) {
+    ab = session->stream_buf_allocation_.ToArrayBuffer();
+    session->stream_buf_ab_.Reset(env->isolate(), ab);
+  } else {
+    ab = PersistentToLocal::Strong(session->stream_buf_ab_);
+  }
 
   // There is a single large array buffer for the entire data read from the
   // network; create a slice of that array buffer and emit it as the
@@ -1270,7 +1276,7 @@ void Http2StreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   CHECK_LE(offset, session->stream_buf_.len);
   CHECK_LE(offset + buf.len, session->stream_buf_.len);
 
-  stream->CallJSOnreadMethod(nread, session->stream_buf_ab_, offset);
+  stream->CallJSOnreadMethod(nread, ab, offset);
 }
 
 
@@ -1789,6 +1795,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   Http2Scope h2scope(this);
   CHECK_NOT_NULL(stream_);
   Debug(this, "receiving %d bytes", nread);
+  CHECK_EQ(stream_buf_allocation_.size(), 0);
   CHECK(stream_buf_ab_.IsEmpty());
   AllocatedBuffer buf(env(), buf_);
 
@@ -1810,7 +1817,8 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
     // We use `nread` instead of `buf.size()` here, because the buffer is
     // cleared as part of the `.ToArrayBuffer()` call below.
     DecrementCurrentSessionMemory(nread);
-    stream_buf_ab_ = Local<ArrayBuffer>();
+    stream_buf_ab_.Reset();
+    stream_buf_allocation_.clear();
     stream_buf_ = uv_buf_init(nullptr, 0);
   });
 
@@ -1824,9 +1832,10 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
 
   Isolate* isolate = env()->isolate();
 
-  // Create an array buffer for the read data. DATA frames will be emitted
-  // as slices of this array buffer to avoid having to copy memory.
-  stream_buf_ab_ = buf.ToArrayBuffer();
+  // Store this so we can create an ArrayBuffer for read data from it.
+  // DATA frames will be emitted as slices of that ArrayBuffer to avoid having
+  // to copy memory.
+  stream_buf_allocation_ = std::move(buf);
 
   statistics_.data_received += nread;
   ssize_t ret = Write(&stream_buf_, 1);
