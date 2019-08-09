@@ -70,6 +70,20 @@
 # include <utime.h>
 #endif
 
+#if defined(__APPLE__)            ||                                      \
+    defined(__DragonFly__)        ||                                      \
+    defined(__FreeBSD__)          ||                                      \
+    defined(__FreeBSD_kernel__)   ||                                      \
+    defined(__OpenBSD__)          ||                                      \
+    defined(__NetBSD__)
+# include <sys/param.h>
+# include <sys/mount.h>
+#elif defined(__sun) || defined(__MVS__)
+# include <sys/statvfs.h>
+#else
+# include <sys/statfs.h>
+#endif
+
 #if defined(_AIX) && _XOPEN_SOURCE <= 600
 extern char *mkdtemp(char *template); /* See issue #740 on AIX < 7 */
 #endif
@@ -278,6 +292,7 @@ static ssize_t uv__fs_open(uv_fs_t* req) {
 }
 
 
+#if !HAVE_PREADV
 static ssize_t uv__fs_preadv(uv_file fd,
                              uv_buf_t* bufs,
                              unsigned int nbufs,
@@ -324,6 +339,7 @@ static ssize_t uv__fs_preadv(uv_file fd,
 
   return result;
 }
+#endif
 
 
 static ssize_t uv__fs_read(uv_fs_t* req) {
@@ -516,6 +532,40 @@ static int uv__fs_closedir(uv_fs_t* req) {
 
   uv__free(req->ptr);
   req->ptr = NULL;
+  return 0;
+}
+
+static int uv__fs_statfs(uv_fs_t* req) {
+  uv_statfs_t* stat_fs;
+#if defined(__sun) || defined(__MVS__)
+  struct statvfs buf;
+
+  if (0 != statvfs(req->path, &buf))
+#else
+  struct statfs buf;
+
+  if (0 != statfs(req->path, &buf))
+#endif /* defined(__sun) */
+    return -1;
+
+  stat_fs = uv__malloc(sizeof(*stat_fs));
+  if (stat_fs == NULL) {
+    errno = ENOMEM;
+    return -1;
+  }
+
+#if defined(__sun) || defined(__MVS__)
+  stat_fs->f_type = 0;  /* f_type is not supported. */
+#else
+  stat_fs->f_type = buf.f_type;
+#endif
+  stat_fs->f_bsize = buf.f_bsize;
+  stat_fs->f_blocks = buf.f_blocks;
+  stat_fs->f_bfree = buf.f_bfree;
+  stat_fs->f_bavail = buf.f_bavail;
+  stat_fs->f_files = buf.f_files;
+  stat_fs->f_ffree = buf.f_ffree;
+  req->ptr = stat_fs;
   return 0;
 }
 
@@ -1386,6 +1436,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(RMDIR, rmdir(req->path));
     X(SENDFILE, uv__fs_sendfile(req));
     X(STAT, uv__fs_stat(req->path, &req->statbuf));
+    X(STATFS, uv__fs_statfs(req));
     X(SYMLINK, symlink(req->path, req->new_path));
     X(UNLINK, unlink(req->path));
     X(UTIME, uv__fs_utime(req));
@@ -1856,5 +1907,15 @@ int uv_fs_copyfile(uv_loop_t* loop,
 
   PATH2;
   req->flags = flags;
+  POST;
+}
+
+
+int uv_fs_statfs(uv_loop_t* loop,
+                 uv_fs_t* req,
+                 const char* path,
+                 uv_fs_cb cb) {
+  INIT(STATFS);
+  PATH;
   POST;
 }
