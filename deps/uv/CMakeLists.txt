@@ -53,6 +53,8 @@ set(uv_test_sources
     test/test-fs-poll.c
     test/test-fs.c
     test/test-fs-readdir.c
+    test/test-fs-fd-hash.c
+    test/test-fs-open-flags.c
     test/test-get-currentexe.c
     test/test-get-loadavg.c
     test/test-get-memory.c
