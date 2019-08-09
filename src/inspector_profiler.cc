@@ -1,13 +1,14 @@
 #include "inspector_profiler.h"
-#include <sstream>
 #include "base_object-inl.h"
 #include "debug_utils.h"
 #include "diagnosticfilename-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_file.h"
 #include "node_internals.h"
-#include "v8-inspector.h"
 #include "util-inl.h"
+#include "v8-inspector.h"
+
+#include <sstream>
 
 namespace node {
 namespace profiler {
@@ -323,7 +324,7 @@ void EndStartedProfilers(Environment* env) {
 std::string GetCwd(Environment* env) {
   char cwd[PATH_MAX_BYTES];
   size_t size = PATH_MAX_BYTES;
-  int err = uv_cwd(cwd, &size);
+  const int err = uv_cwd(cwd, &size);
 
   if (err == 0) {
     CHECK_GT(size, 0);
