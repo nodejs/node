@@ -69,7 +69,7 @@ if (process.argv[2] === 'server') {
 
       client.write(alittle);
 
-      client.destroySoon();
+      client.end();
     });
   });
 }

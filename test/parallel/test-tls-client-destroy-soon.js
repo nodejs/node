@@ -42,7 +42,6 @@ const big = Buffer.alloc(2 * 1024 * 1024, 'Y');
 // create server
 const server = tls.createServer(options, common.mustCall(function(socket) {
   socket.end(big);
-  socket.destroySoon();
 }));
 
 // start listening

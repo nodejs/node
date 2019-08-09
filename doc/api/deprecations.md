@@ -2500,6 +2500,19 @@ Type: Runtime
 Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 `Promise` instead, or a listener to the worker’s `'exit'` event.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: stream.destroySoon()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29065
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+`stream.destroySoon()` is an unused internal API.
+
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation

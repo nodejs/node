@@ -50,16 +50,6 @@ const filename = path.join(tmpdir.path, 'sync-write-stream.txt');
   assert.strictEqual(stream.fd, null);
 }
 
-// Verify that the stream will unset the fd after destroySoon().
-{
-  const fd = fs.openSync(filename, 'w');
-  const stream = new SyncWriteStream(fd);
-
-  stream.on('close', common.mustCall());
-  assert.strictEqual(stream.destroySoon(), stream);
-  assert.strictEqual(stream.fd, null);
-}
-
 // Verify that calling end() will also destroy the stream.
 {
   const fd = fs.openSync(filename, 'w');

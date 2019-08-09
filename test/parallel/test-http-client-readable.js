@@ -47,7 +47,7 @@ class FakeAgent extends http.Agent {
       cb();
     };
 
-    s.destroy = s.destroySoon = function() {
+    s.destroy = function() {
       this.writable = false;
     };
 
