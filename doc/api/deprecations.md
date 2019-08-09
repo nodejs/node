@@ -2518,6 +2518,22 @@ Type: Documentation-only
 Prefer [`response.socket`][] over [`response.connection`] and
 [`request.socket`][] over [`request.connection`].
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: `WriteStream.open()` and `ReadStream.open()` are internal
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29061
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+[`WriteStream.open()`][] and [`ReadStream.open()`][] are undocumented internal
+APIs that do not make sense to use in userland. File streams should always be
+opened through the constructor or by passing a file descriptor in options.
+
+[`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2528,10 +2544,12 @@ Prefer [`response.socket`][] over [`response.connection`] and
 [`Decipher`]: crypto.html#crypto_class_decipher
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
 [`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
+[`ReadStream.open()`]: fs.html#fs_class_fs_readstream
 [`Server.connections`]: net.html#net_server_connections
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback
 [`Server.listen({fd: <number>})`]: net.html#net_server_listen_handle_backlog_callback
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
+[`WriteStream.open()`]: fs.html#fs_class_fs_writestream
 [`assert`]: assert.html
 [`asyncResource.runInAsyncScope()`]: async_hooks.html#async_hooks_asyncresource_runinasyncscope_fn_thisarg_args
 [`child_process`]: child_process.html
