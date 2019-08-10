@@ -6,7 +6,7 @@ const common = require('../common');
 // arbitrary execution points. By using a number of
 // internal modules as load candidates, the expectation
 // is that those will be at various control flow points
-// preferrably in the C++ land.
+// preferably in the C++ land.
 
 const { Worker } = require('worker_threads');
 const modules = [ 'fs', 'assert', 'async_hooks', 'buffer', 'child_process',

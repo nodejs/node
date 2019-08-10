@@ -127,7 +127,7 @@ std::string CodeCacheBuilder::Generate(Local<Context> context) {
     // TODO(joyeecheung): we can only compile the modules that can be
     // required here because the parameters for other types of builtins
     // are still very flexible. We should look into auto-generating
-    // the paramters from the source somehow.
+    // the parameters from the source somehow.
     if (loader->CanBeRequired(id.c_str())) {
       NativeModuleLoader::Result result;
       USE(loader->CompileAsModule(context, id.c_str(), &result));

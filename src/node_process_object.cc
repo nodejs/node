@@ -125,7 +125,7 @@ MaybeLocal<Object> CreateProcessObject(Environment* env) {
 #endif  // NODE_HAS_RELEASE_URLS
 
   // process._rawDebug: may be overwritten later in JS land, but should be
-  // availbale from the begining for debugging purposes
+  // available from the beginning for debugging purposes
   env->SetMethod(process, "_rawDebug", RawDebug);
 
   return scope.Escape(process);
