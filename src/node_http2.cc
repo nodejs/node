@@ -1585,8 +1585,17 @@ void Http2Session::OnStreamAfterWriteImpl(WriteWrap* w, int status, void* ctx) {
   Http2Session* session = static_cast<Http2Session*>(ctx);
   DEBUG_HTTP2SESSION2(session, "write finished with status %d", status);
 
+  CHECK_NE(session->flags_ & SESSION_STATE_WRITE_IN_PROGRESS, 0);
+  session->flags_ &= ~SESSION_STATE_WRITE_IN_PROGRESS;
+
   // Inform all pending writes about their completion.
   session->ClearOutgoing(status);
+
+  if ((session->flags_ & SESSION_STATE_READING_STOPPED) &&
+      nghttp2_session_want_read(session->session_)) {
+    session->flags_ &= ~SESSION_STATE_READING_STOPPED;
+    session->stream_->ReadStart();
+  }
 
   if (!(session->flags_ & SESSION_STATE_WRITE_SCHEDULED)) {
     // Schedule a new write if nghttp2 wants to send data.
@@ -1627,10 +1636,13 @@ void Http2Session::MaybeScheduleWrite() {
 }
 
 void Http2Session::MaybeStopReading() {
+  if (flags_ & SESSION_STATE_READING_STOPPED) return;
   int want_read = nghttp2_session_want_read(session_);
   DEBUG_HTTP2SESSION2(this, "wants read? %d", want_read);
-  if (want_read == 0)
+  if (want_read == 0 || (flags_ & SESSION_STATE_WRITE_IN_PROGRESS)) {
+    flags_ |= SESSION_STATE_READING_STOPPED;
     stream_->ReadStop();
+  }
 }
 
 // Unset the sending state, finish up all current writes, and reset
@@ -1757,6 +1769,8 @@ uint8_t Http2Session::SendPendingData() {
 
   chunks_sent_since_last_write_++;
 
+  CHECK_EQ(flags_ & SESSION_STATE_WRITE_IN_PROGRESS, 0);
+
   // DoTryWrite may modify both the buffer list start itself and the
   // base pointers/length of the individual buffers.
   uv_buf_t* writebufs = *bufs;
@@ -1766,8 +1780,11 @@ uint8_t Http2Session::SendPendingData() {
     return 0;
   }
 
+  flags_ |= SESSION_STATE_WRITE_IN_PROGRESS;
+
   WriteWrap* req = AllocateSend();
   if (stream_->DoWrite(req, writebufs, count, nullptr) != 0) {
+    flags_ &= ~SESSION_STATE_WRITE_IN_PROGRESS;
     req->Dispose();
   }
 
