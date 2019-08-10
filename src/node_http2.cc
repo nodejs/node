@@ -632,7 +632,7 @@ Http2Session::Http2Session(Environment* env,
   // fails.
   CHECK_EQ(fn(&session_, callbacks, this, *opts, *allocator_info), 0);
 
-  outgoing_storage_.reserve(4096);
+  outgoing_storage_.reserve(1024);
   outgoing_buffers_.reserve(32);
 
   {
@@ -1947,7 +1947,7 @@ Http2Stream::Http2Stream(Http2Session* session,
   if (max_header_pairs_ == 0) {
     max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
   }
-  current_headers_.reserve(max_header_pairs_);
+  current_headers_.reserve(std::min(max_header_pairs_, 12u));
 
   // Limit the number of header octets
   max_header_length_ =
