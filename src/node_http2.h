@@ -940,14 +940,14 @@ class Http2Session : public AsyncWrap {
                                    size_t maxPayloadLen);
 
   // Frame Handler
-  inline void HandleDataFrame(const nghttp2_frame* frame);
-  inline void HandleGoawayFrame(const nghttp2_frame* frame);
-  inline void HandleHeadersFrame(const nghttp2_frame* frame);
-  inline void HandlePriorityFrame(const nghttp2_frame* frame);
-  inline void HandleSettingsFrame(const nghttp2_frame* frame);
-  inline void HandlePingFrame(const nghttp2_frame* frame);
-  inline void HandleAltSvcFrame(const nghttp2_frame* frame);
-  inline void HandleOriginFrame(const nghttp2_frame* frame);
+  int HandleDataFrame(const nghttp2_frame* frame);
+  void HandleGoawayFrame(const nghttp2_frame* frame);
+  void HandleHeadersFrame(const nghttp2_frame* frame);
+  void HandlePriorityFrame(const nghttp2_frame* frame);
+  void HandleSettingsFrame(const nghttp2_frame* frame);
+  void HandlePingFrame(const nghttp2_frame* frame);
+  void HandleAltSvcFrame(const nghttp2_frame* frame);
+  void HandleOriginFrame(const nghttp2_frame* frame);
 
   // nghttp2 callbacks
   static inline int OnBeginHeadersCallback(
