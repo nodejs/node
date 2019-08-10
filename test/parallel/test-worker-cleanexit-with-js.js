@@ -6,7 +6,7 @@ const common = require('../common');
 // arbitrary execution points. By running a lot of
 // JS code in a tight loop, the expectation
 // is that those will be at various control flow points
-// preferrably in the JS land.
+// preferably in the JS land.
 
 const { Worker } = require('worker_threads');
 const code = 'setInterval(() => {' +

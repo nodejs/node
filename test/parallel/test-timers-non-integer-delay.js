@@ -78,7 +78,7 @@ const interval = setInterval(common.mustCall(() => {
       `Non-integer delay ordering should be ${expected}, but got ${ordering}`
     );
 
-    // 2 should always be last of these delays due to ordering guarentees by
+    // 2 should always be last of these delays due to ordering guarantees by
     // the implementation.
   }), 2);
 }
