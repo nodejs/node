@@ -22,7 +22,7 @@ const { inspect } = require('util');
   }), 1);
   timer.unref();
 
-  // This relies on implicit timers handle sorting withing libuv.
+  // This relies on implicit timers handle sorting within libuv.
 
   setTimeout(common.mustCall(() => {
     strictEqual(called, false, 'unref()\'d timer returned before check');

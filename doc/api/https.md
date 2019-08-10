@@ -42,7 +42,7 @@ changes:
     is specified using an IP address, in which case the default is `''` (no
     extension).
 
-    See [`Session Resumption`][] for infomation about TLS session reuse.
+    See [`Session Resumption`][] for information about TLS session reuse.
 
 ## Class: https.Server
 <!-- YAML
