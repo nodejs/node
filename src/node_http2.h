@@ -889,7 +889,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
                             size_t maxPayloadLen);
 
   // Frame Handler
-  void HandleDataFrame(const nghttp2_frame* frame);
+  int HandleDataFrame(const nghttp2_frame* frame);
   void HandleGoawayFrame(const nghttp2_frame* frame);
   void HandleHeadersFrame(const nghttp2_frame* frame);
   void HandlePriorityFrame(const nghttp2_frame* frame);
