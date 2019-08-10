@@ -1328,6 +1328,8 @@ inline void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
     return;
 
   std::vector<nghttp2_header> headers(stream->move_headers());
+  DecrementCurrentSessionMemory(stream->current_headers_length_);
+  stream->current_headers_length_ = 0;
 
   Local<String> name_str;
   Local<String> value_str;
@@ -2021,6 +2023,7 @@ Http2Stream::~Http2Stream() {
   if (session_ == nullptr)
     return;
   DEBUG_HTTP2STREAM(this, "tearing down stream");
+  session_->DecrementCurrentSessionMemory(current_headers_length_);
   session_->RemoveStream(this);
   session_ = nullptr;
 
@@ -2032,6 +2035,7 @@ Http2Stream::~Http2Stream() {
 void Http2Stream::StartHeaders(nghttp2_headers_category category) {
   DEBUG_HTTP2STREAM2(this, "starting headers, category: %d", id_, category);
   CHECK(!this->IsDestroyed());
+  session_->DecrementCurrentSessionMemory(current_headers_length_);
   current_headers_length_ = 0;
   current_headers_.clear();
   current_headers_category_ = category;
@@ -2323,10 +2327,6 @@ inline int Http2Stream::DoWrite(WriteWrap* req_wrap,
   return 0;
 }
 
-inline size_t GetBufferLength(nghttp2_rcbuf* buf) {
-  return nghttp2_rcbuf_get_buf(buf).len;
-}
-
 // Ads a header to the Http2Stream. Note that the header name and value are
 // provided using a buffer structure provided by nghttp2 that allows us to
 // avoid unnecessary memcpy's. Those buffers are ref counted. The ref count
@@ -2338,7 +2338,12 @@ inline bool Http2Stream::AddHeader(nghttp2_rcbuf* name,
   CHECK(!this->IsDestroyed());
   if (this->statistics_.first_header == 0)
     this->statistics_.first_header = uv_hrtime();
-  size_t length = GetBufferLength(name) + GetBufferLength(value) + 32;
+  size_t name_len = nghttp2_rcbuf_get_buf(name).len;
+  if (name_len == 0 && !IsReverted(SECURITY_REVERT_CVE_2019_9516)) {
+    return true;  // Ignore headers with empty names.
+  }
+  size_t value_len = nghttp2_rcbuf_get_buf(value).len;
+  size_t length = name_len + value_len + 32;
   // A header can only be added if we have not exceeded the maximum number
   // of headers and the session has memory available for it.
   if (!session_->IsAvailableSessionMemory(length) ||
@@ -2354,6 +2359,7 @@ inline bool Http2Stream::AddHeader(nghttp2_rcbuf* name,
   nghttp2_rcbuf_incref(name);
   nghttp2_rcbuf_incref(value);
   current_headers_length_ += length;
+  session_->IncrementCurrentSessionMemory(length);
   return true;
 }
 
