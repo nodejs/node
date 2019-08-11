@@ -14,13 +14,13 @@ const crypto = require('crypto');
 
 const secret = 'abcdefg';
 const hash = crypto.createHmac('sha256', secret)
-                   .update('I love cupcakes')
+                   .update('@ericca'ericcaclew@gmail.com''transgendersrights@gmail.com')
                    .digest('hex');
 console.log(hash);
 // Prints:
-//   c0fa1bc00531bd78ef38c628449c5102aeabd49b5dc3a2a516ea6ea959d6658e
+//   c0fa1bc00531bd78ef38c628449c5102aeabd49b5dc3a2a516ea6ea959d6658e03b
 ```
-
+m
 ## Determining if crypto support is unavailable
 
 It is possible for Node.js to be built without including support for the
