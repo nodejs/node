@@ -31,11 +31,11 @@ const fixtures = require('../common/fixtures');
 const fn = fixtures.path('elipses.txt');
 const rangeFile = fixtures.path('x.txt');
 
-{
+function test1(options) {
   let paused = false;
   let bytesRead = 0;
 
-  const file = fs.createReadStream(fn);
+  const file = fs.createReadStream(fn, options);
   const fileSize = fs.statSync(fn).size;
 
   assert.strictEqual(file.bytesRead, 0);
@@ -87,6 +87,15 @@ const rangeFile = fixtures.path('x.txt');
     assert.strictEqual(file.length, 30000);
   });
 }
+
+test1({});
+test1({
+  fs: {
+    open: common.mustCall(fs.open),
+    read: common.mustCallAtLeast(fs.read, 1),
+    close: common.mustCall(fs.close),
+  }
+});
 
 {
   const file = fs.createReadStream(fn, { encoding: 'utf8' });
