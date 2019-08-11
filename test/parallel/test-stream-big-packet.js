@@ -32,12 +32,19 @@ class TestStream extends stream.Transform {
       // Char 'a' only exists in the last write
       passed = chunk.toString().includes('a');
     }
-    done();
+    process.nextTick(done);
   }
 }
 
-const s1 = new stream.PassThrough();
-const s2 = new stream.PassThrough();
+class PassStream extends stream.Transform {
+  _transform(chunk, encoding, done) {
+    this.push(chunk);
+    process.nextTick(done);
+  }
+}
+
+const s1 = new PassStream();
+const s2 = new PassStream();
 const s3 = new TestStream();
 s1.pipe(s3);
 // Don't let s2 auto close which may close s3

@@ -4,11 +4,16 @@ const stream = require('stream');
 const assert = require('assert');
 
 // This is very similar to test-stream-pipe-cleanup-pause.js.
+class TestStream extends stream.Writable {
+  _write(chunk, encoding, done) {
+    process.nextTick(done);
+  }
+}
 
 const reader = new stream.Readable();
-const writer1 = new stream.Writable();
-const writer2 = new stream.Writable();
-const writer3 = new stream.Writable();
+const writer1 = new TestStream();
+const writer2 = new TestStream();
+const writer3 = new TestStream();
 
 // 560000 is chosen here because it is larger than the (default) highWaterMark
 // and will cause `.write()` to return false
@@ -19,7 +24,7 @@ reader._read = () => {};
 
 writer1._write = common.mustCall(function(chunk, encoding, cb) {
   this.emit('chunk-received');
-  cb();
+  process.nextTick(cb);
 }, 1);
 
 writer1.once('chunk-received', () => {
