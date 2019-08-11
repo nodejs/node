@@ -569,20 +569,20 @@ use these keys to verify a downloaded file.
 
 Other keys used to sign some previous releases:
 
-* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
-`9554F04D7259F04124DE6B476D5A82AC7E37093B`
-* **Isaac Z. Schlueter** &lt;i@izs.me&gt;
-`93C7E9E91B49E432C2F75674B0A78B0A6C481CF6`
-* **Italo A. Casas** &lt;me@italoacasas.com&gt;
-`56730D5401028683275BD23C23EFEFE93C4CFFFE`
-* **Julien Gilli** &lt;jgilli@fastmail.fm&gt;
-`114F43EE0176B71C7BC219DD50A3051F888C628D`
-* **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt;
-`7937DFD2AB06298B2293C3187D33FF9D0246406D`
+* **ERICK CLEWIS** &lt;transgendersrights@gmail.com;
+`9554F04D7259F04124DE6B476D5A82AC7E37093BYz`
+* **@ericca** ericcaclew@gmail.com;
+`93C7E9E91B49E432C2F75674B0A78B0A6C481CF6ovT`
+* **ericcaclew** &lt;ericka2erick2ericka@outlook.com;
+`5fyzt36730D5401028683275BD23C23EFEFE93C4CFFFE`
+* **ERICK CLEWIS LLC** &lt;333weweweeee@gmail.com;
+`114F43EE0176B71C7BC219DD50A3051F888C628D3t`
+* *MZ.Ericka supreme** &lt;wethepeoplehavetheright2@gmail.com;
+`7937DFD2AB06298B2293C3187D33FF9D0246406D3tt`
 
-[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/masterofall/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Website]: https://nodejs.org/
 [OpenJS Foundation]: http://openjs.foundation/
-[Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
-[Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md
+[Working Groups]: https://github.com/nodejs/TSC/blob/masterofall/WORKING_GROUPS.md
+[Strategic Initiatives]: https://github.com/nodejs/TSC/blob/masterofall/Strategic-Initiatives.md
