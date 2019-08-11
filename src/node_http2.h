@@ -386,6 +386,7 @@ enum session_state_flags {
   SESSION_STATE_SENDING = 0x10,
   SESSION_STATE_WRITE_IN_PROGRESS = 0x20,
   SESSION_STATE_READING_STOPPED = 0x40,
+  SESSION_STATE_NGHTTP2_RECV_PAUSED = 0x80
 };
 
 // This allows for 4 default-sized frames with their frame headers
@@ -831,8 +832,8 @@ class Http2Session : public AsyncWrap {
   // Indicates whether there currently exist outgoing buffers for this stream.
   bool HasWritesOnSocketForStream(Http2Stream* stream);
 
-  // Write data to the session
-  inline ssize_t Write(const uv_buf_t* bufs, size_t nbufs);
+  // Write data from stream_buf_ to the session
+  ssize_t ConsumeHTTP2Data();
 
   size_t self_size() const override { return sizeof(*this); }
 
@@ -896,6 +897,9 @@ class Http2Session : public AsyncWrap {
   }
 
   void DecrementCurrentSessionMemory(uint64_t amount) {
+#ifdef DEBUG
+    CHECK_LE(amount, current_session_memory_);
+#endif
     current_session_memory_ -= amount;
   }
 
@@ -1061,8 +1065,11 @@ class Http2Session : public AsyncWrap {
   uint32_t chunks_sent_since_last_write_ = 0;
 
   uv_buf_t stream_buf_ = uv_buf_init(nullptr, 0);
+  // When processing input data, either stream_buf_ab_ or stream_buf_allocation_
+  // will be set. stream_buf_ab_ is lazily created from stream_buf_allocation_.
   v8::Global<v8::ArrayBuffer> stream_buf_ab_;
   uv_buf_t stream_buf_allocation_ = uv_buf_init(nullptr, 0);
+  size_t stream_buf_offset_ = 0;
 
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
   std::queue<Http2Ping*> outstanding_pings_;
@@ -1072,6 +1079,7 @@ class Http2Session : public AsyncWrap {
 
   std::vector<nghttp2_stream_write> outgoing_buffers_;
   std::vector<uint8_t> outgoing_storage_;
+  size_t outgoing_length_ = 0;
   std::vector<int32_t> pending_rst_streams_;
   // Count streams that have been rejected while being opened. Exceeding a fixed
   // limit will result in the session being destroyed, as an indication of a
@@ -1081,6 +1089,7 @@ class Http2Session : public AsyncWrap {
   // Also use the invalid frame count as a measure for rejecting input frames.
   int32_t invalid_frame_count_ = 0;
 
+  void PushOutgoingBuffer(nghttp2_stream_write&& write);
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);
 
