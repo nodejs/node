@@ -754,7 +754,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 > 1. If _pjson_ is **null**, then
 >    1. Throw a _Module Not Found_ error.
 > 1. If _pjson.main_ is a String, then
->    1. Let _resolvedMain_ be the concatenation of _packageURL_, "/", and
+>    1. Let _resolvedMain_ be the URL resolution of _packageURL_, "/", and
 >       _pjson.main_.
 >    1. If the file at _resolvedMain_ exists, then
 >       1. Return _resolvedMain_.
@@ -763,8 +763,6 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 > 1. Let _legacyMainURL_ be the result applying the legacy
 >    **LOAD_AS_DIRECTORY** CommonJS resolver to _packageURL_, throwing a
 >    _Module Not Found_ error for no resolution.
-> 1. If _legacyMainURL_ does not end in _".js"_ then,
->    1. Throw an _Unsupported File Extension_ error.
 > 1. Return _legacyMainURL_.
 
 **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _packagePath_, _exports_)
@@ -798,7 +796,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >    1. If _resolvedTarget_ is contained in _packageURL_, then
 >       1. Let _resolved_ be the URL resolution of the concatenation of
 >          _subpath_ and _resolvedTarget_.
->       1. If _resolved_ is contained in _packageURL_, then
+>       1. If _resolved_ is contained in _resolvedTarget_, then
 >          1. Return _resolved_.
 > 1. Otherwise, if _target_ is an Array, then
 >    1. For each item _targetValue_ in _target_, do

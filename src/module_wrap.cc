@@ -876,7 +876,7 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
   if (subpath.length() == 0) return Just(resolved);
   URL subpath_resolved(subpath, resolved);
   std::string subpath_resolved_path = subpath_resolved.path();
-  if (subpath_resolved_path.find(pkg_path) != 0 ||
+  if (subpath_resolved_path.find(resolved_path) != 0 ||
       subpath_resolved_path.find("/node_modules/", pkg_path.length() - 1)
       != std::string::npos) {
     if (throw_invalid) {
