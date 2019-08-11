@@ -1674,6 +1674,10 @@ changes:
   - version: v2.3.0
     pr-url: https://github.com/nodejs/node/pull/1845
     description: The passed `options` object can be a string now.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `fs` options allow overriding the used `fs`
+                 implementation.
 -->
 
 * `path` {string|Buffer|URL}
@@ -1688,7 +1692,8 @@ changes:
   * `start` {integer}
   * `end` {integer} **Default:** `Infinity`
   * `highWaterMark` {integer} **Default:** `64 * 1024`
-* Returns: {fs.ReadStream}
+  * `fs` {Object|null} **Default:** `null`
+* Returns: {fs.ReadStream} See [Readable Stream][].
 
 Unlike the 16 kb default `highWaterMark` for a readable stream, the stream
 returned by this method has a default `highWaterMark` of 64 kb.
@@ -1714,6 +1719,10 @@ closing naturally.
 By default, the stream will not emit a `'close'` event after it has been
 destroyed. This is the opposite of the default for other `Readable` streams.
 Set the `emitClose` option to `true` to change this behavior.
+
+By providing the `fs` option it is possible to override the corresponding `fs`
+implementations for `open`, `read` and `close`. When providing the `fs` option,
+you must override `open`, `close` and `read`.
 
 ```js
 const fs = require('fs');
@@ -1768,6 +1777,10 @@ changes:
   - version: v2.3.0
     pr-url: https://github.com/nodejs/node/pull/1845
     description: The passed `options` object can be a string now.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `fs` options allow overriding the used `fs`
+                 implementation.
 -->
 
 * `path` {string|Buffer|URL}
@@ -1780,7 +1793,8 @@ changes:
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `false`
   * `start` {integer}
-* Returns: {fs.WriteStream}
+  * `fs` {Object|null} **Default:** `null`
+* Returns: {fs.WriteStream} See [Writable Stream][].
 
 `options` may also include a `start` option to allow writing data at
 some position past the beginning of the file, allowed values are in the
@@ -1798,6 +1812,12 @@ file descriptor leak.
 By default, the stream will not emit a `'close'` event after it has been
 destroyed. This is the opposite of the default for other `Writable` streams.
 Set the `emitClose` option to `true` to change this behavior.
+
+By providing the `fs` option it is possible to override the corresponding `fs`
+implementations for `open`, `write`, `writev` and `close`. Overriding `write()`
+without `writev()` can reduce performance as some optimizations (`_writev()`)
+will be disabled. When providing the `fs` option, you must override `open`,
+`close` and at least one of `write` and `writev`.
 
 Like [`ReadStream`][], if `fd` is specified, [`WriteStream`][] will ignore the
 `path` argument and will use the specified file descriptor. This means that no
@@ -5520,6 +5540,7 @@ the file contents.
 [`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`ReadStream`]: #fs_class_fs_readstream
+[Readable Stream]: #stream_class_stream_readable
 [`URL`]: url.html#url_the_whatwg_url_api
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [`WriteStream`]: #fs_class_fs_writestream
@@ -5577,3 +5598,4 @@ the file contents.
 [chcp]: https://ss64.com/nt/chcp.html
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #fs_file_system_flags
+[Writable Stream]: #stream_class_stream_writable
