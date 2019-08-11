@@ -277,7 +277,9 @@ added: v0.9.4
 The `'error'` event is emitted if an error occurred while writing or piping
 data. The listener callback is passed a single `Error` argument when called.
 
-The stream is not closed when the `'error'` event is emitted.
+The stream is not closed when the `'error'` event is emitted unless the
+[`autoDestroy`][writable-new] option was set to `true` when creating the
+stream.
 
 ##### Event: 'finish'
 <!-- YAML
@@ -2734,4 +2736,5 @@ contain multi-byte characters.
 [stream-write]: #stream_writable_write_chunk_encoding_callback
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
+[writable-new]: #stream_constructor_new_stream_writable_options
 [zlib]: zlib.html
