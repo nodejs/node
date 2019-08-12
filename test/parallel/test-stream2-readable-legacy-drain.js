@@ -52,11 +52,4 @@ function drain() {
 
 w.end = common.mustCall();
 
-// Just for kicks, let's mess with the drain count.
-// This verifies that even if it gets negative in the
-// pipe() cleanup function, we'll still function properly.
-r.on('readable', function() {
-  w.emit('drain');
-});
-
 r.pipe(w);
