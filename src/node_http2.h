@@ -1022,6 +1022,8 @@ class Http2Session : public AsyncWrap, public StreamListener {
   // misbehaving peer. This counter is reset once new streams are being
   // accepted again.
   int32_t rejected_stream_count_ = 0;
+  // Also use the invalid frame count as a measure for rejecting input frames.
+  int32_t invalid_frame_count_ = 0;
 
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);
