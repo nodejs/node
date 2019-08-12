@@ -5,7 +5,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const { outHeadersKey } = require('internal/http');
+const { kOutHeaders } = require('internal/http');
 
 const http = require('http');
 const modules = { http };
@@ -20,7 +20,7 @@ Object.keys(modules).forEach((module) => {
     `${module}.request should not connect to ${module}://example.com%60x.example.com`
   );
   const req = modules[module].request(`${module}://example.com%60x.example.com`, doNotCall);
-  assert.deepStrictEqual(req[outHeadersKey].host, [
+  assert.deepStrictEqual(req[kOutHeaders].host, [
     'Host',
     'example.com`x.example.com',
   ]);

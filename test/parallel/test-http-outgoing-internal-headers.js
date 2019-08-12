@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const { outHeadersKey } = require('internal/http');
+const { kOutHeaders } = require('internal/http');
 const { OutgoingMessage } = require('http');
 
 const warn = 'OutgoingMessage.prototype._headers is deprecated';
@@ -25,7 +25,7 @@ common.expectWarning('DeprecationWarning', warn, 'DEP0066');
   };
 
   assert.deepStrictEqual(
-    Object.entries(outgoingMessage[outHeadersKey]),
+    Object.entries(outgoingMessage[kOutHeaders]),
     Object.entries({
       host: ['host', 'risingstack.com'],
       origin: ['Origin', 'localhost']
