@@ -1,7 +1,7 @@
 #include <node.h>
 #include <v8.h>
 
-void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   args.GetReturnValue().Set(v8::String::NewFromUtf8(
         isolate, "world", v8::NewStringType::kNormal).ToLocalChecked());
