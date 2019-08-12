@@ -99,7 +99,7 @@ assert.ok(Number.isNaN(buffer.readDoubleLE(8)));
       {
         code: 'ERR_BUFFER_OUT_OF_BOUNDS',
         name: 'RangeError',
-        message: 'Attempt to write outside buffer bounds'
+        message: 'Attempt to access memory outside buffer bounds'
       });
 
     ['', '0', null, {}, [], () => {}, true, false].forEach((off) => {

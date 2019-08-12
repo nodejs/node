@@ -362,7 +362,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_BUFFER_OUT_OF_BOUNDS',
   type: RangeError,
-  message: 'Attempt to write outside buffer bounds'
+  message: 'Attempt to access memory outside buffer bounds'
 });
 
 assert.deepStrictEqual(

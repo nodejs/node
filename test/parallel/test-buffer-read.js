@@ -60,7 +60,7 @@ const OOR_ERROR =
 const OOB_ERROR =
 {
   name: 'RangeError',
-  message: 'Attempt to write outside buffer bounds'
+  message: 'Attempt to access memory outside buffer bounds'
 };
 
 // Attempt to overflow buffers, similar to previous bug in array buffers
