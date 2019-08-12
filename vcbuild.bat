@@ -69,6 +69,7 @@ if "%1"=="" goto args-done
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
 if /i "%1"=="release"       set config=Release&set ltcg=1&set cctest=1&goto arg-ok
 if /i "%1"=="clean"         set target=Clean&goto arg-ok
+if /i "%1"=="testclean"     set target=TestClean&goto arg-ok
 if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
@@ -199,6 +200,13 @@ if not exist "%~dp0deps\icu" goto no-depsicu
 if "%target%"=="Clean" echo deleting %~dp0deps\icu
 if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
 :no-depsicu
+
+if "%target%"=="TestClean" (
+  echo deleting test/.tmp*
+  if exist "test\.tmp*" for /f %%i in ('dir /a:d /s /b test\.tmp*') do rmdir /S /Q "%%i"
+  goto exit
+)
+
 
 call tools\msvs\find_python.cmd
 if errorlevel 1 goto :exit
