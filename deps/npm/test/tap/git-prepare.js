@@ -14,7 +14,7 @@ const common = require('../common-tap.js')
 const testdir = common.pkg
 const repo = path.join(testdir, 'repo')
 const prefix = path.join(testdir, 'prefix')
-const cache = path.join(testdir, 'cache')
+const cache = common.cache
 
 var Tacks = require('tacks')
 var Dir = Tacks.Dir
@@ -30,7 +30,6 @@ process.env.npm_config_prefix = prefix
 const fixture = new Tacks(Dir({
   repo: Dir({}),
   prefix: Dir({}),
-  cache: Dir({}),
   deps: Dir({
     parent: Dir({
       'package.json': File({

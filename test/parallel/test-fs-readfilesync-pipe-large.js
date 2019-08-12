@@ -36,7 +36,3 @@ exec(
     console.log('ok');
   })
 );
-
-process.on('exit', function() {
-  fs.unlinkSync(filename);
-});

@@ -19,4 +19,4 @@ runBenchmark('fs', [
   'filesize=1024',
   'dir=.github',
   'withFileTypes=false'
-], { NODE_TMPDIR: tmpdir.path, NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+], { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

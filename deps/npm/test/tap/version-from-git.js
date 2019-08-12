@@ -3,7 +3,6 @@ var fs = require('fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
@@ -11,7 +10,7 @@ var npm = require('../../lib/npm.js')
 
 var pkg = common.pkg
 var packagePath = path.resolve(pkg, 'package.json')
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 
 var json = { name: 'cat', version: '0.1.2' }
 
@@ -187,20 +186,10 @@ test('npm version from-git without any versions', function (t) {
   }
 })
 
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  // windows fix for locked files
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
-
 function setup () {
-  cleanup()
-  mkdirp.sync(cache)
+  process.chdir(__dirname)
+  rimraf.sync(pkg)
+  mkdirp.sync(pkg)
   process.chdir(pkg)
   fs.writeFileSync(packagePath, JSON.stringify(json), 'utf8')
 }

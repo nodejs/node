@@ -21,8 +21,6 @@ if (mkfifo.error && mkfifo.error.code === 'ENOENT') {
   common.skip('missing mkfifo');
 }
 
-process.on('exit', () => fs.unlinkSync(pipeName));
-
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respondWithFile(pipeName, {

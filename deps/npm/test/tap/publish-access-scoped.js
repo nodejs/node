@@ -2,8 +2,6 @@ var fs = require('fs')
 var path = require('path')
 
 var test = require('tap').test
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 var mr = require('npm-registry-mock')
 var common = require('../common-tap')
 var server
@@ -28,46 +26,40 @@ test('scoped packages pass public access if set', function (t) {
     return true
   }).put('/@bigco%2fpublish-access', true).reply(201, {ok: true})
 
-  mkdirp(path.join(pkg, 'cache'), function () {
-    fs.writeFile(
-      path.join(pkg, 'package.json'),
-      JSON.stringify({
-        name: '@bigco/publish-access',
-        version: '1.2.5',
-        public: true
-      }),
-      'ascii',
-      function (er) {
-        t.ifError(er, 'package file written')
-        common.npm(
-          [
-            'publish',
-            '--access', 'public',
-            '--cache', path.join(pkg, 'cache'),
-            '--loglevel', 'silly',
-            '--registry', common.registry
-          ],
-          {
-            cwd: pkg
-          },
-          function (er) {
-            t.ifError(er, 'published without error')
+  fs.writeFile(
+    path.join(pkg, 'package.json'),
+    JSON.stringify({
+      name: '@bigco/publish-access',
+      version: '1.2.5',
+      public: true
+    }),
+    'ascii',
+    function (er) {
+      t.ifError(er, 'package file written')
+      common.npm(
+        [
+          'publish',
+          '--access', 'public',
+          '--cache', common.cache,
+          '--loglevel', 'silly',
+          '--registry', common.registry
+        ],
+        {
+          cwd: pkg
+        },
+        function (er) {
+          t.ifError(er, 'published without error')
 
-            server.done()
-            t.end()
-          }
-        )
-      }
-    )
-  })
+          server.done()
+          t.end()
+        }
+      )
+    }
+  )
 })
 
 test('cleanup', function (t) {
   process.chdir(__dirname)
   server.close()
-  rimraf(pkg, function (er) {
-    t.ifError(er)
-
-    t.end()
-  })
+  t.end()
 })

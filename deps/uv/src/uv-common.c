@@ -786,3 +786,14 @@ void uv_loop_delete(uv_loop_t* loop) {
   if (loop != default_loop)
     uv__free(loop);
 }
+
+
+void uv_os_free_environ(uv_env_item_t* envitems, int count) {
+  int i;
+
+  for (i = 0; i < count; i++) {
+    uv__free(envitems[i].name);
+  }
+
+  uv__free(envitems);
+}

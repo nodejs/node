@@ -42,6 +42,9 @@ async function testSimpleDestroy() {
     expectedLines.splice(1);
 
     assert.deepStrictEqual(iteratedLines, expectedLines);
+
+    rli.close();
+    readable.destroy();
   }
 }
 
@@ -63,6 +66,8 @@ async function testMutualDestroy() {
         assert.strictEqual(err.code, 'ERR_STREAM_ITERATOR_EXISTS');
       }
     }
+    rli.close();
+    readable.destroy();
   }
 }
 

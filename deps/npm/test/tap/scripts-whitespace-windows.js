@@ -10,7 +10,7 @@ var common = require('../common-tap')
 
 var pkg = common.pkg
 var tmp = path.resolve(pkg, 'tmp')
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 var dep = path.resolve(pkg, 'dep')
 
 var EXEC_OPTS = { cwd: pkg }

@@ -294,6 +294,10 @@ jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addo
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES)
 
+.PHONY: tooltest
+tooltest:
+	@$(PYTHON) test/tools/test-js2c.py
+
 .PHONY: coverage-run-js
 coverage-run-js:
 	$(RM) -r out/$(BUILDTYPE)/.coverage
@@ -311,6 +315,7 @@ test: all ## Runs default tests, linters, and builds docs.
 	$(MAKE) -s build-node-api-tests
 	$(MAKE) -s cctest
 	$(MAKE) -s jstest
+	$(MAKE) -s tooltest
 
 .PHONY: test-only
 test-only: all  ## For a quick test, does not run linter or build docs.
@@ -319,6 +324,7 @@ test-only: all  ## For a quick test, does not run linter or build docs.
 	$(MAKE) build-node-api-tests
 	$(MAKE) cctest
 	$(MAKE) jstest
+	$(MAKE) tooltest
 
 # Used by `make coverage-test`
 test-cov: all

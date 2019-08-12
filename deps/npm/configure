@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # set configurations that will be "sticky" on this system,
 # surviving npm self-updates.

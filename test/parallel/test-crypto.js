@@ -167,42 +167,66 @@ testImmutability(crypto.getCurves);
 
 // Regression tests for https://github.com/nodejs/node-v0.x-archive/pull/5725:
 // hex input that's not a power of two should throw, not assert in C++ land.
-assert.throws(function() {
-  crypto.createCipher('aes192', 'test').update('0', 'hex');
-}, (err) => {
-  const errorMessage =
-    common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/;
-  // Throws general Error, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      errorMessage.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
-});
 
-assert.throws(function() {
-  crypto.createDecipher('aes192', 'test').update('0', 'hex');
-}, (err) => {
-  const errorMessage =
-    common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/;
-  // Throws general Error, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      errorMessage.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
-});
+common.expectsError(
+  () => crypto.createCipher('aes192', 'test').update('0', 'hex'),
+  Object.assign(
+    common.hasFipsCrypto ?
+      {
+        code: undefined,
+        type: Error,
+        message: /not supported in FIPS mode/,
+      } :
+      {
+        code: 'ERR_INVALID_ARG_VALUE',
+        type: TypeError,
+        message: "The argument 'encoding' is invalid for data of length 1." +
+            " Received 'hex'",
+      },
+    { opensslErrorStack: undefined }
+  )
+);
 
-assert.throws(function() {
-  crypto.createHash('sha1').update('0', 'hex');
-}, (err) => {
-  // Throws TypeError, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      /^TypeError: Bad input string$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
+common.expectsError(
+  () => crypto.createDecipher('aes192', 'test').update('0', 'hex'),
+  Object.assign(
+    common.hasFipsCrypto ?
+      {
+        code: undefined,
+        type: Error,
+        message: /not supported in FIPS mode/,
+      } :
+      {
+        code: 'ERR_INVALID_ARG_VALUE',
+        type: TypeError,
+        message: "The argument 'encoding' is invalid for data of length 1." +
+            " Received 'hex'",
+      },
+    { opensslErrorStack: undefined }
+  )
+);
+
+common.expectsError(
+  () => crypto.createHash('sha1').update('0', 'hex'),
+  {
+    code: 'ERR_INVALID_ARG_VALUE',
+    type: TypeError,
+    message: "The argument 'encoding' is invalid for data of length 1." +
+        " Received 'hex'",
+    opensslErrorStack: undefined
   }
-});
+);
+
+common.expectsError(
+  () => crypto.createHmac('sha256', 'a secret').update('0', 'hex'),
+  {
+    code: 'ERR_INVALID_ARG_VALUE',
+    type: TypeError,
+    message: "The argument 'encoding' is invalid for data of length 1." +
+        " Received 'hex'",
+    opensslErrorStack: undefined
+  }
+);
 
 assert.throws(function() {
   const priv = [

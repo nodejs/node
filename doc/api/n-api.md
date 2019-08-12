@@ -147,8 +147,8 @@ available to the module code.
 
 N-API versions are additive and versioned independently from Node.js.
 Version 4 is an extension to version 3 in that it has all of the APIs
-from version 3 with some additions. This means that you
-do not need to recompile for new versions of Node.js which are
+from version 3 with some additions. This means that it is not necessary
+to recompile for new versions of Node.js which are
 listed as supporting a later version.
 
 |       | 1       | 2        | 3        | 4        |
@@ -282,7 +282,7 @@ tied to the life cycle of the Agent.
 
 ### napi_set_instance_data
 <!-- YAML
-added: REPLACEME
+added: v12.8.0
 -->
 
 ```C
@@ -309,7 +309,7 @@ by the previous call, it will not be called.
 
 ### napi_get_instance_data
 <!-- YAML
-added: REPLACEME
+added: v12.8.0
 -->
 
 ```C

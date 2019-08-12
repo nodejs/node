@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.16.2">10.16.2</a><br/>
 <a href="#10.16.1">10.16.1</a><br/>
 <a href="#10.16.0">10.16.0</a><br/>
 <a href="#10.15.3">10.15.3</a><br/>
@@ -54,6 +55,17 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.16.2"></a>
+## 2019-08-06, Version 10.16.2 'Dubnium' (LTS), @BethGriggs
+
+### Notable changes
+
+This release patches a [regression](https://github.com/nodejs/node/issues/28932) in the OpenSSL upgrade to 1.1.1c that causes intermittent hangs in machines that have low entropy.
+
+### Commits
+
+* [[`894a9dd230`](https://github.com/nodejs/node/commit/894a9dd230)] - **deps**: cherry-pick c19c5a6 from openssl upstream (Ali Ijaz Sheikh) [#28983](https://github.com/nodejs/node/pull/28983)
 
 <a id="10.16.1"></a>
 ## 2019-07-31, Version 10.16.1 'Dubnium' (LTS), @BethGriggs

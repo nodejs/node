@@ -950,16 +950,35 @@ When set to `1`, process warnings are silenced.
 added: v8.0.0
 -->
 
-A space-separated list of command line options. `options...` are interpreted as
-if they had been specified on the command line before the actual command line
-(so they can be overridden). Node.js will exit with an error if an option
-that is not allowed in the environment is used, such as `-p` or a script file.
+A space-separated list of command line options. `options...` are interpreted
+before command line options, so command line options will override or
+compound after anything in `options...`. Node.js will exit with an error if
+an option that is not allowed in the environment is used, such as `-p` or a
+script file.
 
-In case an option value happens to contain a space (for example a path listed in
-`--require`), it must be escaped using double quotes. For example:
+In case an option value happens to contain a space (for example a path listed
+in `--require`), it must be escaped using double quotes. For example:
 
 ```bash
---require "./my path/file.js"
+NODE_OPTIONS='--require "./my path/file.js"'
+```
+
+A singleton flag passed as a command line option will override the same flag
+passed into `NODE_OPTIONS`:
+
+```bash
+# The inspector will be available on port 5555
+NODE_OPTIONS='--inspect=localhost:4444' node --inspect=localhost:5555
+```
+
+A flag that can be passed multiple times will be treated as if its
+`NODE_OPTIONS` instances were passed first, and then its command line
+instances afterwards:
+
+```bash
+NODE_OPTIONS='--require "./a.js"' node --require "./b.js"
+# is equivalent to:
+node --require "./a.js" --require "./b.js"
 ```
 
 Node.js options that are allowed are:
@@ -1172,9 +1191,8 @@ on synchronous system APIs. Node.js APIs that use the threadpool are:
 
 - all `fs` APIs, other than the file watcher APIs and those that are explicitly
   synchronous
-- `crypto.pbkdf2()`
-- `crypto.randomBytes()`, unless it is used without a callback
-- `crypto.randomFill()`
+- asynchronous crypto APIs such as `crypto.pbkdf2()`, `crypto.scrypt()`,
+  `crypto.randomBytes()`, `crypto.randomFill()`, `crypto.generateKeyPair()`
 - `dns.lookup()`
 - all `zlib` APIs, other than those that are explicitly synchronous
 

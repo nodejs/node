@@ -1,3 +1,177 @@
+## v6.10.2 (2019-07-23):
+
+tl;dr - Fixes several issues with the cache when npm is run as `sudo` on
+Unix systems.
+
+### TESTING
+
+* [`2a78b96f8`](https://github.com/npm/cli/commit/2a78b96f830bbd834720ccc9eacccc54915ae6f7)
+  check test cache for root-owned files
+  ([@isaacs](https://github.com/isaacs))
+* [`108646ebc`](https://github.com/npm/cli/commit/108646ebc12f3eeebaa0a45884c45991a45e57e4)
+  run sudo tests on Travis-CI ([@isaacs](https://github.com/isaacs))
+* [`cf984e946`](https://github.com/npm/cli/commit/cf984e946f453cbea2fcc7a59608de3f24ab74c3)
+  set --no-esm tap flag ([@isaacs](https://github.com/isaacs))
+* [`8e0a3100d`](https://github.com/npm/cli/commit/8e0a3100dffb3965bb3dc4240e82980dfadf2f3c)
+  add script to run tests and leave fixtures for inspection and debugging
+  ([@isaacs](https://github.com/isaacs))
+
+### BUGFIXES
+
+* [`25f4f73f6`](https://github.com/npm/cli/commit/25f4f73f6dc9744757787c82351120cd1baee5f8)
+  add a util for writing arbitrary files to cache This prevents metrics
+  timing and debug logs from becoming root-owned.
+  ([@isaacs](https://github.com/isaacs))
+* [`2c61ce65d`](https://github.com/npm/cli/commit/2c61ce65d6b67100fdf3fcb9729055b669cb1a1d)
+  infer cache owner from parent dir in `correct-mkdir` util
+  ([@isaacs](https://github.com/isaacs))
+* [`235e5d6df`](https://github.com/npm/cli/commit/235e5d6df6f427585ec58425f1f3339d08f39d8a)
+  ensure correct owner on cached all-packages metadata
+  ([@isaacs](https://github.com/isaacs))
+* [`e2d377bb6`](https://github.com/npm/cli/commit/e2d377bb6419d8a3c1d80a73dba46062b4dad336)
+  [npm.community#8540](https://npm.community/t/npm-audit-fails-with-child-requires-fails-because-requires-must-be-an-object/8540)
+  audit: report server error on failure
+  ([@isaacs](https://github.com/isaacs))
+* [`52576a39e`](https://github.com/npm/cli/commit/52576a39ed75d94c46bb2c482fd38d2c6ea61c56)
+  [#216](https://github.com/npm/cli/pull/216)
+  [npm.community#5385](https://npm.community/t/6-8-0-npm-ci-fails-with-local-dependency/5385)
+  [npm.community#6076](https://npm.community/t/npm-ci-fail-to-local-packages/6076)
+  Fix `npm ci` with `file:` dependencies.  Partially reverts
+  [#40](https://github.com/npm/cli/pull/40)/[#86](https://github.com/npm/cli/pull/86),
+  recording dependencies of linked deps in order for `npm ci` to work.
+  ([@jfirebaugh](https://github.com/jfirebaugh))
+
+### DEPENDENCIES
+
+* [`0fefdee13`](https://github.com/npm/cli/commit/0fefdee130fd7d0dbb240fb9ecb50a793fbf3d29)
+  `cacache@12.0.2` ([@isaacs](https://github.com/isaacs))
+    * infer uid/gid instead of accepting as options, preventing the
+      overwhelming majority of cases where root-owned files end up in the
+      cache folder.
+      ([ac84d14](https://github.com/npm/cacache/commit/ac84d14))
+      ([@isaacs](https://github.com/isaacs))
+      ([#1](https://github.com/npm/cacache/pull/1))
+    * **i18n:** add another error message
+      ([676cb32](https://github.com/npm/cacache/commit/676cb32))
+      ([@zkat](https://github.com/zkat))
+* [`e1d87a392`](https://github.com/npm/cli/commit/e1d87a392371a070b0788ab7bfc62be18b21e9ad)
+  `pacote@9.5.4` ([@isaacs](https://github.com/isaacs))
+    * git: ensure stream failures are reported
+      ([7f07b5d](https://github.com/npm/pacote/commit/7f07b5d))
+      [#1](https://github.com/npm/pacote/issues/1)
+      ([@lddubeau](https://github.com/lddubeau))
+* [`3f035bf09`](https://github.com/npm/cli/commit/3f035bf098e2feea76574cec18b04812659aa16d)
+  `infer-owner@1.0.4` ([@isaacs](https://github.com/isaacs))
+* [`ba3283112`](https://github.com/npm/cli/commit/ba32831126591d2f6f48e31a4a2329b533b1ff19)
+  `npm-registry-fetch@4.0.0` ([@isaacs](https://github.com/isaacs))
+* [`ee90c334d`](https://github.com/npm/cli/commit/ee90c334d271383d0325af42f20f80f34cb61f07)
+  `libnpm@3.0.1` ([@isaacs](https://github.com/isaacs))
+* [`1e480c384`](https://github.com/npm/cli/commit/1e480c38416982ae28b5cdd48c698ca59d3c0395)
+  `libnpmaccess@3.0.2` ([@isaacs](https://github.com/isaacs))
+* [`7662ee850`](https://github.com/npm/cli/commit/7662ee850220c71ecaec639adbc7715286f0d28b)
+  `libnpmhook@5.0.3` ([@isaacs](https://github.com/isaacs))
+* [`1357fadc6`](https://github.com/npm/cli/commit/1357fadc613d0bfeb40f9a8f3ecace2face2fe2c)
+  `libnpmorg@1.0.1` ([@isaacs](https://github.com/isaacs))
+* [`a621b5cb6`](https://github.com/npm/cli/commit/a621b5cb6c881f95a11af86a8051754a67ae017c)
+  `libnpmsearch@2.0.2` ([@isaacs](https://github.com/isaacs))
+* [`560cd31dd`](https://github.com/npm/cli/commit/560cd31dd51b6aa2e396ccdd7289fab0a50b5608)
+  `libnpmteam@1.0.2` ([@isaacs](https://github.com/isaacs))
+* [`de7ae0867`](https://github.com/npm/cli/commit/de7ae0867d4c0180edc283457ce0b4e8e5eee554)
+  `npm-profile@4.0.2` ([@isaacs](https://github.com/isaacs))
+* [`e95da463c`](https://github.com/npm/cli/commit/e95da463cb7a325457ef411a569d7ef4bf76901d)
+  `libnpm@3.0.1` ([@isaacs](https://github.com/isaacs))
+* [`554b641d4`](https://github.com/npm/cli/commit/554b641d49d135ae8d137e83aa288897c32dacc6)
+  `npm-registry-fetch@4.0.0` ([@isaacs](https://github.com/isaacs))
+* [`06772f34a`](https://github.com/npm/cli/commit/06772f34ab851440dcd78574736936c674a84aed)
+  `node-gyp@5.0.3` ([@isaacs](https://github.com/isaacs))
+* [`85358db80`](https://github.com/npm/cli/commit/85358db80d6ccb5f7bc9a0b4d558ac6dd2468394)
+  `npm-lifecycle@3.1.2` ([@isaacs](https://github.com/isaacs))
+    * [`051cf20`](https://github.com/npm/npm-lifecycle/commit/051cf20072a01839c17920d2e841756251c4f924)
+      [#26](https://github.com/npm/npm-lifecycle/pull/26) fix switches for
+      alternative shells on Windows
+      ([@gucong3000](https://github.com/gucong3000))
+    * [`3aaf954`](https://github.com/npm/npm-lifecycle/commit/3aaf95435965e8f7acfd955582cf85237afd2c9b)
+      [#25](https://github.com/npm/npm-lifecycle/pull/25) set only one PATH
+      env variable for child process on Windows
+      ([@zkochan](https://github.com/zkochan))
+    * [`ea18ed2`](https://github.com/npm/npm-lifecycle/commit/ea18ed2b754ca7f11998cad70d88e9004c5bef4a)
+      [#36](https://github.com/npm/npm-lifecycle/pull/36)
+      [#11](https://github.com/npm/npm-lifecycle/issue/11)
+      [#18](https://github.com/npm/npm-lifecycle/issue/18) remove
+      procInterrupt listener on SIGINT in procError
+      ([@mattshin](https://github.com/mattshin))
+    * [`5523951`](https://github.com/npm/npm-lifecycle/commit/55239519c57b82521605622e6c71640a31ed4586)
+      [#29](https://github.com/npm/npm-lifecycle/issue/29)
+      [#30](https://github.com/npm/npm-lifecycle/pull/30) Use platform
+      specific path casing if present
+      ([@mattezell](https://github.com/mattezell))
+
+## v6.10.1 (2019-07-11):
+
+### BUGFIXES
+
+* [`3cbd57712`](https://github.com/npm/cli/commit/3cbd577120a9da6e51bb8b13534d1bf71ea5712c)
+  fix(git): strip GIT environs when running git
+  ([@isaacs](https://github.com/isaacs))
+* [`a81a8c4c4`](https://github.com/npm/cli/commit/a81a8c4c466f510215a51cef1bb08544d11844fe)
+  [#206](https://github.com/npm/cli/pull/206) improve isOnly(Dev,Optional)
+  ([@larsgw](https://github.com/larsgw))
+* [`172f9aca6`](https://github.com/npm/cli/commit/172f9aca67a66ee303c17f90a994cd52fc66552a)
+  [#179](https://github.com/npm/cli/pull/179) fix-xmas-underline
+  ([@raywu0123](https://github.com/raywu0123))
+* [`f52673fc7`](https://github.com/npm/cli/commit/f52673fc7284e58af8c04533e82b76bf7add72cf)
+  [#212](https://github.com/npm/cli/pull/212) build: use `/usr/bin/env` to
+  load bash ([@rsmarples](https://github.com/rsmarples))
+
+### DEPENDENCIES
+
+* [`ef4445ad3`](https://github.com/npm/cli/commit/ef4445ad34a53b5639499c8e3c9752f62ee6f37c)
+  [#208](https://github.com/npm/cli/pull/208) `node-gyp@5.0.2`
+  ([@irega](https://github.com/irega))
+* [`c0d611356`](https://github.com/npm/cli/commit/c0d611356f7b23077e97574b01c8886e544db425)
+  `npm-lifecycle@3.0.0` ([@isaacs](https://github.com/isaacs))
+* [`7716ba972`](https://github.com/npm/cli/commit/7716ba9720270d5b780755a5bb1ce79702067f1f)
+  `libcipm@4.0.0` ([@isaacs](https://github.com/isaacs))
+* [`42d22e837`](https://github.com/npm/cli/commit/42d22e8374c7d303d94e405d7385d94dd2558814)
+  `libnpm@3.0.0` ([@isaacs](https://github.com/isaacs))
+* [`a2ea7f9ff`](https://github.com/npm/cli/commit/a2ea7f9ff64ae743d05fdbf7d46fb9afafa8aa6f)
+  `semver@5.7.0` ([@isaacs](https://github.com/isaacs))
+* [`429226a5e`](https://github.com/npm/cli/commit/429226a5e992cd907d4f19bd738037007cf78c1f)
+  `lru-cache@5.1.1` ([@isaacs](https://github.com/isaacs))
+* [`175670ea6`](https://github.com/npm/cli/commit/175670ea65cca03f8b2e957df3dd4b8b0efd0e1f)
+  `npm-registry-fetch@3.9.1`: ([@isaacs](https://github.com/isaacs))
+* [`0d0517f7f`](https://github.com/npm/cli/commit/0d0517f7f8c902b5064ac18fb4015b31750ad2b2)
+  `call-limit@1.1.1` ([@isaacs](https://github.com/isaacs))
+* [`741400429`](https://github.com/npm/cli/commit/74140042917ea241062a812ceb65c5423c2bafa9)
+  `glob@7.1.4` ([@isaacs](https://github.com/isaacs))
+* [`bddd60e30`](https://github.com/npm/cli/commit/bddd60e302283a4a70d35f8f742e42bd13f4dabf)
+  `inherits@2.0.4` ([@isaacs](https://github.com/isaacs))
+* [`4acf03fd1`](https://github.com/npm/cli/commit/4acf03fd140ed3ddb2dcf3fdc9756bc3f5a8bcbb)
+  `libnpmsearch@2.0.1` ([@isaacs](https://github.com/isaacs))
+* [`c2bd17291`](https://github.com/npm/cli/commit/c2bd17291a86bea7ced2fbd07d66d013bd7a7560)
+  `marked@0.6.3` ([@isaacs](https://github.com/isaacs))
+* [`7f0221bb1`](https://github.com/npm/cli/commit/7f0221bb1bb41ffc933c785940e227feae38c80c)
+  `marked-man@0.6.0` ([@isaacs](https://github.com/isaacs))
+* [`f458fe7dd`](https://github.com/npm/cli/commit/f458fe7dd3bebddf603aaae183a424ea8aaa018f)
+  `npm-lifecycle@2.1.1` ([@isaacs](https://github.com/isaacs))
+* [`009752978`](https://github.com/npm/cli/commit/0097529780269c28444f1efa0d7c131d47a933eb)
+  `node-gyp@4.0.0` ([@isaacs](https://github.com/isaacs))
+* [`0fa2bb438`](https://github.com/npm/cli/commit/0fa2bb4386379d6e9d8c95db08662ec0529964f9)
+  `query-string@6.8.1` ([@isaacs](https://github.com/isaacs))
+* [`b86450929`](https://github.com/npm/cli/commit/b86450929796950a1fe4b1f9b02b1634c812f3bb)
+  `tar-stream@2.1.0` ([@isaacs](https://github.com/isaacs))
+* [`25db00fe9`](https://github.com/npm/cli/commit/25db00fe953453198adb9e1bd71d1bc2a9f04aaa)
+  `worker-farm@1.7.0` ([@isaacs](https://github.com/isaacs))
+* [`8dfbe8610`](https://github.com/npm/cli/commit/8dfbe861085dfa8fa56bb504b4a00fba04c34f9d)
+  `readable-stream@3.4.0` ([@isaacs](https://github.com/isaacs))
+* [`f6164d5dd`](https://github.com/npm/cli/commit/f6164d5ddd072eabdf2237f1694a31efd746eb1d)
+  [isaacs/chownr#21](https://github.com/isaacs/chownr/pull/21)
+  [isaacs/chownr#20](https://github.com/isaacs/chownr/issues/20)
+  [npm.community#7901](https://npm.community/t/7901/)
+  [npm.community#8203](https://npm.community/t/8203) `chownr@1.1.2` This
+  fixes an EISDIR error from cacache on Darwin in Node versions prior to
+  10.6. ([@isaacs](https://github.com/isaacs))
+
 ## v6.10.0 (2019-07-03):
 
 ### FEATURES

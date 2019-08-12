@@ -465,7 +465,7 @@ inline void Environment::set_printed_error(bool value) {
 }
 
 inline void Environment::set_trace_sync_io(bool value) {
-  options_->trace_sync_io = value;
+  trace_sync_io_ = value;
 }
 
 inline bool Environment::abort_on_uncaught_exception() const {

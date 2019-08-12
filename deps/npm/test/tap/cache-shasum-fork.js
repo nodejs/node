@@ -15,7 +15,7 @@ var forkPath = path.resolve(
   __dirname, '..', 'fixtures', 'forked-underscore-1.5.1.tgz'
 )
 var pkg = common.pkg
-var cache = path.join(pkg, 'cache')
+var cache = common.cache
 var server
 
 test('setup', function (t) {
@@ -42,7 +42,7 @@ test('npm cache - install from fork', function (t) {
     },
     function (err, code, stdout, stderr) {
       t.ifErr(err, 'install finished without error')
-      t.notOk(stderr, 'Should not get data on stderr: ' + stderr)
+      t.equal(stderr, '', 'Should not get data on stderr')
       t.equal(code, 0, 'install finished successfully')
 
       var deps = {}

@@ -91,7 +91,7 @@ class Writer(object):
 
     if environment and isinstance(environment, dict):
       env_list = ['%s="%s"' % (key, val)
-                  for (key,val) in environment.iteritems()]
+                  for (key,val) in environment.items()]
       environment = ' '.join(env_list)
     else:
       environment = ''
@@ -135,7 +135,7 @@ class Writer(object):
   def WriteIfChanged(self):
     """Writes the user file."""
     configs = ['Configurations']
-    for config, spec in sorted(self.configurations.iteritems()):
+    for config, spec in sorted(self.configurations.items()):
       configs.append(spec)
 
     content = ['VisualStudioUserFile',

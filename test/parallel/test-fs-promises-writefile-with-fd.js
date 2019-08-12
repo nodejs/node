@@ -29,6 +29,8 @@ async function writeFileTest() {
 
   /* New content should be written at position five, instead of zero. */
   assert.deepStrictEqual(readFileSync(fn).toString(), 'HelloWorld');
+
+  await handle.close();
 }
 
 

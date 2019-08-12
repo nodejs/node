@@ -4317,8 +4317,9 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
   // Only copy the data if we have to, because it's a string
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8)
-             .FromMaybe(false))
+    enum encoding enc = ParseEncoding(env->isolate(), args[1], UTF8);
+
+    if (decoder.Decode(env, args[0].As<String>(), enc).IsNothing())
       return;
     r = cipher->Update(decoder.out(), decoder.size(), &out);
   } else {
@@ -4501,8 +4502,9 @@ void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
   bool r = false;
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (decoder.Decode(env, args[0].As<String>(), args[1], UTF8)
-            .FromMaybe(false)) {
+    enum encoding enc = ParseEncoding(env->isolate(), args[1], UTF8);
+
+    if (!decoder.Decode(env, args[0].As<String>(), enc).IsNothing()) {
       r = hmac->HmacUpdate(decoder.out(), decoder.size());
     }
   } else {
@@ -4626,8 +4628,9 @@ void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
   bool r = true;
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8)
-             .FromMaybe(false)) {
+    enum encoding enc = ParseEncoding(env->isolate(), args[1], UTF8);
+
+    if (decoder.Decode(env, args[0].As<String>(), enc).IsNothing()) {
       args.GetReturnValue().Set(false);
       return;
     }
@@ -5225,6 +5228,7 @@ template <PublicKeyCipher::Operation operation,
 bool PublicKeyCipher::Cipher(Environment* env,
                              const ManagedEVPPKey& pkey,
                              int padding,
+                             const char* oaep_hash,
                              const unsigned char* data,
                              int len,
                              AllocatedBuffer* out) {
@@ -5235,6 +5239,12 @@ bool PublicKeyCipher::Cipher(Environment* env,
     return false;
   if (EVP_PKEY_CTX_set_rsa_padding(ctx.get(), padding) <= 0)
     return false;
+
+  if (oaep_hash != nullptr) {
+    if (!EVP_PKEY_CTX_md(ctx.get(), EVP_PKEY_OP_TYPE_CRYPT,
+                         EVP_PKEY_CTRL_RSA_OAEP_MD, oaep_hash))
+      return false;
+  }
 
   size_t out_len = 0;
   if (EVP_PKEY_cipher(ctx.get(), nullptr, &out_len, data, len) <= 0)
@@ -5272,6 +5282,9 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   uint32_t padding;
   if (!args[offset + 1]->Uint32Value(env->context()).To(&padding)) return;
 
+  const node::Utf8Value oaep_str(env->isolate(), args[offset + 2]);
+  const char* oaep_hash = args[offset + 2]->IsString() ? *oaep_str : nullptr;
+
   AllocatedBuffer out;
 
   ClearErrorOnReturn clear_error_on_return;
@@ -5280,6 +5293,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       env,
       pkey,
       padding,
+      oaep_hash,
       buf.data(),
       buf.length(),
       &out);

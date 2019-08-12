@@ -25,6 +25,10 @@ function Benchmark(fn, configs, options) {
   if (options && options.flags) {
     this.flags = this.flags.concat(options.flags);
   }
+  if (process.env.NODE_BENCHMARK_FLAGS) {
+    const flags = process.env.NODE_BENCHMARK_FLAGS.split(/\s+/);
+    this.flags = this.flags.concat(flags);
+  }
   // Holds process.hrtime value
   this._time = [0, 0];
   // Used to make sure a benchmark only start a timer once

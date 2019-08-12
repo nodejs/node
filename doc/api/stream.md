@@ -1244,12 +1244,15 @@ changes:
     description: The `chunk` argument can now be a `Uint8Array` instance.
 -->
 
-* `chunk` {Buffer|Uint8Array|string|any} Chunk of data to unshift onto the
+* `chunk` {Buffer|Uint8Array|string|null|any} Chunk of data to unshift onto the
   read queue. For streams not operating in object mode, `chunk` must be a
-  string, `Buffer` or `Uint8Array`. For object mode streams, `chunk` may be
-  any JavaScript value other than `null`.
+  string, `Buffer`, `Uint8Array` or `null`. For object mode streams, `chunk`
+  may be any JavaScript value.
 * `encoding` {string} Encoding of string chunks. Must be a valid
   `Buffer` encoding, such as `'utf8'` or `'ascii'`.
+
+Passing `chunk` as `null` signals the end of the stream (EOF), after which no
+more data can be written.
 
 The `readable.unshift()` method pushes a chunk of data back into the internal
 buffer. This is useful in certain situations where a stream is being consumed by

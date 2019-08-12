@@ -50,21 +50,22 @@ function extract (spec, dest, opts) {
 function tryExtract (spec, tarStream, dest, opts) {
   return new BB((resolve, reject) => {
     tarStream.on('error', reject)
-    setImmediate(resolve)
+
+    rimraf(dest)
+      .then(() => mkdirp(dest))
+      .then(() => {
+        const xtractor = extractStream(spec, dest, opts)
+        xtractor.on('error', reject)
+        xtractor.on('close', resolve)
+        tarStream.pipe(xtractor)
+      })
+      .catch(reject)
   })
-    .then(() => rimraf(dest))
-    .then(() => mkdirp(dest))
-    .then(() => new BB((resolve, reject) => {
-      const xtractor = extractStream(spec, dest, opts)
-      tarStream.on('error', reject)
-      xtractor.on('error', reject)
-      xtractor.on('close', resolve)
-      tarStream.pipe(xtractor)
-    }))
     .catch(err => {
       if (err.code === 'EINTEGRITY') {
         err.message = `Verification failed while extracting ${spec}:\n${err.message}`
       }
+
       throw err
     })
 }

@@ -9,7 +9,7 @@ var rimraf = require('rimraf')
 var pkg = common.pkg
 var manifest = join(pkg, 'package.json')
 var tmp = join(pkg, 'tmp')
-var cache = join(pkg, 'cache')
+var cache = common.cache
 
 var data = {
   name: '@scope/generic-package',

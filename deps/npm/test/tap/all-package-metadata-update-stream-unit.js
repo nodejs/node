@@ -5,24 +5,30 @@ const getStream = require('get-stream')
 const npm = require('../../')
 const test = require('tap').test
 const mkdirp = require('mkdirp')
-const rimraf = require('rimraf')
-const path = require('path')
 const mr = require('npm-registry-mock')
 
 var _createEntryUpdateStream = require('../../lib/search/all-package-metadata.js')._createEntryUpdateStream
 
-var PKG_DIR = common.pkg
-var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
-
 var server
 
+// this test uses a fresh cache for each test block
+// create them all in common.cache so that we can verify
+// them for root-owned files in sudotest
+let CACHE_DIR
+let cacheCounter = 1
 function setup () {
+  CACHE_DIR = common.cache + '/' + cacheCounter++
   mkdirp.sync(CACHE_DIR)
+  fixOwner(CACHE_DIR)
 }
 
-function cleanup () {
-  rimraf.sync(PKG_DIR)
-}
+const chownr = require('chownr')
+
+const fixOwner = (
+  process.getuid && process.getuid() === 0 &&
+  process.env.SUDO_UID && process.env.SUDO_GID
+) ? (path) => chownr.sync(path, +process.env.SUDO_UID, +process.env.SUDO_GID)
+  : () => {}
 
 test('setup', function (t) {
   mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
@@ -63,7 +69,6 @@ test('createEntryUpdateStream full request', function (t) {
       version: '1.0.0'
     }])
     server.done()
-    cleanup()
   })
 })
 
@@ -94,7 +99,6 @@ test('createEntryUpdateStream partial update', function (t) {
       version: '1.0.0'
     }])
     server.done()
-    cleanup()
   })
 })
 
@@ -127,7 +131,6 @@ test('createEntryUpdateStream authed request', function (t) {
       version: '1.0.0'
     }])
     server.done()
-    cleanup()
   })
 })
 
@@ -147,7 +150,6 @@ test('createEntryUpdateStream bad auth', function (t) {
     t.match(err, /unauthorized/, 'failure message from request used')
   }).then(() => {
     server.done()
-    cleanup()
   })
 })
 
@@ -164,14 +166,11 @@ test('createEntryUpdateStream not stale', function (t) {
     t.notOk(stream, 'no stream returned')
     t.notOk(latest, 'no latest returned')
     server.done()
-    cleanup()
     t.end()
   })
 })
 
 test('cleanup', function (t) {
-  cleanup()
   server.close()
-  t.pass('all done')
   t.done()
 })

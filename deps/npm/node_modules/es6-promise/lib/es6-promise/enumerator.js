@@ -10,7 +10,6 @@ import {
   FULFILLED,
   REJECTED,
   PENDING,
-  getThen,
   handleMaybeThenable
 } from './-internal';
 
@@ -63,7 +62,15 @@ export default class Enumerator {
     let { resolve } = c;
 
     if (resolve === originalResolve) {
-      let then = getThen(entry);
+      let then;
+      let error;
+      let didError = false;
+      try {
+        then = entry.then;
+      } catch (e) {
+        didError = true;
+        error = e;
+      }
 
       if (then === originalThen &&
         entry._state !== PENDING) {
@@ -73,7 +80,11 @@ export default class Enumerator {
         this._result[i] = entry;
       } else if (c === Promise) {
         let promise = new c(noop);
-        handleMaybeThenable(promise, entry, then);
+        if (didError) {
+          reject(promise, error);
+        } else {
+          handleMaybeThenable(promise, entry, then);
+        }
         this._willSettleAt(promise, i);
       } else {
         this._willSettleAt(new c(resolve => resolve(entry)), i);

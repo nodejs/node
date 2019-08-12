@@ -49,7 +49,3 @@ fs.writeFile(fullPath, 'ok', common.mustCall(function(err) {
     assert.ifError(err);
   }));
 }));
-
-process.on('exit', function() {
-  fs.unlinkSync(fullPath);
-});

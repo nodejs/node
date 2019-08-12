@@ -27,6 +27,8 @@ const assert = require('assert');
 
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
+
+tmpdir.refresh();
 const testFileName = require('path').join(tmpdir.path, 'GH-814_test.txt');
 const testFD = fs.openSync(testFileName, 'w');
 console.error(`${testFileName}\n`);

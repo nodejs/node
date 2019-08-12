@@ -14,10 +14,11 @@ that module's issue tracker (`npm issues modulename`).
 
 <details><summary>Verbose output (from npm or node-gyp):</summary>
 
-<!-- Paste your log between the backticks. Contents of npm-debug.log or verbose build output -->
-
 ```
-
+Paste your log here, between the backticks. It can be:
+  - npm --verbose output,
+  - or contents of npm-debug.log,
+  - or output of node-gyp rebuild --verbose.
 ```
 
 </details>

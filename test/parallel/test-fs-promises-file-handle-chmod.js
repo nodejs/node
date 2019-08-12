@@ -38,6 +38,8 @@ async function validateFilePermission() {
   await fileHandle.chmod(newPermissions);
   const statsAfterMod = fs.statSync(filePath);
   assert.deepStrictEqual(statsAfterMod.mode & expectedAccess, expectedAccess);
+
+  await fileHandle.close();
 }
 
 validateFilePermission().then(common.mustCall());

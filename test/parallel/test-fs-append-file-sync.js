@@ -99,13 +99,3 @@ const fileData5 = fs.readFileSync(filename5);
 
 assert.strictEqual(Buffer.byteLength(data) + currentFileData.length,
                    fileData5.length);
-
-// Exit logic for cleanup.
-
-process.on('exit', function() {
-  fs.unlinkSync(filename);
-  fs.unlinkSync(filename2);
-  fs.unlinkSync(filename3);
-  fs.unlinkSync(filename4);
-  fs.unlinkSync(filename5);
-});
