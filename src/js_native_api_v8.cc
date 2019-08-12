@@ -700,10 +700,11 @@ napi_status napi_get_last_error_info(napi_env env,
   return napi_ok;
 }
 
-napi_status napi_create_function(napi_env env,
+napi_status napi_create_function_with_length(napi_env env,
                                  const char* utf8name,
                                  size_t length,
                                  napi_callback cb,
+                                 size_t params,
                                  void* callback_data,
                                  napi_value* result) {
   NAPI_PREAMBLE(env);
@@ -722,7 +723,8 @@ napi_status napi_create_function(napi_env env,
   v8::MaybeLocal<v8::Function> maybe_function =
       v8::Function::New(context,
                         v8impl::FunctionCallbackWrapper::Invoke,
-                        cbdata);
+                        cbdata,
+                        params);
   CHECK_MAYBE_EMPTY(env, maybe_function, napi_generic_failure);
 
   return_value = scope.Escape(maybe_function.ToLocalChecked());
@@ -738,10 +740,26 @@ napi_status napi_create_function(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
-napi_status napi_define_class(napi_env env,
+napi_status napi_create_function(napi_env env,
+                                 const char* utf8name,
+                                 size_t length,
+                                 napi_callback cb,
+                                 void* callback_data,
+                                 napi_value* result) {
+  return napi_create_function_with_length(env,
+                                          utf8name,
+                                          length,
+                                          cb,
+                                          0,
+                                          callback_data,
+                                          result);
+}
+
+napi_status napi_define_class_with_length(napi_env env,
                               const char* utf8name,
                               size_t length,
                               napi_callback constructor,
+                              size_t params,
                               void* callback_data,
                               size_t property_count,
                               const napi_property_descriptor* properties,
@@ -762,8 +780,13 @@ napi_status napi_define_class(napi_env env,
 
   RETURN_STATUS_IF_FALSE(env, !cbdata.IsEmpty(), napi_generic_failure);
 
+  v8::Local<v8::Signature> signature = v8::Local<v8::Signature>();
   v8::Local<v8::FunctionTemplate> tpl = v8::FunctionTemplate::New(
-      isolate, v8impl::FunctionCallbackWrapper::Invoke, cbdata);
+      isolate,
+      v8impl::FunctionCallbackWrapper::Invoke,
+      cbdata,
+      signature,
+      params);
 
   v8::Local<v8::String> name_string;
   CHECK_NEW_FROM_UTF8_LEN(env, name_string, utf8name, length);
@@ -861,6 +884,25 @@ napi_status napi_define_class(napi_env env,
   }
 
   return GET_RETURN_STATUS(env);
+}
+
+napi_status napi_define_class(napi_env env,
+                              const char* utf8name,
+                              size_t length,
+                              napi_callback constructor,
+                              void* callback_data,
+                              size_t property_count,
+                              const napi_property_descriptor* properties,
+                              napi_value* result) {
+  return napi_define_class_with_length(env,
+                                       utf8name,
+                                       length,
+                                       constructor,
+                                       0,
+                                       callback_data,
+                                       property_count,
+                                       properties,
+                                       result);
 }
 
 napi_status napi_get_property_names(napi_env env,

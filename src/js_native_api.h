@@ -89,6 +89,13 @@ NAPI_EXTERN napi_status napi_create_string_utf16(napi_env env,
 NAPI_EXTERN napi_status napi_create_symbol(napi_env env,
                                            napi_value description,
                                            napi_value* result);
+NAPI_EXTERN napi_status napi_create_function_with_length(napi_env env,
+                                             const char* utf8name,
+                                             size_t length,
+                                             napi_callback cb,
+                                             size_t params,
+                                             void* data,
+                                             napi_value* result);
 NAPI_EXTERN napi_status napi_create_function(napi_env env,
                                              const char* utf8name,
                                              size_t length,
@@ -271,6 +278,16 @@ NAPI_EXTERN napi_status napi_get_cb_info(
 NAPI_EXTERN napi_status napi_get_new_target(napi_env env,
                                             napi_callback_info cbinfo,
                                             napi_value* result);
+NAPI_EXTERN napi_status
+napi_define_class_with_length(napi_env env,
+                  const char* utf8name,
+                  size_t length,
+                  napi_callback constructor,
+                  size_t params,
+                  void* data,
+                  size_t property_count,
+                  const napi_property_descriptor* properties,
+                  napi_value* result);
 NAPI_EXTERN napi_status
 napi_define_class(napi_env env,
                   const char* utf8name,
