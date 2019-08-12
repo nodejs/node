@@ -4,7 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const outHeadersKey = require('internal/http').outHeadersKey;
+const kOutHeaders = require('internal/http').kOutHeaders;
 const http = require('http');
 const OutgoingMessage = http.OutgoingMessage;
 
@@ -23,7 +23,7 @@ const OutgoingMessage = http.OutgoingMessage;
 
 {
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage[outHeadersKey] = null;
+  outgoingMessage[kOutHeaders] = null;
   const result = outgoingMessage._renderHeaders();
   assert.deepStrictEqual(result, {});
 }
@@ -31,14 +31,14 @@ const OutgoingMessage = http.OutgoingMessage;
 
 {
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage[outHeadersKey] = {};
+  outgoingMessage[kOutHeaders] = {};
   const result = outgoingMessage._renderHeaders();
   assert.deepStrictEqual(result, {});
 }
 
 {
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage[outHeadersKey] = {
+  outgoingMessage[kOutHeaders] = {
     host: ['host', 'nodejs.org'],
     origin: ['Origin', 'localhost']
   };
