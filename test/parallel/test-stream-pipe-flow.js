@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const { Readable, Writable, PassThrough } = require('stream');
 
 {
@@ -64,4 +65,26 @@ const { Readable, Writable, PassThrough } = require('stream');
 
   wrapper.resume();
   wrapper.on('end', common.mustCall());
+}
+
+{
+  // Only register drain if there is backpressure.
+  const rs = new Readable({ read() {} });
+
+  const pt = rs
+    .pipe(new PassThrough({ objectMode: true, highWaterMark: 2 }));
+  assert.strictEqual(pt.listenerCount('drain'), 0);
+  pt.on('finish', () => {
+    assert.strictEqual(pt.listenerCount('drain'), 0);
+  });
+
+  rs.push('asd');
+  assert.strictEqual(pt.listenerCount('drain'), 0);
+
+  process.nextTick(() => {
+    rs.push('asd');
+    assert.strictEqual(pt.listenerCount('drain'), 0);
+    rs.push(null);
+    assert.strictEqual(pt.listenerCount('drain'), 0);
+  });
 }
