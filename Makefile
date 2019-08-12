@@ -170,11 +170,15 @@ clean: ## Remove build artifacts.
 	$(RM) -r node_modules
 	@if [ -d deps/icu ]; then echo deleting deps/icu; $(RM) -r deps/icu; fi
 	$(RM) test.tap
-	# Next one is legacy remove this at some point
-	$(RM) -r test/tmp*
-	$(RM) -r test/.tmp*
+	$(MAKE) testclean
 	$(MAKE) test-addons-clean
 	$(MAKE) bench-addons-clean
+
+.PHONY: testclean
+testclean:
+# Next one is legacy remove this at some point
+	$(RM) -r test/tmp*
+	$(RM) -r test/.tmp*
 
 .PHONY: distclean
 distclean:
