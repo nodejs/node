@@ -653,9 +653,7 @@ def emit_config():
 
         out.write('/* class type information */\n');
         consts = [];
-        keys = typeclasses.keys();
-        keys.sort();
-        for typename in keys:
+        for typename in sorted(typeclasses):
                 klass = typeclasses[typename];
                 consts.append({
                     'name': 'type_%s__%s' % (klass, typename),
@@ -666,9 +664,7 @@ def emit_config():
 
         out.write('/* class hierarchy information */\n');
         consts = [];
-        keys = klasses.keys();
-        keys.sort();
-        for klassname in keys:
+        for klassname in sorted(klasses):
                 pklass = klasses[klassname]['parent'];
                 bklass = get_base_class(klassname);
                 if (bklass != 'Object'):
