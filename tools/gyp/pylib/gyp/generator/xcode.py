@@ -1,8 +1,7 @@
+from __future__ import print_function
 # Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
-from __future__ import print_function
 
 import filecmp
 import gyp.common
@@ -79,7 +78,6 @@ generator_additional_non_configuration_keys = [
   'mac_framework_headers',
   'mac_framework_private_headers',
   'mac_xctest_bundle',
-  'mac_xcuitest_bundle',
   'xcode_create_dependents_test_runner',
 ]
 
@@ -694,7 +692,6 @@ def GenerateOutput(target_list, target_dicts, data, params):
       'executable+bundle':           'com.apple.product-type.application',
       'loadable_module+bundle':      'com.apple.product-type.bundle',
       'loadable_module+xctest':      'com.apple.product-type.bundle.unit-test',
-      'loadable_module+xcuitest':    'com.apple.product-type.bundle.ui-testing',
       'shared_library+bundle':       'com.apple.product-type.framework',
       'executable+extension+bundle': 'com.apple.product-type.app-extension',
       'executable+watch+extension+bundle':
@@ -711,19 +708,13 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
     type = spec['type']
     is_xctest = int(spec.get('mac_xctest_bundle', 0))
-    is_xcuitest = int(spec.get('mac_xcuitest_bundle', 0))
     is_bundle = int(spec.get('mac_bundle', 0)) or is_xctest
     is_app_extension = int(spec.get('ios_app_extension', 0))
     is_watchkit_extension = int(spec.get('ios_watchkit_extension', 0))
     is_watch_app = int(spec.get('ios_watch_app', 0))
     if type != 'none':
       type_bundle_key = type
-      if is_xcuitest:
-        type_bundle_key += '+xcuitest'
-        assert type == 'loadable_module', (
-            'mac_xcuitest_bundle targets must have type loadable_module '
-            '(target %s)' % target_name)
-      elif is_xctest:
+      if is_xctest:
         type_bundle_key += '+xctest'
         assert type == 'loadable_module', (
             'mac_xctest_bundle targets must have type loadable_module '
@@ -754,9 +745,6 @@ def GenerateOutput(target_list, target_dicts, data, params):
       xctarget_type = gyp.xcodeproj_file.PBXAggregateTarget
       assert not is_bundle, (
           'mac_bundle targets cannot have type none (target "%s")' %
-          target_name)
-      assert not is_xcuitest, (
-          'mac_xcuitest_bundle targets cannot have type none (target "%s")' %
           target_name)
       assert not is_xctest, (
           'mac_xctest_bundle targets cannot have type none (target "%s")' %

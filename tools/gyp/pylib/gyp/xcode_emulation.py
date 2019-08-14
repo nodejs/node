@@ -149,7 +149,6 @@ class XcodeSettings(object):
   # Populated lazily by _SdkPath(). Shared by all XcodeSettings, so cached
   # at class-level for efficiency.
   _sdk_path_cache = {}
-  _platform_path_cache = {}
   _sdk_root_cache = {}
 
   # Populated lazily by GetExtraPlistItems(). Shared by all XcodeSettings, so
@@ -164,8 +163,6 @@ class XcodeSettings(object):
     self.spec = spec
 
     self.isIOS = False
-    self.mac_toolchain_dir = None
-    self.header_map_path = None
 
     # Per-target 'xcode_settings' are pushed down into configs earlier by gyp.
     # This means self.xcode_settings[config] always contains all settings
@@ -199,7 +196,7 @@ class XcodeSettings(object):
           new_key = key.split("[")[0]
           settings[new_key] = settings[key]
       else:
-        print('Warning: Conditional keys not implemented, ignoring:',
+        print('Warning: Conditional keys not implemented, ignoring:', \
               ' '.join(conditional_keys))
       del settings[key]
 
@@ -226,19 +223,8 @@ class XcodeSettings(object):
                                                  default)
     return format == "binary"
 
-  def IsIosFramework(self):
-    return self.spec['type'] == 'shared_library' and self._IsBundle() and \
-        self.isIOS
-
   def _IsBundle(self):
-    return int(self.spec.get('mac_bundle', 0)) != 0 or self._IsXCTest() or \
-        self._IsXCUiTest()
-
-  def _IsXCTest(self):
-    return int(self.spec.get('mac_xctest_bundle', 0)) != 0
-
-  def _IsXCUiTest(self):
-    return int(self.spec.get('mac_xcuitest_bundle', 0)) != 0
+    return int(self.spec.get('mac_bundle', 0)) != 0
 
   def _IsIosAppExtension(self):
     return int(self.spec.get('ios_app_extension', 0)) != 0
@@ -248,6 +234,9 @@ class XcodeSettings(object):
 
   def _IsIosWatchApp(self):
     return int(self.spec.get('ios_watch_app', 0)) != 0
+
+  def _IsXCTest(self):
+    return int(self.spec.get('mac_xctest_bundle', 0)) != 0
 
   def GetFrameworkVersion(self):
     """Returns the framework version of the current target. Only valid for
@@ -314,62 +303,11 @@ class XcodeSettings(object):
       return self.GetBundleContentsFolderPath()
     return os.path.join(self.GetBundleContentsFolderPath(), 'Resources')
 
-  def GetBundleExecutableFolderPath(self):
-    """Returns the qualified path to the bundle's executables folder. E.g.
-    Chromium.app/Contents/MacOS. Only valid for bundles."""
-    assert self._IsBundle()
-    if self.spec['type'] in ('shared_library') or self.isIOS:
-      return self.GetBundleContentsFolderPath()
-    elif self.spec['type'] in ('executable', 'loadable_module'):
-      return os.path.join(self.GetBundleContentsFolderPath(), 'MacOS')
-
-  def GetBundleJavaFolderPath(self):
-    """Returns the qualified path to the bundle's Java resource folder.
-    E.g. Chromium.app/Contents/Resources/Java. Only valid for bundles."""
-    assert self._IsBundle()
-    return os.path.join(self.GetBundleResourceFolder(), 'Java')
-
-  def GetBundleFrameworksFolderPath(self):
-    """Returns the qualified path to the bundle's frameworks folder. E.g,
-    Chromium.app/Contents/Frameworks. Only valid for bundles."""
-    assert self._IsBundle()
-    return os.path.join(self.GetBundleContentsFolderPath(), 'Frameworks')
-
-  def GetBundleSharedFrameworksFolderPath(self):
-    """Returns the qualified path to the bundle's frameworks folder. E.g,
-    Chromium.app/Contents/SharedFrameworks. Only valid for bundles."""
-    assert self._IsBundle()
-    return os.path.join(self.GetBundleContentsFolderPath(),
-                        'SharedFrameworks')
-
-  def GetBundleSharedSupportFolderPath(self):
-    """Returns the qualified path to the bundle's shared support folder. E.g,
-    Chromium.app/Contents/SharedSupport. Only valid for bundles."""
-    assert self._IsBundle()
-    if self.spec['type'] == 'shared_library':
-      return self.GetBundleResourceFolder()
-    else:
-      return os.path.join(self.GetBundleContentsFolderPath(),
-                          'SharedSupport')
-
-  def GetBundlePlugInsFolderPath(self):
-    """Returns the qualified path to the bundle's plugins folder. E.g,
-    Chromium.app/Contents/PlugIns. Only valid for bundles."""
-    assert self._IsBundle()
-    return os.path.join(self.GetBundleContentsFolderPath(), 'PlugIns')
-
-  def GetBundleXPCServicesFolderPath(self):
-    """Returns the qualified path to the bundle's XPC services folder. E.g,
-    Chromium.app/Contents/XPCServices. Only valid for bundles."""
-    assert self._IsBundle()
-    return os.path.join(self.GetBundleContentsFolderPath(), 'XPCServices')
-
   def GetBundlePlistPath(self):
     """Returns the qualified path to the bundle's plist file. E.g.
     Chromium.app/Contents/Info.plist. Only valid for bundles."""
     assert self._IsBundle()
-    if self.spec['type'] in ('executable', 'loadable_module') or \
-        self.IsIosFramework():
+    if self.spec['type'] in ('executable', 'loadable_module'):
       return os.path.join(self.GetBundleContentsFolderPath(), 'Info.plist')
     else:
       return os.path.join(self.GetBundleContentsFolderPath(),
@@ -389,10 +327,6 @@ class XcodeSettings(object):
       assert self._IsBundle(), ('ios_watch_app flag requires mac_bundle '
           '(target %s)' % self.spec['target_name'])
       return 'com.apple.product-type.application.watchapp'
-    if self._IsXCUiTest():
-      assert self._IsBundle(), ('mac_xcuitest_bundle flag requires mac_bundle '
-          '(target %s)' % self.spec['target_name'])
-      return 'com.apple.product-type.bundle.ui-testing'
     if self._IsBundle():
       return {
         'executable': 'com.apple.product-type.application',
@@ -423,8 +357,11 @@ class XcodeSettings(object):
     """Returns the name of the bundle binary of by this target.
     E.g. Chromium.app/Contents/MacOS/Chromium. Only valid for bundles."""
     assert self._IsBundle()
-    return os.path.join(self.GetBundleExecutableFolderPath(), \
-                        self.GetExecutableName())
+    if self.spec['type'] in ('shared_library') or self.isIOS:
+      path = self.GetBundleContentsFolderPath()
+    elif self.spec['type'] in ('executable', 'loadable_module'):
+      path = os.path.join(self.GetBundleContentsFolderPath(), 'MacOS')
+    return os.path.join(path, self.GetExecutableName())
 
   def _GetStandaloneExecutableSuffix(self):
     if 'product_extension' in self.spec:
@@ -475,8 +412,8 @@ class XcodeSettings(object):
       return self._GetStandaloneBinaryPath()
 
   def GetExecutablePath(self):
-    """Returns the qualified path to the primary executable of the bundle
-    represented by this target. E.g. Chromium.app/Contents/MacOS/Chromium."""
+    """Returns the directory name of the bundle represented by this target. E.g.
+    Chromium.app/Contents/MacOS/Chromium."""
     if self._IsBundle():
       return self._GetBundleBinaryPath()
     else:
@@ -497,7 +434,7 @@ class XcodeSettings(object):
     # Since the CLT has no SDK paths anyway, returning None is the
     # most sensible route and should still do the right thing.
     try:
-      return GetStdoutQuiet(['xcrun', '--sdk', sdk, infoitem])
+      return GetStdoutQuiet(['xcodebuild', '-version', '-sdk', sdk, infoitem])
     except:
       pass
 
@@ -505,14 +442,6 @@ class XcodeSettings(object):
     if configname is None:
       configname = self.configname
     return self.GetPerConfigSetting('SDKROOT', configname, default='')
-
-  def _XcodePlatformPath(self, configname=None):
-    sdk_root = self._SdkRoot(configname)
-    if sdk_root not in XcodeSettings._platform_path_cache:
-      platform_path = self._GetSdkVersionInfoItem(sdk_root,
-                                                  '--show-sdk-platform-path')
-      XcodeSettings._platform_path_cache[sdk_root] = platform_path
-    return XcodeSettings._platform_path_cache[sdk_root]
 
   def _SdkPath(self, configname=None):
     sdk_root = self._SdkRoot(configname)
@@ -522,7 +451,7 @@ class XcodeSettings(object):
 
   def _XcodeSdkPath(self, sdk_root):
     if sdk_root not in XcodeSettings._sdk_path_cache:
-      sdk_path = self._GetSdkVersionInfoItem(sdk_root, '--show-sdk-path')
+      sdk_path = self._GetSdkVersionInfoItem(sdk_root, 'Path')
       XcodeSettings._sdk_path_cache[sdk_root] = sdk_path
       if sdk_root:
         XcodeSettings._sdk_root_cache[sdk_path] = sdk_root
@@ -552,9 +481,6 @@ class XcodeSettings(object):
     sdk_root = self._SdkPath()
     if 'SDKROOT' in self._Settings() and sdk_root:
       cflags.append('-isysroot %s' % sdk_root)
-
-    if self.header_map_path:
-      cflags.append('-I%s' % self.header_map_path)
 
     if self._Test('CLANG_WARN_CONSTANT_CONVERSION', 'YES', default='NO'):
       cflags.append('-Wconstant-conversion')
@@ -898,8 +824,7 @@ class XcodeSettings(object):
     ldflags.append('-arch ' + archs[0])
 
     # Xcode adds the product directory by default.
-    # Rewrite -L. to -L./ to work around http://www.openradar.me/25313838
-    ldflags.append('-L' + (product_dir if product_dir != '.' else './'))
+    ldflags.append('-L' + product_dir)
 
     install_name = self.GetInstallName()
     if install_name and self.spec['type'] != 'loadable_module':
@@ -918,9 +843,8 @@ class XcodeSettings(object):
 
     if self._IsXCTest():
       platform_root = self._XcodePlatformPath(configname)
-      if sdk_root and platform_root:
-        ldflags.append('-F' + platform_root + '/Developer/Library/Frameworks/')
-        ldflags.append('-framework XCTest')
+      if platform_root:
+        cflags.append('-F' + platform_root + '/Developer/Library/Frameworks/')  # noqa TODO @cclauss
 
     is_extension = self._IsIosAppExtension() or self._IsIosWatchKitExtension()
     if sdk_root and is_extension:
@@ -928,13 +852,13 @@ class XcodeSettings(object):
       # extensions and provide loader and main function.
       # These flags reflect the compilation options used by xcode to compile
       # extensions.
+      ldflags.append('-lpkstart')
       if XcodeVersion() < '0900':
-        ldflags.append('-lpkstart')
         ldflags.append(sdk_root +
             '/System/Library/PrivateFrameworks/PlugInKit.framework/PlugInKit')
-      else:
-        ldflags.append('-e _NSExtensionMain')
       ldflags.append('-fapplication-extension')
+      ldflags.append('-Xlinker -rpath '
+          '-Xlinker @executable_path/../../Frameworks')
 
     self._Appendf(ldflags, 'CLANG_CXX_LIBRARY', '-stdlib=%s')
 
@@ -1008,8 +932,7 @@ class XcodeSettings(object):
         self._Test('STRIP_INSTALLED_PRODUCT', 'YES', default='NO')):
 
       default_strip_style = 'debugging'
-      if ((self.spec['type'] == 'loadable_module' or self._IsIosAppExtension())
-          and self._IsBundle()):
+      if self.spec['type'] == 'loadable_module' and self._IsBundle():
         default_strip_style = 'non-global'
       elif self.spec['type'] == 'executable':
         default_strip_style = 'all'
@@ -1064,68 +987,27 @@ class XcodeSettings(object):
     """Return a shell command to codesign the iOS output binary so it can
     be deployed to a device.  This should be run as the very last step of the
     build."""
-    if not (self.isIOS and
-        (self.spec['type'] == 'executable' or self._IsXCTest()) or
-         self.IsIosFramework()):
+    if not (self.isIOS and self.spec['type'] == 'executable'):
       return []
 
-    postbuilds = []
-    product_name = self.GetFullProductName()
     settings = self.xcode_settings[configname]
-
-    # Xcode expects XCTests to be copied into the TEST_HOST dir.
-    if self._IsXCTest():
-      source = os.path.join("${BUILT_PRODUCTS_DIR}", product_name)
-      test_host = os.path.dirname(settings.get('TEST_HOST'));
-      xctest_destination = os.path.join(test_host, 'PlugIns', product_name)
-      postbuilds.extend(['ditto %s %s' % (source, xctest_destination)])
-
     key = self._GetIOSCodeSignIdentityKey(settings)
     if not key:
-      return postbuilds
+      return []
 
     # Warn for any unimplemented signing xcode keys.
     unimpl = ['OTHER_CODE_SIGN_FLAGS']
     unimpl = set(unimpl) & set(self.xcode_settings[configname].keys())
     if unimpl:
-      print('Warning: Some codesign keys not implemented, ignoring: %s' %
-            ', '.join(sorted(unimpl)))
+      print('Warning: Some codesign keys not implemented, ignoring: %s' % (
+          ', '.join(sorted(unimpl))))
 
-    if self._IsXCTest():
-      # For device xctests, Xcode copies two extra frameworks into $TEST_HOST.
-      test_host = os.path.dirname(settings.get('TEST_HOST'));
-      frameworks_dir = os.path.join(test_host, 'Frameworks')
-      platform_root = self._XcodePlatformPath(configname)
-      frameworks = \
-          ['Developer/Library/PrivateFrameworks/IDEBundleInjection.framework',
-           'Developer/Library/Frameworks/XCTest.framework']
-      for framework in frameworks:
-        source = os.path.join(platform_root, framework)
-        destination = os.path.join(frameworks_dir, os.path.basename(framework))
-        postbuilds.extend(['ditto %s %s' % (source, destination)])
-
-        # Then re-sign everything with 'preserve=True'
-        postbuilds.extend(['%s code-sign-bundle "%s" "%s" "%s" "%s" %s' % (
-            os.path.join('${TARGET_BUILD_DIR}', 'gyp-mac-tool'), key,
-            settings.get('CODE_SIGN_ENTITLEMENTS', ''),
-            settings.get('PROVISIONING_PROFILE', ''), destination, True)
-        ])
-      plugin_dir = os.path.join(test_host, 'PlugIns')
-      targets = [os.path.join(plugin_dir, product_name), test_host]
-      for target in targets:
-        postbuilds.extend(['%s code-sign-bundle "%s" "%s" "%s" "%s" %s' % (
-            os.path.join('${TARGET_BUILD_DIR}', 'gyp-mac-tool'), key,
-            settings.get('CODE_SIGN_ENTITLEMENTS', ''),
-            settings.get('PROVISIONING_PROFILE', ''), target, True)
-        ])
-
-    postbuilds.extend(['%s code-sign-bundle "%s" "%s" "%s" "%s" %s' % (
+    return ['%s code-sign-bundle "%s" "%s" "%s" "%s"' % (
         os.path.join('${TARGET_BUILD_DIR}', 'gyp-mac-tool'), key,
+        settings.get('CODE_SIGN_RESOURCE_RULES_PATH', ''),
         settings.get('CODE_SIGN_ENTITLEMENTS', ''),
-        settings.get('PROVISIONING_PROFILE', ''),
-        os.path.join("${BUILT_PRODUCTS_DIR}", product_name), False)
-    ])
-    return postbuilds
+        settings.get('PROVISIONING_PROFILE', ''))
+    ]
 
   def _GetIOSCodeSignIdentityKey(self, settings):
     identity = settings.get('CODE_SIGN_IDENTITY')
@@ -1207,37 +1089,25 @@ class XcodeSettings(object):
       xcode, xcode_build = XcodeVersion()
       cache['DTXcode'] = xcode
       cache['DTXcodeBuild'] = xcode_build
-      compiler = self.xcode_settings[configname].get('GCC_VERSION')
-      if compiler is not None:
-        cache['DTCompiler'] = compiler
 
       sdk_root = self._SdkRoot(configname)
       if not sdk_root:
         sdk_root = self._DefaultSdkRoot()
-      sdk_version = self._GetSdkVersionInfoItem(sdk_root, '--show-sdk-version')
-      cache['DTSDKName'] = sdk_root + (sdk_version or '')
-      if xcode >= '0720':
+      cache['DTSDKName'] = sdk_root
+      if xcode >= '0430':
         cache['DTSDKBuild'] = self._GetSdkVersionInfoItem(
-            sdk_root, '--show-sdk-build-version')
-      elif xcode >= '0430':
-        cache['DTSDKBuild'] = sdk_version
+            sdk_root, 'ProductBuildVersion')
       else:
         cache['DTSDKBuild'] = cache['BuildMachineOSBuild']
 
       if self.isIOS:
-        cache['MinimumOSVersion'] = self.xcode_settings[configname].get(
-            'IPHONEOS_DEPLOYMENT_TARGET')
-        cache['DTPlatformName'] = sdk_root
-        cache['DTPlatformVersion'] = sdk_version
-
+        cache['DTPlatformName'] = cache['DTSDKName']
         if configname.endswith("iphoneos"):
+          cache['DTPlatformVersion'] = self._GetSdkVersionInfoItem(
+              sdk_root, 'ProductVersion')
           cache['CFBundleSupportedPlatforms'] = ['iPhoneOS']
-          cache['DTPlatformBuild'] = cache['DTSDKBuild']
         else:
           cache['CFBundleSupportedPlatforms'] = ['iPhoneSimulator']
-          # This is weird, but Xcode sets DTPlatformBuild to an empty field
-          # for simulator builds.
-          cache['DTPlatformBuild'] = ""
       XcodeSettings._plist_cache[configname] = cache
 
     # Include extra plist items that are per-target, not per global
@@ -1450,8 +1320,7 @@ def GetStdoutQuiet(cmdlist):
   """Returns the content of standard output returned by invoking |cmdlist|.
   Ignores the stderr.
   Raises |GypError| if the command return with a non-zero return code."""
-  job = subprocess.Popen(cmdlist, stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
+  job = subprocess.Popen(cmdlist, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   out = job.communicate()[0]
   if job.returncode != 0:
     raise GypError('Error %d running %s' % (job.returncode, cmdlist[0]))
@@ -1491,10 +1360,7 @@ def IsMacBundle(flavor, spec):
   Bundles are directories with a certain subdirectory structure, instead of
   just a single file. Bundle rules do not produce a binary but also package
   resources into that directory."""
-  is_mac_bundle = int(spec.get('mac_xctest_bundle', 0)) != 0 or \
-      int(spec.get('mac_xcuitest_bundle', 0)) != 0 or \
-      (int(spec.get('mac_bundle', 0)) != 0 and flavor == 'mac')
-
+  is_mac_bundle = (int(spec.get('mac_bundle', 0)) != 0 and flavor == 'mac')
   if is_mac_bundle:
     assert spec['type'] != 'none', (
         'mac_bundle targets cannot have type none (target "%s")' %
@@ -1604,14 +1470,13 @@ def _GetXcodeEnv(xcode_settings, built_products_dir, srcroot, configuration,
       additional_settings: An optional dict with more values to add to the
           result.
   """
-
   if not xcode_settings: return {}
 
   # This function is considered a friend of XcodeSettings, so let it reach into
   # its implementation details.
   spec = xcode_settings.spec
 
-  # These are filled in on an as-needed basis.
+  # These are filled in on a as-needed basis.
   env = {
     'BUILT_FRAMEWORKS_DIR' : built_products_dir,
     'BUILT_PRODUCTS_DIR' : built_products_dir,
@@ -1624,15 +1489,11 @@ def _GetXcodeEnv(xcode_settings, built_products_dir, srcroot, configuration,
     # written for bundles:
     'TARGET_BUILD_DIR' : built_products_dir,
     'TEMP_DIR' : '${TMPDIR}',
-    'XCODE_VERSION_ACTUAL' : XcodeVersion()[0],
   }
   if xcode_settings.GetPerConfigSetting('SDKROOT', configuration):
     env['SDKROOT'] = xcode_settings._SdkPath(configuration)
   else:
     env['SDKROOT'] = ''
-
-  if xcode_settings.mac_toolchain_dir:
-    env['DEVELOPER_DIR'] = xcode_settings.mac_toolchain_dir
 
   if spec['type'] in (
       'executable', 'static_library', 'shared_library', 'loadable_module'):
@@ -1644,27 +1505,10 @@ def _GetXcodeEnv(xcode_settings, built_products_dir, srcroot, configuration,
       env['MACH_O_TYPE'] = mach_o_type
     env['PRODUCT_TYPE'] = xcode_settings.GetProductType()
   if xcode_settings._IsBundle():
-    # xcodeproj_file.py sets the same Xcode subfolder value for this as for
-    # FRAMEWORKS_FOLDER_PATH so Xcode builds will actually use FFP's value.
-    env['BUILT_FRAMEWORKS_DIR'] = \
-        os.path.join(built_products_dir + os.sep \
-                     + xcode_settings.GetBundleFrameworksFolderPath())
     env['CONTENTS_FOLDER_PATH'] = \
-        xcode_settings.GetBundleContentsFolderPath()
-    env['EXECUTABLE_FOLDER_PATH'] = \
-        xcode_settings.GetBundleExecutableFolderPath()
+      xcode_settings.GetBundleContentsFolderPath()
     env['UNLOCALIZED_RESOURCES_FOLDER_PATH'] = \
         xcode_settings.GetBundleResourceFolder()
-    env['JAVA_FOLDER_PATH'] = xcode_settings.GetBundleJavaFolderPath()
-    env['FRAMEWORKS_FOLDER_PATH'] = \
-        xcode_settings.GetBundleFrameworksFolderPath()
-    env['SHARED_FRAMEWORKS_FOLDER_PATH'] = \
-        xcode_settings.GetBundleSharedFrameworksFolderPath()
-    env['SHARED_SUPPORT_FOLDER_PATH'] = \
-        xcode_settings.GetBundleSharedSupportFolderPath()
-    env['PLUGINS_FOLDER_PATH'] = xcode_settings.GetBundlePlugInsFolderPath()
-    env['XPCSERVICES_FOLDER_PATH'] = \
-        xcode_settings.GetBundleXPCServicesFolderPath()
     env['INFOPLIST_PATH'] = xcode_settings.GetBundlePlistPath()
     env['WRAPPER_NAME'] = xcode_settings.GetWrapperName()
 
@@ -1795,12 +1639,11 @@ def _AddIOSDeviceConfigurations(targets):
   for target_dict in targets.itervalues():
     toolset = target_dict['toolset']
     configs = target_dict['configurations']
-    for config_name, simulator_config_dict in dict(configs).items():
-      iphoneos_config_dict = copy.deepcopy(simulator_config_dict)
+    for config_name, config_dict in dict(configs).items():
+      iphoneos_config_dict = copy.deepcopy(config_dict)
       configs[config_name + '-iphoneos'] = iphoneos_config_dict
-      configs[config_name + '-iphonesimulator'] = simulator_config_dict
+      configs[config_name + '-iphonesimulator'] = config_dict
       if toolset == 'target':
-        simulator_config_dict['xcode_settings']['SDKROOT'] = 'iphonesimulator'
         iphoneos_config_dict['xcode_settings']['SDKROOT'] = 'iphoneos'
   return targets
 

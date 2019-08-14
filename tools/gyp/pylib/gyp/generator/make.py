@@ -149,7 +149,7 @@ cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) crsT $@ $(filter %.o,$^)
 # special "figure out circular dependencies" flags around the entire
 # input list during linking.
 quiet_cmd_link = LINK($(TOOLSET)) $@
-cmd_link = $(LINK.$(TOOLSET)) -o $@ $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,--start-group $(LD_INPUTS) $(LIBS) -Wl,--end-group
+cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) $(LIBS) -Wl,--end-group
 
 # We support two kinds of shared objects (.so):
 # 1) shared_library, which is just bundling together many dependent libraries
@@ -168,10 +168,10 @@ cmd_link = $(LINK.$(TOOLSET)) -o $@ $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,--s
 # - Set SONAME to the library filename so our binaries don't reference
 # the local, absolute paths used on the link command-line.
 quiet_cmd_solink = SOLINK($(TOOLSET)) $@
-cmd_solink = $(LINK.$(TOOLSET)) -o $@ -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -Wl,--whole-archive $(LD_INPUTS) -Wl,--no-whole-archive $(LIBS)
+cmd_solink = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -o $@ -Wl,--whole-archive $(LD_INPUTS) -Wl,--no-whole-archive $(LIBS)
 
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
-cmd_solink_module = $(LINK.$(TOOLSET)) -o $@ -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -Wl,--start-group $(filter-out FORCE_DO_CMD, $^) -Wl,--end-group $(LIBS)
+cmd_solink_module = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -o $@ -Wl,--start-group $(filter-out FORCE_DO_CMD, $^) -Wl,--end-group $(LIBS)
 """
 
 LINK_COMMANDS_MAC = """\
@@ -231,6 +231,25 @@ cmd_solink = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o 
 
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
+"""
+
+
+LINK_COMMANDS_OS390 = """\
+quiet_cmd_alink = AR($(TOOLSET)) $@
+cmd_alink = rm -f $@ && $(AR.$(TOOLSET)) crs $@ $(filter %.o,$^)
+
+quiet_cmd_alink_thin = AR($(TOOLSET)) $@
+cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) crsT $@ $(filter %.o,$^)
+
+quiet_cmd_link = LINK($(TOOLSET)) $@
+cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS)
+
+quiet_cmd_solink = SOLINK($(TOOLSET)) $@
+cmd_solink = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS) -Wl,DLL
+
+quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
+cmd_solink_module = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS) -Wl,DLL
+
 """
 
 
@@ -317,7 +336,7 @@ dirx = $(call unreplace_spaces,$(dir $(call replace_spaces,$1)))
 # We write to a dep file on the side first and then rename at the end
 # so we can't end up with a broken dep file.
 depfile = $(depsdir)/$(call replace_spaces,$@).d
-DEPFLAGS = -MMD -MF $(depfile).raw
+DEPFLAGS = %(makedep_args)s -MF $(depfile).raw
 
 # We have to fixup the deps output in a few ways.
 # (1) the file output should mention the proper .o file.
@@ -362,17 +381,17 @@ endef
 # - quiet_cmd_foo is the brief-output summary of the command.
 
 quiet_cmd_cc = CC($(TOOLSET)) $@
-cmd_cc = $(CC.$(TOOLSET)) -o $@ $< $(GYP_CFLAGS) $(DEPFLAGS) $(CFLAGS.$(TOOLSET)) -c
+cmd_cc = $(CC.$(TOOLSET)) $(GYP_CFLAGS) $(DEPFLAGS) $(CFLAGS.$(TOOLSET)) -c -o $@ $<
 
 quiet_cmd_cxx = CXX($(TOOLSET)) $@
-cmd_cxx = $(CXX.$(TOOLSET)) -o $@ $< $(GYP_CXXFLAGS) $(DEPFLAGS) $(CXXFLAGS.$(TOOLSET)) -c
+cmd_cxx = $(CXX.$(TOOLSET)) $(GYP_CXXFLAGS) $(DEPFLAGS) $(CXXFLAGS.$(TOOLSET)) -c -o $@ $<
 %(extra_commands)s
 quiet_cmd_touch = TOUCH $@
 cmd_touch = touch $@
 
 quiet_cmd_copy = COPY $@
 # send stderr to /dev/null to ignore messages when linking directories.
-cmd_copy = ln -f "$<" "$@" 2>/dev/null || (rm -rf "$@" && cp %(copy_archive_args)s "$<" "$@")
+cmd_copy = rm -rf "$@" && cp %(copy_archive_args)s "$<" "$@"
 
 %(link_commands)s
 """
@@ -630,6 +649,9 @@ def Sourceify(path):
 def QuoteSpaces(s, quote=r'\ '):
   return s.replace(' ', quote)
 
+def SourceifyAndQuoteSpaces(path):
+  """Convert a path to its source directory form and quote spaces."""
+  return QuoteSpaces(Sourceify(path))
 
 # TODO: Avoid code duplication with _ValidateSourcesForMSVSProject in msvs.py.
 def _ValidateSourcesForOSX(spec, all_sources):
@@ -657,9 +679,8 @@ def _ValidateSourcesForOSX(spec, all_sources):
       error += '  %s: %s\n' % (basename, ' '.join(files))
 
   if error:
-    print('static library %s has several files with the same basename:\n' %
-          spec['target_name'] + error + 'libtool on OS X will generate' +
-          ' warnings for them.')
+    print(('static library %s has several files with the same basename:\n' % spec['target_name'])
+           + error + 'libtool on OS X will generate' + ' warnings for them.')
     raise GypError('Duplicate basenames in sources section, see list above')
 
 
@@ -1204,16 +1225,16 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         cflags_c = config.get('cflags_c')
         cflags_cc = config.get('cflags_cc')
 
-      self.WriteLn("# Flags passed to all source files.")
+      self.WriteLn("# Flags passed to all source files.");
       self.WriteList(cflags, 'CFLAGS_%s' % configname)
-      self.WriteLn("# Flags passed to only C files.")
+      self.WriteLn("# Flags passed to only C files.");
       self.WriteList(cflags_c, 'CFLAGS_C_%s' % configname)
-      self.WriteLn("# Flags passed to only C++ files.")
+      self.WriteLn("# Flags passed to only C++ files.");
       self.WriteList(cflags_cc, 'CFLAGS_CC_%s' % configname)
       if self.flavor == 'mac':
-        self.WriteLn("# Flags passed to only ObjC files.")
+        self.WriteLn("# Flags passed to only ObjC files.");
         self.WriteList(cflags_objc, 'CFLAGS_OBJC_%s' % configname)
-        self.WriteLn("# Flags passed to only ObjC++ files.")
+        self.WriteLn("# Flags passed to only ObjC++ files.");
         self.WriteList(cflags_objcc, 'CFLAGS_OBJCC_%s' % configname)
       includes = config.get('include_dirs')
       if includes:
@@ -1362,7 +1383,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       target = '%s.stamp' % target
     elif self.type != 'executable':
       print("ERROR: What output file should be generated?",
-            "type", self.type, "target", target)
+             "type", self.type, "target", target)
 
     target_prefix = spec.get('product_prefix', target_prefix)
     target = spec.get('product_name', target)
@@ -1756,9 +1777,9 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
       # Hash the target name to avoid generating overlong filenames.
       cmddigest = hashlib.sha1(command if command else self.target).hexdigest()
-      intermediate = "%s.intermediate" % (cmddigest)
+      intermediate = "%s.intermediate" % cmddigest
       self.WriteLn('%s: %s' % (' '.join(outputs), intermediate))
-      self.WriteLn('\t%s' % '@:')
+      self.WriteLn('\t%s' % '@:');
       self.WriteLn('%s: %s' % ('.INTERMEDIATE', intermediate))
       self.WriteLn('%s: %s%s' %
                    (intermediate, ' '.join(inputs), force_append))
@@ -1930,11 +1951,13 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     """Returns the location of the final output for an installable target."""
     # Xcode puts shared_library results into PRODUCT_DIR, and some gyp files
     # rely on this. Emulate this behavior for mac.
-    if (self.type == 'shared_library' and
-        (self.flavor != 'mac' or self.toolset != 'target')):
-      # Install all shared libs into a common directory (per toolset) for
-      # convenient access with LD_LIBRARY_PATH.
-      return '$(builddir)/lib.%s/%s' % (self.toolset, self.alias)
+
+    # XXX(TooTallNate): disabling this code since we don't want this behavior...
+    #if (self.type == 'shared_library' and
+    #    (self.flavor != 'mac' or self.toolset != 'target')):
+    #  # Install all shared libs into a common directory (per toolset) for
+    #  # convenient access with LD_LIBRARY_PATH.
+    #  return '$(builddir)/lib.%s/%s' % (self.toolset, self.alias)
     return '$(builddir)/' + self.alias
 
 
@@ -1956,7 +1979,7 @@ def WriteAutoRegenerationRule(params, root_makefile, makefile_name,
       "%(makefile_name)s: %(deps)s\n"
       "\t$(call do_cmd,regen_makefile)\n\n" % {
           'makefile_name': makefile_name,
-          'deps': ' '.join(map(Sourceify, build_files)),
+          'deps': ' '.join(map(SourceifyAndQuoteSpaces, build_files)),
           'cmd': gyp.common.EncodePOSIXShellList(
                      [gyp_binary, '-fmake'] +
                      gyp.RegenerateFlags(options) +
@@ -2024,6 +2047,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
   flock_command= 'flock'
   copy_archive_arguments = '-af'
+  makedep_arguments = '-MMD'
   header_params = {
       'default_target': default_target,
       'builddir': builddir_name,
@@ -2034,6 +2058,15 @@ def GenerateOutput(target_list, target_dicts, data, params):
       'extra_commands': '',
       'srcdir': srcdir,
       'copy_archive_args': copy_archive_arguments,
+      'makedep_args': makedep_arguments,
+      'CC.target':   GetEnvironFallback(('CC_target', 'CC'), '$(CC)'),
+      'AR.target':   GetEnvironFallback(('AR_target', 'AR'), '$(AR)'),
+      'CXX.target':  GetEnvironFallback(('CXX_target', 'CXX'), '$(CXX)'),
+      'LINK.target': GetEnvironFallback(('LINK_target', 'LINK'), '$(LINK)'),
+      'CC.host':     GetEnvironFallback(('CC_host', 'CC'), 'gcc'),
+      'AR.host':     GetEnvironFallback(('AR_host', 'AR'), 'ar'),
+      'CXX.host':    GetEnvironFallback(('CXX_host', 'CXX'), 'g++'),
+      'LINK.host':   GetEnvironFallback(('LINK_host', 'LINK'), '$(CXX.host)'),
     }
   if flavor == 'mac':
     flock_command = './gyp-mac-tool flock'
@@ -2046,6 +2079,18 @@ def GenerateOutput(target_list, target_dicts, data, params):
   elif flavor == 'android':
     header_params.update({
         'link_commands': LINK_COMMANDS_ANDROID,
+    })
+  elif flavor == 'zos':
+    copy_archive_arguments = '-fPR'
+    makedep_arguments = '-qmakedep=gcc'
+    header_params.update({
+        'copy_archive_args': copy_archive_arguments,
+        'makedep_args': makedep_arguments,
+        'link_commands': LINK_COMMANDS_OS390,
+        'CC.target':   GetEnvironFallback(('CC_target', 'CC'), 'njsc'),
+        'CXX.target':  GetEnvironFallback(('CXX_target', 'CXX'), 'njsc++'),
+        'CC.host':     GetEnvironFallback(('CC_host', 'CC'), 'njsc'),
+        'CXX.host':    GetEnvironFallback(('CXX_host', 'CXX'), 'njsc++'),
     })
   elif flavor == 'solaris':
     header_params.update({
@@ -2070,17 +2115,6 @@ def GenerateOutput(target_list, target_dicts, data, params):
         'flock': './gyp-flock-tool flock',
         'flock_index': 2,
     })
-
-  header_params.update({
-    'CC.target':   GetEnvironFallback(('CC_target', 'CC'), '$(CC)'),
-    'AR.target':   GetEnvironFallback(('AR_target', 'AR'), '$(AR)'),
-    'CXX.target':  GetEnvironFallback(('CXX_target', 'CXX'), '$(CXX)'),
-    'LINK.target': GetEnvironFallback(('LINK_target', 'LINK'), '$(LINK)'),
-    'CC.host':     GetEnvironFallback(('CC_host', 'CC'), 'gcc'),
-    'AR.host':     GetEnvironFallback(('AR_host', 'AR'), 'ar'),
-    'CXX.host':    GetEnvironFallback(('CXX_host', 'CXX'), 'g++'),
-    'LINK.host':   GetEnvironFallback(('LINK_host', 'LINK'), '$(CXX.host)'),
-  })
 
   build_file, _, _ = gyp.common.ParseQualifiedTarget(target_list[0])
   make_global_settings_array = data[build_file].get('make_global_settings', [])

@@ -119,7 +119,7 @@ def WriteXmlIfChanged(content, path, encoding='utf-8', pretty=False,
     xml_string = xml_string.replace('\n', '\r\n')
 
   default_encoding = locale.getdefaultlocale()[1]
-  if default_encoding and default_encoding.upper() != encoding.upper():
+  if default_encoding.upper() != encoding.upper():
     xml_string = xml_string.decode(default_encoding).encode(encoding)
 
   # Get the old content

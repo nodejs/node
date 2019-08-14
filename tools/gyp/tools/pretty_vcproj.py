@@ -291,8 +291,8 @@ def main(argv):
 
   # check if we have exactly 1 parameter.
   if len(argv) < 2:
-    print('Usage: %s "c:\\path\\to\\vcproj.vcproj" [key1=value1] '
-          '[key2=value2]' % argv[0])
+    print(('Usage: %s "c:\\path\\to\\vcproj.vcproj" [key1=value1] '
+           '[key2=value2]' % argv[0]))
     return 1
 
   # Parse the keys
