@@ -134,12 +134,20 @@ assert.strictEqual(readline.cursorTo(writable, 1, 'a'), true);
 assert.strictEqual(writable.data, '\x1b[2G');
 
 writable.data = '';
+assert.strictEqual(readline.cursorTo(writable, 1), true);
+assert.strictEqual(writable.data, '\x1b[2G');
+
+writable.data = '';
 assert.strictEqual(readline.cursorTo(writable, 1, 2), true);
 assert.strictEqual(writable.data, '\x1b[3;2H');
 
 writable.data = '';
 assert.strictEqual(readline.cursorTo(writable, 1, 2, common.mustCall()), true);
 assert.strictEqual(writable.data, '\x1b[3;2H');
+
+writable.data = '';
+assert.strictEqual(readline.cursorTo(writable, 1, common.mustCall()), true);
+assert.strictEqual(writable.data, '\x1b[2G');
 
 // Verify that cursorTo() throws on invalid callback.
 assert.throws(() => {

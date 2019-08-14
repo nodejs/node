@@ -487,7 +487,7 @@ function completer(linePartial, callback) {
 }
 ```
 
-## readline.cursorTo(stream, x, y[, callback])
+## readline.cursorTo(stream, x[, y][, callback])
 <!-- YAML
 added: v0.7.7
 changes:
