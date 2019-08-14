@@ -5,10 +5,9 @@ const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
-const shutil = require('shutil');
 
 const tmpDir = tmpdir.path;
-const baseDir = path.join(tmpDir, 'shutil-rmtree');
+const baseDir = path.join(tmpDir, 'fs-rmtree');
 
 function setupFiles() {
   fs.mkdirSync(baseDir);
@@ -35,24 +34,19 @@ function test_rmtree_sync(path) {
 
   assert(fs.readdirSync(path));
 
-  shutil.rmtreeSync(path);
+  fs.rmtreeSync(path);
+
   assertGone(path);
 }
 
 function test_invalid_path() {
-  assert.throws(() => shutil.rmtreeSync(1), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-}
-
-function test_invalid_options(path) {
-  assert.throws(() => shutil.rmtreeSync(path, 1), {
+  assert.throws(() => fs.rmtreeSync(1), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 }
 
 function test_invalid_callback(path) {
-  assert.throws(() => shutil.rmtree(path, {}, 1), {
+  assert.throws(() => fs.rmtree(path, {}, 1), {
     code: 'ERR_INVALID_CALLBACK'
   });
 }
@@ -62,11 +56,10 @@ function test_rmtree(path) {
 
   assert(fs.readdirSync(path));
 
-  shutil.rmtree(path, () => assertGone(path));
+  fs.rmtree(path, () => assertGone(path));
 }
 
 test_rmtree_sync(baseDir);
 test_invalid_path();
-test_invalid_options(baseDir);
 test_invalid_callback(baseDir);
 test_rmtree(baseDir);
