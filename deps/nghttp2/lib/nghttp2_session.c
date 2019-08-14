@@ -457,6 +457,7 @@ static int session_new(nghttp2_session **session_ptr,
   (*session_ptr)->remote_settings.max_concurrent_streams = 100;
 
   (*session_ptr)->max_send_header_block_length = NGHTTP2_MAX_HEADERSLEN;
+  (*session_ptr)->max_outbound_ack = NGHTTP2_DEFAULT_MAX_OBQ_FLOOD_ITEM;
 
   if (option) {
     if ((option->opt_set_mask & NGHTTP2_OPT_NO_AUTO_WINDOW_UPDATE) &&
@@ -515,6 +516,10 @@ static int session_new(nghttp2_session **session_ptr,
     if ((option->opt_set_mask & NGHTTP2_OPT_NO_CLOSED_STREAMS) &&
         option->no_closed_streams) {
       (*session_ptr)->opt_flags |= NGHTTP2_OPTMASK_NO_CLOSED_STREAMS;
+    }
+
+    if (option->opt_set_mask & NGHTTP2_OPT_MAX_OUTBOUND_ACK) {
+      (*session_ptr)->max_outbound_ack = option->max_outbound_ack;
     }
   }
 
@@ -6857,7 +6862,7 @@ int nghttp2_session_add_ping(nghttp2_session *session, uint8_t flags,
   mem = &session->mem;
 
   if ((flags & NGHTTP2_FLAG_ACK) &&
-      session->obq_flood_counter_ >= NGHTTP2_MAX_OBQ_FLOOD_ITEM) {
+      session->obq_flood_counter_ >= session->max_outbound_ack) {
     return NGHTTP2_ERR_FLOODED;
   }
 
@@ -7002,7 +7007,7 @@ int nghttp2_session_add_settings(nghttp2_session *session, uint8_t flags,
       return NGHTTP2_ERR_INVALID_ARGUMENT;
     }
 
-    if (session->obq_flood_counter_ >= NGHTTP2_MAX_OBQ_FLOOD_ITEM) {
+    if (session->obq_flood_counter_ >= session->max_outbound_ack) {
       return NGHTTP2_ERR_FLOODED;
     }
   }
