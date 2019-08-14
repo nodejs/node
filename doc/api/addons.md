@@ -11,7 +11,7 @@ provide an interface between JavaScript running in Node.js and C/C++ libraries.
 There are currently three options for implementing Addons: N-API, nan, or direct
 use of internal V8, libuv and Node.js libraries. Unless you need direct
 access to functionality which is not exposed by N-API, use N-API.
-recommended approach. Refer to the section [C/C++ Addons - N-API](n-api.html)
+Refer to the section [C/C++ Addons - N-API](n-api.html)
 for more information on N-API.
 
 When not using N-API, implementing Addons is complicated,
