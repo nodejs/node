@@ -14,7 +14,7 @@ access to functionality which is not exposed by N-API, N-API is the
 recommended approach. Refer to the section [C/C++ Addons - N-API](n-api.html)
 for more information on N-API.
 
-When not using N-API, the method for implementing Addons is rather complicated,
+When not using N-API, implementing Addons is complicated,
 involving knowledge of several components and APIs:
 
  - V8: the C++ library Node.js currently uses to provide the
