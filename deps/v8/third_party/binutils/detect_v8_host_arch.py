@@ -40,13 +40,13 @@ def main():
   return 0
 
 def DoMain(_):
-  return DetectHostArch();
+  return DetectHostArch()
 
 def DetectHostArch():
   """Hook to be called from gyp without starting a separate python
   interpreter."""
   host_arch = platform.machine()
-  host_system = platform.system();
+  host_system = platform.system()
 
   # Convert machine type to format recognized by gyp.
   if re.match(r'i.86', host_arch) or host_arch == 'i86pc':

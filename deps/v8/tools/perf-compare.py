@@ -43,7 +43,7 @@ class Statistics:
   @staticmethod
   def ComputeZ(baseline_avg, baseline_sigma, mean, n):
     if baseline_sigma == 0:
-      return 1000.0;
+      return 1000.0
     return abs((mean - baseline_avg) / (baseline_sigma / math.sqrt(n)))
 
   # Values from http://www.fourmilab.ch/rpkp/experiments/analysis/zCalc.html
@@ -81,7 +81,7 @@ class ResultsDiff:
     self.percentage_string_ = percentage_string
 
   def percentage_string(self):
-    return self.percentage_string_;
+    return self.percentage_string_
 
   def isSignificant(self):
     return self.significant_
@@ -329,7 +329,7 @@ table tr th :last-child, table tr td :last-child {
     self.Print("<h2>")
     self.Print("<a name=\"%s\">%s</a> <a href=\"#top\">(top)</a>" %
                (suite_name, suite_name))
-    self.Print("</h2>");
+    self.Print("</h2>")
     self.Print("<table class=\"benchmark\">")
     self.Print("<thead>")
     self.Print("  <th>Test</th>")
@@ -433,7 +433,7 @@ def Render(args):
           benchmark_suites[suite_name] = benchmark_suite_object
 
         benchmark_object = benchmark_suite_object.getBenchmark(benchmark_name)
-        benchmark_object.appendResult(run_name, trace);
+        benchmark_object.appendResult(run_name, trace)
 
 
   renderer = ResultTableRenderer(args.output)

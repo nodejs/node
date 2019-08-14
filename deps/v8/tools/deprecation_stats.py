@@ -43,7 +43,7 @@ def GetBlame(file_path):
   blame_list.append(current_blame)
   return blame_list
 
-RE_MACRO_END = re.compile(r"\);");
+RE_MACRO_END = re.compile(r"\);")
 RE_DEPRECATE_MACRO = re.compile(r"\(.*?,(.*)\);", re.MULTILINE)
 
 def FilterAndPrint(blame_list, macro, before):

@@ -67,7 +67,7 @@ def NormalizedSigmaToString(normalized_sigma):
 
 def ComputeZ(baseline_avg, baseline_sigma, mean, n):
   if baseline_sigma == 0:
-    return 1000.0;
+    return 1000.0
   return abs((mean - baseline_avg) / (baseline_sigma / math.sqrt(n)))
 
 # Values from http://www.fourmilab.ch/rpkp/experiments/analysis/zCalc.html
@@ -185,7 +185,7 @@ def ProcessResults(opts, results, baselines):
     if suite in results:
       for result in results[suite]:
         ProcessOneResultLine(opts, suite, result[0], result[1], result[2],
-                             result[3], baselines);
+                             result[3], baselines)
       PrintSeparator(opts, baselines, False)
 
 def ProcessFile(file_path):

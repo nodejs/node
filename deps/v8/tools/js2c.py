@@ -298,7 +298,7 @@ def PutInt(blob_file, value):
   byte_sequence = bytearray()
   for i in range(size):
     byte_sequence.append(value_with_length & 255)
-    value_with_length >>= 8;
+    value_with_length >>= 8
   blob_file.write(byte_sequence)
 
 
@@ -319,8 +319,8 @@ def WriteStartupBlob(sources, startup_blob):
 
   PutInt(output, len(sources.names))
   for i in range(len(sources.names)):
-    PutStr(output, sources.names[i]);
-    PutStr(output, sources.modules[i]);
+    PutStr(output, sources.names[i])
+    PutStr(output, sources.modules[i])
 
   output.close()
 

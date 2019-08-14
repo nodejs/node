@@ -64,7 +64,7 @@ class TestCase(testcase.D8TestCase):
         thisdir = os.path.dirname(self._get_source_path())
         script = os.path.join(thisdir, script)
       else:
-        raise Exception("Unexpected absolute path for script: \"%s\"" % script);
+        raise Exception("Unexpected absolute path for script: \"%s\"" % script)
 
       files.append(script)
 

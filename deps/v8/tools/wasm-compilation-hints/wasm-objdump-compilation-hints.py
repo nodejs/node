@@ -22,8 +22,8 @@ if __name__ == "__main__":
   args = parse_args()
   in_wasm_file = args.in_wasm_file if args.in_wasm_file else sys.stdin.fileno()
   with io.open(in_wasm_file, "rb") as fin:
-    read_magic_number(fin);
-    read_version(fin);
+    read_magic_number(fin)
+    read_version(fin)
     while True:
       id, bs = read_varuintN(fin)
       if id == None:

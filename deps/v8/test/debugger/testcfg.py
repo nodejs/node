@@ -36,7 +36,7 @@ class TestCase(testcase.D8TestCase):
 
   def _parse_source_files(self, source):
     files_list = []  # List of file names to append to command arguments.
-    files_match = FILES_PATTERN.search(source);
+    files_match = FILES_PATTERN.search(source)
     # Accept several lines of 'Files:'.
     while True:
       if files_match:

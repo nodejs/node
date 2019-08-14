@@ -167,7 +167,7 @@ def FullDump(reader, heap):
     if is_executable is not True and is_ascii is not True:
       print("%s - %s" % (reader.FormatIntPtr(start),
                          reader.FormatIntPtr(start + size)))
-      print(start + size + 1);
+      print(start + size + 1)
       for i in range(0, size, reader.PointerSize()):
         slot = start + i
         maybe_address = reader.ReadUIntPtr(slot)
@@ -2138,10 +2138,10 @@ class InspectionPadawan(object):
   def TryExtractStackTrace(self, slot, start, end, print_message):
     ptr_size = self.reader.PointerSize()
     assert self.reader.ReadUIntPtr(slot) & 0xFFFFFFFF == STACK_TRACE_MARKER
-    end_marker = STACK_TRACE_MARKER + 1;
+    end_marker = STACK_TRACE_MARKER + 1
     header_size = 10
     # Look for the end marker after the fields and the message buffer.
-    end_search = start + (32 * 1024) + (header_size * ptr_size);
+    end_search = start + (32 * 1024) + (header_size * ptr_size)
     end_slot = self.FindPtr(end_marker, end_search, end_search + ptr_size * 512)
     if not end_slot: return start
     print("Stack Message (start=%s):" % self.heap.FormatIntPtr(slot))
@@ -2168,9 +2168,9 @@ class InspectionPadawan(object):
 
   def TryExtractErrorMessage(self, slot, start, end, print_message):
     ptr_size = self.reader.PointerSize()
-    end_marker = ERROR_MESSAGE_MARKER + 1;
+    end_marker = ERROR_MESSAGE_MARKER + 1
     header_size = 1
-    end_search = start + 1024 + (header_size * ptr_size);
+    end_search = start + 1024 + (header_size * ptr_size)
     end_slot = self.FindPtr(end_marker, end_search, end_search + ptr_size * 512)
     if not end_slot: return start
     print("Error Message (start=%s):" % self.heap.FormatIntPtr(slot))
@@ -2838,7 +2838,7 @@ class InspectionWebFormatter(object):
     f.write("<br>&nbsp;&nbsp;")
     time_date_stamp = datetime.datetime.fromtimestamp(module.time_date_stamp)
     f.write("  timestamp: %s" % time_date_stamp)
-    f.write("<br>");
+    f.write("<br>")
 
   def output_modules(self, f):
     self.output_header(f)
@@ -3078,7 +3078,7 @@ class InspectionWebFormatter(object):
     f.write("<h3>Disassembling 0x%x - 0x%x, highlighting 0x%x %s</h3>" %
             (start_address, end_address, highlight_address, expand))
     f.write('<div class="code">')
-    f.write("<table class=\"codedump\">");
+    f.write("<table class=\"codedump\">")
     for i in range(len(lines)):
       line = lines[i]
       next_address = count
@@ -3441,7 +3441,7 @@ class InspectionShell(cmd.Cmd):
     return result
 
   def ParseAddressExpr(self, expr):
-    address = 0;
+    address = 0
     try:
       result = self.EvalExpression(expr)
     except:
@@ -3805,7 +3805,7 @@ def GetModuleName(reader, module):
 def PrintModuleDetails(reader, module):
   print("%s" % GetModuleName(reader, module))
   file_version = GetVersionString(module.version_info.dwFileVersionMS,
-                                  module.version_info.dwFileVersionLS);
+                                  module.version_info.dwFileVersionLS)
   product_version = GetVersionString(module.version_info.dwProductVersionMS,
                                      module.version_info.dwProductVersionLS)
   print("  base: %s" % reader.FormatIntPtr(module.base_of_image))

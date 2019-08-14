@@ -29,9 +29,9 @@ import SocketServer # TODO(leszeks): python 3 compatibility
 def CreateFileHandlerClass(root_dirs, verbose):
   class FileHandler(SocketServer.BaseRequestHandler):
     def handle(self):
-      data = self.request.recv(1024);
+      data = self.request.recv(1024)
       while data[-1] != "\0":
-        data += self.request.recv(1024);
+        data += self.request.recv(1024)
 
       filename = data[0:-1]
 
@@ -47,7 +47,7 @@ def CreateFileHandlerClass(root_dirs, verbose):
           sys.stdout.write("Serving {}\r\n".format(os.path.relpath(filename)))
 
         with open(filename) as f:
-          contents = f.read();
+          contents = f.read()
           self.request.sendall(struct.pack("!i", len(contents)))
           self.request.sendall(contents)
 

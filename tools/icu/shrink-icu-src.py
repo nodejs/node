@@ -86,7 +86,7 @@ def icu_info(icu_full_path):
     if not icu_ver_major:
         print(' Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
         sys.exit(1)
-    icu_endianness = sys.byteorder[0];  # TODO(srl295): EBCDIC should be 'e'
+    icu_endianness = sys.byteorder[0]  # TODO(srl295): EBCDIC should be 'e'
     return (icu_ver_major, icu_endianness)
 
 (icu_ver_major, icu_endianness) = icu_info(options.icusrc)

@@ -38,7 +38,7 @@ Examples:
 
 def bytecode_offset_generator(perf_stream, bytecode_name):
   skip_until_end_of_chain = False
-  bytecode_symbol = "BytecodeHandler:" + bytecode_name;
+  bytecode_symbol = "BytecodeHandler:" + bytecode_name
 
   for line in perf_stream:
     # Lines starting with a "#" are comments, skip them.
@@ -97,7 +97,7 @@ def print_disassembly_annotation(offset_counts, bytecode_disassembly):
     return offsets.pop() if offsets else -1
 
   current_offset = next_offset()
-  print(current_offset);
+  print(current_offset)
 
   for line in bytecode_disassembly:
     disassembly_offset = int(line.split()[1])

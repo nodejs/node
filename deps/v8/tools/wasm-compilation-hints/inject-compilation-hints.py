@@ -34,9 +34,9 @@ if __name__ == "__main__":
   hints_bs = open(args.hints_file, "rb").read()
   with io.open(in_wasm_file, "rb") as fin:
     with io.open(out_wasm_file, "wb") as fout:
-      magic_number, bs = read_magic_number(fin);
+      magic_number, bs = read_magic_number(fin)
       fout.write(bs)
-      version, bs = read_version(fin);
+      version, bs = read_version(fin)
       fout.write(bs)
       num_declared_functions = None
       while True:

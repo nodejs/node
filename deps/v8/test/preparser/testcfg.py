@@ -62,8 +62,8 @@ class TestSuite(testsuite.TestSuite):
         testname = name
         testsource = source
         for key in replacement.keys():
-          testname = testname.replace("$" + key, replacement[key]);
-          testsource = testsource.replace("$" + key, replacement[key]);
+          testname = testname.replace("$" + key, replacement[key])
+          testsource = testsource.replace("$" + key, replacement[key])
         Test(testname, testsource, expectation)
       return MkTest
     execfile(pathname, {"Test": Test, "Template": Template})

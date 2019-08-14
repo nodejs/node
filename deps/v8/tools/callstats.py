@@ -209,7 +209,7 @@ def run_site(site, domain, args, timeout=None):
         # If none of these two happened, then chrome apparently crashed, so
         # it must be called again.
         if status != 124 and status != 0:
-          print("CHROME CRASHED, REPEATING RUN");
+          print("CHROME CRASHED, REPEATING RUN")
           continue
         # If the stats file is empty, chrome must be called again.
         if os.path.isfile(result) and os.path.getsize(result) > 0:
@@ -227,7 +227,7 @@ def run_site(site, domain, args, timeout=None):
         timeout += 2 ** retries_since_good_run
         retries_since_good_run += 1
         print("EMPTY RESULT, REPEATING RUN ({})".format(
-            retries_since_good_run));
+            retries_since_good_run))
       finally:
         if not args.user_data_dir:
           shutil.rmtree(user_data_dir)
@@ -366,7 +366,7 @@ def add_category_total(entries, groups, category_prefix):
 
 
 def read_stats(path, domain, args):
-  groups = [];
+  groups = []
   if args.aggregate:
     groups = [
         ('Group-IC', re.compile(".*IC_.*")),
@@ -529,11 +529,11 @@ def create_total_page_stats(domains, args):
   # dominates execution time and speedometer is measured elsewhere.
   excluded_domains = ['adwords.google.com', 'speedometer-angular',
                       'speedometer-jquery', 'speedometer-backbone',
-                      'speedometer-ember', 'speedometer-vanilla'];
+                      'speedometer-ember', 'speedometer-vanilla']
   # Sum up all the entries/metrics from all non-excluded domains
   for domain, entries in domains.items():
     if domain in excluded_domains:
-      continue;
+      continue
     for key, domain_stats in entries.items():
       if key not in total:
         total[key] = {}

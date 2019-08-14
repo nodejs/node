@@ -169,22 +169,22 @@ class TestMergeInfo(unittest.TestCase):
     self._execute_git(['branch', 'remotes/origin/lkgr'])
     hash_of_not_lkgr = self._make_empty_commit('This one is not yet lkgr')
 
-    branches = self._get_branches(hash_of_first_commit);
+    branches = self._get_branches(hash_of_first_commit)
     self.assertTrue(mergeinfo.is_lkgr(branches))
-    branches = self._get_branches(hash_of_not_lkgr);
+    branches = self._get_branches(hash_of_not_lkgr)
     self.assertFalse(mergeinfo.is_lkgr(branches))
 
   def testShowFirstCanary(self):
     commits = self._get_commits()
     hash_of_first_commit = commits[0]
 
-    branches = self._get_branches(hash_of_first_commit);
+    branches = self._get_branches(hash_of_first_commit)
     self.assertEqual(mergeinfo.get_first_canary(branches), 'No Canary coverage')
 
     self._execute_git(['branch', 'remotes/origin/chromium/2345'])
     self._execute_git(['branch', 'remotes/origin/chromium/2346'])
 
-    branches = self._get_branches(hash_of_first_commit);
+    branches = self._get_branches(hash_of_first_commit)
     self.assertEqual(mergeinfo.get_first_canary(branches), '2345')
 
   def testFirstV8Version(self):
@@ -193,16 +193,16 @@ class TestMergeInfo(unittest.TestCase):
 
     self._execute_git(['branch', 'remotes/origin/chromium/2345'])
     self._execute_git(['branch', 'remotes/origin/chromium/2346'])
-    branches = self._get_branches(hash_of_first_commit);
+    branches = self._get_branches(hash_of_first_commit)
     self.assertEqual(mergeinfo.get_first_v8_version(branches), '--')
 
     self._execute_git(['branch', 'remotes/origin/5.7.1'])
     self._execute_git(['branch', 'remotes/origin/5.8.1'])
-    branches = self._get_branches(hash_of_first_commit);
+    branches = self._get_branches(hash_of_first_commit)
     self.assertEqual(mergeinfo.get_first_v8_version(branches), '5.7.1')
 
     self._execute_git(['branch', 'remotes/origin/5.6.1'])
-    branches = self._get_branches(hash_of_first_commit);
+    branches = self._get_branches(hash_of_first_commit)
     self.assertEqual(mergeinfo.get_first_v8_version(branches), '5.6.1')
 
 if __name__ == "__main__":

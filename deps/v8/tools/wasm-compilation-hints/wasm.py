@@ -43,10 +43,10 @@ def peek_varuintN(fin):
     if len(bs) < n:
       return None, bs
     b = ord(bs[-1])
-    value |= (b & 0x7F) << shift;
+    value |= (b & 0x7F) << shift
     if (b & 0x80) == 0x00:
       return value, bs
-    shift += 7;
+    shift += 7
     n += 1
 
 def read_varuintN(fin):

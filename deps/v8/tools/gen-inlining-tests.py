@@ -393,11 +393,11 @@ def printtest(flags):
       if isinstance(result, tuple) and result[0] == "throw":
         result = ('return', 2 + local)
     elif catchReturns and not catchWithLocal:
-      write("      return 2 + ex;");
+      write("      return 2 + ex;")
       if isinstance(result, tuple) and result[0] == "throw":
         result = ('return', 2 + result[1])
     elif catchWithLocal:
-      write("      local += ex;");
+      write("      local += ex;")
       if isinstance(result, tuple) and result[0] == "throw":
         local += result[1]
         result = None

@@ -15,7 +15,7 @@ import sys
 import re
 from subprocess import Popen, PIPE
 
-kPercentEscape = r'α';  # Unicode alpha
+kPercentEscape = r'α'  # Unicode alpha
 
 def preprocess(input):
   input = re.sub(r'(if\s+)constexpr(\s*\()', r'\1/*COxp*/\2', input)
@@ -39,7 +39,7 @@ def preprocess(input):
     input = re.sub(r'(\w+\s*)\|(\s*\w+)',
         r'\1|/**/\2', input)
     if old == input:
-      break;
+      break
 
   input = re.sub(r'\bgenerates\s+\'([^\']+)\'\s*',
       r' _GeNeRaTeS00_/*\1@*/', input)
@@ -94,7 +94,7 @@ def postprocess(output):
     output = re.sub(r'(\w+)\s{0,1}\|\s{0,1}/\*\*/(\s*\w+)',
         r'\1 |\2', output)
     if old == output:
-      break;
+      break
 
   output = re.sub(kPercentEscape, r'%', output)
 
@@ -115,7 +115,7 @@ def process(filename, lint, should_format):
   rc = p.returncode
   if (rc != 0):
     print("error code " + str(rc) + " running clang-format. Exiting...")
-    sys.exit(rc);
+    sys.exit(rc)
 
   if lint:
     if (output != original_input):
@@ -123,7 +123,7 @@ def process(filename, lint, should_format):
 
   if should_format:
     output_file = open(filename, 'w')
-    output_file.write(output);
+    output_file.write(output)
     output_file.close()
 
 def print_usage():
@@ -135,7 +135,7 @@ def print_usage():
 def Main():
   if len(sys.argv) < 3:
     print("error: at least 2 arguments required")
-    print_usage();
+    print_usage()
     sys.exit(-1)
 
   def is_option(arg):
@@ -155,8 +155,8 @@ def Main():
       should_format = True
   else:
     print("error: -i and/or -l flags must be specified")
-    print_usage();
-    sys.exit(-1);
+    print_usage()
+    sys.exit(-1)
 
   for filename in files:
     process(filename, lint, should_format)
@@ -164,4 +164,4 @@ def Main():
   return 0
 
 if __name__ == '__main__':
-  sys.exit(Main());
+  sys.exit(Main())

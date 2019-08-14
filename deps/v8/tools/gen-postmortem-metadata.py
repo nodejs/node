@@ -229,7 +229,7 @@ consts_misc = [
 
     { 'name': 'class_SharedFunctionInfo__function_data__Object',
         'value': 'SharedFunctionInfo::kFunctionDataOffset' },
-];
+]
 
 #
 # The following useful fields are missing accessors, so we define fake ones.
@@ -276,7 +276,7 @@ extras_accessors = [
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
     'String, length, int32_t, kLengthOffset',
-];
+]
 
 #
 # The following is a whitelist of classes we expect to find when scanning the
@@ -287,17 +287,17 @@ expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
     'JSObject', 'JSRegExp', 'JSValue', 'Map', 'Oddball', 'Script',
     'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo', 'JSPromise'
-];
+]
 
 
 #
 # The following structures store high-level representations of the structures
 # for which we're going to emit descriptive constants.
 #
-types = {};             # set of all type names
-typeclasses = {};       # maps type names to corresponding class names
-klasses = {};           # known classes, including parents
-fields = [];            # field declarations
+types = {}             # set of all type names
+typeclasses = {}       # maps type names to corresponding class names
+klasses = {}           # known classes, including parents
+fields = []            # field declarations
 
 header = '''
 /*
@@ -326,7 +326,7 @@ STACK_FRAME_TYPE_LIST(FRAME_CONST)
 
 #undef FRAME_CONST
 
-''' % sys.argv[0];
+''' % sys.argv[0]
 
 footer = '''
 }
@@ -340,14 +340,14 @@ footer = '''
 #
 def get_base_class(klass):
         if (klass == 'Object'):
-                return klass;
+                return klass
 
         if (not (klass in klasses)):
-                return None;
+                return None
 
-        k = klasses[klass];
+        k = klasses[klass]
 
-        return get_base_class(k['parent']);
+        return get_base_class(k['parent'])
 
 #
 # Loads class hierarchy and type information from "objects.h" etc.
@@ -356,9 +356,9 @@ def load_objects():
         #
         # Construct a dictionary for the classes we're sure should be present.
         #
-        checktypes = {};
+        checktypes = {}
         for klass in expected_classes:
-                checktypes[klass] = True;
+                checktypes[klass] = True
 
 
         for filename in sys.argv[2:]:
@@ -367,16 +367,16 @@ def load_objects():
 
         if (len(checktypes) > 0):
                 for klass in checktypes:
-                        print('error: expected class \"%s\" not found' % klass);
+                        print('error: expected class \"%s\" not found' % klass)
 
-                sys.exit(1);
+                sys.exit(1)
 
 
 def load_objects_from_file(objfilename, checktypes):
-        objfile = open(objfilename, 'r');
-        in_insttype = False;
+        objfile = open(objfilename, 'r')
+        in_insttype = False
 
-        typestr = '';
+        typestr = ''
 
         #
         # Iterate the header file line-by-line to collect type and class
@@ -386,41 +386,41 @@ def load_objects_from_file(objfilename, checktypes):
         #
         for line in objfile:
                 if (line.startswith('enum InstanceType : uint16_t {')):
-                        in_insttype = True;
-                        continue;
+                        in_insttype = True
+                        continue
 
                 if (in_insttype and line.startswith('};')):
-                        in_insttype = False;
-                        continue;
+                        in_insttype = False
+                        continue
 
-                line = re.sub('//.*', '', line.strip());
+                line = re.sub('//.*', '', line.strip())
 
                 if (in_insttype):
-                        typestr += line;
-                        continue;
+                        typestr += line
+                        continue
 
                 match = re.match(r'class(?:\s+V8_EXPORT(?:_PRIVATE)?)?'
                                  r'\s+(\w[^:]*)'
                                  r'(?:: public (\w[^{]*))?\s*{\s*',
-                                 line);
+                                 line)
 
                 if (match):
-                        klass = match.group(1).strip();
-                        pklass = match.group(2);
+                        klass = match.group(1).strip()
+                        pklass = match.group(2)
                         if (pklass):
                                 # Strip potential template arguments from parent
                                 # class.
-                                match = re.match(r'(\w+)(<.*>)?', pklass.strip());
-                                pklass = match.group(1).strip();
+                                match = re.match(r'(\w+)(<.*>)?', pklass.strip())
+                                pklass = match.group(1).strip()
 
-                        klasses[klass] = { 'parent': pklass };
+                        klasses[klass] = { 'parent': pklass }
 
         #
         # Process the instance type declaration.
         #
-        entries = typestr.split(',');
+        entries = typestr.split(',')
         for entry in entries:
-                types[re.sub('\s*=.*', '', entry).lstrip()] = True;
+                types[re.sub('\s*=.*', '', entry).lstrip()] = True
 
         #
         # Infer class names for each type based on a systematic transformation.
@@ -433,7 +433,7 @@ def load_objects_from_file(objfilename, checktypes):
                 #
                 # REGEXP behaves like REG_EXP, as in JS_REGEXP_TYPE => JSRegExp.
                 #
-                usetype = re.sub('_REGEXP_', '_REG_EXP_', type);
+                usetype = re.sub('_REGEXP_', '_REG_EXP_', type)
 
                 #
                 # Remove the "_TYPE" suffix and then convert to camel case,
@@ -441,22 +441,22 @@ def load_objects_from_file(objfilename, checktypes):
                 # "JS_FUNCTION_TYPE" => "JSFunction").
                 #
                 if (not usetype.endswith('_TYPE')):
-                        continue;
+                        continue
 
-                usetype = usetype[0:len(usetype) - len('_TYPE')];
-                parts = usetype.split('_');
-                cctype = '';
+                usetype = usetype[0:len(usetype) - len('_TYPE')]
+                parts = usetype.split('_')
+                cctype = ''
 
                 if (parts[0] == 'JS'):
-                        cctype = 'JS';
-                        start = 1;
+                        cctype = 'JS'
+                        start = 1
                 else:
-                        cctype = '';
-                        start = 0;
+                        cctype = ''
+                        start = 0
 
                 for ii in range(start, len(parts)):
-                        part = parts[ii];
-                        cctype += part[0].upper() + part[1:].lower();
+                        part = parts[ii]
+                        cctype += part[0].upper() + part[1:].lower()
 
                 #
                 # Mapping string types is more complicated.  Both types and
@@ -489,26 +489,26 @@ def load_objects_from_file(objfilename, checktypes):
                             cctype.find('Sliced') == -1):
                                 if (cctype.find('OneByte') != -1):
                                         cctype = re.sub('OneByteString$',
-                                            'SeqOneByteString', cctype);
+                                            'SeqOneByteString', cctype)
                                 else:
                                         cctype = re.sub('String$',
-                                            'SeqString', cctype);
+                                            'SeqString', cctype)
 
                         if (cctype.find('OneByte') == -1):
                                 cctype = re.sub('String$', 'TwoByteString',
-                                    cctype);
+                                    cctype)
 
                         if (not (cctype in klasses)):
-                                cctype = re.sub('OneByte', '', cctype);
-                                cctype = re.sub('TwoByte', '', cctype);
+                                cctype = re.sub('OneByte', '', cctype)
+                                cctype = re.sub('TwoByte', '', cctype)
 
                 #
                 # Despite all that, some types have no corresponding class.
                 #
                 if (cctype in klasses):
-                        typeclasses[type] = cctype;
+                        typeclasses[type] = cctype
                         if (cctype in checktypes):
-                                del checktypes[cctype];
+                                del checktypes[cctype]
 
 #
 # For a given macro call, pick apart the arguments and return an object
@@ -518,36 +518,36 @@ def parse_field(call):
         # Replace newlines with spaces.
         for ii in range(0, len(call)):
                 if (call[ii] == '\n'):
-                        call[ii] == ' ';
+                        call[ii] == ' '
 
-        idx = call.find('(');
-        kind = call[0:idx];
-        rest = call[idx + 1: len(call) - 1];
-        args = re.split('\s*,\s*', rest);
+        idx = call.find('(')
+        kind = call[0:idx]
+        rest = call[idx + 1: len(call) - 1]
+        args = re.split('\s*,\s*', rest)
 
-        consts = [];
+        consts = []
 
         if (kind == 'ACCESSORS' or kind == 'ACCESSORS2' or
             kind == 'ACCESSORS_GCSAFE'):
-                klass = args[0];
-                field = args[1];
+                klass = args[0]
+                field = args[1]
                 dtype = args[2].replace('<', '_').replace('>', '_')
-                offset = args[3];
+                offset = args[3]
 
                 return ({
                     'name': 'class_%s__%s__%s' % (klass, field, dtype),
                     'value': '%s::%s' % (klass, offset)
-                });
+                })
 
-        assert(kind == 'SMI_ACCESSORS' or kind == 'ACCESSORS_TO_SMI');
-        klass = args[0];
-        field = args[1];
-        offset = args[2];
+        assert(kind == 'SMI_ACCESSORS' or kind == 'ACCESSORS_TO_SMI')
+        klass = args[0]
+        field = args[1]
+        offset = args[2]
 
         return ({
             'name': 'class_%s__%s__%s' % (klass, field, 'SMI'),
             'value': '%s::%s' % (klass, offset)
-        });
+        })
 
 #
 # Load field offset information from objects-inl.h etc.
@@ -558,11 +558,11 @@ def load_fields():
                         load_fields_from_file(filename)
 
         for body in extras_accessors:
-                fields.append(parse_field('ACCESSORS(%s)' % body));
+                fields.append(parse_field('ACCESSORS(%s)' % body))
 
 
 def load_fields_from_file(filename):
-        inlfile = open(filename, 'r');
+        inlfile = open(filename, 'r')
 
         #
         # Each class's fields and the corresponding offsets are described in the
@@ -572,47 +572,47 @@ def load_fields_from_file(filename):
         # call parse_field() to pick apart the invocation.
         #
         prefixes = [ 'ACCESSORS', 'ACCESSORS2', 'ACCESSORS_GCSAFE',
-                     'SMI_ACCESSORS', 'ACCESSORS_TO_SMI' ];
-        current = '';
-        opens = 0;
+                     'SMI_ACCESSORS', 'ACCESSORS_TO_SMI' ]
+        current = ''
+        opens = 0
 
         for line in inlfile:
                 if (opens > 0):
                         # Continuation line
                         for ii in range(0, len(line)):
                                 if (line[ii] == '('):
-                                        opens += 1;
+                                        opens += 1
                                 elif (line[ii] == ')'):
-                                        opens -= 1;
+                                        opens -= 1
 
                                 if (opens == 0):
-                                        break;
+                                        break
 
-                        current += line[0:ii + 1];
-                        continue;
+                        current += line[0:ii + 1]
+                        continue
 
                 for prefix in prefixes:
                         if (not line.startswith(prefix + '(')):
-                                continue;
+                                continue
 
                         if (len(current) > 0):
-                                fields.append(parse_field(current));
-                                current = '';
+                                fields.append(parse_field(current))
+                                current = ''
 
                         for ii in range(len(prefix), len(line)):
                                 if (line[ii] == '('):
-                                        opens += 1;
+                                        opens += 1
                                 elif (line[ii] == ')'):
-                                        opens -= 1;
+                                        opens -= 1
 
                                 if (opens == 0):
-                                        break;
+                                        break
 
-                        current += line[0:ii + 1];
+                        current += line[0:ii + 1]
 
         if (len(current) > 0):
-                fields.append(parse_field(current));
-                current = '';
+                fields.append(parse_field(current))
+                current = ''
 
 #
 # Emit a block of constants.
@@ -625,56 +625,56 @@ def emit_set(out, consts):
                 name = ws.sub('', const['name'])
                 value = ws.sub('', str(const['value']))  # Can be a number.
                 out.write('int v8dbg_%s = %s;\n' % (name, value))
-        out.write('\n');
+        out.write('\n')
 
 #
 # Emit the whole output file.
 #
 def emit_config():
-        out = open(sys.argv[1], 'w');
+        out = open(sys.argv[1], 'w')
 
-        out.write(header);
+        out.write(header)
 
-        out.write('/* miscellaneous constants */\n');
-        emit_set(out, consts_misc);
+        out.write('/* miscellaneous constants */\n')
+        emit_set(out, consts_misc)
 
-        out.write('/* class type information */\n');
-        consts = [];
+        out.write('/* class type information */\n')
+        consts = []
         for typename in sorted(typeclasses):
-                klass = typeclasses[typename];
+                klass = typeclasses[typename]
                 consts.append({
                     'name': 'type_%s__%s' % (klass, typename),
                     'value': typename
-                });
+                })
 
-        emit_set(out, consts);
+        emit_set(out, consts)
 
-        out.write('/* class hierarchy information */\n');
-        consts = [];
+        out.write('/* class hierarchy information */\n')
+        consts = []
         for klassname in sorted(klasses):
-                pklass = klasses[klassname]['parent'];
-                bklass = get_base_class(klassname);
+                pklass = klasses[klassname]['parent']
+                bklass = get_base_class(klassname)
                 if (bklass != 'Object'):
-                        continue;
+                        continue
                 if (pklass == None):
-                        continue;
+                        continue
 
                 consts.append({
                     'name': 'parent_%s__%s' % (klassname, pklass),
                     'value': 0
-                });
+                })
 
-        emit_set(out, consts);
+        emit_set(out, consts)
 
-        out.write('/* field information */\n');
-        emit_set(out, fields);
+        out.write('/* field information */\n')
+        emit_set(out, fields)
 
-        out.write(footer);
+        out.write(footer)
 
 if (len(sys.argv) < 4):
-        print('usage: %s output.cc objects.h objects-inl.h' % sys.argv[0]);
-        sys.exit(2);
+        print('usage: %s output.cc objects.h objects-inl.h' % sys.argv[0])
+        sys.exit(2)
 
-load_objects();
-load_fields();
-emit_config();
+load_objects()
+load_fields()
+emit_config()

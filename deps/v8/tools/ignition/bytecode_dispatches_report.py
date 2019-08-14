@@ -133,7 +133,7 @@ def build_counters_matrix(dispatches_table):
 
   counters_matrix = numpy.empty([len(labels), len(labels)], dtype=int)
   for from_index, from_name in enumerate(labels):
-    current_row = dispatches_table[from_name];
+    current_row = dispatches_table[from_name]
     for to_index, to_name in enumerate(labels):
       counters_matrix[from_index, to_index] = current_row.get(to_name, 0)
 

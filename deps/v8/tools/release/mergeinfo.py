@@ -30,7 +30,7 @@ def describe_commit(git_working_dir, hash_to_search, one_line=False):
 
 def get_followup_commits(git_working_dir, hash_to_search):
   cmd = ['log', '--grep=' + hash_to_search, GIT_OPTION_HASH_ONLY,
-         'remotes/origin/master'];
+         'remotes/origin/master']
   return git_execute(git_working_dir, cmd).strip().splitlines()
 
 def get_merge_commits(git_working_dir, hash_to_search):

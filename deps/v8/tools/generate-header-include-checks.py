@@ -129,7 +129,7 @@ def generate_gni(header_files):
 
 # This list is filled automatically by tools/check_header_includes.py.
 check_header_includes_sources = [
-""");
+""")
     for header in header_files:
       cc_file_name = get_cc_file_name(header)
       gn.write('    "{}",\n'.format(os.path.relpath(cc_file_name, V8_DIR)))
