@@ -151,9 +151,6 @@ Http2Options::Http2Options(Environment* env, nghttp2_session_type type) {
         buffer[IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS]);
   }
 
-  if (IsReverted(SECURITY_REVERT_CVE_2019_9512))
-    nghttp2_option_set_max_outbound_ack(options_, 10000);
-
   // The padding strategy sets the mechanism by which we determine how much
   // additional frame padding to apply to DATA and HEADERS frames. Currently
   // this is set on a per-session basis, but eventually we may switch to
@@ -919,10 +916,8 @@ int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
     if (UNLIKELY(!session->CanAddStream() ||
                  Http2Stream::New(session, id, frame->headers.cat) ==
                      nullptr)) {
-      if (session->rejected_stream_count_++ > 100 &&
-          !IsReverted(SECURITY_REVERT_CVE_2019_9514)) {
+      if (session->rejected_stream_count_++ > 100)
         return NGHTTP2_ERR_CALLBACK_FAILURE;
-      }
       // Too many concurrent streams being opened
       nghttp2_submit_rst_stream(**session, NGHTTP2_FLAG_NONE, id,
                                 NGHTTP2_ENHANCE_YOUR_CALM);
@@ -1013,10 +1008,8 @@ int Http2Session::OnInvalidFrame(nghttp2_session* handle,
   Http2Session* session = static_cast<Http2Session*>(user_data);
 
   Debug(session, "invalid frame received, code: %d", lib_error_code);
-  if (session->invalid_frame_count_++ > 1000 &&
-      !IsReverted(SECURITY_REVERT_CVE_2019_9514)) {
+  if (session->invalid_frame_count_++ > 1000)
     return 1;
-  }
 
   // If the error is fatal or if error code is ERR_STREAM_CLOSED... emit error
   if (nghttp2_is_fatal(lib_error_code) ||
@@ -1383,8 +1376,7 @@ int Http2Session::HandleDataFrame(const nghttp2_frame* frame) {
 
   if (!stream->IsDestroyed() && frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
     stream->EmitRead(UV_EOF);
-  } else if (frame->hd.length == 0 &&
-           !IsReverted(SECURITY_REVERT_CVE_2019_9518)) {
+  } else if (frame->hd.length == 0) {
     return 1;  // Consider 0-length frame without END_STREAM an error.
   }
   return 0;
@@ -2269,9 +2261,7 @@ bool Http2Stream::AddHeader(nghttp2_rcbuf* name,
   if (this->statistics_.first_header == 0)
     this->statistics_.first_header = uv_hrtime();
   size_t name_len = nghttp2_rcbuf_get_buf(name).len;
-  if (name_len == 0 && !IsReverted(SECURITY_REVERT_CVE_2019_9516)) {
-    return true;  // Ignore headers with empty names.
-  }
+  if (name_len == 0) return true;  // Ignore headers with empty names.
   size_t value_len = nghttp2_rcbuf_get_buf(value).len;
   size_t length = name_len + value_len + 32;
   // A header can only be added if we have not exceeded the maximum number
