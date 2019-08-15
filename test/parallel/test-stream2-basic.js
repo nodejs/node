@@ -445,3 +445,11 @@ class TestWriter extends EE {
   const w = new W({ objectMode: true });
   assert.strictEqual(w.writableObjectMode, true);
 }
+
+{
+  // Verify writableEmitClose property
+  assert(W.prototype.hasOwnProperty('writableEmitClose'));
+
+  const w = new W({ emitClose: false });
+  assert.strictEqual(w.writableEmitClose, false);
+}
