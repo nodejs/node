@@ -451,6 +451,7 @@ class TestWriter extends EE {
   assert(R.prototype.hasOwnProperty('readableListening'));
 
   const r = new TestReader(5);
+  assert.strictEqual(r.readableListening, false);
   r.addListener('readable', () => {});
   assert.strictEqual(r.readableListening, true);
   r.removeAllListeners();
