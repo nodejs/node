@@ -840,32 +840,6 @@ ssize_t Http2Session::OnMaxFrameSizePadding(size_t frameLen,
   return maxPayloadLen;
 }
 
-// Used as one of the Padding Strategy functions. Uses a callback to JS land
-// to determine the amount of padding for the current frame. This option is
-// rather more expensive because of the JS boundary cross. It generally should
-// not be the preferred option.
-ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
-                                        size_t maxPayloadLen) {
-  if (frameLen == 0) return 0;
-  Debug(this, "using callback to determine padding");
-  Isolate* isolate = env()->isolate();
-  HandleScope handle_scope(isolate);
-  Local<Context> context = env()->context();
-  Context::Scope context_scope(context);
-
-  AliasedUint32Array& buffer = env()->http2_state()->padding_buffer;
-  buffer[PADDING_BUF_FRAME_LENGTH] = frameLen;
-  buffer[PADDING_BUF_MAX_PAYLOAD_LENGTH] = maxPayloadLen;
-  buffer[PADDING_BUF_RETURN_VALUE] = frameLen;
-  MakeCallback(env()->http2session_on_select_padding_function(), 0, nullptr);
-  uint32_t retval = buffer[PADDING_BUF_RETURN_VALUE];
-  retval = std::min(retval, static_cast<uint32_t>(maxPayloadLen));
-  retval = std::max(retval, static_cast<uint32_t>(frameLen));
-  Debug(this, "using padding size %d", retval);
-  return retval;
-}
-
-
 // Write data received from the i/o stream to the underlying nghttp2_session.
 // On each call to nghttp2_session_mem_recv, nghttp2 will begin calling the
 // various callback functions. Each of these will typically result in a call
@@ -1250,9 +1224,6 @@ ssize_t Http2Session::OnSelectPadding(nghttp2_session* handle,
       break;
     case PADDING_STRATEGY_ALIGNED:
       padding = session->OnDWordAlignedPadding(padding, maxPayloadLen);
-      break;
-    case PADDING_STRATEGY_CALLBACK:
-      padding = session->OnCallbackPadding(padding, maxPayloadLen);
       break;
   }
   return padding;
@@ -3032,7 +3003,7 @@ void nghttp2_header::MemoryInfo(MemoryTracker* tracker) const {
 
 void SetCallbackFunctions(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK_EQ(args.Length(), 12);
+  CHECK_EQ(args.Length(), 11);
 
 #define SET_FUNCTION(arg, name)                                               \
   CHECK(args[arg]->IsFunction());                                             \
@@ -3047,9 +3018,8 @@ void SetCallbackFunctions(const FunctionCallbackInfo<Value>& args) {
   SET_FUNCTION(6, goaway_data)
   SET_FUNCTION(7, altsvc)
   SET_FUNCTION(8, origin)
-  SET_FUNCTION(9, select_padding)
-  SET_FUNCTION(10, stream_trailers)
-  SET_FUNCTION(11, stream_close)
+  SET_FUNCTION(9, stream_trailers)
+  SET_FUNCTION(10, stream_close)
 
 #undef SET_FUNCTION
 }
@@ -3070,9 +3040,6 @@ void Initialize(Local<Object> target,
               FIXED_ONE_BYTE_STRING(isolate, (name)), \
               (field)).FromJust()
 
-  // Initialize the buffer used for padding callbacks
-  SET_STATE_TYPEDARRAY(
-    "paddingBuffer", state->padding_buffer.GetJSArray());
   // Initialize the buffer used to store the session state
   SET_STATE_TYPEDARRAY(
     "sessionState", state->session_state_buffer.GetJSArray());
@@ -3090,10 +3057,6 @@ void Initialize(Local<Object> target,
 #undef SET_STATE_TYPEDARRAY
 
   env->set_http2_state(std::move(state));
-
-  NODE_DEFINE_CONSTANT(target, PADDING_BUF_FRAME_LENGTH);
-  NODE_DEFINE_CONSTANT(target, PADDING_BUF_MAX_PAYLOAD_LENGTH);
-  NODE_DEFINE_CONSTANT(target, PADDING_BUF_RETURN_VALUE);
 
   NODE_DEFINE_CONSTANT(target, kBitfield);
   NODE_DEFINE_CONSTANT(target, kSessionPriorityListenerCount);

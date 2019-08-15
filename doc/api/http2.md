@@ -1929,6 +1929,11 @@ error will be thrown.
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29144
+    description: The `PADDING_STRATEGY_CALLBACK` has been made equivalent to
+                 providing `PADDING_STRATEGY_ALIGNED` and `selectPadding`
+                 has been removed.
   - version: v12.4.0
     pr-url: https://github.com/nodejs/node/pull/27782
     description: The `options` parameter now supports `net.createServer()`
@@ -1975,9 +1980,6 @@ changes:
      * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
        amount of padding, as determined by the internal implementation, is to
        be applied.
-     * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
-       provided `options.selectPadding()` callback is to be used to determine
-       the amount of padding.
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
@@ -1989,9 +1991,6 @@ changes:
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
-  * `selectPadding` {Function} When `options.paddingStrategy` is equal to
-    `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
-    used to determine the padding. See [Using `options.selectPadding()`][].
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * `Http1IncomingMessage` {http.IncomingMessage} Specifies the
@@ -2044,6 +2043,11 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29144
+    description: The `PADDING_STRATEGY_CALLBACK` has been made equivalent to
+                 providing `PADDING_STRATEGY_ALIGNED` and `selectPadding`
+                 has been removed.
   - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/22956
     description: Added the `origins` option to automatically send an `ORIGIN`
@@ -2090,9 +2094,6 @@ changes:
      * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
        amount of padding, as determined by the internal implementation, is to
        be applied.
-     * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
-       provided `options.selectPadding()` callback is to be used to determine
-       the amount of padding.
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
@@ -2104,9 +2105,6 @@ changes:
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
-  * `selectPadding` {Function} When `options.paddingStrategy` is equal to
-    `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
-    used to determine the padding. See [Using `options.selectPadding()`][].
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * ...: Any [`tls.createServer()`][] options can be provided. For
@@ -2146,6 +2144,11 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29144
+    description: The `PADDING_STRATEGY_CALLBACK` has been made equivalent to
+                 providing `PADDING_STRATEGY_ALIGNED` and `selectPadding`
+                 has been removed.
   - version: v8.9.3
     pr-url: https://github.com/nodejs/node/pull/17105
     description: Added the `maxOutstandingPings` option with a default limit of
@@ -2191,9 +2194,6 @@ changes:
      * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
        amount of padding, as determined by the internal implementation, is to
        be applied.
-     * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
-       provided `options.selectPadding()` callback is to be used to determine
-       the amount of padding.
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
@@ -2205,9 +2205,6 @@ changes:
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
-  * `selectPadding` {Function} When `options.paddingStrategy` is equal to
-    `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
-    used to determine the padding. See [Using `options.selectPadding()`][].
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * `createConnection` {Function} An optional callback that receives the `URL`
@@ -2388,30 +2385,6 @@ properties.
   has been enabled for a given `Http2Session`, it cannot be disabled.
 
 All additional properties on the settings object are ignored.
-
-### Using `options.selectPadding()`
-
-When `options.paddingStrategy` is equal to
-`http2.constants.PADDING_STRATEGY_CALLBACK`, the HTTP/2 implementation will
-consult the `options.selectPadding()` callback function, if provided, to
-determine the specific amount of padding to use per `HEADERS` and `DATA` frame.
-
-The `options.selectPadding()` function receives two numeric arguments,
-`frameLen` and `maxFrameLen` and must return a number `N` such that
-`frameLen <= N <= maxFrameLen`.
-
-```js
-const http2 = require('http2');
-const server = http2.createServer({
-  paddingStrategy: http2.constants.PADDING_STRATEGY_CALLBACK,
-  selectPadding(frameLen, maxFrameLen) {
-    return maxFrameLen;
-  }
-});
-```
-
-The `options.selectPadding()` function is invoked once for *every* `HEADERS` and
-`DATA` frame. This has a definite noticeable impact on performance.
 
 ### Error Handling
 
@@ -3472,7 +3445,6 @@ following additional properties:
 [RFC 8441]: https://tools.ietf.org/html/rfc8441
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Stream]: stream.html#stream_stream
-[Using `options.selectPadding()`]: #http2_using_options_selectpadding
 [`'checkContinue'`]: #http2_event_checkcontinue
 [`'connect'`]: #http2_event_connect
 [`'request'`]: #http2_event_request
