@@ -445,3 +445,13 @@ class TestWriter extends EE {
   const w = new W({ objectMode: true });
   assert.strictEqual(w.writableObjectMode, true);
 }
+
+{
+  // Verify readableListening property
+  assert(R.prototype.hasOwnProperty('readableListening'));
+
+  const r = new TestReader(5);
+  r.addListener('readable', () => {});
+  assert.strictEqual(r.readableListening, true);
+  r.removeAllListeners();
+}
