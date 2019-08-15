@@ -71,6 +71,8 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
       }
     );
   });
+
+  fs.closeSync(fd);
 }
 
 // fs.writevSync with wrong fd types
