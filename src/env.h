@@ -426,7 +426,6 @@ constexpr size_t kFsStatsBufferLength =
   V(http2session_on_origin_function, v8::Function)                             \
   V(http2session_on_ping_function, v8::Function)                               \
   V(http2session_on_priority_function, v8::Function)                           \
-  V(http2session_on_select_padding_function, v8::Function)                     \
   V(http2session_on_settings_function, v8::Function)                           \
   V(http2session_on_stream_close_function, v8::Function)                       \
   V(http2session_on_stream_trailers_function, v8::Function)                    \
