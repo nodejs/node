@@ -581,7 +581,6 @@ class Http2Stream : public AsyncWrap,
   // JavaScript API
   static void GetID(const FunctionCallbackInfo<Value>& args);
   static void Destroy(const FunctionCallbackInfo<Value>& args);
-  static void FlushData(const FunctionCallbackInfo<Value>& args);
   static void Priority(const FunctionCallbackInfo<Value>& args);
   static void PushPromise(const FunctionCallbackInfo<Value>& args);
   static void RefreshState(const FunctionCallbackInfo<Value>& args);
