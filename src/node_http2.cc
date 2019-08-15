@@ -2723,14 +2723,6 @@ void Http2Stream::Destroy(const FunctionCallbackInfo<Value>& args) {
   stream->Destroy();
 }
 
-// Prompt the Http2Stream to begin sending data to the JS land.
-void Http2Stream::FlushData(const FunctionCallbackInfo<Value>& args) {
-  Http2Stream* stream;
-  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
-  stream->ReadStart();
-  Debug(stream, "data flushed to js");
-}
-
 // Initiate a Push Promise and create the associated Http2Stream
 void Http2Stream::PushPromise(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -3129,7 +3121,6 @@ void Initialize(Local<Object> target,
   stream->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Stream"));
   env->SetProtoMethod(stream, "id", Http2Stream::GetID);
   env->SetProtoMethod(stream, "destroy", Http2Stream::Destroy);
-  env->SetProtoMethod(stream, "flushData", Http2Stream::FlushData);
   env->SetProtoMethod(stream, "priority", Http2Stream::Priority);
   env->SetProtoMethod(stream, "pushPromise", Http2Stream::PushPromise);
   env->SetProtoMethod(stream, "info", Http2Stream::Info);
