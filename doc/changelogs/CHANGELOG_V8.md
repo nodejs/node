@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#8.16.1">8.16.1</a><br/>
 <a href="#8.16.0">8.16.0</a><br/>
 <a href="#8.15.1">8.15.1</a><br/>
 <a href="#8.15.0">8.15.0</a><br/>
@@ -67,6 +68,50 @@
 *Note*: Node.js v8 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2019 and maintained until December 2019.
+
+<a id="8.16.1"></a>
+## 2019-08-15, Version 8.16.1 'Carbon' (LTS), @BethGriggs
+
+### Notable changes
+
+This is a security release.
+
+Node.js, as well as many other implementations of HTTP/2, have been found
+vulnerable to Denial of Service attacks.
+See https://github.com/Netflix/security-bulletins/blob/master/advisories/third-party/2019-002.md
+for more information.
+
+Vulnerabilities fixed:
+
+* **CVE-2019-9511 “Data Dribble”**: The attacker requests a large amount of data from a specified resource over multiple streams. They manipulate window size and stream priority to force the server to queue the data in 1-byte chunks. Depending on how efficiently this data is queued, this can consume excess CPU, memory, or both, potentially leading to a denial of service.
+* **CVE-2019-9512 “Ping Flood”**: The attacker sends continual pings to an HTTP/2 peer, causing the peer to build an internal queue of responses. Depending on how efficiently this data is queued, this can consume excess CPU, memory, or both, potentially leading to a denial of service.
+* **CVE-2019-9513 “Resource Loop”**: The attacker creates multiple request streams and continually shuffles the priority of the streams in a way that causes substantial churn to the priority tree. This can consume excess CPU, potentially leading to a denial of service.
+* **CVE-2019-9514 “Reset Flood”**: The attacker opens a number of streams and sends an invalid request over each stream that should solicit a stream of RST_STREAM frames from the peer. Depending on how the peer queues the RST_STREAM frames, this can consume excess memory, CPU, or both, potentially leading to a denial of service.
+* **CVE-2019-9515 “Settings Flood”**: The attacker sends a stream of SETTINGS frames to the peer. Since the RFC requires that the peer reply with one acknowledgement per SETTINGS frame, an empty SETTINGS frame is almost equivalent in behavior to a ping. Depending on how efficiently this data is queued, this can consume excess CPU, memory, or both, potentially leading to a denial of service.
+* **CVE-2019-9516 “0-Length Headers Leak”**: The attacker sends a stream of headers with a 0-length header name and 0-length header value, optionally Huffman encoded into 1-byte or greater headers. Some implementations allocate memory for these headers and keep the allocation alive until the session dies. This can consume excess memory, potentially leading to a denial of service.
+* **CVE-2019-9517 “Internal Data Buffering”**: The attacker opens the HTTP/2 window so the peer can send without constraint; however, they leave the TCP window closed so the peer cannot actually write (many of) the bytes on the wire. The attacker then sends a stream of requests for a large response object. Depending on how the servers queue the responses, this can consume excess memory, CPU, or both, potentially leading to a denial of service.
+* **CVE-2019-9518 “Empty Frames Flood”**: The attacker sends a stream of frames with an empty payload and without the end-of-stream flag. These frames can be DATA, HEADERS, CONTINUATION and/or PUSH_PROMISE. The peer spends time processing each frame disproportionate to attack bandwidth. This can consume excess CPU, potentially leading to a denial of service. (Discovered by Piotr Sikora of Google)
+
+### Commits
+
+* [[`6d427378c0`](https://github.com/nodejs/node/commit/6d427378c0)] - **deps**: update nghttp2 to 1.39.2 (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`33d4d916d5`](https://github.com/nodejs/node/commit/33d4d916d5)] - **deps**: update nghttp2 to 1.39.1 (gengjiawen) [#28448](https://github.com/nodejs/node/pull/28448)
+* [[`17fad97113`](https://github.com/nodejs/node/commit/17fad97113)] - **deps**: update nghttp2 to 1.38.0 (gengjiawen) [#27295](https://github.com/nodejs/node/pull/27295)
+* [[`0b44733695`](https://github.com/nodejs/node/commit/0b44733695)] - **deps**: update nghttp2 to 1.37.0 (gengjiawen) [#26990](https://github.com/nodejs/node/pull/26990)
+* [[`5afc77b044`](https://github.com/nodejs/node/commit/5afc77b044)] - **deps**: update nghttp2 to 1.34.0 (James M Snell) [#23284](https://github.com/nodejs/node/pull/23284)
+* [[`073108c855`](https://github.com/nodejs/node/commit/073108c855)] - **http2**: allow security revert for Ping/Settings Flood (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`6d687f7af8`](https://github.com/nodejs/node/commit/6d687f7af8)] - **http2**: pause input processing if sending output (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`854dba649e`](https://github.com/nodejs/node/commit/854dba649e)] - **http2**: stop reading from socket if writes are in progress (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`a3191689dd`](https://github.com/nodejs/node/commit/a3191689dd)] - **http2**: consider 0-length non-end DATA frames an error (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`156f2f35df`](https://github.com/nodejs/node/commit/156f2f35df)] - **http2**: shrink default `vector::reserve()` allocations (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`10f05b65c4`](https://github.com/nodejs/node/commit/10f05b65c4)] - **http2**: handle 0-length headers better (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`ac28a628a5`](https://github.com/nodejs/node/commit/ac28a628a5)] - **http2**: limit number of invalid incoming frames (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`11b4e2c0db`](https://github.com/nodejs/node/commit/11b4e2c0db)] - **http2**: limit number of rejected stream openings (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`7de642b6f9`](https://github.com/nodejs/node/commit/7de642b6f9)] - **http2**: do not create ArrayBuffers when no DATA received (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`dd60d3561a`](https://github.com/nodejs/node/commit/dd60d3561a)] - **http2**: only call into JS when necessary for session events (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`00f6846b73`](https://github.com/nodejs/node/commit/00f6846b73)] - **http2**: improve JS-side debug logging (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
+* [[`b095e35f1f`](https://github.com/nodejs/node/commit/b095e35f1f)] - **http2**: improve http2 code a bit (James M Snell) [#23984](https://github.com/nodejs/node/pull/23984)
+* [[`cc282239c1`](https://github.com/nodejs/node/commit/cc282239c1)] - **test**: apply test-http2-max-session-memory-leak from v12.x (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
 
 <a id="8.16.0"></a>
 ## 2019-04-16, Version 8.16.0 'Carbon' (LTS), @MylesBorins
