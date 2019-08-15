@@ -26,6 +26,8 @@ int wmain(int argc, wchar_t* argv[]) {
 int main(int argc, char* argv[]) {
 #endif  // _WIN32
 
+  v8::V8::SetFlagsFromString("--random_seed=42");
+
   if (argc < 2) {
     std::cerr << "Usage: " << argv[0] << " <path/to/output.cc>\n";
     return 1;
@@ -53,6 +55,9 @@ int main(int argc, char* argv[]) {
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(context);
 
+    // The command line flags are part of the code cache's checksum so reset
+    // --random_seed= to its default value before creating the code cache.
+    v8::V8::SetFlagsFromString("--random_seed=0");
     std::string cache = CodeCacheBuilder::Generate(context);
     out << cache;
     out.close();
