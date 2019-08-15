@@ -496,7 +496,7 @@ added: REPLACEME
 
 * {boolean}
 
-Getter for the property `writableEmitClose` of a given `Writable` stream.
+Getter for the property `emitClose` of a given `Writable` stream.
 
 ##### writable.writableFinished
 <!-- YAML
