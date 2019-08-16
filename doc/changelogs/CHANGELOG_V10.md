@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.16.3">10.16.3</a><br/>
 <a href="#10.16.2">10.16.2</a><br/>
 <a href="#10.16.1">10.16.1</a><br/>
 <a href="#10.16.0">10.16.0</a><br/>
@@ -84,7 +85,7 @@ Vulnerabilities fixed:
 * [[`74507fae34`](https://github.com/nodejs/node/commit/74507fae34)] - **deps**: update nghttp2 to 1.39.2 (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
 * [[`a397c881ec`](https://github.com/nodejs/node/commit/a397c881ec)] - **deps**: update nghttp2 to 1.39.1 (gengjiawen) [#28448](https://github.com/nodejs/node/pull/28448)
 * [[`fedfa12a33`](https://github.com/nodejs/node/commit/fedfa12a33)] - **deps**: update nghttp2 to 1.38.0 (gengjiawen) [#27295](https://github.com/nodejs/node/pull/27295)
-* [[`ab0f2ace36`](https://github.com/nodejs/node/commit/ab0f2ace36)] - **(SEMVER-MINOR)** **deps**: update nghttp2 to 1.37.0 (gengjiawen) [#26990](https://github.com/nodejs/node/pull/26990)
+* [[`ab0f2ace36`](https://github.com/nodejs/node/commit/ab0f2ace36)] - **deps**: update nghttp2 to 1.37.0 (gengjiawen) [#26990](https://github.com/nodejs/node/pull/26990)
 * [[`0acbe05ee2`](https://github.com/nodejs/node/commit/0acbe05ee2)] - **http2**: allow security revert for Ping/Settings Flood (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
 * [[`c152449012`](https://github.com/nodejs/node/commit/c152449012)] - **http2**: pause input processing if sending output (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
 * [[`0ce699c7b1`](https://github.com/nodejs/node/commit/0ce699c7b1)] - **http2**: stop reading from socket if writes are in progress (Anna Henningsen) [#29122](https://github.com/nodejs/node/pull/29122)
