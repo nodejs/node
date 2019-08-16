@@ -16,7 +16,7 @@ const os = require('os');
 added: v0.7.8
 -->
 
-* {string}
+* Returns: {string}
 
 A string constant defining the operating system-specific end-of-line marker:
 
@@ -43,7 +43,7 @@ Equivalent to [`process.arch`][].
 added: v6.3.0
 -->
 
-* {Object}
+* Returns: {Object}
 
 Returns an object containing commonly used operating system specific constants
 for error codes, process signals, and so on. The specific constants currently
