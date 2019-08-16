@@ -189,3 +189,15 @@ const assert = require('assert');
   read.push('hi');
   read.on('data', common.mustNotCall());
 }
+
+{
+  // Not readable after destroy
+  const read = new Readable({
+    read() {}
+  });
+  assert.strictEqual(read.readable, true);
+  read.destroy();
+  assert.strictEqual(read.readable, false);
+  read._undestroy();
+  assert.strictEqual(read.readable, true);
+}

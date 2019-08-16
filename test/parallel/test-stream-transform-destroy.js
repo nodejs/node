@@ -141,3 +141,18 @@ const assert = require('assert');
 
   transform.destroy();
 }
+
+{
+  // Not readable after destroy
+  const transform = new Transform({
+    transform(chunk, enc, cb) {}
+  });
+  assert.strictEqual(transform.writable, true);
+  assert.strictEqual(transform.readable, true);
+  transform.destroy();
+  assert.strictEqual(transform.writable, false);
+  assert.strictEqual(transform.readable, false);
+  transform._undestroy();
+  assert.strictEqual(transform.writable, true);
+  assert.strictEqual(transform.readable, true);
+}

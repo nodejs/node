@@ -232,3 +232,15 @@ const assert = require('assert');
   write._undestroy();
   write.end();
 }
+
+{
+  // Not readable after destroy
+  const write = new Writable({
+    write() {}
+  });
+  assert.strictEqual(write.writable, true);
+  write.destroy();
+  assert.strictEqual(write.writable, false);
+  write._undestroy();
+  assert.strictEqual(write.writable, true);
+}
