@@ -74,6 +74,7 @@ namespace internal {
   V(StoreTransition)                  \
   V(StoreWithVector)                  \
   V(StringAt)                         \
+  V(StringAtAsString)                 \
   V(StringSubstring)                  \
   V(TypeConversion)                   \
   V(TypeConversionStackParameter)     \
@@ -967,6 +968,17 @@ class StringAtDescriptor final : public CallInterfaceDescriptor {
                                     MachineType::AnyTagged(),     // kReceiver
                                     MachineType::IntPtr())        // kPosition
   DECLARE_DESCRIPTOR(StringAtDescriptor, CallInterfaceDescriptor)
+};
+
+class StringAtAsStringDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kPosition)
+  // TODO(turbofan): Return untagged value here.
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::TaggedPointer(),  // result string
+      MachineType::AnyTagged(),      // kReceiver
+      MachineType::IntPtr())         // kPosition
+  DECLARE_DESCRIPTOR(StringAtAsStringDescriptor, CallInterfaceDescriptor)
 };
 
 class StringSubstringDescriptor final : public CallInterfaceDescriptor {

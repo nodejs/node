@@ -777,36 +777,16 @@ inline T truncate_to_intn(T x, unsigned n) {
   return (x & ((static_cast<T>(1) << n) - 1));
 }
 
-#define INT_1_TO_63_LIST(V)                                                   \
-  V(1)                                                                        \
-  V(2)                                                                        \
-  V(3)                                                                        \
-  V(4)                                                                        \
-  V(5)                                                                        \
-  V(6)                                                                        \
-  V(7)                                                                        \
-  V(8)                                                                        \
-  V(9)                                                                        \
-  V(10)                                                                       \
-  V(11)                                                                       \
-  V(12)                                                                       \
-  V(13)                                                                       \
-  V(14)                                                                       \
-  V(15)                                                                       \
-  V(16)                                                                       \
-  V(17)                                                                       \
-  V(18)                                                                       \
-  V(19)                                                                       \
-  V(20)                                                                       \
-  V(21)                                                                       \
-  V(22)                                                                       \
-  V(23)                                                                       \
-  V(24)                                                                       \
-  V(25)                                                                       \
-  V(26) V(27) V(28) V(29) V(30) V(31) V(32) V(33) V(34) V(35) V(36) V(37)     \
-      V(38) V(39) V(40) V(41) V(42) V(43) V(44) V(45) V(46) V(47) V(48) V(49) \
-          V(50) V(51) V(52) V(53) V(54) V(55) V(56) V(57) V(58) V(59) V(60)   \
-              V(61) V(62) V(63)
+// clang-format off
+#define INT_1_TO_63_LIST(V)                                   \
+  V(1) V(2) V(3) V(4) V(5) V(6) V(7) V(8) V(9) V(10)          \
+  V(11) V(12) V(13) V(14) V(15) V(16) V(17) V(18) V(19) V(20) \
+  V(21) V(22) V(23) V(24) V(25) V(26) V(27) V(28) V(29) V(30) \
+  V(31) V(32) V(33) V(34) V(35) V(36) V(37) V(38) V(39) V(40) \
+  V(41) V(42) V(43) V(44) V(45) V(46) V(47) V(48) V(49) V(50) \
+  V(51) V(52) V(53) V(54) V(55) V(56) V(57) V(58) V(59) V(60) \
+  V(61) V(62) V(63)
+// clang-format on
 
 #define DECLARE_IS_INT_N(N) \
   inline bool is_int##N(int64_t x) { return is_intn(x, N); }
@@ -875,12 +855,6 @@ class BailoutId {
   int ToInt() const { return id_; }
 
   static BailoutId None() { return BailoutId(kNoneId); }
-  static BailoutId ScriptContext() { return BailoutId(kScriptContextId); }
-  static BailoutId FunctionContext() { return BailoutId(kFunctionContextId); }
-  static BailoutId FunctionEntry() { return BailoutId(kFunctionEntryId); }
-  static BailoutId Declarations() { return BailoutId(kDeclarationsId); }
-  static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
-  static BailoutId StubEntry() { return BailoutId(kStubEntryId); }
 
   // Special bailout id support for deopting into the {JSConstructStub} stub.
   // The following hard-coded deoptimization points are supported by the stub:
@@ -905,25 +879,10 @@ class BailoutId {
   static const int kNoneId = -1;
 
   // Using 0 could disguise errors.
-  static const int kScriptContextId = 1;
-  static const int kFunctionContextId = 2;
-  static const int kFunctionEntryId = 3;
-
-  // This AST id identifies the point after the declarations have been visited.
-  // We need it to capture the environment effects of declarations that emit
-  // code (function declarations).
-  static const int kDeclarationsId = 4;
-
-  // Every FunctionState starts with this id.
-  static const int kFirstUsableId = 5;
-
-  // Every compiled stub starts with this id.
-  static const int kStubEntryId = 6;
-
   // Builtin continuations bailout ids start here. If you need to add a
   // non-builtin BailoutId, add it before this id so that this Id has the
   // highest number.
-  static const int kFirstBuiltinContinuationId = 7;
+  static const int kFirstBuiltinContinuationId = 1;
 
   int id_;
 };

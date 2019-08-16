@@ -78,6 +78,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
+  if (cpu.has_sse42() && FLAG_enable_sse4_2) supported_ |= 1u << SSE4_2;
   if (cpu.has_sse41() && FLAG_enable_sse4_1) {
     supported_ |= 1u << SSE4_1;
     supported_ |= 1u << SSSE3;
@@ -1257,6 +1258,13 @@ void Assembler::emit_cmpxchg(Operand dst, Register src, int size) {
   emit_operand(src, dst);
 }
 
+void Assembler::mfence() {
+  EnsureSpace ensure_space(this);
+  emit(0x0F);
+  emit(0xAE);
+  emit(0xF0);
+}
+
 void Assembler::lfence() {
   EnsureSpace ensure_space(this);
   emit(0x0F);
@@ -1512,19 +1520,20 @@ void Assembler::j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode) {
   emitl(code_target_index);
 }
 
-void Assembler::jmp_rel(int offset) {
+void Assembler::jmp_rel(int32_t offset) {
   EnsureSpace ensure_space(this);
-  const int short_size = sizeof(int8_t);
-  const int long_size = sizeof(int32_t);
-  --offset;  // This is how jumps are specified on x64.
-  if (is_int8(offset - short_size) && !predictable_code_size()) {
-    // 1110 1011 #8-bit disp.
+  // The offset is encoded relative to the next instruction.
+  constexpr int32_t kShortJmpDisplacement = 1 + sizeof(int8_t);
+  constexpr int32_t kNearJmpDisplacement = 1 + sizeof(int32_t);
+  DCHECK_LE(std::numeric_limits<int32_t>::min() + kNearJmpDisplacement, offset);
+  if (is_int8(offset - kShortJmpDisplacement) && !predictable_code_size()) {
+    // 0xEB #8-bit disp.
     emit(0xEB);
-    emit((offset - short_size) & 0xFF);
+    emit(offset - kShortJmpDisplacement);
   } else {
-    // 1110 1001 #32-bit disp.
+    // 0xE9 #32-bit disp.
     emit(0xE9);
-    emitl(offset - long_size);
+    emitl(offset - kNearJmpDisplacement);
   }
 }
 
@@ -2005,84 +2014,37 @@ void Assembler::emit_not(Operand dst, int size) {
 }
 
 void Assembler::Nop(int n) {
+  DCHECK_LE(0, n);
   // The recommended muti-byte sequences of NOP instructions from the Intel 64
   // and IA-32 Architectures Software Developer's Manual.
   //
-  // Length   Assembly                                Byte Sequence
-  // 2 bytes  66 NOP                                  66 90H
-  // 3 bytes  NOP DWORD ptr [EAX]                     0F 1F 00H
-  // 4 bytes  NOP DWORD ptr [EAX + 00H]               0F 1F 40 00H
-  // 5 bytes  NOP DWORD ptr [EAX + EAX*1 + 00H]       0F 1F 44 00 00H
-  // 6 bytes  66 NOP DWORD ptr [EAX + EAX*1 + 00H]    66 0F 1F 44 00 00H
-  // 7 bytes  NOP DWORD ptr [EAX + 00000000H]         0F 1F 80 00 00 00 00H
-  // 8 bytes  NOP DWORD ptr [EAX + EAX*1 + 00000000H] 0F 1F 84 00 00 00 00 00H
-  // 9 bytes  66 NOP DWORD ptr [EAX + EAX*1 +         66 0F 1F 84 00 00 00 00
-  //          00000000H]                              00H
+  // Len Assembly                                    Byte Sequence
+  // 2   66 NOP                                      66 90H
+  // 3   NOP DWORD ptr [EAX]                         0F 1F 00H
+  // 4   NOP DWORD ptr [EAX + 00H]                   0F 1F 40 00H
+  // 5   NOP DWORD ptr [EAX + EAX*1 + 00H]           0F 1F 44 00 00H
+  // 6   66 NOP DWORD ptr [EAX + EAX*1 + 00H]        66 0F 1F 44 00 00H
+  // 7   NOP DWORD ptr [EAX + 00000000H]             0F 1F 80 00 00 00 00H
+  // 8   NOP DWORD ptr [EAX + EAX*1 + 00000000H]     0F 1F 84 00 00 00 00 00H
+  // 9   66 NOP DWORD ptr [EAX + EAX*1 + 00000000H]  66 0F 1F 84 00 00 00 00 00H
 
-  EnsureSpace ensure_space(this);
-  while (n > 0) {
-    switch (n) {
-      case 2:
-        emit(0x66);
-        V8_FALLTHROUGH;
-      case 1:
-        emit(0x90);
-        return;
-      case 3:
-        emit(0x0F);
-        emit(0x1F);
-        emit(0x00);
-        return;
-      case 4:
-        emit(0x0F);
-        emit(0x1F);
-        emit(0x40);
-        emit(0x00);
-        return;
-      case 6:
-        emit(0x66);
-        V8_FALLTHROUGH;
-      case 5:
-        emit(0x0F);
-        emit(0x1F);
-        emit(0x44);
-        emit(0x00);
-        emit(0x00);
-        return;
-      case 7:
-        emit(0x0F);
-        emit(0x1F);
-        emit(0x80);
-        emit(0x00);
-        emit(0x00);
-        emit(0x00);
-        emit(0x00);
-        return;
-      default:
-      case 11:
-        emit(0x66);
-        n--;
-        V8_FALLTHROUGH;
-      case 10:
-        emit(0x66);
-        n--;
-        V8_FALLTHROUGH;
-      case 9:
-        emit(0x66);
-        n--;
-        V8_FALLTHROUGH;
-      case 8:
-        emit(0x0F);
-        emit(0x1F);
-        emit(0x84);
-        emit(0x00);
-        emit(0x00);
-        emit(0x00);
-        emit(0x00);
-        emit(0x00);
-        n -= 8;
-    }
-  }
+  constexpr const char* kNopSequences =
+      "\x66\x90"                               // length 1 (@1) / 2 (@0)
+      "\x0F\x1F\x00"                           // length 3 (@2)
+      "\x0F\x1F\x40\x00"                       // length 4 (@5)
+      "\x66\x0F\x1F\x44\x00\x00"               // length 5 (@10) / 6 (@9)
+      "\x0F\x1F\x80\x00\x00\x00\x00"           // length 7 (@15)
+      "\x66\x0F\x1F\x84\x00\x00\x00\x00\x00";  // length 8 (@23) / 9 (@22)
+  constexpr int8_t kNopOffsets[10] = {0, 1, 0, 2, 5, 10, 9, 15, 23, 22};
+
+  do {
+    EnsureSpace ensure_space(this);
+    int nop_bytes = std::min(n, 9);
+    const char* sequence = kNopSequences + kNopOffsets[nop_bytes];
+    memcpy(pc_, sequence, nop_bytes);
+    pc_ += nop_bytes;
+    n -= nop_bytes;
+  } while (n);
 }
 
 void Assembler::popq(Register dst) {
@@ -2883,6 +2845,18 @@ void Assembler::movd(Register dst, XMMRegister src) {
 }
 
 void Assembler::movq(XMMRegister dst, Register src) {
+  // Mixing AVX and non-AVX is expensive, catch those cases
+  DCHECK(!IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x6E);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::movq(XMMRegister dst, Operand src) {
+  // Mixing AVX and non-AVX is expensive, catch those cases
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0x66);
@@ -2893,6 +2867,7 @@ void Assembler::movq(XMMRegister dst, Register src) {
 }
 
 void Assembler::movq(Register dst, XMMRegister src) {
+  // Mixing AVX and non-AVX is expensive, catch those cases
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0x66);
@@ -2903,6 +2878,7 @@ void Assembler::movq(Register dst, XMMRegister src) {
 }
 
 void Assembler::movq(XMMRegister dst, XMMRegister src) {
+  // Mixing AVX and non-AVX is expensive, catch those cases
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   if (dst.low_bits() == 4) {
@@ -3065,6 +3041,42 @@ void Assembler::pextrd(Operand dst, XMMRegister src, int8_t imm8) {
   emit(0x3A);
   emit(0x16);
   emit_sse_operand(src, dst);
+  emit(imm8);
+}
+
+void Assembler::pextrq(Register dst, XMMRegister src, int8_t imm8) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0x3A);
+  emit(0x16);
+  emit_sse_operand(src, dst);
+  emit(imm8);
+}
+
+void Assembler::pinsrq(XMMRegister dst, Register src, int8_t imm8) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x3A);
+  emit(0x22);
+  emit_sse_operand(dst, src);
+  emit(imm8);
+}
+
+void Assembler::pinsrq(XMMRegister dst, Operand src, int8_t imm8) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x3A);
+  emit(0x22);
+  emit_sse_operand(dst, src);
   emit(imm8);
 }
 
@@ -4135,6 +4147,22 @@ void Assembler::vmovq(Register dst, XMMRegister src) {
   emit_sse_operand(src, dst);
 }
 
+void Assembler::vmovdqu(XMMRegister dst, Operand src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, xmm0, src, kL128, kF3, k0F, kWIG);
+  emit(0x6F);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::vmovdqu(Operand src, XMMRegister dst) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, xmm0, src, kL128, kF3, k0F, kWIG);
+  emit(0x7F);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
                        XMMRegister src2, SIMDPrefix pp, LeadingOpcode m,
                        VexW w) {
@@ -4645,6 +4673,30 @@ void Assembler::sse4_instr(XMMRegister dst, XMMRegister src, byte prefix,
 void Assembler::sse4_instr(XMMRegister dst, Operand src, byte prefix,
                            byte escape1, byte escape2, byte opcode) {
   DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(prefix);
+  emit_optional_rex_32(dst, src);
+  emit(escape1);
+  emit(escape2);
+  emit(opcode);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::sse4_2_instr(XMMRegister dst, XMMRegister src, byte prefix,
+                             byte escape1, byte escape2, byte opcode) {
+  DCHECK(IsEnabled(SSE4_2));
+  EnsureSpace ensure_space(this);
+  emit(prefix);
+  emit_optional_rex_32(dst, src);
+  emit(escape1);
+  emit(escape2);
+  emit(opcode);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::sse4_2_instr(XMMRegister dst, Operand src, byte prefix,
+                             byte escape1, byte escape2, byte opcode) {
+  DCHECK(IsEnabled(SSE4_2));
   EnsureSpace ensure_space(this);
   emit(prefix);
   emit_optional_rex_32(dst, src);

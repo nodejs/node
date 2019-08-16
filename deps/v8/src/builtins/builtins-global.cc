@@ -86,17 +86,27 @@ BUILTIN(GlobalEval) {
   Handle<Object> x = args.atOrUndefined(isolate, 1);
   Handle<JSFunction> target = args.target();
   Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
-  if (!x->IsString()) return *x;
   if (!Builtins::AllowDynamicFunction(isolate, target, target_global_proxy)) {
     isolate->CountUsage(v8::Isolate::kFunctionConstructorReturnedUndefined);
     return ReadOnlyRoots(isolate).undefined_value();
   }
+
+  // Run embedder pre-checks before executing eval. If the argument is a
+  // non-String (or other object the embedder doesn't know to handle), then
+  // return it directly.
+  MaybeHandle<String> source;
+  bool unhandled_object;
+  std::tie(source, unhandled_object) =
+      Compiler::ValidateDynamicCompilationSource(
+          isolate, handle(target->native_context(), isolate), x);
+  if (unhandled_object) return *x;
+
   Handle<JSFunction> function;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, function,
-      Compiler::GetFunctionFromString(handle(target->native_context(), isolate),
-                                      Handle<String>::cast(x),
-                                      NO_PARSE_RESTRICTION, kNoSourcePosition));
+      Compiler::GetFunctionFromValidatedString(
+          handle(target->native_context(), isolate), source,
+          NO_PARSE_RESTRICTION, kNoSourcePosition));
   RETURN_RESULT_OR_FAILURE(
       isolate,
       Execution::Call(isolate, function, target_global_proxy, 0, nullptr));

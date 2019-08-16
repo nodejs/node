@@ -7,8 +7,8 @@
 function foo(arr) {
   gc();
   eval(arr);
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 try {
   foo("tag`Hello${tag}`");
 } catch (e) {}

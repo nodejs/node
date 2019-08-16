@@ -32,8 +32,8 @@ constexpr size_t kMaxPCRelativeCodeRangeInMB = 128;
 
 constexpr uint8_t kInstrSize = 4;
 constexpr uint8_t kInstrSizeLog2 = 2;
-constexpr size_t kLoadLiteralScaleLog2 = 2;
-constexpr size_t kMaxLoadLiteralRange = 1 * MB;
+constexpr uint8_t kLoadLiteralScaleLog2 = 2;
+constexpr int kMaxLoadLiteralRange = 1 * MB;
 
 const int kNumberOfRegisters = 32;
 const int kNumberOfVRegisters = 32;

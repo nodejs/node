@@ -12,8 +12,8 @@ function __f_12(__v_6) {
     __v_1 = __v_0[__v_6 + 10];
     return __v_1;
   }
-}
-
+};
+%PrepareFunctionForOptimization(__f_12);
 assertEquals(0xAA, __f_12(-1));
 %OptimizeFunctionOnNextCall(__f_12);
 assertEquals(0xAA, __f_12(-1));

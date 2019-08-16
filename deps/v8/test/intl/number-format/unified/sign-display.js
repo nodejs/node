@@ -15,7 +15,7 @@ const testData = [
     ["auto",        "-123",  "-0",  "0",  "123"],
     ["always",      "-123",  "-0", "+0", "+123"],
     ["never",       "123",   "0",  "0",  "123"],
-    ["except-zero", "-123",  "-0",  "0",  "+123"],
+    ["exceptZero",  "-123",  "-0",  "0",  "+123"],
 ];
 
 for (const [signDisplay, neg, negZero, zero, pos] of testData) {

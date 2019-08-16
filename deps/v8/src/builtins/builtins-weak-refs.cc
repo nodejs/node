@@ -48,14 +48,24 @@ BUILTIN(FinalizationGroupRegister) {
   HandleScope scope(isolate);
   const char* method_name = "FinalizationGroup.prototype.register";
 
+  //  1. Let finalizationGroup be the this value.
+  //
+  //  2. If Type(finalizationGroup) is not Object, throw a TypeError
+  //  exception.
+  //
+  //  4. If finalizationGroup does not have a [[Cells]] internal slot,
+  //  throw a TypeError exception.
   CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
 
   Handle<Object> target = args.atOrUndefined(isolate, 1);
+
+  //  3. If Type(target) is not Object, throw a TypeError exception.
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kWeakRefsRegisterTargetMustBeObject));
   }
+
   Handle<Object> holdings = args.atOrUndefined(isolate, 2);
   if (target->SameValue(*holdings)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -64,15 +74,21 @@ BUILTIN(FinalizationGroupRegister) {
             MessageTemplate::kWeakRefsRegisterTargetAndHoldingsMustNotBeSame));
   }
 
-  Handle<Object> key = args.atOrUndefined(isolate, 3);
-  // TODO(marja, gsathya): Restrictions on "key" (e.g., does it need to be an
-  // object).
+  Handle<Object> unregister_token = args.atOrUndefined(isolate, 3);
 
+  //  5. If Type(unregisterToken) is not Object,
+  //    a. If unregisterToken is not undefined, throw a TypeError exception.
+  if (!unregister_token->IsJSReceiver() && !unregister_token->IsUndefined()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kWeakRefsUnregisterTokenMustBeObject,
+                     unregister_token));
+  }
   // TODO(marja): Realms.
 
   JSFinalizationGroup::Register(finalization_group,
-                                Handle<JSReceiver>::cast(target), holdings, key,
-                                isolate);
+                                Handle<JSReceiver>::cast(target), holdings,
+                                unregister_token, isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -80,25 +96,63 @@ BUILTIN(FinalizationGroupUnregister) {
   HandleScope scope(isolate);
   const char* method_name = "FinalizationGroup.prototype.unregister";
 
+  // 1. Let finalizationGroup be the this value.
+  //
+  // 2. If Type(finalizationGroup) is not Object, throw a TypeError
+  //    exception.
+  //
+  // 3. If finalizationGroup does not have a [[Cells]] internal slot,
+  //    throw a TypeError exception.
   CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
 
-  Handle<Object> key = args.atOrUndefined(isolate, 1);
-  JSFinalizationGroup::Unregister(finalization_group, key, isolate);
-  return ReadOnlyRoots(isolate).undefined_value();
+  Handle<Object> unregister_token = args.atOrUndefined(isolate, 1);
+
+  // 4. If Type(unregisterToken) is not Object, throw a TypeError exception.
+  if (!unregister_token->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kWeakRefsUnregisterTokenMustBeObject,
+                     unregister_token));
+  }
+
+  bool success = JSFinalizationGroup::Unregister(
+      finalization_group, Handle<JSReceiver>::cast(unregister_token), isolate);
+
+  return *isolate->factory()->ToBoolean(success);
 }
 
 BUILTIN(FinalizationGroupCleanupSome) {
   HandleScope scope(isolate);
   const char* method_name = "FinalizationGroup.prototype.cleanupSome";
 
+  // 1. Let finalizationGroup be the this value.
+  //
+  // 2. If Type(finalizationGroup) is not Object, throw a TypeError
+  //    exception.
+  //
+  // 3. If finalizationGroup does not have a [[Cells]] internal slot,
+  //    throw a TypeError exception.
   CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
 
-  // TODO(marja, gsathya): Add missing "cleanup" callback.
+  Handle<Object> callback(finalization_group->cleanup(), isolate);
+  Handle<Object> callback_obj = args.atOrUndefined(isolate, 1);
+
+  // 4. If callback is not undefined and IsCallable(callback) is
+  //    false, throw a TypeError exception.
+  if (!callback_obj->IsUndefined(isolate)) {
+    if (!callback_obj->IsCallable()) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate,
+          NewTypeError(MessageTemplate::kWeakRefsCleanupMustBeCallable));
+    }
+    callback = callback_obj;
+  }
 
   // Don't do set_scheduled_for_cleanup(false); we still have the microtask
   // scheduled and don't want to schedule another one in case the user never
   // executes microtasks.
-  JSFinalizationGroup::Cleanup(finalization_group, isolate);
+  JSFinalizationGroup::Cleanup(isolate, finalization_group, callback);
+
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -138,7 +192,7 @@ BUILTIN(WeakRefConstructor) {
   }
   Handle<JSReceiver> target_receiver =
       handle(JSReceiver::cast(*target_object), isolate);
-  isolate->heap()->AddKeepDuringJobTarget(target_receiver);
+  isolate->heap()->KeepDuringJob(target_receiver);
 
   // TODO(marja): Realms.
 
@@ -158,9 +212,9 @@ BUILTIN(WeakRefDeref) {
   if (weak_ref->target().IsJSReceiver()) {
     Handle<JSReceiver> target =
         handle(JSReceiver::cast(weak_ref->target()), isolate);
-    // AddKeepDuringJobTarget might allocate and cause a GC, but it won't clear
+    // KeepDuringJob might allocate and cause a GC, but it won't clear
     // weak_ref since we hold a Handle to its target.
-    isolate->heap()->AddKeepDuringJobTarget(target);
+    isolate->heap()->KeepDuringJob(target);
   } else {
     DCHECK(weak_ref->target().IsUndefined(isolate));
   }

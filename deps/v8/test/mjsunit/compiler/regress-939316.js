@@ -12,8 +12,8 @@
 
   function g(i) {
     f(i);
-  }
-
+  };
+  %PrepareFunctionForOptimization(g);
   g(0);
   g(1);
   %OptimizeFunctionOnNextCall(g);
@@ -25,13 +25,14 @@
   function f() {
     try {
       const o = Reflect.construct(Array, arguments, parseInt);
-    } catch(e) { }
+    } catch (e) {
+    }
   }
 
   function g() {
     f();
-  }
-
+  };
+  %PrepareFunctionForOptimization(g);
   g();
   g();
   %OptimizeFunctionOnNextCall(g);

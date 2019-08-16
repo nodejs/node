@@ -16,11 +16,9 @@ namespace internal {
 
 // static
 Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
-    Isolate* isolate, Handle<Context> native_context,
+    Isolate* isolate, Handle<NativeContext> native_context,
     Handle<TemplateObjectDescription> description,
     Handle<SharedFunctionInfo> shared_info, int slot_id) {
-  DCHECK(native_context->IsNativeContext());
-
   // Check the template weakmap to see if the template object already exists.
   Handle<EphemeronHashTable> template_weakmap =
       native_context->template_weakmap().IsUndefined(isolate)

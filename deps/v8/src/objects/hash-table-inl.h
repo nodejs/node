@@ -71,14 +71,19 @@ void EphemeronHashTable::set_key(int index, Object value,
 }
 
 int HashTableBase::NumberOfElements() const {
-  return Smi::ToInt(get(kNumberOfElementsIndex));
+  int offset = OffsetOfElementAt(kNumberOfElementsIndex);
+  return TaggedField<Smi>::load(*this, offset).value();
 }
 
 int HashTableBase::NumberOfDeletedElements() const {
-  return Smi::ToInt(get(kNumberOfDeletedElementsIndex));
+  int offset = OffsetOfElementAt(kNumberOfDeletedElementsIndex);
+  return TaggedField<Smi>::load(*this, offset).value();
 }
 
-int HashTableBase::Capacity() const { return Smi::ToInt(get(kCapacityIndex)); }
+int HashTableBase::Capacity() const {
+  int offset = OffsetOfElementAt(kCapacityIndex);
+  return TaggedField<Smi>::load(*this, offset).value();
+}
 
 void HashTableBase::ElementAdded() {
   SetNumberOfElements(NumberOfElements() + 1);
@@ -160,6 +165,15 @@ bool HashTable<Derived, Shape>::ToKey(ReadOnlyRoots roots, int entry,
                                       Object* out_k) {
   Object k = KeyAt(entry);
   if (!IsKey(roots, k)) return false;
+  *out_k = Shape::Unwrap(k);
+  return true;
+}
+
+template <typename Derived, typename Shape>
+bool HashTable<Derived, Shape>::ToKey(Isolate* isolate, int entry,
+                                      Object* out_k) {
+  Object k = KeyAt(isolate, entry);
+  if (!IsKey(GetReadOnlyRoots(isolate), k)) return false;
   *out_k = Shape::Unwrap(k);
   return true;
 }

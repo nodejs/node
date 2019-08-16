@@ -337,9 +337,9 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
     //        End
 
     // Now the effect input to the {Return} node can be either an {EffectPhi}
-    // hanging off the same {Merge}, or the {Merge} node is only connected to
-    // the {Return} and the {Phi}, in which case we know that the effect input
-    // must somehow dominate all merged branches.
+    // hanging off the same {Merge}, or the effect chain doesn't depend on the
+    // {Phi} or the {Merge}, in which case we know that the effect input must
+    // somehow dominate all merged branches.
 
     Node::Inputs control_inputs = control->inputs();
     Node::Inputs value_inputs = value->inputs();
@@ -347,7 +347,7 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
     DCHECK_EQ(control_inputs.count(), value_inputs.count() - 1);
     DCHECK_EQ(IrOpcode::kEnd, graph()->end()->opcode());
     DCHECK_NE(0, graph()->end()->InputCount());
-    if (control->OwnedBy(node, value)) {
+    if (control->OwnedBy(node, value) && value->OwnedBy(node)) {
       for (int i = 0; i < control_inputs.count(); ++i) {
         // Create a new {Return} and connect it to {end}. We don't need to mark
         // {end} as revisit, because we mark {node} as {Dead} below, which was

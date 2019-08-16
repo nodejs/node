@@ -240,6 +240,7 @@ class MachineRepresentationInferrer {
                 MachineType::PointerRepresentation();
             break;
           case IrOpcode::kBitcastTaggedToWord:
+          case IrOpcode::kBitcastTaggedSignedToWord:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;
@@ -428,6 +429,7 @@ class MachineRepresentationChecker {
                                             MachineRepresentation::kWord64);
             break;
           case IrOpcode::kBitcastTaggedToWord:
+          case IrOpcode::kBitcastTaggedSignedToWord:
           case IrOpcode::kTaggedPoisonOnSpeculation:
             CheckValueInputIsTagged(node, 0);
             break;
@@ -556,7 +558,7 @@ class MachineRepresentationChecker {
           case IrOpcode::kParameter:
           case IrOpcode::kProjection:
             break;
-          case IrOpcode::kDebugAbort:
+          case IrOpcode::kAbortCSAAssert:
             CheckValueInputIsTagged(node, 0);
             break;
           case IrOpcode::kLoad:
@@ -700,6 +702,7 @@ class MachineRepresentationChecker {
           case IrOpcode::kThrow:
           case IrOpcode::kTypedStateValues:
           case IrOpcode::kFrameState:
+          case IrOpcode::kStaticAssert:
             break;
           default:
             if (node->op()->ValueInputCount() != 0) {
@@ -748,6 +751,11 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressedSigned:
         return;
+      case MachineRepresentation::kNone:
+        if (input->opcode() == IrOpcode::kCompressedHeapConstant) {
+          return;
+        }
+        break;
       default:
         break;
     }
@@ -851,6 +859,9 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kCompressedPointer:
         return;
       case MachineRepresentation::kNone: {
+        if (input->opcode() == IrOpcode::kCompressedHeapConstant) {
+          return;
+        }
         std::ostringstream str;
         str << "TypeError: node #" << input->id() << ":" << *input->op()
             << " is untyped.";

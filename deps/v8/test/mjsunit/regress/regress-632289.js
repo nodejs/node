@@ -5,7 +5,9 @@
 // Flags: --always-opt --allow-natives-syntax
 
 try {
-} catch(e) {; }
+} catch (e) {
+  ;
+}
 (function __f_12() {
 })();
 (function __f_6() {
@@ -15,8 +17,9 @@ try {
     try {
     } catch (e) {
     }
-  }
- __f_4();
+  };
+  %PrepareFunctionForOptimization(__f_4);
+  __f_4();
   %OptimizeFunctionOnNextCall(__f_4);
- __f_4();
+  __f_4();
 })();

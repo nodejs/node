@@ -56,7 +56,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/transitions.h"
-#include "src/regexp/jsregexp.h"
+#include "src/regexp/regexp.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
@@ -604,8 +604,8 @@ TEST(BytecodeArray) {
   if (FLAG_never_compact) return;
   static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
   static const int kRawBytesSize = sizeof(kRawBytes);
-  static const int kFrameSize = 32;
-  static const int kParameterCount = 2;
+  static const int32_t kFrameSize = 32;
+  static const int32_t kParameterCount = 2;
 
   ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
@@ -666,8 +666,8 @@ TEST(BytecodeArray) {
 TEST(BytecodeArrayAging) {
   static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
   static const int kRawBytesSize = sizeof(kRawBytes);
-  static const int kFrameSize = 32;
-  static const int kParameterCount = 2;
+  static const int32_t kFrameSize = 32;
+  static const int32_t kParameterCount = 2;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1068,9 +1068,9 @@ TEST(StringAllocation) {
 static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
   // Count the number of objects found in the heap.
   int found_count = 0;
-  HeapIterator iterator(heap);
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  HeapObjectIterator iterator(heap);
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     for (int i = 0; i < size; i++) {
       if (*objs[i] == obj) {
         found_count++;
@@ -1510,8 +1510,8 @@ TEST(TestSizeOfRegExpCode) {
   LocalContext context;
 
   // Adjust source below and this check to match
-  // RegExpImple::kRegExpTooLargeToOptimize.
-  CHECK_EQ(i::RegExpImpl::kRegExpTooLargeToOptimize, 20 * KB);
+  // RegExp::kRegExpTooLargeToOptimize.
+  CHECK_EQ(i::RegExp::kRegExpTooLargeToOptimize, 20 * KB);
 
   // Compile a regexp that is much larger if we are using regexp optimizations.
   CompileRun(
@@ -1829,13 +1829,13 @@ TEST(MutableHeapNumberAlignment) {
   }
 }
 
-TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
+TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
   CcTest::InitializeVM();
-  HeapIterator iterator(CcTest::heap());
+  HeapObjectIterator iterator(CcTest::heap());
   intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
   intptr_t size_of_objects_2 = 0;
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (!obj.IsFreeSpace()) {
       size_of_objects_2 += obj.Size();
     }
@@ -1948,9 +1948,9 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
 
 static int NumberOfGlobalObjects() {
   int count = 0;
-  HeapIterator iterator(CcTest::heap());
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  HeapObjectIterator iterator(CcTest::heap());
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (obj.IsJSGlobalObject()) count++;
   }
   return count;
@@ -3444,10 +3444,10 @@ void DetailedErrorStackTraceTest(const char* src,
   Isolate* isolate = CcTest::i_isolate();
   Handle<Name> key = isolate->factory()->stack_trace_symbol();
 
-  Handle<FrameArray> stack_trace(Handle<FrameArray>::cast(
+  Handle<FixedArray> stack_trace(Handle<FixedArray>::cast(
       Object::GetProperty(isolate, exception, key).ToHandleChecked()));
 
-  test(stack_trace);
+  test(GetFrameArrayFromStackTrace(isolate, stack_trace));
 }
 
 // * Test interpreted function error
@@ -4796,11 +4796,11 @@ HEAP_TEST(Regress538257) {
   FLAG_manual_evacuation_candidates_selection = true;
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
-  create_params.constraints.set_max_semi_space_size_in_kb(1024);
+  create_params.constraints.set_max_young_generation_size_in_bytes(3 * MB);
 #ifdef DEBUG
-  create_params.constraints.set_max_old_space_size(20);
+  create_params.constraints.set_max_old_generation_size_in_bytes(20 * MB);
 #else
-  create_params.constraints.set_max_old_space_size(6);
+  create_params.constraints.set_max_old_generation_size_in_bytes(6 * MB);
 #endif
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -4864,13 +4864,14 @@ TEST(Regress507979) {
   CHECK(Heap::InYoungGeneration(*o1));
   CHECK(Heap::InYoungGeneration(*o2));
 
-  HeapIterator it(isolate->heap(), i::HeapIterator::kFilterUnreachable);
+  HeapObjectIterator it(isolate->heap(),
+                        i::HeapObjectIterator::kFilterUnreachable);
 
   // Replace parts of an object placed before a live object with a filler. This
   // way the filler object shares the mark bits with the following live object.
   o1->Shrink(isolate, kFixedArrayLen - 1);
 
-  for (HeapObject obj = it.next(); !obj.is_null(); obj = it.next()) {
+  for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     // Let's not optimize the loop away.
     CHECK_NE(obj.address(), kNullAddress);
   }
@@ -4924,7 +4925,7 @@ TEST(Regress388880) {
 
   // Now everything is set up for crashing in JSObject::MigrateFastToFast()
   // when it calls heap->AdjustLiveBytes(...).
-  JSObject::MigrateToMap(o, map2);
+  JSObject::MigrateToMap(isolate, o, map2);
 }
 
 
@@ -5281,8 +5282,8 @@ TEST(ScriptIterator) {
 
   int script_count = 0;
   {
-    HeapIterator it(heap);
-    for (HeapObject obj = it.next(); !obj.is_null(); obj = it.next()) {
+    HeapObjectIterator it(heap);
+    for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
       if (obj.IsScript()) script_count++;
     }
   }
@@ -5311,8 +5312,8 @@ TEST(SharedFunctionInfoIterator) {
 
   int sfi_count = 0;
   {
-    HeapIterator it(heap);
-    for (HeapObject obj = it.next(); !obj.is_null(); obj = it.next()) {
+    HeapObjectIterator it(heap);
+    for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
       if (!obj.IsSharedFunctionInfo()) continue;
       sfi_count++;
     }
@@ -5924,7 +5925,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
+  CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
   CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
@@ -5936,7 +5937,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   // After the first young generation GC array_small will be in the old
   // generation large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
+  CHECK_EQ(LO_SPACE, chunk->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   CcTest::CollectAllAvailableGarbage();
@@ -5954,7 +5955,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
+  CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
   CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
@@ -5966,7 +5967,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   // After the first full GC array_small will be in the old generation
   // large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
+  CHECK_EQ(LO_SPACE, chunk->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   CcTest::CollectAllAvailableGarbage();
@@ -5986,7 +5987,7 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
     for (int i = 0; i < 10; i++) {
       Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-      CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
+      CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
       CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
     }
   }
@@ -6009,7 +6010,7 @@ TEST(UncommitUnusedLargeObjectMemory) {
   Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
-  CHECK(chunk->owner()->identity() == LO_SPACE);
+  CHECK(chunk->owner_identity() == LO_SPACE);
 
   intptr_t size_before = array->Size();
   size_t committed_memory_before = chunk->CommittedPhysicalMemory();
@@ -6033,7 +6034,7 @@ TEST(RememberedSetRemoveRange) {
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(
       Page::kPageSize / kTaggedSize, AllocationType::kOld);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
-  CHECK(chunk->owner()->identity() == LO_SPACE);
+  CHECK(chunk->owner_identity() == LO_SPACE);
   Address start = array->address();
   // Maps slot to boolean indicator of whether the slot should be in the set.
   std::map<Address, bool> slots;
@@ -6189,7 +6190,7 @@ HEAP_TEST(Regress5831) {
 
   // Ensure it's not in large object space.
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*code);
-  CHECK(chunk->owner()->identity() != LO_SPACE);
+  CHECK(chunk->owner_identity() != LO_SPACE);
   CHECK(chunk->NeverEvacuate());
 }
 

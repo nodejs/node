@@ -12,7 +12,8 @@ let cleanup = function(iter) {
     ++cleanup_holdings_count;
   }
   // Unregister an already iterated over weak reference.
-  fg.unregister(key);
+  let success = fg.unregister(key);
+  assertFalse(success);
   ++cleanup_call_count;
 }
 

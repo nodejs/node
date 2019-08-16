@@ -90,51 +90,57 @@ bool FixedArray::ContainsOnlySmisOrHoles() {
 }
 
 Object FixedArray::get(int index) const {
-  DCHECK(index >= 0 && index < this->length());
-  return RELAXED_READ_FIELD(*this, kHeaderSize + index * kTaggedSize);
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return get(isolate, index);
+}
+
+Object FixedArray::get(Isolate* isolate, int index) const {
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  return TaggedField<Object>::Relaxed_Load(isolate, *this,
+                                           OffsetOfElementAt(index));
 }
 
 Handle<Object> FixedArray::get(FixedArray array, int index, Isolate* isolate) {
-  return handle(array.get(index), isolate);
+  return handle(array.get(isolate, index), isolate);
 }
 
 bool FixedArray::is_the_hole(Isolate* isolate, int index) {
-  return get(index).IsTheHole(isolate);
+  return get(isolate, index).IsTheHole(isolate);
 }
 
 void FixedArray::set(int index, Smi value) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(index, this->length());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   DCHECK(Object(value).IsSmi());
-  int offset = kHeaderSize + index * kTaggedSize;
+  int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
 
 void FixedArray::set(int index, Object value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
   DCHECK(IsFixedArray());
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kTaggedSize;
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   WRITE_BARRIER(*this, offset, value);
 }
 
 void FixedArray::set(int index, Object value, WriteBarrierMode mode) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kTaggedSize;
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
+// static
 void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
   DCHECK_NE(array.map(), array.GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, array.length());
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(array.length()));
   DCHECK(!ObjectInYoungGeneration(value));
-  RELAXED_WRITE_FIELD(array, kHeaderSize + index * kTaggedSize, value);
+  int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(array, offset, value);
 }
 
 void FixedArray::set_undefined(int index) {
@@ -323,7 +329,7 @@ uint64_t FixedDoubleArray::get_representation(int index) {
   DCHECK(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kDoubleSize;
   // Bug(v8:8875): Doubles may be unaligned.
-  return ReadUnalignedValue<uint64_t>(field_address(offset));
+  return base::ReadUnalignedValue<uint64_t>(field_address(offset));
 }
 
 Handle<Object> FixedDoubleArray::get(FixedDoubleArray array, int index,
@@ -355,7 +361,7 @@ void FixedDoubleArray::set_the_hole(int index) {
   DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
          map() != GetReadOnlyRoots().fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
-  WriteUnalignedValue<uint64_t>(field_address(offset), kHoleNanInt64);
+  base::WriteUnalignedValue<uint64_t>(field_address(offset), kHoleNanInt64);
 }
 
 bool FixedDoubleArray::is_the_hole(Isolate* isolate, int index) {
@@ -382,8 +388,14 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 MaybeObject WeakFixedArray::Get(int index) const {
-  DCHECK(index >= 0 && index < this->length());
-  return RELAXED_READ_WEAK_FIELD(*this, OffsetOfElementAt(index));
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return Get(isolate, index);
+}
+
+MaybeObject WeakFixedArray::Get(Isolate* isolate, int index) const {
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  return TaggedField<MaybeObject>::Relaxed_Load(isolate, *this,
+                                                OffsetOfElementAt(index));
 }
 
 void WeakFixedArray::Set(int index, MaybeObject value) {
@@ -424,8 +436,14 @@ void WeakFixedArray::CopyElements(Isolate* isolate, int dst_index,
 }
 
 MaybeObject WeakArrayList::Get(int index) const {
-  DCHECK(index >= 0 && index < this->capacity());
-  return RELAXED_READ_WEAK_FIELD(*this, OffsetOfElementAt(index));
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return Get(isolate, index);
+}
+
+MaybeObject WeakArrayList::Get(Isolate* isolate, int index) const {
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(capacity()));
+  return TaggedField<MaybeObject>::Relaxed_Load(isolate, *this,
+                                                OffsetOfElementAt(index));
 }
 
 void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
@@ -476,6 +494,10 @@ void ArrayList::SetLength(int length) {
 
 Object ArrayList::Get(int index) const {
   return FixedArray::cast(*this).get(kFirstIndex + index);
+}
+
+Object ArrayList::Get(Isolate* isolate, int index) const {
+  return FixedArray::cast(*this).get(isolate, kFirstIndex + index);
 }
 
 ObjectSlot ArrayList::Slot(int index) {
@@ -538,6 +560,16 @@ void ByteArray::set_uint32(int index, uint32_t value) {
   WriteField<uint32_t>(kHeaderSize + index * kUInt32Size, value);
 }
 
+uint32_t ByteArray::get_uint32_relaxed(int index) const {
+  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  return RELAXED_READ_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size);
+}
+
+void ByteArray::set_uint32_relaxed(int index, uint32_t value) {
+  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  RELAXED_WRITE_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size, value);
+}
+
 void ByteArray::clear_padding() {
   int data_size = length() + kHeaderSize;
   memset(reinterpret_cast<void*>(address() + data_size), 0, Size() - data_size);
@@ -587,6 +619,10 @@ int TemplateList::length() const {
 
 Object TemplateList::get(int index) const {
   return FixedArray::cast(*this).get(kFirstElementIndex + index);
+}
+
+Object TemplateList::get(Isolate* isolate, int index) const {
+  return FixedArray::cast(*this).get(isolate, kFirstElementIndex + index);
 }
 
 void TemplateList::set(int index, Object value) {

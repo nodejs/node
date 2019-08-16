@@ -33,6 +33,23 @@ namespace internal {
 ReturnAddressLocationResolver StackFrame::return_address_location_resolver_ =
     nullptr;
 
+namespace {
+
+Address AddressOf(const StackHandler* handler) {
+  Address raw = handler->address();
+#ifdef V8_USE_ADDRESS_SANITIZER
+  // ASan puts C++-allocated StackHandler markers onto its fake stack.
+  // We work around that by storing the real stack address in the "padding"
+  // field. StackHandlers allocated from generated code have 0 as padding.
+  Address padding =
+      base::Memory<Address>(raw + StackHandlerConstants::kPaddingOffset);
+  if (padding != 0) return padding;
+#endif
+  return raw;
+}
+
+}  // namespace
+
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
 class StackHandlerIterator {
@@ -40,12 +57,18 @@ class StackHandlerIterator {
   StackHandlerIterator(const StackFrame* frame, StackHandler* handler)
       : limit_(frame->fp()), handler_(handler) {
     // Make sure the handler has already been unwound to this frame.
-    DCHECK(frame->sp() <= handler->address());
+    DCHECK(frame->sp() <= AddressOf(handler));
+    // For CWasmEntry frames, the handler was registered by the last C++
+    // frame (Execution::CallWasm), so even though its address is already
+    // beyond the limit, we know we always want to unwind one handler.
+    if (frame->type() == StackFrame::C_WASM_ENTRY) {
+      handler_ = handler_->next();
+    }
   }
 
   StackHandler* handler() const { return handler_; }
 
-  bool done() { return handler_ == nullptr || handler_->address() > limit_; }
+  bool done() { return handler_ == nullptr || AddressOf(handler_) > limit_; }
   void Advance() {
     DCHECK(!done());
     handler_ = handler_->next();
@@ -146,7 +169,7 @@ StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate)
 }
 
 StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate,
-                                                 StackFrame::Id id)
+                                                 StackFrameId id)
     : StackTraceFrameIterator(isolate) {
   while (!done() && frame()->id() != id) Advance();
 }
@@ -255,6 +278,11 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
   bool advance_frame = true;
 
   Address fast_c_fp = isolate->isolate_data()->fast_c_call_caller_fp();
+  uint8_t stack_is_iterable = isolate->isolate_data()->stack_is_iterable();
+  if (!stack_is_iterable) {
+    frame_ = nullptr;
+    return;
+  }
   // 'Fast C calls' are a special type of C call where we call directly from JS
   // to C without an exit frame inbetween. The CEntryStub is responsible for
   // setting Isolate::c_entry_fp, meaning that it won't be set for fast C calls.
@@ -637,6 +665,12 @@ StackFrame::Type EntryFrame::GetCallerState(State* state) const {
   return ExitFrame::GetStateForFramePointer(fp, state);
 }
 
+StackFrame::Type CWasmEntryFrame::GetCallerState(State* state) const {
+  const int offset = CWasmEntryFrameConstants::kCEntryFPOffset;
+  Address fp = Memory<Address>(this->fp() + offset);
+  return ExitFrame::GetStateForFramePointer(fp, state);
+}
+
 Code ConstructEntryFrame::unchecked_code() const {
   return isolate()->heap()->builtin(Builtins::kJSConstructEntry);
 }
@@ -972,7 +1006,6 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
                          parameters_limit);
   }
 
-  DEFINE_ROOT_VALUE(isolate());
   // Visit pointer spill slots and locals.
   uint8_t* safepoint_bits = safepoint_entry.bits();
   for (unsigned index = 0; index < stack_slots; index++) {
@@ -992,7 +1025,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       if (!HAS_SMI_TAG(compressed_value)) {
         // We don't need to update smi values.
         *spill_slot.location() =
-            DecompressTaggedPointer(ROOT_VALUE, compressed_value);
+            DecompressTaggedPointer(isolate(), compressed_value);
       }
 #endif
       v->VisitRootPointer(Root::kTop, nullptr, spill_slot);
@@ -1910,7 +1943,8 @@ int WasmCompiledFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   wasm::WasmCode* code =
       isolate()->wasm_engine()->code_manager()->LookupCode(pc());
   if (!code->IsAnonymous() && code->handler_table_size() > 0) {
-    HandlerTable table(code->handler_table(), code->handler_table_size());
+    HandlerTable table(code->handler_table(), code->handler_table_size(),
+                       HandlerTable::kReturnAddressBasedEncoding);
     int pc_offset = static_cast<int>(pc() - code->instruction_start());
     *stack_slots = static_cast<int>(code->stack_slots());
     return table.LookupReturn(pc_offset);

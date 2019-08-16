@@ -185,8 +185,10 @@ void StringBuilder::reserveCapacity(size_t capacity) {
   string_.reserve(capacity);
 }
 
+// In Chromium, we do not support big endian architectures, so no conversion is needed
+// to interpret UTF16LE.
 // static
-String StringUtil::fromUTF16(const uint16_t* data, size_t length) {
+String StringUtil::fromUTF16LE(const uint16_t* data, size_t length) {
   std::string utf8;
   base::UTF16ToUTF8(reinterpret_cast<const base::char16*>(data), length, &utf8);
   return utf8;

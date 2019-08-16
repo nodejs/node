@@ -77,8 +77,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   }
 
   void IncreaseAllocatedSize(size_t bytes) {
+    remote_stats_.used_size += bytes;
     remote_stats_.allocated_size += bytes;
-    remote_stats_.accumulated_allocated_size += bytes;
     if (remote_stats_.allocated_size >
         remote_stats_.allocated_size_limit_for_check) {
       StartIncrementalMarkingIfNeeded();
@@ -87,12 +87,15 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     }
   }
 
+  void DecreaseAllocatedSize(size_t bytes) {
+    DCHECK_GE(remote_stats_.used_size, bytes);
+    remote_stats_.used_size -= bytes;
+  }
+
   void StartIncrementalMarkingIfNeeded();
 
+  size_t used_size() const { return remote_stats_.used_size; }
   size_t allocated_size() const { return remote_stats_.allocated_size; }
-  size_t accumulated_allocated_size() const {
-    return remote_stats_.accumulated_allocated_size;
-  }
 
  private:
   static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
@@ -109,16 +112,16 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   bool embedder_worklist_empty_ = false;
 
   struct RemoteStatistics {
-    // Allocated size of objects in bytes reported by the embedder. Updated via
+    // Used size of objects in bytes reported by the embedder. Updated via
     // TraceSummary at the end of tracing and incrementally when the GC is not
     // in progress.
+    size_t used_size = 0;
+    // Totally bytes allocated by the embedder. Monotonically
+    // increasing value. Used to approximate allocation rate.
     size_t allocated_size = 0;
-    // Limit for |allocated_size_| in bytes to avoid checking for starting a GC
+    // Limit for |allocated_size| in bytes to avoid checking for starting a GC
     // on each increment.
     size_t allocated_size_limit_for_check = 0;
-    // Totally accumulated bytes allocated by the embedder. Monotonically
-    // increasing value. Used to approximate allocation rate.
-    size_t accumulated_allocated_size = 0;
   } remote_stats_;
 
   friend class EmbedderStackStateScope;

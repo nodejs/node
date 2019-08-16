@@ -4,7 +4,7 @@
 
 #include "src/json/json-stringifier.h"
 
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -75,7 +75,8 @@ class JsonStringifier {
     return SerializeDouble(object->value());
   }
 
-  Result SerializeJSValue(Handle<JSValue> object, Handle<Object> key);
+  Result SerializeJSPrimitiveWrapper(Handle<JSPrimitiveWrapper> object,
+                                     Handle<Object> key);
 
   V8_INLINE Result SerializeJSArray(Handle<JSArray> object, Handle<Object> key);
   V8_INLINE Result SerializeJSObject(Handle<JSObject> object,
@@ -257,8 +258,9 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
       if (element->IsNumber() || element->IsString()) {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate_, key, Object::ToString(isolate_, element), false);
-      } else if (element->IsJSValue()) {
-        Handle<Object> value(Handle<JSValue>::cast(element)->value(), isolate_);
+      } else if (element->IsJSPrimitiveWrapper()) {
+        Handle<Object> value(Handle<JSPrimitiveWrapper>::cast(element)->value(),
+                             isolate_);
         if (value->IsNumber() || value->IsString()) {
           ASSIGN_RETURN_ON_EXCEPTION_VALUE(
               isolate_, key, Object::ToString(isolate_, element), false);
@@ -281,8 +283,9 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
 bool JsonStringifier::InitializeGap(Handle<Object> gap) {
   DCHECK_NULL(gap_);
   HandleScope scope(isolate_);
-  if (gap->IsJSValue()) {
-    Handle<Object> value(Handle<JSValue>::cast(gap)->value(), isolate_);
+  if (gap->IsJSPrimitiveWrapper()) {
+    Handle<Object> value(Handle<JSPrimitiveWrapper>::cast(gap)->value(),
+                         isolate_);
     if (value->IsString()) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap,
                                        Object::ToString(isolate_, gap), false);
@@ -558,9 +561,10 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     case JS_ARRAY_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSArray(Handle<JSArray>::cast(object), key);
-    case JS_VALUE_TYPE:
+    case JS_PRIMITIVE_WRAPPER_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
-      return SerializeJSValue(Handle<JSValue>::cast(object), key);
+      return SerializeJSPrimitiveWrapper(
+          Handle<JSPrimitiveWrapper>::cast(object), key);
     case SYMBOL_TYPE:
       return UNCHANGED;
     default:
@@ -583,8 +587,8 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
   UNREACHABLE();
 }
 
-JsonStringifier::Result JsonStringifier::SerializeJSValue(
-    Handle<JSValue> object, Handle<Object> key) {
+JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
+    Handle<JSPrimitiveWrapper> object, Handle<Object> key) {
   Object raw = object->value();
   if (raw.IsString()) {
     Handle<Object> value;

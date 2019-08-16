@@ -7,10 +7,11 @@
 var expected = undefined;
 
 function foo() {
-  var a = [0,,{}];
+  var a = [0, , {}];
   a.shift();
   assertEquals(expected, a[0]);
-}
+};
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);
@@ -22,10 +23,11 @@ Array.prototype[1] = expected;
 foo();
 
 function bar() {
-  var a = [0,,{}];
+  var a = [0, , {}];
   a.shift();
   assertEquals(expected, a[0]);
-}
+};
+%PrepareFunctionForOptimization(bar);
 bar();
 bar();
 %OptimizeFunctionOnNextCall(bar);

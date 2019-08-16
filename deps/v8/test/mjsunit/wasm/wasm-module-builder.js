@@ -100,7 +100,7 @@ let kWasmF64 = 0x7c;
 let kWasmS128 = 0x7b;
 let kWasmAnyRef = 0x6f;
 let kWasmAnyFunc = 0x70;
-let kWasmExceptRef = 0x68;
+let kWasmExnRef = 0x68;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
@@ -150,17 +150,17 @@ let kSig_f_d = makeSig([kWasmF64], [kWasmF32]);
 let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
 let kSig_r_r = makeSig([kWasmAnyRef], [kWasmAnyRef]);
 let kSig_a_a = makeSig([kWasmAnyFunc], [kWasmAnyFunc]);
-let kSig_e_e = makeSig([kWasmExceptRef], [kWasmExceptRef]);
+let kSig_e_e = makeSig([kWasmExnRef], [kWasmExnRef]);
 let kSig_i_r = makeSig([kWasmAnyRef], [kWasmI32]);
 let kSig_v_r = makeSig([kWasmAnyRef], []);
 let kSig_v_a = makeSig([kWasmAnyFunc], []);
-let kSig_v_e = makeSig([kWasmExceptRef], []);
+let kSig_v_e = makeSig([kWasmExnRef], []);
 let kSig_v_rr = makeSig([kWasmAnyRef, kWasmAnyRef], []);
 let kSig_v_aa = makeSig([kWasmAnyFunc, kWasmAnyFunc], []);
 let kSig_r_v = makeSig([], [kWasmAnyRef]);
 let kSig_a_v = makeSig([], [kWasmAnyFunc]);
 let kSig_a_i = makeSig([kWasmI32], [kWasmAnyFunc]);
-let kSig_e_v = makeSig([], [kWasmExceptRef]);
+let kSig_e_v = makeSig([], [kWasmExnRef]);
 
 function makeSig(params, results) {
   return {params: params, results: results};
@@ -214,8 +214,8 @@ let kExprSetLocal = 0x21;
 let kExprTeeLocal = 0x22;
 let kExprGetGlobal = 0x23;
 let kExprSetGlobal = 0x24;
-let kExprGetTable = 0x25;
-let kExprSetTable = 0x26;
+let kExprTableGet = 0x25;
+let kExprTableSet = 0x26;
 let kExprI32LoadMem = 0x28;
 let kExprI64LoadMem = 0x29;
 let kExprF32LoadMem = 0x2a;
@@ -1087,7 +1087,7 @@ class WasmModuleBuilder {
                 section.emit_u8(kExprRefNull);
               }
               break;
-            case kWasmExceptRef:
+            case kWasmExnRef:
               section.emit_u8(kExprRefNull);
               break;
             }
@@ -1263,7 +1263,7 @@ class WasmModuleBuilder {
               local_decls.push({count: l.anyfunc_count, type: kWasmAnyFunc});
             }
             if (l.except_count > 0) {
-              local_decls.push({count: l.except_count, type: kWasmExceptRef});
+              local_decls.push({count: l.except_count, type: kWasmExnRef});
             }
           }
 

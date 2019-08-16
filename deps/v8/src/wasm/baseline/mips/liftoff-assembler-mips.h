@@ -7,8 +7,6 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
-#define BAILOUT(reason) bailout("mips " reason)
-
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -854,7 +852,7 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("f32_copysign");
+  bailout(kComplexOperation, "f32_copysign");
 }
 
 void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
@@ -881,7 +879,7 @@ void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
 
 void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("f64_copysign");
+  bailout(kComplexOperation, "f64_copysign");
 }
 
 #define FP_BINOP(name, instruction)                                          \
@@ -1026,10 +1024,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
         TurboAssembler::CompareF64(EQ, rounded.fp(), converted_back.fp());
         TurboAssembler::BranchFalseF(trap);
         return true;
-      } else {
-        BAILOUT("emit_type_conversion kExprI32SConvertF64");
-        return true;
       }
+      bailout(kUnsupportedArchitecture, "kExprI32SConvertF64");
+      return true;
     }
     case kExprI32UConvertF64: {
       if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
@@ -1049,10 +1046,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
         TurboAssembler::CompareF64(EQ, rounded.fp(), converted_back.fp());
         TurboAssembler::BranchFalseF(trap);
         return true;
-      } else {
-        BAILOUT("emit_type_conversion kExprI32UConvertF64");
-        return true;
       }
+      bailout(kUnsupportedArchitecture, "kExprI32UConvertF64");
+      return true;
     }
     case kExprI32ReinterpretF32:
       mfc1(dst.gp(), src.fp());
@@ -1116,26 +1112,26 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
 }
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  BAILOUT("emit_i32_signextend_i8");
+  bailout(kComplexOperation, "i32_signextend_i8");
 }
 
 void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
-  BAILOUT("emit_i32_signextend_i16");
+  bailout(kComplexOperation, "i32_signextend_i16");
 }
 
 void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i8");
+  bailout(kComplexOperation, "i64_signextend_i8");
 }
 
 void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i16");
+  bailout(kComplexOperation, "i64_signextend_i16");
 }
 
 void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i32");
+  bailout(kComplexOperation, "i64_signextend_i32");
 }
 
 void LiftoffAssembler::emit_jump(Label* label) {
@@ -1239,29 +1235,29 @@ void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
 
 namespace liftoff {
 
-inline FPUCondition ConditionToConditionCmpFPU(bool& predicate,
-                                               Condition condition) {
+inline FPUCondition ConditionToConditionCmpFPU(Condition condition,
+                                               bool* predicate) {
   switch (condition) {
     case kEqual:
-      predicate = true;
+      *predicate = true;
       return EQ;
     case kUnequal:
-      predicate = false;
+      *predicate = false;
       return EQ;
     case kUnsignedLessThan:
-      predicate = true;
+      *predicate = true;
       return OLT;
     case kUnsignedGreaterEqual:
-      predicate = false;
+      *predicate = false;
       return OLT;
     case kUnsignedLessEqual:
-      predicate = true;
+      *predicate = true;
       return OLE;
     case kUnsignedGreaterThan:
-      predicate = false;
+      *predicate = false;
       return OLE;
     default:
-      predicate = true;
+      *predicate = true;
       break;
   }
   UNREACHABLE();
@@ -1287,7 +1283,7 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
 
   TurboAssembler::li(dst, 1);
   bool predicate;
-  FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(predicate, cond);
+  FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(cond, &predicate);
   TurboAssembler::CompareF32(fcond, lhs, rhs);
   if (predicate) {
     TurboAssembler::LoadZeroIfNotFPUCondition(dst);
@@ -1316,7 +1312,7 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
 
   TurboAssembler::li(dst, 1);
   bool predicate;
-  FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(predicate, cond);
+  FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(cond, &predicate);
   TurboAssembler::CompareF64(fcond, lhs, rhs);
   if (predicate) {
     TurboAssembler::LoadZeroIfNotFPUCondition(dst);
@@ -1510,7 +1506,5 @@ void LiftoffStackSlots::Construct() {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-
-#undef BAILOUT
 
 #endif  // V8_WASM_BASELINE_MIPS_LIFTOFF_ASSEMBLER_MIPS_H_

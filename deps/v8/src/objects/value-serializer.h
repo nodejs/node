@@ -11,7 +11,7 @@
 #include "include/v8.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/vector.h"
@@ -27,9 +27,9 @@ class JSArrayBuffer;
 class JSArrayBufferView;
 class JSDate;
 class JSMap;
+class JSPrimitiveWrapper;
 class JSRegExp;
 class JSSet;
-class JSValue;
 class MutableHeapNumber;
 class Object;
 class Oddball;
@@ -120,13 +120,15 @@ class ValueSerializer {
   Maybe<bool> WriteJSObjectSlow(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArray(Handle<JSArray> array) V8_WARN_UNUSED_RESULT;
   void WriteJSDate(JSDate date);
-  Maybe<bool> WriteJSValue(Handle<JSValue> value) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSPrimitiveWrapper(Handle<JSPrimitiveWrapper> value)
+      V8_WARN_UNUSED_RESULT;
   void WriteJSRegExp(JSRegExp regexp);
   Maybe<bool> WriteJSMap(Handle<JSMap> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSet(Handle<JSSet> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBuffer(Handle<JSArrayBuffer> array_buffer)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView array_buffer);
+  Maybe<bool> WriteJSError(Handle<JSObject> error) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteWasmModule(Handle<WasmModuleObject> object)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteWasmMemory(Handle<WasmMemoryObject> object)
@@ -264,7 +266,8 @@ class ValueDeserializer {
   MaybeHandle<JSArray> ReadSparseJSArray() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArray> ReadDenseJSArray() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSDate> ReadJSDate() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSValue> ReadJSValue(SerializationTag tag) V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSPrimitiveWrapper> ReadJSPrimitiveWrapper(SerializationTag tag)
+      V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSRegExp> ReadJSRegExp() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSMap> ReadJSMap() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSSet> ReadJSSet() V8_WARN_UNUSED_RESULT;
@@ -274,6 +277,7 @@ class ValueDeserializer {
       V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
       Handle<JSArrayBuffer> buffer) V8_WARN_UNUSED_RESULT;
+  MaybeHandle<Object> ReadJSError() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadWasmModule() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;
   MaybeHandle<WasmMemoryObject> ReadWasmMemory() V8_WARN_UNUSED_RESULT;

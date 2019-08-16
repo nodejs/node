@@ -233,7 +233,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
     bool FieldsEquals(AbstractFields const& this_fields,
                       AbstractFields const& that_fields) const;
-    void FieldsMerge(AbstractFields& this_fields,
+    void FieldsMerge(AbstractFields* this_fields,
                      AbstractFields const& that_fields, Zone* zone);
 
     AbstractElements const* elements_ = nullptr;

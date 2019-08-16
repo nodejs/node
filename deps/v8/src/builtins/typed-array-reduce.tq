@@ -19,7 +19,7 @@ namespace typed_array_reduce {
       // BUG(4895): We should throw on detached buffers rather than simply exit.
       witness.Recheck() otherwise break;
       const value: Object = witness.Load(k);
-      if (accumulator == Hole) {
+      if (accumulator == TheHole) {
         accumulator = value;
       } else {
         accumulator = Call(
@@ -27,7 +27,7 @@ namespace typed_array_reduce {
             witness.GetStable());
       }
     }
-    if (accumulator == Hole) {
+    if (accumulator == TheHole) {
       ThrowTypeError(kReduceNoInitial, kBuiltinName);
     }
     return accumulator;
@@ -35,8 +35,8 @@ namespace typed_array_reduce {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduce
   transitioning javascript builtin
-  TypedArrayPrototypeReduce(implicit context: Context)(
-      receiver: Object, ...arguments): Object {
+  TypedArrayPrototypeReduce(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // arguments[0] = callback
     // arguments[1] = initialValue.
     try {
@@ -45,7 +45,7 @@ namespace typed_array_reduce {
       const uarray = typed_array::EnsureAttached(array) otherwise IsDetached;
 
       const callbackfn = Cast<Callable>(arguments[0]) otherwise NotCallable;
-      const initialValue = arguments.length >= 2 ? arguments[1] : Hole;
+      const initialValue = arguments.length >= 2 ? arguments[1] : TheHole;
       return ReduceAllElements(uarray, callbackfn, initialValue);
     }
     label NotCallable deferred {

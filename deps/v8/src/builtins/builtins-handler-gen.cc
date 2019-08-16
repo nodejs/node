@@ -28,7 +28,8 @@ class HandlerBuiltinsAssembler : public CodeStubAssembler {
   // kind. Use with caution. This produces a *lot* of code.
   using ElementsKindSwitchCase = std::function<void(ElementsKind)>;
   void DispatchByElementsKind(TNode<Int32T> elements_kind,
-                              const ElementsKindSwitchCase& case_function);
+                              const ElementsKindSwitchCase& case_function,
+                              bool handle_typed_elements_kind);
 
   // Dispatches over all possible combinations of {from,to} elements kinds.
   using ElementsKindTransitionSwitchCase =
@@ -48,7 +49,7 @@ TF_BUILTIN(LoadIC_StringLength, CodeStubAssembler) {
 
 TF_BUILTIN(LoadIC_StringWrapperLength, CodeStubAssembler) {
   Node* value = Parameter(Descriptor::kReceiver);
-  Node* string = LoadJSValueValue(value);
+  Node* string = LoadJSPrimitiveWrapperValue(value);
   Return(LoadStringLengthAsSmi(string));
 }
 
@@ -227,7 +228,7 @@ void HandlerBuiltinsAssembler::Generate_ElementsTransitionAndStore(
         [=, &miss](ElementsKind from_kind, ElementsKind to_kind) {
           TransitionElementsKind(receiver, map, from_kind, to_kind, &miss);
           EmitElementStore(receiver, key, value, to_kind, store_mode, &miss,
-                           context);
+                           context, nullptr);
         });
     Return(value);
   }
@@ -280,7 +281,8 @@ TF_BUILTIN(ElementsTransitionAndStore_NoTransitionHandleCOW,
   V(BIGINT64_ELEMENTS)
 
 void HandlerBuiltinsAssembler::DispatchByElementsKind(
-    TNode<Int32T> elements_kind, const ElementsKindSwitchCase& case_function) {
+    TNode<Int32T> elements_kind, const ElementsKindSwitchCase& case_function,
+    bool handle_typed_elements_kind) {
   Label next(this), if_unknown_type(this, Label::kDeferred);
 
   int32_t elements_kinds[] = {
@@ -300,6 +302,8 @@ void HandlerBuiltinsAssembler::DispatchByElementsKind(
   };
   STATIC_ASSERT(arraysize(elements_kinds) == arraysize(elements_kind_labels));
 
+  // TODO(mythria): Do not emit cases for typed elements kind when
+  // handle_typed_elements is false to decrease the size of the jump table.
   Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
          arraysize(elements_kinds));
 
@@ -309,6 +313,9 @@ void HandlerBuiltinsAssembler::DispatchByElementsKind(
     if (!FLAG_enable_sealed_frozen_elements_kind &&              \
         IsFrozenOrSealedElementsKindUnchecked(KIND)) {           \
       /* Disable support for frozen or sealed elements kinds. */ \
+      Unreachable();                                             \
+    } else if (!handle_typed_elements_kind &&                    \
+               IsTypedArrayElementsKind(KIND)) {                 \
       Unreachable();                                             \
     } else {                                                     \
       case_function(KIND);                                       \
@@ -340,17 +347,26 @@ void HandlerBuiltinsAssembler::Generate_StoreFastElementIC(
 
   Label miss(this);
 
+  bool handle_typed_elements_kind =
+      store_mode == STANDARD_STORE || store_mode == STORE_IGNORE_OUT_OF_BOUNDS;
+  // For typed arrays maybe_converted_value contains the value obtained after
+  // calling ToNumber. We should pass the converted value to the runtime to
+  // avoid doing the user visible conversion again.
+  VARIABLE(maybe_converted_value, MachineRepresentation::kTagged, value);
+  maybe_converted_value.Bind(value);
   // TODO(v8:8481): Pass elements_kind in feedback vector slots.
-  DispatchByElementsKind(LoadElementsKind(receiver),
-                         [=, &miss](ElementsKind elements_kind) {
-                           EmitElementStore(receiver, key, value, elements_kind,
-                                            store_mode, &miss, context);
-                         });
+  DispatchByElementsKind(
+      LoadElementsKind(receiver),
+      [=, &miss, &maybe_converted_value](ElementsKind elements_kind) {
+        EmitElementStore(receiver, key, value, elements_kind, store_mode, &miss,
+                         context, &maybe_converted_value);
+      },
+      handle_typed_elements_kind);
   Return(value);
 
   BIND(&miss);
-  TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot, vector,
-                  receiver, key);
+  TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context,
+                  maybe_converted_value.value(), slot, vector, receiver, key);
 }
 
 TF_BUILTIN(StoreFastElementIC_Standard, HandlerBuiltinsAssembler) {

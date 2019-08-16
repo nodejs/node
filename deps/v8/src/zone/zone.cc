@@ -27,8 +27,7 @@ constexpr size_t kASanRedzoneBytes = 0;
 
 }  // namespace
 
-Zone::Zone(AccountingAllocator* allocator, const char* name,
-           SegmentSize segment_size)
+Zone::Zone(AccountingAllocator* allocator, const char* name)
     : allocation_size_(0),
       segment_bytes_allocated_(0),
       position_(0),
@@ -36,8 +35,7 @@ Zone::Zone(AccountingAllocator* allocator, const char* name,
       allocator_(allocator),
       segment_head_(nullptr),
       name_(name),
-      sealed_(false),
-      segment_size_(segment_size) {
+      sealed_(false) {
   allocator_->ZoneCreation(this);
 }
 
@@ -137,12 +135,9 @@ Address Zone::NewExpand(size_t size) {
     V8::FatalProcessOutOfMemory(nullptr, "Zone");
     return kNullAddress;
   }
-  if (segment_size_ == SegmentSize::kLarge) {
-    new_size = kMaximumSegmentSize;
-  }
   if (new_size < kMinimumSegmentSize) {
     new_size = kMinimumSegmentSize;
-  } else if (new_size > kMaximumSegmentSize) {
+  } else if (new_size >= kMaximumSegmentSize) {
     // Limit the size of new segments to avoid growing the segment size
     // exponentially, thus putting pressure on contiguous virtual address space.
     // All the while making sure to allocate a segment large enough to hold the

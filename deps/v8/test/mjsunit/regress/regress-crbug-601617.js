@@ -15,7 +15,7 @@ function g(o) {
 }
 
 function f1() {
-  var o = { x : 1 };
+  var o = {x: 1};
   var res = g(o);
   return res;
 }
@@ -23,8 +23,8 @@ function f1() {
 function f0() {
   "use strict";
   return f1(5);
-}
-
+};
+%PrepareFunctionForOptimization(f0);
 %NeverOptimizeFunction(h);
 f0();
 f0();

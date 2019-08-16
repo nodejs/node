@@ -143,6 +143,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_Push:
     case kPPC_PushFrame:
     case kPPC_StoreToStackSlot:
+    case kPPC_Sync:
       return kHasSideEffect;
 
     case kPPC_AtomicStoreUint8:

@@ -32,8 +32,8 @@
 
 function f(x) {
   return Math.sqrt(x);
-}
-
+};
+%PrepareFunctionForOptimization(f);
 var x = 7.0506280066499245e-233;
 
 var a = f(x);

@@ -5,8 +5,8 @@
 #ifndef V8_HEAP_REMEMBERED_SET_H_
 #define V8_HEAP_REMEMBERED_SET_H_
 
+#include "src/base/memory.h"
 #include "src/codegen/reloc-info.h"
-#include "src/common/v8memory.h"
 #include "src/heap/heap.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
@@ -309,7 +309,7 @@ class UpdateTypedSlotHelper {
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&code));
     DCHECK(!HasWeakHeapObjectTag(code));
     if (code != old_code) {
-      Memory<Address>(entry_address) = code.entry();
+      base::Memory<Address>(entry_address) = code.entry();
     }
     return result;
   }

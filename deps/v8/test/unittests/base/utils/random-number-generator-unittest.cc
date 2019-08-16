@@ -37,8 +37,9 @@ static void CheckSlowSample(const std::vector<uint64_t>& sample, uint64_t max,
   }
 }
 
-static void TestNextSample(RandomNumberGenerator& rng, uint64_t max,
-                           size_t size, bool slow = false) {
+static void TestNextSample(
+    RandomNumberGenerator& rng,  // NOLINT(runtime/references)
+    uint64_t max, size_t size, bool slow = false) {
   std::vector<uint64_t> sample =
       slow ? rng.NextSampleSlow(max, size) : rng.NextSample(max, size);
 

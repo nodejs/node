@@ -243,6 +243,12 @@ class JSTypedArray : public JSArrayBufferView {
 
   class BodyDescriptor;
 
+#ifdef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
+  static constexpr size_t kMaxSizeInHeap = V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP;
+#else
+  static constexpr size_t kMaxSizeInHeap = 64;
+#endif
+
  private:
   static Handle<JSArrayBuffer> MaterializeArrayBuffer(
       Handle<JSTypedArray> typed_array);

@@ -12,9 +12,9 @@
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects/js-generator.h"
-#include "src/objects/module.h"
-#include "src/utils/allocation.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/source-text-module.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -324,7 +324,7 @@ Node* IntrinsicsGenerator::GetImportMetaObject(
   Node* const module =
       __ LoadContextElement(module_context, Context::EXTENSION_INDEX);
   Node* const import_meta =
-      __ LoadObjectField(module, Module::kImportMetaOffset);
+      __ LoadObjectField(module, SourceTextModule::kImportMetaOffset);
 
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);

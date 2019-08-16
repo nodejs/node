@@ -167,7 +167,7 @@ struct ValueTypePair {
     {kLocalI64, kWasmI64},          // --
     {kLocalF32, kWasmF32},          // --
     {kLocalF64, kWasmF64},          // --
-    {kLocalAnyFunc, kWasmAnyFunc},  // --
+    {kLocalFuncRef, kWasmFuncRef},  // --
     {kLocalAnyRef, kWasmAnyRef}     // --
 };
 
@@ -306,7 +306,7 @@ TEST_F(WasmModuleVerifyTest, AnyRefGlobal) {
   }
 }
 
-TEST_F(WasmModuleVerifyTest, AnyFuncGlobal) {
+TEST_F(WasmModuleVerifyTest, FuncRefGlobal) {
   WASM_FEATURE_SCOPE(anyref);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
@@ -315,10 +315,10 @@ TEST_F(WasmModuleVerifyTest, AnyFuncGlobal) {
       TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       SECTION(Global,                       // --
               ENTRY_COUNT(2),               // --
-              kLocalAnyFunc,                // local type
+              kLocalFuncRef,                // local type
               0,                            // immutable
               WASM_INIT_EXPR_REF_NULL,      // init
-              kLocalAnyFunc,                // local type
+              kLocalFuncRef,                // local type
               0,                            // immutable
               WASM_INIT_EXPR_REF_FUNC(1)),  // init
       TWO_EMPTY_BODIES};
@@ -331,12 +331,12 @@ TEST_F(WasmModuleVerifyTest, AnyFuncGlobal) {
     EXPECT_EQ(0u, result.value()->data_segments.size());
 
     const WasmGlobal* global = &result.value()->globals[0];
-    EXPECT_EQ(kWasmAnyFunc, global->type);
+    EXPECT_EQ(kWasmFuncRef, global->type);
     EXPECT_FALSE(global->mutability);
     EXPECT_EQ(WasmInitExpr::kRefNullConst, global->init.kind);
 
     global = &result.value()->globals[1];
-    EXPECT_EQ(kWasmAnyFunc, global->type);
+    EXPECT_EQ(kWasmFuncRef, global->type);
     EXPECT_FALSE(global->mutability);
     EXPECT_EQ(WasmInitExpr::kRefFuncConst, global->init.kind);
     EXPECT_EQ(uint32_t{1}, global->init.val.function_index);
@@ -439,7 +439,9 @@ TEST_F(WasmModuleVerifyTest, ExportMutableGlobal) {
   }
 }
 
-static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
+static void AppendUint32v(
+    std::vector<byte>& buffer,  // NOLINT(runtime/references)
+    uint32_t val) {
   while (true) {
     uint32_t next = val >> 7;
     uint32_t out = val & 0x7F;
@@ -920,7 +922,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalAnyFunc, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
       // code ----------------------------------------------------------------
       ONE_EMPTY_BODY};
 
@@ -937,7 +939,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
 TEST_F(WasmModuleVerifyTest, ElementSectionWithInternalTable) {
   static const byte data[] = {
       // table ---------------------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalAnyFunc, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
       // elements ------------------------------------------------------------
       SECTION(Element, ENTRY_COUNT(0))};
 
@@ -951,7 +953,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionWithImportedTable) {
               ADD_COUNT('m'),  // module name
               ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
-              kLocalAnyFunc,   // elem_type
+              kLocalFuncRef,   // elem_type
               0,               // no maximum field
               1),              // initial size
       // elements ------------------------------------------------------------
@@ -982,7 +984,7 @@ TEST_F(WasmModuleVerifyTest, Regression_735887) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalAnyFunc, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
@@ -1001,7 +1003,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalAnyFunc, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
@@ -1029,7 +1031,7 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
       // funcs ------------------------------------------------------
       FOUR_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       // table declaration -------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalAnyFunc, 0, 8),
+      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 8),
       // table elements ----------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
@@ -1059,8 +1061,8 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTables) {
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kLocalAnyFunc, 0, 5,    // table 0
-              kLocalAnyFunc, 0, 9),   // table 1
+              kLocalFuncRef, 0, 5,    // table 0
+              kLocalFuncRef, 0, 9),   // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(2),            // entry count
@@ -1092,21 +1094,21 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTables) {
               ADD_COUNT('m'),  // module name
               ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
-              kLocalAnyFunc,   // elem_type
+              kLocalFuncRef,   // elem_type
               0,               // no maximum field
               5,               // initial size
               ADD_COUNT('m'),  // module name
               ADD_COUNT('s'),  // table name
               kExternalTable,  // import kind
-              kLocalAnyFunc,   // elem_type
+              kLocalFuncRef,   // elem_type
               0,               // no maximum field
               10),             // initial size
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kLocalAnyFunc, 0, 15,   // table 0
-              kLocalAnyFunc, 0, 19),  // table 1
+              kLocalFuncRef, 0, 15,   // table 0
+              kLocalFuncRef, 0, 19),  // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               4,                          // entry count
@@ -1146,8 +1148,8 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTablesArbitraryOrder) {
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kLocalAnyFunc, 0, 5,    // table 0
-              kLocalAnyFunc, 0, 9),   // table 1
+              kLocalFuncRef, 0, 5,    // table 0
+              kLocalFuncRef, 0, 9),   // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(3),            // entry count
@@ -1183,21 +1185,21 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
               ADD_COUNT('m'),  // module name
               ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
-              kLocalAnyFunc,   // elem_type
+              kLocalFuncRef,   // elem_type
               0,               // no maximum field
               5,               // initial size
               ADD_COUNT('m'),  // module name
               ADD_COUNT('s'),  // table name
               kExternalTable,  // import kind
-              kLocalAnyFunc,   // elem_type
+              kLocalFuncRef,   // elem_type
               0,               // no maximum field
               10),             // initial size
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kLocalAnyFunc, 0, 15,   // table 0
-              kLocalAnyFunc, 0, 19),  // table 1
+              kLocalFuncRef, 0, 15,   // table 0
+              kLocalFuncRef, 0, 19),  // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               4,                          // entry count
@@ -1225,7 +1227,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
   EXPECT_VERIFIES(data);
 }
 
-TEST_F(WasmModuleVerifyTest, ElementSectionInitAnyRefTableWithAnyFunc) {
+TEST_F(WasmModuleVerifyTest, ElementSectionInitAnyRefTableWithFuncRef) {
   WASM_FEATURE_SCOPE(anyref);
   WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
@@ -1236,7 +1238,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitAnyRefTableWithAnyFunc) {
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
               kLocalAnyRef, 0, 5,     // table 0
-              kLocalAnyFunc, 0, 9),   // table 1
+              kLocalFuncRef, 0, 9),   // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(2),            // entry count
@@ -1269,7 +1271,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefImportedTable) {
               ADD_COUNT('m'),  // module name
               ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
-              kLocalAnyFunc,   // elem_type
+              kLocalFuncRef,   // elem_type
               0,               // no maximum field
               5,               // initial size
               ADD_COUNT('m'),  // module name
@@ -1282,8 +1284,8 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefImportedTable) {
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kLocalAnyFunc, 0, 15,   // table 0
-              kLocalAnyFunc, 0, 19),  // table 1
+              kLocalFuncRef, 0, 15,   // table 0
+              kLocalFuncRef, 0, 19),  // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(4),             // entry count
@@ -1327,10 +1329,10 @@ TEST_F(WasmModuleVerifyTest, MultipleTablesWithoutFlag) {
   static const byte data[] = {
       SECTION(Table,           // table section
               ENTRY_COUNT(2),  // 2 tables
-              kLocalAnyFunc,   // table 1: type
+              kLocalFuncRef,   // table 1: type
               0,               // table 1: no maximum
               10,              // table 1: minimum size
-              kLocalAnyFunc,   // table 2: type
+              kLocalFuncRef,   // table 2: type
               0,               // table 2: no maximum
               10),             // table 2: minimum size
   };
@@ -1342,7 +1344,7 @@ TEST_F(WasmModuleVerifyTest, MultipleTablesWithFlag) {
   static const byte data[] = {
       SECTION(Table,           // table section
               ENTRY_COUNT(2),  // 2 tables
-              kLocalAnyFunc,   // table 1: type
+              kLocalFuncRef,   // table 1: type
               0,               // table 1: no maximum
               10,              // table 1: minimum size
               kLocalAnyRef,    // table 2: type
@@ -1356,7 +1358,7 @@ TEST_F(WasmModuleVerifyTest, MultipleTablesWithFlag) {
   EXPECT_EQ(2u, result.value()->tables.size());
 
   EXPECT_EQ(10u, result.value()->tables[0].initial_size);
-  EXPECT_EQ(kWasmAnyFunc, result.value()->tables[0].type);
+  EXPECT_EQ(kWasmFuncRef, result.value()->tables[0].type);
 
   EXPECT_EQ(11u, result.value()->tables[1].initial_size);
   EXPECT_EQ(kWasmAnyRef, result.value()->tables[1].type);
@@ -1544,7 +1546,7 @@ TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
 TEST_F(WasmSignatureDecodeTest, Fail_anyref_without_flag) {
   // Disable AnyRef support and check that decoding fails.
   WASM_FEATURE_SCOPE_VAL(anyref, false);
-  byte ref_types[] = {kLocalAnyFunc, kLocalAnyRef};
+  byte ref_types[] = {kLocalFuncRef, kLocalAnyRef};
   for (byte invalid_type : ref_types) {
     for (size_t i = 0;; i++) {
       byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalI32)};
@@ -2350,9 +2352,9 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegment) {
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalAnyFunc, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
       // element segments  -----------------------------------------------------
-      SECTION(Element, ENTRY_COUNT(1), PASSIVE, kLocalAnyFunc, U32V_1(3),
+      SECTION(Element, ENTRY_COUNT(1), PASSIVE, kLocalFuncRef, U32V_1(3),
               REF_FUNC_ELEMENT(0), REF_FUNC_ELEMENT(0), REF_NULL_ELEMENT),
       // code ------------------------------------------------------------------
       ONE_EMPTY_BODY};
@@ -2369,7 +2371,7 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegmentAnyRef) {
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalAnyFunc, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
       // element segments  -----------------------------------------------------
       SECTION(Element, ENTRY_COUNT(1), PASSIVE, kLocalAnyRef, U32V_1(0)),
       // code ------------------------------------------------------------------

@@ -37,6 +37,7 @@ function test(f, iterations) {
   for (let i = 0; i < n; i++) {
     %OptimizeFunctionOnNextCall(f);
     f();
+    %PrepareFunctionForOptimization(f);
   }
   // Assert that the function finally stabilized.
   assertOptimized(f);

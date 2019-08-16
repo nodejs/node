@@ -3,39 +3,20 @@
 // found in the LICENSE file.
 
 namespace boolean {
-  const kNameDictionaryInitialCapacity:
-      constexpr int32 generates 'NameDictionary::kInitialCapacity';
-
-  extern macro ConstructorBuiltinsAssembler::IsDictionaryMap(Map): bool;
-  extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
-      NameDictionary;
-
-  // TODO(v8:9120): This is a workaround to get access to target and new.target
-  // in javascript builtins. Requires cleanup once this is fully supported by
-  // torque.
-  const NEW_TARGET_INDEX:
-      constexpr int32 generates 'Descriptor::kJSNewTarget';
-  const TARGET_INDEX: constexpr int32 generates 'Descriptor::kJSTarget';
-  extern macro Parameter(constexpr int32): Object;
-
   javascript builtin
-  BooleanConstructor(context: Context, receiver: Object, ...arguments): Object {
+  BooleanConstructor(
+      js-implicit context: Context, receiver: Object, newTarget: Object,
+      target: JSFunction)(...arguments): Object {
     const value = SelectBooleanConstant(ToBoolean(arguments[0]));
 
-    const newTarget = Parameter(NEW_TARGET_INDEX);
     if (newTarget == Undefined) {
       return value;
     }
 
-    const target = UnsafeCast<JSFunction>(Parameter(TARGET_INDEX));
     const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
-    let properties = kEmptyFixedArray;
-    if (IsDictionaryMap(map)) {
-      properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
-    }
 
-    const obj = UnsafeCast<JSValue>(AllocateJSObjectFromMap(
-        map, properties, kEmptyFixedArray, kNone, kWithSlackTracking));
+    const obj =
+        UnsafeCast<JSPrimitiveWrapper>(AllocateFastOrSlowJSObjectFromMap(map));
     obj.value = value;
     return obj;
   }

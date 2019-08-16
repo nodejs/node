@@ -19,7 +19,7 @@ FieldIndex FieldIndex::ForInObjectOffset(int offset, Encoding encoding) {
   return FieldIndex(true, offset, encoding, 0, 0);
 }
 
-FieldIndex FieldIndex::ForPropertyIndex(const Map map, int property_index,
+FieldIndex FieldIndex::ForPropertyIndex(Map map, int property_index,
                                         Representation representation) {
   DCHECK(map.instance_type() >= FIRST_NONSTRING_TYPE);
   int inobject_properties = map.GetInObjectProperties();
@@ -60,9 +60,15 @@ int FieldIndex::GetLoadByFieldIndex() const {
   return is_double() ? (result | 1) : result;
 }
 
-FieldIndex FieldIndex::ForDescriptor(const Map map, int descriptor_index) {
+FieldIndex FieldIndex::ForDescriptor(Map map, int descriptor_index) {
+  Isolate* isolate = GetIsolateForPtrCompr(map);
+  return ForDescriptor(isolate, map, descriptor_index);
+}
+
+FieldIndex FieldIndex::ForDescriptor(Isolate* isolate, Map map,
+                                     int descriptor_index) {
   PropertyDetails details =
-      map.instance_descriptors().GetDetails(descriptor_index);
+      map.instance_descriptors(isolate).GetDetails(descriptor_index);
   int field_index = details.field_index();
   return ForPropertyIndex(map, field_index, details.representation());
 }

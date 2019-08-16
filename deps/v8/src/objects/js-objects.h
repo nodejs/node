@@ -8,6 +8,7 @@
 #include "src/objects/embedder-data-slot.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-array.h"
+#include "torque-generated/class-definitions-tq.h"
 #include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -27,16 +28,16 @@ class JSReceiver : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   // Returns true if there is no slow (ie, dictionary) backing store.
-  inline bool HasFastProperties() const;
+  DECL_GETTER(HasFastProperties, bool)
 
   // Returns the properties array backing store if it
   // exists. Otherwise, returns an empty_property_array when there's a
   // Smi (hash code) or an empty_fixed_array for a fast properties
   // map.
-  inline PropertyArray property_array() const;
+  DECL_GETTER(property_array, PropertyArray)
 
   // Gets slow properties for non-global objects.
-  inline NameDictionary property_dictionary() const;
+  DECL_GETTER(property_dictionary, NameDictionary)
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
@@ -62,12 +63,13 @@ class JSReceiver : public HeapObject {
   // above typed getters and setters to access the properties.
   DECL_ACCESSORS(raw_properties_or_hash, Object)
 
-  inline void initialize_properties();
+  inline void initialize_properties(Isolate* isolate);
 
   // Deletes an existing named property in a normalized object.
   static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
 
   DECL_CAST(JSReceiver)
+  DECL_VERIFIER(JSReceiver)
 
   // ES6 section 7.1.1 ToPrimitive
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ToPrimitive(
@@ -275,7 +277,7 @@ class JSReceiver : public HeapObject {
 // properties.
 // Note that the map of JSObject changes during execution to enable inline
 // caching.
-class JSObject : public JSReceiver {
+class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
  public:
   static bool IsUnmodifiedApiObject(FullObjectSlot o);
 
@@ -290,78 +292,63 @@ class JSObject : public JSReceiver {
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(
       Isolate* isolate, Handle<Object> prototype);
 
-  // [elements]: The elements (properties with names that are integers).
-  //
-  // Elements can be in two general modes: fast and slow. Each mode
-  // corresponds to a set of object representations of elements that
-  // have something in common.
-  //
-  // In the fast mode elements is a FixedArray and so each element can be
-  // quickly accessed. The elements array can have one of several maps in this
-  // mode: fixed_array_map, fixed_double_array_map,
-  // sloppy_arguments_elements_map or fixed_cow_array_map (for copy-on-write
-  // arrays). In the latter case the elements array may be shared by a few
-  // objects and so before writing to any element the array must be copied. Use
-  // EnsureWritableFastElements in this case.
-  //
-  // In the slow mode the elements is either a NumberDictionary or a
-  // FixedArray parameter map for a (sloppy) arguments object.
-  DECL_ACCESSORS(elements, FixedArrayBase)
   inline void initialize_elements();
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
                                        Handle<FixedArrayBase> elements);
-  inline ElementsKind GetElementsKind() const;
-  V8_EXPORT_PRIVATE ElementsAccessor* GetElementsAccessor();
+  DECL_GETTER(GetElementsKind, ElementsKind)
+  DECL_GETTER(GetElementsAccessor, ElementsAccessor*)
+
   // Returns true if an object has elements of PACKED_SMI_ELEMENTS or
   // HOLEY_SMI_ELEMENTS ElementsKind.
-  inline bool HasSmiElements();
+  DECL_GETTER(HasSmiElements, bool)
   // Returns true if an object has elements of PACKED_ELEMENTS or
   // HOLEY_ELEMENTS ElementsKind.
-  inline bool HasObjectElements();
+  DECL_GETTER(HasObjectElements, bool)
   // Returns true if an object has elements of PACKED_SMI_ELEMENTS,
   // HOLEY_SMI_ELEMENTS, PACKED_ELEMENTS, or HOLEY_ELEMENTS.
-  inline bool HasSmiOrObjectElements();
+  DECL_GETTER(HasSmiOrObjectElements, bool)
   // Returns true if an object has any of the "fast" elements kinds.
-  inline bool HasFastElements();
+  DECL_GETTER(HasFastElements, bool)
   // Returns true if an object has any of the PACKED elements kinds.
-  inline bool HasFastPackedElements();
+  DECL_GETTER(HasFastPackedElements, bool)
   // Returns true if an object has elements of PACKED_DOUBLE_ELEMENTS or
   // HOLEY_DOUBLE_ELEMENTS ElementsKind.
-  inline bool HasDoubleElements();
+  DECL_GETTER(HasDoubleElements, bool)
   // Returns true if an object has elements of HOLEY_SMI_ELEMENTS,
   // HOLEY_DOUBLE_ELEMENTS, or HOLEY_ELEMENTS ElementsKind.
-  inline bool HasHoleyElements();
-  inline bool HasSloppyArgumentsElements();
-  inline bool HasStringWrapperElements();
-  inline bool HasDictionaryElements();
+  DECL_GETTER(HasHoleyElements, bool)
+  DECL_GETTER(HasSloppyArgumentsElements, bool)
+  DECL_GETTER(HasStringWrapperElements, bool)
+  DECL_GETTER(HasDictionaryElements, bool)
 
   // Returns true if an object has elements of PACKED_ELEMENTS
-  inline bool HasPackedElements();
-  inline bool HasFrozenOrSealedElements();
-  inline bool HasSealedElements();
+  DECL_GETTER(HasPackedElements, bool)
+  DECL_GETTER(HasFrozenOrSealedElements, bool)
+  DECL_GETTER(HasSealedElements, bool)
 
-  inline bool HasTypedArrayElements();
+  DECL_GETTER(HasTypedArrayElements, bool)
 
-  inline bool HasFixedUint8ClampedElements();
-  inline bool HasFixedArrayElements();
-  inline bool HasFixedInt8Elements();
-  inline bool HasFixedUint8Elements();
-  inline bool HasFixedInt16Elements();
-  inline bool HasFixedUint16Elements();
-  inline bool HasFixedInt32Elements();
-  inline bool HasFixedUint32Elements();
-  inline bool HasFixedFloat32Elements();
-  inline bool HasFixedFloat64Elements();
-  inline bool HasFixedBigInt64Elements();
-  inline bool HasFixedBigUint64Elements();
+  DECL_GETTER(HasFixedUint8ClampedElements, bool)
+  DECL_GETTER(HasFixedArrayElements, bool)
+  DECL_GETTER(HasFixedInt8Elements, bool)
+  DECL_GETTER(HasFixedUint8Elements, bool)
+  DECL_GETTER(HasFixedInt16Elements, bool)
+  DECL_GETTER(HasFixedUint16Elements, bool)
+  DECL_GETTER(HasFixedInt32Elements, bool)
+  DECL_GETTER(HasFixedUint32Elements, bool)
+  DECL_GETTER(HasFixedFloat32Elements, bool)
+  DECL_GETTER(HasFixedFloat64Elements, bool)
+  DECL_GETTER(HasFixedBigInt64Elements, bool)
+  DECL_GETTER(HasFixedBigUint64Elements, bool)
 
-  inline bool HasFastArgumentsElements();
-  inline bool HasSlowArgumentsElements();
-  inline bool HasFastStringWrapperElements();
-  inline bool HasSlowStringWrapperElements();
+  DECL_GETTER(HasFastArgumentsElements, bool)
+  DECL_GETTER(HasSlowArgumentsElements, bool)
+  DECL_GETTER(HasFastStringWrapperElements, bool)
+  DECL_GETTER(HasSlowStringWrapperElements, bool)
   bool HasEnumerableElements();
 
-  inline NumberDictionary element_dictionary();  // Gets slow elements.
+  // Gets slow elements.
+  DECL_GETTER(element_dictionary, NumberDictionary)
 
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(Handle<JSObject> object);
@@ -431,11 +418,11 @@ class JSObject : public JSReceiver {
 
   // Migrates the given object to a map whose field representations are the
   // lowest upper bound of all known representations for that field.
-  static void MigrateInstance(Handle<JSObject> instance);
+  static void MigrateInstance(Isolate* isolate, Handle<JSObject> instance);
 
   // Migrates the given object only if the target map is already available,
   // or returns false if such a map is not yet available.
-  static bool TryMigrateInstance(Handle<JSObject> instance);
+  static bool TryMigrateInstance(Isolate* isolate, Handle<JSObject> instance);
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
@@ -476,8 +463,8 @@ class JSObject : public JSReceiver {
                                                   int old_index, int new_index);
 
   // Retrieve interceptors.
-  inline InterceptorInfo GetNamedInterceptor();
-  inline InterceptorInfo GetIndexedInterceptor();
+  DECL_GETTER(GetNamedInterceptor, InterceptorInfo)
+  DECL_GETTER(GetIndexedInterceptor, InterceptorInfo)
 
   // Used from JSReceiver.
   V8_WARN_UNUSED_RESULT static Maybe<PropertyAttributes>
@@ -546,8 +533,8 @@ class JSObject : public JSReceiver {
 
   // Lookup interceptors are used for handling properties controlled by host
   // objects.
-  inline bool HasNamedInterceptor();
-  inline bool HasIndexedInterceptor();
+  DECL_GETTER(HasNamedInterceptor, bool)
+  DECL_GETTER(HasIndexedInterceptor, bool)
 
   // Support functions for v8 api (needed for correct interceptor behavior).
   V8_WARN_UNUSED_RESULT static Maybe<bool> HasRealNamedProperty(
@@ -563,13 +550,12 @@ class JSObject : public JSReceiver {
   // JSFunction objects.
   static int GetHeaderSize(InstanceType instance_type,
                            bool function_has_prototype_slot = false);
-  static inline int GetHeaderSize(const Map map);
-  inline int GetHeaderSize() const;
+  static inline int GetHeaderSize(Map map);
 
-  static inline int GetEmbedderFieldsStartOffset(const Map map);
+  static inline int GetEmbedderFieldsStartOffset(Map map);
   inline int GetEmbedderFieldsStartOffset();
 
-  static inline int GetEmbedderFieldCount(const Map map);
+  static inline int GetEmbedderFieldCount(Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
   inline Object GetEmbedderField(int index);
@@ -596,7 +582,7 @@ class JSObject : public JSReceiver {
   // |expected_additional_properties| is only used for fast-to-slow transitions
   // and ignored otherwise.
   V8_EXPORT_PRIVATE static void MigrateToMap(
-      Handle<JSObject> object, Handle<Map> new_map,
+      Isolate* isolate, Handle<JSObject> object, Handle<Map> new_map,
       int expected_additional_properties = 0);
 
   // Forces a prototype without any of the checks that the regular SetPrototype
@@ -609,7 +595,7 @@ class JSObject : public JSReceiver {
   // added this number can be indicated to have the backing store allocated to
   // an initial capacity for holding these properties.
   V8_EXPORT_PRIVATE static void NormalizeProperties(
-      Handle<JSObject> object, PropertyNormalizationMode mode,
+      Isolate* isolate, Handle<JSObject> object, PropertyNormalizationMode mode,
       int expected_additional_properties, const char* reason);
 
   // Convert and update the elements backing store to be a
@@ -624,15 +610,17 @@ class JSObject : public JSReceiver {
                                                   int unused_property_fields,
                                                   const char* reason);
 
-  inline bool IsUnboxedDoubleField(FieldIndex index);
+  inline bool IsUnboxedDoubleField(FieldIndex index) const;
+  inline bool IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const;
 
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
-  inline Object RawFastPropertyAt(FieldIndex index);
-  inline double RawFastDoublePropertyAt(FieldIndex index);
-  inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index);
+  inline Object RawFastPropertyAt(FieldIndex index) const;
+  inline Object RawFastPropertyAt(Isolate* isolate, FieldIndex index) const;
+  inline double RawFastDoublePropertyAt(FieldIndex index) const;
+  inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
 
   inline void FastPropertyAtPut(FieldIndex index, Object value);
   inline void RawFastPropertyAtPut(
@@ -678,8 +666,6 @@ class JSObject : public JSReceiver {
       Handle<JSObject> object, ShouldThrow should_throw);
 
   static bool IsExtensible(Handle<JSObject> object);
-
-  DECL_CAST(JSObject)
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
@@ -727,7 +713,7 @@ class JSObject : public JSReceiver {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine() const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(Isolate* isolate) const;
 #endif
 
   Object SlowReverseLookup(Object value);
@@ -763,15 +749,6 @@ class JSObject : public JSReceiver {
   static const int kFieldsAdded = 3;
   STATIC_ASSERT(kMaxNumberOfDescriptors + kFieldsAdded <=
                 PropertyArray::kMaxLength);
-
-// Layout description.
-#define JS_OBJECT_FIELDS(V)       \
-  V(kElementsOffset, kTaggedSize) \
-  /* Header size. */              \
-  V(kHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSReceiver::kHeaderSize, JS_OBJECT_FIELDS)
-#undef JS_OBJECT_FIELDS
 
   STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
   static const int kMaxInObjectProperties =
@@ -825,7 +802,7 @@ class JSObject : public JSReceiver {
   V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensionsWithTransition(
       Handle<JSObject> object, ShouldThrow should_throw);
 
-  OBJECT_CONSTRUCTORS(JSObject, JSReceiver);
+  TQ_OBJECT_CONSTRUCTORS(JSObject)
 };
 
 // JSAccessorPropertyDescriptor is just a JSObject with a specific initial
@@ -835,9 +812,17 @@ class JSObject : public JSReceiver {
 class JSAccessorPropertyDescriptor : public JSObject {
  public:
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSObject::kHeaderSize,
-      TORQUE_GENERATED_JSACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
+#define JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS(V) \
+  V(kGetOffset, kTaggedSize)                      \
+  V(kSetOffset, kTaggedSize)                      \
+  V(kEnumerableOffset, kTaggedSize)               \
+  V(kConfigurableOffset, kTaggedSize)             \
+  /* Total size. */                               \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
+#undef JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS
 
   // Indices of in-object properties.
   static const int kGetIndex = 0;
@@ -855,8 +840,18 @@ class JSAccessorPropertyDescriptor : public JSObject {
 // FromPropertyDescriptor function for regular data properties.
 class JSDataPropertyDescriptor : public JSObject {
  public:
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSObject::kHeaderSize, TORQUE_GENERATED_JSDATA_PROPERTY_DESCRIPTOR_FIELDS)
+  // Layout description.
+#define JS_DATA_PROPERTY_DESCRIPTOR_FIELDS(V) \
+  V(kValueOffset, kTaggedSize)                \
+  V(kWritableOffset, kTaggedSize)             \
+  V(kEnumerableOffset, kTaggedSize)           \
+  V(kConfigurableOffset, kTaggedSize)         \
+  /* Total size. */                           \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_DATA_PROPERTY_DESCRIPTOR_FIELDS)
+#undef JS_DATA_PROPERTY_DESCRIPTOR_FIELDS
 
   // Indices of in-object properties.
   static const int kValueIndex = 0;
@@ -870,7 +865,7 @@ class JSDataPropertyDescriptor : public JSObject {
 
 // JSIteratorResult is just a JSObject with a specific initial map.
 // This initial map adds in-object properties for "done" and "value",
-// as specified by ES6 section 25.1.1.3 The IteratorResult Interface
+// as specified by ES6 section 25.1.1.3 The IteratorResult Interface.
 class JSIteratorResult : public JSObject {
  public:
   DECL_ACCESSORS(value, Object)
@@ -878,8 +873,15 @@ class JSIteratorResult : public JSObject {
   DECL_ACCESSORS(done, Object)
 
   // Layout description.
+#define JS_ITERATOR_RESULT_FIELDS(V) \
+  V(kValueOffset, kTaggedSize)       \
+  V(kDoneOffset, kTaggedSize)        \
+  /* Total size. */                  \
+  V(kSize, 0)
+
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSITERATOR_RESULT_FIELDS)
+                                JS_ITERATOR_RESULT_FIELDS)
+#undef JS_ITERATOR_RESULT_FIELDS
 
   // Indices of in-object properties.
   static const int kValueIndex = 0;
@@ -894,7 +896,6 @@ class JSIteratorResult : public JSObject {
 class JSBoundFunction : public JSObject {
  public:
   // [bound_target_function]: The wrapped function object.
-  inline Object raw_bound_target_function() const;
   DECL_ACCESSORS(bound_target_function, JSReceiver)
 
   // [bound_this]: The value that is always passed as the this value when
@@ -933,7 +934,7 @@ class JSBoundFunction : public JSObject {
 class JSFunction : public JSObject {
  public:
   // [prototype_or_initial_map]:
-  DECL_ACCESSORS(prototype_or_initial_map, Object)
+  DECL_ACCESSORS(prototype_or_initial_map, HeapObject)
 
   // [shared]: The information about the function that
   // can be shared by instances.
@@ -947,7 +948,7 @@ class JSFunction : public JSObject {
   // [context]: The context for this function.
   inline Context context();
   inline bool has_context() const;
-  inline void set_context(Object context);
+  inline void set_context(HeapObject context);
   inline JSGlobalProxy global_proxy();
   inline NativeContext native_context();
   inline int length();
@@ -1055,13 +1056,14 @@ class JSFunction : public JSObject {
   inline bool NeedsResetDueToFlushedBytecode();
   inline void ResetIfBytecodeFlushed();
 
-  inline bool has_prototype_slot() const;
+  DECL_GETTER(has_prototype_slot, bool)
 
   // The initial map for an object created by this constructor.
-  inline Map initial_map();
+  DECL_GETTER(initial_map, Map)
+
   static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                             Handle<HeapObject> prototype);
-  inline bool has_initial_map();
+  DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
       Handle<JSFunction> function);
 
@@ -1076,12 +1078,12 @@ class JSFunction : public JSObject {
   // function has an initial map the prototype is set on the initial
   // map. Otherwise, the prototype is put in the initial map field
   // until an initial map is needed.
-  inline bool has_prototype();
-  inline bool has_instance_prototype();
-  inline Object prototype();
-  inline HeapObject instance_prototype();
-  inline bool has_prototype_property();
-  inline bool PrototypeRequiresRuntimeLookup();
+  DECL_GETTER(has_prototype, bool)
+  DECL_GETTER(has_instance_prototype, bool)
+  DECL_GETTER(prototype, Object)
+  DECL_GETTER(instance_prototype, HeapObject)
+  DECL_GETTER(has_prototype_property, bool)
+  DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
   static void SetPrototype(Handle<JSFunction> function, Handle<Object> value);
 
   // Returns if this function has been compiled to native code yet.
@@ -1149,14 +1151,9 @@ class JSFunction : public JSObject {
 //
 // Accessing a JSGlobalProxy requires security check.
 
-class JSGlobalProxy : public JSObject {
+class JSGlobalProxy
+    : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSObject> {
  public:
-  // [native_context]: the owner native context of this global proxy object.
-  // It is null value if this object is not used by any context.
-  DECL_ACCESSORS(native_context, Object)
-
-  DECL_CAST(JSGlobalProxy)
-
   inline bool IsDetachedFrom(JSGlobalObject global) const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
@@ -1165,11 +1162,7 @@ class JSGlobalProxy : public JSObject {
   DECL_PRINTER(JSGlobalProxy)
   DECL_VERIFIER(JSGlobalProxy)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSGLOBAL_PROXY_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSGlobalProxy, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSGlobalProxy)
 };
 
 // JavaScript global object.
@@ -1182,7 +1175,7 @@ class JSGlobalObject : public JSObject {
   DECL_ACCESSORS(global_proxy, JSGlobalProxy)
 
   // Gets global object properties.
-  inline GlobalDictionary global_dictionary();
+  DECL_GETTER(global_dictionary, GlobalDictionary)
   inline void set_global_dictionary(GlobalDictionary dictionary);
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
@@ -1208,22 +1201,13 @@ class JSGlobalObject : public JSObject {
 };
 
 // Representation for JS Wrapper objects, String, Number, Boolean, etc.
-class JSValue : public JSObject {
+class JSPrimitiveWrapper
+    : public TorqueGeneratedJSPrimitiveWrapper<JSPrimitiveWrapper, JSObject> {
  public:
-  // [value]: the object being wrapped.
-  DECL_ACCESSORS(value, Object)
-
-  DECL_CAST(JSValue)
-
   // Dispatched behavior.
-  DECL_PRINTER(JSValue)
-  DECL_VERIFIER(JSValue)
+  DECL_PRINTER(JSPrimitiveWrapper)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSVALUE_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSValue, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSPrimitiveWrapper)
 };
 
 class DateCache;
@@ -1367,8 +1351,7 @@ class JSMessageObject : public JSObject {
   // EnsureSourcePositionsAvailable must have been called before calling this.
   Handle<String> GetSourceLine() const;
 
-  inline int error_level() const;
-  inline void set_error_level(int level);
+  DECL_INT_ACCESSORS(error_level)
 
   DECL_CAST(JSMessageObject)
 
@@ -1384,8 +1367,6 @@ class JSMessageObject : public JSObject {
   using BodyDescriptor = FixedBodyDescriptor<HeapObject::kMapOffset,
                                              kPointerFieldsEndOffset, kSize>;
 
-  OBJECT_CONSTRUCTORS(JSMessageObject, JSObject);
-
  private:
   friend class Factory;
 
@@ -1400,12 +1381,14 @@ class JSMessageObject : public JSObject {
   DECL_ACCESSORS(bytecode_offset, Smi)
 
   // [start_position]: the start position in the script for the error message.
-  inline int start_position() const;
-  inline void set_start_position(int value);
+  DECL_INT_ACCESSORS(start_position)
 
   // [end_position]: the end position in the script for the error message.
-  inline int end_position() const;
-  inline void set_end_position(int value);
+  DECL_INT_ACCESSORS(end_position)
+
+  DECL_INT_ACCESSORS(raw_type)
+
+  OBJECT_CONSTRUCTORS(JSMessageObject, JSObject);
 };
 
 // The [Async-from-Sync Iterator] object

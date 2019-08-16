@@ -34,26 +34,26 @@ new Intl.NumberFormat(['en-US'], {
   get unitDisplay() {
     assertEquals(6, getCount++);
   },
-  // End of new options
-  get minimumIntegerDigits() {
+  get notation() {
     assertEquals(7, getCount++);
   },
-  get minimumFractionDigits() {
+  // End of new options
+  get minimumIntegerDigits() {
     assertEquals(8, getCount++);
   },
-  get maximumFractionDigits() {
+  get minimumFractionDigits() {
     assertEquals(9, getCount++);
   },
-  get minimumSignificantDigits() {
+  get maximumFractionDigits() {
     assertEquals(10, getCount++);
   },
-  get maximumSignificantDigits() {
+  get minimumSignificantDigits() {
     assertEquals(11, getCount++);
   },
-  // Begin of new options
-  get notation() {
+  get maximumSignificantDigits() {
     assertEquals(12, getCount++);
   },
+  // Begin of new options
   get compactDisplay() {
     assertEquals(13, getCount++);
   },

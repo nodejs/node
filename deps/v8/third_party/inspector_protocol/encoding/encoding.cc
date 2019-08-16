@@ -185,11 +185,10 @@ namespace internals {
 // |type| is the major type as specified in RFC 7049 Section 2.1.
 // |value| is the payload (e.g. for MajorType::UNSIGNED) or is the size
 // (e.g. for BYTE_STRING).
-// If successful, returns the number of bytes read. Otherwise returns -1.
-// TODO(johannes): change return type to size_t and use 0 for error.
-int8_t ReadTokenStart(span<uint8_t> bytes, MajorType* type, uint64_t* value) {
+// If successful, returns the number of bytes read. Otherwise returns 0.
+size_t ReadTokenStart(span<uint8_t> bytes, MajorType* type, uint64_t* value) {
   if (bytes.empty())
-    return -1;
+    return 0;
   uint8_t initial_byte = bytes[0];
   *type = MajorType((initial_byte & kMajorTypeMask) >> kMajorTypeBitShift);
 
@@ -203,32 +202,32 @@ int8_t ReadTokenStart(span<uint8_t> bytes, MajorType* type, uint64_t* value) {
   if (additional_information == kAdditionalInformation1Byte) {
     // Values 24-255 are encoded with one initial byte, followed by the value.
     if (bytes.size() < 2)
-      return -1;
+      return 0;
     *value = ReadBytesMostSignificantByteFirst<uint8_t>(bytes.subspan(1));
     return 2;
   }
   if (additional_information == kAdditionalInformation2Bytes) {
     // Values 256-65535: 1 initial byte + 2 bytes payload.
     if (bytes.size() < 1 + sizeof(uint16_t))
-      return -1;
+      return 0;
     *value = ReadBytesMostSignificantByteFirst<uint16_t>(bytes.subspan(1));
     return 3;
   }
   if (additional_information == kAdditionalInformation4Bytes) {
     // 32 bit uint: 1 initial byte + 4 bytes payload.
     if (bytes.size() < 1 + sizeof(uint32_t))
-      return -1;
+      return 0;
     *value = ReadBytesMostSignificantByteFirst<uint32_t>(bytes.subspan(1));
     return 5;
   }
   if (additional_information == kAdditionalInformation8Bytes) {
     // 64 bit uint: 1 initial byte + 8 bytes payload.
     if (bytes.size() < 1 + sizeof(uint64_t))
-      return -1;
+      return 0;
     *value = ReadBytesMostSignificantByteFirst<uint64_t>(bytes.subspan(1));
     return 9;
   }
-  return -1;
+  return 0;
 }
 
 // Writes the start of a token with |type|. The |value| may indicate the size,
@@ -770,10 +769,10 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
       SetToken(CBORTokenTag::NULL_VALUE, 1);
       return;
     case kExpectedConversionToBase64Tag: {  // BINARY
-      const int8_t bytes_read = internals::ReadTokenStart(
+      const size_t bytes_read = internals::ReadTokenStart(
           bytes_.subspan(status_.pos + 1), &token_start_type_,
           &token_start_internal_value_);
-      if (bytes_read < 0 || token_start_type_ != MajorType::BYTE_STRING ||
+      if (!bytes_read || token_start_type_ != MajorType::BYTE_STRING ||
           token_start_internal_value_ > kMaxValidLength) {
         SetError(Error::CBOR_INVALID_BINARY);
         return;
@@ -823,47 +822,47 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
       return;
     }
     default: {
-      const int8_t token_start_length = internals::ReadTokenStart(
+      const size_t bytes_read = internals::ReadTokenStart(
           bytes_.subspan(status_.pos), &token_start_type_,
           &token_start_internal_value_);
-      const bool success = token_start_length >= 0;
       switch (token_start_type_) {
         case MajorType::UNSIGNED:  // INT32.
           // INT32 is a signed int32 (int32 makes sense for the
           // inspector_protocol, it's not a CBOR limitation), so we check
           // against the signed max, so that the allowable values are
           // 0, 1, 2, ... 2^31 - 1.
-          if (!success || std::numeric_limits<int32_t>::max() <
-                              token_start_internal_value_) {
+          if (!bytes_read || std::numeric_limits<int32_t>::max() <
+                                 token_start_internal_value_) {
             SetError(Error::CBOR_INVALID_INT32);
             return;
           }
-          SetToken(CBORTokenTag::INT32, token_start_length);
+          SetToken(CBORTokenTag::INT32, bytes_read);
           return;
         case MajorType::NEGATIVE: {  // INT32.
           // INT32 is a signed int32 (int32 makes sense for the
           // inspector_protocol, it's not a CBOR limitation); in CBOR, the
           // negative values for INT32 are represented as NEGATIVE, that is, -1
           // INT32 is represented as 1 << 5 | 0 (major type 1, additional info
-          // value 0). The minimal allowed INT32 value in our protocol is
-          // std::numeric_limits<int32_t>::min(). We check for it by directly
-          // checking the payload against the maximal allowed signed (!) int32
-          // value.
-          if (!success || token_start_internal_value_ >
-                              std::numeric_limits<int32_t>::max()) {
+          // value 0).
+          // The represented allowed values range is -1 to -2^31.
+          // They are mapped into the encoded range of 0 to 2^31-1.
+          // We check the payload in token_start_internal_value_ against
+          // that range (2^31-1 is also known as
+          // std::numeric_limits<int32_t>::max()).
+          if (!bytes_read || token_start_internal_value_ >
+                                 std::numeric_limits<int32_t>::max()) {
             SetError(Error::CBOR_INVALID_INT32);
             return;
           }
-          SetToken(CBORTokenTag::INT32, token_start_length);
+          SetToken(CBORTokenTag::INT32, bytes_read);
           return;
         }
         case MajorType::STRING: {  // STRING8.
-          if (!success || token_start_internal_value_ > kMaxValidLength) {
+          if (!bytes_read || token_start_internal_value_ > kMaxValidLength) {
             SetError(Error::CBOR_INVALID_STRING8);
             return;
           }
-          uint64_t token_byte_length =
-              token_start_internal_value_ + token_start_length;
+          uint64_t token_byte_length = token_start_internal_value_ + bytes_read;
           if (token_byte_length > remaining_bytes) {
             SetError(Error::CBOR_INVALID_STRING8);
             return;
@@ -875,13 +874,12 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
         case MajorType::BYTE_STRING: {  // STRING16.
           // Length must be divisible by 2 since UTF16 is 2 bytes per
           // character, hence the &1 check.
-          if (!success || token_start_internal_value_ > kMaxValidLength ||
+          if (!bytes_read || token_start_internal_value_ > kMaxValidLength ||
               token_start_internal_value_ & 1) {
             SetError(Error::CBOR_INVALID_STRING16);
             return;
           }
-          uint64_t token_byte_length =
-              token_start_internal_value_ + token_start_length;
+          uint64_t token_byte_length = token_start_internal_value_ + bytes_read;
           if (token_byte_length > remaining_bytes) {
             SetError(Error::CBOR_INVALID_STRING16);
             return;
@@ -1372,7 +1370,7 @@ class JSONEncoder : public StreamingParserHandler {
 
         // If we have enough bytes in our input, decode the remaining ones
         // belonging to this Unicode character into |codepoint|.
-        if (ii + num_bytes_left > chars.size())
+        if (ii + num_bytes_left >= chars.size())
           continue;
         while (num_bytes_left > 0) {
           c = chars[++ii];
@@ -1386,7 +1384,7 @@ class JSONEncoder : public StreamingParserHandler {
         // Disallow overlong encodings for ascii characters, as these
         // would include " and other characters significant to JSON
         // string termination / control.
-        if (codepoint < 0x7f)
+        if (codepoint <= 0x7f)
           continue;
         // Invalid in UTF8, and can't be represented in UTF16 anyway.
         if (codepoint > 0x10ffff)

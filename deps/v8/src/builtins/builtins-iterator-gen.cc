@@ -75,7 +75,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
   }
 }
 
-TNode<Object> IteratorBuiltinsAssembler::IteratorStep(
+TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
     Node* context, const IteratorRecord& iterator, Label* if_done,
     Node* fast_iterator_result_map, Label* if_exception, Variable* exception) {
   DCHECK_NOT_NULL(if_done);
@@ -125,23 +125,21 @@ TNode<Object> IteratorBuiltinsAssembler::IteratorStep(
   }
 
   BIND(&return_result);
-  return UncheckedCast<Object>(result);
+  return CAST(result);
 }
 
-Node* IteratorBuiltinsAssembler::IteratorValue(Node* context, Node* result,
-                                               Node* fast_iterator_result_map,
-                                               Label* if_exception,
-                                               Variable* exception) {
-  CSA_ASSERT(this, IsJSReceiver(result));
-
+TNode<Object> IteratorBuiltinsAssembler::IteratorValue(
+    TNode<Context> context, TNode<JSReceiver> result,
+    base::Optional<TNode<Map>> fast_iterator_result_map, Label* if_exception,
+    Variable* exception) {
   Label exit(this);
-  VARIABLE(var_value, MachineRepresentation::kTagged);
-  if (fast_iterator_result_map != nullptr) {
+  TVARIABLE(Object, var_value);
+  if (fast_iterator_result_map) {
     // Fast iterator result case:
     Label if_generic(this);
     Node* map = LoadMap(result);
-    GotoIfNot(WordEqual(map, fast_iterator_result_map), &if_generic);
-    var_value.Bind(LoadObjectField(result, JSIteratorResult::kValueOffset));
+    GotoIfNot(WordEqual(map, *fast_iterator_result_map), &if_generic);
+    var_value = LoadObjectField(result, JSIteratorResult::kValueOffset);
     Goto(&exit);
 
     BIND(&if_generic);
@@ -149,9 +147,10 @@ Node* IteratorBuiltinsAssembler::IteratorValue(Node* context, Node* result,
 
   // Generic iterator result case:
   {
-    Node* value = GetProperty(context, result, factory()->value_string());
+    TNode<Object> value =
+        GetProperty(context, result, factory()->value_string());
     GotoIfException(value, if_exception, exception);
-    var_value.Bind(value);
+    var_value = value;
     Goto(&exit);
   }
 
@@ -217,10 +216,10 @@ TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
   BIND(&loop_start);
   {
     //  a. Set next to ? IteratorStep(iteratorRecord).
-    TNode<Object> next = IteratorStep(context, iterator_record, &done);
+    TNode<JSReceiver> next = IteratorStep(context, iterator_record, &done);
     //  b. If next is not false, then
     //   i. Let nextValue be ? IteratorValue(next).
-    TNode<Object> next_value = CAST(IteratorValue(context, next));
+    TNode<Object> next_value = IteratorValue(context, next);
     //   ii. Append nextValue to the end of the List values.
     values.Push(next_value);
     Goto(&loop_start);

@@ -10,7 +10,7 @@ namespace typed_array_filter {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.filter
   transitioning javascript builtin TypedArrayPrototypeFilter(
-      context: Context, receiver: Object, ...arguments): Object {
+      js-implicit context: Context, receiver: Object)(...arguments): Object {
     // arguments[0] = callback
     // arguments[1] = thisArg
     try {

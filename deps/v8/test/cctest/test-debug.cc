@@ -165,9 +165,9 @@ void CheckDebuggerUnloaded() {
   CcTest::CollectAllGarbage();
 
   // Iterate the heap and check that there are no debugger related objects left.
-  HeapIterator iterator(CcTest::heap());
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  HeapObjectIterator iterator(CcTest::heap());
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     CHECK(!obj.IsDebugInfo());
   }
 }
@@ -4151,7 +4151,7 @@ size_t NearHeapLimitCallback(void* data, size_t current_heap_limit,
 UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  create_params.constraints.set_max_old_space_size(10);
+  create_params.constraints.set_max_old_generation_size_in_bytes(10 * i::MB);
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   {
@@ -4368,9 +4368,9 @@ TEST(DebugEvaluateNoSideEffect) {
   i::Isolate* isolate = CcTest::i_isolate();
   std::vector<i::Handle<i::JSFunction>> all_functions;
   {
-    i::HeapIterator iterator(isolate->heap());
-    for (i::HeapObject obj = iterator.next(); !obj.is_null();
-         obj = iterator.next()) {
+    i::HeapObjectIterator iterator(isolate->heap());
+    for (i::HeapObject obj = iterator.Next(); !obj.is_null();
+         obj = iterator.Next()) {
       if (!obj.IsJSFunction()) continue;
       i::JSFunction fun = i::JSFunction::cast(obj);
       all_functions.emplace_back(fun, isolate);
@@ -4665,8 +4665,8 @@ TEST(GetPrivateFields) {
                                    .ToLocalChecked()
                                    ->ToObject(context)
                                    .ToLocalChecked());
-    Handle<v8::internal::JSValue> private_value =
-        Handle<v8::internal::JSValue>::cast(private_name);
+    Handle<v8::internal::JSPrimitiveWrapper> private_value =
+        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
     Handle<v8::internal::Symbol> priv_symbol(
         v8::internal::Symbol::cast(private_value->value()), isolate);
     CHECK(priv_symbol->is_private_name());
@@ -4694,8 +4694,8 @@ TEST(GetPrivateFields) {
                                    .ToLocalChecked()
                                    ->ToObject(context)
                                    .ToLocalChecked());
-    Handle<v8::internal::JSValue> private_value =
-        Handle<v8::internal::JSValue>::cast(private_name);
+    Handle<v8::internal::JSPrimitiveWrapper> private_value =
+        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
     Handle<v8::internal::Symbol> priv_symbol(
         v8::internal::Symbol::cast(private_value->value()), isolate);
     CHECK(priv_symbol->is_private_name());
@@ -4725,8 +4725,8 @@ TEST(GetPrivateFields) {
                                    .ToLocalChecked()
                                    ->ToObject(context)
                                    .ToLocalChecked());
-    Handle<v8::internal::JSValue> private_value =
-        Handle<v8::internal::JSValue>::cast(private_name);
+    Handle<v8::internal::JSPrimitiveWrapper> private_value =
+        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
     Handle<v8::internal::Symbol> priv_symbol(
         v8::internal::Symbol::cast(private_value->value()), isolate);
     CHECK(priv_symbol->is_private_name());

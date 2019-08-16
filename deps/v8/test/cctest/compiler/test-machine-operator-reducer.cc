@@ -4,6 +4,7 @@
 
 #include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/operator-properties.h"
@@ -86,12 +87,13 @@ class ReducerTester : public HandleAndZoneScope {
         javascript(main_zone()),
         jsgraph(isolate, &graph, &common, &javascript, nullptr, &machine),
         maxuint32(Constant<int32_t>(kMaxUInt32)),
-        graph_reducer(main_zone(), &graph, jsgraph.Dead()) {
+        graph_reducer(main_zone(), &graph, &tick_counter, jsgraph.Dead()) {
     Node* s = graph.NewNode(common.Start(num_parameters));
     graph.SetStart(s);
   }
 
   Isolate* isolate;
+  TickCounter tick_counter;
   const Operator* binop;
   const Operator* unop;
   MachineOperatorBuilder machine;

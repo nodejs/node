@@ -21,7 +21,7 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
     V8::FatalProcessOutOfMemory(isolate, "ReadOnlyDeserializer");
   }
 
-  ReadOnlyHeap* ro_heap = isolate->heap()->read_only_heap();
+  ReadOnlyHeap* ro_heap = isolate->read_only_heap();
 
   // No active threads.
   DCHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());

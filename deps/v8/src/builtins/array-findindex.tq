@@ -4,8 +4,9 @@
 
 namespace array_findindex {
   transitioning javascript builtin
-  ArrayFindIndexLoopEagerDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
+  ArrayFindIndexLoopEagerDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, thisArg: Object, initialK: Object,
       length: Object): Object {
     // All continuation points in the optimized findIndex implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -24,9 +25,10 @@ namespace array_findindex {
   }
 
   transitioning javascript builtin
-  ArrayFindIndexLoopLazyDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
-      length: Object, result: Object): Object {
+  ArrayFindIndexLoopLazyDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      _callback: Object, _thisArg: Object, _initialK: Object, _length: Object,
+      _result: Object): Object {
     // This deopt continuation point is never actually called, it just
     // exists to make stack traces correct from a ThrowTypeError if the
     // callback was found to be non-callable.
@@ -37,16 +39,16 @@ namespace array_findindex {
   // happens right after the callback and it's returned value must be handled
   // before iteration continues.
   transitioning javascript builtin
-  ArrayFindIndexLoopAfterCallbackLazyDeoptContinuation(implicit context:
-                                                           Context)(
-      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
-      length: Object, foundValue: Object, isFound: Object): Object {
+  ArrayFindIndexLoopAfterCallbackLazyDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, thisArg: Object, initialK: Object, length: Object,
+      foundValue: Object, isFound: Object): Object {
     // All continuation points in the optimized findIndex implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
     const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
     const callbackfn = Cast<Callable>(callback) otherwise unreachable;
-    let numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberK = Cast<Number>(initialK) otherwise unreachable;
     const numberLength = Cast<Number>(length) otherwise unreachable;
 
     // This custom lazy deopt point is right after the callback. find() needs
@@ -64,7 +66,7 @@ namespace array_findindex {
 
   transitioning builtin ArrayFindIndexLoopContinuation(implicit context:
                                                            Context)(
-      receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
       o: JSReceiver, initialK: Number, length: Number): Number {
     // 5. Let k be 0.
     // 6. Repeat, while k < len
@@ -118,12 +120,10 @@ namespace array_findindex {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.findIndex
   transitioning javascript builtin
-  ArrayPrototypeFindIndex(implicit context:
-                              Context)(receiver: Object, ...arguments): Object {
+  ArrayPrototypeFindIndex(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     try {
-      if (IsNullOrUndefined(receiver)) {
-        goto NullOrUndefinedError;
-      }
+      RequireObjectCoercible(receiver, 'Array.prototype.findIndex');
 
       // 1. Let O be ? ToObject(this value).
       const o: JSReceiver = ToObject_Inline(context, receiver);
@@ -153,9 +153,6 @@ namespace array_findindex {
     }
     label NotCallableError deferred {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
-    }
-    label NullOrUndefinedError deferred {
-      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.findIndex');
     }
   }
 }

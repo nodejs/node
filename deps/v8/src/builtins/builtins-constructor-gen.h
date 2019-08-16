@@ -31,10 +31,14 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
                                        Label* call_runtime);
   Node* EmitCreateEmptyObjectLiteral(Node* context);
 
-  Node* EmitFastNewObject(Node* context, Node* target, Node* new_target);
+  TNode<JSObject> EmitFastNewObject(SloppyTNode<Context> context,
+                                    SloppyTNode<JSFunction> target,
+                                    SloppyTNode<JSReceiver> new_target);
 
-  Node* EmitFastNewObject(Node* context, Node* target, Node* new_target,
-                          Label* call_runtime);
+  TNode<JSObject> EmitFastNewObject(SloppyTNode<Context> context,
+                                    SloppyTNode<JSFunction> target,
+                                    SloppyTNode<JSReceiver> new_target,
+                                    Label* call_runtime);
 };
 
 }  // namespace internal

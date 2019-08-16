@@ -45,26 +45,33 @@ class StringUtil {
     return s.find(needle);
   }
   static const size_t kNotFound = String::kNotFound;
-  static void builderAppend(StringBuilder& builder, const String& s) {
+  static void builderAppend(
+      StringBuilder& builder,  // NOLINT(runtime/references)
+      const String& s) {
     builder.append(s);
   }
-  static void builderAppend(StringBuilder& builder, UChar c) {
+  static void builderAppend(
+      StringBuilder& builder,  // NOLINT(runtime/references)
+      UChar c) {
     builder.append(c);
   }
-  static void builderAppend(StringBuilder& builder, const char* s, size_t len) {
+  static void builderAppend(
+      StringBuilder& builder,  // NOLINT(runtime/references)
+      const char* s, size_t len) {
     builder.append(s, len);
   }
   static void builderAppendQuotedString(StringBuilder&, const String&);
-  static void builderReserve(StringBuilder& builder, size_t capacity) {
+  static void builderReserve(
+      StringBuilder& builder,  // NOLINT(runtime/references)
+      size_t capacity) {
     builder.reserveCapacity(capacity);
   }
-  static String builderToString(StringBuilder& builder) {
+  static String builderToString(
+      StringBuilder& builder) {  // NOLINT(runtime/references)
     return builder.toString();
   }
   static std::unique_ptr<protocol::Value> parseJSON(const String16& json);
   static std::unique_ptr<protocol::Value> parseJSON(const StringView& json);
-  static std::unique_ptr<protocol::Value> parseProtocolMessage(
-      const ProtocolMessage&);
   static ProtocolMessage jsonToMessage(String message);
   static ProtocolMessage binaryToMessage(std::vector<uint8_t> message);
 
@@ -74,6 +81,10 @@ class StringUtil {
 
   static String fromUTF16(const uint16_t* data, size_t length) {
     return String16(data, length);
+  }
+
+  static String fromUTF16LE(const uint16_t* data, size_t length) {
+    return String16::fromUTF16LE(data, length);
   }
 
   static const uint8_t* CharactersLatin1(const String& s) { return nullptr; }

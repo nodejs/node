@@ -89,7 +89,7 @@ Running test: testRejectedPromiseWithSyntaxError
             columnNumber : 5
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token }     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)
+                description : SyntaxError: Unexpected token '}'     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -115,11 +115,11 @@ Running test: testRejectedPromiseWithSyntaxError
                     }
                 ]
             }
-            text : Uncaught (in promise) SyntaxError: Unexpected token }
+            text : Uncaught (in promise) SyntaxError: Unexpected token '}'
         }
         result : {
             className : SyntaxError
-            description : SyntaxError: Unexpected token }     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)
+            description : SyntaxError: Unexpected token '}'     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)
             objectId : <objectId>
             subtype : error
             type : object

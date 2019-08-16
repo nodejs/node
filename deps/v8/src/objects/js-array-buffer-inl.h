@@ -91,11 +91,11 @@ void JSArrayBuffer::clear_padding() {
 }
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
-  WriteField<uint32_t>(kBitFieldOffset, bits);
+  RELAXED_WRITE_UINT32_FIELD(*this, kBitFieldOffset, bits);
 }
 
 uint32_t JSArrayBuffer::bit_field() const {
-  return ReadField<uint32_t>(kBitFieldOffset);
+  return RELAXED_READ_UINT32_FIELD(*this, kBitFieldOffset);
 }
 
 // |bit_field| fields.

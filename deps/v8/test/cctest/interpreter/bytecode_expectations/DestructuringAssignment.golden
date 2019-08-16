@@ -10,7 +10,7 @@ snippet: "
   var x, a = [0,1,2,3];
   [x] = a;
 "
-frame size: 15
+frame size: 16
 parameter count: 1
 bytecode array length: 178
 bytecodes: [
@@ -64,15 +64,15 @@ bytecodes: [
                 B(Star), R(12),
                 B(JumpIfUndefined), U8(52),
                 B(JumpIfNull), U8(50),
+                B(Mov), R(context), R(13),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(13),
-                B(LdaConstant), U8(6),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(14),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(13), U8(2),
+                B(LdaConstant), U8(6),
+                B(Star), R(15),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(14), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(13),
                 B(CallProperty0), R(12), R(4), U8(15),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(14),
@@ -105,7 +105,7 @@ constant pool: [
 ]
 handlers: [
   [44, 86, 94],
-  [140, 153, 155],
+  [120, 153, 155],
 ]
 
 ---
@@ -113,7 +113,7 @@ snippet: "
   var x, y, a = [0,1,2,3];
   [,x,...y] = a;
 "
-frame size: 16
+frame size: 17
 parameter count: 1
 bytecode array length: 264
 bytecodes: [
@@ -201,15 +201,15 @@ bytecodes: [
                 B(Star), R(13),
                 B(JumpIfUndefined), U8(52),
                 B(JumpIfNull), U8(50),
+                B(Mov), R(context), R(14),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(14),
-                B(LdaConstant), U8(6),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(15),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(14), U8(2),
+                B(LdaConstant), U8(6),
+                B(Star), R(16),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(15), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(14),
                 B(CallProperty0), R(13), R(5), U8(25),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(15),
@@ -242,7 +242,7 @@ constant pool: [
 ]
 handlers: [
   [44, 172, 180],
-  [226, 239, 241],
+  [206, 239, 241],
 ]
 
 ---
@@ -250,7 +250,7 @@ snippet: "
   var x={}, y, a = [0];
   [x.foo,y=4] = a;
 "
-frame size: 17
+frame size: 18
 parameter count: 1
 bytecode array length: 229
 bytecodes: [
@@ -325,15 +325,15 @@ bytecodes: [
                 B(Star), R(14),
                 B(JumpIfUndefined), U8(52),
                 B(JumpIfNull), U8(50),
+                B(Mov), R(context), R(15),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(15),
-                B(LdaConstant), U8(7),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(16),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(15), U8(2),
+                B(LdaConstant), U8(7),
+                B(Star), R(17),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(16), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(15),
                 B(CallProperty0), R(14), R(5), U8(19),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(16),
@@ -367,7 +367,7 @@ constant pool: [
 ]
 handlers: [
   [47, 137, 145],
-  [191, 204, 206],
+  [171, 204, 206],
 ]
 
 ---

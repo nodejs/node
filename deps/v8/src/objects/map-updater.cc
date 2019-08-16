@@ -201,10 +201,9 @@ void MapUpdater::GeneralizeField(Handle<Map> map, int modify_index,
          *old_descriptors_ == integrity_source_map_->instance_descriptors());
 }
 
-MapUpdater::State MapUpdater::CopyGeneralizeAllFields(const char* reason) {
-  result_map_ = Map::CopyGeneralizeAllFields(
-      isolate_, old_map_, new_elements_kind_, modified_descriptor_, new_kind_,
-      new_attributes_, reason);
+MapUpdater::State MapUpdater::Normalize(const char* reason) {
+  result_map_ = Map::Normalize(isolate_, old_map_, new_elements_kind_,
+                               CLEAR_INOBJECT_PROPERTIES, reason);
   state_ = kEnd;
   return state_;  // Done.
 }
@@ -310,14 +309,14 @@ MapUpdater::State MapUpdater::FindRootMap() {
   }
 
   if (!old_map_->EquivalentToForTransition(*root_map_)) {
-    return CopyGeneralizeAllFields("GenAll_NotEquivalent");
+    return Normalize("Normalize_NotEquivalent");
   } else if (old_map_->is_extensible() != root_map_->is_extensible()) {
     DCHECK(!old_map_->is_extensible());
     DCHECK(root_map_->is_extensible());
     // We have an integrity level transition in the tree, let us make a note
     // of that transition to be able to replay it later.
     if (!TrySaveIntegrityLevelTransitions()) {
-      return CopyGeneralizeAllFields("GenAll_PrivateSymbolsOnNonExtensible");
+      return Normalize("Normalize_PrivateSymbolsOnNonExtensible");
     }
 
     // We want to build transitions to the original element kind (before
@@ -335,7 +334,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
       to_kind != SLOW_SLOPPY_ARGUMENTS_ELEMENTS &&
       !(IsTransitionableFastElementsKind(from_kind) &&
         IsMoreGeneralElementsKindTransition(from_kind, to_kind))) {
-    return CopyGeneralizeAllFields("GenAll_InvalidElementsTransition");
+    return Normalize("Normalize_InvalidElementsTransition");
   }
 
   int root_nof = root_map_->NumberOfOwnDescriptors();
@@ -344,13 +343,13 @@ MapUpdater::State MapUpdater::FindRootMap() {
         old_descriptors_->GetDetails(modified_descriptor_);
     if (old_details.kind() != new_kind_ ||
         old_details.attributes() != new_attributes_) {
-      return CopyGeneralizeAllFields("GenAll_RootModification1");
+      return Normalize("Normalize_RootModification1");
     }
     if (old_details.location() != kField) {
-      return CopyGeneralizeAllFields("GenAll_RootModification2");
+      return Normalize("Normalize_RootModification2");
     }
     if (!new_representation_.fits_into(old_details.representation())) {
-      return CopyGeneralizeAllFields("GenAll_RootModification4");
+      return Normalize("Normalize_RootModification4");
     }
 
     DCHECK_EQ(kData, old_details.kind());
@@ -394,7 +393,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
         !EqualImmutableValues(GetValue(i),
                               tmp_descriptors->GetStrongValue(i))) {
       // TODO(ishell): mutable accessors are not implemented yet.
-      return CopyGeneralizeAllFields("GenAll_Incompatible");
+      return Normalize("Normalize_Incompatible");
     }
     if (!IsGeneralizableTo(old_details.location(), tmp_details.location())) {
       break;
@@ -484,7 +483,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     if (old_details.kind() == kAccessor &&
         !EqualImmutableValues(GetValue(i),
                               tmp_descriptors->GetStrongValue(i))) {
-      return CopyGeneralizeAllFields("GenAll_Incompatible");
+      return Normalize("Normalize_Incompatible");
     }
     DCHECK(!tmp_map->is_deprecated());
     target_map_ = tmp_map;
@@ -723,7 +722,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   // contains entry for given descriptor. This means that the transition
   // could be inserted regardless of whether transitions array is full or not.
   if (maybe_transition.is_null() && !transitions.CanHaveMoreTransitions()) {
-    return CopyGeneralizeAllFields("GenAll_CantHaveMoreTransitions");
+    return Normalize("Normalize_CantHaveMoreTransitions");
   }
 
   old_map_->NotifyLeafMapLayoutChange(isolate_);
@@ -787,7 +786,7 @@ MapUpdater::State MapUpdater::ConstructNewMapWithIntegrityLevelTransition() {
 
   TransitionsAccessor transitions(isolate_, target_map_);
   if (!transitions.CanHaveMoreTransitions()) {
-    return CopyGeneralizeAllFields("GenAll_CantHaveMoreTransitions");
+    return Normalize("Normalize_CantHaveMoreTransitions");
   }
 
   result_map_ = Map::CopyForPreventExtensions(

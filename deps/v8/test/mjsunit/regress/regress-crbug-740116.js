@@ -5,7 +5,10 @@
 // Flags: --allow-natives-syntax
 
 (function TestReflectGetPrototypeOfOnPrimitive() {
-  function f() { return Reflect.getPrototypeOf(""); }
+  function f() {
+    return Reflect.getPrototypeOf('');
+  };
+  %PrepareFunctionForOptimization(f);
   assertThrows(f, TypeError);
   assertThrows(f, TypeError);
   %OptimizeFunctionOnNextCall(f);
@@ -13,7 +16,10 @@
 })();
 
 (function TestObjectGetPrototypeOfOnPrimitive() {
-  function f() { return Object.getPrototypeOf(""); }
+  function f() {
+    return Object.getPrototypeOf('');
+  };
+  %PrepareFunctionForOptimization(f);
   assertSame(String.prototype, f());
   assertSame(String.prototype, f());
   %OptimizeFunctionOnNextCall(f);
@@ -21,7 +27,10 @@
 })();
 
 (function TestDunderProtoOnPrimitive() {
-  function f() { return "".__proto__; }
+  function f() {
+    return ''.__proto__;
+  };
+  %PrepareFunctionForOptimization(f);
   assertSame(String.prototype, f());
   assertSame(String.prototype, f());
   %OptimizeFunctionOnNextCall(f);

@@ -107,7 +107,8 @@ bool wrapEvaluateResultAsync(InjectedScript* injectedScript,
 }
 
 void innerCallFunctionOn(
-    V8InspectorSessionImpl* session, InjectedScript::Scope& scope,
+    V8InspectorSessionImpl* session,
+    InjectedScript::Scope& scope,  // NOLINT(runtime/references)
     v8::Local<v8::Value> recv, const String16& expression,
     Maybe<protocol::Array<protocol::Runtime::CallArgument>> optionalArguments,
     bool silent, WrapMode wrapMode, bool userGesture, bool awaitPromise,
@@ -120,12 +121,12 @@ void innerCallFunctionOn(
   if (optionalArguments.isJust()) {
     protocol::Array<protocol::Runtime::CallArgument>* arguments =
         optionalArguments.fromJust();
-    argc = static_cast<int>(arguments->length());
+    argc = static_cast<int>(arguments->size());
     argv.reset(new v8::Local<v8::Value>[argc]);
     for (int i = 0; i < argc; ++i) {
       v8::Local<v8::Value> argumentValue;
       Response response = scope.injectedScript()->resolveCallArgument(
-          arguments->get(i), &argumentValue);
+          (*arguments)[i].get(), &argumentValue);
       if (!response.isSuccess()) {
         callback->sendFailure(response);
         return;
@@ -419,9 +420,9 @@ Response V8RuntimeAgentImpl::getProperties(
       object, scope.objectGroupName(), &internalPropertiesProtocolArray,
       &privatePropertiesProtocolArray);
   if (!response.isSuccess()) return response;
-  if (internalPropertiesProtocolArray->length())
+  if (!internalPropertiesProtocolArray->empty())
     *internalProperties = std::move(internalPropertiesProtocolArray);
-  if (privatePropertiesProtocolArray->length())
+  if (!privatePropertiesProtocolArray->empty())
     *privateProperties = std::move(privatePropertiesProtocolArray);
   return Response::OK();
 }
@@ -612,9 +613,9 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
 
   v8::PersistentValueVector<v8::String> names(m_inspector->isolate());
   v8::debug::GlobalLexicalScopeNames(scope.context(), &names);
-  *outNames = protocol::Array<String16>::create();
+  *outNames = v8::base::make_unique<protocol::Array<String16>>();
   for (size_t i = 0; i < names.Size(); ++i) {
-    (*outNames)->addItem(
+    (*outNames)->emplace_back(
         toProtocolString(m_inspector->isolate(), names.Get(i)));
   }
   return Response::OK();

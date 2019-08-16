@@ -147,7 +147,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   friend class MarkCompactCollector;  // For HasSimpleTransitionTo.
   friend class TransitionArray;
 
-  static inline PropertyDetails GetSimpleTargetDetails(Map transition);
+  inline PropertyDetails GetSimpleTargetDetails(Map transition);
 
   static inline Name GetSimpleTransitionKey(Map transition);
 

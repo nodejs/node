@@ -303,20 +303,24 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, mode);
 }
 
-void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 4);
   STATIC_ASSERT(kSmiShiftSize == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
-  // The builtin_pointer register contains the builtin index as a Smi.
+  // The builtin_index register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below.
-  mov(builtin_pointer,
-      Operand(builtin_pointer, LSL, kSystemPointerSizeLog2 - kSmiTagSize));
-  add(builtin_pointer, builtin_pointer,
+  mov(builtin_index,
+      Operand(builtin_index, LSL, kSystemPointerSizeLog2 - kSmiTagSize));
+  add(builtin_index, builtin_index,
       Operand(IsolateData::builtin_entry_table_offset()));
-  ldr(builtin_pointer, MemOperand(kRootRegister, builtin_pointer));
-  Call(builtin_pointer);
+  ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+}
+
+void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
+  LoadEntryFromBuiltinIndex(builtin_index);
+  Call(builtin_index);
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
@@ -632,7 +636,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     add(scratch, object, Operand(offset - kHeapObjectTag));
     tst(scratch, Operand(kPointerSize - 1));
     b(eq, &ok);
-    stop("Unaligned cell in write barrier");
+    stop();
     bind(&ok);
   }
 
@@ -1951,15 +1955,15 @@ void TurboAssembler::Check(Condition cond, AbortReason reason) {
 void TurboAssembler::Abort(AbortReason reason) {
   Label abort_start;
   bind(&abort_start);
-  const char* msg = GetAbortReason(reason);
 #ifdef DEBUG
+  const char* msg = GetAbortReason(reason);
   RecordComment("Abort message: ");
   RecordComment(msg);
 #endif
 
   // Avoid emitting call to builtin if requested.
   if (trap_on_abort()) {
-    stop(msg);
+    stop();
     return;
   }
 
@@ -2402,7 +2406,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       b(eq, &alignment_as_expected);
       // Don't use Check here, as it will call Runtime_Abort possibly
       // re-entering here.
-      stop("Unexpected alignment");
+      stop();
       bind(&alignment_as_expected);
     }
   }

@@ -116,6 +116,7 @@
     args.push(i);
     if (i%10 == 0) %OptimizeFunctionOnNextCall(sum1);
     assertEquals(i*(i+1)/2, sum1(...args));
+    if (i%10 == 0) %PrepareFunctionForOptimization(sum1);
   }
 })();
 
@@ -136,6 +137,7 @@
     args.push(i);
     if (i%10 == 0) %OptimizeFunctionOnNextCall(sum2);
     assertEquals(i*(i+1)/2, sum2(...args));
+    if (i%10 == 0) %PrepareFunctionForOptimization(sum2);
   }
 })();
 
@@ -156,6 +158,7 @@
     args.push(i);
     if (i%10 == 0) %OptimizeFunctionOnNextCall(sum3);
     assertEquals(i*(i+1)/2, sum3(...args));
+    if (i%10 == 0) %PrepareFunctionForOptimization(sum3);
   }
 })();
 
@@ -176,6 +179,7 @@
     args.push(i);
     if (i%10 == 0) %OptimizeFunctionOnNextCall(sum4);
     assertEquals(i*(i+1)/2-1, sum4(...args));
+    if (i%10 == 0) %PrepareFunctionForOptimization(sum4);
   }
 })();
 
@@ -192,5 +196,6 @@
     args.push(i);
     if (i%10 == 0) %OptimizeFunctionOnNextCall(read);
     assertEquals(i, read(...args));
+    if (i%10 == 0) %PrepareFunctionForOptimization(read);
   }
 })();

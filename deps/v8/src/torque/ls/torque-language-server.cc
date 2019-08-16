@@ -21,7 +21,7 @@ int WrappedMain(int argc, const char** argv) {
   Logger::Scope log_scope;
   TorqueFileList::Scope files_scope;
   LanguageServerData::Scope server_data_scope;
-  SourceFileMap::Scope source_file_map_scope;
+  SourceFileMap::Scope source_file_map_scope("");
   DiagnosticsFiles::Scope diagnostics_files_scope;
 
   for (int i = 1; i < argc; ++i) {
@@ -32,13 +32,13 @@ int WrappedMain(int argc, const char** argv) {
   }
 
   while (true) {
-    auto message = ReadMessage();
+    JsonValue message = ReadMessage();
 
     // TODO(szuend): We should probably offload the actual message handling
     //               (even the parsing) to a background thread, so we can
     //               keep receiving messages. We might also receive
     //               $/cancelRequests or contet updates, that require restarts.
-    HandleMessage(message, &WriteMessage);
+    HandleMessage(std::move(message), &WriteMessage);
   }
   return 0;
 }

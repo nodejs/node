@@ -4,8 +4,8 @@
 
 // Flags: --allow-natives-syntax
 
-function f() {}
-
+function f() {};
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

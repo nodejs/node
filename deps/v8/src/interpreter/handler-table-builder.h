@@ -5,9 +5,10 @@
 #ifndef V8_INTERPRETER_HANDLER_TABLE_BUILDER_H_
 #define V8_INTERPRETER_HANDLER_TABLE_BUILDER_H_
 
-#include "src/execution/frames.h"
+#include "src/codegen/handler-table.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/objects/fixed-array.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

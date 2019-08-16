@@ -284,7 +284,41 @@ MaybeHandle<String> IncrementalStringBuilder::Finish() {
   return accumulator();
 }
 
+// Short strings can be copied directly to {current_part_}.
+// Requires the IncrementalStringBuilder to either have two byte encoding or
+// the incoming string to have one byte representation "underneath" (The
+// one byte check requires the string to be flat).
+bool IncrementalStringBuilder::CanAppendByCopy(Handle<String> string) {
+  constexpr int kMaxStringLengthForCopy = 16;
+  const bool representation_ok =
+      encoding_ == String::TWO_BYTE_ENCODING ||
+      (string->IsFlat() && String::IsOneByteRepresentationUnderneath(*string));
+
+  return representation_ok && string->length() <= kMaxStringLengthForCopy &&
+         CurrentPartCanFit(string->length());
+}
+
+void IncrementalStringBuilder::AppendStringByCopy(Handle<String> string) {
+  DCHECK(CanAppendByCopy(string));
+
+  Handle<SeqOneByteString> part =
+      Handle<SeqOneByteString>::cast(current_part());
+  {
+    DisallowHeapAllocation no_gc;
+    String::WriteToFlat(*string, part->GetChars(no_gc) + current_index_, 0,
+                        string->length());
+  }
+  current_index_ += string->length();
+  DCHECK(current_index_ <= part_length_);
+  if (current_index_ == part_length_) Extend();
+}
+
 void IncrementalStringBuilder::AppendString(Handle<String> string) {
+  if (CanAppendByCopy(string)) {
+    AppendStringByCopy(string);
+    return;
+  }
+
   ShrinkCurrentPart();
   part_length_ = kInitialPartLength;  // Allocate conservatively.
   Extend();  // Attach current part and allocate new part.

@@ -45,11 +45,14 @@ class V8_EXPORT_PRIVATE HandlerTable {
                   // async/await handling in the debugger can take place.
   };
 
+  enum EncodingMode { kRangeBasedEncoding, kReturnAddressBasedEncoding };
+
   // Constructors for the various encodings.
   explicit HandlerTable(Code code);
   explicit HandlerTable(ByteArray byte_array);
   explicit HandlerTable(BytecodeArray bytecode_array);
-  explicit HandlerTable(Address handler_table, int handler_table_size);
+  HandlerTable(Address handler_table, int handler_table_size,
+               EncodingMode encoding_mode);
 
   // Getters for handler table based on ranges.
   int GetRangeStart(int index) const;
@@ -88,10 +91,11 @@ class V8_EXPORT_PRIVATE HandlerTable {
 #endif
 
  private:
-  enum EncodingMode { kRangeBasedEncoding, kReturnAddressBasedEncoding };
-
   // Getters for handler table based on ranges.
   CatchPrediction GetRangePrediction(int index) const;
+
+  // Gets entry size based on mode.
+  static int EntrySizeFromMode(EncodingMode mode);
 
   // Getters for handler table based on return addresses.
   int GetReturnOffset(int index) const;

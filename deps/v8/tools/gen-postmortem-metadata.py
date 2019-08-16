@@ -85,10 +85,6 @@ consts_misc = [
     { 'name': 'SmiTagMask',             'value': 'kSmiTagMask' },
     { 'name': 'SmiValueShift',          'value': 'kSmiTagSize' },
     { 'name': 'SmiShiftSize',           'value': 'kSmiShiftSize' },
-    { 'name': 'SystemPointerSize',      'value': 'kSystemPointerSize' },
-    { 'name': 'SystemPointerSizeLog2',  'value': 'kSystemPointerSizeLog2' },
-    { 'name': 'TaggedSize',             'value': 'kTaggedSize' },
-    { 'name': 'TaggedSizeLog2',         'value': 'kTaggedSizeLog2' },
 
     { 'name': 'OddballFalse',           'value': 'Oddball::kFalse' },
     { 'name': 'OddballTrue',            'value': 'Oddball::kTrue' },
@@ -165,8 +161,6 @@ consts_misc = [
         'value': 'Map::NumberOfOwnDescriptorsBits::kMask' },
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
         'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
-    { 'name': 'class_Map__instance_descriptors_offset',
-       'value': 'Map::kInstanceDescriptorsOffset' },
 
     { 'name': 'off_fp_context_or_frame_type',
         'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'},
@@ -250,7 +244,6 @@ extras_accessors = [
     'JSArrayBuffer, byte_length, size_t, kByteLengthOffset',
     'JSArrayBufferView, byte_length, size_t, kByteLengthOffset',
     'JSArrayBufferView, byte_offset, size_t, kByteOffsetOffset',
-    'JSTypedArray, external_pointer, uintptr_t, kExternalPointerOffset',
     'JSTypedArray, length, Object, kLengthOffset',
     'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
     'Map, inobject_properties_start_or_constructor_function_index, char, kInObjectPropertiesStartOrConstructorFunctionIndexOffset',
@@ -261,8 +254,6 @@ extras_accessors = [
     'Map, prototype, Object, kPrototypeOffset',
     'Oddball, kind_offset, int, kKindOffset',
     'HeapNumber, value, double, kValueOffset',
-    'ConsString, first, String, kFirstOffset',
-    'ConsString, second, String, kSecondOffset',
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
@@ -285,7 +276,7 @@ extras_accessors = [
 #
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
-    'JSObject', 'JSRegExp', 'JSValue', 'Map', 'Oddball', 'Script',
+    'JSObject', 'JSRegExp', 'JSPrimitiveWrapper', 'Map', 'Oddball', 'Script',
     'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo', 'JSPromise'
 ];
 
@@ -377,6 +368,7 @@ def load_objects_from_file(objfilename, checktypes):
         in_insttype = False;
 
         typestr = '';
+        uncommented_file = ''
 
         #
         # Iterate the header file line-by-line to collect type and class
@@ -399,21 +391,26 @@ def load_objects_from_file(objfilename, checktypes):
                         typestr += line;
                         continue;
 
-                match = re.match(r'class(?:\s+V8_EXPORT(?:_PRIVATE)?)?'
-                                 r'\s+(\w[^:]*)'
+                uncommented_file += '\n' + line
+
+        for match in re.finditer(r'\nclass(?:\s+V8_EXPORT(?:_PRIVATE)?)?'
+                                 r'\s+(\w[^:;]*)'
                                  r'(?:: public (\w[^{]*))?\s*{\s*',
-                                 line);
-
-                if (match):
-                        klass = match.group(1).strip();
-                        pklass = match.group(2);
-                        if (pklass):
-                                # Strip potential template arguments from parent
-                                # class.
-                                match = re.match(r'(\w+)(<.*>)?', pklass.strip());
-                                pklass = match.group(1).strip();
-
-                        klasses[klass] = { 'parent': pklass };
+                                 uncommented_file):
+                klass = match.group(1).strip();
+                pklass = match.group(2);
+                if (pklass):
+                        # Check for generated Torque class.
+                        gen_match = re.match(
+                            r'TorqueGenerated\w+\s*<\s*\w+,\s*(\w+)\s*>',
+                            pklass)
+                        if (gen_match):
+                                pklass = gen_match.group(1)
+                        # Strip potential template arguments from parent
+                        # class.
+                        match = re.match(r'(\w+)(<.*>)?', pklass.strip());
+                        pklass = match.group(1).strip();
+                klasses[klass] = { 'parent': pklass };
 
         #
         # Process the instance type declaration.
@@ -640,7 +637,9 @@ def emit_config():
 
         out.write('/* class type information */\n');
         consts = [];
-        for typename in sorted(typeclasses):
+        keys = typeclasses.keys();
+        keys.sort();
+        for typename in keys:
                 klass = typeclasses[typename];
                 consts.append({
                     'name': 'type_%s__%s' % (klass, typename),
@@ -651,7 +650,9 @@ def emit_config():
 
         out.write('/* class hierarchy information */\n');
         consts = [];
-        for klassname in sorted(klasses):
+        keys = klasses.keys();
+        keys.sort();
+        for klassname in keys:
                 pklass = klasses[klassname]['parent'];
                 bklass = get_base_class(klassname);
                 if (bklass != 'Object'):

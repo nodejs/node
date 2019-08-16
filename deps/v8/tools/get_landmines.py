@@ -47,6 +47,7 @@ def print_landmines():  # pylint: disable=invalid-name
   print('Clober again to fix windows build problems.')
   print('Clobber to possibly resolve failure on win-32 bot.')
   print('Clobber for http://crbug.com/668958.')
+  print('Clobber to possibly resolve build failure on Misc V8 Linux gcc.')
   build_get_landmines.print_landmines()
   return 0
 

@@ -11,8 +11,8 @@
 #include "src/base/bits.h"
 #include "src/base/small-vector.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/execution/frames.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
+#include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -635,13 +635,16 @@ class LiftoffAssembler : public TurboAssembler {
   CacheState* cache_state() { return &cache_state_; }
   const CacheState* cache_state() const { return &cache_state_; }
 
-  bool did_bailout() { return bailout_reason_ != nullptr; }
-  const char* bailout_reason() const { return bailout_reason_; }
+  bool did_bailout() { return bailout_reason_ != kSuccess; }
+  LiftoffBailoutReason bailout_reason() const { return bailout_reason_; }
+  const char* bailout_detail() const { return bailout_detail_; }
 
-  void bailout(const char* reason) {
-    if (bailout_reason_ != nullptr) return;
+  void bailout(LiftoffBailoutReason reason, const char* detail) {
+    DCHECK_NE(kSuccess, reason);
+    if (bailout_reason_ != kSuccess) return;
     AbortCompilation();
     bailout_reason_ = reason;
+    bailout_detail_ = detail;
   }
 
  private:
@@ -655,7 +658,8 @@ class LiftoffAssembler : public TurboAssembler {
                 "Reconsider this inlining if ValueType gets bigger");
   CacheState cache_state_;
   uint32_t num_used_spill_slots_ = 0;
-  const char* bailout_reason_ = nullptr;
+  LiftoffBailoutReason bailout_reason_ = kSuccess;
+  const char* bailout_detail_ = nullptr;
 
   LiftoffRegister SpillOneRegister(LiftoffRegList candidates,
                                    LiftoffRegList pinned);

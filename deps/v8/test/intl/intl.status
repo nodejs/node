@@ -34,6 +34,9 @@
   'collator/check-kf-option': [FAIL],
   'collator/check-kn-option': [FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=9312
+  'regress-9312': [FAIL],
+
   # Slow tests.
   'regress-903566': [PASS, SLOW],
 }],  # ALWAYS

@@ -80,31 +80,33 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   void GetCachedNodes(NodeVector* nodes);
 
 // Cached global nodes.
-#define CACHED_GLOBAL_LIST(V)              \
-  V(AllocateInYoungGenerationStubConstant) \
-  V(AllocateInOldGenerationStubConstant)   \
-  V(ArrayConstructorStubConstant)          \
-  V(BigIntMapConstant)                     \
-  V(BooleanMapConstant)                    \
-  V(ToNumberBuiltinConstant)               \
-  V(EmptyFixedArrayConstant)               \
-  V(EmptyStringConstant)                   \
-  V(FixedArrayMapConstant)                 \
-  V(PropertyArrayMapConstant)              \
-  V(FixedDoubleArrayMapConstant)           \
-  V(HeapNumberMapConstant)                 \
-  V(OptimizedOutConstant)                  \
-  V(StaleRegisterConstant)                 \
-  V(UndefinedConstant)                     \
-  V(TheHoleConstant)                       \
-  V(TrueConstant)                          \
-  V(FalseConstant)                         \
-  V(NullConstant)                          \
-  V(ZeroConstant)                          \
-  V(OneConstant)                           \
-  V(NaNConstant)                           \
-  V(MinusOneConstant)                      \
-  V(EmptyStateValues)                      \
+#define CACHED_GLOBAL_LIST(V)                     \
+  V(AllocateInYoungGenerationStubConstant)        \
+  V(AllocateRegularInYoungGenerationStubConstant) \
+  V(AllocateInOldGenerationStubConstant)          \
+  V(AllocateRegularInOldGenerationStubConstant)   \
+  V(ArrayConstructorStubConstant)                 \
+  V(BigIntMapConstant)                            \
+  V(BooleanMapConstant)                           \
+  V(ToNumberBuiltinConstant)                      \
+  V(EmptyFixedArrayConstant)                      \
+  V(EmptyStringConstant)                          \
+  V(FixedArrayMapConstant)                        \
+  V(PropertyArrayMapConstant)                     \
+  V(FixedDoubleArrayMapConstant)                  \
+  V(HeapNumberMapConstant)                        \
+  V(OptimizedOutConstant)                         \
+  V(StaleRegisterConstant)                        \
+  V(UndefinedConstant)                            \
+  V(TheHoleConstant)                              \
+  V(TrueConstant)                                 \
+  V(FalseConstant)                                \
+  V(NullConstant)                                 \
+  V(ZeroConstant)                                 \
+  V(OneConstant)                                  \
+  V(NaNConstant)                                  \
+  V(MinusOneConstant)                             \
+  V(EmptyStateValues)                             \
   V(SingleDeadTypedStateValues)
 
 // Cached global node accessor methods.

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_API_CALLBACKS_H_
 
 #include "src/objects/struct.h"
+#include "torque-generated/class-definitions-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -159,14 +160,9 @@ class InterceptorInfo : public Struct {
   OBJECT_CONSTRUCTORS(InterceptorInfo, Struct);
 };
 
-class CallHandlerInfo : public Tuple3 {
+class CallHandlerInfo
+    : public TorqueGeneratedCallHandlerInfo<CallHandlerInfo, Struct> {
  public:
-  DECL_ACCESSORS(callback, Object)
-  DECL_ACCESSORS(js_callback, Object)
-  DECL_ACCESSORS(data, Object)
-
-  DECL_CAST(CallHandlerInfo)
-
   inline bool IsSideEffectFreeCallHandlerInfo() const;
   inline bool IsSideEffectCallHandlerInfo() const;
   inline void SetNextCallHasNoSideEffect();
@@ -180,11 +176,7 @@ class CallHandlerInfo : public Tuple3 {
 
   Address redirected_callback() const;
 
-  static const int kCallbackOffset = kValue1Offset;
-  static const int kJsCallbackOffset = kValue2Offset;
-  static const int kDataOffset = kValue3Offset;
-
-  OBJECT_CONSTRUCTORS(CallHandlerInfo, Tuple3);
+  TQ_OBJECT_CONSTRUCTORS(CallHandlerInfo)
 };
 
 }  // namespace internal

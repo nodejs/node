@@ -10,11 +10,16 @@ async function __f_3() {
 async function __f_4() {
   await x.then();
   throw new Error();
-}
+};
+%PrepareFunctionForOptimization(__f_4);
 async function __f_5(f) {
   try {
     await f();
   } catch (e) {
   }
 }
-(async() => {; %OptimizeFunctionOnNextCall(__f_4); await __f_5(__f_3); })();
+(async () => {
+  ;
+  %OptimizeFunctionOnNextCall(__f_4);
+  await __f_5(__f_3);
+})();

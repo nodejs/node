@@ -10,10 +10,12 @@ let cleanup = function(iter) {
   for (holdings of iter) {
     // See which target we're iterating over and unregister the other one.
     if (holdings == 1) {
-      fg.unregister(key2);
+      let success = fg.unregister(key2);
+      assertTrue(success);
     } else {
       assertSame(holdings, 2);
-      fg.unregister(key1);
+      let success = fg.unregister(key1);
+      assertTrue(success);
     }
     ++cleanup_holdings_count;
   }

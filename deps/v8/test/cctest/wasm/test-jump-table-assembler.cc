@@ -224,7 +224,7 @@ TEST(JumpTablePatchingStress) {
   Address slot_start = reinterpret_cast<Address>(buffer->start());
   for (int slot = 0; slot < kJumpTableSlotCount; ++slot) {
     TRACE("Hammering on jump table slot #%d ...\n", slot);
-    uint32_t slot_offset = JumpTableAssembler::SlotIndexToOffset(slot);
+    uint32_t slot_offset = JumpTableAssembler::JumpSlotIndexToOffset(slot);
     std::vector<std::unique_ptr<TestingAssemblerBuffer>> thunk_buffers;
     Address thunk1 =
         GenerateJumpTableThunk(slot_start + slot_offset, thunk_slot_buffer,

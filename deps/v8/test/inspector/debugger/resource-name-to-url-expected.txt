@@ -96,7 +96,7 @@ Test runtime stack trace:
                 }
                 [1] : {
                     columnNumber : 0
-                    functionName : 
+                    functionName : eval
                     lineNumber : 0
                     scriptId : <scriptId>
                     url : boo.js

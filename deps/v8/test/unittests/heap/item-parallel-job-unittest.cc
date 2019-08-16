@@ -28,7 +28,7 @@ class SimpleTask : public ItemParallelJob::Task {
   SimpleTask(Isolate* isolate, bool* did_run)
       : ItemParallelJob::Task(isolate), did_run_(did_run) {}
 
-  void RunInParallel() override {
+  void RunInParallel(Runner runner) override {
     ItemParallelJob::Item* item = nullptr;
     while ((item = GetItem<ItemParallelJob::Item>()) != nullptr) {
       item->MarkFinished();
@@ -58,7 +58,7 @@ class EagerTask : public ItemParallelJob::Task {
  public:
   explicit EagerTask(Isolate* isolate) : ItemParallelJob::Task(isolate) {}
 
-  void RunInParallel() override {
+  void RunInParallel(Runner runner) override {
     SimpleItem* item = nullptr;
     while ((item = GetItem<SimpleItem>()) != nullptr) {
       item->Process();
@@ -120,7 +120,7 @@ class TaskProcessingOneItem : public ItemParallelJob::Task {
         wait_when_done_(wait_when_done),
         did_process_an_item_(did_process_an_item) {}
 
-  void RunInParallel() override {
+  void RunInParallel(Runner runner) override {
     SimpleItem* item = GetItem<SimpleItem>();
 
     if (did_process_an_item_) {
@@ -164,7 +164,7 @@ class TaskForDifferentItems : public ItemParallelJob::Task {
         processed_b_(processed_b) {}
   ~TaskForDifferentItems() override = default;
 
-  void RunInParallel() override {
+  void RunInParallel(Runner runner) override {
     BaseItem* item = nullptr;
     while ((item = GetItem<BaseItem>()) != nullptr) {
       item->ProcessItem(this);

@@ -26,6 +26,12 @@ inline constexpr bool IsBinaryDigit(uc32 c);
 inline constexpr bool IsRegExpWord(uc32 c);
 inline constexpr bool IsRegExpNewline(uc32 c);
 
+inline constexpr bool IsAsciiLower(uc32 ch);
+inline constexpr bool IsAsciiUpper(uc32 ch);
+
+inline constexpr uc32 ToAsciiUpper(uc32 ch);
+inline constexpr uc32 ToAsciiLower(uc32 ch);
+
 // ES#sec-names-and-keywords
 // This includes '_', '$' and '\', and ID_Start according to
 // http://www.unicode.org/reports/tr31/, which consists of categories

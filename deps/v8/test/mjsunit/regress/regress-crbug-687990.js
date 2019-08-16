@@ -12,5 +12,6 @@ var foo = (function() {
   return function() { o.x = null; }
 })();
 
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 foo();

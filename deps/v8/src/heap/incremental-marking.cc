@@ -37,14 +37,14 @@ using IncrementalMarkingMarkingVisitor =
 
 void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
                                         size_t size) {
-  Heap* heap = incremental_marking_.heap();
+  Heap* heap = incremental_marking_->heap();
   VMState<GC> state(heap->isolate());
   RuntimeCallTimerScope runtime_timer(
       heap->isolate(),
       RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
-  incremental_marking_.AdvanceOnAllocation();
+  incremental_marking_->AdvanceOnAllocation();
   // AdvanceIncrementalMarkingOnAllocation can start incremental marking.
-  incremental_marking_.EnsureBlackAllocated(addr, size);
+  incremental_marking_->EnsureBlackAllocated(addr, size);
 }
 
 IncrementalMarking::IncrementalMarking(
@@ -64,8 +64,8 @@ IncrementalMarking::IncrementalMarking(
       black_allocation_(false),
       finalize_marking_completed_(false),
       request_type_(NONE),
-      new_generation_observer_(*this, kYoungGenerationAllocatedThreshold),
-      old_generation_observer_(*this, kOldGenerationAllocatedThreshold) {
+      new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
+      old_generation_observer_(this, kOldGenerationAllocatedThreshold) {
   DCHECK_NOT_NULL(marking_worklist_);
   SetState(STOPPED);
 }
@@ -246,6 +246,10 @@ bool IncrementalMarking::CanBeActivated() {
          !heap_->isolate()->serializer_enabled();
 }
 
+bool IncrementalMarking::IsBelowActivationThresholds() const {
+  return heap_->OldGenerationSizeOfObjects() <= kV8ActivationThreshold &&
+         heap_->GlobalSizeOfObjects() <= kGlobalActivationThreshold;
+}
 
 void IncrementalMarking::Deactivate() {
   DeactivateIncrementalWriteBarrier();
@@ -253,16 +257,23 @@ void IncrementalMarking::Deactivate() {
 
 void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   if (FLAG_trace_incremental_marking) {
-    int old_generation_size_mb =
-        static_cast<int>(heap()->OldGenerationSizeOfObjects() / MB);
-    int old_generation_limit_mb =
-        static_cast<int>(heap()->old_generation_allocation_limit() / MB);
+    const size_t old_generation_size_mb =
+        heap()->OldGenerationSizeOfObjects() / MB;
+    const size_t old_generation_limit_mb =
+        heap()->old_generation_allocation_limit() / MB;
+    const size_t global_size_mb = heap()->GlobalSizeOfObjects() / MB;
+    const size_t global_limit_mb = heap()->global_allocation_limit() / MB;
     heap()->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Start (%s): old generation %dMB, limit %dMB, "
-        "slack %dMB\n",
+        "[IncrementalMarking] Start (%s): (size/limit/slack) v8: %zuMB / %zuMB "
+        "/ %zuMB global: %zuMB / %zuMB / %zuMB\n",
         Heap::GarbageCollectionReasonToString(gc_reason),
         old_generation_size_mb, old_generation_limit_mb,
-        Max(0, old_generation_limit_mb - old_generation_size_mb));
+        old_generation_size_mb > old_generation_limit_mb
+            ? 0
+            : old_generation_limit_mb - old_generation_size_mb,
+        global_size_mb, global_limit_mb,
+        global_size_mb > global_limit_mb ? 0
+                                         : global_limit_mb - global_size_mb);
   }
   DCHECK(FLAG_incremental_marking);
   DCHECK(state_ == STOPPED);
@@ -827,8 +838,8 @@ void IncrementalMarking::Stop() {
   }
 
   SpaceIterator it(heap_);
-  while (it.has_next()) {
-    Space* space = it.next();
+  while (it.HasNext()) {
+    Space* space = it.Next();
     if (space == heap_->new_space()) {
       space->RemoveAllocationObserver(&new_generation_observer_);
     } else {

@@ -225,7 +225,7 @@ if (v8_enable_snapshot_native_code_counters == "") {
   v8_enable_snapshot_native_code_counters = v8_enable_debugging_features
 }
 if (v8_enable_shared_ro_heap == "") {
-  v8_enable_shared_ro_heap = v8_enable_lite_mode
+  v8_enable_shared_ro_heap = !v8_enable_pointer_compression && v8_use_snapshot
 }
 if (v8_enable_fast_torque == "") {
   v8_enable_fast_torque = v8_enable_fast_mksnapshot
@@ -242,6 +242,8 @@ assert(!v8_enable_lite_mode || v8_use_snapshot,
 assert(
     !v8_enable_pointer_compression || !v8_enable_shared_ro_heap,
     "Pointer compression is not supported with shared read-only heap enabled")
+assert(v8_use_snapshot || !v8_enable_shared_ro_heap,
+       "Shared read-only heap requires snapshot")
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
@@ -408,6 +410,7 @@ config("features") {
   if (v8_enable_test_features) {
     defines += [ "V8_ENABLE_ALLOCATION_TIMEOUT" ]
     defines += [ "V8_ENABLE_FORCE_SLOW_PATH" ]
+    defines += [ "V8_ENABLE_DOUBLE_CONST_STORE_CHECK" ]
   }
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
@@ -940,6 +943,7 @@ torque_files = [
   "src/builtins/array-unshift.tq",
   "src/builtins/array.tq",
   "src/builtins/base.tq",
+  "src/builtins/bigint.tq",
   "src/builtins/boolean.tq",
   "src/builtins/collections.tq",
   "src/builtins/data-view.tq",
@@ -950,13 +954,20 @@ torque_files = [
   "src/builtins/iterator.tq",
   "src/builtins/math.tq",
   "src/builtins/object-fromentries.tq",
+  "src/builtins/object.tq",
   "src/builtins/proxy-constructor.tq",
+  "src/builtins/proxy-delete-property.tq",
   "src/builtins/proxy-get-property.tq",
+  "src/builtins/proxy-get-prototype-of.tq",
   "src/builtins/proxy-has-property.tq",
+  "src/builtins/proxy-is-extensible.tq",
+  "src/builtins/proxy-prevent-extensions.tq",
   "src/builtins/proxy-revocable.tq",
   "src/builtins/proxy-revoke.tq",
   "src/builtins/proxy-set-property.tq",
+  "src/builtins/proxy-set-prototype-of.tq",
   "src/builtins/proxy.tq",
+  "src/builtins/reflect.tq",
   "src/builtins/regexp-replace.tq",
   "src/builtins/regexp.tq",
   "src/builtins/string.tq",
@@ -988,57 +999,6 @@ if (!v8_enable_i18n_support) {
   torque_files -= [ "src/objects/intl-objects.tq" ]
 }
 
-torque_namespaces = [
-  "arguments",
-  "array",
-  "array-copywithin",
-  "array-filter",
-  "array-find",
-  "array-findindex",
-  "array-foreach",
-  "array-join",
-  "array-map",
-  "array-of",
-  "array-reverse",
-  "array-shift",
-  "array-slice",
-  "array-splice",
-  "array-unshift",
-  "array-lastindexof",
-  "base",
-  "boolean",
-  "collections",
-  "data-view",
-  "extras-utils",
-  "growable-fixed-array",
-  "internal-coverage",
-  "iterator",
-  "math",
-  "object",
-  "proxy",
-  "regexp",
-  "regexp-replace",
-  "string",
-  "string-html",
-  "string-iterator",
-  "string-repeat",
-  "string-slice",
-  "string-substring",
-  "test",
-  "typed-array",
-  "typed-array-createtypedarray",
-  "typed-array-every",
-  "typed-array-filter",
-  "typed-array-find",
-  "typed-array-findindex",
-  "typed-array-foreach",
-  "typed-array-reduce",
-  "typed-array-reduceright",
-  "typed-array-slice",
-  "typed-array-some",
-  "typed-array-subarray",
-]
-
 action("run_torque") {
   visibility = [
     ":*",
@@ -1066,11 +1026,13 @@ action("run_torque") {
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
     "$target_gen_dir/torque-generated/csa-types-tq.h",
+    "$target_gen_dir/torque-generated/instance-types-tq.h",
   ]
-  foreach(namespace, torque_namespaces) {
+  foreach(file, torque_files) {
+    filetq = string_replace(file, ".tq", "-tq-csa")
     outputs += [
-      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.cc",
-      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.h",
+      "$target_gen_dir/torque-generated/$filetq.cc",
+      "$target_gen_dir/torque-generated/$filetq.h",
     ]
   }
 
@@ -1080,11 +1042,10 @@ action("run_torque") {
                        root_build_dir),
     "-o",
     rebase_path("$target_gen_dir/torque-generated", root_build_dir),
+    "-v8-root",
+    rebase_path(".", root_build_dir),
   ]
-
-  foreach(file, torque_files) {
-    args += [ rebase_path(file, root_build_dir) ]
-  }
+  args += torque_files
 }
 
 group("v8_maybe_icu") {
@@ -1112,10 +1073,11 @@ v8_source_set("torque_generated_initializers") {
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
   ]
-  foreach(namespace, torque_namespaces) {
+  foreach(file, torque_files) {
+    filetq = string_replace(file, ".tq", "-tq-csa")
     sources += [
-      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.cc",
-      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.h",
+      "$target_gen_dir/torque-generated/$filetq.cc",
+      "$target_gen_dir/torque-generated/$filetq.h",
     ]
   }
 
@@ -1515,6 +1477,7 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-async-generator-gen.cc",
     "src/builtins/builtins-async-iterator-gen.cc",
     "src/builtins/builtins-bigint-gen.cc",
+    "src/builtins/builtins-bigint-gen.h",
     "src/builtins/builtins-boolean-gen.cc",
     "src/builtins/builtins-call-gen.cc",
     "src/builtins/builtins-call-gen.h",
@@ -1776,6 +1739,8 @@ v8_compiler_sources = [
   "src/compiler/control-equivalence.h",
   "src/compiler/control-flow-optimizer.cc",
   "src/compiler/control-flow-optimizer.h",
+  "src/compiler/csa-load-elimination.cc",
+  "src/compiler/csa-load-elimination.h",
   "src/compiler/dead-code-elimination.cc",
   "src/compiler/dead-code-elimination.h",
   "src/compiler/decompression-elimination.cc",
@@ -1913,6 +1878,8 @@ v8_compiler_sources = [
   "src/compiler/state-values-utils.h",
   "src/compiler/store-store-elimination.cc",
   "src/compiler/store-store-elimination.h",
+  "src/compiler/add-type-assertions-reducer.cc",
+  "src/compiler/add-type-assertions-reducer.h",
   "src/compiler/type-cache.cc",
   "src/compiler/type-cache.h",
   "src/compiler/type-narrowing-reducer.cc",
@@ -2123,6 +2090,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/codegen/macro-assembler.h",
     "src/codegen/optimized-compilation-info.cc",
     "src/codegen/optimized-compilation-info.h",
+    "src/codegen/pending-optimization-table.cc",
+    "src/codegen/pending-optimization-table.h",
     "src/codegen/register-arch.h",
     "src/codegen/register-configuration.cc",
     "src/codegen/register-configuration.h",
@@ -2139,6 +2108,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/codegen/source-position.h",
     "src/codegen/string-constants.cc",
     "src/codegen/string-constants.h",
+    "src/codegen/tick-counter.cc",
+    "src/codegen/tick-counter.h",
     "src/codegen/turbo-assembler.cc",
     "src/codegen/turbo-assembler.h",
     "src/codegen/unoptimized-compilation-info.cc",
@@ -2148,7 +2119,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/common/checks.h",
     "src/common/ptr-compr-inl.h",
     "src/common/ptr-compr.h",
-    "src/common/v8memory.h",
     "src/compiler-dispatcher/compiler-dispatcher.cc",
     "src/compiler-dispatcher/compiler-dispatcher.h",
     "src/compiler-dispatcher/optimizing-compile-dispatcher.cc",
@@ -2212,8 +2182,11 @@ v8_source_set("v8_base_without_compiler") {
     "src/execution/frames.h",
     "src/execution/futex-emulation.cc",
     "src/execution/futex-emulation.h",
+    "src/execution/interrupts-scope.cc",
+    "src/execution/interrupts-scope.h",
     "src/execution/isolate-data.h",
     "src/execution/isolate-inl.h",
+    "src/execution/isolate-utils.h",
     "src/execution/isolate.cc",
     "src/execution/isolate.h",
     "src/execution/message-template.h",
@@ -2226,6 +2199,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/execution/simulator-base.cc",
     "src/execution/simulator-base.h",
     "src/execution/simulator.h",
+    "src/execution/stack-guard.cc",
+    "src/execution/stack-guard.h",
     "src/execution/thread-id.cc",
     "src/execution/thread-id.h",
     "src/execution/thread-local-top.cc",
@@ -2234,6 +2209,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/execution/v8threads.h",
     "src/execution/vm-state-inl.h",
     "src/execution/vm-state.h",
+    "src/extensions/cputracemark-extension.cc",
+    "src/extensions/cputracemark-extension.h",
     "src/extensions/externalize-string-extension.cc",
     "src/extensions/externalize-string-extension.h",
     "src/extensions/free-buffer-extension.cc",
@@ -2262,6 +2239,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/array-buffer-tracker.cc",
     "src/heap/array-buffer-tracker.h",
     "src/heap/barrier.h",
+    "src/heap/basic-memory-chunk.cc",
+    "src/heap/basic-memory-chunk.h",
     "src/heap/code-stats.cc",
     "src/heap/code-stats.h",
     "src/heap/combined-heap.cc",
@@ -2308,6 +2287,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/objects-visiting-inl.h",
     "src/heap/objects-visiting.cc",
     "src/heap/objects-visiting.h",
+    "src/heap/read-only-heap-inl.h",
     "src/heap/read-only-heap.cc",
     "src/heap/read-only-heap.h",
     "src/heap/remembered-set.h",
@@ -2623,6 +2603,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/slots-atomic-inl.h",
     "src/objects/slots-inl.h",
     "src/objects/slots.h",
+    "src/objects/source-text-module.cc",
+    "src/objects/source-text-module.h",
     "src/objects/stack-frame-info-inl.h",
     "src/objects/stack-frame-info.cc",
     "src/objects/stack-frame-info.h",
@@ -2635,6 +2617,10 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/string.h",
     "src/objects/struct-inl.h",
     "src/objects/struct.h",
+    "src/objects/synthetic-module.cc",
+    "src/objects/synthetic-module.h",
+    "src/objects/tagged-field-inl.h",
+    "src/objects/tagged-field.h",
     "src/objects/tagged-impl-inl.h",
     "src/objects/tagged-impl.cc",
     "src/objects/tagged-impl.h",
@@ -2709,23 +2695,27 @@ v8_source_set("v8_base_without_compiler") {
     "src/profiler/tick-sample.h",
     "src/profiler/tracing-cpu-profiler.cc",
     "src/profiler/tracing-cpu-profiler.h",
-    "src/regexp/bytecodes-irregexp.h",
-    "src/regexp/interpreter-irregexp.cc",
-    "src/regexp/interpreter-irregexp.h",
-    "src/regexp/jsregexp-inl.h",
-    "src/regexp/jsregexp.cc",
-    "src/regexp/jsregexp.h",
     "src/regexp/property-sequences.cc",
     "src/regexp/property-sequences.h",
     "src/regexp/regexp-ast.cc",
     "src/regexp/regexp-ast.h",
-    "src/regexp/regexp-macro-assembler-irregexp-inl.h",
-    "src/regexp/regexp-macro-assembler-irregexp.cc",
-    "src/regexp/regexp-macro-assembler-irregexp.h",
+    "src/regexp/regexp-bytecode-generator-inl.h",
+    "src/regexp/regexp-bytecode-generator.cc",
+    "src/regexp/regexp-bytecode-generator.h",
+    "src/regexp/regexp-bytecodes.h",
+    "src/regexp/regexp-compiler-tonode.cc",
+    "src/regexp/regexp-compiler.cc",
+    "src/regexp/regexp-compiler.h",
+    "src/regexp/regexp-dotprinter.cc",
+    "src/regexp/regexp-dotprinter.h",
+    "src/regexp/regexp-interpreter.cc",
+    "src/regexp/regexp-interpreter.h",
+    "src/regexp/regexp-macro-assembler-arch.h",
     "src/regexp/regexp-macro-assembler-tracer.cc",
     "src/regexp/regexp-macro-assembler-tracer.h",
     "src/regexp/regexp-macro-assembler.cc",
     "src/regexp/regexp-macro-assembler.h",
+    "src/regexp/regexp-nodes.h",
     "src/regexp/regexp-parser.cc",
     "src/regexp/regexp-parser.h",
     "src/regexp/regexp-special-case.h",
@@ -2733,6 +2723,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/regexp/regexp-stack.h",
     "src/regexp/regexp-utils.cc",
     "src/regexp/regexp-utils.h",
+    "src/regexp/regexp.cc",
+    "src/regexp/regexp.h",
     "src/roots/roots-inl.h",
     "src/roots/roots.cc",
     "src/roots/roots.h",
@@ -2866,8 +2858,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/utils/ostreams.cc",
     "src/utils/ostreams.h",
     "src/utils/pointer-with-payload.h",
-    "src/utils/splay-tree-inl.h",
-    "src/utils/splay-tree.h",
     "src/utils/utils-inl.h",
     "src/utils/utils.cc",
     "src/utils/utils.h",
@@ -2889,7 +2879,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/function-compiler.h",
     "src/wasm/graph-builder-interface.cc",
     "src/wasm/graph-builder-interface.h",
-    "src/wasm/js-to-wasm-wrapper-cache.h",
     "src/wasm/jump-table-assembler.cc",
     "src/wasm/jump-table-assembler.h",
     "src/wasm/leb-helper.h",
@@ -2909,6 +2898,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/streaming-decoder.cc",
     "src/wasm/streaming-decoder.h",
     "src/wasm/value-type.h",
+    "src/wasm/wasm-arguments.h",
     "src/wasm/wasm-code-manager.cc",
     "src/wasm/wasm-code-manager.h",
     "src/wasm/wasm-constants.h",
@@ -2956,7 +2946,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/zone/zone-list-inl.h",
     "src/zone/zone-segment.cc",
     "src/zone/zone-segment.h",
-    "src/zone/zone-splay-tree.h",
     "src/zone/zone.cc",
     "src/zone/zone.h",
   ]
@@ -3348,6 +3337,7 @@ v8_source_set("torque_base") {
     "src/torque/declarations.h",
     "src/torque/earley-parser.cc",
     "src/torque/earley-parser.h",
+    "src/torque/global-context.cc",
     "src/torque/global-context.h",
     "src/torque/implementation-visitor.cc",
     "src/torque/implementation-visitor.h",
@@ -3379,6 +3369,9 @@ v8_source_set("torque_base") {
     ":v8_libbase",
   ]
 
+  # The use of exceptions for Torque in violation of the Chromium style-guide
+  # is justified by the fact that it is only used from the non-essential
+  # language server and can be removed anytime if it causes problems.
   configs = [
     ":internal_config",
     "//build/config/compiler:exceptions",
@@ -3421,6 +3414,9 @@ v8_source_set("torque_ls_base") {
     ":torque_base",
   ]
 
+  # The use of exceptions for Torque in violation of the Chromium style-guide
+  # is justified by the fact that it is only used from the non-essential
+  # language server and can be removed anytime if it causes problems.
   configs = [
     ":internal_config",
     "//build/config/compiler:exceptions",
@@ -3476,7 +3472,9 @@ v8_component("v8_libbase") {
     "src/base/list.h",
     "src/base/logging.cc",
     "src/base/logging.h",
+    "src/base/lsan.h",
     "src/base/macros.h",
+    "src/base/memory.h",
     "src/base/once.cc",
     "src/base/once.h",
     "src/base/optional.h",
@@ -3506,6 +3504,8 @@ v8_component("v8_libbase") {
     "src/base/type-traits.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
+    "src/base/vlq-base64.cc",
+    "src/base/vlq-base64.h",
   ]
 
   configs = [ ":internal_config_base" ]
@@ -3671,21 +3671,15 @@ v8_component("v8_libplatform") {
     sources += [
       "src/libplatform/tracing/json-trace-event-listener.cc",
       "src/libplatform/tracing/json-trace-event-listener.h",
-      "src/libplatform/tracing/perfetto-consumer.cc",
-      "src/libplatform/tracing/perfetto-consumer.h",
-      "src/libplatform/tracing/perfetto-producer.cc",
-      "src/libplatform/tracing/perfetto-producer.h",
-      "src/libplatform/tracing/perfetto-shared-memory.cc",
-      "src/libplatform/tracing/perfetto-shared-memory.h",
-      "src/libplatform/tracing/perfetto-tasks.cc",
-      "src/libplatform/tracing/perfetto-tasks.h",
-      "src/libplatform/tracing/perfetto-tracing-controller.cc",
-      "src/libplatform/tracing/perfetto-tracing-controller.h",
+      "src/libplatform/tracing/trace-event-listener.cc",
       "src/libplatform/tracing/trace-event-listener.h",
     ]
     deps += [
-      "//third_party/perfetto:libperfetto",
+      "//third_party/perfetto/protos/perfetto/trace:lite",
       "//third_party/perfetto/protos/perfetto/trace/chrome:minimal_complete_lite",
+      "//third_party/perfetto/protos/perfetto/trace/chrome:zero",
+      "//third_party/perfetto/src/tracing:client_api",
+      "//third_party/perfetto/src/tracing:platform_posix",
     ]
   }
 }
@@ -3846,6 +3840,9 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "//build/win:default_exe_manifest",
     ]
 
+    # The use of exceptions for Torque in violation of the Chromium style-guide
+    # is justified by the fact that it is only used from the non-essential
+    # language server and can be removed anytime if it causes problems.
     configs = [
       ":internal_config",
       "//build/config/compiler:exceptions",
@@ -3876,6 +3873,9 @@ v8_executable("torque-language-server") {
     "//build/win:default_exe_manifest",
   ]
 
+  # The use of exceptions for Torque in violation of the Chromium style-guide
+  # is justified by the fact that it is only used from the non-essential
+  # language server and can be removed anytime if it causes problems.
   configs = [
     ":internal_config",
     "//build/config/compiler:exceptions",
@@ -3892,48 +3892,51 @@ v8_executable("torque-language-server") {
   }
 }
 
-if (current_toolchain == v8_generator_toolchain) {
-  v8_executable("gen-regexp-special-case") {
+if (v8_enable_i18n_support) {
+  if (current_toolchain == v8_generator_toolchain) {
+    v8_executable("gen-regexp-special-case") {
+      visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+      sources = [
+        "src/regexp/gen-regexp-special-case.cc",
+      ]
+
+      deps = [
+        ":v8_libbase",
+        "//build/win:default_exe_manifest",
+        "//third_party/icu",
+      ]
+
+      configs = [ ":internal_config" ]
+    }
+  }
+
+  action("run_gen-regexp-special-case") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-    sources = [
-      "src/regexp/gen-regexp-special-case.cc",
-    ]
+    script = "tools/run.py"
+
+    sources = v8_extra_library_files
 
     deps = [
-      ":v8_libbase",
-      "//build/win:default_exe_manifest",
-      "//third_party/icu",
+      ":gen-regexp-special-case($v8_generator_toolchain)",
     ]
 
-    configs = [ ":internal_config" ]
+    output_file = "$target_gen_dir/src/regexp/special-case.cc"
+
+    outputs = [
+      output_file,
+    ]
+
+    args = [
+      "./" + rebase_path(
+              get_label_info(
+                      ":gen-regexp-special-case($v8_generator_toolchain)",
+                      "root_out_dir") + "/gen-regexp-special-case",
+              root_build_dir),
+      rebase_path(output_file, root_build_dir),
+    ]
   }
-}
-
-action("run_gen-regexp-special-case") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  script = "tools/run.py"
-
-  sources = v8_extra_library_files
-
-  deps = [
-    ":gen-regexp-special-case($v8_generator_toolchain)",
-  ]
-
-  output_file = "$target_gen_dir/src/regexp/special-case.cc"
-
-  outputs = [
-    output_file,
-  ]
-
-  args = [
-    "./" + rebase_path(
-            get_label_info(":gen-regexp-special-case($v8_generator_toolchain)",
-                           "root_out_dir") + "/gen-regexp-special-case",
-            root_build_dir),
-    rebase_path(output_file, root_build_dir),
-  ]
 }
 
 ###############################################################################
@@ -4145,6 +4148,10 @@ v8_executable("d8") {
 
   if (v8_enable_vtunejit) {
     deps += [ "src/third_party/vtune:v8_vtune" ]
+  }
+
+  if (v8_use_perfetto) {
+    deps += [ "//third_party/perfetto/include/perfetto/tracing" ]
   }
 }
 
@@ -4451,7 +4458,6 @@ group("v8_generated_cc_files") {
     ":js2c_extras",
     ":run_torque",
     "src/inspector:v8_generated_cc_files",
-    "test/cctest:v8_generated_cc_files",
   ]
 }
 

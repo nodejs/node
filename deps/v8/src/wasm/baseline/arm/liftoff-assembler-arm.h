@@ -7,8 +7,6 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
-#define BAILOUT(reason) bailout("arm " reason)
-
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -223,7 +221,7 @@ inline void EmitFloatMinOrMax(LiftoffAssembler* assm, RegisterType dst,
 
 int LiftoffAssembler::PrepareStackFrame() {
   if (!CpuFeatures::IsSupported(ARMv7)) {
-    BAILOUT("Armv6 not supported");
+    bailout(kUnsupportedArchitecture, "Armv6 not supported");
     return 0;
   }
   uint32_t offset = static_cast<uint32_t>(pc_offset());
@@ -247,7 +245,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
   // before checking it.
   // TODO(arm): Remove this when the stack check mechanism will be updated.
   if (bytes > KB / 2) {
-    BAILOUT("Stack limited to 512 bytes to avoid a bug in StackCheck");
+    bailout(kOtherReason,
+            "Stack limited to 512 bytes to avoid a bug in StackCheck");
     return;
   }
 #endif
@@ -750,7 +749,7 @@ void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
   if (!CpuFeatures::IsSupported(SUDIV)) {
-    BAILOUT("i32_divs");
+    bailout(kMissingCPUFeature, "i32_divs");
     return;
   }
   CpuFeatureScope scope(this, SUDIV);
@@ -778,7 +777,7 @@ void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
 void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
   if (!CpuFeatures::IsSupported(SUDIV)) {
-    BAILOUT("i32_divu");
+    bailout(kMissingCPUFeature, "i32_divu");
     return;
   }
   CpuFeatureScope scope(this, SUDIV);
@@ -793,7 +792,7 @@ void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
   if (!CpuFeatures::IsSupported(SUDIV)) {
     // When this case is handled, a check for ARMv7 is required to use mls.
     // Mls support is implied with SUDIV support.
-    BAILOUT("i32_rems");
+    bailout(kMissingCPUFeature, "i32_rems");
     return;
   }
   CpuFeatureScope scope(this, SUDIV);
@@ -814,7 +813,7 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
   if (!CpuFeatures::IsSupported(SUDIV)) {
     // When this case is handled, a check for ARMv7 is required to use mls.
     // Mls support is implied with SUDIV support.
-    BAILOUT("i32_remu");
+    bailout(kMissingCPUFeature, "i32_remu");
     return;
   }
   CpuFeatureScope scope(this, SUDIV);
@@ -1563,7 +1562,5 @@ void LiftoffStackSlots::Construct() {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-
-#undef BAILOUT
 
 #endif  // V8_WASM_BASELINE_ARM_LIFTOFF_ASSEMBLER_ARM_H_

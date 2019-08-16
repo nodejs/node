@@ -41,7 +41,7 @@ void MarkingBarrierForDescriptorArray(Heap* heap, HeapObject host,
                                       HeapObject descriptor_array,
                                       int number_of_own_descriptors);
 
-Heap* GetHeapFromWritableObject(const HeapObject object);
+inline bool IsReadOnlyHeapObject(HeapObject object);
 
 }  // namespace internal
 }  // namespace v8

@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_SLOTS_H_
 #define V8_OBJECTS_SLOTS_H_
 
+#include "src/base/memory.h"
 #include "src/common/globals.h"
-#include "src/common/v8memory.h"
 
 namespace v8 {
 namespace internal {
@@ -192,11 +192,11 @@ class UnalignedSlot : public SlotBase<UnalignedSlot<T>, T, 1> {
     Reference(const Reference&) V8_NOEXCEPT = default;
 
     Reference& operator=(const Reference& other) V8_NOEXCEPT {
-      WriteUnalignedValue<T>(address_, other.value());
+      base::WriteUnalignedValue<T>(address_, other.value());
       return *this;
     }
     Reference& operator=(T value) {
-      WriteUnalignedValue<T>(address_, value);
+      base::WriteUnalignedValue<T>(address_, value);
       return *this;
     }
 
@@ -206,8 +206,8 @@ class UnalignedSlot : public SlotBase<UnalignedSlot<T>, T, 1> {
 
     void swap(Reference& other) {
       T tmp = value();
-      WriteUnalignedValue<T>(address_, other.value());
-      WriteUnalignedValue<T>(other.address_, tmp);
+      base::WriteUnalignedValue<T>(address_, other.value());
+      base::WriteUnalignedValue<T>(other.address_, tmp);
     }
 
     bool operator<(const Reference& other) const {
@@ -219,7 +219,7 @@ class UnalignedSlot : public SlotBase<UnalignedSlot<T>, T, 1> {
     }
 
    private:
-    T value() const { return ReadUnalignedValue<T>(address_); }
+    T value() const { return base::ReadUnalignedValue<T>(address_); }
 
     Address address_;
   };

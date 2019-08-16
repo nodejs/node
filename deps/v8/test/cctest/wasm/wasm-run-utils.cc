@@ -47,8 +47,10 @@ TestingModuleBuilder::TestingModuleBuilder(
   if (maybe_import) {
     // Manually compile an import wrapper and insert it into the instance.
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
-    auto kind = compiler::GetWasmImportCallKind(maybe_import->js_function,
-                                                maybe_import->sig, false);
+    auto resolved = compiler::ResolveWasmImportCall(maybe_import->js_function,
+                                                    maybe_import->sig, false);
+    compiler::WasmImportCallKind kind = resolved.first;
+    Handle<JSReceiver> callable = resolved.second;
     WasmImportWrapperCache::ModificationScope cache_scope(
         native_module_->import_wrapper_cache());
     WasmImportWrapperCache::CacheKey key(kind, maybe_import->sig);
@@ -60,7 +62,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     }
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
-        .SetWasmToJs(isolate_, maybe_import->js_function, import_wrapper);
+        .SetWasmToJs(isolate_, callable, import_wrapper);
   }
 
   if (tier == ExecutionTier::kInterpreter) {
@@ -170,9 +172,24 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   table.initial_size = table_size;
   table.maximum_size = table_size;
   table.has_maximum_size = true;
-  table.type = kWasmAnyFunc;
+  table.type = kWasmFuncRef;
+
+  {
+    // Allocate the indirect function table.
+    Handle<FixedArray> old_tables =
+        table_index == 0
+            ? isolate_->factory()->empty_fixed_array()
+            : handle(instance_object_->indirect_function_tables(), isolate_);
+    Handle<FixedArray> new_tables =
+        isolate_->factory()->CopyFixedArrayAndGrow(old_tables, 1);
+    Handle<WasmIndirectFunctionTable> table_obj =
+        WasmIndirectFunctionTable::New(isolate_, table.initial_size);
+    new_tables->set(table_index, *table_obj);
+    instance_object_->set_indirect_function_tables(*new_tables);
+  }
+
   WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
-      instance_object(), table_size);
+      instance_object(), table_index, table_size);
   Handle<WasmTableObject> table_obj =
       WasmTableObject::New(isolate_, table.type, table.initial_size,
                            table.has_maximum_size, table.maximum_size, nullptr);
@@ -184,7 +201,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     for (uint32_t i = 0; i < table_size; ++i) {
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id = test_module_->signature_map.Find(*function.sig);
-      IndirectFunctionTableEntry(instance, i)
+      IndirectFunctionTableEntry(instance, table_index, i)
           .Set(sig_id, instance, function.func_index);
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate_, table_obj, i, instance_object_, function_indexes[i]);
@@ -192,8 +209,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   }
 
   Handle<FixedArray> old_tables(instance_object_->tables(), isolate_);
-  Handle<FixedArray> new_tables = isolate_->factory()->CopyFixedArrayAndGrow(
-      old_tables, old_tables->length() + 1);
+  Handle<FixedArray> new_tables =
+      isolate_->factory()->CopyFixedArrayAndGrow(old_tables, 1);
   new_tables->set(old_tables->length(), *table_obj);
   instance_object_->set_tables(*new_tables);
 }

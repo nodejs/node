@@ -395,7 +395,7 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
   }
   heap_->PreciseCollectAllGarbage(Heap::kNoGCFlags,
                                   GarbageCollectionReason::kHeapProfiler);
-  CombinedHeapIterator iterator(heap_);
+  CombinedHeapObjectIterator iterator(heap_);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     FindOrAddEntry(obj.address(), obj.Size());
@@ -643,7 +643,7 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject object) {
 }
 
 int V8HeapExplorer::EstimateObjectsCount() {
-  CombinedHeapIterator it(heap_, HeapIterator::kFilterUnreachable);
+  CombinedHeapObjectIterator it(heap_, HeapObjectIterator::kFilterUnreachable);
   int objects_count = 0;
   while (!it.Next().is_null()) ++objects_count;
   return objects_count;
@@ -1446,7 +1446,8 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 
   bool interrupted = false;
 
-  CombinedHeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
+  CombinedHeapObjectIterator iterator(heap_,
+                                      HeapObjectIterator::kFilterUnreachable);
   // Heap iteration with filtering must be finished in any case.
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next(), progress_->ProgressStep()) {

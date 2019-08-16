@@ -13,6 +13,7 @@
 #include "src/torque/declarable.h"
 #include "src/torque/global-context.h"
 #include "src/torque/source-positions.h"
+#include "src/torque/type-oracle.h"
 
 namespace v8 {
 namespace internal {

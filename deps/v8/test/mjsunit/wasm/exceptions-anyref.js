@@ -121,13 +121,13 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 })();
 
 // Test throwing/catching an encapsulated exception type value.
-(function TestThrowCatchExceptRef() {
+(function TestThrowCatchExnRef() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_e);
   builder.addFunction("throw_catch_param", kSig_e_e)
       .addBody([
-        kExprTry, kWasmExceptRef,
+        kExprTry, kWasmExnRef,
           kExprGetLocal, 0,
           kExprThrow, except,
         kExprCatch,

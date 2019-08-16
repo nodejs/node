@@ -6,7 +6,7 @@
 
 var m = new Map();
 
-function C() { }
+function C() {}
 
 // Make sure slack tracking kicks in and shrinks the default size to prevent
 // any further in-object properties.
@@ -17,9 +17,10 @@ function f(o) {
 }
 
 // Warm up {f}.
+;
+%PrepareFunctionForOptimization(f);
 f(new C());
 f(new C());
-
 
 var o = new C();
 %HeapObjectVerify(o);

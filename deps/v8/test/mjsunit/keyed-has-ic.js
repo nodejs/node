@@ -255,6 +255,7 @@ var tests = {
 for (test in tests) {
   %DeoptimizeFunction(testIn);
   %ClearFunctionFeedback(testIn);
+  %PrepareFunctionForOptimization(testIn);
   tests[test]();
   %OptimizeFunctionOnNextCall(testIn);
   tests[test]();
@@ -267,8 +268,9 @@ for (test in tests) {
   var proto = function() {
     assertTrue("prototype" in o);
     o.prototype;
-  }
+  };
 
+  %PrepareFunctionForOptimization(proto);
   proto();
   proto();
   %OptimizeFunctionOnNextCall(proto);
@@ -281,6 +283,7 @@ for (test in tests) {
     0 in "string"
   };
 
+  %PrepareFunctionForOptimization(test);
   assertThrows(test, TypeError);
   assertThrows(test, TypeError);
   %OptimizeFunctionOnNextCall(test);
@@ -293,6 +296,7 @@ for (test in tests) {
     assertTrue("length" in this);
   };
 
+  %PrepareFunctionForOptimization(test);
   test.call("");
   test.call("");
   %OptimizeFunctionOnNextCall(test);
@@ -305,6 +309,7 @@ for (test in tests) {
     return index in arguments;
   };
 
+  %PrepareFunctionForOptimization(test);
   assertFalse(test())
   assertFalse(test())
   assertTrue(test(0));
@@ -327,6 +332,7 @@ for (test in tests) {
     return 2 in arguments;
   };
 
+  %PrepareFunctionForOptimization(test);
   assertFalse(test(1));
   assertFalse(test(1));
   %OptimizeFunctionOnNextCall(test);
@@ -342,6 +348,7 @@ for (test in tests) {
     }
     return true;
   }
+  %PrepareFunctionForOptimization(test);
 
   var str = "string";
   // this will place slow_stub in the IC for strings.
@@ -370,6 +377,7 @@ for (test in tests) {
     }
     return true;
   }
+  %PrepareFunctionForOptimization(test);
 
   var str = "string";
   assertFalse(test(str, "length"));
@@ -387,6 +395,7 @@ for (test in tests) {
     }
     return true;
   }
+  %PrepareFunctionForOptimization(test);
 
   var str = "string";
   assertFalse(test(str, 0));
@@ -404,6 +413,7 @@ for (test in tests) {
     }
     return true;
   }
+  %PrepareFunctionForOptimization(test);
 
   var ary = [0, 1, 2, '3'];
   function testArray(ary) {
@@ -452,6 +462,7 @@ function testHeapConstantArray(heap_constant_ary) {
   function test() {
     return 1 in heap_constant_ary;
   }
+  %PrepareFunctionForOptimization(test);
 
   assertTrue(test());
   assertTrue(test());
@@ -460,6 +471,7 @@ function testHeapConstantArray(heap_constant_ary) {
 
   heap_constant_ary[1] = 2;
   assertTrue(test());
+  %PrepareFunctionForOptimization(test);
   %OptimizeFunctionOnNextCall(test);
   assertTrue(test());
 }

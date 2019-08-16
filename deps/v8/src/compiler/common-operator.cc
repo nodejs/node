@@ -1216,8 +1216,18 @@ const Operator* CommonOperatorBuilder::HeapConstant(
       value);                                         // parameter
 }
 
+const Operator* CommonOperatorBuilder::CompressedHeapConstant(
+    const Handle<HeapObject>& value) {
+  return new (zone()) Operator1<Handle<HeapObject>>(       // --
+      IrOpcode::kCompressedHeapConstant, Operator::kPure,  // opcode
+      "CompressedHeapConstant",                            // name
+      0, 0, 0, 1, 0, 0,                                    // counts
+      value);                                              // parameter
+}
+
 Handle<HeapObject> HeapConstantOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kHeapConstant, op->opcode());
+  DCHECK(IrOpcode::kHeapConstant == op->opcode() ||
+         IrOpcode::kCompressedHeapConstant == op->opcode());
   return OpParameter<Handle<HeapObject>>(op);
 }
 

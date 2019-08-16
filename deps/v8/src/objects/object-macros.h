@@ -14,15 +14,18 @@
 // for fields that can be written to and read from multiple threads at the same
 // time. See comments in src/base/atomicops.h for the memory ordering sematics.
 
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
 
 // Since this changes visibility, it should always be last in a class
 // definition.
-#define OBJECT_CONSTRUCTORS(Type, ...)            \
- public:                                          \
-  constexpr Type() : __VA_ARGS__() {}             \
-                                                  \
- protected:                                       \
+#define OBJECT_CONSTRUCTORS(Type, ...)             \
+ public:                                           \
+  constexpr Type() : __VA_ARGS__() {}              \
+                                                   \
+ protected:                                        \
+  template <typename TFieldType, int kFieldOffset> \
+  friend class TaggedField;                        \
+                                                   \
   explicit inline Type(Address ptr)
 
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
@@ -34,21 +37,26 @@
 
 // TODO(leszeks): Add checks in the factory that we never allocate these
 // objects in RO space.
-#define NEVER_READ_ONLY_SPACE_IMPL(Type)                \
-  Heap* Type::GetHeap() const {                         \
-    return NeverReadOnlySpaceObject::GetHeap(*this);    \
-  }                                                     \
-  Isolate* Type::GetIsolate() const {                   \
-    return NeverReadOnlySpaceObject::GetIsolate(*this); \
+#define NEVER_READ_ONLY_SPACE_IMPL(Type)                                   \
+  Heap* Type::GetHeap() const { return GetHeapFromWritableObject(*this); } \
+  Isolate* Type::GetIsolate() const {                                      \
+    return GetIsolateFromWritableObject(*this);                            \
   }
 
 #define DECL_PRIMITIVE_ACCESSORS(name, type) \
   inline type name() const;                  \
   inline void set_##name(type value);
 
+#define DECL_SYNCHRONIZED_PRIMITIVE_ACCESSORS(name, type) \
+  inline type synchronized_##name() const;                \
+  inline void synchronized_set_##name(type value);
+
 #define DECL_BOOLEAN_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, bool)
 
 #define DECL_INT_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int)
+
+#define DECL_SYNCHRONIZED_INT_ACCESSORS(name) \
+  DECL_SYNCHRONIZED_PRIMITIVE_ACCESSORS(name, int)
 
 #define DECL_INT32_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int32_t)
 
@@ -64,8 +72,22 @@
   inline uint8_t name() const;     \
   inline void set_##name(int value);
 
+// TODO(ishell): eventually isolate-less getters should not be used anymore.
+// For full pointer-mode the C++ compiler should optimize away unused isolate
+// parameter.
+#define DECL_GETTER(name, type) \
+  inline type name() const;     \
+  inline type name(Isolate* isolate) const;
+
+#define DEF_GETTER(holder, name, type)               \
+  type holder::name() const {                        \
+    Isolate* isolate = GetIsolateForPtrCompr(*this); \
+    return holder::name(isolate);                    \
+  }                                                  \
+  type holder::name(Isolate* isolate) const
+
 #define DECL_ACCESSORS(name, type)   \
-  inline type name() const;          \
+  DECL_GETTER(name, type)            \
   inline void set_##name(type value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
@@ -112,14 +134,14 @@
 
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                            set_condition)                             \
-  type holder::name() const {                                         \
-    type value = type::cast(READ_FIELD(*this, offset));               \
+  DEF_GETTER(holder, name, type) {                                    \
+    type value = TaggedField<type, offset>::load(isolate, *this);     \
     DCHECK(get_condition);                                            \
     return value;                                                     \
   }                                                                   \
   void holder::set_##name(type value, WriteBarrierMode mode) {        \
     DCHECK(set_condition);                                            \
-    WRITE_FIELD(*this, offset, value);                                \
+    TaggedField<type, offset>::store(*this, value);                   \
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);            \
   }
 
@@ -129,17 +151,17 @@
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
 
-#define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,   \
-                                        get_condition, set_condition) \
-  type holder::name() const {                                         \
-    type value = type::cast(ACQUIRE_READ_FIELD(*this, offset));       \
-    DCHECK(get_condition);                                            \
-    return value;                                                     \
-  }                                                                   \
-  void holder::set_##name(type value, WriteBarrierMode mode) {        \
-    DCHECK(set_condition);                                            \
-    RELEASE_WRITE_FIELD(*this, offset, value);                        \
-    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);            \
+#define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,       \
+                                        get_condition, set_condition)     \
+  DEF_GETTER(holder, name, type) {                                        \
+    type value = TaggedField<type, offset>::Acquire_Load(isolate, *this); \
+    DCHECK(get_condition);                                                \
+    return value;                                                         \
+  }                                                                       \
+  void holder::set_##name(type value, WriteBarrierMode mode) {            \
+    DCHECK(set_condition);                                                \
+    TaggedField<type, offset>::Release_Store(*this, value);               \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                \
   }
 
 #define SYNCHRONIZED_ACCESSORS_CHECKED(holder, name, type, offset, condition) \
@@ -151,14 +173,15 @@
 
 #define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,  \
                                 set_condition)                        \
-  MaybeObject holder::name() const {                                  \
-    MaybeObject value = READ_WEAK_FIELD(*this, offset);               \
+  DEF_GETTER(holder, name, MaybeObject) {                             \
+    MaybeObject value =                                               \
+        TaggedField<MaybeObject, offset>::load(isolate, *this);       \
     DCHECK(get_condition);                                            \
     return value;                                                     \
   }                                                                   \
   void holder::set_##name(MaybeObject value, WriteBarrierMode mode) { \
     DCHECK(set_condition);                                            \
-    WRITE_WEAK_FIELD(*this, offset, value);                           \
+    TaggedField<MaybeObject, offset>::store(*this, value);            \
     CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);       \
   }
 
@@ -169,36 +192,44 @@
   WEAK_ACCESSORS_CHECKED(holder, name, offset, true)
 
 // Getter that returns a Smi as an int and writes an int as a Smi.
-#define SMI_ACCESSORS_CHECKED(holder, name, offset, condition) \
-  int holder::name() const {                                   \
-    DCHECK(condition);                                         \
-    Object value = READ_FIELD(*this, offset);                  \
-    return Smi::ToInt(value);                                  \
-  }                                                            \
-  void holder::set_##name(int value) {                         \
-    DCHECK(condition);                                         \
-    WRITE_FIELD(*this, offset, Smi::FromInt(value));           \
+#define SMI_ACCESSORS_CHECKED(holder, name, offset, condition)   \
+  int holder::name() const {                                     \
+    DCHECK(condition);                                           \
+    Smi value = TaggedField<Smi, offset>::load(*this);           \
+    return value.value();                                        \
+  }                                                              \
+  void holder::set_##name(int value) {                           \
+    DCHECK(condition);                                           \
+    TaggedField<Smi, offset>::store(*this, Smi::FromInt(value)); \
   }
 
 #define SMI_ACCESSORS(holder, name, offset) \
   SMI_ACCESSORS_CHECKED(holder, name, offset, true)
 
-#define SYNCHRONIZED_SMI_ACCESSORS(holder, name, offset)     \
-  int holder::synchronized_##name() const {                  \
-    Object value = ACQUIRE_READ_FIELD(*this, offset);        \
-    return Smi::ToInt(value);                                \
-  }                                                          \
-  void holder::synchronized_set_##name(int value) {          \
-    RELEASE_WRITE_FIELD(*this, offset, Smi::FromInt(value)); \
+#define SYNCHRONIZED_SMI_ACCESSORS(holder, name, offset)                 \
+  int holder::synchronized_##name() const {                              \
+    Smi value = TaggedField<Smi, offset>::Acquire_Load(*this);           \
+    return value.value();                                                \
+  }                                                                      \
+  void holder::synchronized_set_##name(int value) {                      \
+    TaggedField<Smi, offset>::Release_Store(*this, Smi::FromInt(value)); \
   }
 
-#define RELAXED_SMI_ACCESSORS(holder, name, offset)          \
-  int holder::relaxed_read_##name() const {                  \
-    Object value = RELAXED_READ_FIELD(*this, offset);        \
-    return Smi::ToInt(value);                                \
-  }                                                          \
-  void holder::relaxed_write_##name(int value) {             \
-    RELAXED_WRITE_FIELD(*this, offset, Smi::FromInt(value)); \
+#define RELAXED_SMI_ACCESSORS(holder, name, offset)                      \
+  int holder::relaxed_read_##name() const {                              \
+    Smi value = TaggedField<Smi, offset>::Relaxed_Load(*this);           \
+    return value.value();                                                \
+  }                                                                      \
+  void holder::relaxed_write_##name(int value) {                         \
+    TaggedField<Smi, offset>::Relaxed_Store(*this, Smi::FromInt(value)); \
+  }
+
+#define TQ_SMI_ACCESSORS(holder, name)                                       \
+  int holder::name() const {                                                 \
+    return TorqueGenerated##holder<holder, Super>::name().value();           \
+  }                                                                          \
+  void holder::set_##name(int value) {                                       \
+    TorqueGenerated##holder<holder, Super>::set_##name(Smi::FromInt(value)); \
   }
 
 #define BOOL_GETTER(holder, field, name, offset) \
@@ -223,9 +254,9 @@
     return instance_type == forinstancetype;            \
   }
 
-#define TYPE_CHECKER(type, ...)                                  \
-  bool HeapObject::Is##type() const {                            \
-    return InstanceTypeChecker::Is##type(map().instance_type()); \
+#define TYPE_CHECKER(type, ...)                                         \
+  DEF_GETTER(HeapObject, Is##type, bool) {                              \
+    return InstanceTypeChecker::Is##type(map(isolate).instance_type()); \
   }
 
 #define RELAXED_INT16_ACCESSORS(holder, name, offset) \
@@ -238,39 +269,26 @@
 
 #define FIELD_ADDR(p, offset) ((p).ptr() + offset - kHeapObjectTag)
 
-#define READ_FIELD(p, offset) (*ObjectSlot(FIELD_ADDR(p, offset)))
-
-#define READ_WEAK_FIELD(p, offset) (*MaybeObjectSlot(FIELD_ADDR(p, offset)))
-
 #define ACQUIRE_READ_FIELD(p, offset) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Acquire_Load()
+  TaggedField<Object>::Acquire_Load(p, offset)
 
 #define RELAXED_READ_FIELD(p, offset) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Load()
+  TaggedField<Object>::Relaxed_Load(p, offset)
 
 #define RELAXED_READ_WEAK_FIELD(p, offset) \
-  MaybeObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Load()
+  TaggedField<MaybeObject>::Relaxed_Load(p, offset)
 
-#ifdef V8_CONCURRENT_MARKING
 #define WRITE_FIELD(p, offset, value) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
-#define WRITE_WEAK_FIELD(p, offset, value) \
-  MaybeObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
-#else
-#define WRITE_FIELD(p, offset, value) \
-  ObjectSlot(FIELD_ADDR(p, offset)).store(value)
-#define WRITE_WEAK_FIELD(p, offset, value) \
-  MaybeObjectSlot(FIELD_ADDR(p, offset)).store(value)
-#endif
+  TaggedField<Object>::store(p, offset, value)
 
 #define RELEASE_WRITE_FIELD(p, offset, value) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Release_Store(value)
+  TaggedField<Object>::Release_Store(p, offset, value)
 
 #define RELAXED_WRITE_FIELD(p, offset, value) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
+  TaggedField<Object>::Relaxed_Store(p, offset, value)
 
 #define RELAXED_WRITE_WEAK_FIELD(p, offset, value) \
-  MaybeObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
+  TaggedField<MaybeObject>::Relaxed_Store(p, offset, value)
 
 #define WRITE_BARRIER(object, offset, value)                       \
   do {                                                             \
@@ -412,12 +430,15 @@
     set(IndexForEntry(i) + k##name##Offset, value);             \
   }
 
-#define TQ_OBJECT_CONSTRUCTORS(Type) \
- public:                             \
-  constexpr Type() = default;        \
-                                     \
- protected:                          \
-  inline explicit Type(Address ptr); \
+#define TQ_OBJECT_CONSTRUCTORS(Type)               \
+ public:                                           \
+  constexpr Type() = default;                      \
+                                                   \
+ protected:                                        \
+  template <typename TFieldType, int kFieldOffset> \
+  friend class TaggedField;                        \
+                                                   \
+  inline explicit Type(Address ptr);               \
   friend class TorqueGenerated##Type<Type, Super>;
 
 #define TQ_OBJECT_CONSTRUCTORS_IMPL(Type) \

@@ -21,6 +21,9 @@ FILES_TO_SYNC = [
     'encoding/encoding.h',
     'encoding/encoding.cc',
     'encoding/encoding_test.cc',
+    'bindings/bindings.h',
+    'bindings/bindings.cc',
+    'bindings/bindings_test.cc',
     'inspector_protocol.gni',
     'inspector_protocol.gypi',
     'lib/*',
@@ -143,6 +146,12 @@ def main(argv):
     contents = contents.replace(
         'namespace inspector_protocol_encoding',
         'namespace v8_inspector_protocol_encoding')
+    contents = contents.replace(
+        'INSPECTOR_PROTOCOL_BINDINGS_BINDINGS_H_',
+        'V8_INSPECTOR_PROTOCOL_BINDINGS_BINDINGS_H_')
+    contents = contents.replace(
+        'namespace inspector_protocol_bindings',
+        'namespace v8_inspector_protocol_bindings')
     open(os.path.join(dest_dir, f), 'w').write(contents)
     shutil.copymode(os.path.join(src_dir, f), os.path.join(dest_dir, f))
   for f in to_delete:

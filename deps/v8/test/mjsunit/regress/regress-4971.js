@@ -12,8 +12,9 @@
   Object.defineProperty(C.prototype, "boom", { get: function() {
     if (should_deoptimize_caller) %DeoptimizeFunction(D.prototype.f);
     return this.m
-  }})
+  }});
 
+  %PrepareFunctionForOptimization(D.prototype.f);
   assertEquals(23, new D().f());
   assertEquals(23, new D().f());
   %OptimizeFunctionOnNextCall(D.prototype.f);
@@ -30,8 +31,9 @@
   Object.defineProperty(C.prototype, "boom", { get: function() {
     if (should_deoptimize_caller) %DeoptimizeFunction(D.prototype.f);
     return this.m
-  }})
+  }});
 
+  %PrepareFunctionForOptimization(D.prototype.f);
   assertEquals(23, new D().f("boom"));
   assertEquals(23, new D().f("boom"));
   %OptimizeFunctionOnNextCall(D.prototype.f);

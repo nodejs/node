@@ -30,16 +30,26 @@
 "use strict";
 
 // Function is defined on the prototype chain.
-var holder = { f: function() { return 42; } };
-var receiver = { };
-receiver.__proto__ = { };
+var holder = {
+  f: function() {
+    return 42;
+  }
+};
+var receiver = {};
+receiver.__proto__ = {};
 receiver.__proto__.__proto__ = holder;
 
 // Inline two levels.
-function h(o) { return o.f.apply(this, arguments); }
-function g(o) { return h(o); }
+function h(o) {
+  return o.f.apply(this, arguments);
+}
+function g(o) {
+  return h(o);
+}
 
 // Collect type information for apply call.
+;
+%PrepareFunctionForOptimization(g);
 assertEquals(42, g(receiver));
 assertEquals(42, g(receiver));
 
@@ -50,7 +60,9 @@ receiver.__proto__.__proto__ = {};
 // Lookup of o.f during graph creation fails.
 %OptimizeFunctionOnNextCall(g);
 
-assertThrows(function() { g(receiver); });
+assertThrows(function() {
+  g(receiver);
+});
 
 // Put function back.
 receiver.__proto__.__proto__ = holder;

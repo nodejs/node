@@ -107,10 +107,11 @@ export class SequenceView extends TextView {
 
       // Print gap moves.
       const gapEl = createElement("div", "gap", "gap");
-      instContentsEl.appendChild(gapEl);
+      let hasGaps = false;
       for (const gap of instruction.gaps) {
         const moves = createElement("div", ["comma-sep-list", "gap-move"]);
         for (const move of gap) {
+          hasGaps = true;
           const moveEl = createElement("div", "move");
           const destinationEl = elementForOperand(move[0], searchInfo);
           moveEl.appendChild(destinationEl);
@@ -121,6 +122,9 @@ export class SequenceView extends TextView {
           moves.appendChild(moveEl);
         }
         gapEl.appendChild(moves);
+      }
+      if (hasGaps) {
+        instContentsEl.appendChild(gapEl);
       }
 
       const instEl = createElement("div", "instruction");
@@ -137,8 +141,12 @@ export class SequenceView extends TextView {
         instEl.appendChild(assignEl);
       }
 
-      const text = instruction.opcode + instruction.flags;
-      const instLabel = createElement("div", "node-label", text);
+      let text = instruction.opcode + instruction.flags;
+      const instLabel = createElement("div", "node-label", text)
+      if (instruction.opcode == "ArchNop" && instruction.outputs.length == 1 && instruction.outputs[0].tooltip) {
+        instLabel.innerText = instruction.outputs[0].tooltip;
+      }
+
       searchInfo.push(text);
       view.addHtmlElementForNodeId(text, instLabel);
       instEl.appendChild(instLabel);

@@ -228,7 +228,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ pop(ip);  // get continuation, leave pc on stack
   __ pop(r14);
   __ Jump(ip);
-  __ stop("Unreachable.");
+  __ stop();
 }
 
 bool Deoptimizer::PadTopOfStackRegister() { return false; }

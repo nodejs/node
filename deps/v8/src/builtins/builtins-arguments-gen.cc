@@ -266,7 +266,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
         var_list1, argument_offset, mapped_offset,
         [this, elements, &current_argument](Node* offset) {
           Increment(&current_argument, kSystemPointerSize);
-          Node* arg = LoadBufferObject(current_argument.value(), 0);
+          Node* arg = LoadBufferObject(
+              UncheckedCast<RawPtrT>(current_argument.value()), 0);
           StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
                               arg);
         },

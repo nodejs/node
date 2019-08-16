@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/branch-elimination.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
@@ -27,7 +28,7 @@ class BranchEliminationTest : public GraphTest {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
                     machine());
-    GraphReducer graph_reducer(zone(), graph(), jsgraph.Dead());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter(), jsgraph.Dead());
     BranchElimination branch_condition_elimination(&graph_reducer, &jsgraph,
                                                    zone());
     graph_reducer.AddReducer(&branch_condition_elimination);

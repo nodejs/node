@@ -475,14 +475,13 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
 
     BIND(&holder_next);
     {
-      // Continue with the hidden prototype of the {holder} if it
-      // has one, or throw an illegal invocation exception, since
-      // the receiver did not pass the {signature} check.
+      // Continue with the hidden prototype of the {holder} if it is a
+      // JSGlobalProxy (the hidden prototype can either be null or a
+      // JSObject in that case), or throw an illegal invocation exception,
+      // since the receiver did not pass the {signature} check.
       TNode<Map> holder_map = LoadMap(holder);
       var_holder = LoadMapPrototype(holder_map);
-      GotoIf(IsSetWord32(LoadMapBitField2(holder_map),
-                         Map::HasHiddenPrototypeBit::kMask),
-             &holder_loop);
+      GotoIf(IsJSGlobalProxyMap(holder_map), &holder_loop);
       ThrowTypeError(context, MessageTemplate::kIllegalInvocation);
     }
   }

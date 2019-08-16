@@ -154,11 +154,18 @@ class GenericTestLoader(TestLoader):
     return [self.test_root]
 
   @property
-  def extension(self):
-    return ""
+  def extensions(self):
+    return []
+
+  def __find_extension(self, filename):
+    for extension in self.extensions:
+      if filename.endswith(extension):
+        return extension
+
+    return False
 
   def _should_filter_by_name(self, filename):
-    if not filename.endswith(self.extension):
+    if not self.__find_extension(filename):
       return True
 
     for suffix in self.excluded_suffixes:
@@ -171,10 +178,11 @@ class GenericTestLoader(TestLoader):
     return False
 
   def _filename_to_testname(self, filename):
-    if not self.extension:
+    extension = self.__find_extension(filename)
+    if not extension:
       return filename
 
-    return filename[:-len(self.extension)]
+    return filename[:-len(extension)]
 
   def _to_relpath(self, abspath, test_root):
     return os.path.relpath(abspath, test_root)
@@ -197,8 +205,8 @@ class GenericTestLoader(TestLoader):
 
 class JSTestLoader(GenericTestLoader):
   @property
-  def extension(self):
-    return ".js"
+  def extensions(self):
+    return [".js", ".mjs"]
 
 
 class TestGenerator(object):

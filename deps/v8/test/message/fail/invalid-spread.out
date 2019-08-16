@@ -1,4 +1,4 @@
-*%(basename)s:7: SyntaxError: Unexpected token ...
+*%(basename)s:7: SyntaxError: Unexpected token '...'
 (x, ...y)
     ^^^
-SyntaxError: Unexpected token ...
+SyntaxError: Unexpected token '...'

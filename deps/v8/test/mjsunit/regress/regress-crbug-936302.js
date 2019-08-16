@@ -5,21 +5,21 @@
 // Flags: --allow-natives-syntax --opt
 
 (function() {
-  'use strict';
+'use strict';
 
-  function baz() {
-    'use asm';
-    function f() {}
-    return {f: f};
-  }
+function baz() {
+  'use asm';
+  function f() {}
+  return {f: f};
+}
 
-  function foo(x) {
-    baz(x);
-    %DeoptimizeFunction(foo);
-  }
-
-  foo();
-  foo();
-  %OptimizeFunctionOnNextCall(foo);
-  foo();
+function foo(x) {
+  baz(x);
+  %DeoptimizeFunction(foo);
+};
+%PrepareFunctionForOptimization(foo);
+foo();
+foo();
+%OptimizeFunctionOnNextCall(foo);
+foo();
 })();

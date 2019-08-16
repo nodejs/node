@@ -4,12 +4,12 @@
 
 #include "src/asmjs/asm-js.h"
 #include "src/codegen/compiler.h"
+#include "src/common/message-template.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/message-template.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -294,7 +294,8 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   return Object();
 }
 
-static Object CompileGlobalEval(Isolate* isolate, Handle<String> source,
+static Object CompileGlobalEval(Isolate* isolate,
+                                Handle<i::Object> source_object,
                                 Handle<SharedFunctionInfo> outer_info,
                                 LanguageMode language_mode,
                                 int eval_scope_position, int eval_position) {
@@ -303,9 +304,15 @@ static Object CompileGlobalEval(Isolate* isolate, Handle<String> source,
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
-  if (native_context->allow_code_gen_from_strings().IsFalse(isolate) &&
-      !Compiler::CodeGenerationFromStringsAllowed(isolate, native_context,
-                                                  source)) {
+  MaybeHandle<String> source;
+  bool unknown_object;
+  std::tie(source, unknown_object) = Compiler::ValidateDynamicCompilationSource(
+      isolate, native_context, source_object);
+  // If the argument is an unhandled string time, bounce to GlobalEval.
+  if (unknown_object) {
+    return native_context->global_eval_fun();
+  }
+  if (source.is_null()) {
     Handle<Object> error_message =
         native_context->ErrorMessageForCodeGenerationFromStrings();
     Handle<Object> error;
@@ -321,9 +328,9 @@ static Object CompileGlobalEval(Isolate* isolate, Handle<String> source,
   Handle<JSFunction> compiled;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,
-      Compiler::GetFunctionFromEval(source, outer_info, context, language_mode,
-                                    restriction, kNoSourcePosition,
-                                    eval_scope_position, eval_position),
+      Compiler::GetFunctionFromEval(
+          source.ToHandleChecked(), outer_info, context, language_mode,
+          restriction, kNoSourcePosition, eval_scope_position, eval_position),
       ReadOnlyRoots(isolate).exception());
   return *compiled;
 }
@@ -336,11 +343,7 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
 
   // If "eval" didn't refer to the original GlobalEval, it's not a
   // direct call to eval.
-  // (And even if it is, but the first argument isn't a string, just let
-  // execution default to an indirect call to eval, which will also return
-  // the first argument without doing anything).
-  if (*callee != isolate->native_context()->global_eval_fun() ||
-      !args[1].IsString()) {
+  if (*callee != isolate->native_context()->global_eval_fun()) {
     return *callee;
   }
 
@@ -350,7 +353,7 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
   DCHECK(args[4].IsSmi());
   Handle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
                                         isolate);
-  return CompileGlobalEval(isolate, args.at<String>(1), outer_info,
+  return CompileGlobalEval(isolate, args.at<Object>(1), outer_info,
                            language_mode, args.smi_at(4), args.smi_at(5));
 }
 }  // namespace internal

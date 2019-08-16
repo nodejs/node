@@ -10,8 +10,8 @@ function foo() {
   var arr = [];
   [...arr, 42, null];
   arr.length = 1;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);

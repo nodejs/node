@@ -1,5 +1,5 @@
-*%(basename)s:7: SyntaxError: The requested module '../../mjsunit/modules-skip-7.js' contains conflicting star exports for name 'a'
-import {a} from "../../mjsunit/modules-skip-7.js";
+*%(basename)s:5: SyntaxError: The requested module '../../mjsunit/modules-skip-7.mjs' contains conflicting star exports for name 'a'
+import {a} from "../../mjsunit/modules-skip-7.mjs";
         ^
-SyntaxError: The requested module '../../mjsunit/modules-skip-7.js' contains conflicting star exports for name 'a'
+SyntaxError: The requested module '../../mjsunit/modules-skip-7.mjs' contains conflicting star exports for name 'a'
 

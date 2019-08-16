@@ -23,6 +23,7 @@
 #include "src/execution/futex-emulation.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/messages.h"
+#include "src/execution/stack-guard.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
@@ -69,7 +70,6 @@ class CodeTracer;
 class CompilationCache;
 class CompilationStatistics;
 class CompilerDispatcher;
-class ContextSlotCache;
 class Counters;
 class Debug;
 class DeoptimizerData;
@@ -91,8 +91,8 @@ class RootVisitor;
 class RuntimeProfiler;
 class SetupIsolateDelegate;
 class Simulator;
-class StartupDeserializer;
 class StandardFrame;
+class StartupDeserializer;
 class StubCache;
 class ThreadManager;
 class ThreadState;
@@ -397,6 +397,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(OOMErrorCallback, oom_behavior, nullptr)                                   \
   V(LogEventCallback, event_logger, nullptr)                                   \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr)  \
+  V(ModifyCodeGenerationFromStringsCallback, modify_code_gen_callback,         \
+    nullptr)                                                                   \
   V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr)    \
   V(ExtensionCallback, wasm_module_callback, &NoExtension)                     \
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                   \
@@ -514,6 +516,8 @@ class Isolate final : private HiddenFactory {
   // Sets default isolate into "has_been_disposed" state rather then destroying,
   // for legacy API reasons.
   static void Delete(Isolate* isolate);
+
+  void SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap);
 
   // Returns allocation mode of this isolate.
   V8_INLINE IsolateAllocationMode isolate_allocation_mode();
@@ -900,6 +904,7 @@ class Isolate final : private HiddenFactory {
   }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
+  ReadOnlyHeap* read_only_heap() const { return read_only_heap_; }
   static Isolate* FromHeap(Heap* heap) {
     return reinterpret_cast<Isolate*>(reinterpret_cast<Address>(heap) -
                                       OFFSET_OF(Isolate, heap_));
@@ -914,6 +919,9 @@ class Isolate final : private HiddenFactory {
   Address isolate_root() const { return isolate_data()->isolate_root(); }
   static size_t isolate_root_bias() {
     return OFFSET_OF(Isolate, isolate_data_) + IsolateData::kIsolateRootBias;
+  }
+  static Isolate* FromRoot(Address isolate_root) {
+    return reinterpret_cast<Isolate*>(isolate_root - isolate_root_bias());
   }
 
   RootsTable& roots_table() { return isolate_data()->roots(); }
@@ -1168,7 +1176,8 @@ class Isolate final : private HiddenFactory {
 
   inline bool IsArraySpeciesLookupChainIntact();
   inline bool IsTypedArraySpeciesLookupChainIntact();
-  inline bool IsRegExpSpeciesLookupChainIntact();
+  inline bool IsRegExpSpeciesLookupChainIntact(
+      Handle<NativeContext> native_context);
 
   // Check that the @@species protector is intact, which guards the lookup of
   // "constructor" on JSPromise instances, whose [[Prototype]] is the initial
@@ -1250,10 +1259,14 @@ class Isolate final : private HiddenFactory {
   void UpdateNoElementsProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
+
+  // The `protector_name` C string must be statically allocated.
+  void TraceProtectorInvalidation(const char* protector_name);
+
   void InvalidateArrayConstructorProtector();
   void InvalidateArraySpeciesProtector();
   void InvalidateTypedArraySpeciesProtector();
-  void InvalidateRegExpSpeciesProtector();
+  void InvalidateRegExpSpeciesProtector(Handle<NativeContext> native_context);
   void InvalidatePromiseSpeciesProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
@@ -1469,7 +1482,7 @@ class Isolate final : private HiddenFactory {
   void SetHostInitializeImportMetaObjectCallback(
       HostInitializeImportMetaObjectCallback callback);
   V8_EXPORT_PRIVATE Handle<JSObject> RunHostInitializeImportMetaObjectCallback(
-      Handle<Module> module);
+      Handle<SourceTextModule> module);
 
   void RegisterEmbeddedFileWriter(EmbeddedFileWriterInterface* writer) {
     embedded_file_writer_ = writer;
@@ -1647,6 +1660,7 @@ class Isolate final : private HiddenFactory {
 
   std::unique_ptr<IsolateAllocator> isolate_allocator_;
   Heap heap_;
+  ReadOnlyHeap* read_only_heap_ = nullptr;
 
   const int id_;
   EntryStackItem* entry_stack_ = nullptr;
@@ -1981,65 +1995,6 @@ class StackLimitCheck {
       return result_value;                 \
     }                                      \
   } while (false)
-
-// Scope intercepts only interrupt which is part of its interrupt_mask and does
-// not affect other interrupts.
-class InterruptsScope {
- public:
-  enum Mode { kPostponeInterrupts, kRunInterrupts, kNoop };
-
-  virtual ~InterruptsScope() {
-    if (mode_ != kNoop) stack_guard_->PopInterruptsScope();
-  }
-
-  // Find the scope that intercepts this interrupt.
-  // It may be outermost PostponeInterruptsScope or innermost
-  // SafeForInterruptsScope if any.
-  // Return whether the interrupt has been intercepted.
-  bool Intercept(StackGuard::InterruptFlag flag);
-
-  InterruptsScope(Isolate* isolate, int intercept_mask, Mode mode)
-      : stack_guard_(isolate->stack_guard()),
-        intercept_mask_(intercept_mask),
-        intercepted_flags_(0),
-        mode_(mode) {
-    if (mode_ != kNoop) stack_guard_->PushInterruptsScope(this);
-  }
-
- private:
-  StackGuard* stack_guard_;
-  int intercept_mask_;
-  int intercepted_flags_;
-  Mode mode_;
-  InterruptsScope* prev_;
-
-  friend class StackGuard;
-};
-
-// Support for temporarily postponing interrupts. When the outermost
-// postpone scope is left the interrupts will be re-enabled and any
-// interrupts that occurred while in the scope will be taken into
-// account.
-class PostponeInterruptsScope : public InterruptsScope {
- public:
-  PostponeInterruptsScope(Isolate* isolate,
-                          int intercept_mask = StackGuard::ALL_INTERRUPTS)
-      : InterruptsScope(isolate, intercept_mask,
-                        InterruptsScope::kPostponeInterrupts) {}
-  ~PostponeInterruptsScope() override = default;
-};
-
-// Support for overriding PostponeInterruptsScope. Interrupt is not ignored if
-// innermost scope is SafeForInterruptsScope ignoring any outer
-// PostponeInterruptsScopes.
-class SafeForInterruptsScope : public InterruptsScope {
- public:
-  SafeForInterruptsScope(Isolate* isolate,
-                         int intercept_mask = StackGuard::ALL_INTERRUPTS)
-      : InterruptsScope(isolate, intercept_mask,
-                        InterruptsScope::kRunInterrupts) {}
-  ~SafeForInterruptsScope() override = default;
-};
 
 class StackTraceFailureMessage {
  public:

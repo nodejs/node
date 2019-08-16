@@ -114,6 +114,7 @@ function strict_return_receiver() {
 function g() {
   return strict_return_receiver();
 }
+%PrepareFunctionForOptimization(g);
 
 for (var i = 0; i < 5; i++) {
   assertEquals(void 0, g());
@@ -129,6 +130,7 @@ function g2() {
   o.f = strict_return_receiver;
   return o.f();
 }
+%PrepareFunctionForOptimization(g2);
 
 for (var i = 0; i < 5; i++) {
   assertTrue(typeof g2() == "object");

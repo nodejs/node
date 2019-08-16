@@ -23,6 +23,7 @@ namespace v8 {
 namespace internal {
 
 class EhFrameWriter;
+class Zone;
 
 namespace compiler {
 

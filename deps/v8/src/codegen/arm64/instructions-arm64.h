@@ -203,6 +203,7 @@ class Instruction {
   }
 
   bool IsLdrLiteralX() const { return Mask(LoadLiteralMask) == LDR_x_lit; }
+  bool IsLdrLiteralW() const { return Mask(LoadLiteralMask) == LDR_w_lit; }
 
   bool IsPCRelAddressing() const {
     return Mask(PCRelAddressingFMask) == PCRelAddressingFixed;

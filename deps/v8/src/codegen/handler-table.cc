@@ -15,31 +15,41 @@ namespace internal {
 
 HandlerTable::HandlerTable(Code code)
     : HandlerTable(code.InstructionStart() + code.handler_table_offset(),
-                   code.handler_table_size()) {}
+                   code.handler_table_size(), kReturnAddressBasedEncoding) {}
 
 HandlerTable::HandlerTable(BytecodeArray bytecode_array)
     : HandlerTable(bytecode_array.handler_table()) {}
 
 HandlerTable::HandlerTable(ByteArray byte_array)
-    : number_of_entries_(byte_array.length() / kRangeEntrySize /
-                         sizeof(int32_t)),
-#ifdef DEBUG
-      mode_(kRangeBasedEncoding),
-#endif
-      raw_encoded_data_(
-          reinterpret_cast<Address>(byte_array.GetDataStartAddress())) {
-  DCHECK_EQ(0, byte_array.length() % (kRangeEntrySize * sizeof(int32_t)));
-}
+    : HandlerTable(reinterpret_cast<Address>(byte_array.GetDataStartAddress()),
+                   byte_array.length(), kRangeBasedEncoding) {}
 
-HandlerTable::HandlerTable(Address handler_table, int handler_table_size)
-    : number_of_entries_(handler_table_size / kReturnEntrySize /
+HandlerTable::HandlerTable(Address handler_table, int handler_table_size,
+                           EncodingMode encoding_mode)
+    : number_of_entries_(handler_table_size / EntrySizeFromMode(encoding_mode) /
                          sizeof(int32_t)),
 #ifdef DEBUG
-      mode_(kReturnAddressBasedEncoding),
+      mode_(encoding_mode),
 #endif
       raw_encoded_data_(handler_table) {
+  // Check padding.
   static_assert(4 < kReturnEntrySize * sizeof(int32_t), "allowed padding");
-  DCHECK_GE(4, handler_table_size % (kReturnEntrySize * sizeof(int32_t)));
+  // For return address encoding, maximum padding is 4; otherwise, there should
+  // be no padding.
+  DCHECK_GE(kReturnAddressBasedEncoding == encoding_mode ? 4 : 0,
+            handler_table_size %
+                (EntrySizeFromMode(encoding_mode) * sizeof(int32_t)));
+}
+
+// static
+int HandlerTable::EntrySizeFromMode(EncodingMode mode) {
+  switch (mode) {
+    case kReturnAddressBasedEncoding:
+      return kReturnEntrySize;
+    case kRangeBasedEncoding:
+      return kRangeEntrySize;
+  }
+  UNREACHABLE();
 }
 
 int HandlerTable::GetRangeStart(int index) const {

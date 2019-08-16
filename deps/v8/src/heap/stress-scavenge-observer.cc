@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 // TODO(majeski): meaningful step_size
-StressScavengeObserver::StressScavengeObserver(Heap& heap)
+StressScavengeObserver::StressScavengeObserver(Heap* heap)
     : AllocationObserver(64),
       heap_(heap),
       has_requested_gc_(false),
@@ -21,22 +21,22 @@ StressScavengeObserver::StressScavengeObserver(Heap& heap)
   limit_percentage_ = NextLimit();
 
   if (FLAG_trace_stress_scavenge && !FLAG_fuzzer_gc_analysis) {
-    heap_.isolate()->PrintWithTimestamp(
+    heap_->isolate()->PrintWithTimestamp(
         "[StressScavenge] %d%% is the new limit\n", limit_percentage_);
   }
 }
 
 void StressScavengeObserver::Step(int bytes_allocated, Address soon_object,
                                   size_t size) {
-  if (has_requested_gc_ || heap_.new_space()->Capacity() == 0) {
+  if (has_requested_gc_ || heap_->new_space()->Capacity() == 0) {
     return;
   }
 
   double current_percent =
-      heap_.new_space()->Size() * 100.0 / heap_.new_space()->Capacity();
+      heap_->new_space()->Size() * 100.0 / heap_->new_space()->Capacity();
 
   if (FLAG_trace_stress_scavenge) {
-    heap_.isolate()->PrintWithTimestamp(
+    heap_->isolate()->PrintWithTimestamp(
         "[Scavenge] %.2lf%% of the new space capacity reached\n",
         current_percent);
   }
@@ -49,11 +49,11 @@ void StressScavengeObserver::Step(int bytes_allocated, Address soon_object,
 
   if (static_cast<int>(current_percent) >= limit_percentage_) {
     if (FLAG_trace_stress_scavenge) {
-      heap_.isolate()->PrintWithTimestamp("[Scavenge] GC requested\n");
+      heap_->isolate()->PrintWithTimestamp("[Scavenge] GC requested\n");
     }
 
     has_requested_gc_ = true;
-    heap_.isolate()->stack_guard()->RequestGC();
+    heap_->isolate()->stack_guard()->RequestGC();
   }
 }
 
@@ -63,15 +63,15 @@ bool StressScavengeObserver::HasRequestedGC() const {
 
 void StressScavengeObserver::RequestedGCDone() {
   double current_percent =
-      heap_.new_space()->Size() * 100.0 / heap_.new_space()->Capacity();
+      heap_->new_space()->Size() * 100.0 / heap_->new_space()->Capacity();
   limit_percentage_ = NextLimit(static_cast<int>(current_percent));
 
   if (FLAG_trace_stress_scavenge) {
-    heap_.isolate()->PrintWithTimestamp(
+    heap_->isolate()->PrintWithTimestamp(
         "[Scavenge] %.2lf%% of the new space capacity reached\n",
         current_percent);
-    heap_.isolate()->PrintWithTimestamp("[Scavenge] %d%% is the new limit\n",
-                                        limit_percentage_);
+    heap_->isolate()->PrintWithTimestamp("[Scavenge] %d%% is the new limit\n",
+                                         limit_percentage_);
   }
 
   has_requested_gc_ = false;
@@ -87,7 +87,7 @@ int StressScavengeObserver::NextLimit(int min) {
     return max;
   }
 
-  return min + heap_.isolate()->fuzzer_rng()->NextInt(max - min + 1);
+  return min + heap_->isolate()->fuzzer_rng()->NextInt(max - min + 1);
 }
 
 }  // namespace internal

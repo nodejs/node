@@ -37,11 +37,15 @@
 // final --stress-opt run.
 
 function f(x) {
-  switch(x) {
-    case 1: return 1.4;
-    case 2: return 1.5;
-    case 3: return {};
-    default: gc();
+  switch (x) {
+    case 1:
+      return 1.4;
+    case 2:
+      return 1.5;
+    case 3:
+      return {};
+    default:
+      gc();
   }
 }
 
@@ -50,6 +54,8 @@ function g(x) {
 }
 
 // Step 1: Optimize g() to contain a PACKED_DOUBLE_ELEMENTS boilerplate.
+;
+%PrepareFunctionForOptimization(g);
 assertEquals([1.1, 1.2, 1.3, 1.4], g(1));
 assertEquals([1.1, 1.2, 1.3, 1.5], g(2));
 %OptimizeFunctionOnNextCall(g);

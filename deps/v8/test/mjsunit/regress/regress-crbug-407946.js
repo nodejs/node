@@ -4,8 +4,10 @@
 
 // Flags: --allow-natives-syntax
 
-function f(n) { return [0].indexOf((n - n) + 0); }
-
+function f(n) {
+  return [0].indexOf(n - n + 0);
+};
+%PrepareFunctionForOptimization(f);
 assertEquals(0, f(.1));
 assertEquals(0, f(.1));
 %OptimizeFunctionOnNextCall(f);

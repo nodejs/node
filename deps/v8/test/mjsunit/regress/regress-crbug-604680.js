@@ -15,20 +15,20 @@ function g(o) {
 }
 
 function f1() {
-  var o = { x : 42 };
+  var o = {x: 42};
   var res = g(o);
   return 1;
 }
 
-function f0(a, b)  {
+function f0(a, b) {
   "use strict";
   return f1(5);
-}
-
+};
+%PrepareFunctionForOptimization(f0);
 function boom(b) {
   if (b) throw new Error("boom!");
-}
-
+};
+%PrepareFunctionForOptimization(boom);
 %NeverOptimizeFunction(h);
 f0();
 f0();

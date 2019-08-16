@@ -18,6 +18,11 @@ WasmCode*& WasmImportWrapperCache::ModificationScope::operator[](
   return cache_->entry_map_[key];
 }
 
+WasmCode*& WasmImportWrapperCache::operator[](
+    const WasmImportWrapperCache::CacheKey& key) {
+  return entry_map_[key];
+}
+
 WasmCode* WasmImportWrapperCache::Get(compiler::WasmImportCallKind kind,
                                       FunctionSig* sig) const {
   auto it = entry_map_.find({kind, sig});

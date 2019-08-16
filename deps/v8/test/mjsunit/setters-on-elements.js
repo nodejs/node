@@ -55,6 +55,7 @@ if (standalone) {
   optimize = empty_func;
   clearFunctionTypeFeedback = empty_func;
   deoptimizeFunction = empty_func;
+  prepareForOptimize = empty_func;
 } else {
   optimize = function(name) {
     %OptimizeFunctionOnNextCall(name);
@@ -64,6 +65,9 @@ if (standalone) {
   }
   deoptimizeFunction = function(name) {
     %DeoptimizeFunction(name);
+  }
+  prepareForOptimize = function(name) {
+    %PrepareFunctionForOptimization(name);
   }
 }
 
@@ -76,6 +80,7 @@ function base_setter_test(create_func, index, store_value) {
   var ap = [];
   ap.__defineSetter__(index, function() { calls++; });
 
+  prepareForOptimize(foo);
   foo(a);
   foo(a);
   foo(a);
@@ -141,6 +146,7 @@ function base_setter_test(create_func, index, store_value) {
   a = create_func();
   ap2 = [];
   a.__proto__ = ap2;
+  prepareForOptimize(foo);
   foo(a);
   foo(a);
   foo(a);
@@ -161,6 +167,7 @@ function base_setter_test(create_func, index, store_value) {
   a = create_func();
   a.__proto__ = ap2;
   bar = function(a) { a[index+1] = store_value; }
+  prepareForOptimize(bar);
   bar(a);
   bar(a);
   bar(a);  // store should be generic

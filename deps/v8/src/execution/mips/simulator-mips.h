@@ -258,16 +258,16 @@ class Simulator : public SimulatorBase {
   bool set_fcsr_round_error(float original, float rounded);
   bool set_fcsr_round64_error(double original, double rounded);
   bool set_fcsr_round64_error(float original, float rounded);
-  void round_according_to_fcsr(double toRound, double& rounded,
-                               int32_t& rounded_int, double fs);
-  void round_according_to_fcsr(float toRound, float& rounded,
-                               int32_t& rounded_int, float fs);
+  void round_according_to_fcsr(double toRound, double* rounded,
+                               int32_t* rounded_int, double fs);
+  void round_according_to_fcsr(float toRound, float* rounded,
+                               int32_t* rounded_int, float fs);
   template <typename Tfp, typename Tint>
-  void round_according_to_msacsr(Tfp toRound, Tfp& rounded, Tint& rounded_int);
-  void round64_according_to_fcsr(double toRound, double& rounded,
-                                 int64_t& rounded_int, double fs);
-  void round64_according_to_fcsr(float toRound, float& rounded,
-                                 int64_t& rounded_int, float fs);
+  void round_according_to_msacsr(Tfp toRound, Tfp* rounded, Tint* rounded_int);
+  void round64_according_to_fcsr(double toRound, double* rounded,
+                                 int64_t* rounded_int, double fs);
+  void round64_according_to_fcsr(float toRound, float* rounded,
+                                 int64_t* rounded_int, float fs);
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int32_t value);
   int32_t get_pc() const;

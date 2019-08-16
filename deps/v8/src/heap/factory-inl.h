@@ -104,6 +104,15 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                 allocation);
 }
 
+Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(
+    Handle<Map> map, int number_of_slow_properties, AllocationType allocation,
+    Handle<AllocationSite> allocation_site) {
+  return map->is_dictionary_map()
+             ? NewSlowJSObjectFromMap(map, number_of_slow_properties,
+                                      allocation, allocation_site)
+             : NewJSObjectFromMap(map, allocation, allocation_site);
+}
+
 Handle<Object> Factory::NewURIError() {
   return NewError(isolate()->uri_error_function(),
                   MessageTemplate::kURIMalformed);

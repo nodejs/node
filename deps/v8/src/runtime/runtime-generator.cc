@@ -65,6 +65,7 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   generator->set_context(isolate->context());
   generator->set_receiver(*receiver);
   generator->set_parameters_and_registers(*parameters_and_registers);
+  generator->set_resume_mode(JSGeneratorObject::ResumeMode::kNext);
   generator->set_continuation(JSGeneratorObject::kGeneratorExecuting);
   if (generator->IsJSAsyncGeneratorObject()) {
     Handle<JSAsyncGeneratorObject>::cast(generator)->set_is_awaiting(0);

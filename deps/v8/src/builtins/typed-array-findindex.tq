@@ -29,8 +29,8 @@ namespace typed_array_findindex {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.findIndex
   transitioning javascript builtin
-  TypedArrayPrototypeFindIndex(implicit context: Context)(
-      receiver: Object, ...arguments): Object {
+  TypedArrayPrototypeFindIndex(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // arguments[0] = callback
     // arguments[1] = thisArg.
     try {

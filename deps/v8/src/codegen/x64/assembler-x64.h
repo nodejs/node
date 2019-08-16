@@ -952,6 +952,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
 #undef DECLARE_SSE4_INSTRUCTION
 
+  // SSE4.2
+  void sse4_2_instr(XMMRegister dst, XMMRegister src, byte prefix, byte escape1,
+                    byte escape2, byte opcode);
+  void sse4_2_instr(XMMRegister dst, Operand src, byte prefix, byte escape1,
+                    byte escape2, byte opcode);
+#define DECLARE_SSE4_2_INSTRUCTION(instruction, prefix, escape1, escape2,     \
+                                   opcode)                                    \
+  void instruction(XMMRegister dst, XMMRegister src) {                        \
+    sse4_2_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode); \
+  }                                                                           \
+  void instruction(XMMRegister dst, Operand src) {                            \
+    sse4_2_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode); \
+  }
+
+  SSE4_2_INSTRUCTION_LIST(DECLARE_SSE4_2_INSTRUCTION)
+#undef DECLARE_SSE4_2_INSTRUCTION
+
 #define DECLARE_SSE34_AVX_INSTRUCTION(instruction, prefix, escape1, escape2,  \
                                       opcode)                                 \
   void v##instruction(XMMRegister dst, XMMRegister src1, XMMRegister src2) {  \
@@ -969,6 +986,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movd(XMMRegister dst, Operand src);
   void movd(Register dst, XMMRegister src);
   void movq(XMMRegister dst, Register src);
+  void movq(XMMRegister dst, Operand src);
   void movq(Register dst, XMMRegister src);
   void movq(XMMRegister dst, XMMRegister src);
 
@@ -1068,12 +1086,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void pextrw(Operand dst, XMMRegister src, int8_t imm8);
   void pextrd(Register dst, XMMRegister src, int8_t imm8);
   void pextrd(Operand dst, XMMRegister src, int8_t imm8);
+  void pextrq(Register dst, XMMRegister src, int8_t imm8);
   void pinsrb(XMMRegister dst, Register src, int8_t imm8);
   void pinsrb(XMMRegister dst, Operand src, int8_t imm8);
   void pinsrw(XMMRegister dst, Register src, int8_t imm8);
   void pinsrw(XMMRegister dst, Operand src, int8_t imm8);
   void pinsrd(XMMRegister dst, Register src, int8_t imm8);
   void pinsrd(XMMRegister dst, Operand src, int8_t imm8);
+  void pinsrq(XMMRegister dst, Register src, int8_t imm8);
+  void pinsrq(XMMRegister dst, Operand src, int8_t imm8);
 
   void roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
@@ -1284,6 +1305,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vmovsd(XMMRegister dst, Operand src) { vsd(0x10, dst, xmm0, src); }
   void vmovsd(Operand dst, XMMRegister src) { vsd(0x11, src, xmm0, dst); }
+  void vmovdqu(XMMRegister dst, Operand src);
+  void vmovdqu(Operand dst, XMMRegister src);
 
 #define AVX_SP_3(instr, opcode) \
   AVX_S_3(instr, opcode)        \
@@ -1723,6 +1746,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rorxl(Register dst, Register src, byte imm8);
   void rorxl(Register dst, Operand src, byte imm8);
 
+  void mfence();
   void lfence();
   void pause();
 

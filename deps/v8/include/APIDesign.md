@@ -67,3 +67,6 @@ which in turn guarantees long-term stability of the API.
 # The V8 inspector
 
 All debugging capabilities of V8 should be exposed via the inspector protocol.
+The exception to this are profiling features exposed via v8-profiler.h.
+Changes to the inspector protocol need to ensure backwards compatibility and
+commitment to maintain.

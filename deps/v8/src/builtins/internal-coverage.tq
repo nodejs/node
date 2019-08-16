@@ -28,6 +28,8 @@ namespace internal_coverage {
     return UnsafeCast<CoverageInfo>(debugInfo.coverage_info);
   }
 
+  @export  // Silence unused warning on release builds. SlotCount is only used
+           // in an assert. TODO(szuend): Remove once macros and asserts work.
   macro SlotCount(coverageInfo: CoverageInfo): Smi {
     assert(kFirstSlotIndex == 0);  // Otherwise we'd have to consider it below.
     assert(kFirstSlotIndex == (coverageInfo.length & kSlotIndexCountMask));

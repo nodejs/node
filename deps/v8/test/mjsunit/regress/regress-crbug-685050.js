@@ -14,6 +14,7 @@ bar([1, 2, 3]);
 function foo() {
   bar([1, 2, 3]);
   bar(a);
-}
+};
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 foo();

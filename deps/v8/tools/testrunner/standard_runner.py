@@ -9,7 +9,6 @@ from __future__ import print_function
 from functools import reduce
 
 import os
-import re
 import sys
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
@@ -21,10 +20,8 @@ from testrunner.objects import predictable
 from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
-from testrunner.testproc.progress import ResultsTracker
 from testrunner.testproc.seed import SeedProc
 from testrunner.testproc.variant import VariantProc
-from testrunner.utils import random_utils
 
 
 ARCH_GUESS = utils.DefaultArch()
@@ -43,7 +40,7 @@ VARIANT_ALIASES = {
   'dev': VARIANTS,
   # Additional variants, run on all bots.
   'more': MORE_VARIANTS,
-  # Shortcut for the two above ('more' first - it has the longer running tests).
+  # Shortcut for the two above ('more' first - it has the longer running tests)
   'exhaustive': MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
   'extra': ['nooptimization', 'future', 'no_wasm_traps'],
@@ -66,10 +63,10 @@ PREDICTABLE_WRAPPER = os.path.join(
 
 class StandardTestRunner(base_runner.BaseTestRunner):
   def __init__(self, *args, **kwargs):
-      super(StandardTestRunner, self).__init__(*args, **kwargs)
+    super(StandardTestRunner, self).__init__(*args, **kwargs)
 
-      self.sancov_dir = None
-      self._variants = None
+    self.sancov_dir = None
+    self._variants = None
 
   @property
   def framework_name(self):
@@ -156,7 +153,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     parser.add_option('--report', default=False, action='store_true',
                       help='Print a summary of the tests to be run')
 
-
   def _process_options(self, options):
     if options.sancov_dir:
       self.sancov_dir = options.sancov_dir
@@ -224,7 +220,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     self._variants = self._parse_variants(options.variants)
 
     def CheckTestMode(name, option):  # pragma: no cover
-      if not option in ['run', 'skip', 'dontcare']:
+      if option not in ['run', 'skip', 'dontcare']:
         print('Unknown %s mode %s' % (name, option))
         raise base_runner.TestRunnerError()
     CheckTestMode('slow test', options.slow_tests)
@@ -319,7 +315,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
     self._prepare_procs(procs)
 
-    loader.load_initial_tests(initial_batch_size=options.j*2)
+    loader.load_initial_tests(initial_batch_size=options.j * 2)
 
     # This starts up worker processes and blocks until all tests are
     # processed.
@@ -327,7 +323,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
     for indicator in indicators:
       indicator.finished()
-
 
     if tests.test_count_estimate:
       percentage = float(results.total) / tests.test_count_estimate * 100

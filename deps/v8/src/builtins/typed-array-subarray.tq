@@ -5,7 +5,8 @@
 namespace typed_array_subarray {
   // ES %TypedArray%.prototype.subarray
   transitioning javascript builtin TypedArrayPrototypeSubArray(
-      context: Context, receiver: Object, ...arguments): JSTypedArray {
+      js-implicit context: Context,
+      receiver: Object)(...arguments): JSTypedArray {
     const methodName: constexpr string = '%TypedArray%.prototype.subarray';
 
     // 1. Let O be the this value.

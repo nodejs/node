@@ -7,8 +7,10 @@
 
 // Check that --noopt actually works.
 
-function f() { return 42; }
-
+function f() {
+  return 42;
+};
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

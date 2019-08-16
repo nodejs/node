@@ -5,31 +5,14 @@
 #include "src/execution/execution.h"
 
 #include "src/api/api-inl.h"
-#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
-#include "src/debug/debug.h"
+#include "src/compiler/wasm-compiler.h"  // Only for static asserts.
+#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
-#include "src/wasm/wasm-engine.h"
 
 namespace v8 {
 namespace internal {
-
-void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
-  DCHECK_NOT_NULL(isolate_);
-  thread_local_.set_jslimit(kInterruptLimit);
-  thread_local_.set_climit(kInterruptLimit);
-  isolate_->heap()->SetStackLimits();
-}
-
-void StackGuard::reset_limits(const ExecutionAccess& lock) {
-  DCHECK_NOT_NULL(isolate_);
-  thread_local_.set_jslimit(thread_local_.real_jslimit_);
-  thread_local_.set_climit(thread_local_.real_climit_);
-  isolate_->heap()->SetStackLimits();
-}
 
 namespace {
 
@@ -235,6 +218,22 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     return isolate->factory()->undefined_value();
   }
 
+  if (params.execution_target == Execution::Target::kCallable) {
+    Handle<Context> context = isolate->native_context();
+    if (!context->script_execution_callback().IsUndefined(isolate)) {
+      v8::Context::AbortScriptExecutionCallback callback =
+          v8::ToCData<v8::Context::AbortScriptExecutionCallback>(
+              context->script_execution_callback());
+      v8::Isolate* api_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+      v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+      callback(api_isolate, api_context);
+      DCHECK(!isolate->has_scheduled_exception());
+      // Always throw an exception to abort execution, if callback exists.
+      isolate->ThrowIllegalOperation();
+      return MaybeHandle<Object>();
+    }
+  }
+
   // Placeholder for return value.
   Object value;
 
@@ -406,271 +405,68 @@ MaybeHandle<Object> Execution::TryRunMicrotasks(
                                                    exception_out));
 }
 
-void StackGuard::SetStackLimit(uintptr_t limit) {
-  ExecutionAccess access(isolate_);
-  // If the current limits are special (e.g. due to a pending interrupt) then
-  // leave them alone.
-  uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(isolate_, limit);
-  if (thread_local_.jslimit() == thread_local_.real_jslimit_) {
-    thread_local_.set_jslimit(jslimit);
-  }
-  if (thread_local_.climit() == thread_local_.real_climit_) {
-    thread_local_.set_climit(limit);
-  }
-  thread_local_.real_climit_ = limit;
-  thread_local_.real_jslimit_ = jslimit;
-}
+struct StackHandlerMarker {
+  Address next;
+  Address padding;
+};
+STATIC_ASSERT(offsetof(StackHandlerMarker, next) ==
+              StackHandlerConstants::kNextOffset);
+STATIC_ASSERT(offsetof(StackHandlerMarker, padding) ==
+              StackHandlerConstants::kPaddingOffset);
+STATIC_ASSERT(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 
-void StackGuard::AdjustStackLimitForSimulator() {
-  ExecutionAccess access(isolate_);
-  uintptr_t climit = thread_local_.real_climit_;
-  // If the current limits are special (e.g. due to a pending interrupt) then
-  // leave them alone.
-  uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(isolate_, climit);
-  if (thread_local_.jslimit() == thread_local_.real_jslimit_) {
-    thread_local_.set_jslimit(jslimit);
-    isolate_->heap()->SetStackLimits();
+void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
+                         Address wasm_call_target, Handle<Object> object_ref,
+                         Address packed_args) {
+  using WasmEntryStub = GeneratedCode<Address(
+      Address target, Address object_ref, Address argv, Address c_entry_fp)>;
+  WasmEntryStub stub_entry =
+      WasmEntryStub::FromAddress(isolate, wrapper_code->InstructionStart());
+
+  // Save and restore context around invocation and block the
+  // allocation of handles without explicit handle scopes.
+  SaveContext save(isolate);
+  SealHandleScope shs(isolate);
+
+  Address saved_c_entry_fp = *isolate->c_entry_fp_address();
+  Address saved_js_entry_sp = *isolate->js_entry_sp_address();
+  if (saved_js_entry_sp == kNullAddress) {
+    *isolate->js_entry_sp_address() = GetCurrentStackPosition();
   }
-}
+  StackHandlerMarker stack_handler;
+  stack_handler.next = isolate->thread_local_top()->handler_;
+#ifdef V8_USE_ADDRESS_SANITIZER
+  stack_handler.padding = GetCurrentStackPosition();
+#else
+  stack_handler.padding = 0;
+#endif
+  isolate->thread_local_top()->handler_ =
+      reinterpret_cast<Address>(&stack_handler);
+  trap_handler::SetThreadInWasm();
 
-void StackGuard::EnableInterrupts() {
-  ExecutionAccess access(isolate_);
-  if (has_pending_interrupts(access)) {
-    set_interrupt_limits(access);
-  }
-}
-
-void StackGuard::DisableInterrupts() {
-  ExecutionAccess access(isolate_);
-  reset_limits(access);
-}
-
-void StackGuard::PushInterruptsScope(InterruptsScope* scope) {
-  ExecutionAccess access(isolate_);
-  DCHECK_NE(scope->mode_, InterruptsScope::kNoop);
-  if (scope->mode_ == InterruptsScope::kPostponeInterrupts) {
-    // Intercept already requested interrupts.
-    int intercepted = thread_local_.interrupt_flags_ & scope->intercept_mask_;
-    scope->intercepted_flags_ = intercepted;
-    thread_local_.interrupt_flags_ &= ~intercepted;
-  } else {
-    DCHECK_EQ(scope->mode_, InterruptsScope::kRunInterrupts);
-    // Restore postponed interrupts.
-    int restored_flags = 0;
-    for (InterruptsScope* current = thread_local_.interrupt_scopes_;
-         current != nullptr; current = current->prev_) {
-      restored_flags |= (current->intercepted_flags_ & scope->intercept_mask_);
-      current->intercepted_flags_ &= ~scope->intercept_mask_;
-    }
-    thread_local_.interrupt_flags_ |= restored_flags;
-  }
-  if (!has_pending_interrupts(access)) reset_limits(access);
-  // Add scope to the chain.
-  scope->prev_ = thread_local_.interrupt_scopes_;
-  thread_local_.interrupt_scopes_ = scope;
-}
-
-void StackGuard::PopInterruptsScope() {
-  ExecutionAccess access(isolate_);
-  InterruptsScope* top = thread_local_.interrupt_scopes_;
-  DCHECK_NE(top->mode_, InterruptsScope::kNoop);
-  if (top->mode_ == InterruptsScope::kPostponeInterrupts) {
-    // Make intercepted interrupts active.
-    DCHECK_EQ(thread_local_.interrupt_flags_ & top->intercept_mask_, 0);
-    thread_local_.interrupt_flags_ |= top->intercepted_flags_;
-  } else {
-    DCHECK_EQ(top->mode_, InterruptsScope::kRunInterrupts);
-    // Postpone existing interupts if needed.
-    if (top->prev_) {
-      for (int interrupt = 1; interrupt < ALL_INTERRUPTS;
-           interrupt = interrupt << 1) {
-        InterruptFlag flag = static_cast<InterruptFlag>(interrupt);
-        if ((thread_local_.interrupt_flags_ & flag) &&
-            top->prev_->Intercept(flag)) {
-          thread_local_.interrupt_flags_ &= ~flag;
-        }
-      }
+  {
+    RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
+    STATIC_ASSERT(compiler::CWasmEntryParameters::kCodeEntry == 0);
+    STATIC_ASSERT(compiler::CWasmEntryParameters::kObjectRef == 1);
+    STATIC_ASSERT(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);
+    STATIC_ASSERT(compiler::CWasmEntryParameters::kCEntryFp == 3);
+    Address result = stub_entry.Call(wasm_call_target, object_ref->ptr(),
+                                     packed_args, saved_c_entry_fp);
+    if (result != kNullAddress) {
+      isolate->set_pending_exception(Object(result));
     }
   }
-  if (has_pending_interrupts(access)) set_interrupt_limits(access);
-  // Remove scope from chain.
-  thread_local_.interrupt_scopes_ = top->prev_;
-}
 
-bool StackGuard::CheckInterrupt(InterruptFlag flag) {
-  ExecutionAccess access(isolate_);
-  return thread_local_.interrupt_flags_ & flag;
-}
-
-void StackGuard::RequestInterrupt(InterruptFlag flag) {
-  ExecutionAccess access(isolate_);
-  // Check the chain of InterruptsScope for interception.
-  if (thread_local_.interrupt_scopes_ &&
-      thread_local_.interrupt_scopes_->Intercept(flag)) {
-    return;
+  // If there was an exception, then the thread-in-wasm flag is cleared
+  // already.
+  if (trap_handler::IsThreadInWasm()) {
+    trap_handler::ClearThreadInWasm();
   }
-
-  // Not intercepted.  Set as active interrupt flag.
-  thread_local_.interrupt_flags_ |= flag;
-  set_interrupt_limits(access);
-
-  // If this isolate is waiting in a futex, notify it to wake up.
-  isolate_->futex_wait_list_node()->NotifyWake();
-}
-
-void StackGuard::ClearInterrupt(InterruptFlag flag) {
-  ExecutionAccess access(isolate_);
-  // Clear the interrupt flag from the chain of InterruptsScope.
-  for (InterruptsScope* current = thread_local_.interrupt_scopes_;
-       current != nullptr; current = current->prev_) {
-    current->intercepted_flags_ &= ~flag;
+  isolate->thread_local_top()->handler_ = stack_handler.next;
+  if (saved_js_entry_sp == kNullAddress) {
+    *isolate->js_entry_sp_address() = saved_js_entry_sp;
   }
-
-  // Clear the interrupt flag from the active interrupt flags.
-  thread_local_.interrupt_flags_ &= ~flag;
-  if (!has_pending_interrupts(access)) reset_limits(access);
-}
-
-bool StackGuard::CheckAndClearInterrupt(InterruptFlag flag) {
-  ExecutionAccess access(isolate_);
-  bool result = (thread_local_.interrupt_flags_ & flag);
-  thread_local_.interrupt_flags_ &= ~flag;
-  if (!has_pending_interrupts(access)) reset_limits(access);
-  return result;
-}
-
-char* StackGuard::ArchiveStackGuard(char* to) {
-  ExecutionAccess access(isolate_);
-  MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
-  ThreadLocal blank;
-
-  // Set the stack limits using the old thread_local_.
-  // TODO(isolates): This was the old semantics of constructing a ThreadLocal
-  //                 (as the ctor called SetStackLimits, which looked at the
-  //                 current thread_local_ from StackGuard)-- but is this
-  //                 really what was intended?
-  isolate_->heap()->SetStackLimits();
-  thread_local_ = blank;
-
-  return to + sizeof(ThreadLocal);
-}
-
-char* StackGuard::RestoreStackGuard(char* from) {
-  ExecutionAccess access(isolate_);
-  MemCopy(reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
-  isolate_->heap()->SetStackLimits();
-  return from + sizeof(ThreadLocal);
-}
-
-void StackGuard::FreeThreadResources() {
-  Isolate::PerIsolateThreadData* per_thread =
-      isolate_->FindOrAllocatePerThreadDataForThisThread();
-  per_thread->set_stack_limit(thread_local_.real_climit_);
-}
-
-void StackGuard::ThreadLocal::Clear() {
-  real_jslimit_ = kIllegalLimit;
-  set_jslimit(kIllegalLimit);
-  real_climit_ = kIllegalLimit;
-  set_climit(kIllegalLimit);
-  interrupt_scopes_ = nullptr;
-  interrupt_flags_ = 0;
-}
-
-bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
-  bool should_set_stack_limits = false;
-  if (real_climit_ == kIllegalLimit) {
-    const uintptr_t kLimitSize = FLAG_stack_size * KB;
-    DCHECK_GT(GetCurrentStackPosition(), kLimitSize);
-    uintptr_t limit = GetCurrentStackPosition() - kLimitSize;
-    real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
-    set_jslimit(SimulatorStack::JsLimitFromCLimit(isolate, limit));
-    real_climit_ = limit;
-    set_climit(limit);
-    should_set_stack_limits = true;
-  }
-  interrupt_scopes_ = nullptr;
-  interrupt_flags_ = 0;
-  return should_set_stack_limits;
-}
-
-void StackGuard::ClearThread(const ExecutionAccess& lock) {
-  thread_local_.Clear();
-  isolate_->heap()->SetStackLimits();
-}
-
-void StackGuard::InitThread(const ExecutionAccess& lock) {
-  if (thread_local_.Initialize(isolate_)) isolate_->heap()->SetStackLimits();
-  Isolate::PerIsolateThreadData* per_thread =
-      isolate_->FindOrAllocatePerThreadDataForThisThread();
-  uintptr_t stored_limit = per_thread->stack_limit();
-  // You should hold the ExecutionAccess lock when you call this.
-  if (stored_limit != 0) {
-    SetStackLimit(stored_limit);
-  }
-}
-
-// --- C a l l s   t o   n a t i v e s ---
-
-Object StackGuard::HandleInterrupts() {
-  TRACE_EVENT0("v8.execute", "V8.HandleInterrupts");
-
-  if (FLAG_verify_predictable) {
-    // Advance synthetic time by making a time request.
-    isolate_->heap()->MonotonicallyIncreasingTimeInMs();
-  }
-
-  if (CheckAndClearInterrupt(GC_REQUEST)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCHandleGCRequest");
-    isolate_->heap()->HandleGCRequest();
-  }
-
-  if (CheckAndClearInterrupt(GROW_SHARED_MEMORY)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-                 "V8.WasmGrowSharedMemory");
-    isolate_->wasm_engine()->memory_tracker()->UpdateSharedMemoryInstances(
-        isolate_);
-  }
-
-  if (CheckAndClearInterrupt(TERMINATE_EXECUTION)) {
-    TRACE_EVENT0("v8.execute", "V8.TerminateExecution");
-    return isolate_->TerminateExecution();
-  }
-
-  if (CheckAndClearInterrupt(DEOPT_MARKED_ALLOCATION_SITES)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "V8.GCDeoptMarkedAllocationSites");
-    isolate_->heap()->DeoptMarkedAllocationSites();
-  }
-
-  if (CheckAndClearInterrupt(INSTALL_CODE)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                 "V8.InstallOptimizedFunctions");
-    DCHECK(isolate_->concurrent_recompilation_enabled());
-    isolate_->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-  }
-
-  if (CheckAndClearInterrupt(API_INTERRUPT)) {
-    TRACE_EVENT0("v8.execute", "V8.InvokeApiInterruptCallbacks");
-    // Callbacks must be invoked outside of ExecutionAccess lock.
-    isolate_->InvokeApiInterruptCallbacks();
-  }
-
-  if (CheckAndClearInterrupt(LOG_WASM_CODE)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "LogCode");
-    isolate_->wasm_engine()->LogOutstandingCodesForIsolate(isolate_);
-  }
-
-  if (CheckAndClearInterrupt(WASM_CODE_GC)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "WasmCodeGC");
-    isolate_->wasm_engine()->ReportLiveCodeFromStackForGC(isolate_);
-  }
-
-  isolate_->counters()->stack_interrupts()->Increment();
-  isolate_->counters()->runtime_profiler_ticks()->Increment();
-  isolate_->runtime_profiler()->MarkCandidatesForOptimization();
-
-  return ReadOnlyRoots(isolate_).undefined_value();
+  *isolate->c_entry_fp_address() = saved_c_entry_fp;
 }
 
 }  // namespace internal

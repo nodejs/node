@@ -42,6 +42,15 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to BigInt's bit field.
   static FieldAccess ForBigIntBitfield();
 
+  // Provides access to BigInt's 32 bit padding that is placed after the
+  // bitfield on 64 bit architectures without pointer compression. Do not use
+  // this on 32 bit architectures.
+  static FieldAccess ForBigIntOptionalPadding();
+
+  // Provides access to BigInt's least significant digit on 64 bit
+  // architectures. Do not use this on 32 bit architectures.
+  static FieldAccess ForBigIntLeastSignificantDigit64();
+
   // Provides access to JSObject::properties() field.
   static FieldAccess ForJSObjectPropertiesOrHash();
 
@@ -263,7 +272,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSStringIterator::index() field.
   static FieldAccess ForJSStringIteratorIndex();
 
-  // Provides access to JSValue::value() field.
+  // Provides access to JSPrimitiveWrapper::value() field.
   static FieldAccess ForValue();
 
   // Provides access to Cell::value() field.

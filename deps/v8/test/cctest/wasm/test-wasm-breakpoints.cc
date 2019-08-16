@@ -112,8 +112,8 @@ class BreakHandler : public debug::DebugDelegate {
   }
 };
 
-
-void SetBreakpoint(WasmRunnerBase& runner, int function_index, int byte_offset,
+void SetBreakpoint(WasmRunnerBase& runner,  // NOLINT(runtime/references)
+                   int function_index, int byte_offset,
                    int expected_set_byte_offset = -1) {
   int func_offset =
       runner.builder().GetFunctionAt(function_index)->code.offset();

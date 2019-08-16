@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
+#include "src/common/message-template.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frame-constants.h"
-#include "src/execution/message-template.h"
+#include "src/execution/frames.h"
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
@@ -62,7 +63,7 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
 }
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_WasmIsValidAnyFuncValue) {
+RUNTIME_FUNCTION(Runtime_WasmIsValidFuncRefValue) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, function, 0);
@@ -209,12 +210,13 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   // methods that could trigger a GC are being called.
   Address arg_buf_ptr = arg_buffer;
   for (int i = 0; i < num_params; ++i) {
-#define CASE_ARG_TYPE(type, ctype)                                          \
-  case wasm::type:                                                          \
-    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),       \
-              sizeof(ctype));                                               \
-    wasm_args[i] = wasm::WasmValue(ReadUnalignedValue<ctype>(arg_buf_ptr)); \
-    arg_buf_ptr += sizeof(ctype);                                           \
+#define CASE_ARG_TYPE(type, ctype)                                     \
+  case wasm::type:                                                     \
+    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),  \
+              sizeof(ctype));                                          \
+    wasm_args[i] =                                                     \
+        wasm::WasmValue(base::ReadUnalignedValue<ctype>(arg_buf_ptr)); \
+    arg_buf_ptr += sizeof(ctype);                                      \
     break;
     switch (sig->GetParam(i)) {
       CASE_ARG_TYPE(kWasmI32, uint32_t)
@@ -223,11 +225,12 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
       CASE_ARG_TYPE(kWasmF64, double)
 #undef CASE_ARG_TYPE
       case wasm::kWasmAnyRef:
-      case wasm::kWasmAnyFunc:
-      case wasm::kWasmExceptRef: {
+      case wasm::kWasmFuncRef:
+      case wasm::kWasmExnRef: {
         DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),
                   kSystemPointerSize);
-        Handle<Object> ref(ReadUnalignedValue<Object>(arg_buf_ptr), isolate);
+        Handle<Object> ref(base::ReadUnalignedValue<Object>(arg_buf_ptr),
+                           isolate);
         wasm_args[i] = wasm::WasmValue(ref);
         arg_buf_ptr += kSystemPointerSize;
         break;
@@ -259,12 +262,12 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   // also un-boxes reference types from handles into raw pointers.
   arg_buf_ptr = arg_buffer;
   for (int i = 0; i < num_returns; ++i) {
-#define CASE_RET_TYPE(type, ctype)                                     \
-  case wasm::type:                                                     \
-    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)), \
-              sizeof(ctype));                                          \
-    WriteUnalignedValue<ctype>(arg_buf_ptr, wasm_rets[i].to<ctype>()); \
-    arg_buf_ptr += sizeof(ctype);                                      \
+#define CASE_RET_TYPE(type, ctype)                                           \
+  case wasm::type:                                                           \
+    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),       \
+              sizeof(ctype));                                                \
+    base::WriteUnalignedValue<ctype>(arg_buf_ptr, wasm_rets[i].to<ctype>()); \
+    arg_buf_ptr += sizeof(ctype);                                            \
     break;
     switch (sig->GetReturn(i)) {
       CASE_RET_TYPE(kWasmI32, uint32_t)
@@ -273,11 +276,12 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
       CASE_RET_TYPE(kWasmF64, double)
 #undef CASE_RET_TYPE
       case wasm::kWasmAnyRef:
-      case wasm::kWasmAnyFunc:
-      case wasm::kWasmExceptRef: {
+      case wasm::kWasmFuncRef:
+      case wasm::kWasmExnRef: {
         DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),
                   kSystemPointerSize);
-        WriteUnalignedValue<Object>(arg_buf_ptr, *wasm_rets[i].to_anyref());
+        base::WriteUnalignedValue<Object>(arg_buf_ptr,
+                                          *wasm_rets[i].to_anyref());
         arg_buf_ptr += kSystemPointerSize;
         break;
       }
@@ -476,116 +480,6 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmIndirectCallCheckSignatureAndGetTargetInstance) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  auto instance =
-      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
-  CONVERT_UINT32_ARG_CHECKED(table_index, 0);
-  CONVERT_UINT32_ARG_CHECKED(entry_index, 1);
-  CONVERT_UINT32_ARG_CHECKED(sig_index, 2);
-  DCHECK(isolate->context().is_null());
-  isolate->set_context(instance->native_context());
-
-  DCHECK_LT(table_index, instance->tables().length());
-  auto table_obj = handle(
-      WasmTableObject::cast(instance->tables().get(table_index)), isolate);
-
-  // This check is already done in generated code.
-  DCHECK(WasmTableObject::IsInBounds(isolate, table_obj, entry_index));
-
-  bool is_valid;
-  bool is_null;
-  MaybeHandle<WasmInstanceObject> maybe_target_instance;
-  int function_index;
-  WasmTableObject::GetFunctionTableEntry(
-      isolate, table_obj, entry_index, &is_valid, &is_null,
-      &maybe_target_instance, &function_index);
-
-  CHECK(is_valid);
-  if (is_null) {
-    // We throw a signature mismatch trap to be in sync with the generated
-    // code. There we do a signature check instead of a null-check. Trap
-    // reasons are not defined in the spec. Otherwise, a null-check is
-    // performed before a signature, according to the spec.
-    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapFuncSigMismatch);
-  }
-
-  // Now we do the signature check.
-  Handle<WasmInstanceObject> target_instance =
-      maybe_target_instance.ToHandleChecked();
-
-  const wasm::WasmModule* target_module =
-      target_instance->module_object().native_module()->module();
-
-  wasm::FunctionSig* target_sig = target_module->functions[function_index].sig;
-
-  auto target_sig_id = instance->module()->signature_map.Find(*target_sig);
-  uint32_t expected_sig_id = instance->module()->signature_ids[sig_index];
-
-  if (expected_sig_id != static_cast<uint32_t>(target_sig_id)) {
-    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapFuncSigMismatch);
-  }
-
-  if (function_index <
-      static_cast<int>(target_instance->module()->num_imported_functions)) {
-    // The function in the target instance was imported. Use its imports table,
-    // which contains a tuple needed by the import wrapper.
-    ImportedFunctionEntry entry(target_instance, function_index);
-    return entry.object_ref();
-  }
-  return *target_instance;
-}
-
-RUNTIME_FUNCTION(Runtime_WasmIndirectCallGetTargetAddress) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  auto instance =
-      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
-  CONVERT_UINT32_ARG_CHECKED(table_index, 0);
-  CONVERT_UINT32_ARG_CHECKED(entry_index, 1);
-
-  DCHECK_LT(table_index, instance->tables().length());
-  auto table_obj = handle(
-      WasmTableObject::cast(instance->tables().get(table_index)), isolate);
-
-  DCHECK(WasmTableObject::IsInBounds(isolate, table_obj, entry_index));
-
-  bool is_valid;
-  bool is_null;
-  MaybeHandle<WasmInstanceObject> maybe_target_instance;
-  int function_index;
-  WasmTableObject::GetFunctionTableEntry(
-      isolate, table_obj, entry_index, &is_valid, &is_null,
-      &maybe_target_instance, &function_index);
-
-  CHECK(is_valid);
-  // The null-check should already have been done in
-  // Runtime_WasmIndirectCallCheckSignatureAndGetTargetInstance. That runtime
-  // function should always be called first.
-  CHECK(!is_null);
-
-  Handle<WasmInstanceObject> target_instance =
-      maybe_target_instance.ToHandleChecked();
-
-  Address call_target = 0;
-  if (function_index <
-      static_cast<int>(target_instance->module()->num_imported_functions)) {
-    // The function in the target instance was imported. Use its imports table,
-    // which contains a tuple needed by the import wrapper.
-    ImportedFunctionEntry entry(target_instance, function_index);
-    call_target = entry.target();
-  } else {
-    // The function in the target instance was not imported.
-    call_target = target_instance->GetCallTarget(function_index);
-  }
-
-  // The return value is an address and not a SMI. However, the address is
-  // always aligned, and a SMI uses the same space as {Address}.
-  CHECK(HAS_SMI_TAG(call_target));
-  return Smi(call_target);
-}
-
 RUNTIME_FUNCTION(Runtime_WasmTableInit) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
@@ -609,16 +503,18 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
 RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
+  DCHECK(isolate->context().is_null());
+  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   auto instance =
       Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
-  CONVERT_UINT32_ARG_CHECKED(table_src_index, 0);
-  CONVERT_UINT32_ARG_CHECKED(table_dst_index, 1);
+  CONVERT_UINT32_ARG_CHECKED(table_dst_index, 0);
+  CONVERT_UINT32_ARG_CHECKED(table_src_index, 1);
   CONVERT_UINT32_ARG_CHECKED(dst, 2);
   CONVERT_UINT32_ARG_CHECKED(src, 3);
   CONVERT_UINT32_ARG_CHECKED(count, 4);
 
   bool oob = !WasmInstanceObject::CopyTableEntries(
-      isolate, instance, table_src_index, table_dst_index, dst, src, count);
+      isolate, instance, table_dst_index, table_src_index, dst, src, count);
   if (oob) return ThrowTableOutOfBounds(isolate, instance);
   return ReadOnlyRoots(isolate).undefined_value();
 }

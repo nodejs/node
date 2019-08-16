@@ -41,10 +41,20 @@ class ScavengingTask final : public ItemParallelJob::Task {
         scavenger_(scavenger),
         barrier_(barrier) {}
 
-  void RunInParallel() final {
-    TRACE_BACKGROUND_GC(
-        heap_->tracer(),
-        GCTracer::BackgroundScope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL);
+  void RunInParallel(Runner runner) final {
+    if (runner == Runner::kForeground) {
+      TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL);
+      ProcessItems();
+    } else {
+      TRACE_BACKGROUND_GC(
+          heap_->tracer(),
+          GCTracer::BackgroundScope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL);
+      ProcessItems();
+    }
+  }
+
+ private:
+  void ProcessItems() {
     double scavenging_time = 0.0;
     {
       barrier_->Start();
@@ -66,8 +76,6 @@ class ScavengingTask final : public ItemParallelJob::Task {
                    scavenger_->bytes_copied(), scavenger_->bytes_promoted());
     }
   }
-
- private:
   Heap* const heap_;
   Scavenger* const scavenger_;
   OneshotBarrier* const barrier_;
@@ -413,7 +421,7 @@ void Scavenger::RememberPromotedEphemeron(EphemeronHashTable table, int entry) {
 }
 
 void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
-  AllocationSpace space = page->owner()->identity();
+  AllocationSpace space = page->owner_identity();
   if ((space == OLD_SPACE) && !page->SweepingDone()) {
     heap()->mark_compact_collector()->sweeper()->AddPage(
         space, reinterpret_cast<Page*>(page),

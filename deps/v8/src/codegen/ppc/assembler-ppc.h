@@ -437,6 +437,7 @@ class Assembler : public AssemblerBase {
   PPC_XX3_OPCODE_LIST(DECLARE_PPC_XX3_INSTRUCTIONS)
 #undef DECLARE_PPC_XX3_INSTRUCTIONS
 
+  RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   // ---------------------------------------------------------------------------
   // Code generation
 
@@ -841,8 +842,8 @@ class Assembler : public AssemblerBase {
   void function_descriptor();
 
   // Exception-generating instructions and debugging support
-  void stop(const char* msg, Condition cond = al,
-            int32_t code = kDefaultStopCode, CRegister cr = cr7);
+  void stop(Condition cond = al, int32_t code = kDefaultStopCode,
+            CRegister cr = cr7);
 
   void bkpt(uint32_t imm16);  // v5 and above
 
@@ -1182,6 +1183,9 @@ class Assembler : public AssemblerBase {
   static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   std::vector<DeferredRelocInfo> relocations_;
 
+  // Scratch registers available for use by the Assembler.
+  RegList scratch_register_list_;
+
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
   // Optimizable cmpi information.
@@ -1297,6 +1301,7 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;
+  friend class UseScratchRegisterScope;
 };
 
 class EnsureSpace {
@@ -1309,6 +1314,24 @@ class PatchingAssembler : public Assembler {
   PatchingAssembler(const AssemblerOptions& options, byte* address,
                     int instructions);
   ~PatchingAssembler();
+};
+
+class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+ public:
+  explicit UseScratchRegisterScope(Assembler* assembler);
+  ~UseScratchRegisterScope();
+
+  Register Acquire();
+
+  // Check if we have registers available to acquire.
+  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+
+ private:
+  friend class Assembler;
+  friend class TurboAssembler;
+
+  Assembler* assembler_;
+  RegList old_available_;
 };
 
 }  // namespace internal

@@ -5,13 +5,13 @@
 // Flags: --allow-natives-syntax
 
 for (let i = 0; i < 2; i++) {
-  (new String()).valueOf = Symbol;
+  new String().valueOf = Symbol;
 }
 
 function foo() {
   Promise.resolve("");
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 foo();
 %OptimizeFunctionOnNextCall(foo);
 foo();

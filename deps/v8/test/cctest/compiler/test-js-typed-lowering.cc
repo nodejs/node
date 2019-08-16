@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
@@ -24,7 +26,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   explicit JSTypedLoweringTester(int num_parameters = 0)
       : isolate(main_isolate()),
         canonical(isolate),
-        js_heap_broker(isolate, main_zone()),
+        js_heap_broker(isolate, main_zone(), FLAG_trace_heap_broker),
         binop(nullptr),
         unop(nullptr),
         javascript(main_zone()),
@@ -32,7 +34,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         simplified(main_zone()),
         common(main_zone()),
         graph(main_zone()),
-        typer(&js_heap_broker, Typer::kNoFlags, &graph),
+        typer(&js_heap_broker, Typer::kNoFlags, &graph, &tick_counter),
         context_node(nullptr) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
     graph.SetEnd(graph.NewNode(common.End(1), graph.start()));
@@ -40,6 +42,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   }
 
   Isolate* isolate;
+  TickCounter tick_counter;
   CanonicalHandleScope canonical;
   JSHeapBroker js_heap_broker;
   const Operator* binop;
@@ -89,7 +92,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &simplified,
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(main_zone(), &graph);
+    GraphReducer graph_reducer(main_zone(), &graph, &tick_counter);
     JSTypedLowering reducer(&graph_reducer, &jsgraph, &js_heap_broker,
                             main_zone());
     Reduction reduction = reducer.Reduce(node);

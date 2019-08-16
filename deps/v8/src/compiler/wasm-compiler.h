@@ -6,6 +6,7 @@
 #define V8_COMPILER_WASM_COMPILER_H_
 
 #include <memory>
+#include <utility>
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
@@ -20,6 +21,7 @@
 namespace v8 {
 namespace internal {
 struct AssemblerOptions;
+class OptimizedCompilationJob;
 
 namespace compiler {
 // Forward declarations for some compiler data structures.
@@ -103,13 +105,23 @@ enum class WasmImportCallKind : uint8_t {
   kUseCallBuiltin
 };
 
-V8_EXPORT_PRIVATE WasmImportCallKind
-GetWasmImportCallKind(Handle<JSReceiver> callable, wasm::FunctionSig* sig,
+// TODO(wasm): There should be only one import kind for sloppy and strict in
+// order to reduce wrapper cache misses. The mode can be checked at runtime
+// instead.
+constexpr WasmImportCallKind kDefaultImportCallKind =
+    WasmImportCallKind::kJSFunctionArityMatchSloppy;
+
+// Resolves which import call wrapper is required for the given JS callable.
+// Returns the kind of wrapper need and the ultimate target callable. Note that
+// some callables (e.g. a {WasmExportedFunction} or {WasmJSFunction}) just wrap
+// another target, which is why the ultimate target is returned as well.
+V8_EXPORT_PRIVATE std::pair<WasmImportCallKind, Handle<JSReceiver>>
+ResolveWasmImportCall(Handle<JSReceiver> callable, wasm::FunctionSig* sig,
                       bool has_bigint_feature);
 
 // Compiles an import call wrapper, which allows WASM to call imports.
-V8_EXPORT_PRIVATE wasm::WasmCode* CompileWasmImportCallWrapper(
-    wasm::WasmEngine*, wasm::NativeModule*, WasmImportCallKind,
+V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
+    wasm::WasmEngine*, wasm::CompilationEnv* env, WasmImportCallKind,
     wasm::FunctionSig*, bool source_positions);
 
 // Compiles a host call wrapper, which allows WASM to call host functions.
@@ -117,11 +129,9 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine*,
                                            wasm::NativeModule*,
                                            wasm::FunctionSig*, Address address);
 
-// Creates a code object calling a wasm function with the given signature,
-// callable from JS.
-V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(Isolate*,
-                                                           wasm::FunctionSig*,
-                                                           bool is_import);
+// Returns an OptimizedCompilationJob object for a JS to Wasm wrapper.
+std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
+    Isolate* isolate, wasm::FunctionSig* sig, bool is_import);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
@@ -133,13 +143,13 @@ enum CWasmEntryParameters {
   kCodeEntry,
   kObjectRef,
   kArgumentsBuffer,
+  kCEntryFp,
   // marker:
   kNumParameters
 };
 
-// Compiles a stub with JS linkage, taking parameters as described by
-// {CWasmEntryParameters}. It loads the wasm parameters from the argument
-// buffer and calls the wasm function given as first parameter.
+// Compiles a stub with C++ linkage, to be called from Execution::CallWasm,
+// which knows how to feed it its parameters.
 MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig);
 
 // Values from the instance object are cached between WASM-level function calls.
@@ -280,9 +290,9 @@ class WasmGraphBuilder {
 
   Node* GetGlobal(uint32_t index);
   Node* SetGlobal(uint32_t index, Node* val);
-  Node* GetTable(uint32_t table_index, Node* index,
+  Node* TableGet(uint32_t table_index, Node* index,
                  wasm::WasmCodePosition position);
-  Node* SetTable(uint32_t table_index, Node* index, Node* val,
+  Node* TableSet(uint32_t table_index, Node* index, Node* val,
                  wasm::WasmCodePosition position);
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
@@ -377,6 +387,7 @@ class WasmGraphBuilder {
   Node* AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
                  uint32_t alignment, uint32_t offset,
                  wasm::WasmCodePosition position);
+  Node* AtomicFence();
 
   // Returns a pointer to the dropped_data_segments array. Traps if the data
   // segment is active or has been dropped.
@@ -395,7 +406,7 @@ class WasmGraphBuilder {
   Node* TableInit(uint32_t table_index, uint32_t elem_segment_index, Node* dst,
                   Node* src, Node* size, wasm::WasmCodePosition position);
   Node* ElemDrop(uint32_t elem_segment_index, wasm::WasmCodePosition position);
-  Node* TableCopy(uint32_t table_src_index, uint32_t table_dst_index, Node* dst,
+  Node* TableCopy(uint32_t table_dst_index, uint32_t table_src_index, Node* dst,
                   Node* src, Node* size, wasm::WasmCodePosition position);
   Node* TableGrow(uint32_t table_index, Node* value, Node* delta);
   Node* TableSize(uint32_t table_index);
@@ -485,10 +496,10 @@ class WasmGraphBuilder {
   Node* BuildCallNode(wasm::FunctionSig* sig, Node** args,
                       wasm::WasmCodePosition position, Node* instance_node,
                       const Operator* op);
-  // Special implementation for CallIndirect for table 0.
-  Node* BuildIndirectCall(uint32_t sig_index, Node** args, Node*** rets,
-                          wasm::WasmCodePosition position,
-                          IsReturnCall continuation);
+  // Helper function for {BuildIndirectCall}.
+  void LoadIndirectFunctionTable(uint32_t table_index, Node** ift_size,
+                                 Node** ift_sig_ids, Node** ift_targets,
+                                 Node** ift_instances);
   Node* BuildIndirectCall(uint32_t table_index, uint32_t sig_index, Node** args,
                           Node*** rets, wasm::WasmCodePosition position,
                           IsReturnCall continuation);
@@ -590,8 +601,6 @@ class WasmGraphBuilder {
     if (buf != buffer) memcpy(buf, buffer, old_count * sizeof(Node*));
     return buf;
   }
-
-  Node* BuildLoadBuiltinFromInstance(int builtin_index);
 
   //-----------------------------------------------------------------------
   // Operations involving the CEntry, a dependency we want to remove

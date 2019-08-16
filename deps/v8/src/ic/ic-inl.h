@@ -16,23 +16,6 @@
 namespace v8 {
 namespace internal {
 
-Address IC::constant_pool() const {
-  if (FLAG_enable_embedded_constant_pool) {
-    return raw_constant_pool();
-  } else {
-    return kNullAddress;
-  }
-}
-
-
-Address IC::raw_constant_pool() const {
-  if (FLAG_enable_embedded_constant_pool) {
-    return *constant_pool_address_;
-  } else {
-    return kNullAddress;
-  }
-}
-
 void IC::update_receiver_map(Handle<Object> receiver) {
   if (receiver->IsSmi()) {
     receiver_map_ = isolate_->factory()->heap_number_map();
@@ -48,13 +31,6 @@ bool IC::IsHandler(MaybeObject object) {
           (heap_object.IsMap() || heap_object.IsPropertyCell())) ||
          (object->GetHeapObjectIfStrong(&heap_object) &&
           (heap_object.IsDataHandler() || heap_object.IsCode()));
-}
-
-bool IC::HostIsDeoptimizedCode() const {
-  Code host =
-      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(pc())->code;
-  return (host.kind() == Code::OPTIMIZED_FUNCTION &&
-          host.marked_for_deoptimization());
 }
 
 bool IC::vector_needs_update() {

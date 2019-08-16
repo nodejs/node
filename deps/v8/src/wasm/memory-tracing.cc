@@ -6,7 +6,7 @@
 
 #include <cinttypes>
 
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
 
@@ -22,9 +22,9 @@ void TraceMemoryOperation(ExecutionTier tier, const MemoryTracingInfo* info,
 #define TRACE_TYPE(rep, str, format, ctype1, ctype2)                     \
   case MachineRepresentation::rep:                                       \
     SNPrintF(value, str ":" format,                                      \
-             ReadLittleEndianValue<ctype1>(                              \
+             base::ReadLittleEndianValue<ctype1>(                        \
                  reinterpret_cast<Address>(mem_start) + info->address),  \
-             ReadLittleEndianValue<ctype2>(                              \
+             base::ReadLittleEndianValue<ctype2>(                        \
                  reinterpret_cast<Address>(mem_start) + info->address)); \
     break;
     TRACE_TYPE(kWord8, " i8", "%d / %02x", uint8_t, uint8_t)

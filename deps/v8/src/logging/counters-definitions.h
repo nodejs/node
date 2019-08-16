@@ -13,7 +13,6 @@ namespace internal {
   HR(background_marking, V8.GCBackgroundMarking, 0, 10000, 101)                \
   HR(background_scavenger, V8.GCBackgroundScavenger, 0, 10000, 101)            \
   HR(background_sweeping, V8.GCBackgroundSweeping, 0, 10000, 101)              \
-  HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)         \
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
   HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \
@@ -89,7 +88,13 @@ namespace internal {
      0, 100, 32)                                                               \
   /* number of code GCs triggered per native module, collected on code GC */   \
   HR(wasm_module_num_triggered_code_gcs,                                       \
-     V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)
+     V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)                        \
+  /* number of code spaces reserved per wasm module */                         \
+  HR(wasm_module_num_code_spaces, V8.WasmModuleNumberOfCodeSpaces, 1, 128, 20) \
+  /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
+  HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)             \
+  /* Ticks observed in a single Turbofan compilation, in 1K */                 \
+  HR(turbofan_ticks, V8.TurboFan1KTicks, 0, 100000, 200)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Timer histograms, not thread safe: HT(name, caption, max, unit) */        \

@@ -29,8 +29,8 @@
 
 function poly(x) {
   return x.foo;
-}
-
+};
+%PrepareFunctionForOptimization(poly);
 var one = {foo: 0};
 var two = {foo: 0, bar: 1};
 var three = {bar: 0};

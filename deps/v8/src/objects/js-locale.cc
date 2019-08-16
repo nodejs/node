@@ -313,10 +313,9 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
 
 }  // namespace
 
-MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
-                                           Handle<JSLocale> locale,
-                                           Handle<String> locale_str,
-                                           Handle<JSReceiver> options) {
+MaybeHandle<JSLocale> JSLocale::New(Isolate* isolate, Handle<Map> map,
+                                    Handle<String> locale_str,
+                                    Handle<JSReceiver> options) {
   icu::LocaleBuilder builder;
   Maybe<bool> maybe_apply =
       ApplyOptionsToTag(isolate, locale_str, options, &builder);
@@ -341,8 +340,12 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
   // 31. Set locale.[[Locale]] to r.[[locale]].
   Handle<Managed<icu::Locale>> managed_locale =
       Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
-  locale->set_icu_locale(*managed_locale);
 
+  // Now all properties are ready, so we can allocate the result object.
+  Handle<JSLocale> locale = Handle<JSLocale>::cast(
+      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  DisallowHeapAllocation no_gc;
+  locale->set_icu_locale(*managed_locale);
   return locale;
 }
 

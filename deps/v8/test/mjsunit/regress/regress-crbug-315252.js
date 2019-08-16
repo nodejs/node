@@ -28,27 +28,29 @@
 // Flags: --allow-natives-syntax
 
 function f(a, b, c) {
- this.a = a;
- this.b = b;
- this.c = c;
+  this.a = a;
+  this.b = b;
+  this.c = c;
 }
 var o3 = new f(1, 2, 3.5);
 var o4 = new f(1, 2.5, 3);
 var o1 = new f(1.5, 2, 3);
 var o2 = new f(1.5, 2, 3);
 function migrate(o) {
- return o.a;
+  return o.a;
 }
 // Use migrate to stabilize o1, o2 and o4 in [double, double, smi].
 migrate(o4);
 migrate(o1);
 migrate(o2);
 function store_transition(o) {
- o.d = 1;
+  o.d = 1;
 }
 // Optimize "store_transition" to transition from [double, double, smi] to
 // [double, double, smi, smi]. This adds a dependency on the
 // [double, double, smi] map.
+;
+%PrepareFunctionForOptimization(store_transition);
 store_transition(o4);
 store_transition(o1);
 store_transition(o2);

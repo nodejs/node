@@ -4,9 +4,14 @@
 
 #include "src/wasm/function-compiler.h"
 
+#include "src/codegen/compiler.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/logging/counters.h"
+#include "src/logging/log.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -107,12 +112,48 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
     const WasmModule* module) {
   // Liftoff does not support the special asm.js opcodes, thus always compile
   // asm.js modules with TurboFan.
-  if (module->origin == kAsmJsOrigin) return ExecutionTier::kTurbofan;
+  if (is_asmjs_module(module)) return ExecutionTier::kTurbofan;
   if (FLAG_wasm_interpret_all) return ExecutionTier::kInterpreter;
   return FLAG_liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
 }
 
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
+    WasmEngine* engine, CompilationEnv* env,
+    const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
+    Counters* counters, WasmFeatures* detected) {
+  WasmCompilationResult result;
+  if (func_index_ < static_cast<int>(env->module->num_imported_functions)) {
+    result = ExecuteImportWrapperCompilation(engine, env);
+  } else {
+    result = ExecuteFunctionCompilation(engine, env, wire_bytes_storage,
+                                        counters, detected);
+  }
+
+  if (result.succeeded()) {
+    counters->wasm_generated_code_size()->Increment(
+        result.code_desc.instr_size);
+    counters->wasm_reloc_size()->Increment(result.code_desc.reloc_size);
+  }
+
+  result.func_index = func_index_;
+  result.requested_tier = tier_;
+
+  return result;
+}
+
+WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
+    WasmEngine* engine, CompilationEnv* env) {
+  FunctionSig* sig = env->module->functions[func_index_].sig;
+  // Assume the wrapper is going to be a JS function with matching arity at
+  // instantiation time.
+  auto kind = compiler::kDefaultImportCallKind;
+  bool source_positions = is_asmjs_module(env->module);
+  WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
+      engine, env, kind, sig, source_positions);
+  return result;
+}
+
+WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     WasmEngine* wasm_engine, CompilationEnv* env,
     const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
     Counters* counters, WasmFeatures* detected) {
@@ -167,17 +208,32 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       break;
   }
 
-  result.func_index = func_index_;
-  result.requested_tier = tier_;
-
-  if (result.succeeded()) {
-    counters->wasm_generated_code_size()->Increment(
-        result.code_desc.instr_size);
-    counters->wasm_reloc_size()->Increment(result.code_desc.reloc_size);
-  }
-
   return result;
 }
+
+namespace {
+bool must_record_function_compilation(Isolate* isolate) {
+  return isolate->logger()->is_listening_to_code_events() ||
+         isolate->is_profiling();
+}
+
+PRINTF_FORMAT(3, 4)
+void RecordWasmHeapStubCompilation(Isolate* isolate, Handle<Code> code,
+                                   const char* format, ...) {
+  DCHECK(must_record_function_compilation(isolate));
+
+  ScopedVector<char> buffer(128);
+  va_list arguments;
+  va_start(arguments, format);
+  int len = VSNPrintF(buffer, format, arguments);
+  CHECK_LT(0, len);
+  va_end(arguments);
+  Handle<String> name_str =
+      isolate->factory()->NewStringFromAsciiChecked(buffer.begin());
+  PROFILE(isolate, CodeCreateEvent(CodeEventListener::STUB_TAG,
+                                   AbstractCode::cast(*code), *name_str));
+}
+}  // namespace
 
 // static
 void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
@@ -190,6 +246,8 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
                              wire_bytes.start() + function->code.offset(),
                              wire_bytes.start() + function->code.end_offset()};
 
+  DCHECK_LE(native_module->num_imported_functions(), function->func_index);
+  DCHECK_LT(function->func_index, native_module->num_functions());
   WasmCompilationUnit unit(function->func_index, tier);
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = unit.ExecuteCompilation(
@@ -202,6 +260,46 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
   } else {
     native_module->compilation_state()->SetError();
   }
+}
+
+JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(Isolate* isolate,
+                                                               FunctionSig* sig,
+                                                               bool is_import)
+    : job_(compiler::NewJSToWasmCompilationJob(isolate, sig, is_import)) {}
+
+JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
+
+void JSToWasmWrapperCompilationUnit::Prepare(Isolate* isolate) {
+  CompilationJob::Status status = job_->PrepareJob(isolate);
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);
+}
+
+void JSToWasmWrapperCompilationUnit::Execute() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "CompileJSToWasmWrapper");
+  DCHECK_EQ(job_->state(), CompilationJob::State::kReadyToExecute);
+  CompilationJob::Status status = job_->ExecuteJob();
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);
+}
+
+Handle<Code> JSToWasmWrapperCompilationUnit::Finalize(Isolate* isolate) {
+  CompilationJob::Status status = job_->FinalizeJob(isolate);
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);
+  Handle<Code> code = job_->compilation_info()->code();
+  if (must_record_function_compilation(isolate)) {
+    RecordWasmHeapStubCompilation(
+        isolate, code, "%s", job_->compilation_info()->GetDebugName().get());
+  }
+  return code;
+}
+
+// static
+Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+    Isolate* isolate, FunctionSig* sig, bool is_import) {
+  // Run the compilation unit synchronously.
+  JSToWasmWrapperCompilationUnit unit(isolate, sig, is_import);
+  unit.Prepare(isolate);
+  unit.Execute();
+  return unit.Finalize(isolate);
 }
 
 }  // namespace wasm

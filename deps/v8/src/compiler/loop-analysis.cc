@@ -4,6 +4,7 @@
 
 #include "src/compiler/loop-analysis.h"
 
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
@@ -12,6 +13,9 @@
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
 #define OFFSET(x) ((x)&0x1F)
@@ -51,7 +55,8 @@ struct TempLoopInfo {
 // marks on edges into/out-of the loop header nodes.
 class LoopFinderImpl {
  public:
-  LoopFinderImpl(Graph* graph, LoopTree* loop_tree, Zone* zone)
+  LoopFinderImpl(Graph* graph, LoopTree* loop_tree, TickCounter* tick_counter,
+                 Zone* zone)
       : zone_(zone),
         end_(graph->end()),
         queue_(zone),
@@ -63,7 +68,8 @@ class LoopFinderImpl {
         loops_found_(0),
         width_(0),
         backward_(nullptr),
-        forward_(nullptr) {}
+        forward_(nullptr),
+        tick_counter_(tick_counter) {}
 
   void Run() {
     PropagateBackward();
@@ -116,6 +122,7 @@ class LoopFinderImpl {
   int width_;
   uint32_t* backward_;
   uint32_t* forward_;
+  TickCounter* const tick_counter_;
 
   int num_nodes() {
     return static_cast<int>(loop_tree_->node_to_loop_num_.size());
@@ -183,6 +190,7 @@ class LoopFinderImpl {
     Queue(end_);
 
     while (!queue_.empty()) {
+      tick_counter_->DoTick();
       Node* node = queue_.front();
       info(node);
       queue_.pop_front();
@@ -301,6 +309,7 @@ class LoopFinderImpl {
     }
     // Propagate forward on paths that were backward reachable from backedges.
     while (!queue_.empty()) {
+      tick_counter_->DoTick();
       Node* node = queue_.front();
       queue_.pop_front();
       queued_.Set(node, false);
@@ -512,18 +521,17 @@ class LoopFinderImpl {
   }
 };
 
-
-LoopTree* LoopFinder::BuildLoopTree(Graph* graph, Zone* zone) {
+LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
+                                    Zone* zone) {
   LoopTree* loop_tree =
       new (graph->zone()) LoopTree(graph->NodeCount(), graph->zone());
-  LoopFinderImpl finder(graph, loop_tree, zone);
+  LoopFinderImpl finder(graph, loop_tree, tick_counter, zone);
   finder.Run();
   if (FLAG_trace_turbo_loop) {
     finder.Print();
   }
   return loop_tree;
 }
-
 
 Node* LoopTree::HeaderNode(Loop* loop) {
   Node* first = *HeaderNodes(loop).begin();

@@ -8,7 +8,6 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/startup-serializer.h"
 
-#include "src/objects/objects-inl.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -99,11 +98,12 @@ class Snapshot : public AllStatic {
                                                uint32_t index);
 
   static uint32_t GetHeaderValue(const v8::StartupData* data, uint32_t offset) {
-    return ReadLittleEndianValue<uint32_t>(
+    return base::ReadLittleEndianValue<uint32_t>(
         reinterpret_cast<Address>(data->data) + offset);
   }
   static void SetHeaderValue(char* data, uint32_t offset, uint32_t value) {
-    WriteLittleEndianValue(reinterpret_cast<Address>(data) + offset, value);
+    base::WriteLittleEndianValue(reinterpret_cast<Address>(data) + offset,
+                                 value);
   }
 
   static void CheckVersion(const v8::StartupData* data);

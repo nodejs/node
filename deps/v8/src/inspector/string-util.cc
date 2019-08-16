@@ -126,12 +126,6 @@ std::unique_ptr<protocol::Value> StringUtil::parseJSON(const String16& string) {
 }
 
 // static
-std::unique_ptr<protocol::Value> StringUtil::parseProtocolMessage(
-    const ProtocolMessage& message) {
-  return parseJSON(message.json);
-}
-
-// static
 ProtocolMessage StringUtil::jsonToMessage(String message) {
   ProtocolMessage result;
   result.json = std::move(message);

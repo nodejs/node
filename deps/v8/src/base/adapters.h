@@ -45,7 +45,7 @@ class ReversedAdapter {
 //     // iterates through v from back to front
 //   }
 template <typename T>
-ReversedAdapter<T> Reversed(T& t) {
+ReversedAdapter<T> Reversed(T&& t) {
   return ReversedAdapter<T>(t);
 }
 

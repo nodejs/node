@@ -4,8 +4,9 @@
 
 namespace array {
   transitioning javascript builtin
-  ArraySomeLoopEagerDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
+  ArraySomeLoopEagerDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, thisArg: Object, initialK: Object,
       length: Object): Object {
     // All continuation points in the optimized some implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -25,9 +26,10 @@ namespace array {
   }
 
   transitioning javascript builtin
-  ArraySomeLoopLazyDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
-      length: Object, result: Object): Object {
+  ArraySomeLoopLazyDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, thisArg: Object, initialK: Object, length: Object,
+      result: Object): Object {
     // All continuation points in the optimized some implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -51,9 +53,9 @@ namespace array {
   }
 
   transitioning builtin ArraySomeLoopContinuation(implicit context: Context)(
-      receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
-      array: Object, o: JSReceiver, initialK: Number, length: Number,
-      initialTo: Object): Object {
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      _array: Object, o: JSReceiver, initialK: Number, length: Number,
+      _initialTo: Object): Object {
     // 5. Let k be 0.
     // 6. Repeat, while k < len
     for (let k: Number = initialK; k < length; k++) {
@@ -88,7 +90,7 @@ namespace array {
       labels Bailout(Smi) {
     let k: Smi = 0;
     const smiLen = Cast<Smi>(len) otherwise goto Bailout(k);
-    let fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k);
+    const fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k);
     let fastOW = NewFastJSArrayWitness(fastO);
 
     // Build a fast loop over the smi array.
@@ -109,11 +111,10 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.some
   transitioning javascript builtin
-  ArraySome(implicit context: Context)(receiver: Object, ...arguments): Object {
+  ArraySome(js-implicit context: Context, receiver: Object)(...arguments):
+      Object {
     try {
-      if (IsNullOrUndefined(receiver)) {
-        goto NullOrUndefinedError;
-      }
+      RequireObjectCoercible(receiver, 'Array.prototype.some');
 
       // 1. Let O be ? ToObject(this value).
       const o: JSReceiver = ToObject_Inline(context, receiver);
@@ -142,9 +143,6 @@ namespace array {
     }
     label TypeError deferred {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
-    }
-    label NullOrUndefinedError deferred {
-      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.some');
     }
   }
 }

@@ -284,7 +284,7 @@ Response InjectedScript::getProperties(
   int sessionId = m_sessionId;
   v8::TryCatch tryCatch(isolate);
 
-  *properties = Array<PropertyDescriptor>::create();
+  *properties = v8::base::make_unique<Array<PropertyDescriptor>>();
   std::vector<PropertyMirror> mirrors;
   PropertyAccumulator accumulator(&mirrors);
   if (!ValueMirror::getProperties(context, object, ownProperties,
@@ -351,7 +351,7 @@ Response InjectedScript::getProperties(
       descriptor->setValue(std::move(remoteObject));
       descriptor->setWasThrown(true);
     }
-    (*properties)->addItem(std::move(descriptor));
+    (*properties)->emplace_back(std::move(descriptor));
   }
   return Response::OK();
 }
@@ -362,8 +362,10 @@ Response InjectedScript::getInternalAndPrivateProperties(
         internalProperties,
     std::unique_ptr<protocol::Array<PrivatePropertyDescriptor>>*
         privateProperties) {
-  *internalProperties = protocol::Array<InternalPropertyDescriptor>::create();
-  *privateProperties = protocol::Array<PrivatePropertyDescriptor>::create();
+  *internalProperties =
+      v8::base::make_unique<Array<InternalPropertyDescriptor>>();
+  *privateProperties =
+      v8::base::make_unique<Array<PrivatePropertyDescriptor>>();
 
   if (!value->IsObject()) return Response::OK();
 
@@ -384,10 +386,10 @@ Response InjectedScript::getInternalAndPrivateProperties(
                                         groupName, remoteObject.get());
     if (!response.isSuccess()) return response;
     (*internalProperties)
-        ->addItem(InternalPropertyDescriptor::create()
-                      .setName(internalProperty.name)
-                      .setValue(std::move(remoteObject))
-                      .build());
+        ->emplace_back(InternalPropertyDescriptor::create()
+                           .setName(internalProperty.name)
+                           .setValue(std::move(remoteObject))
+                           .build());
   }
   std::vector<PrivatePropertyMirror> privatePropertyWrappers =
       ValueMirror::getPrivateProperties(m_context->context(), value_obj);
@@ -401,10 +403,10 @@ Response InjectedScript::getInternalAndPrivateProperties(
                                         groupName, remoteObject.get());
     if (!response.isSuccess()) return response;
     (*privateProperties)
-        ->addItem(PrivatePropertyDescriptor::create()
-                      .setName(privateProperty.name)
-                      .setValue(std::move(remoteObject))
-                      .build());
+        ->emplace_back(PrivatePropertyDescriptor::create()
+                           .setName(privateProperty.name)
+                           .setValue(std::move(remoteObject))
+                           .build());
   }
   return Response::OK();
 }
@@ -487,7 +489,6 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
                              &limit, &limit, &preview);
   if (!preview) return nullptr;
 
-  Array<PropertyPreview>* columns = preview->getProperties();
   std::unordered_set<String16> selectedColumns;
   v8::Local<v8::Array> v8Columns;
   if (maybeColumns.ToLocal(&v8Columns)) {
@@ -500,18 +501,17 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
     }
   }
   if (!selectedColumns.empty()) {
-    for (size_t i = 0; i < columns->length(); ++i) {
-      ObjectPreview* columnPreview = columns->get(i)->getValuePreview(nullptr);
+    for (const std::unique_ptr<PropertyPreview>& column :
+         *preview->getProperties()) {
+      ObjectPreview* columnPreview = column->getValuePreview(nullptr);
       if (!columnPreview) continue;
 
-      std::unique_ptr<Array<PropertyPreview>> filtered =
-          Array<PropertyPreview>::create();
-      Array<PropertyPreview>* columns = columnPreview->getProperties();
-      for (size_t j = 0; j < columns->length(); ++j) {
-        PropertyPreview* property = columns->get(j);
+      auto filtered = v8::base::make_unique<Array<PropertyPreview>>();
+      for (const std::unique_ptr<PropertyPreview>& property :
+           *columnPreview->getProperties()) {
         if (selectedColumns.find(property->getName()) !=
             selectedColumns.end()) {
-          filtered->addItem(property->clone());
+          filtered->emplace_back(property->clone());
         }
       }
       columnPreview->setProperties(std::move(filtered));

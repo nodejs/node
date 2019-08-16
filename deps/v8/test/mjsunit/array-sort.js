@@ -559,10 +559,23 @@ function TestPrototypeHoles() {
     assertEquals(19, xs[9]);
   }
 
-  test(true);
   test(false);
+  // Expect a TypeError when trying to delete the accessor.
+  assertThrows(() => test(true), TypeError);
 }
 TestPrototypeHoles();
+
+// The following test ensures that [[Delete]] is called and it throws.
+function TestArrayWithAccessorThrowsOnDelete() {
+  let array = [5, 4, 1, /*hole*/, /*hole*/];
+
+  Object.defineProperty(array, '4', {
+    get: () => array.foo,
+    set: (val) => array.foo = val
+  });
+  assertThrows(() => array.sort((a, b) => a - b), TypeError);
+}
+TestArrayWithAccessorThrowsOnDelete();
 
 // The following test ensures that elements on the prototype are also copied
 // for JSArrays and not only JSObjects.

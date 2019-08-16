@@ -224,6 +224,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
+      scratch_register_list_(ip.bit()),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
@@ -1490,8 +1491,7 @@ void Assembler::mtfprwa(DoubleRegister dst, Register src) {
 // Exception-generating instructions and debugging support.
 // Stops with a non-negative code less than kNumOfWatchedStops support
 // enabling/disabling and a counter feature. See simulator-ppc.h .
-void Assembler::stop(const char* msg, Condition cond, int32_t code,
-                     CRegister cr) {
+void Assembler::stop(Condition cond, int32_t code, CRegister cr) {
   if (cond != al) {
     Label skip;
     b(NegateCondition(cond), &skip, cr);
@@ -1946,6 +1946,24 @@ PatchingAssembler::~PatchingAssembler() {
   // Check that the code was patched as expected.
   DCHECK_EQ(pc_, buffer_start_ + buffer_->size() - kGap);
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
+}
+
+UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
+    : assembler_(assembler),
+      old_available_(*assembler->GetScratchRegisterList()) {}
+
+UseScratchRegisterScope::~UseScratchRegisterScope() {
+  *assembler_->GetScratchRegisterList() = old_available_;
+}
+
+Register UseScratchRegisterScope::Acquire() {
+  RegList* available = assembler_->GetScratchRegisterList();
+  DCHECK_NOT_NULL(available);
+  DCHECK_NE(*available, 0);
+  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available));
+  Register reg = Register::from_code(index);
+  *available &= ~reg.bit();
+  return reg;
 }
 
 }  // namespace internal

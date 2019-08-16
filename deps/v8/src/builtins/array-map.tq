@@ -4,9 +4,10 @@
 
 namespace array_map {
   transitioning javascript builtin
-  ArrayMapLoopEagerDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, thisArg: Object, array: Object,
-      initialK: Object, length: Object): Object {
+  ArrayMapLoopEagerDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, thisArg: Object, array: Object, initialK: Object,
+      length: Object): Object {
     // All continuation points in the optimized filter implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -26,9 +27,10 @@ namespace array_map {
   }
 
   transitioning javascript builtin
-  ArrayMapLoopLazyDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, thisArg: Object, array: Object,
-      initialK: Object, length: Object, result: Object): Object {
+  ArrayMapLoopLazyDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, thisArg: Object, array: Object, initialK: Object,
+      length: Object, result: Object): Object {
     // All continuation points in the optimized filter implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -55,7 +57,7 @@ namespace array_map {
   }
 
   transitioning builtin ArrayMapLoopContinuation(implicit context: Context)(
-      receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
       array: JSReceiver, o: JSReceiver, initialK: Number,
       length: Number): Object {
     // 6. Let k be 0.
@@ -94,7 +96,7 @@ namespace array_map {
     }
 
     CreateJSArray(implicit context: Context)(validLength: Smi): JSArray {
-      let length: Smi = this.fixedArray.length;
+      const length: Smi = this.fixedArray.length;
       assert(validLength <= length);
       let kind: ElementsKind = PACKED_SMI_ELEMENTS;
       if (!this.onlySmis) {
@@ -114,7 +116,7 @@ namespace array_map {
         kind = FastHoleyElementsKind(kind);
       }
 
-      let map: Map = LoadJSArrayElementsMap(kind, LoadNativeContext(context));
+      const map: Map = LoadJSArrayElementsMap(kind, LoadNativeContext(context));
       let a: JSArray;
 
       if (IsDoubleElementsKind(kind)) {
@@ -130,7 +132,7 @@ namespace array_map {
               elements.floats[i] = Convert<float64>(n);
             }
             case (h: HeapObject): {
-              assert(h == Hole);
+              assert(h == TheHole);
             }
           }
         }
@@ -182,11 +184,11 @@ namespace array_map {
   }
 
   transitioning macro FastArrayMap(implicit context: Context)(
-      fastO: FastJSArray, len: Smi, callbackfn: Callable,
+      fastO: FastJSArrayForRead, len: Smi, callbackfn: Callable,
       thisArg: Object): JSArray
       labels Bailout(JSArray, Smi) {
     let k: Smi = 0;
-    let fastOW = NewFastJSArrayWitness(fastO);
+    let fastOW = NewFastJSArrayForReadWitness(fastO);
     let vector = NewVector(len);
 
     // Build a fast loop over the smi array.
@@ -220,24 +222,12 @@ namespace array_map {
     return vector.CreateJSArray(len);
   }
 
-  // Bails out if the slow path needs to be taken.
-  // It's useful to structure it this way, because the consequences of
-  // using the slow path on species creation are interesting to the caller.
-  macro FastMapSpeciesCreate(implicit context: Context)(
-      receiver: JSReceiver, length: Number): JSArray labels Bailout {
-    if (IsArraySpeciesProtectorCellInvalid()) goto Bailout;
-    const o = Cast<FastJSArray>(receiver) otherwise Bailout;
-    const smiLength = Cast<Smi>(length) otherwise Bailout;
-    const newMap: Map =
-        LoadJSArrayElementsMap(PACKED_SMI_ELEMENTS, LoadNativeContext(context));
-    return AllocateJSArray(PACKED_SMI_ELEMENTS, newMap, smiLength, smiLength);
-  }
-
   // https://tc39.github.io/ecma262/#sec-array.prototype.map
   transitioning javascript builtin
-  ArrayMap(implicit context: Context)(receiver: Object, ...arguments): Object {
+  ArrayMap(js-implicit context: Context, receiver: Object)(...arguments):
+      Object {
     try {
-      if (IsNullOrUndefined(receiver)) goto NullOrUndefinedError;
+      RequireObjectCoercible(receiver, 'Array.prototype.map');
 
       // 1. Let O be ? ToObject(this value).
       const o: JSReceiver = ToObject_Inline(context, receiver);
@@ -258,7 +248,7 @@ namespace array_map {
       try {
         // 5. Let A be ? ArraySpeciesCreate(O, len).
         if (IsArraySpeciesProtectorCellInvalid()) goto SlowSpeciesCreate;
-        const o: FastJSArray = Cast<FastJSArray>(receiver)
+        const o: FastJSArrayForRead = Cast<FastJSArrayForRead>(receiver)
             otherwise SlowSpeciesCreate;
         const smiLength: Smi = Cast<Smi>(len)
             otherwise SlowSpeciesCreate;
@@ -278,9 +268,6 @@ namespace array_map {
     }
     label TypeError deferred {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
-    }
-    label NullOrUndefinedError deferred {
-      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.map');
     }
   }
 }

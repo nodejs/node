@@ -9,8 +9,9 @@ function includes(key, array) {
   array.__defineSetter__(key, () => {});
   // Will then read OOB.
   return array.includes(1234);
-}
-includes("", []);
+};
+%PrepareFunctionForOptimization(includes);
+includes('', []);
 includes("", []);
 %OptimizeFunctionOnNextCall(includes);
 includes("", []);

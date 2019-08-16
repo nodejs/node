@@ -9,8 +9,9 @@
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
-#include "src/regexp/jsregexp.h"
 #include "src/regexp/property-sequences.h"
+#include "src/regexp/regexp-macro-assembler.h"
+#include "src/regexp/regexp.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
@@ -879,24 +880,25 @@ bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<uc16>* name,
   DCHECK(0 < index && index <= captures_started_);
   DCHECK_NOT_NULL(name);
 
-  if (named_captures_ == nullptr) {
-    named_captures_ = new (zone()) ZoneList<RegExpCapture*>(1, zone());
-  } else {
-    // Check for duplicates and bail if we find any.
-    // TODO(jgruber): O(n^2).
-    for (const auto& named_capture : *named_captures_) {
-      if (*named_capture->name() == *name) {
-        ReportError(CStrVector("Duplicate capture group name"));
-        return false;
-      }
-    }
-  }
-
   RegExpCapture* capture = GetCapture(index);
   DCHECK_NULL(capture->name());
 
   capture->set_name(name);
-  named_captures_->Add(capture, zone());
+
+  if (named_captures_ == nullptr) {
+    named_captures_ = new (zone_->New(sizeof(*named_captures_)))
+        ZoneSet<RegExpCapture*, RegExpCaptureNameLess>(zone());
+  } else {
+    // Check for duplicates and bail if we find any.
+
+    const auto& named_capture_it = named_captures_->find(capture);
+    if (named_capture_it != named_captures_->end()) {
+      ReportError(CStrVector("Duplicate capture group name"));
+      return false;
+    }
+  }
+
+  named_captures_->emplace(capture);
 
   return true;
 }
@@ -943,20 +945,22 @@ void RegExpParser::PatchNamedBackReferences() {
   }
 
   // Look up and patch the actual capture for each named back reference.
-  // TODO(jgruber): O(n^2), optimize if necessary.
 
   for (int i = 0; i < named_back_references_->length(); i++) {
     RegExpBackReference* ref = named_back_references_->at(i);
 
-    int index = -1;
-    for (const auto& capture : *named_captures_) {
-      if (*capture->name() == *ref->name()) {
-        index = capture->index();
-        break;
-      }
-    }
+    // Capture used to search the named_captures_ by name, index of the
+    // capture is never used.
+    static const int kInvalidIndex = 0;
+    RegExpCapture* search_capture = new (zone()) RegExpCapture(kInvalidIndex);
+    DCHECK_NULL(search_capture->name());
+    search_capture->set_name(ref->name());
 
-    if (index == -1) {
+    int index = -1;
+    const auto& capture_it = named_captures_->find(search_capture);
+    if (capture_it != named_captures_->end()) {
+      index = (*capture_it)->index();
+    } else {
       ReportError(CStrVector("Invalid named capture referenced"));
       return;
     }
@@ -981,16 +985,17 @@ RegExpCapture* RegExpParser::GetCapture(int index) {
 }
 
 Handle<FixedArray> RegExpParser::CreateCaptureNameMap() {
-  if (named_captures_ == nullptr || named_captures_->is_empty())
+  if (named_captures_ == nullptr || named_captures_->empty()) {
     return Handle<FixedArray>();
+  }
 
   Factory* factory = isolate()->factory();
 
-  int len = named_captures_->length() * 2;
+  int len = static_cast<int>(named_captures_->size()) * 2;
   Handle<FixedArray> array = factory->NewFixedArray(len);
 
-  for (int i = 0; i < named_captures_->length(); i++) {
-    RegExpCapture* capture = named_captures_->at(i);
+  int i = 0;
+  for (const auto& capture : *named_captures_) {
     Vector<const uc16> capture_name(capture->name()->data(),
                                     capture->name()->size());
     // CSA code in ConstructNewResultFromMatchInfo requires these strings to be
@@ -998,7 +1003,10 @@ Handle<FixedArray> RegExpParser::CreateCaptureNameMap() {
     Handle<String> name = factory->InternalizeString(capture_name);
     array->set(i * 2, *name);
     array->set(i * 2 + 1, Smi::FromInt(capture->index()));
+
+    i++;
   }
+  DCHECK_EQ(i * 2, len);
 
   return array;
 }
@@ -1963,12 +1971,6 @@ void RegExpBuilder::AddTerm(RegExpTree* term) {
 
 void RegExpBuilder::AddAssertion(RegExpTree* assert) {
   FlushText();
-  if (terms_.length() > 0 && terms_.last()->IsAssertion()) {
-    // Omit repeated assertions of the same type.
-    RegExpAssertion* last = terms_.last()->AsAssertion();
-    RegExpAssertion* next = assert->AsAssertion();
-    if (last->assertion_type() == next->assertion_type()) return;
-  }
   terms_.Add(assert, zone());
   LAST(ADD_ASSERT);
 }

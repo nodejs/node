@@ -10,8 +10,8 @@ function foo() {
   obj[1] = "";
   proto[1];
   proto.bla = 42;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 foo();
 %OptimizeFunctionOnNextCall(foo);
 foo();

@@ -374,6 +374,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
 }
 
 bool FeedbackVector::ClearSlots(Isolate* isolate) {
+  if (!shared_function_info().HasFeedbackMetadata()) return false;
   MaybeObject uninitialized_sentinel = MaybeObject::FromObject(
       FeedbackVector::RawUninitializedSentinel(isolate));
 
@@ -943,6 +944,7 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
          IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
          IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()));
 
+  DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
   MaybeObject feedback = GetFeedback();
   bool is_named_feedback = IsPropertyNameFeedback(feedback);
@@ -979,6 +981,59 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
     if (GetFeedbackExtra()->GetHeapObjectIfWeak(&heap_object)) {
       Map map = Map::cast(heap_object);
       maps->push_back(handle(map, isolate));
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+int FeedbackNexus::ExtractMapsAndHandlers(MapHandles* maps,
+                                          MaybeObjectHandles* handlers) const {
+  DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
+         IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
+         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
+         IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()));
+
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = GetIsolate();
+  MaybeObject feedback = GetFeedback();
+  bool is_named_feedback = IsPropertyNameFeedback(feedback);
+  HeapObject heap_object;
+  if ((feedback->GetHeapObjectIfStrong(&heap_object) &&
+       heap_object.IsWeakFixedArray()) ||
+      is_named_feedback) {
+    int found = 0;
+    WeakFixedArray array;
+    if (is_named_feedback) {
+      array =
+          WeakFixedArray::cast(GetFeedbackExtra()->GetHeapObjectAssumeStrong());
+    } else {
+      array = WeakFixedArray::cast(heap_object);
+    }
+    const int increment = 2;
+    HeapObject heap_object;
+    for (int i = 0; i < array.length(); i += increment) {
+      DCHECK(array.Get(i)->IsWeakOrCleared());
+      if (array.Get(i)->GetHeapObjectIfWeak(&heap_object)) {
+        MaybeObject handler = array.Get(i + 1);
+        if (!handler->IsCleared()) {
+          DCHECK(IC::IsHandler(handler));
+          Map map = Map::cast(heap_object);
+          maps->push_back(handle(map, isolate));
+          handlers->push_back(handle(handler, isolate));
+          found++;
+        }
+      }
+    }
+    return found;
+  } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
+    MaybeObject handler = GetFeedbackExtra();
+    if (!handler->IsCleared()) {
+      DCHECK(IC::IsHandler(handler));
+      Map map = Map::cast(heap_object);
+      maps->push_back(handle(map, isolate));
+      handlers->push_back(handle(handler, isolate));
       return 1;
     }
   }
@@ -1031,52 +1086,6 @@ MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
   return MaybeObjectHandle();
 }
 
-bool FeedbackNexus::FindHandlers(MaybeObjectHandles* code_list,
-                                 int length) const {
-  DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
-         IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
-         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
-         IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()));
-
-  MaybeObject feedback = GetFeedback();
-  Isolate* isolate = GetIsolate();
-  int count = 0;
-  bool is_named_feedback = IsPropertyNameFeedback(feedback);
-  HeapObject heap_object;
-  if ((feedback->GetHeapObjectIfStrong(&heap_object) &&
-       heap_object.IsWeakFixedArray()) ||
-      is_named_feedback) {
-    WeakFixedArray array;
-    if (is_named_feedback) {
-      array =
-          WeakFixedArray::cast(GetFeedbackExtra()->GetHeapObjectAssumeStrong());
-    } else {
-      array = WeakFixedArray::cast(heap_object);
-    }
-    const int increment = 2;
-    HeapObject heap_object;
-    for (int i = 0; i < array.length(); i += increment) {
-      // Be sure to skip handlers whose maps have been cleared.
-      DCHECK(array.Get(i)->IsWeakOrCleared());
-      if (array.Get(i)->GetHeapObjectIfWeak(&heap_object) &&
-          !array.Get(i + increment - 1)->IsCleared()) {
-        MaybeObject handler = array.Get(i + increment - 1);
-        DCHECK(IC::IsHandler(handler));
-        code_list->push_back(handle(handler, isolate));
-        count++;
-      }
-    }
-  } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
-    MaybeObject extra = GetFeedbackExtra();
-    if (!extra->IsCleared()) {
-      DCHECK(IC::IsHandler(extra));
-      code_list->push_back(handle(extra, isolate));
-      count++;
-    }
-  }
-  return count == length;
-}
-
 Name FeedbackNexus::GetName() const {
   if (IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind()) ||
       IsKeyedHasICKind(kind())) {
@@ -1095,8 +1104,7 @@ KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
 
   if (GetKeyType() == PROPERTY) return STANDARD_LOAD;
 
-  ExtractMaps(&maps);
-  FindHandlers(&handlers, static_cast<int>(maps.size()));
+  ExtractMapsAndHandlers(&maps, &handlers);
   for (MaybeObjectHandle const& handler : handlers) {
     KeyedAccessLoadMode mode = LoadHandler::GetKeyedAccessLoadMode(*handler);
     if (mode != STANDARD_LOAD) return mode;
@@ -1179,8 +1187,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 
   if (GetKeyType() == PROPERTY) return mode;
 
-  ExtractMaps(&maps);
-  FindHandlers(&handlers, static_cast<int>(maps.size()));
+  ExtractMapsAndHandlers(&maps, &handlers);
   for (const MaybeObjectHandle& maybe_code_handler : handlers) {
     // The first handler that isn't the slow handler will have the bits we need.
     Handle<Code> handler;

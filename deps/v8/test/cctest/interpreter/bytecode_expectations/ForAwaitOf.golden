@@ -92,15 +92,15 @@ bytecodes: [
                 B(Star), R(16),
                 B(JumpIfUndefined), U8(88),
                 B(JumpIfNull), U8(86),
+                B(Mov), R(context), R(17),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(17),
-                B(LdaConstant), U8(9),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(18),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(17), U8(2),
+                B(LdaConstant), U8(9),
+                B(Star), R(19),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(18), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(17),
                 B(CallProperty0), R(16), R(6), U8(19),
                 B(Star), R(19),
                 B(Mov), R(0), R(18),
@@ -171,7 +171,7 @@ constant pool: [
 handlers: [
   [20, 297, 297],
   [77, 157, 165],
-  [211, 260, 262],
+  [191, 260, 262],
 ]
 
 ---
@@ -261,15 +261,15 @@ bytecodes: [
                 B(Star), R(16),
                 B(JumpIfUndefined), U8(88),
                 B(JumpIfNull), U8(86),
+                B(Mov), R(context), R(17),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(17),
-                B(LdaConstant), U8(9),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(18),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(17), U8(2),
+                B(LdaConstant), U8(9),
+                B(Star), R(19),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(18), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(17),
                 B(CallProperty0), R(16), R(6), U8(19),
                 B(Star), R(19),
                 B(Mov), R(0), R(18),
@@ -348,7 +348,7 @@ constant pool: [
 handlers: [
   [20, 318, 318],
   [77, 161, 169],
-  [215, 264, 266],
+  [195, 264, 266],
 ]
 
 ---
@@ -446,15 +446,15 @@ bytecodes: [
                 B(Star), R(16),
                 B(JumpIfUndefined), U8(88),
                 B(JumpIfNull), U8(86),
+                B(Mov), R(context), R(17),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(17),
-                B(LdaConstant), U8(9),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(18),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(17), U8(2),
+                B(LdaConstant), U8(9),
+                B(Star), R(19),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(18), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(17),
                 B(CallProperty0), R(16), R(6), U8(21),
                 B(Star), R(19),
                 B(Mov), R(0), R(18),
@@ -525,7 +525,7 @@ constant pool: [
 handlers: [
   [20, 313, 313],
   [77, 173, 181],
-  [227, 276, 278],
+  [207, 276, 278],
 ]
 
 ---
@@ -536,7 +536,7 @@ snippet: "
   }
   f();
 "
-frame size: 16
+frame size: 17
 parameter count: 1
 bytecode array length: 261
 bytecodes: [
@@ -598,15 +598,15 @@ bytecodes: [
                 B(Star), R(13),
                 B(JumpIfUndefined), U8(52),
                 B(JumpIfNull), U8(50),
+                B(Mov), R(context), R(14),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(14),
-                B(LdaConstant), U8(8),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(15),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(14), U8(2),
+                B(LdaConstant), U8(8),
+                B(Star), R(16),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(15), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(14),
                 B(CallProperty0), R(13), R(4), U8(20),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(15),
@@ -670,6 +670,6 @@ constant pool: [
 handlers: [
   [16, 233, 233],
   [59, 112, 120],
-  [166, 179, 181],
+  [146, 179, 181],
 ]
 

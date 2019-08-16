@@ -16,14 +16,9 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Name, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(Symbol, Name)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Name)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Symbol)
 
-CAST_ACCESSOR(Name)
-CAST_ACCESSOR(Symbol)
-
-ACCESSORS(Symbol, name, Object, kNameOffset)
-INT_ACCESSORS(Symbol, flags, kFlagsOffset)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_private, Symbol::IsPrivateBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_well_known_symbol,
                     Symbol::IsWellKnownSymbolBit)
@@ -44,18 +39,12 @@ void Symbol::set_is_private_name() {
   set_flags(Symbol::IsPrivateNameBit::update(flags(), true));
 }
 
-bool Name::IsUniqueName() const {
-  uint32_t type = map().instance_type();
+DEF_GETTER(Name, IsUniqueName, bool) {
+  uint32_t type = map(isolate).instance_type();
   bool result = (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
                 (kStringTag | kNotInternalizedTag);
   SLOW_DCHECK(result == HeapObject::IsUniqueName());
   return result;
-}
-
-uint32_t Name::hash_field() { return ReadField<uint32_t>(kHashFieldOffset); }
-
-void Name::set_hash_field(uint32_t value) {
-  WriteField<uint32_t>(kHashFieldOffset, value);
 }
 
 bool Name::Equals(Name other) {
@@ -91,17 +80,17 @@ uint32_t Name::Hash() {
   return String::cast(*this).ComputeAndSetHash();
 }
 
-bool Name::IsInterestingSymbol() const {
-  return IsSymbol() && Symbol::cast(*this).is_interesting_symbol();
+DEF_GETTER(Name, IsInterestingSymbol, bool) {
+  return IsSymbol(isolate) && Symbol::cast(*this).is_interesting_symbol();
 }
 
-bool Name::IsPrivate() {
-  return this->IsSymbol() && Symbol::cast(*this).is_private();
+DEF_GETTER(Name, IsPrivate, bool) {
+  return this->IsSymbol(isolate) && Symbol::cast(*this).is_private();
 }
 
-bool Name::IsPrivateName() {
+DEF_GETTER(Name, IsPrivateName, bool) {
   bool is_private_name =
-      this->IsSymbol() && Symbol::cast(*this).is_private_name();
+      this->IsSymbol(isolate) && Symbol::cast(*this).is_private_name();
   DCHECK_IMPLIES(is_private_name, IsPrivate());
   return is_private_name;
 }

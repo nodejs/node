@@ -80,7 +80,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   template <typename Dst, typename... Args>
   struct AvxHelper {
     Assembler* assm;
-    // Call an method where the AVX version expects the dst argument to be
+    // Call a method where the AVX version expects the dst argument to be
     // duplicated.
     template <void (Assembler::*avx)(Dst, Dst, Args...),
               void (Assembler::*no_avx)(Dst, Args...)>
@@ -93,7 +93,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       }
     }
 
-    // Call an method where the AVX version expects no duplicated dst argument.
+    // Call a method where the AVX version expects no duplicated dst argument.
     template <void (Assembler::*avx)(Dst, Args...),
               void (Assembler::*no_avx)(Dst, Args...)>
     void emit(Dst dst, Args... args) {
@@ -127,11 +127,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Movmskpd, movmskpd)
   AVX_OP(Movss, movss)
   AVX_OP(Movsd, movsd)
+  AVX_OP(Movdqu, movdqu)
   AVX_OP(Pcmpeqd, pcmpeqd)
-  AVX_OP(Pslld, pslld)
-  AVX_OP(Psllq, psllq)
-  AVX_OP(Psrld, psrld)
-  AVX_OP(Psrlq, psrlq)
+  AVX_OP(Addss, addss)
   AVX_OP(Addsd, addsd)
   AVX_OP(Mulsd, mulsd)
   AVX_OP(Andps, andps)
@@ -344,7 +342,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Call(ExternalReference ext);
   void Call(Label* target) { call(target); }
 
-  void CallBuiltinPointer(Register builtin_pointer) override;
+  Operand EntryFromBuiltinIndexAsOperand(Register builtin_index);
+  void CallBuiltinByIndex(Register builtin_index) override;
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
@@ -367,6 +366,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
   void Pinsrd(XMMRegister dst, Register src, int8_t imm8);
   void Pinsrd(XMMRegister dst, Operand src, int8_t imm8);
+
+  void Psllq(XMMRegister dst, byte imm8);
+  void Psrlq(XMMRegister dst, byte imm8);
+  void Pslld(XMMRegister dst, byte imm8);
+  void Psrld(XMMRegister dst, byte imm8);
 
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);

@@ -10,13 +10,13 @@ function bar() {
   try {
     unref;
   } catch (e) {
-    return (1 instanceof TypeError) && unref();  // Call in tail position!
+    return 1 instanceof TypeError && unref();  // Call in tail position!
   }
 }
 
 function foo() {
   return bar();  // Call in tail position!
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 foo();

@@ -22,17 +22,21 @@ function CheckCS() {
   assertEquals("o", str.substring(1, 2));
   assertEquals("f".charCodeAt(0), str.charCodeAt(0));
   assertEquals("f", str.split(/oo/)[0]);
-}
+};
+%PrepareFunctionForOptimization(CheckCS);
 CheckCS();
 %OptimizeFunctionOnNextCall(CheckCS);
 CheckCS();
 
 function CheckTF() {
-  try {} catch(e) {}  // Turbofan.
+  try {
+  } catch (e) {
+  }  // Turbofan.
   assertEquals("o", str.substring(1, 2));
   assertEquals("f".charCodeAt(0), str.charCodeAt(0));
   assertEquals("f", str.split(/oo/)[0]);
-}
+};
+%PrepareFunctionForOptimization(CheckTF);
 CheckTF();
 %OptimizeFunctionOnNextCall(CheckTF);
 CheckTF();
@@ -57,7 +61,8 @@ assertEquals("________", s.substring(0, 8));
 function cc1(s) {
   assertEquals(95, s.charCodeAt(0));
   assertEquals(95, s.codePointAt(0));
-}
+};
+%PrepareFunctionForOptimization(cc1);
 cc1(s);
 cc1(s);
 %OptimizeFunctionOnNextCall(cc1);
@@ -76,14 +81,15 @@ function get_sliced_thin_string(a, b) {
   return slice;
 }
 
-var t = get_sliced_thin_string("abcdefghijklmnopqrstuvwxyz",
-                               "abcdefghijklmnopqrstuvwxyz");
+var t = get_sliced_thin_string(
+    'abcdefghijklmnopqrstuvwxyz', 'abcdefghijklmnopqrstuvwxyz');
 assertEquals("abcdefghijklmnopqrst", decodeURI(t));
 
 function cc2(s) {
   assertEquals(97, s.charCodeAt(0));
   assertEquals(97, s.codePointAt(0));
-}
+};
+%PrepareFunctionForOptimization(cc2);
 cc2(t);
 cc2(t);
 %OptimizeFunctionOnNextCall(cc2);

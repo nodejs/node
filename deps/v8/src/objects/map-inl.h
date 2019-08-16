@@ -30,20 +30,13 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(Map, HeapObject)
 CAST_ACCESSOR(Map)
 
-DescriptorArray Map::instance_descriptors() const {
-  return DescriptorArray::cast(READ_FIELD(*this, kInstanceDescriptorsOffset));
+DEF_GETTER(Map, instance_descriptors, DescriptorArray) {
+  return TaggedField<DescriptorArray, kInstanceDescriptorsOffset>::load(isolate,
+                                                                        *this);
 }
 
-DescriptorArray Map::synchronized_instance_descriptors() const {
-  return DescriptorArray::cast(
-      ACQUIRE_READ_FIELD(*this, kInstanceDescriptorsOffset));
-}
-
-void Map::set_synchronized_instance_descriptors(DescriptorArray value,
-                                                WriteBarrierMode mode) {
-  RELEASE_WRITE_FIELD(*this, kInstanceDescriptorsOffset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kInstanceDescriptorsOffset, value, mode);
-}
+SYNCHRONIZED_ACCESSORS(Map, synchronized_instance_descriptors, DescriptorArray,
+                       kInstanceDescriptorsOffset)
 
 // A freshly allocated layout descriptor can be set on an existing map.
 // We need to use release-store and acquire-load accessor pairs to ensure
@@ -53,6 +46,12 @@ SYNCHRONIZED_ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
                                kLayoutDescriptorOffset,
                                FLAG_unbox_double_fields)
 WEAK_ACCESSORS(Map, raw_transitions, kTransitionsOrPrototypeInfoOffset)
+
+ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
+                   value.IsNull() || value.IsJSReceiver())
+
+ACCESSORS_CHECKED(Map, prototype_info, Object,
+                  kTransitionsOrPrototypeInfoOffset, this->is_prototype_map())
 
 // |bit_field| fields.
 // Concurrent access to |has_prototype_slot| and |has_non_instance_prototype|
@@ -74,37 +73,35 @@ BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_prototype_slot,
                     Map::HasPrototypeSlotBit)
 
 // |bit_field2| fields.
-BIT_FIELD_ACCESSORS(Map, bit_field2, is_extensible, Map::IsExtensibleBit)
-BIT_FIELD_ACCESSORS(Map, bit_field2, is_prototype_map, Map::IsPrototypeMapBit)
-BIT_FIELD_ACCESSORS(Map, bit_field2, has_hidden_prototype,
-                    Map::HasHiddenPrototypeBit)
+BIT_FIELD_ACCESSORS(Map, bit_field2, new_target_is_base,
+                    Map::NewTargetIsBaseBit)
+BIT_FIELD_ACCESSORS(Map, bit_field2, is_immutable_proto,
+                    Map::IsImmutablePrototypeBit)
 
 // |bit_field3| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field3, owns_descriptors, Map::OwnsDescriptorsBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, is_in_retained_map_list,
                     Map::IsInRetainedMapListBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_prototype_map, Map::IsPrototypeMapBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, is_migration_target,
                     Map::IsMigrationTargetBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_immutable_proto,
-                    Map::IsImmutablePrototypeBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, new_target_is_base,
-                    Map::NewTargetIsBaseBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_extensible, Map::IsExtensibleBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
                     Map::MayHaveInterestingSymbolsBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
                     Map::ConstructionCounterBits)
 
-InterceptorInfo Map::GetNamedInterceptor() {
+DEF_GETTER(Map, GetNamedInterceptor, InterceptorInfo) {
   DCHECK(has_named_interceptor());
-  FunctionTemplateInfo info = GetFunctionTemplateInfo();
-  return InterceptorInfo::cast(info.GetNamedPropertyHandler());
+  FunctionTemplateInfo info = GetFunctionTemplateInfo(isolate);
+  return InterceptorInfo::cast(info.GetNamedPropertyHandler(isolate));
 }
 
-InterceptorInfo Map::GetIndexedInterceptor() {
+DEF_GETTER(Map, GetIndexedInterceptor, InterceptorInfo) {
   DCHECK(has_indexed_interceptor());
-  FunctionTemplateInfo info = GetFunctionTemplateInfo();
-  return InterceptorInfo::cast(info.GetIndexedPropertyHandler());
+  FunctionTemplateInfo info = GetFunctionTemplateInfo(isolate);
+  return InterceptorInfo::cast(info.GetIndexedPropertyHandler(isolate));
 }
 
 bool Map::IsMostGeneralFieldType(Representation representation,
@@ -113,7 +110,8 @@ bool Map::IsMostGeneralFieldType(Representation representation,
 }
 
 bool Map::CanHaveFastTransitionableElementsKind(InstanceType instance_type) {
-  return instance_type == JS_ARRAY_TYPE || instance_type == JS_VALUE_TYPE ||
+  return instance_type == JS_ARRAY_TYPE ||
+         instance_type == JS_PRIMITIVE_WRAPPER_TYPE ||
          instance_type == JS_ARGUMENTS_TYPE;
 }
 
@@ -136,10 +134,25 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
   }
 }
 
+Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
+                           PropertyNormalizationMode mode, const char* reason) {
+  return Normalize(isolate, fast_map, fast_map->elements_kind(), mode, reason);
+}
+
+bool Map::EquivalentToForNormalization(const Map other,
+                                       PropertyNormalizationMode mode) const {
+  return EquivalentToForNormalization(other, elements_kind(), mode);
+}
+
 bool Map::IsUnboxedDoubleField(FieldIndex index) const {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return IsUnboxedDoubleField(isolate, index);
+}
+
+bool Map::IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const {
   if (!FLAG_unbox_double_fields) return false;
   if (!index.is_inobject()) return false;
-  return !layout_descriptor().IsTagged(index.property_index());
+  return !layout_descriptor(isolate).IsTagged(index.property_index());
 }
 
 bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
@@ -160,8 +173,8 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   }
 }
 
-PropertyDetails Map::GetLastDescriptorDetails() const {
-  return instance_descriptors().GetDetails(LastAdded());
+PropertyDetails Map::GetLastDescriptorDetails(Isolate* isolate) const {
+  return instance_descriptors(isolate).GetDetails(LastAdded());
 }
 
 int Map::LastAdded() const {
@@ -375,7 +388,7 @@ void Map::CopyUnusedPropertyFields(Map map) {
 
 void Map::CopyUnusedPropertyFieldsAdjustedForInstanceSize(Map map) {
   int value = map.used_or_unused_instance_size_in_words();
-  if (value >= JSValue::kFieldsAdded) {
+  if (value >= JSPrimitiveWrapper::kFieldsAdded) {
     // Unused in-object fields. Adjust the offset from the object’s start
     // so it matches the distance to the object’s end.
     value += instance_size_in_words() - map.instance_size_in_words();
@@ -570,22 +583,13 @@ bool Map::IsPrimitiveMap() const {
   return instance_type() <= LAST_PRIMITIVE_TYPE;
 }
 
-HeapObject Map::prototype() const {
-  return HeapObject::cast(READ_FIELD(*this, kPrototypeOffset));
-}
-
-void Map::set_prototype(HeapObject value, WriteBarrierMode mode) {
-  DCHECK(value.IsNull() || value.IsJSReceiver());
-  WRITE_FIELD(*this, kPrototypeOffset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kPrototypeOffset, value, mode);
-}
-
 LayoutDescriptor Map::layout_descriptor_gc_safe() const {
   DCHECK(FLAG_unbox_double_fields);
   // The loaded value can be dereferenced on background thread to load the
   // bitmap. We need acquire load in order to ensure that the bitmap
   // initializing stores are also visible to the background thread.
-  Object layout_desc = ACQUIRE_READ_FIELD(*this, kLayoutDescriptorOffset);
+  Object layout_desc =
+      TaggedField<Object, kLayoutDescriptorOffset>::Acquire_Load(*this);
   return LayoutDescriptor::cast_gc_safe(layout_desc);
 }
 
@@ -593,7 +597,8 @@ bool Map::HasFastPointerLayout() const {
   DCHECK(FLAG_unbox_double_fields);
   // The loaded value is used for SMI check only and is not dereferenced,
   // so relaxed load is safe.
-  Object layout_desc = RELAXED_READ_FIELD(*this, kLayoutDescriptorOffset);
+  Object layout_desc =
+      TaggedField<Object, kLayoutDescriptorOffset>::Relaxed_Load(*this);
   return LayoutDescriptor::IsFastPointerLayout(layout_desc);
 }
 
@@ -686,42 +691,30 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 #endif
 }
 
-HeapObject Map::GetBackPointer() const {
-  Object object = constructor_or_backpointer();
-  if (object.IsMap()) {
+DEF_GETTER(Map, GetBackPointer, HeapObject) {
+  Object object = constructor_or_backpointer(isolate);
+  if (object.IsMap(isolate)) {
     return Map::cast(object);
   }
-  return GetReadOnlyRoots().undefined_value();
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  return GetReadOnlyRoots(isolate).undefined_value();
 }
 
-Map Map::ElementsTransitionMap() {
-  DisallowHeapAllocation no_gc;
-  // TODO(delphick): While it's safe to pass nullptr for Isolate* here as
-  // SearchSpecial doesn't need it, this is really ugly. Perhaps factor out a
-  // base class for methods not requiring an Isolate?
-  return TransitionsAccessor(nullptr, *this, &no_gc)
-      .SearchSpecial(GetReadOnlyRoots().elements_transition_symbol());
-}
-
-Object Map::prototype_info() const {
-  DCHECK(is_prototype_map());
-  return READ_FIELD(*this, Map::kTransitionsOrPrototypeInfoOffset);
-}
-
-void Map::set_prototype_info(Object value, WriteBarrierMode mode) {
-  CHECK(is_prototype_map());
-  WRITE_FIELD(*this, Map::kTransitionsOrPrototypeInfoOffset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, Map::kTransitionsOrPrototypeInfoOffset,
-                            value, mode);
-}
-
-void Map::SetBackPointer(Object value, WriteBarrierMode mode) {
+void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
   CHECK_GE(instance_type(), FIRST_JS_RECEIVER_TYPE);
   CHECK(value.IsMap());
   CHECK(GetBackPointer().IsUndefined());
   CHECK_IMPLIES(value.IsMap(), Map::cast(value).GetConstructor() ==
                                    constructor_or_backpointer());
   set_constructor_or_backpointer(value, mode);
+}
+
+// static
+Map Map::ElementsTransitionMap(Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
+  return TransitionsAccessor(isolate, *this, &no_gc)
+      .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
 }
 
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
@@ -736,23 +729,24 @@ bool Map::IsPrototypeValidityCellValid() const {
   return value == Smi::FromInt(Map::kPrototypeChainValid);
 }
 
-Object Map::GetConstructor() const {
-  Object maybe_constructor = constructor_or_backpointer();
+DEF_GETTER(Map, GetConstructor, Object) {
+  Object maybe_constructor = constructor_or_backpointer(isolate);
   // Follow any back pointers.
-  while (maybe_constructor.IsMap()) {
+  while (maybe_constructor.IsMap(isolate)) {
     maybe_constructor =
-        Map::cast(maybe_constructor).constructor_or_backpointer();
+        Map::cast(maybe_constructor).constructor_or_backpointer(isolate);
   }
   return maybe_constructor;
 }
 
-FunctionTemplateInfo Map::GetFunctionTemplateInfo() const {
-  Object constructor = GetConstructor();
-  if (constructor.IsJSFunction()) {
-    DCHECK(JSFunction::cast(constructor).shared().IsApiFunction());
-    return JSFunction::cast(constructor).shared().get_api_func_data();
+DEF_GETTER(Map, GetFunctionTemplateInfo, FunctionTemplateInfo) {
+  Object constructor = GetConstructor(isolate);
+  if (constructor.IsJSFunction(isolate)) {
+    // TODO(ishell): IsApiFunction(isolate) and get_api_func_data(isolate)
+    DCHECK(JSFunction::cast(constructor).shared(isolate).IsApiFunction());
+    return JSFunction::cast(constructor).shared(isolate).get_api_func_data();
   }
-  DCHECK(constructor.IsFunctionTemplateInfo());
+  DCHECK(constructor.IsFunctionTemplateInfo(isolate));
   return FunctionTemplateInfo::cast(constructor);
 }
 
@@ -805,8 +799,8 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
   return map->Hash() % NormalizedMapCache::kEntries;
 }
 
-bool HeapObject::IsNormalizedMapCache() const {
-  if (!IsWeakFixedArray()) return false;
+DEF_GETTER(HeapObject, IsNormalizedMapCache, bool) {
+  if (!IsWeakFixedArray(isolate)) return false;
   if (WeakFixedArray::cast(*this).length() != NormalizedMapCache::kEntries) {
     return false;
   }

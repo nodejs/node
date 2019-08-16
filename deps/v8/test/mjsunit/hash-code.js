@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax
 
 function f() {
-  var x = { a: 1 }
+  var x = {a: 1};
   var set = new Set();
   set.add(x);
 
@@ -17,8 +17,8 @@ function f() {
   x.g = 6;
 
   assertTrue(set.has(x));
-}
-
+};
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

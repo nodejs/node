@@ -6,9 +6,12 @@
 #define V8_OBJECTS_MODULE_INL_H_
 
 #include "src/objects/module.h"
+#include "src/objects/source-text-module.h"
+#include "src/objects/synthetic-module.h"
 
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/scope-info.h"
+#include "src/objects/string-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,74 +19,86 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Module, Struct)
-OBJECT_CONSTRUCTORS_IMPL(ModuleInfoEntry, Struct)
+OBJECT_CONSTRUCTORS_IMPL(Module, HeapObject)
+OBJECT_CONSTRUCTORS_IMPL(SourceTextModule, Module)
+OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfoEntry, Struct)
+OBJECT_CONSTRUCTORS_IMPL(SyntheticModule, Module)
 OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace, JSObject)
 
 NEVER_READ_ONLY_SPACE_IMPL(Module)
+NEVER_READ_ONLY_SPACE_IMPL(SourceTextModule)
+NEVER_READ_ONLY_SPACE_IMPL(SyntheticModule)
 
 CAST_ACCESSOR(Module)
-ACCESSORS(Module, code, Object, kCodeOffset)
+CAST_ACCESSOR(SourceTextModule)
+CAST_ACCESSOR(SyntheticModule)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
-ACCESSORS(Module, regular_exports, FixedArray, kRegularExportsOffset)
-ACCESSORS(Module, regular_imports, FixedArray, kRegularImportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
-ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
-ACCESSORS(Module, script, Script, kScriptOffset)
 ACCESSORS(Module, exception, Object, kExceptionOffset)
-ACCESSORS(Module, import_meta, Object, kImportMetaOffset)
 SMI_ACCESSORS(Module, status, kStatusOffset)
-SMI_ACCESSORS(Module, dfs_index, kDfsIndexOffset)
-SMI_ACCESSORS(Module, dfs_ancestor_index, kDfsAncestorIndexOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
-ModuleInfo Module::info() const {
+ACCESSORS(SourceTextModule, code, Object, kCodeOffset)
+ACCESSORS(SourceTextModule, regular_exports, FixedArray, kRegularExportsOffset)
+ACCESSORS(SourceTextModule, regular_imports, FixedArray, kRegularImportsOffset)
+ACCESSORS(SourceTextModule, requested_modules, FixedArray,
+          kRequestedModulesOffset)
+ACCESSORS(SourceTextModule, script, Script, kScriptOffset)
+ACCESSORS(SourceTextModule, import_meta, Object, kImportMetaOffset)
+SMI_ACCESSORS(SourceTextModule, dfs_index, kDfsIndexOffset)
+SMI_ACCESSORS(SourceTextModule, dfs_ancestor_index, kDfsAncestorIndexOffset)
+
+ACCESSORS(SyntheticModule, name, String, kNameOffset)
+ACCESSORS(SyntheticModule, export_names, FixedArray, kExportNamesOffset)
+ACCESSORS(SyntheticModule, evaluation_steps, Foreign, kEvaluationStepsOffset)
+
+SourceTextModuleInfo SourceTextModule::info() const {
   return (status() >= kEvaluating)
-             ? ModuleInfo::cast(code())
+             ? SourceTextModuleInfo::cast(code())
              : GetSharedFunctionInfo().scope_info().ModuleDescriptorInfo();
 }
 
 CAST_ACCESSOR(JSModuleNamespace)
 ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
 
-CAST_ACCESSOR(ModuleInfoEntry)
-ACCESSORS(ModuleInfoEntry, export_name, Object, kExportNameOffset)
-ACCESSORS(ModuleInfoEntry, local_name, Object, kLocalNameOffset)
-ACCESSORS(ModuleInfoEntry, import_name, Object, kImportNameOffset)
-SMI_ACCESSORS(ModuleInfoEntry, module_request, kModuleRequestOffset)
-SMI_ACCESSORS(ModuleInfoEntry, cell_index, kCellIndexOffset)
-SMI_ACCESSORS(ModuleInfoEntry, beg_pos, kBegPosOffset)
-SMI_ACCESSORS(ModuleInfoEntry, end_pos, kEndPosOffset)
+CAST_ACCESSOR(SourceTextModuleInfoEntry)
+ACCESSORS(SourceTextModuleInfoEntry, export_name, Object, kExportNameOffset)
+ACCESSORS(SourceTextModuleInfoEntry, local_name, Object, kLocalNameOffset)
+ACCESSORS(SourceTextModuleInfoEntry, import_name, Object, kImportNameOffset)
+SMI_ACCESSORS(SourceTextModuleInfoEntry, module_request, kModuleRequestOffset)
+SMI_ACCESSORS(SourceTextModuleInfoEntry, cell_index, kCellIndexOffset)
+SMI_ACCESSORS(SourceTextModuleInfoEntry, beg_pos, kBegPosOffset)
+SMI_ACCESSORS(SourceTextModuleInfoEntry, end_pos, kEndPosOffset)
 
-OBJECT_CONSTRUCTORS_IMPL(ModuleInfo, FixedArray)
-CAST_ACCESSOR(ModuleInfo)
+OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfo, FixedArray)
+CAST_ACCESSOR(SourceTextModuleInfo)
 
-FixedArray ModuleInfo::module_requests() const {
+FixedArray SourceTextModuleInfo::module_requests() const {
   return FixedArray::cast(get(kModuleRequestsIndex));
 }
 
-FixedArray ModuleInfo::special_exports() const {
+FixedArray SourceTextModuleInfo::special_exports() const {
   return FixedArray::cast(get(kSpecialExportsIndex));
 }
 
-FixedArray ModuleInfo::regular_exports() const {
+FixedArray SourceTextModuleInfo::regular_exports() const {
   return FixedArray::cast(get(kRegularExportsIndex));
 }
 
-FixedArray ModuleInfo::regular_imports() const {
+FixedArray SourceTextModuleInfo::regular_imports() const {
   return FixedArray::cast(get(kRegularImportsIndex));
 }
 
-FixedArray ModuleInfo::namespace_imports() const {
+FixedArray SourceTextModuleInfo::namespace_imports() const {
   return FixedArray::cast(get(kNamespaceImportsIndex));
 }
 
-FixedArray ModuleInfo::module_request_positions() const {
+FixedArray SourceTextModuleInfo::module_request_positions() const {
   return FixedArray::cast(get(kModuleRequestPositionsIndex));
 }
 
 #ifdef DEBUG
-bool ModuleInfo::Equals(ModuleInfo other) const {
+bool SourceTextModuleInfo::Equals(SourceTextModuleInfo other) const {
   return regular_exports() == other.regular_exports() &&
          regular_imports() == other.regular_imports() &&
          special_exports() == other.special_exports() &&
@@ -92,6 +107,30 @@ bool ModuleInfo::Equals(ModuleInfo other) const {
          module_request_positions() == other.module_request_positions();
 }
 #endif
+
+struct ModuleHandleHash {
+  V8_INLINE size_t operator()(Handle<Module> module) const {
+    return module->hash();
+  }
+};
+
+struct ModuleHandleEqual {
+  V8_INLINE bool operator()(Handle<Module> lhs, Handle<Module> rhs) const {
+    return *lhs == *rhs;
+  }
+};
+
+class UnorderedModuleSet
+    : public std::unordered_set<Handle<Module>, ModuleHandleHash,
+                                ModuleHandleEqual,
+                                ZoneAllocator<Handle<Module>>> {
+ public:
+  explicit UnorderedModuleSet(Zone* zone)
+      : std::unordered_set<Handle<Module>, ModuleHandleHash, ModuleHandleEqual,
+                           ZoneAllocator<Handle<Module>>>(
+            2 /* bucket count */, ModuleHandleHash(), ModuleHandleEqual(),
+            ZoneAllocator<Handle<Module>>(zone)) {}
+};
 
 }  // namespace internal
 }  // namespace v8

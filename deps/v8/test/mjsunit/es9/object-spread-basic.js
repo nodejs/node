@@ -11,6 +11,11 @@ assertEquals({}, y = { ...undefined });
 assertEquals({}, y = { ...null });
 
 assertEquals({}, y = { ...1 });
+assertEquals({}, y = { ...1n });
+assertEquals({}, y = { ...NaN });
+assertEquals({}, y = { ...false });
+assertEquals({}, y = { ...true });
+assertEquals({}, y = { ...Symbol() });
 assertEquals({0: 'f', 1: 'o', 2: 'o'}, y = { ...'foo' });
 assertEquals({0: 0, 1: 1}, y = { ...[0, 1] });
 assertEquals({}, { ...new Proxy({}, {}) });

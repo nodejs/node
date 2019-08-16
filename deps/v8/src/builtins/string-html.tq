@@ -22,22 +22,23 @@ namespace string_html {
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.anchor
   transitioning javascript builtin StringPrototypeAnchor(
-      context: Context, receiver: Object, ...arguments): String {
+      js-implicit context: Context, receiver: Object)(...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.anchor', 'a', 'name', arguments[0]);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.big
   transitioning javascript builtin
-  StringPrototypeBig(context: Context, receiver: Object, ...arguments): String {
+  StringPrototypeBig(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.big', 'big', kEmptyString, kEmptyString);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.blink
   transitioning javascript builtin
-  StringPrototypeBlink(context: Context, receiver: Object, ...arguments):
-      String {
+  StringPrototypeBlink(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.blink', 'blink', kEmptyString,
         kEmptyString);
@@ -45,56 +46,56 @@ namespace string_html {
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.bold
   transitioning javascript builtin
-  StringPrototypeBold(context: Context, receiver: Object, ...arguments):
-      String {
+  StringPrototypeBold(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.bold', 'b', kEmptyString, kEmptyString);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.fontcolor
   transitioning javascript builtin
-  StringPrototypeFontcolor(context: Context, receiver: Object, ...arguments):
-      String {
+  StringPrototypeFontcolor(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.fontcolor', 'font', 'color', arguments[0]);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.fontsize
   transitioning javascript builtin
-  StringPrototypeFontsize(context: Context, receiver: Object, ...arguments):
-      String {
+  StringPrototypeFontsize(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.fontsize', 'font', 'size', arguments[0]);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.fixed
   transitioning javascript builtin
-  StringPrototypeFixed(context: Context, receiver: Object, ...arguments):
-      String {
+  StringPrototypeFixed(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.fixed', 'tt', kEmptyString, kEmptyString);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.italics
   transitioning javascript builtin
-  StringPrototypeItalics(context: Context, receiver: Object, ...arguments):
-      String {
+  StringPrototypeItalics(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.italics', 'i', kEmptyString, kEmptyString);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.link
   transitioning javascript builtin
-  StringPrototypeLink(context: Context, receiver: Object, ...arguments):
-      String {
+  StringPrototypeLink(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.link', 'a', 'href', arguments[0]);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.small
   transitioning javascript builtin
-  StringPrototypeSmall(context: Context, receiver: Object, ...arguments):
-      String {
+  StringPrototypeSmall(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.small', 'small', kEmptyString,
         kEmptyString);
@@ -102,8 +103,8 @@ namespace string_html {
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.strike
   transitioning javascript builtin
-  StringPrototypeStrike(context: Context, receiver: Object, ...arguments):
-      String {
+  StringPrototypeStrike(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.strike', 'strike', kEmptyString,
         kEmptyString);
@@ -111,14 +112,16 @@ namespace string_html {
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.sub
   transitioning javascript builtin
-  StringPrototypeSub(context: Context, receiver: Object, ...arguments): String {
+  StringPrototypeSub(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.sub', 'sub', kEmptyString, kEmptyString);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.sup
   transitioning javascript builtin
-  StringPrototypeSup(context: Context, receiver: Object, ...arguments): String {
+  StringPrototypeSup(js-implicit context: Context, receiver: Object)(
+      ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.sup', 'sup', kEmptyString, kEmptyString);
   }

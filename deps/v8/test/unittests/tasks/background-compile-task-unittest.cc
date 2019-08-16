@@ -73,7 +73,7 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
             FunctionLiteral::kNoDuplicateParameters,
             FunctionLiteral::kAnonymousExpression,
             FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,
-            shared->FunctionLiteralId(isolate), nullptr);
+            shared->function_literal_id(), nullptr);
 
     return new BackgroundCompileTask(
         allocator(), outer_parse_info.get(), function_name, function_literal,

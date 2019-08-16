@@ -230,6 +230,8 @@ constexpr Vector<const uint8_t> StaticCharVector(const char (&array)[N]) {
   return Vector<const uint8_t>::cast(Vector<const char>(array, N - 1));
 }
 
+// The resulting vector does not contain a null-termination byte. If you want
+// the null byte, use ArrayVector("foo").
 inline Vector<const char> CStrVector(const char* data) {
   return Vector<const char>(data, strlen(data));
 }
@@ -250,6 +252,9 @@ inline Vector<char> MutableCStrVector(char* data, size_t max) {
   return Vector<char>(data, strnlen(data, max));
 }
 
+// For string literals, ArrayVector("foo") returns a vector ['f', 'o', 'o', \0]
+// with length 4 and null-termination.
+// If you want ['f', 'o', 'o'], use CStrVector("foo").
 template <typename T, size_t N>
 inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
   return Vector<T>{arr, N};

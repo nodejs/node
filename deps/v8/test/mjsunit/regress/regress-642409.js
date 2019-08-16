@@ -16,6 +16,7 @@ class SubClass extends SuperClass {
   }
 }
 
+%PrepareFunctionForOptimization(SubClass);
 new SubClass();
 new SubClass();
 %OptimizeFunctionOnNextCall(SubClass);

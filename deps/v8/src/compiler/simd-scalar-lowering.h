@@ -32,7 +32,14 @@ class SimdScalarLowering {
  private:
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
 
-  enum class SimdType : uint8_t { kFloat32x4, kInt32x4, kInt16x8, kInt8x16 };
+  enum class SimdType : uint8_t {
+    kFloat64x2,
+    kFloat32x4,
+    kInt64x2,
+    kInt32x4,
+    kInt16x8,
+    kInt8x16
+  };
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   static constexpr int kLaneOffsets[16] = {15, 14, 13, 12, 11, 10, 9, 8,

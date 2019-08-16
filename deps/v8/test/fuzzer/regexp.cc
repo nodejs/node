@@ -9,7 +9,7 @@
 #include "include/v8.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
-#include "src/regexp/jsregexp.h"
+#include "src/regexp/regexp.h"
 #include "test/fuzzer/fuzzer-support.h"
 
 namespace i = v8::internal;
@@ -19,8 +19,7 @@ void Test(v8::Isolate* isolate, i::Handle<i::JSRegExp> regexp,
           i::Handle<i::RegExpMatchInfo> results_array) {
   v8::TryCatch try_catch(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  if (i::RegExpImpl::Exec(i_isolate, regexp, subject, 0, results_array)
-          .is_null()) {
+  if (i::RegExp::Exec(i_isolate, regexp, subject, 0, results_array).is_null()) {
     i_isolate->OptionalRescheduleException(true);
   }
 }

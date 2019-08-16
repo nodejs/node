@@ -61,13 +61,14 @@ bool JSArray::HasArrayPrototype(Isolate* isolate) {
 ACCESSORS(JSArrayIterator, iterated_object, Object, kIteratedObjectOffset)
 ACCESSORS(JSArrayIterator, next_index, Object, kNextIndexOffset)
 
+SMI_ACCESSORS(JSArrayIterator, raw_kind, kKindOffset)
+
 IterationKind JSArrayIterator::kind() const {
-  return static_cast<IterationKind>(
-      Smi::cast(READ_FIELD(*this, kKindOffset)).value());
+  return static_cast<IterationKind>(raw_kind());
 }
 
 void JSArrayIterator::set_kind(IterationKind kind) {
-  WRITE_FIELD(*this, kKindOffset, Smi::FromInt(static_cast<int>(kind)));
+  set_raw_kind(static_cast<int>(kind));
 }
 
 }  // namespace internal

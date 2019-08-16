@@ -253,7 +253,7 @@ void AsmJsParser::DeclareGlobal(VarInfo* info, bool mutable_variable,
                                 const WasmInitExpr& init) {
   info->kind = VarKind::kGlobal;
   info->type = type;
-  info->index = module_builder_->AddGlobal(vtype, false, true, init);
+  info->index = module_builder_->AddGlobal(vtype, true, init);
   info->mutable_variable = mutable_variable;
 }
 
@@ -385,7 +385,8 @@ void AsmJsParser::ValidateModule() {
   module_builder_->MarkStartFunction(start);
   for (auto& global_import : global_imports_) {
     uint32_t import_index = module_builder_->AddGlobalImport(
-        global_import.import_name, global_import.value_type);
+        global_import.import_name, global_import.value_type,
+        false /* mutability */);
     start->EmitWithI32V(kExprGetGlobal, import_index);
     start->EmitWithI32V(kExprSetGlobal, VarIndex(global_import.var_info));
   }
@@ -754,7 +755,7 @@ void AsmJsParser::ValidateFunction() {
   // Record start of the function, used as position for the stack check.
   current_function_builder_->SetAsmFunctionStartPosition(scanner_.Position());
 
-  CachedVector<AsmType*> params(cached_asm_type_p_vectors_);
+  CachedVector<AsmType*> params(&cached_asm_type_p_vectors_);
   ValidateFunctionParams(&params);
 
   // Check against limit on number of parameters.
@@ -762,7 +763,7 @@ void AsmJsParser::ValidateFunction() {
     FAIL("Number of parameters exceeds internal limit");
   }
 
-  CachedVector<ValueType> locals(cached_valuetype_vectors_);
+  CachedVector<ValueType> locals(&cached_valuetype_vectors_);
   ValidateFunctionLocals(params.size(), &locals);
 
   function_temp_locals_offset_ = static_cast<uint32_t>(
@@ -837,7 +838,7 @@ void AsmJsParser::ValidateFunctionParams(ZoneVector<AsmType*>* params) {
   scanner_.EnterLocalScope();
   EXPECT_TOKEN('(');
   CachedVector<AsmJsScanner::token_t> function_parameters(
-      cached_token_t_vectors_);
+      &cached_token_t_vectors_);
   while (!failed_ && !Peek(')')) {
     if (!scanner_.IsLocal()) {
       FAIL("Expected parameter name");
@@ -969,7 +970,8 @@ void AsmJsParser::ValidateFunctionLocals(size_t param_count,
             if (negate) {
               dvalue = -dvalue;
             }
-            current_function_builder_->EmitF32Const(dvalue);
+            float fvalue = DoubleToFloat32(dvalue);
+            current_function_builder_->EmitF32Const(fvalue);
             current_function_builder_->EmitSetLocal(info->index);
           } else if (CheckForUnsigned(&uvalue)) {
             if (uvalue > 0x7FFFFFFF) {
@@ -1314,7 +1316,7 @@ void AsmJsParser::SwitchStatement() {
   Begin(pending_label_);
   pending_label_ = 0;
   // TODO(bradnelson): Make less weird.
-  CachedVector<int32_t> cases(cached_int_vectors_);
+  CachedVector<int32_t> cases(&cached_int_vectors_);
   GatherCases(&cases);
   EXPECT_TOKEN('{');
   size_t count = cases.size() + 1;
@@ -2108,7 +2110,11 @@ AsmType* AsmJsParser::ValidateCall() {
   // need to match the information stored at this point.
   base::Optional<TemporaryVariableScope> tmp;
   if (Check('[')) {
-    RECURSEn(EqualityExpression());
+    AsmType* index = nullptr;
+    RECURSEn(index = EqualityExpression());
+    if (!index->IsA(AsmType::Intish())) {
+      FAILn("Expected intish index");
+    }
     EXPECT_TOKENn('&');
     uint32_t mask = 0;
     if (!CheckForUnsigned(&mask)) {
@@ -2161,8 +2167,8 @@ AsmType* AsmJsParser::ValidateCall() {
   }
 
   // Parse argument list and gather types.
-  CachedVector<AsmType*> param_types(cached_asm_type_p_vectors_);
-  CachedVector<AsmType*> param_specific_types(cached_asm_type_p_vectors_);
+  CachedVector<AsmType*> param_types(&cached_asm_type_p_vectors_);
+  CachedVector<AsmType*> param_specific_types(&cached_asm_type_p_vectors_);
   EXPECT_TOKENn('(');
   while (!failed_ && !Peek(')')) {
     AsmType* t;

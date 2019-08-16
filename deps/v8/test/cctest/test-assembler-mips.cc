@@ -4825,8 +4825,9 @@ TEST(r6_beqzc) {
   }
 }
 
-void load_elements_of_vector(MacroAssembler& assm, const uint64_t elements[],
-                             MSARegister w, Register t0, Register t1) {
+void load_elements_of_vector(
+    MacroAssembler& assm,  // NOLINT(runtime/references)
+    const uint64_t elements[], MSARegister w, Register t0, Register t1) {
   __ li(t0, static_cast<uint32_t>(elements[0] & 0xFFFFFFFF));
   __ li(t1, static_cast<uint32_t>((elements[0] >> 32) & 0xFFFFFFFF));
   __ insert_w(w, 0, t0);
@@ -4837,8 +4838,9 @@ void load_elements_of_vector(MacroAssembler& assm, const uint64_t elements[],
   __ insert_w(w, 3, t1);
 }
 
-inline void store_elements_of_vector(MacroAssembler& assm, MSARegister w,
-                                     Register a) {
+inline void store_elements_of_vector(
+    MacroAssembler& assm,  // NOLINT(runtime/references)
+    MSARegister w, Register a) {
   __ st_d(w, MemOperand(a, 0));
 }
 

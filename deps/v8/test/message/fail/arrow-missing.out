@@ -1,4 +1,4 @@
-*%(basename)s:7: SyntaxError: Unexpected token )
+*%(basename)s:7: SyntaxError: Unexpected token ')'
 function foo() { return(); }
                         ^
-SyntaxError: Unexpected token )
+SyntaxError: Unexpected token ')'

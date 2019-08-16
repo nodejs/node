@@ -852,7 +852,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Generate an indirect call (for when a direct call's range is not adequate).
   void IndirectCall(Address target, RelocInfo::Mode rmode);
 
-  void CallBuiltinPointer(Register builtin_pointer) override;
+  // Load the builtin given by the Smi in |builtin_index| into the same
+  // register.
+  void LoadEntryFromBuiltinIndex(Register builtin_index);
+  void CallBuiltinByIndex(Register builtin_index) override;
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
@@ -1920,17 +1923,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 class InstructionAccurateScope {
  public:
   explicit InstructionAccurateScope(TurboAssembler* tasm, size_t count = 0)
-      : tasm_(tasm)
+      : tasm_(tasm),
+        block_pool_(tasm, count * kInstrSize)
 #ifdef DEBUG
         ,
         size_(count * kInstrSize)
 #endif
   {
-    // Before blocking the const pool, see if it needs to be emitted.
-    tasm_->CheckConstPool(false, true);
-    tasm_->CheckVeneerPool(false, true);
-
-    tasm_->StartBlockPools();
+    tasm_->CheckVeneerPool(false, true, count * kInstrSize);
+    tasm_->StartBlockVeneerPool();
 #ifdef DEBUG
     if (count != 0) {
       tasm_->bind(&start_);
@@ -1941,7 +1942,7 @@ class InstructionAccurateScope {
   }
 
   ~InstructionAccurateScope() {
-    tasm_->EndBlockPools();
+    tasm_->EndBlockVeneerPool();
 #ifdef DEBUG
     if (start_.is_bound()) {
       DCHECK(tasm_->SizeOfCodeGeneratedSince(&start_) == size_);
@@ -1952,6 +1953,7 @@ class InstructionAccurateScope {
 
  private:
   TurboAssembler* tasm_;
+  TurboAssembler::BlockConstPoolScope block_pool_;
 #ifdef DEBUG
   size_t size_;
   Label start_;
@@ -1979,7 +1981,7 @@ class UseScratchRegisterScope {
     DCHECK_EQ(availablefp_->type(), CPURegister::kVRegister);
   }
 
-  ~UseScratchRegisterScope();
+  V8_EXPORT_PRIVATE ~UseScratchRegisterScope();
 
   // Take a register from the appropriate temps list. It will be returned
   // automatically when the scope ends.
@@ -1993,10 +1995,11 @@ class UseScratchRegisterScope {
   }
 
   Register AcquireSameSizeAs(const Register& reg);
-  VRegister AcquireSameSizeAs(const VRegister& reg);
+  V8_EXPORT_PRIVATE VRegister AcquireSameSizeAs(const VRegister& reg);
 
  private:
-  static CPURegister AcquireNextAvailable(CPURegList* available);
+  V8_EXPORT_PRIVATE static CPURegister AcquireNextAvailable(
+      CPURegList* available);
 
   // Available scratch registers.
   CPURegList* available_;    // kRegister

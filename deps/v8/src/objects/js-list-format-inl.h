@@ -27,7 +27,7 @@ ACCESSORS(JSListFormat, icu_formatter, Managed<icu::ListFormatter>,
 SMI_ACCESSORS(JSListFormat, flags, kFlagsOffset)
 
 inline void JSListFormat::set_style(Style style) {
-  DCHECK_GT(Style::COUNT, style);
+  DCHECK_GE(StyleBits::kMax, style);
   int hints = flags();
   hints = StyleBits::update(hints, style);
   set_flags(hints);
@@ -38,7 +38,7 @@ inline JSListFormat::Style JSListFormat::style() const {
 }
 
 inline void JSListFormat::set_type(Type type) {
-  DCHECK_GT(Type::COUNT, type);
+  DCHECK_GE(TypeBits::kMax, type);
   int hints = flags();
   hints = TypeBits::update(hints, type);
   set_flags(hints);

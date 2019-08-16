@@ -8,6 +8,7 @@ function f() {
   for (i = 0; i < 2; i++)
     var x = i, // var x that's assigned on each iteration
         y = y||(()=>x), // single arrow function that returns x
+        z0 = (%PrepareFunctionForOptimization(y)), // prepare function for optimization
         z = (%OptimizeFunctionOnNextCall(y), y()); // optimize y on first iteration
   return y()
 };

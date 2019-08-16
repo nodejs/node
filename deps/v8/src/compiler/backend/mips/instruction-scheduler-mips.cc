@@ -284,6 +284,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsUsh:
     case kMipsUsw:
     case kMipsUswc1:
+    case kMipsSync:
     case kMipsWord32AtomicPairStore:
     case kMipsWord32AtomicPairAdd:
     case kMipsWord32AtomicPairSub:
@@ -1352,7 +1353,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return AssembleArchLookupSwitchLatency((instr->InputCount() - 2) / 2);
     case kArchTableSwitch:
       return AssembleArchTableSwitchLatency();
-    case kArchDebugAbort:
+    case kArchAbortCSAAssert:
       return CallLatency() + 1;
     case kArchComment:
     case kArchDeoptimize:

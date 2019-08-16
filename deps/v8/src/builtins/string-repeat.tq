@@ -28,7 +28,7 @@ namespace string_repeat {
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.repeat
   transitioning javascript builtin StringPrototypeRepeat(
-      context: Context, receiver: Object, count: Object): String {
+      js-implicit context: Context, receiver: Object)(count: Object): String {
     // 1. Let O be ? RequireObjectCoercible(this value).
     // 2. Let S be ? ToString(O).
     const s: String = ToThisString(receiver, kBuiltinName);

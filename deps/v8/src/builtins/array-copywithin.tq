@@ -9,7 +9,7 @@ namespace array_copywithin {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.copyWithin
   transitioning javascript builtin ArrayPrototypeCopyWithin(
-      context: Context, receiver: Object, ...arguments): Object {
+      js-implicit context: Context, receiver: Object)(...arguments): Object {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 

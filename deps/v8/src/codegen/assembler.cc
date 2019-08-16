@@ -64,8 +64,8 @@ AssemblerOptions AssemblerOptions::Default(
   // might be run on real hardware.
   options.enable_simulator_code = !serializer;
 #endif
-  options.inline_offheap_trampolines =
-      FLAG_embedded_builtins && !serializer && !generating_embedded_builtin;
+  options.inline_offheap_trampolines &=
+      !serializer && !generating_embedded_builtin;
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   const base::AddressRegion& code_range =
       isolate->heap()->memory_allocator()->code_range();
@@ -226,22 +226,32 @@ int AssemblerBase::AddCodeTarget(Handle<Code> target) {
   }
 }
 
-int AssemblerBase::AddCompressedEmbeddedObject(Handle<HeapObject> object) {
-  int current = static_cast<int>(compressed_embedded_objects_.size());
-  compressed_embedded_objects_.push_back(object);
-  return current;
-}
-
-Handle<HeapObject> AssemblerBase::GetCompressedEmbeddedObject(
-    intptr_t index) const {
-  DCHECK_LT(static_cast<size_t>(index), compressed_embedded_objects_.size());
-  return compressed_embedded_objects_[index];
-}
-
 Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {
   DCHECK_LT(static_cast<size_t>(code_target_index), code_targets_.size());
   return code_targets_[code_target_index];
 }
+
+AssemblerBase::EmbeddedObjectIndex AssemblerBase::AddEmbeddedObject(
+    Handle<HeapObject> object) {
+  EmbeddedObjectIndex current = embedded_objects_.size();
+  // Do not deduplicate invalid handles, they are to heap object requests.
+  if (!object.is_null()) {
+    auto entry = embedded_objects_map_.find(object);
+    if (entry != embedded_objects_map_.end()) {
+      return entry->second;
+    }
+    embedded_objects_map_[object] = current;
+  }
+  embedded_objects_.push_back(object);
+  return current;
+}
+
+Handle<HeapObject> AssemblerBase::GetEmbeddedObject(
+    EmbeddedObjectIndex index) const {
+  DCHECK_LT(index, embedded_objects_.size());
+  return embedded_objects_[index];
+}
+
 
 int Assembler::WriteCodeComments() {
   if (!FLAG_code_comments || code_comments_writer_.entry_count() == 0) return 0;

@@ -7,6 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/objects/map.h"
 
@@ -93,24 +94,15 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSToObject(Node* node);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
-                                ElementAccessFeedback const& processed,
-                                AccessMode access_mode,
-                                KeyedAccessLoadMode load_mode,
-                                KeyedAccessStoreMode store_mode);
+                                ElementAccessFeedback const& processed);
   // In the case of non-keyed (named) accesses, pass the name as {static_name}
   // and use {nullptr} for {key} (load/store modes are irrelevant).
-  Reduction ReducePropertyAccessUsingProcessedFeedback(
-      Node* node, Node* key, base::Optional<NameRef> static_name, Node* value,
-      FeedbackNexus const& nexus, AccessMode access_mode,
-      KeyedAccessLoadMode load_mode = STANDARD_LOAD,
-      KeyedAccessStoreMode store_mode = STANDARD_STORE);
-  Reduction ReduceKeyedAccess(Node* node, Node* key, Node* value,
-                              FeedbackNexus const& nexus,
-                              AccessMode access_mode,
-                              KeyedAccessLoadMode load_mode,
-                              KeyedAccessStoreMode store_mode);
+  Reduction ReducePropertyAccess(Node* node, Node* key,
+                                 base::Optional<NameRef> static_name,
+                                 Node* value, FeedbackSource const& source,
+                                 AccessMode access_mode);
   Reduction ReduceNamedAccessFromNexus(Node* node, Node* value,
-                                       FeedbackNexus const& nexus,
+                                       FeedbackSource const& source,
                                        NameRef const& name,
                                        AccessMode access_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
@@ -123,12 +115,10 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                NameRef const& name, AccessMode access_mode,
                                Node* key, PropertyCellRef const& property_cell);
   Reduction ReduceKeyedLoadFromHeapConstant(Node* node, Node* key,
-                                            FeedbackNexus const& nexus,
                                             AccessMode access_mode,
                                             KeyedAccessLoadMode load_mode);
   Reduction ReduceElementAccessOnString(Node* node, Node* index, Node* value,
-                                        AccessMode access_mode,
-                                        KeyedAccessLoadMode load_mode);
+                                        KeyedAccessMode const& keyed_mode);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
   Reduction ReduceJSToString(Node* node);
@@ -197,10 +187,11 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                       FunctionTemplateInfoRef const& function_template_info);
 
   // Construct the appropriate subgraph for element access.
-  ValueEffectControl BuildElementAccess(
-      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
-      ElementAccessInfo const& access_info, AccessMode access_mode,
-      KeyedAccessLoadMode load_mode, KeyedAccessStoreMode store_mode);
+  ValueEffectControl BuildElementAccess(Node* receiver, Node* index,
+                                        Node* value, Node* effect,
+                                        Node* control,
+                                        ElementAccessInfo const& access_info,
+                                        KeyedAccessMode const& keyed_mode);
 
   // Construct appropriate subgraph to load from a String.
   Node* BuildIndexedStringLoad(Node* receiver, Node* index, Node* length,

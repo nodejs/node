@@ -28,19 +28,19 @@
 // Flags: --allow-natives-syntax
 
 function typeofDirectly() {
-  return typeof({}) === "undefined";
-}
-
+  return typeof{} === 'undefined';
+};
+%PrepareFunctionForOptimization(typeofDirectly);
 typeofDirectly();
 typeofDirectly();
 %OptimizeFunctionOnNextCall(typeofDirectly);
 typeofDirectly();
 
 function typeofViaVariable() {
-  var foo = typeof({})
+  var foo = typeof{};
   return foo === "undefined";
-}
-
+};
+%PrepareFunctionForOptimization(typeofViaVariable);
 typeofViaVariable();
 typeofViaVariable();
 %OptimizeFunctionOnNextCall(typeofViaVariable);

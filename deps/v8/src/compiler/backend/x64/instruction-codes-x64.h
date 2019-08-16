@@ -58,7 +58,8 @@ namespace compiler {
   V(X64Popcnt32)                          \
   V(X64Bswap)                             \
   V(X64Bswap32)                           \
-  V(LFence)                               \
+  V(X64MFence)                            \
+  V(X64LFence)                            \
   V(SSEFloat32Cmp)                        \
   V(SSEFloat32Add)                        \
   V(SSEFloat32Sub)                        \
@@ -158,6 +159,15 @@ namespace compiler {
   V(X64Poke)                              \
   V(X64Peek)                              \
   V(X64StackCheck)                        \
+  V(X64F64x2Splat)                        \
+  V(X64F64x2ExtractLane)                  \
+  V(X64F64x2ReplaceLane)                  \
+  V(X64F64x2Abs)                          \
+  V(X64F64x2Neg)                          \
+  V(X64F64x2Eq)                           \
+  V(X64F64x2Ne)                           \
+  V(X64F64x2Lt)                           \
+  V(X64F64x2Le)                           \
   V(X64F32x4Splat)                        \
   V(X64F32x4ExtractLane)                  \
   V(X64F32x4ReplaceLane)                  \
@@ -177,6 +187,22 @@ namespace compiler {
   V(X64F32x4Ne)                           \
   V(X64F32x4Lt)                           \
   V(X64F32x4Le)                           \
+  V(X64I64x2Splat)                        \
+  V(X64I64x2ExtractLane)                  \
+  V(X64I64x2ReplaceLane)                  \
+  V(X64I64x2Neg)                          \
+  V(X64I64x2Shl)                          \
+  V(X64I64x2ShrS)                         \
+  V(X64I64x2Add)                          \
+  V(X64I64x2Sub)                          \
+  V(X64I64x2Mul)                          \
+  V(X64I64x2Eq)                           \
+  V(X64I64x2Ne)                           \
+  V(X64I64x2GtS)                          \
+  V(X64I64x2GeS)                          \
+  V(X64I64x2ShrU)                         \
+  V(X64I64x2GtU)                          \
+  V(X64I64x2GeU)                          \
   V(X64I32x4Splat)                        \
   V(X64I32x4ExtractLane)                  \
   V(X64I32x4ReplaceLane)                  \
@@ -293,6 +319,8 @@ namespace compiler {
   V(X64S8x8Reverse)                       \
   V(X64S8x4Reverse)                       \
   V(X64S8x2Reverse)                       \
+  V(X64S1x2AnyTrue)                       \
+  V(X64S1x2AllTrue)                       \
   V(X64S1x4AnyTrue)                       \
   V(X64S1x4AllTrue)                       \
   V(X64S1x8AnyTrue)                       \

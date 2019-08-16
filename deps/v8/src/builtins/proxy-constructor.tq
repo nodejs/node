@@ -6,17 +6,14 @@
 
 namespace proxy {
 
-  extern macro ProxiesCodeStubAssembler::GetProxyConstructorJSNewTarget():
-      Object;
-
   // ES #sec-proxy-constructor
   // https://tc39.github.io/ecma262/#sec-proxy-constructor
   transitioning javascript builtin
-  ProxyConstructor(implicit context: Context)(
-      receiver: Object, target: Object, handler: Object): JSProxy {
+  ProxyConstructor(
+      js-implicit context: Context, receiver: Object,
+      newTarget: Object)(target: Object, handler: Object): JSProxy {
     try {
       // 1. If NewTarget is undefined, throw a TypeError exception.
-      const newTarget: Object = GetProxyConstructorJSNewTarget();
       if (newTarget == Undefined) {
         ThrowTypeError(kConstructorNotFunction, 'Proxy');
       }

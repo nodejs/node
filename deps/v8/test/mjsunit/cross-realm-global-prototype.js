@@ -8,6 +8,7 @@
 var realm = Realm.create();
 var test = Realm.eval(realm,
     "() => { return Realm.global(0) instanceof Object }");
+%PrepareFunctionForOptimization(test);
 
 assertFalse(test());
 

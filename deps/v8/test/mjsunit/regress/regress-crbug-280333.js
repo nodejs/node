@@ -40,6 +40,7 @@ function foo(x, fun) {
   return 0;
 }
 
+%PrepareFunctionForOptimization(foo);
 assertEquals(0, foo(1, funky));
 assertEquals(0, foo(1, funky));
 %OptimizeFunctionOnNextCall(foo);

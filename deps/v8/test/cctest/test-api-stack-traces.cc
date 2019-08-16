@@ -190,7 +190,9 @@ static void checkStackFrame(const char* expected_script_name,
   } else {
     CHECK_NOT_NULL(strstr(*script_name, expected_script_name));
   }
-  CHECK_NOT_NULL(strstr(*func_name, expected_func_name));
+  if (!frame->GetFunctionName().IsEmpty()) {
+    CHECK_NOT_NULL(strstr(*func_name, expected_func_name));
+  }
   CHECK_EQ(expected_line_number, frame->GetLineNumber());
   CHECK_EQ(expected_column, frame->GetColumn());
   CHECK_EQ(is_eval, frame->IsEval());

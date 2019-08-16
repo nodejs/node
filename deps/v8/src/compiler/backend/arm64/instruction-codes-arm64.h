@@ -171,6 +171,7 @@ namespace compiler {
   V(Arm64CompressSigned)                    \
   V(Arm64CompressPointer)                   \
   V(Arm64CompressAny)                       \
+  V(Arm64DmbIsh)                            \
   V(Arm64DsbIsb)                            \
   V(Arm64F32x4Splat)                        \
   V(Arm64F32x4ExtractLane)                  \

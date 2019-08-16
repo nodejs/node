@@ -21,20 +21,23 @@ class ClassLiteral;
 // of properties in the backing store. This number includes properties with
 // computed names that are not
 // in the list.
+// TODO(ishell): Don't derive from FixedArray as it already has its own map.
 class ObjectBoilerplateDescription : public FixedArray {
  public:
-  Object name(int index) const;
-  Object value(int index) const;
+  inline Object name(int index) const;
+  inline Object name(Isolate* isolate, int index) const;
 
-  void set_key_value(int index, Object key, Object value);
+  inline Object value(int index) const;
+  inline Object value(Isolate* isolate, int index) const;
+
+  inline void set_key_value(int index, Object key, Object value);
 
   // The number of boilerplate properties.
-  int size() const;
+  inline int size() const;
 
   // Number of boilerplate properties and properties with computed names.
-  int backing_store_size() const;
-
-  void set_backing_store_size(Isolate* isolate, int backing_store_size);
+  inline int backing_store_size() const;
+  inline void set_backing_store_size(int backing_store_size);
 
   // Used to encode ObjectLiteral::Flags for nested object literals
   // Stored as the first element of the fixed array
@@ -47,7 +50,7 @@ class ObjectBoilerplateDescription : public FixedArray {
   DECL_PRINTER(ObjectBoilerplateDescription)
 
  private:
-  bool has_number_of_properties() const;
+  inline bool has_number_of_properties() const;
 
   OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArray);
 };

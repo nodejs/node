@@ -7,7 +7,7 @@
 
 #include "src/base/optional.h"
 #include "src/codegen/code-stub-assembler.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 
 namespace v8 {
 namespace internal {
@@ -42,15 +42,20 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
       TNode<Context> context, TNode<Smi> length, TNode<Smi> index,
       TNode<String> input, TNode<FixedArray>* elements_out = nullptr);
 
-  TNode<Object> FastLoadLastIndex(TNode<JSRegExp> regexp);
+  TNode<Object> FastLoadLastIndexBeforeSmiCheck(TNode<JSRegExp> regexp);
+  TNode<Smi> FastLoadLastIndex(TNode<JSRegExp> regexp) {
+    return CAST(FastLoadLastIndexBeforeSmiCheck(regexp));
+  }
   TNode<Object> SlowLoadLastIndex(TNode<Context> context, TNode<Object> regexp);
   TNode<Object> LoadLastIndex(TNode<Context> context, TNode<Object> regexp,
                               bool is_fastpath);
 
-  void FastStoreLastIndex(Node* regexp, Node* value);
-  void SlowStoreLastIndex(Node* context, Node* regexp, Node* value);
-  void StoreLastIndex(Node* context, Node* regexp, Node* value,
-                      bool is_fastpath);
+  void FastStoreLastIndex(TNode<JSRegExp> regexp, TNode<Smi> value);
+  void SlowStoreLastIndex(SloppyTNode<Context> context,
+                          SloppyTNode<Object> regexp,
+                          SloppyTNode<Number> value);
+  void StoreLastIndex(TNode<Context> context, TNode<Object> regexp,
+                      TNode<Number> value, bool is_fastpath);
 
   // Loads {var_string_start} and {var_string_end} with the corresponding
   // offsets into the given {string_data}.
@@ -127,20 +132,23 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   Node* RegExpExec(Node* context, Node* regexp, Node* string);
 
-  Node* AdvanceStringIndex(Node* const string, Node* const index,
-                           Node* const is_unicode, bool is_fastpath);
+  TNode<Number> AdvanceStringIndex(SloppyTNode<String> string,
+                                   SloppyTNode<Number> index,
+                                   SloppyTNode<BoolT> is_unicode,
+                                   bool is_fastpath);
 
-  Node* AdvanceStringIndexFast(Node* const string, Node* const index,
-                               Node* const is_unicode) {
-    return AdvanceStringIndex(string, index, is_unicode, true);
+  TNode<Smi> AdvanceStringIndexFast(TNode<String> string, TNode<Smi> index,
+                                    TNode<BoolT> is_unicode) {
+    return CAST(AdvanceStringIndex(string, index, is_unicode, true));
   }
 
-  void RegExpPrototypeMatchBody(Node* const context, Node* const regexp,
+  void RegExpPrototypeMatchBody(TNode<Context> context, TNode<Object> regexp,
                                 TNode<String> const string,
                                 const bool is_fastpath);
 
-  void RegExpPrototypeSearchBodyFast(Node* const context, Node* const regexp,
-                                     Node* const string);
+  void RegExpPrototypeSearchBodyFast(TNode<Context> context,
+                                     TNode<JSRegExp> regexp,
+                                     TNode<String> string);
   void RegExpPrototypeSearchBodySlow(Node* const context, Node* const regexp,
                                      Node* const string);
 

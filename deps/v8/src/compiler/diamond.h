@@ -33,13 +33,13 @@ struct Diamond {
   }
 
   // Place {this} after {that} in control flow order.
-  void Chain(Diamond& that) { branch->ReplaceInput(1, that.merge); }
+  void Chain(Diamond const& that) { branch->ReplaceInput(1, that.merge); }
 
   // Place {this} after {that} in control flow order.
   void Chain(Node* that) { branch->ReplaceInput(1, that); }
 
   // Nest {this} into either the if_true or if_false branch of {that}.
-  void Nest(Diamond& that, bool if_true) {
+  void Nest(Diamond const& that, bool if_true) {
     if (if_true) {
       branch->ReplaceInput(1, that.if_true);
       that.merge->ReplaceInput(0, merge);

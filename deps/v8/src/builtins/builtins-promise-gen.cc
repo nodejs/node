@@ -2062,7 +2062,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     // 5. Let _promiseResolve_ be ? Get(_constructor_, `"resolve"`).
     TNode<Object> resolve =
         GetProperty(native_context, constructor, factory()->resolve_string());
-    GotoIfException(resolve, if_exception, var_exception);
+    GotoIfException(resolve, &close_iterator, var_exception);
 
     // 6. If IsCallable(_promiseResolve_) is *false*, throw a *TypeError*
     // exception.
@@ -2077,9 +2077,9 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     // Let next be IteratorStep(iteratorRecord.[[Iterator]]).
     // If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
     // ReturnIfAbrupt(next).
-    Node* const fast_iterator_result_map =
-        LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
-    Node* const next = iter_assembler.IteratorStep(
+    TNode<Map> const fast_iterator_result_map = CAST(
+        LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
+    TNode<JSReceiver> const next = iter_assembler.IteratorStep(
         native_context, iterator, &done_loop, fast_iterator_result_map,
         if_exception, var_exception);
 
@@ -2087,7 +2087,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     // If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to
     //     true.
     // ReturnIfAbrupt(nextValue).
-    Node* const next_value = iter_assembler.IteratorValue(
+    TNode<Object> const next_value = iter_assembler.IteratorValue(
         native_context, next, fast_iterator_result_map, if_exception,
         var_exception);
 
@@ -2148,7 +2148,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
            &if_slow);
     GotoIf(IsPromiseSpeciesProtectorCellInvalid(), &if_slow);
     GotoIf(TaggedIsSmi(next_value), &if_slow);
-    Node* const next_value_map = LoadMap(next_value);
+    Node* const next_value_map = LoadMap(CAST(next_value));
     BranchIfPromiseThenLookupChainIntact(native_context, next_value_map,
                                          &if_fast, &if_slow);
 
@@ -2526,8 +2526,7 @@ TF_BUILTIN(PromiseAllSettledResolveElementClosure, PromiseBuiltinsAssembler) {
             LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
         TNode<Map> object_function_map = Cast(LoadObjectField(
             object_function, JSFunction::kPrototypeOrInitialMapOffset));
-        TNode<JSObject> obj =
-            Cast(AllocateJSObjectFromMap(object_function_map));
+        TNode<JSObject> obj = AllocateJSObjectFromMap(object_function_map);
 
         // 10. Perform ! CreateDataProperty(obj, "status", "fulfilled").
         CallBuiltin(Builtins::kFastCreateDataProperty, context, obj,
@@ -2557,8 +2556,7 @@ TF_BUILTIN(PromiseAllSettledRejectElementClosure, PromiseBuiltinsAssembler) {
             LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
         TNode<Map> object_function_map = Cast(LoadObjectField(
             object_function, JSFunction::kPrototypeOrInitialMapOffset));
-        TNode<JSObject> obj =
-            Cast(AllocateJSObjectFromMap(object_function_map));
+        TNode<JSObject> obj = AllocateJSObjectFromMap(object_function_map);
 
         // 10. Perform ! CreateDataProperty(obj, "status", "rejected").
         CallBuiltin(Builtins::kFastCreateDataProperty, context, obj,
@@ -2579,7 +2577,7 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
   VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
 
   Node* const receiver = Parameter(Descriptor::kReceiver);
-  Node* const context = Parameter(Descriptor::kContext);
+  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
   ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
                        "Promise.race");
 
@@ -2626,11 +2624,11 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
       // 3. Let _promiseResolve_ be ? Get(_constructor_, `"resolve"`).
       TNode<Object> resolve =
           GetProperty(native_context, receiver, factory()->resolve_string());
-      GotoIfException(resolve, &reject_promise, &var_exception);
+      GotoIfException(resolve, &close_iterator, &var_exception);
 
       // 4. If IsCallable(_promiseResolve_) is *false*, throw a *TypeError*
       // exception.
-      ThrowIfNotCallable(CAST(context), resolve, "resolve");
+      ThrowIfNotCallable(context, resolve, "resolve");
 
       var_promise_resolve_function = resolve;
       Goto(&loop);
@@ -2638,13 +2636,13 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
 
     BIND(&loop);
     {
-      Node* const fast_iterator_result_map = LoadContextElement(
-          native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+      TNode<Map> const fast_iterator_result_map = CAST(LoadContextElement(
+          native_context, Context::ITERATOR_RESULT_MAP_INDEX));
 
       // Let next be IteratorStep(iteratorRecord.[[Iterator]]).
       // If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
       // ReturnIfAbrupt(next).
-      Node* const next = iter_assembler.IteratorStep(
+      TNode<JSReceiver> const next = iter_assembler.IteratorStep(
           context, iterator, &break_loop, fast_iterator_result_map,
           &reject_promise, &var_exception);
 
@@ -2652,7 +2650,7 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
       // If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to
       //     true.
       // ReturnIfAbrupt(nextValue).
-      Node* const next_value =
+      TNode<Object> const next_value =
           iter_assembler.IteratorValue(context, next, fast_iterator_result_map,
                                        &reject_promise, &var_exception);
 

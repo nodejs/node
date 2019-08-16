@@ -6,12 +6,12 @@
 
 function f(callback) {
   [Object].forEach(callback);
-}
-
+};
+%PrepareFunctionForOptimization(f);
 function message_of_f() {
   try {
     f("a teapot");
-  } catch(e) {
+  } catch (e) {
     return String(e);
   }
 }

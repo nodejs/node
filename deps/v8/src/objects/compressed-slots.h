@@ -34,32 +34,6 @@ class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
   explicit CompressedObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}
 
-  inline Object operator*() const;
-  inline void store(Object value) const;
-
-  inline Object Acquire_Load() const;
-  inline Object Relaxed_Load() const;
-  inline void Relaxed_Store(Object value) const;
-  inline void Release_Store(Object value) const;
-  inline Object Release_CompareAndSwap(Object old, Object target) const;
-};
-
-// A CompressedMapWordSlot instance describes a kTaggedSize-sized map-word field
-// ("slot") of heap objects holding a compressed tagged pointer or a Smi
-// representing forwaring pointer value.
-// This slot kind is similar to CompressedObjectSlot but decompression of
-// forwarding pointer is different.
-// Its address() is the address of the slot.
-// The slot's contents can be read and written using operator* and store().
-class CompressedMapWordSlot : public SlotBase<CompressedMapWordSlot, Tagged_t> {
- public:
-  using TObject = Object;
-
-  static constexpr bool kCanBeWeak = false;
-
-  CompressedMapWordSlot() : SlotBase(kNullAddress) {}
-  explicit CompressedMapWordSlot(Address ptr) : SlotBase(ptr) {}
-
   // Compares memory representation of a value stored in the slot with given
   // raw value without decompression.
   inline bool contains_value(Address raw_value) const;
@@ -67,10 +41,9 @@ class CompressedMapWordSlot : public SlotBase<CompressedMapWordSlot, Tagged_t> {
   inline Object operator*() const;
   inline void store(Object value) const;
 
+  inline Object Acquire_Load() const;
   inline Object Relaxed_Load() const;
   inline void Relaxed_Store(Object value) const;
-
-  inline Object Acquire_Load() const;
   inline void Release_Store(Object value) const;
   inline Object Release_CompareAndSwap(Object old, Object target) const;
 };

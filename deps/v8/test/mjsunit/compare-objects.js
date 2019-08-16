@@ -59,6 +59,7 @@ function test(a, b, less, greater) {
   assertEquals(lt(b, a), greater);
   assertEquals(gt(b, a), less);
 }
+%PrepareFunctionForOptimization(test);
 
 var obj1 = {toString: function() {return "1";}};
 var obj2 = {toString: function() {return "2";}};
@@ -88,6 +89,7 @@ var greater = obj1 > obj2;
 test(obj1, obj2, less, greater);
 test(obj1, obj2, less, greater);
 test(obj1, obj2, less, greater);
+%PrepareFunctionForOptimization(test);
 %OptimizeFunctionOnNextCall(test);
 test(obj1, obj2, less, greater);
 test(obj1, obj2, less, greater);
@@ -96,6 +98,7 @@ obj1.toString = function() {return "1"};
 var less = obj1 < obj2;
 var greater = obj1 > obj2;
 test(obj1, obj2, less, greater);
+%PrepareFunctionForOptimization(test);
 %OptimizeFunctionOnNextCall(test);
 test(obj1, obj2, less, greater);
 

@@ -10,8 +10,8 @@ function g() {
 
 function f() {
   new g();
-}
-
+};
+%PrepareFunctionForOptimization(f);
 function deopt(x) {
   %DeoptimizeFunction(f);
 }

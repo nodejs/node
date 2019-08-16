@@ -31,7 +31,8 @@ let key2 = {"k": "key2"};
   fg.register(object2, "holdings2", key2);
 
   // Unregister before the GC has a chance to discover the objects.
-  fg.unregister(key1);
+  let success = fg.unregister(key1);
+  assertTrue(success);
 
   // objects go out of scope.
 })();

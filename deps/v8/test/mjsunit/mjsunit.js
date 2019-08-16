@@ -390,25 +390,13 @@ var prettyPrinted;
   }
 
   assertSame = function assertSame(expected, found, name_opt) {
-    // TODO(mstarzinger): We should think about using Harmony's egal operator
-    // or the function equivalent Object.is() here.
-    if (found === expected) {
-      if (expected !== 0 || (1 / expected) === (1 / found)) return;
-    } else if ((expected !== expected) && (found !== found)) {
-      return;
-    }
+    if (Object.is(expected, found)) return;
     fail(prettyPrinted(expected), found, name_opt);
   };
 
   assertNotSame = function assertNotSame(expected, found, name_opt) {
-    // TODO(mstarzinger): We should think about using Harmony's egal operator
-    // or the function equivalent Object.is() here.
-    if (found !== expected) {
-      if (expected === 0 || (1 / expected) !== (1 / found)) return;
-    } else if (!((expected !== expected) && (found !== found))) {
-      return;
-    }
-    fail(prettyPrinted(expected), found, name_opt);
+    if (!Object.is(expected, found)) return;
+    fail("not same as " + prettyPrinted(expected), found, name_opt);
   }
 
   assertEquals = function assertEquals(expected, found, name_opt) {

@@ -71,34 +71,24 @@ struct SourcePosition {
 DECLARE_CONTEXTUAL_VARIABLE(CurrentSourceFile, SourceId);
 DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition);
 
-class SourceFileMap : public ContextualClass<SourceFileMap> {
+class V8_EXPORT_PRIVATE SourceFileMap : public ContextualClass<SourceFileMap> {
  public:
-  SourceFileMap() = default;
-  static const std::string& GetSource(SourceId source) {
-    CHECK(source.IsValid());
-    return Get().sources_[source.id_];
-  }
-
-  static SourceId AddSource(std::string path) {
-    Get().sources_.push_back(std::move(path));
-    return SourceId(static_cast<int>(Get().sources_.size()) - 1);
-  }
-
-  static SourceId GetSourceId(const std::string& path) {
-    for (size_t i = 0; i < Get().sources_.size(); ++i) {
-      if (Get().sources_[i] == path) {
-        return SourceId(static_cast<int>(i));
-      }
-    }
-    return SourceId::Invalid();
-  }
+  explicit SourceFileMap(std::string v8_root) : v8_root_(std::move(v8_root)) {}
+  static const std::string& PathFromV8Root(SourceId file);
+  static std::string PathFromV8RootWithoutExtension(SourceId file);
+  static std::string AbsolutePath(SourceId file);
+  static SourceId AddSource(std::string path);
+  static SourceId GetSourceId(const std::string& path);
+  static std::vector<SourceId> AllSources();
+  static bool FileRelativeToV8RootExists(const std::string& path);
 
  private:
   std::vector<std::string> sources_;
+  std::string v8_root_;
 };
 
 inline std::string PositionAsString(SourcePosition pos) {
-  return SourceFileMap::GetSource(pos.source) + ":" +
+  return SourceFileMap::PathFromV8Root(pos.source) + ":" +
          std::to_string(pos.start.line + 1) + ":" +
          std::to_string(pos.start.column + 1);
 }

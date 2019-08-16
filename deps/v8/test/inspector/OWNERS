@@ -1,5 +1,3 @@
-alph@chromium.org
-dgozman@chromium.org
-kozyatinskiy@chromium.org
+file://src/inspector/OWNERS
 
 # COMPONENT: Platform>DevTools>JavaScript

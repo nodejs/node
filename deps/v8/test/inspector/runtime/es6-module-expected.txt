@@ -39,13 +39,13 @@ Checks basic ES6 modules support.
     method : Debugger.scriptParsed
     params : {
         endColumn : 0
-        endLine : 8
+        endLine : 11
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : 2eda454b04ad45b62a894c7590954c5074ca4569
+        hash : 2e8186096446efdc472a6e0559ea22216a664cb5
         isLiveEdit : false
         isModule : true
-        length : 191
+        length : 286
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0
@@ -55,17 +55,17 @@ Checks basic ES6 modules support.
 }
 console.log(module1)
 foo (module1:2:10)
-(anonymous) (module3:3:12)
+(anonymous) (module3:5:12)
 
 console.log(42)
-(anonymous) (module3:3:8)
+(anonymous) (module3:5:8)
 
 console.log(module2)
 foo (module2:2:10)
-(anonymous) (module3:4:12)
+(anonymous) (module3:6:12)
 
 console.log(239)
-(anonymous) (module3:4:8)
+(anonymous) (module3:6:8)
 
 {
     method : Debugger.paused
@@ -81,14 +81,14 @@ console.log(239)
                 functionName : 
                 location : {
                     columnNumber : 0
-                    lineNumber : 7
+                    lineNumber : 9
                     scriptId : <scriptId>
                 }
                 scopeChain : [
                     [0] : {
                         endLocation : {
                             columnNumber : 0
-                            lineNumber : 8
+                            lineNumber : 11
                             scriptId : <scriptId>
                         }
                         object : {
@@ -159,6 +159,19 @@ console.log(239)
                 configurable : true
                 enumerable : true
                 isOwn : true
+                name : foo3
+                value : {
+                    className : Module
+                    description : Module
+                    objectId : <objectId>
+                    type : object
+                }
+                writable : true
+            }
+            [3] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
                 name : a1
                 value : {
                     description : 1
@@ -167,7 +180,7 @@ console.log(239)
                 }
                 writable : true
             }
-            [3] : {
+            [4] : {
                 configurable : true
                 enumerable : true
                 isOwn : true
@@ -206,21 +219,21 @@ console.log(239)
             columnNumber : 0
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token }
+                description : SyntaxError: Unexpected token '}'
                 objectId : <objectId>
                 preview : {
-                    description : SyntaxError: Unexpected token }
+                    description : SyntaxError: Unexpected token '}'
                     overflow : false
                     properties : [
                         [0] : {
                             name : stack
                             type : string
-                            value : SyntaxError: Unexpected token }
+                            value : SyntaxError: Unexpected token '}'
                         }
                         [1] : {
                             name : message
                             type : string
-                            value : Unexpected token }
+                            value : Unexpected token '}'
                         }
                     ]
                     subtype : error
@@ -233,9 +246,10 @@ console.log(239)
             executionContextId : <executionContextId>
             lineNumber : 0
             scriptId : <scriptId>
-            text : Uncaught SyntaxError: Unexpected token }
+            text : Uncaught SyntaxError: Unexpected token '}'
             url : module4
         }
         timestamp : <timestamp>
     }
 }
+queryObjects returns Array(N)

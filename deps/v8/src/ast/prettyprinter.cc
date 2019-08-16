@@ -1278,14 +1278,24 @@ void AstPrinter::VisitProperty(Property* node) {
   IndentedScope indent(this, buf.begin(), node->position());
 
   Visit(node->obj());
-  AssignType property_kind = Property::GetAssignType(node);
-  if (property_kind == NAMED_PROPERTY ||
-      property_kind == NAMED_SUPER_PROPERTY) {
-    PrintLiteralIndented("NAME", node->key()->AsLiteral(), false);
-  } else {
-    DCHECK(property_kind == KEYED_PROPERTY ||
-           property_kind == KEYED_SUPER_PROPERTY);
-    PrintIndentedVisit("KEY", node->key());
+  AssignType type = Property::GetAssignType(node);
+  switch (type) {
+    case NAMED_PROPERTY:
+    case NAMED_SUPER_PROPERTY: {
+      PrintLiteralIndented("NAME", node->key()->AsLiteral(), false);
+      break;
+    }
+    case PRIVATE_METHOD: {
+      PrintIndentedVisit("PRIVATE_METHOD", node->key());
+      break;
+    }
+    case KEYED_PROPERTY:
+    case KEYED_SUPER_PROPERTY: {
+      PrintIndentedVisit("KEY", node->key());
+      break;
+    }
+    case NON_PROPERTY:
+      UNREACHABLE();
   }
 }
 

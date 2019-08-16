@@ -4,9 +4,11 @@
 
 // Flags: --allow-natives-syntax
 
-function foo(a, i) { a[i].x; }
-
-var a = [,0.1];
+function foo(a, i) {
+  a[i].x;
+};
+%PrepareFunctionForOptimization(foo);
+var a = [, 0.1];
 foo(a, 1);
 foo(a, 1);
 %OptimizeFunctionOnNextCall(foo);

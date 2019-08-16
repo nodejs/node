@@ -4,6 +4,7 @@
 
 #include "src/inspector/v8-heap-profiler-agent-impl.h"
 
+#include "src/base/template-utils.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -127,12 +128,11 @@ class HeapStatsStream final : public v8::OutputStream {
   WriteResult WriteHeapStatsChunk(v8::HeapStatsUpdate* updateData,
                                   int count) override {
     DCHECK_GT(count, 0);
-    std::unique_ptr<protocol::Array<int>> statsDiff =
-        protocol::Array<int>::create();
+    auto statsDiff = v8::base::make_unique<protocol::Array<int>>();
     for (int i = 0; i < count; ++i) {
-      statsDiff->addItem(updateData[i].index);
-      statsDiff->addItem(updateData[i].count);
-      statsDiff->addItem(updateData[i].size);
+      statsDiff->emplace_back(updateData[i].index);
+      statsDiff->emplace_back(updateData[i].count);
+      statsDiff->emplace_back(updateData[i].size);
     }
     m_frontend->heapStatsUpdate(std::move(statsDiff));
     return kContinue;
@@ -337,10 +337,10 @@ namespace {
 std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfileNode>
 buildSampingHeapProfileNode(v8::Isolate* isolate,
                             const v8::AllocationProfile::Node* node) {
-  auto children = protocol::Array<
-      protocol::HeapProfiler::SamplingHeapProfileNode>::create();
+  auto children = v8::base::make_unique<
+      protocol::Array<protocol::HeapProfiler::SamplingHeapProfileNode>>();
   for (const auto* child : node->children)
-    children->addItem(buildSampingHeapProfileNode(isolate, child));
+    children->emplace_back(buildSampingHeapProfileNode(isolate, child));
   size_t selfSize = 0;
   for (const auto& allocation : node->allocations)
     selfSize += allocation.size * allocation.count;
@@ -384,14 +384,15 @@ Response V8HeapProfilerAgentImpl::getSamplingProfile(
   if (!v8Profile)
     return Response::Error("V8 sampling heap profiler was not started.");
   v8::AllocationProfile::Node* root = v8Profile->GetRootNode();
-  auto samples = protocol::Array<
-      protocol::HeapProfiler::SamplingHeapProfileSample>::create();
+  auto samples = v8::base::make_unique<
+      protocol::Array<protocol::HeapProfiler::SamplingHeapProfileSample>>();
   for (const auto& sample : v8Profile->GetSamples()) {
-    samples->addItem(protocol::HeapProfiler::SamplingHeapProfileSample::create()
-                         .setSize(sample.size * sample.count)
-                         .setNodeId(sample.node_id)
-                         .setOrdinal(static_cast<double>(sample.sample_id))
-                         .build());
+    samples->emplace_back(
+        protocol::HeapProfiler::SamplingHeapProfileSample::create()
+            .setSize(sample.size * sample.count)
+            .setNodeId(sample.node_id)
+            .setOrdinal(static_cast<double>(sample.sample_id))
+            .build());
   }
   *profile = protocol::HeapProfiler::SamplingHeapProfile::create()
                  .setHead(buildSampingHeapProfileNode(m_isolate, root))

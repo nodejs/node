@@ -65,28 +65,17 @@ namespace typed_array {
       implicit context: Context)(JSTypedArray): JSArrayBuffer;
   extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
       JSTypedArray): TypedArrayElementsInfo;
+  extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(Map):
+      TypedArrayElementsInfo;
   extern macro TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
       ElementsKind): bool;
   extern macro LoadFixedTypedArrayElementAsTagged(
-      RawPtr, Smi, constexpr ElementsKind, constexpr ParameterMode): Object;
+      RawPtr, Smi, constexpr ElementsKind): Numeric;
   extern macro StoreJSTypedArrayElementFromTagged(
-      Context, JSTypedArray, Smi, Object, constexpr ElementsKind,
-      constexpr ParameterMode);
+      Context, JSTypedArray, Smi, Object, constexpr ElementsKind);
 
   type LoadFn = builtin(Context, JSTypedArray, Smi) => Object;
   type StoreFn = builtin(Context, JSTypedArray, Smi, Object) => Object;
-
-  // These UnsafeCast specializations are necessary becuase there is no
-  // way to definitively test whether an Object is a Torque function
-  // with a specific signature, and the default UnsafeCast implementation
-  // would try to check this through an assert(Is<>), so the test
-  // is bypassed in this specialization.
-  UnsafeCast<LoadFn>(implicit context: Context)(o: Object): LoadFn {
-    return %RawDownCast<LoadFn>(o);
-  }
-  UnsafeCast<StoreFn>(implicit context: Context)(o: Object): StoreFn {
-    return %RawDownCast<StoreFn>(o);
-  }
 
   // AttachedJSTypedArray guards that the array's buffer is not detached.
   transient type AttachedJSTypedArray extends JSTypedArray;
@@ -201,17 +190,16 @@ namespace typed_array {
   }
 
   builtin LoadFixedElement<T: type>(
-      context: Context, array: JSTypedArray, index: Smi): Object {
+      _context: Context, array: JSTypedArray, index: Smi): Object {
     return LoadFixedTypedArrayElementAsTagged(
-        array.data_ptr, index, KindForArrayType<T>(), SMI_PARAMETERS);
+        array.data_ptr, index, KindForArrayType<T>());
   }
 
   builtin StoreFixedElement<T: type>(
       context: Context, typedArray: JSTypedArray, index: Smi,
       value: Object): Object {
     StoreJSTypedArrayElementFromTagged(
-        context, typedArray, index, value, KindForArrayType<T>(),
-        SMI_PARAMETERS);
+        context, typedArray, index, value, KindForArrayType<T>());
     return Undefined;
   }
 
@@ -288,7 +276,8 @@ namespace typed_array {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
   transitioning javascript builtin TypedArrayPrototypeSort(
-      context: Context, receiver: Object, ...arguments): JSTypedArray {
+      js-implicit context: Context,
+      receiver: Object)(...arguments): JSTypedArray {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.
     const comparefnObj: Object =
@@ -322,7 +311,7 @@ namespace typed_array {
     let loadfn: LoadFn;
     let storefn: StoreFn;
 
-    let elementsKind: ElementsKind = array.elements_kind;
+    const elementsKind: ElementsKind = array.elements_kind;
 
     if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
       if (elementsKind == INT32_ELEMENTS) {

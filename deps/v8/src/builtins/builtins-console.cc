@@ -39,7 +39,8 @@ namespace internal {
 
 namespace {
 void ConsoleCall(
-    Isolate* isolate, internal::BuiltinArguments& args,
+    Isolate* isolate,
+    internal::BuiltinArguments& args,  // NOLINT(runtime/references)
     void (debug::ConsoleDelegate::*func)(const v8::debug::ConsoleCallArguments&,
                                          const v8::debug::ConsoleContext&)) {
   CHECK(!isolate->has_pending_exception());

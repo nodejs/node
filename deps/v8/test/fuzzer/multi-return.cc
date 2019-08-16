@@ -69,7 +69,7 @@ class InputProvider {
   int NextInt32(int limit) {
     if (current_ + sizeof(uint32_t) > end_) return 0;
     int result =
-        ReadLittleEndianValue<int>(reinterpret_cast<Address>(current_));
+        base::ReadLittleEndianValue<int>(reinterpret_cast<Address>(current_));
     current_ += sizeof(uint32_t);
     return result % limit;
   }
@@ -85,31 +85,31 @@ MachineType RandomType(InputProvider* input) {
 
 int index(MachineType type) { return static_cast<int>(type.representation()); }
 
-Node* Constant(RawMachineAssembler& m, MachineType type, int value) {
+Node* Constant(RawMachineAssembler* m, MachineType type, int value) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
-      return m.Int32Constant(static_cast<int32_t>(value));
+      return m->Int32Constant(static_cast<int32_t>(value));
     case MachineRepresentation::kWord64:
-      return m.Int64Constant(static_cast<int64_t>(value));
+      return m->Int64Constant(static_cast<int64_t>(value));
     case MachineRepresentation::kFloat32:
-      return m.Float32Constant(static_cast<float>(value));
+      return m->Float32Constant(static_cast<float>(value));
     case MachineRepresentation::kFloat64:
-      return m.Float64Constant(static_cast<double>(value));
+      return m->Float64Constant(static_cast<double>(value));
     default:
       UNREACHABLE();
   }
 }
 
-Node* ToInt32(RawMachineAssembler& m, MachineType type, Node* a) {
+Node* ToInt32(RawMachineAssembler* m, MachineType type, Node* a) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return a;
     case MachineRepresentation::kWord64:
-      return m.TruncateInt64ToInt32(a);
+      return m->TruncateInt64ToInt32(a);
     case MachineRepresentation::kFloat32:
-      return m.TruncateFloat32ToInt32(a);
+      return m->TruncateFloat32ToInt32(a);
     case MachineRepresentation::kFloat64:
-      return m.RoundFloat64ToInt32(a);
+      return m->RoundFloat64ToInt32(a);
     default:
       UNREACHABLE();
   }
@@ -222,7 +222,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     MachineType type = desc->GetReturnType(i);
     // Find a random same-type parameter to return. Use a constant if none.
     if (counts[index(type)] == 0) {
-      returns[i] = Constant(callee, type, 42);
+      returns[i] = Constant(&callee, type, 42);
       outputs[i] = 42;
     } else {
       int n = input.NextInt32(counts[index(type)]);
@@ -264,18 +264,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // WasmContext dummy.
   params[1] = caller.PointerConstant(nullptr);
   for (size_t i = 0; i < param_count; ++i) {
-    params[i + 2] = Constant(caller, desc->GetParameterType(i + 1), inputs[i]);
+    params[i + 2] = Constant(&caller, desc->GetParameterType(i + 1), inputs[i]);
   }
   Node* call = caller.AddNode(caller.common()->Call(desc),
                               static_cast<int>(param_count + 2), params.get());
-  Node* ret = Constant(caller, MachineType::Int32(), 0);
+  Node* ret = Constant(&caller, MachineType::Int32(), 0);
   for (size_t i = 0; i < desc->ReturnCount(); ++i) {
     // Skip roughly one third of the outputs.
     if (input.NextInt8(3) == 0) continue;
     Node* ret_i = (desc->ReturnCount() == 1)
                       ? call
                       : caller.AddNode(caller.common()->Projection(i), call);
-    ret = caller.Int32Add(ret, ToInt32(caller, desc->GetReturnType(i), ret_i));
+    ret = caller.Int32Add(ret, ToInt32(&caller, desc->GetReturnType(i), ret_i));
     expect += outputs[i];
   }
   caller.Return(ret);

@@ -278,8 +278,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   // compiled with Turbofan and which one with Liftoff.
   uint8_t tier_mask = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
-  if (!GenerateModule(i_isolate, &zone, data, buffer, num_args,
-                      interpreter_args, compiler_args)) {
+  if (!GenerateModule(i_isolate, &zone, data, &buffer, &num_args,
+                      &interpreter_args, &compiler_args)) {
     return;
   }
 

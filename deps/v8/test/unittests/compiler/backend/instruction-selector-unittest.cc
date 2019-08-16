@@ -5,6 +5,7 @@
 #include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
 #include "src/codegen/code-factory.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
@@ -38,11 +39,12 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   InstructionSequence sequence(test_->isolate(), test_->zone(),
                                instruction_blocks);
   SourcePositionTable source_position_table(graph());
+  TickCounter tick_counter;
   InstructionSelector selector(
       test_->zone(), node_count, &linkage, &sequence, schedule,
       &source_position_table, nullptr,
-      InstructionSelector::kEnableSwitchJumpTable, source_position_mode,
-      features, InstructionSelector::kDisableScheduling,
+      InstructionSelector::kEnableSwitchJumpTable, &tick_counter,
+      source_position_mode, features, InstructionSelector::kDisableScheduling,
       InstructionSelector::kEnableRootsRelativeAddressing,
       PoisoningMitigationLevel::kPoisonAll);
   selector.SelectInstructions();

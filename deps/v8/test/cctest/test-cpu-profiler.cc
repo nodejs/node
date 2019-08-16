@@ -2433,6 +2433,7 @@ TEST(DeoptAtFirstLevelInlinedSource) {
       "\n"
       "startProfiling();\n"
       "\n"
+      "%EnsureFeedbackVectorForFunction(opt_function);\n"
       "%PrepareFunctionForOptimization(test);\n"
       "\n"
       "test(10, 10);\n"

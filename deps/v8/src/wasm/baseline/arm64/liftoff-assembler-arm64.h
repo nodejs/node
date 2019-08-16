@@ -7,8 +7,6 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
-#define BAILOUT(reason) bailout("arm64 " reason)
-
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -135,7 +133,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
     if (!IsImmAddSub(bytes)) {
       // Stack greater than 4M! Because this is a quite improbable case, we
       // just fallback to Turbofan.
-      BAILOUT("Stack too big");
+      bailout(kOtherReason, "Stack too big");
       return;
     }
   }
@@ -144,7 +142,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
   // before checking it.
   // TODO(arm): Remove this when the stack check mechanism will be updated.
   if (bytes > KB / 2) {
-    BAILOUT("Stack limited to 512 bytes to avoid a bug in StackCheck");
+    bailout(kOtherReason,
+            "Stack limited to 512 bytes to avoid a bug in StackCheck");
     return;
   }
 #endif
@@ -173,7 +172,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
   patching_assembler.PatchSubSp(bytes);
 }
 
-void LiftoffAssembler::FinishCode() { CheckConstPool(true, false); }
+void LiftoffAssembler::FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
 
 void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
@@ -1087,7 +1086,5 @@ void LiftoffStackSlots::Construct() {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-
-#undef BAILOUT
 
 #endif  // V8_WASM_BASELINE_ARM64_LIFTOFF_ASSEMBLER_ARM64_H_

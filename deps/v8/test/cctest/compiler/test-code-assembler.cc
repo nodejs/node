@@ -21,7 +21,8 @@ namespace {
 using Label = CodeAssemblerLabel;
 using Variable = CodeAssemblerVariable;
 
-Node* SmiTag(CodeAssembler& m, Node* value) {
+Node* SmiTag(CodeAssembler& m,  // NOLINT(runtime/references)
+             Node* value) {
   int32_t constant_value;
   if (m.ToInt32Constant(value, constant_value) &&
       Smi::IsValid(constant_value)) {
@@ -30,22 +31,25 @@ Node* SmiTag(CodeAssembler& m, Node* value) {
   return m.WordShl(value, m.IntPtrConstant(kSmiShiftSize + kSmiTagSize));
 }
 
-Node* UndefinedConstant(CodeAssembler& m) {
+Node* UndefinedConstant(CodeAssembler& m) {  // NOLINT(runtime/references)
   return m.LoadRoot(RootIndex::kUndefinedValue);
 }
 
-Node* SmiFromInt32(CodeAssembler& m, Node* value) {
+Node* SmiFromInt32(CodeAssembler& m,  // NOLINT(runtime/references)
+                   Node* value) {
   value = m.ChangeInt32ToIntPtr(value);
   return m.BitcastWordToTaggedSigned(
       m.WordShl(value, kSmiShiftSize + kSmiTagSize));
 }
 
-Node* LoadObjectField(CodeAssembler& m, Node* object, int offset,
+Node* LoadObjectField(CodeAssembler& m,  // NOLINT(runtime/references)
+                      Node* object, int offset,
                       MachineType type = MachineType::AnyTagged()) {
   return m.Load(type, object, m.IntPtrConstant(offset - kHeapObjectTag));
 }
 
-Node* LoadMap(CodeAssembler& m, Node* object) {
+Node* LoadMap(CodeAssembler& m,  // NOLINT(runtime/references)
+              Node* object) {
   return LoadObjectField(m, object, JSObject::kMapOffset);
 }
 
@@ -131,7 +135,8 @@ TEST(SimpleTailCallRuntime2Arg) {
 
 namespace {
 
-Handle<JSFunction> CreateSumAllArgumentsFunction(FunctionTester& ft) {
+Handle<JSFunction> CreateSumAllArgumentsFunction(
+    FunctionTester& ft) {  // NOLINT(runtime/references)
   const char* source =
       "(function() {\n"
       "  var sum = 0 + this;\n"

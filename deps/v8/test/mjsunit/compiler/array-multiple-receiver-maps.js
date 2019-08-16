@@ -7,8 +7,8 @@
 
 let id = 0;
 
-function runTest(f, message, mkICTraining, deoptArg) {
-  function test(f, message, ictraining, deoptArg) {
+function runTest(f, message, mkICTraining, deoptArg, speculationCheck) {
+  function test(f, message, ictraining, deoptArg, speculationCheck) {
     // Train the call ic to the maps.
     let t = ictraining;
 
@@ -41,15 +41,22 @@ function runTest(f, message, mkICTraining, deoptArg) {
       // Trigger deopt, causing no-speculation bit to be set.
       let a1 = deoptArg;
       let a2 = deoptArg;
+      let a3 = deoptArg;
       message += " for args " + JSON.stringify(a1);
       message_unoptimized = message + " should have been unoptimized"
-      message_optimized = message + " should have been unoptimized"
-      f(a1.arr, () => a1.el);
+      message_optimized = message + " should have been optimized"
+      f(a1.darr, () => a1.del);
       assertUnoptimized(f, undefined, message_unoptimized);
+      if (speculationCheck) {
+        %PrepareFunctionForOptimization(f);
+        %OptimizeFunctionOnNextCall(f);
+        f(a2.darr, () => a2.del);
+        assertUnoptimized(f, undefined, message_unoptimized);
+      }
       %PrepareFunctionForOptimization(f);
       %OptimizeFunctionOnNextCall(f);
       // No speculation should protect against further deopts.
-      f(a2.arr, () => a2.el);
+      f(a3.darr, () => a3.del);
       assertOptimized(f, undefined,  message_optimized);
     }
   }
@@ -64,6 +71,8 @@ function runTest(f, message, mkICTraining, deoptArg) {
   testString = testString.replace(new RegExp("ictraining", 'g'), mkICTraining.toString());
   testString = testString.replace(new RegExp("deoptArg", 'g'),
     deoptArg ? JSON.stringify(deoptArg).replace(/"/g,'') : "undefined");
+  testString = testString.replace(new RegExp("speculationCheck", 'g'),
+    speculationCheck ? JSON.stringify(deoptArg).replace(/"/g,'') : "undefined");
 
   // Make field names unique to avoid learning of types.
   id = id + 1;
@@ -71,16 +80,17 @@ function runTest(f, message, mkICTraining, deoptArg) {
   testString = testString.replace(/el:/g, 'el' + id + ':');
   testString = testString.replace(/[.]arr/g, '.arr' + id);
   testString = testString.replace(/arr:/g, 'arr' + id + ':');
+  testString = testString.replace(/[.]del/g, '.del' + id);
+  testString = testString.replace(/[.]darr/g, '.darr' + id);
 
   var modTest = new Function("message", testString);
-  //print(modTest);
   modTest(message);
 }
 
 let checks = {
   smiReceiver:
     { mkTrainingArguments : () => [{arr:[1], el:3}],
-      deoptingArguments   : [{arr:[0.1], el:1}, {arr:[{}], el:1}]
+      deoptingArguments   : [{darr:[0.1], del:1}, {darr:[{}], del:1}]
     },
   objectReceiver:
     { mkTrainingArguments : () => [{arr:[{}], el:0.1}],
@@ -88,27 +98,50 @@ let checks = {
     },
   multipleSmiReceivers:
     { mkTrainingArguments : () => { let b = [1]; b.x=3; return [{arr:[1], el:3}, {arr:b, el:3}] },
-      deoptingArguments : [{arr:[0.1], el:1}, {arr:[{}], el:1}]
+      deoptingArguments : [{darr:[0.1], del:1}, {darr:[{}], del:1}]
     },
   multipleSmiReceiversPackedUnpacked:
     { mkTrainingArguments : () => { let b = [1]; b[100] = 3; return [{arr:[1], el:3}, {arr:b, el:3}] },
-      deoptingArguments : [{arr:[0.1], el:1}, {arr:[{}], el:1}]
+      deoptingArguments : [{darr:[0.1], del:1}, {darr:[{}], del:1}]
     },
   multipleDoubleReceivers:
     { mkTrainingArguments : () => { let b = [0.1]; b.x=0.3; return [{arr:[0.1], el:0.3}, {arr:b, el:0.3}] },
-      deoptingArguments : [{arr:[{}], el:true}, {arr:[1], el:true}]
+      deoptingArguments : [{darr:[{}], del:true}, {darr:[1], del: 1}]
     },
   multipleDoubleReceiversPackedUnpacked:
     { mkTrainingArguments : () => { let b = [0.1]; b[100] = 0.3; return [{arr:[0.1], el:0.3}, {arr:b, el:0.3}] },
-      deoptingArguments : [{arr:[{}], el:true}, {arr:[1], el:true}]
+      deoptingArguments : [{darr:[{}], del:true}, {darr:[1], del: 1}]
     },
   multipleMixedReceivers:
-    { mkTrainingArguments : () => { let b = [0.1]; b.x=0.3; return [{arr:[1], el:0.3}, {arr:[{}], el:true}, {arr:b, el:0.3}] },
+    { mkTrainingArguments : () => { let b = [0.1]; b.x=0.3; return [{arr:[1], el:1}, {arr:[{}], el:true}, {arr:b, el:0.3}] },
       deoptingArguments : []
     },
   multipleMixedReceiversPackedUnpacked:
-    { mkTrainingArguments : () => { let b = [0.1]; b[100] = 0.3; return [{arr:[1], el:0.3}, {arr:[{}], el:true}, {arr:b, el:0.3}] },
+    { mkTrainingArguments : () => { let b = [0.1]; b[100] = 0.3; return [{arr:[1], el:1}, {arr:[{}], el:true}, {arr:b, el:0.3}] },
       deoptingArguments : []
+    },
+};
+
+let no_speculation_checks = {
+  smiReceiver:
+    { mkTrainingArguments : () => [{arr:[1], el:3}],
+      deoptingArguments   : [{darr:[0.1], del:true}]
+    },
+  multipleSmiReceivers:
+    { mkTrainingArguments : () => { let b = [1]; b.x=3; return [{arr:[1], el:3}, {arr:[1], el:3}] },
+      deoptingArguments : [{darr:[0.1], del:true}]
+    },
+  multipleSmiReceiversPackedUnpacked:
+    { mkTrainingArguments : () => { let b = [1]; b[100] = 3; return [{arr:[1], el:3}, {arr:b, el:3}] },
+      deoptingArguments : [{darr:[0.1], del:true}]
+    },
+  multipleDoubleReceivers:
+    { mkTrainingArguments : () => { let b = [0.1]; b.x=0.3; return [{arr:[0.1], el:0.3}, {arr:b, el:0.3}] },
+      deoptingArguments : [{darr:[1], del:true}]
+    },
+  multipleDoubleReceiversPackedUnpacked:
+    { mkTrainingArguments : () => { let b = [0.1]; b[100] = 0.3; return [{arr:[0.1], el:0.3}, {arr:b, el:0.3}] },
+      deoptingArguments : [{darr:[1], del:true}]
     },
 };
 
@@ -121,6 +154,11 @@ const functions = {
   shift_unreliable: (a,g) => { return a.shift(2, g()); }
 }
 
+const push_functions = {
+  push_reliable: (a,g) => { let b = g(); return a.push(2, b); },
+  push_unreliable: (a,g) => { return a.push(2, g()); },
+}
+
 Object.keys(checks).forEach(
   key => {
     let check = checks[key];
@@ -130,6 +168,20 @@ Object.keys(checks).forEach(
       // Test each deopting arg separately.
       for (let deoptArg of check.deoptingArguments) {
         runTest(functions[fnc], "testDeopt-" + fnc + "-" + key, check.mkTrainingArguments, deoptArg);
+      }
+    }
+  }
+);
+
+Object.keys(no_speculation_checks).forEach(
+  key => {
+    let check = no_speculation_checks[key];
+
+    for (fnc in push_functions) {
+      runTest(functions[fnc], "test-spec-check-" + fnc + "-" + key, check.mkTrainingArguments);
+      // Test each deopting arg separately.
+      for (let deoptArg of check.deoptingArguments) {
+        runTest(functions[fnc], "testDeopt-spec-check-" + fnc + "-" + key, check.mkTrainingArguments, deoptArg, true);
       }
     }
   }

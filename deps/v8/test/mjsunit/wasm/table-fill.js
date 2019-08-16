@@ -38,7 +38,7 @@ for (index of [import_ref, internal_ref]) {
       .exportFunc();
 
   builder.addFunction(`get${index}`, kSig_r_i)
-      .addBody([kExprGetLocal, 0, kExprGetTable, index])
+      .addBody([kExprGetLocal, 0, kExprTableGet, index])
       .exportFunc();
 }
 

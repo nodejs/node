@@ -7,6 +7,8 @@
 
 #include "src/init/heap-symbols.h"
 
+#include "torque-generated/instance-types-tq.h"
+
 namespace v8 {
 
 namespace internal {
@@ -31,7 +33,7 @@ namespace internal {
 // HeapObject::Size, HeapObject::IterateBody, the typeof operator, and
 // Object::IsString.
 //
-// NOTE: Everything following JS_VALUE_TYPE is considered a
+// NOTE: Everything following JS_PRIMITIVE_WRAPPER_TYPE is considered a
 // JSObject for GC purposes. The first four entries here have typeof
 // 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
 //
@@ -80,6 +82,7 @@ namespace internal {
   V(ACCESSOR_PAIR_TYPE)                                  \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                        \
   V(ALLOCATION_MEMENTO_TYPE)                             \
+  V(ARRAY_BOILERPLATE_DESCRIPTION_TYPE)                  \
   V(ASM_WASM_DATA_TYPE)                                  \
   V(ASYNC_GENERATOR_REQUEST_TYPE)                        \
   V(CLASS_POSITIONS_TYPE)                                \
@@ -89,24 +92,23 @@ namespace internal {
   V(FUNCTION_TEMPLATE_RARE_DATA_TYPE)                    \
   V(INTERCEPTOR_INFO_TYPE)                               \
   V(INTERPRETER_DATA_TYPE)                               \
-  V(MODULE_INFO_ENTRY_TYPE)                              \
-  V(MODULE_TYPE)                                         \
   V(OBJECT_TEMPLATE_INFO_TYPE)                           \
   V(PROMISE_CAPABILITY_TYPE)                             \
   V(PROMISE_REACTION_TYPE)                               \
   V(PROTOTYPE_INFO_TYPE)                                 \
   V(SCRIPT_TYPE)                                         \
   V(SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE)         \
+  V(SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE)                  \
   V(STACK_FRAME_INFO_TYPE)                               \
   V(STACK_TRACE_FRAME_TYPE)                              \
   V(TEMPLATE_OBJECT_DESCRIPTION_TYPE)                    \
   V(TUPLE2_TYPE)                                         \
   V(TUPLE3_TYPE)                                         \
-  V(ARRAY_BOILERPLATE_DESCRIPTION_TYPE)                  \
   V(WASM_CAPI_FUNCTION_DATA_TYPE)                        \
   V(WASM_DEBUG_INFO_TYPE)                                \
   V(WASM_EXCEPTION_TAG_TYPE)                             \
   V(WASM_EXPORTED_FUNCTION_DATA_TYPE)                    \
+  V(WASM_INDIRECT_FUNCTION_TABLE_TYPE)                   \
   V(WASM_JS_FUNCTION_DATA_TYPE)                          \
                                                          \
   V(CALLABLE_TASK_TYPE)                                  \
@@ -115,6 +117,11 @@ namespace internal {
   V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)               \
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)              \
   V(FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE)            \
+                                                         \
+  TORQUE_DEFINED_INSTANCE_TYPES(V)                       \
+                                                         \
+  V(SOURCE_TEXT_MODULE_TYPE)                             \
+  V(SYNTHETIC_MODULE_TYPE)                               \
                                                          \
   V(ALLOCATION_SITE_TYPE)                                \
   V(EMBEDDER_DATA_ARRAY_TYPE)                            \
@@ -174,7 +181,7 @@ namespace internal {
   V(JS_GLOBAL_PROXY_TYPE)                                \
   V(JS_MODULE_NAMESPACE_TYPE)                            \
   V(JS_SPECIAL_API_OBJECT_TYPE)                          \
-  V(JS_VALUE_TYPE)                                       \
+  V(JS_PRIMITIVE_WRAPPER_TYPE)                           \
   V(JS_API_OBJECT_TYPE)                                  \
   V(JS_OBJECT_TYPE)                                      \
                                                          \
@@ -296,6 +303,8 @@ namespace internal {
   V(_, ALIASED_ARGUMENTS_ENTRY_TYPE, AliasedArgumentsEntry,                    \
     aliased_arguments_entry)                                                   \
   V(_, ALLOCATION_MEMENTO_TYPE, AllocationMemento, allocation_memento)         \
+  V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,        \
+    array_boilerplate_description)                                             \
   V(_, ASM_WASM_DATA_TYPE, AsmWasmData, asm_wasm_data)                         \
   V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                    \
     async_generator_request)                                                   \
@@ -308,8 +317,6 @@ namespace internal {
     function_template_rare_data)                                               \
   V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)               \
   V(_, INTERPRETER_DATA_TYPE, InterpreterData, interpreter_data)               \
-  V(_, MODULE_INFO_ENTRY_TYPE, ModuleInfoEntry, module_info_entry)             \
-  V(_, MODULE_TYPE, Module, module)                                            \
   V(_, OBJECT_TEMPLATE_INFO_TYPE, ObjectTemplateInfo, object_template_info)    \
   V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)         \
   V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)               \
@@ -317,20 +324,22 @@ namespace internal {
   V(_, SCRIPT_TYPE, Script, script)                                            \
   V(_, SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE,                            \
     SourcePositionTableWithFrameCache, source_position_table_with_frame_cache) \
+  V(_, SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, SourceTextModuleInfoEntry,          \
+    module_info_entry)                                                         \
   V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)                \
   V(_, STACK_TRACE_FRAME_TYPE, StackTraceFrame, stack_trace_frame)             \
   V(_, TEMPLATE_OBJECT_DESCRIPTION_TYPE, TemplateObjectDescription,            \
     template_object_description)                                               \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                            \
   V(_, TUPLE3_TYPE, Tuple3, tuple3)                                            \
-  V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,        \
-    array_boilerplate_description)                                             \
   V(_, WASM_CAPI_FUNCTION_DATA_TYPE, WasmCapiFunctionData,                     \
     wasm_capi_function_data)                                                   \
   V(_, WASM_DEBUG_INFO_TYPE, WasmDebugInfo, wasm_debug_info)                   \
   V(_, WASM_EXCEPTION_TAG_TYPE, WasmExceptionTag, wasm_exception_tag)          \
   V(_, WASM_EXPORTED_FUNCTION_DATA_TYPE, WasmExportedFunctionData,             \
     wasm_exported_function_data)                                               \
+  V(_, WASM_INDIRECT_FUNCTION_TABLE_TYPE, WasmIndirectFunctionTable,           \
+    wasm_indirect_function_table)                                              \
   V(_, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData, wasm_js_function_data)  \
   V(_, CALLABLE_TASK_TYPE, CallableTask, callable_task)                        \
   V(_, CALLBACK_TASK_TYPE, CallbackTask, callback_task)                        \
@@ -347,14 +356,18 @@ namespace internal {
 #define STRUCT_LIST_ADAPTER(V, NAME, Name, name) V(NAME, Name, name)
 
 // Produces (NAME, Name, name) entries.
-#define STRUCT_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_LIST_ADAPTER, V)
+#define STRUCT_LIST(V)                          \
+  STRUCT_LIST_GENERATOR(STRUCT_LIST_ADAPTER, V) \
+  TORQUE_STRUCT_LIST_GENERATOR(STRUCT_LIST_ADAPTER, V)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_MAPS_LIST entry
 #define STRUCT_MAPS_LIST_ADAPTER(V, NAME, Name, name) \
   V(Map, name##_map, Name##Map)
 
 // Produces (Map, struct_name_map, StructNameMap) entries
-#define STRUCT_MAPS_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
+#define STRUCT_MAPS_LIST(V)                          \
+  STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V) \
+  TORQUE_STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
 
 //
 // The following macros define list of allocation size objects and list of

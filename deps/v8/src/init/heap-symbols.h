@@ -29,13 +29,15 @@
   V(_, endRange_string, "endRange")                                 \
   V(_, engineering_string, "engineering")                           \
   V(_, era_string, "era")                                           \
-  V(_, first_string, "first")                                       \
-  V(_, format_string, "format")                                     \
-  V(_, except_zero_string, "except-zero")                           \
+  V(_, exceptZero_string, "exceptZero")                             \
   V(_, exponentInteger_string, "exponentInteger")                   \
   V(_, exponentMinusSign_string, "exponentMinusSign")               \
   V(_, exponentSeparator_string, "exponentSeparator")               \
+  V(_, first_string, "first")                                       \
+  V(_, format_string, "format")                                     \
   V(_, fraction_string, "fraction")                                 \
+  V(_, fractionalSecond_string, "fractionalSecond")                 \
+  V(_, fractionalSecondDigits_string, "fractionalSecondDigits")     \
   V(_, full_string, "full")                                         \
   V(_, granularity_string, "granularity")                           \
   V(_, grapheme_string, "grapheme")                                 \
@@ -68,7 +70,7 @@
   V(_, minute_string, "minute")                                     \
   V(_, month_string, "month")                                       \
   V(_, nan_string, "nan")                                           \
-  V(_, narrow_symbol_string, "narrow-symbol")                       \
+  V(_, narrowSymbol_string, "narrowSymbol")                         \
   V(_, never_string, "never")                                       \
   V(_, none_string, "none")                                         \
   V(_, notation_string, "notation")                                 \
@@ -414,10 +416,12 @@
   F(MC_EVACUATE_CANDIDATES)                          \
   F(MC_EVACUATE_CLEAN_UP)                            \
   F(MC_EVACUATE_COPY)                                \
+  F(MC_EVACUATE_COPY_PARALLEL)                       \
   F(MC_EVACUATE_EPILOGUE)                            \
   F(MC_EVACUATE_PROLOGUE)                            \
   F(MC_EVACUATE_REBALANCE)                           \
   F(MC_EVACUATE_UPDATE_POINTERS)                     \
+  F(MC_EVACUATE_UPDATE_POINTERS_PARALLEL)            \
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN)          \
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE)     \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
@@ -445,15 +449,18 @@
   F(MINOR_MC_EVACUATE)                               \
   F(MINOR_MC_EVACUATE_CLEAN_UP)                      \
   F(MINOR_MC_EVACUATE_COPY)                          \
+  F(MINOR_MC_EVACUATE_COPY_PARALLEL)                 \
   F(MINOR_MC_EVACUATE_EPILOGUE)                      \
   F(MINOR_MC_EVACUATE_PROLOGUE)                      \
   F(MINOR_MC_EVACUATE_REBALANCE)                     \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS)               \
+  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL)      \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS)         \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)  \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK)          \
   F(MINOR_MC_MARK)                                   \
   F(MINOR_MC_MARK_GLOBAL_HANDLES)                    \
+  F(MINOR_MC_MARK_PARALLEL)                          \
   F(MINOR_MC_MARK_SEED)                              \
   F(MINOR_MC_MARK_ROOTS)                             \
   F(MINOR_MC_MARK_WEAK)                              \

@@ -6,8 +6,8 @@
 
 function f(array) {
   return array.length >>> 0;
-}
-
+};
+%PrepareFunctionForOptimization(f);
 var a = new Array();
 a[4000000000] = "A";
 

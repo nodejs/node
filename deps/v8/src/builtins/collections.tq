@@ -33,7 +33,7 @@ namespace collections {
           }
         }
       }
-      case (receiver: JSReceiver): {
+      case (JSReceiver): {
         goto MayHaveSideEffects;
       }
       case (o: Object): deferred {

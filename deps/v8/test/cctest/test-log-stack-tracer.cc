@@ -32,6 +32,7 @@
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/diagnostics/disassembler.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/init/v8.h"

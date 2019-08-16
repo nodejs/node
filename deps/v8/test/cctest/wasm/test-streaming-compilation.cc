@@ -207,7 +207,7 @@ ZoneBuffer GetValidModuleBytes(Zone* zone) {
     uint8_t code[] = {kExprGetLocal, 2, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
-  builder.WriteTo(buffer);
+  builder.WriteTo(&buffer);
   return buffer;
 }
 
@@ -313,7 +313,7 @@ ZoneBuffer GetModuleWithInvalidSection(Zone* zone) {
   TestSignatures sigs;
   WasmModuleBuilder builder(zone);
   // Add an invalid global to the module. The decoder will fail there.
-  builder.AddGlobal(kWasmStmt, false, true,
+  builder.AddGlobal(kWasmStmt, true,
                     WasmInitExpr(WasmInitExpr::kGlobalIndex, 12));
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
@@ -330,7 +330,7 @@ ZoneBuffer GetModuleWithInvalidSection(Zone* zone) {
     uint8_t code[] = {kExprGetLocal, 2, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
-  builder.WriteTo(buffer);
+  builder.WriteTo(&buffer);
   return buffer;
 }
 
@@ -1019,7 +1019,7 @@ STREAM_TEST(TestModuleWithImportedFunction) {
     uint8_t code[] = {kExprGetLocal, 0, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
-  builder.WriteTo(buffer);
+  builder.WriteTo(&buffer);
 
   tester.OnBytesReceived(buffer.begin(), buffer.end() - buffer.begin());
   tester.FinishStream();

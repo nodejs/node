@@ -25,7 +25,7 @@ function test() {
   assertFalse(%_IsJSReceiver(1));
 }
 
-
+%PrepareFunctionForOptimization(test);
 test();
 test();
 %OptimizeFunctionOnNextCall(test);

@@ -132,16 +132,21 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       v8::ScriptCompiler::CompileOptions compile_options,
       v8::ScriptCompiler::NoCacheReason no_cache_reason);
 
-  // Returns true if the embedder permits compiling the given source string in
-  // the given context.
-  static bool CodeGenerationFromStringsAllowed(Isolate* isolate,
-                                               Handle<Context> context,
-                                               Handle<String> source);
-
   // Create a (bound) function for a String source within a context for eval.
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
-      Handle<Context> context, Handle<String> source,
+      Handle<Context> context, Handle<i::Object> source,
       ParseRestriction restriction, int parameters_end_pos);
+
+  // Decompose GetFunctionFromString into two functions, to allow callers to
+  // deal seperately with a case of object not handled by the embedder.
+  V8_WARN_UNUSED_RESULT static std::pair<MaybeHandle<String>, bool>
+  ValidateDynamicCompilationSource(Isolate* isolate, Handle<Context> context,
+                                   Handle<i::Object> source_object);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction>
+  GetFunctionFromValidatedString(Handle<Context> context,
+                                 MaybeHandle<String> source,
+                                 ParseRestriction restriction,
+                                 int parameters_end_pos);
 
   // Create a shared function info object for a String source.
   static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(

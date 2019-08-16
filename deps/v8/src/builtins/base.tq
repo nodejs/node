@@ -14,9 +14,11 @@
 #include 'src/objects/js-generator.h'
 #include 'src/objects/js-promise.h'
 #include 'src/objects/js-regexp-string-iterator.h'
-#include 'src/objects/module.h'
+#include 'src/objects/js-weak-refs.h'
 #include 'src/objects/objects.h'
+#include 'src/objects/source-text-module.h'
 #include 'src/objects/stack-frame-info.h'
+#include 'src/objects/synthetic-module.h'
 #include 'src/objects/template-objects.h'
 
 type void;
@@ -31,12 +33,16 @@ type PositiveSmi extends Smi;
 // The Smi value zero, which is often used as null for HeapObject types.
 type Zero extends PositiveSmi;
 
+// A value with the size of Tagged which may contain arbitrary data.
+type Uninitialized extends Tagged;
+
 @abstract
 extern class HeapObject extends Tagged {
   map: Map;
 }
 
 type Object = Smi | HeapObject;
+
 type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
 type uint32 generates 'TNode<Uint32T>' constexpr 'uint32_t';
 type int31 extends int32
@@ -84,32 +90,33 @@ extern class Oddball extends HeapObject {
 
 extern class HeapNumber extends HeapObject { value: float64; }
 type Number = Smi | HeapNumber;
-type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
 
 @abstract
-@noVerifier
+@generateCppClass
 extern class Name extends HeapObject {
-  hash_field: int32;
+  hash_field: uint32;
 }
 
+@generateCppClass
 extern class Symbol extends Name {
   flags: int32;
-  name: Object;
+  name: Object;  // The print name of a symbol, or undefined if none.
 }
 
 @abstract
+@generateCppClass
 extern class String extends Name {
-  length: uint32;
+  length: int32;
 }
 
+@generateCppClass
 extern class ConsString extends String {
   first: String;
   second: String;
 }
 
 @abstract
-@noVerifier
 extern class ExternalString extends String {
   resource: RawPtr;
   resource_data: RawPtr;
@@ -118,28 +125,37 @@ extern class ExternalString extends String {
 extern class ExternalOneByteString extends ExternalString {}
 extern class ExternalTwoByteString extends ExternalString {}
 
-extern class InternalizedString extends String {}
+@generateCppClass
+extern class InternalizedString extends String {
+}
 
 // TODO(v8:8983): Add declaration for variable-sized region.
 @abstract
-@noVerifier
+@generateCppClass
 extern class SeqString extends String {
 }
-extern class SeqOneByteString extends SeqString {}
-extern class SeqTwoByteString extends SeqString {}
+@generateCppClass
+extern class SeqOneByteString extends SeqString {
+}
+@generateCppClass
+extern class SeqTwoByteString extends SeqString {
+}
 
+@generateCppClass
 extern class SlicedString extends String {
   parent: String;
   offset: Smi;
 }
 
-extern class ThinString extends String { actual: String; }
+@generateCppClass
+extern class ThinString extends String {
+  actual: String;
+}
 
 // The HeapNumber value NaN
 type NaN extends HeapNumber;
 
 @abstract
-@noVerifier
 @generatePrint
 @generateCppClass
 extern class Struct extends HeapObject {
@@ -169,7 +185,6 @@ type DirectString extends String;
 type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 
 @abstract
-@noVerifier
 @generateCppClass
 extern class FixedArrayBase extends HeapObject {
   length: Smi;
@@ -190,9 +205,7 @@ type LayoutDescriptor extends ByteArray
 type TransitionArray extends WeakFixedArray
     generates 'TNode<TransitionArray>';
 
-// InstanceType actually extends uint16, but a bunch of methods in
-// CodeStubAssembler expect a TNode<Int32T>, so keeping it signed for now.
-type InstanceType extends int16 constexpr 'InstanceType';
+type InstanceType extends uint16 constexpr 'InstanceType';
 
 extern class Map extends HeapObject {
   instance_size_in_words: uint8;
@@ -214,19 +227,21 @@ extern class Map extends HeapObject {
   @ifnot(V8_DOUBLE_FIELDS_UNBOXING) layout_descriptor: void;
   dependent_code: DependentCode;
   prototype_validity_cell: Smi | Cell;
+  // TODO(v8:9108): Misusing "weak" keyword; type should be
+  //     Map | Weak<Map> | TransitionArray | PrototypeInfo | Smi.
   weak transitions_or_prototype_info: Map | TransitionArray |
       PrototypeInfo | Smi;
 }
 
-type BytecodeArray extends FixedArrayBase;
-
 @generatePrint
+@generateCppClass
 extern class EnumCache extends Struct {
   keys: FixedArray;
   indices: FixedArray;
 }
 
 @generatePrint
+@generateCppClass
 extern class SourcePositionTableWithFrameCache extends Struct {
   source_position_table: ByteArray;
   stack_frame_cache: Object;
@@ -250,8 +265,7 @@ extern class DescriptorArray extends HeapObject {
 // than building the definition from C++.
 intrinsic %GetAllocationBaseSize<Class: type>(map: Map): intptr;
 intrinsic %Allocate<Class: type>(size: intptr): Class;
-intrinsic %AllocateInternalClass<Class: type>(slotCount: constexpr intptr):
-    Class;
+intrinsic %GetStructMap(instanceKind: constexpr InstanceType): Map;
 
 intrinsic %AddIndexedFieldSizeToObjectSize<T: type>(
     baseSize: intptr, indexSize: T, fieldSize: int32): intptr {
@@ -282,24 +296,35 @@ intrinsic
 }
 
 @abstract
-@noVerifier
 extern class JSReceiver extends HeapObject {
-  properties_or_hash: FixedArrayBase | Smi;
+  properties_or_hash: FixedArrayBase | PropertyArray | Smi;
 }
 
 type Constructor extends JSReceiver;
 
 @abstract
 @dirtyInstantiatedAbstractClass
+@generateCppClass
 extern class JSObject extends JSReceiver {
-  @noVerifier elements: FixedArrayBase;
+  // [elements]: The elements (properties with names that are integers).
+  //
+  // Elements can be in two general modes: fast and slow. Each mode
+  // corresponds to a set of object representations of elements that
+  // have something in common.
+  //
+  // In the fast mode elements is a FixedArray and so each element can be
+  // quickly accessed. The elements array can have one of several maps in this
+  // mode: fixed_array_map, fixed_double_array_map,
+  // sloppy_arguments_elements_map or fixed_cow_array_map (for copy-on-write
+  // arrays). In the latter case the elements array may be shared by a few
+  // objects and so before writing to any element the array must be copied. Use
+  // EnsureWritableFastElements in this case.
+  //
+  // In the slow mode the elements is either a NumberDictionary or a
+  // FixedArray parameter map for a (sloppy) arguments object.
+  elements: FixedArrayBase;
 }
 
-macro NewJSObject(
-    map: Map, properties: FixedArrayBase | Smi,
-    elements: FixedArrayBase): JSObject {
-  return new JSObject{map, properties_or_hash: properties, elements};
-}
 macro NewJSObject(implicit context: Context)(): JSObject {
   const objectFunction: JSFunction = GetObjectFunction();
   const map: Map = Cast<Map>(objectFunction.prototype_or_initial_map)
@@ -328,19 +353,33 @@ macro GetDerivedMap(implicit context: Context)(
   }
 }
 
+macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
+    JSObject {
+  let properties = kEmptyFixedArray;
+  if (IsDictionaryMap(map)) {
+    properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
+  }
+  return AllocateJSObjectFromMap(
+      map, properties, kEmptyFixedArray, kNone, kWithSlackTracking);
+}
+
 extern class JSFunction extends JSObject {
   shared_function_info: SharedFunctionInfo;
   context: Context;
   feedback_cell: FeedbackCell;
   weak code: Code;
+
+  // Space for the following field may or may not be allocated.
   @noVerifier weak prototype_or_initial_map: JSReceiver | Map;
 }
 
+@generateCppClass
 extern class JSProxy extends JSReceiver {
-  target: Object;
-  handler: Object;
+  target: JSReceiver | Null;
+  handler: JSReceiver | Null;
 }
 
+// Just a starting shape for JSObject; properties can move after initialization.
 @noVerifier
 extern class JSProxyRevocableResult extends JSObject {
   proxy: Object;
@@ -358,19 +397,37 @@ macro NewJSProxyRevocableResult(implicit context: Context)(
   };
 }
 
-extern class JSGlobalProxy extends JSObject { native_context: Object; }
+@generateCppClass
+extern class JSGlobalProxy extends JSObject {
+  // [native_context]: the owner native context of this global proxy object.
+  // It is null value if this object is not used by any context.
+  native_context: Object;
+}
 
-extern class JSValue extends JSObject { value: Object; }
+@generateCppClass
+extern class JSPrimitiveWrapper extends JSObject {
+  value: Object;
+}
 
 extern class JSArgumentsObject extends JSObject {}
+
+// Just a starting shape for JSObject; properties can move after initialization.
 @noVerifier
 @hasSameInstanceTypeAsParent
 extern class JSArgumentsObjectWithLength extends JSArgumentsObject {
   length: Object;
 }
+
+// Just a starting shape for JSObject; properties can move after initialization.
 @hasSameInstanceTypeAsParent
 extern class JSSloppyArgumentsObject extends JSArgumentsObjectWithLength {
   callee: Object;
+}
+
+// Just a starting shape for JSObject; properties can move after initialization.
+@hasSameInstanceTypeAsParent
+@noVerifier
+extern class JSStrictArgumentsObject extends JSArgumentsObjectWithLength {
 }
 
 extern class JSArrayIterator extends JSObject {
@@ -405,20 +462,6 @@ macro NewJSArray(implicit context: Context)(): JSArray {
   };
 }
 
-struct HoleIterator {
-  Next(): Object labels NoMore() {
-    return Hole;
-  }
-}
-
-macro NewJSArray(implicit context: Context)(map: Map, length: Smi): JSArray {
-  const map = GetFastPackedSmiElementsJSArrayMap();
-  const i = HoleIterator{};
-  const elements = new FixedArray{map, length, objects: ...i};
-  return new
-  JSArray{map, properties_or_hash: kEmptyFixedArray, elements, length};
-}
-
 // A HeapObject with a JSArray map, and either fast packed elements, or fast
 // holey elements when the global NoElementsProtector is not invalidated.
 transient type FastJSArray extends JSArray;
@@ -441,18 +484,61 @@ transient type FastJSArrayForReadWithNoCustomIteration extends
 
 type NoSharedNameSentinel extends Smi;
 
-type JSModuleNamespace extends JSObject;
-type WeakArrayList extends HeapObject;
+@generateCppClass
+extern class CallHandlerInfo extends Struct {
+  callback: Foreign | Undefined;
+  js_callback: Foreign | Undefined;
+  data: Object;
+}
+
+type ObjectHashTable extends FixedArray;
 
 @abstract
+extern class Module extends HeapObject {
+  exports: ObjectHashTable;
+  hash: Smi;
+  status: Smi;
+  module_namespace: JSModuleNamespace | Undefined;
+  exception: Object;
+}
+
+type SourceTextModuleInfo extends FixedArray;
+
+extern class SourceTextModule extends Module {
+  code: SharedFunctionInfo | JSFunction |
+      JSGeneratorObject | SourceTextModuleInfo;
+  regular_exports: FixedArray;
+  regular_imports: FixedArray;
+  requested_modules: FixedArray;
+  script: Script;
+  import_meta: TheHole | JSObject;
+  dfs_index: Smi;
+  dfs_ancestor_index: Smi;
+}
+
+extern class SyntheticModule extends Module {
+  name: String;
+  export_names: FixedArray;
+  evaluation_steps: Foreign;
+}
+
+@abstract
+extern class JSModuleNamespace extends JSObject {
+  module: Module;
+}
+
+@hasSameInstanceTypeAsParent
 @noVerifier
+extern class TemplateList extends FixedArray {
+}
+
+@abstract
 extern class JSWeakCollection extends JSObject {
   table: Object;
 }
 extern class JSWeakSet extends JSWeakCollection {}
 extern class JSWeakMap extends JSWeakCollection {}
 
-@noVerifier
 extern class JSCollectionIterator extends JSObject {
   table: Object;
   index: Object;
@@ -474,12 +560,20 @@ extern class JSMessageObject extends JSObject {
   error_level: Smi;
 }
 
+extern class WeakArrayList extends HeapObject {
+  capacity: Smi;
+  length: Smi;
+  // TODO(v8:8983): declare variable-sized region for contained MaybeObject's
+  // objects[length]: MaybeObject;
+}
+
 extern class PrototypeInfo extends Struct {
   js_module_namespace: JSModuleNamespace | Undefined;
   prototype_users: WeakArrayList | Zero;
   registry_slot: Smi;
   validity_cell: Object;
-  @noVerifier object_create_map: Smi | WeakArrayList;
+  // TODO(v8:9108): Should be Weak<Map> | Undefined.
+  @noVerifier object_create_map: Map | Undefined;
   bit_field: Smi;
 }
 
@@ -503,7 +597,7 @@ extern class Script extends Struct {
 
 extern class EmbedderDataArray extends HeapObject { length: Smi; }
 
-type ScopeInfo extends Object generates 'TNode<ScopeInfo>';
+type ScopeInfo extends HeapObject generates 'TNode<ScopeInfo>';
 
 extern class PreparseData extends HeapObject {
   // TODO(v8:8983): Add declaration for variable-sized region.
@@ -527,16 +621,30 @@ extern class SharedFunctionInfo extends HeapObject {
   expected_nof_properties: uint16;
   function_token_offset: int16;
   flags: int32;
+  function_literal_id: int32;
   @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
 }
 
 extern class JSBoundFunction extends JSObject {
-  bound_target_function: JSReceiver;
+  bound_target_function: Callable;
   bound_this: Object;
   bound_arguments: FixedArray;
 }
 
-type Callable = JSFunction | JSBoundFunction | JSProxy;
+// Specialized types. The following three type definitions don't correspond to
+// actual C++ classes, but have Is... methods that check additional constraints.
+
+// A Foreign object whose raw pointer is not allowed to be null.
+type NonNullForeign extends Foreign;
+
+// A function built with InstantiateFunction for the public API.
+type CallableApiObject extends HeapObject;
+
+// A JSProxy with the callable bit set.
+type CallableJSProxy extends JSProxy;
+
+type Callable =
+    JSFunction | JSBoundFunction | CallableJSProxy | CallableApiObject;
 
 extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
     FixedArrayBase): intptr;
@@ -547,7 +655,7 @@ type NumberDictionary extends HeapObject
 
 extern class FreeSpace extends HeapObject {
   size: Smi;
-  @noVerifier next: FreeSpace;
+  next: FreeSpace | Uninitialized;
 }
 
 // %RawDownCast should *never* be used anywhere in Torque code except for
@@ -609,45 +717,12 @@ extern class JSArrayBufferView extends JSObject {
 }
 
 extern class JSTypedArray extends JSArrayBufferView {
-  AttachOffHeapBuffer(buffer: JSArrayBuffer, byteOffset: uintptr): void {
-    const basePointer: Smi = 0;
-
-    // The max byteOffset is 8 * MaxSmi on the particular platform. 32 bit
-    // platforms are self-limiting, because we can't allocate an array bigger
-    // than our 32-bit arithmetic range anyway. 64 bit platforms could
-    // theoretically have an offset up to 2^35 - 1.
-    const backingStore = buffer.backing_store;
-    const externalPointer = backingStore + Convert<intptr>(byteOffset);
-
-    // Assert no overflow has occurred. Only assert if the mock array buffer
-    // allocator is NOT used. When the mock array buffer is used, impossibly
-    // large allocations are allowed that would erroneously cause an overflow
-    // and this assertion to fail.
-    assert(
-        IsMockArrayBufferAllocatorFlag() ||
-        Convert<uintptr>(externalPointer) >= Convert<uintptr>(backingStore));
-
-    this.elements = kEmptyByteArray;
-    this.buffer = buffer;
-    this.external_pointer = externalPointer;
-    this.base_pointer = basePointer;
-  }
-
   length: uintptr;
   external_pointer: RawPtr;
   base_pointer: ByteArray | Smi;
 }
 
-@noVerifier
-extern class JSAccessorPropertyDescriptor extends JSObject {
-  get: Object;
-  set: Object;
-  enumerable: Object;
-  configurable: Object;
-}
-
 @abstract
-@noVerifier
 extern class JSCollection extends JSObject {
   table: Object;
 }
@@ -679,14 +754,6 @@ extern class JSAsyncFromSyncIterator extends JSObject {
 extern class JSStringIterator extends JSObject {
   string: String;
   next_index: Smi;
-}
-
-@noVerifier
-extern class JSDataPropertyDescriptor extends JSObject {
-  value: Object;
-  writable: Object;
-  enumerable: Object;
-  configurable: Object;
 }
 
 @abstract
@@ -722,7 +789,7 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   function_template_rare_data: Object;
   shared_function_info: Object;
   flag: Smi;
-  @noVerifier length: Smi;
+  length: Smi;
   cached_property_name: Object;
 }
 
@@ -749,8 +816,6 @@ type LanguageMode extends Smi constexpr 'LanguageMode';
 type ExtractFixedArrayFlags
     generates 'TNode<Smi>'
     constexpr 'CodeStubAssembler::ExtractFixedArrayFlags';
-type ParameterMode
-    generates 'TNode<Int32T>' constexpr 'ParameterMode';
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
@@ -770,21 +835,21 @@ const UTF32:
 extern class Foreign extends HeapObject { foreign_address: RawPtr; }
 
 extern class InterceptorInfo extends Struct {
-  @noVerifier getter: Foreign | Zero;
-  @noVerifier setter: Foreign | Zero;
-  @noVerifier query: Foreign | Zero;
-  @noVerifier descriptor: Foreign | Zero;
-  @noVerifier deleter: Foreign | Zero;
-  @noVerifier enumerator: Foreign | Zero;
-  @noVerifier definer: Foreign | Zero;
+  getter: NonNullForeign | Zero | Undefined;
+  setter: NonNullForeign | Zero | Undefined;
+  query: NonNullForeign | Zero | Undefined;
+  descriptor: NonNullForeign | Zero | Undefined;
+  deleter: NonNullForeign | Zero | Undefined;
+  enumerator: NonNullForeign | Zero | Undefined;
+  definer: NonNullForeign | Zero | Undefined;
   data: Object;
   flags: Smi;
 }
 
 extern class AccessCheckInfo extends Struct {
-  callback: Foreign | Zero;
-  named_interceptor: InterceptorInfo | Zero;
-  indexed_interceptor: InterceptorInfo | Zero;
+  callback: Foreign | Zero | Undefined;
+  named_interceptor: InterceptorInfo | Zero | Undefined;
+  indexed_interceptor: InterceptorInfo | Zero | Undefined;
   data: Object;
 }
 
@@ -800,6 +865,9 @@ extern class Cell extends HeapObject { value: Object; }
 extern class DataHandler extends Struct {
   smi_handler: Smi | Code;
   validity_cell: Smi | Cell;
+
+  // Space for the following fields may or may not be allocated.
+  // TODO(v8:9108): Misusing "weak" keyword; should be MaybeObject.
   @noVerifier weak data_1: Object;
   @noVerifier weak data_2: Object;
   @noVerifier weak data_3: Object;
@@ -850,17 +918,22 @@ extern class StackFrameInfo extends Struct {
   column_number: Smi;
   promise_all_index: Smi;
   script_id: Smi;
-  script_name: Object;
-  script_name_or_source_url: Object;
-  function_name: Object;
-  wasm_module_name: Object;
+  script_name: String | Null | Undefined;
+  script_name_or_source_url: String | Null | Undefined;
+  function_name: String | Null | Undefined;
+  method_name: String | Null | Undefined;
+  type_name: String | Null | Undefined;
+  eval_origin: String | Null | Undefined;
+  wasm_module_name: String | Null | Undefined;
   flag: Smi;
 }
 
+type FrameArray extends FixedArray;
+
 extern class StackTraceFrame extends Struct {
-  frame_array: Object;
+  frame_array: FrameArray | Undefined;
   frame_index: Smi;
-  frame_info: Object;
+  frame_info: StackFrameInfo | Undefined;
   id: Smi;
 }
 
@@ -876,15 +949,36 @@ extern class WasmExportedFunctionData extends Struct {
   instance: WasmInstanceObject;
   jump_table_offset: Smi;
   function_index: Smi;
+  // The remaining fields are for fast calling from C++. The contract is
+  // that they are lazily populated, and either all will be present or none.
+  c_wrapper_code: Object;
+  wasm_call_target: Smi;  // Pseudo-smi: one-bit shift on all platforms.
+  packed_args_size: Smi;
 }
 
-extern class WasmJSFunctionData extends Struct { wrapper_code: Code; }
+extern class WasmJSFunctionData extends Struct {
+  callable: JSReceiver;
+  wrapper_code: Code;
+  serialized_return_count: Smi;
+  serialized_parameter_count: Smi;
+  serialized_signature: ByteArray;  // PodArray<wasm::ValueType>
+}
 
 extern class WasmCapiFunctionData extends Struct {
   call_target: RawPtr;
   embedder_data: RawPtr;
   wrapper_code: Code;
   serialized_signature: ByteArray;  // PodArray<wasm::ValueType>
+}
+
+extern class WasmIndirectFunctionTable extends Struct {
+  size: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+  sig_ids: RawPtr;
+  targets: RawPtr;
+  managed_native_allocations: Foreign | Undefined;
+  refs: FixedArray;
 }
 
 extern class WasmDebugInfo extends Struct {
@@ -947,9 +1041,9 @@ const kAllowLargeObjectAllocation: constexpr AllocationFlags
     generates 'CodeStubAssembler::kAllowLargeObjectAllocation';
 
 const kWithSlackTracking: constexpr SlackTrackingMode
-    generates 'SlackTrackingMode::kWithSlackTracking';
+    generates 'CodeStubAssembler::SlackTrackingMode::kWithSlackTracking';
 const kNoSlackTracking: constexpr SlackTrackingMode
-    generates 'SlackTrackingMode::kNoSlackTracking';
+    generates 'CodeStubAssembler::SlackTrackingMode::kNoSlackTracking';
 
 const kFixedDoubleArrays: constexpr ExtractFixedArrayFlags
     generates 'CodeStubAssembler::ExtractFixedArrayFlag::kFixedDoubleArrays';
@@ -977,6 +1071,8 @@ const kCalledNonCallable: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledNonCallable';
 const kCalledOnNullOrUndefined: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledOnNullOrUndefined';
+const kProtoObjectOrNull: constexpr MessageTemplate
+    generates 'MessageTemplate::kProtoObjectOrNull';
 const kInvalidOffset: constexpr MessageTemplate
     generates 'MessageTemplate::kInvalidOffset';
 const kInvalidTypedArrayLength: constexpr MessageTemplate
@@ -1003,13 +1099,17 @@ const kSymbolToString: constexpr MessageTemplate
     generates 'MessageTemplate::kSymbolToString';
 const kPropertyNotFunction: constexpr MessageTemplate
     generates 'MessageTemplate::kPropertyNotFunction';
+const kBigIntMaxLength: constexpr intptr
+    generates 'BigInt::kMaxLength';
+const kBigIntTooBig: constexpr MessageTemplate
+    generates 'MessageTemplate::kBigIntTooBig';
 
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
 const kArrayBufferMaxByteLength:
     constexpr uintptr generates 'JSArrayBuffer::kMaxByteLength';
-const V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP:
-    constexpr int31 generates 'V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP';
+const kMaxTypedArrayInHeap:
+    constexpr int31 generates 'JSTypedArray::kMaxSizeInHeap';
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 const kSmiMaxValue: constexpr uintptr generates 'kSmiMaxValue';
 const kSmiMax: uintptr = kSmiMaxValue;
@@ -1054,7 +1154,13 @@ const kStrictReadOnlyProperty: constexpr MessageTemplate
 const kString: constexpr PrimitiveType
     generates 'PrimitiveType::kString';
 
-type Hole extends Oddball;
+const kExternalPointerForOnHeapArray: constexpr RawPtr
+    generates 'JSTypedArray::ExternalPointerForOnHeapArray()';
+
+const kNameDictionaryInitialCapacity:
+    constexpr int32 generates 'NameDictionary::kInitialCapacity';
+
+type TheHole extends Oddball;
 type Null extends Oddball;
 type Undefined extends Oddball;
 type True extends Oddball;
@@ -1064,7 +1170,7 @@ type Boolean = True | False;
 
 type NumberOrUndefined = Number | Undefined;
 
-extern macro TheHoleConstant(): Hole;
+extern macro TheHoleConstant(): TheHole;
 extern macro NullConstant(): Null;
 extern macro UndefinedConstant(): Undefined;
 extern macro TrueConstant(): True;
@@ -1075,7 +1181,7 @@ extern macro EmptyStringConstant(): EmptyString;
 extern macro LengthStringConstant(): String;
 extern macro NanConstant(): NaN;
 
-const Hole: Hole = TheHoleConstant();
+const TheHole: TheHole = TheHoleConstant();
 const Null: Null = NullConstant();
 const Undefined: Undefined = UndefinedConstant();
 const True: True = TrueConstant();
@@ -1090,11 +1196,6 @@ const false: constexpr bool generates 'false';
 const kStrict: constexpr LanguageMode generates 'LanguageMode::kStrict';
 const kSloppy: constexpr LanguageMode generates 'LanguageMode::kSloppy';
 
-const SMI_PARAMETERS: constexpr ParameterMode
-    generates 'CodeStubAssembler::SMI_PARAMETERS';
-const INTPTR_PARAMETERS: constexpr ParameterMode
-    generates 'CodeStubAssembler::INTPTR_PARAMETERS';
-
 const SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'SKIP_WRITE_BARRIER';
 const UNSAFE_SKIP_WRITE_BARRIER:
@@ -1107,7 +1208,7 @@ extern class AsyncGeneratorRequest extends Struct {
   promise: JSPromise;
 }
 
-extern class ModuleInfoEntry extends Struct {
+extern class SourceTextModuleInfoEntry extends Struct {
   export_name: String | Undefined;
   local_name: String | Undefined;
   import_name: String | Undefined;
@@ -1134,7 +1235,7 @@ extern class PromiseReaction extends Struct {
 extern class PromiseReactionJobTask extends Microtask {
   argument: Object;
   context: Context;
-  @noVerifier handler: Callable | Undefined;
+  handler: Callable | Undefined;
   promise_or_capability: JSPromise | PromiseCapability | Undefined;
 }
 
@@ -1155,22 +1256,8 @@ extern class JSRegExp extends JSObject {
   flags: Smi | Undefined;
 }
 
-@noVerifier
-extern class JSIteratorResult extends JSObject {
-  value: Object;
-  done: Boolean;
-}
-
-macro NewJSIteratorResult(implicit context: Context)(
-    value: Object, done: Boolean): JSIteratorResult {
-  return new JSIteratorResult{
-    map: GetIteratorResultMap(),
-    properties_or_hash: kEmptyFixedArray,
-    elements: kEmptyFixedArray,
-    value,
-    done
-  };
-}
+extern transitioning macro AllocateJSIteratorResult(implicit context: Context)(
+    Object, Boolean): JSObject;
 
 // Note: Although a condition for a FastJSRegExp is having a positive smi
 // lastIndex (see RegExpBuiltinsAssembler::BranchIfFastRegExp), it is possible
@@ -1230,9 +1317,9 @@ extern class AccessorInfo extends Struct {
   name: Object;
   flags: Smi;
   expected_receiver_type: Object;
-  @noVerifier setter: Foreign | Zero;
-  @noVerifier getter: Foreign | Zero;
-  @noVerifier js_getter: Foreign | Zero;
+  setter: NonNullForeign | Zero;
+  getter: NonNullForeign | Zero;
+  js_getter: NonNullForeign | Zero;
   data: Object;
 }
 
@@ -1277,7 +1364,7 @@ extern class FeedbackCell extends Struct {
 
 type AllocationSite extends Struct;
 extern class AllocationMemento extends Struct {
-  @noVerifier allocation_site: AllocationSite;
+  allocation_site: AllocationSite;
 }
 
 extern class WasmModuleObject extends JSObject {
@@ -1303,8 +1390,8 @@ extern class WasmMemoryObject extends JSObject {
 }
 
 extern class WasmGlobalObject extends JSObject {
-  untagged_buffer: JSArrayBuffer;
-  tagged_buffer: FixedArray;
+  untagged_buffer: JSArrayBuffer | Undefined;
+  tagged_buffer: FixedArray | Undefined;
   offset: Smi;
   flags: Smi;
 }
@@ -1314,10 +1401,6 @@ extern class WasmExceptionObject extends JSObject {
   exception_tag: HeapObject;
 }
 
-@noVerifier
-extern class WasmExceptionPackage extends JSReceiver {
-}
-
 type WasmExportedFunction extends JSFunction;
 
 extern class AsmWasmData extends Struct {
@@ -1325,6 +1408,46 @@ extern class AsmWasmData extends Struct {
   export_wrappers: FixedArray;
   asm_js_offset_table: ByteArray;
   uses_bitset: HeapNumber;
+}
+
+extern class JSFinalizationGroup extends JSObject {
+  native_context: NativeContext;
+  cleanup: Object;
+  active_cells: Undefined | WeakCell;
+  cleared_cells: Undefined | WeakCell;
+  key_map: Object;
+  next: Undefined | JSFinalizationGroup;
+  flags: Smi;
+}
+
+extern class JSFinalizationGroupCleanupIterator extends JSObject {
+  finalization_group: JSFinalizationGroup;
+}
+
+extern class WeakCell extends HeapObject {
+  finalization_group: Undefined | JSFinalizationGroup;
+  target: Undefined | JSReceiver;
+  holdings: Object;
+  prev: Undefined | WeakCell;
+  next: Undefined | WeakCell;
+  key: Object;
+  key_list_prev: Undefined | WeakCell;
+  key_list_next: Undefined | WeakCell;
+}
+
+extern class JSWeakRef extends JSObject { target: Undefined | JSReceiver; }
+
+extern class BytecodeArray extends FixedArrayBase {
+  // TODO(v8:8983): bytecode array object sizes vary based on their contents.
+  constant_pool: FixedArray;
+  handler_table: ByteArray;
+  source_position_table: Undefined | ByteArray |
+      SourcePositionTableWithFrameCache;
+  frame_size: int32;
+  parameter_size: int32;
+  incoming_new_target_or_generator_register: int32;
+  osr_nesting_level: int8;
+  bytecode_age: int8;
 }
 
 extern macro Is64(): constexpr bool;
@@ -1358,7 +1481,7 @@ extern transitioning builtin SetProperty(implicit context: Context)(
 extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
     Object, Object, Object);
 extern transitioning builtin DeleteProperty(implicit context: Context)(
-    Object, Object, LanguageMode);
+    Object, Object, LanguageMode): Object;
 extern transitioning builtin HasProperty(implicit context: Context)(
     Object, Object): Boolean;
 extern transitioning macro HasProperty_Inline(implicit context: Context)(
@@ -1402,6 +1525,10 @@ extern macro ConstructWithTarget(implicit context: Context)(
     Constructor, JSReceiver, Object): JSReceiver;
 extern macro SpeciesConstructor(implicit context: Context)(
     Object, JSReceiver): JSReceiver;
+
+extern macro ConstructorBuiltinsAssembler::IsDictionaryMap(Map): bool;
+extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
+    NameDictionary;
 
 extern builtin ToObject(Context, Object): JSReceiver;
 extern macro ToObject_Inline(Context, Object): JSReceiver;
@@ -1598,6 +1725,7 @@ extern operator '==' macro Word32Equal(bool, bool): bool;
 extern operator '!=' macro Word32NotEqual(bool, bool): bool;
 
 extern operator '+' macro Float64Add(float64, float64): float64;
+extern operator '-' macro Float64Sub(float64, float64): float64;
 
 extern operator '+' macro NumberAdd(Number, Number): Number;
 extern operator '-' macro NumberSub(Number, Number): Number;
@@ -1649,6 +1777,8 @@ extern macro TaggedIsSmi(Object): bool;
 extern macro TaggedIsNotSmi(Object): bool;
 extern macro TaggedIsPositiveSmi(Object): bool;
 extern macro IsValidPositiveSmi(intptr): bool;
+
+extern macro IsInteger(HeapNumber): bool;
 
 extern macro HeapObjectToJSDataView(HeapObject): JSDataView
     labels CastError;
@@ -1713,7 +1843,7 @@ macro Cast<A: type>(o: HeapObject): A
     labels CastError;
 
 Cast<HeapObject>(o: HeapObject): HeapObject
-    labels CastError {
+labels _CastError {
   return o;
 }
 
@@ -1837,6 +1967,11 @@ Cast<HeapNumber>(o: HeapObject): HeapNumber
   goto CastError;
 }
 
+Cast<BigInt>(o: HeapObject): BigInt labels CastError {
+  if (IsBigInt(o)) return %RawDownCast<BigInt>(o);
+  goto CastError;
+}
+
 Cast<JSRegExp>(o: HeapObject): JSRegExp
     labels CastError {
   if (IsJSRegExp(o)) return %RawDownCast<JSRegExp>(o);
@@ -1849,9 +1984,9 @@ Cast<Map>(implicit context: Context)(o: HeapObject): Map
   goto CastError;
 }
 
-Cast<JSValue>(o: HeapObject): JSValue
+Cast<JSPrimitiveWrapper>(o: HeapObject): JSPrimitiveWrapper
     labels CastError {
-  if (IsJSValue(o)) return %RawDownCast<JSValue>(o);
+  if (IsJSPrimitiveWrapper(o)) return %RawDownCast<JSPrimitiveWrapper>(o);
   goto CastError;
 }
 
@@ -1915,24 +2050,24 @@ Cast<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
     FastJSArrayForCopy
     labels CastError {
   if (IsArraySpeciesProtectorCellInvalid()) goto CastError;
-  const a: FastJSArray = Cast<FastJSArray>(o) otherwise CastError;
-  return %RawDownCast<FastJSArrayForCopy>(o);
+  const a = Cast<FastJSArray>(o) otherwise CastError;
+  return %RawDownCast<FastJSArrayForCopy>(a);
 }
 
 Cast<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
     o: HeapObject): FastJSArrayWithNoCustomIteration
     labels CastError {
   if (IsArrayIteratorProtectorCellInvalid()) goto CastError;
-  const a: FastJSArray = Cast<FastJSArray>(o) otherwise CastError;
-  return %RawDownCast<FastJSArrayWithNoCustomIteration>(o);
+  const a = Cast<FastJSArray>(o) otherwise CastError;
+  return %RawDownCast<FastJSArrayWithNoCustomIteration>(a);
 }
 
 Cast<FastJSArrayForReadWithNoCustomIteration>(implicit context: Context)(
     o: HeapObject): FastJSArrayForReadWithNoCustomIteration
     labels CastError {
   if (IsArrayIteratorProtectorCellInvalid()) goto CastError;
-  const a: FastJSArrayForRead = Cast<FastJSArrayForRead>(o) otherwise CastError;
-  return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(o);
+  const a = Cast<FastJSArrayForRead>(o) otherwise CastError;
+  return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(a);
 }
 
 Cast<JSReceiver>(implicit context: Context)(o: HeapObject): JSReceiver
@@ -1990,7 +2125,7 @@ extern macro ChangeInt32ToIntPtr(int32): intptr;   // Sign-extends.
 extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
 extern macro TruncateFloat64ToFloat32(float64): float32;
-extern macro TruncateHeapNumberValueToWord32(Number): int32;
+extern macro TruncateHeapNumberValueToWord32(HeapNumber): int32;
 extern macro LoadJSArrayElementsMap(constexpr ElementsKind, Context): Map;
 extern macro LoadJSArrayElementsMap(ElementsKind, Context): Map;
 extern macro ChangeNonnegativeNumberToUintPtr(Number): uintptr;
@@ -2007,13 +2142,14 @@ extern macro Float64Constant(constexpr float64): float64;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
 extern macro SmiConstant(constexpr MessageTemplate): Smi;
+extern macro SmiConstant(constexpr LanguageMode): Smi;
 extern macro BoolConstant(constexpr bool): bool;
 extern macro StringConstant(constexpr string): String;
-extern macro LanguageModeConstant(constexpr LanguageMode): LanguageMode;
 extern macro Int32Constant(constexpr ElementsKind): ElementsKind;
 extern macro IntPtrConstant(constexpr NativeContextSlot): NativeContextSlot;
 extern macro IntPtrConstant(constexpr ContextSlot): ContextSlot;
 extern macro IntPtrConstant(constexpr intptr): intptr;
+extern macro PointerConstant(constexpr RawPtr): RawPtr;
 extern macro SingleCharacterStringConstant(constexpr string): String;
 
 extern macro BitcastWordToTaggedSigned(intptr): Smi;
@@ -2125,6 +2261,9 @@ Convert<Number, int32>(i: int32): Number {
 }
 Convert<intptr, int32>(i: int32): intptr {
   return ChangeInt32ToIntPtr(i);
+}
+Convert<intptr, uint32>(i: uint32): intptr {
+  return Signed(ChangeUint32ToWord(i));
 }
 Convert<Smi, int32>(i: int32): Smi {
   return SmiFromInt32(i);
@@ -2333,10 +2472,6 @@ extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
     FixedDoubleArray, intptr, float64): void;
 extern operator '.floats[]=' macro StoreFixedDoubleArrayElementSmi(
     FixedDoubleArray, Smi, float64): void;
-operator '.floats[]=' macro StoreFixedDoubleArrayElementSmi(
-    a: FixedDoubleArray, i: Smi, n: Number): void {
-  StoreFixedDoubleArrayElementSmi(a, i, Convert<float64>(n));
-}
 operator '[]=' macro StoreFixedDoubleArrayDirect(
     a: FixedDoubleArray, i: Smi, v: Number) {
   a.floats[i] = Convert<float64>(v);
@@ -2418,7 +2553,7 @@ extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 extern macro AllocateJSArray(Map, FixedArrayBase, Smi): JSArray;
 extern macro AllocateJSObjectFromMap(Map): JSObject;
 extern macro AllocateJSObjectFromMap(
-    Map, FixedArray, FixedArray, constexpr AllocationFlags,
+    Map, FixedArray | PropertyArray, FixedArray, constexpr AllocationFlags,
     constexpr SlackTrackingMode): JSObject;
 
 extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
@@ -2531,10 +2666,10 @@ LoadElementNoHole<FixedArray>(implicit context: Context)(
     a: JSArray, index: Smi): Object
     labels IfHole {
   try {
-    let elements: FixedArray =
+    const elements: FixedArray =
         Cast<FixedArray>(a.elements) otherwise Unexpected;
-    let e: Object = elements.objects[index];
-    if (e == Hole) {
+    const e: Object = elements.objects[index];
+    if (e == TheHole) {
       goto IfHole;
     }
     return e;
@@ -2548,9 +2683,10 @@ LoadElementNoHole<FixedDoubleArray>(implicit context: Context)(
     a: JSArray, index: Smi): Object
     labels IfHole {
   try {
-    let elements: FixedDoubleArray =
+    const elements: FixedDoubleArray =
         Cast<FixedDoubleArray>(a.elements) otherwise Unexpected;
-    let e: float64 = LoadDoubleWithHoleCheck(elements, index) otherwise IfHole;
+    const e: float64 =
+        LoadDoubleWithHoleCheck(elements, index) otherwise IfHole;
     return AllocateHeapNumberWithValue(e);
   }
   label Unexpected {
@@ -2594,7 +2730,7 @@ struct FastJSArrayWitness {
     } else {
       const elements = Cast<FixedArray>(this.unstable.elements)
           otherwise unreachable;
-      StoreFixedArrayElement(elements, k, Hole);
+      StoreFixedArrayElement(elements, k, TheHole);
     }
   }
 
@@ -2638,12 +2774,12 @@ struct FastJSArrayWitness {
   MoveElements(dst: intptr, src: intptr, length: intptr) {
     assert(this.arrayIsPushable);
     if (this.hasDoubles) {
-      let elements: FixedDoubleArray =
+      const elements: FixedDoubleArray =
           Cast<FixedDoubleArray>(this.unstable.elements)
           otherwise unreachable;
       TorqueMoveElements(elements, dst, src, length);
     } else {
-      let elements: FixedArray = Cast<FixedArray>(this.unstable.elements)
+      const elements: FixedArray = Cast<FixedArray>(this.unstable.elements)
           otherwise unreachable;
       if (this.hasSmis) {
         TorqueMoveElementsSmi(elements, dst, src, length);
@@ -2662,14 +2798,59 @@ struct FastJSArrayWitness {
 }
 
 macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
-  let kind = array.map.elements_kind;
+  const kind = array.map.elements_kind;
   return FastJSArrayWitness{
     stable: array,
     unstable: array,
     map: array.map,
-    hasDoubles: !IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS),
+    hasDoubles: IsDoubleElementsKind(kind),
     hasSmis: IsElementsKindLessThanOrEqual(kind, HOLEY_SMI_ELEMENTS),
     arrayIsPushable: false
+  };
+}
+
+struct FastJSArrayForReadWitness {
+  Get(): FastJSArrayForRead {
+    return this.unstable;
+  }
+
+  Recheck() labels CastError {
+    if (this.stable.map != this.map) goto CastError;
+    // We don't need to check elements kind or whether the prototype
+    // has changed away from the default JSArray prototype, because
+    // if the map remains the same then those properties hold.
+    //
+    // However, we have to make sure there are no elements in the
+    // prototype chain.
+    if (IsNoElementsProtectorCellInvalid()) goto CastError;
+    this.unstable = %RawDownCast<FastJSArrayForRead>(this.stable);
+  }
+
+  LoadElementNoHole(implicit context: Context)(k: Smi): Object
+      labels FoundHole {
+    if (this.hasDoubles) {
+      return LoadElementNoHole<FixedDoubleArray>(this.unstable, k)
+          otherwise FoundHole;
+    } else {
+      return LoadElementNoHole<FixedArray>(this.unstable, k)
+          otherwise FoundHole;
+    }
+  }
+
+  const stable: JSArray;
+  unstable: FastJSArrayForRead;
+  const map: Map;
+  const hasDoubles: bool;
+}
+
+macro NewFastJSArrayForReadWitness(array: FastJSArrayForRead):
+    FastJSArrayForReadWitness {
+  const kind = array.map.elements_kind;
+  return FastJSArrayForReadWitness{
+    stable: array,
+    unstable: array,
+    map: array.map,
+    hasDoubles: IsDoubleElementsKind(kind)
   };
 }
 
@@ -2693,6 +2874,7 @@ extern macro IsJSReceiver(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
+extern macro IsBigInt(HeapObject): bool;
 extern macro IsFixedArray(HeapObject): bool;
 extern macro IsName(HeapObject): bool;
 extern macro IsPrivateSymbol(HeapObject): bool;
@@ -2702,7 +2884,7 @@ extern macro IsOddball(HeapObject): bool;
 extern macro IsSymbol(HeapObject): bool;
 extern macro IsJSArrayMap(Map): bool;
 extern macro IsExtensibleMap(Map): bool;
-extern macro IsJSValue(HeapObject): bool;
+extern macro IsJSPrimitiveWrapper(HeapObject): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro Typeof(Object): Object;
 
@@ -2713,7 +2895,7 @@ macro NumberIsNaN(number: Number): bool {
       return false;
     }
     case (hn: HeapNumber): {
-      let value: float64 = Convert<float64>(hn);
+      const value: float64 = Convert<float64>(hn);
       return value != value;
     }
   }
@@ -2721,6 +2903,8 @@ macro NumberIsNaN(number: Number): bool {
 
 extern macro GotoIfForceSlowPath() labels Taken;
 extern macro BranchIfToBooleanIsTrue(Object): never
+    labels Taken, NotTaken;
+extern macro BranchIfToBooleanIsFalse(Object): never
     labels Taken, NotTaken;
 
 macro ToBoolean(obj: Object): bool {
@@ -2731,13 +2915,24 @@ macro ToBoolean(obj: Object): bool {
   }
 }
 
+@export
+macro RequireObjectCoercible(implicit context: Context)(
+    value: Object, name: constexpr string): Object {
+  if (IsNullOrUndefined(value)) {
+    ThrowTypeError(kCalledOnNullOrUndefined, name);
+  }
+  return value;
+}
+
+extern macro BranchIfSameValue(Object, Object): never labels Taken, NotTaken;
+
 transitioning macro ToIndex(input: Object, context: Context): Number
     labels RangeError {
   if (input == Undefined) {
     return 0;
   }
 
-  let value: Number = ToInteger_Inline(context, input, kTruncateMinusZero);
+  const value: Number = ToInteger_Inline(context, input, kTruncateMinusZero);
   if (value < 0 || value > kMaxSafeInteger) {
     goto RangeError;
   }
@@ -2824,19 +3019,6 @@ macro BranchIfFastJSArrayForRead(o: Object, context: Context):
   BranchIf<FastJSArrayForRead>(o) otherwise True, False;
 }
 
-macro BranchIfNotFastJSArray(o: Object, context: Context): never
-    labels True, False {
-  BranchIfNot<FastJSArray>(o) otherwise True, False;
-}
-
-macro BranchIfFastJSArrayForCopy(o: Object, context: Context): never
-    labels True, False {
-  // Long-term, it's likely not a good idea to have this slow-path test here,
-  // since it fundamentally breaks the type system.
-  GotoIfForceSlowPath() otherwise False;
-  BranchIf<FastJSArrayForCopy>(o) otherwise True, False;
-}
-
 @export
 macro IsFastJSArrayWithNoCustomIteration(context: Context, o: Object): bool {
   return Is<FastJSArrayWithNoCustomIteration>(o);
@@ -2859,7 +3041,7 @@ namespace runtime {
 transitioning builtin FastCreateDataProperty(implicit context: Context)(
     receiver: JSReceiver, key: Object, value: Object): Object {
   try {
-    let array = Cast<FastJSArray>(receiver) otherwise Slow;
+    const array = Cast<FastJSArray>(receiver) otherwise Slow;
     const index: Smi = Cast<Smi>(key) otherwise goto Slow;
     if (index < 0 || index > array.length) goto Slow;
     array::EnsureWriteableFastElements(array);
@@ -2928,4 +3110,47 @@ transitioning macro ToStringImpl(context: Context, o: Object): String {
     }
   }
   unreachable;
+}
+
+macro VerifiedUnreachable(): never {
+  StaticAssert(false);
+  unreachable;
+}
+
+macro Float64IsSomeInfinity(value: float64): bool {
+  if (value == V8_INFINITY) {
+    return true;
+  }
+  return value == (Convert<float64>(0) - V8_INFINITY);
+}
+
+@export
+macro IsIntegerOrSomeInfinity(o: Object): bool {
+  typeswitch (o) {
+    case (Smi): {
+      return true;
+    }
+    case (hn: HeapNumber): {
+      if (Float64IsSomeInfinity(Convert<float64>(hn))) {
+        return true;
+      }
+      return IsInteger(hn);
+    }
+    case (Object): {
+      return false;
+    }
+  }
+}
+
+builtin CheckNumberInRange(implicit context: Context)(
+    value: Number, min: Number, max: Number): Undefined {
+  if (IsIntegerOrSomeInfinity(value) && min <= value && value <= max) {
+    return Undefined;
+  } else {
+    Print('Range type assertion failed! (value/min/max)');
+    Print(value);
+    Print(min);
+    Print(max);
+    unreachable;
+  }
 }

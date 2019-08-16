@@ -12,6 +12,7 @@ function f() {
       }
     }
   }
-}
+};
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 f();

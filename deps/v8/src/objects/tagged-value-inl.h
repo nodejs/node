@@ -9,7 +9,8 @@
 
 #include "include/v8-internal.h"
 #include "src/common/ptr-compr-inl.h"
-#include "src/objects/heap-object-inl.h"
+#include "src/objects/maybe-object.h"
+#include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/tagged-impl-inl.h"
 #include "src/roots/roots-inl.h"
@@ -17,17 +18,37 @@
 namespace v8 {
 namespace internal {
 
-Object StrongTaggedValue::ToObject(WITH_ROOT_PARAM(StrongTaggedValue object)) {
+inline StrongTaggedValue::StrongTaggedValue(Object o)
+    :
 #ifdef V8_COMPRESS_POINTERS
-  return Object(DecompressTaggedAny(ROOT_VALUE, object.ptr()));
+      TaggedImpl(CompressTagged(o.ptr()))
+#else
+      TaggedImpl(o.ptr())
+#endif
+{
+}
+
+Object StrongTaggedValue::ToObject(Isolate* isolate, StrongTaggedValue object) {
+#ifdef V8_COMPRESS_POINTERS
+  return Object(DecompressTaggedAny(isolate, object.ptr()));
 #else
   return Object(object.ptr());
 #endif
 }
 
-MaybeObject TaggedValue::ToMaybeObject(WITH_ROOT_PARAM(TaggedValue object)) {
+inline TaggedValue::TaggedValue(MaybeObject o)
+    :
 #ifdef V8_COMPRESS_POINTERS
-  return MaybeObject(DecompressTaggedAny(ROOT_VALUE, object.ptr()));
+      TaggedImpl(CompressTagged(o.ptr()))
+#else
+      TaggedImpl(o.ptr())
+#endif
+{
+}
+
+MaybeObject TaggedValue::ToMaybeObject(Isolate* isolate, TaggedValue object) {
+#ifdef V8_COMPRESS_POINTERS
+  return MaybeObject(DecompressTaggedAny(isolate, object.ptr()));
 #else
   return MaybeObject(object.ptr());
 #endif

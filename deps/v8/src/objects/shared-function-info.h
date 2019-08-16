@@ -104,16 +104,12 @@ class UncompiledData : public HeapObject {
   DECL_ACCESSORS(inferred_name, String)
   DECL_INT32_ACCESSORS(start_position)
   DECL_INT32_ACCESSORS(end_position)
-  DECL_INT32_ACCESSORS(function_literal_id)
-
-  // Returns true if the UncompiledData contains a valid function_literal_id.
-  inline bool has_function_literal_id();
 
   DECL_CAST(UncompiledData)
 
   inline static void Initialize(
       UncompiledData data, String inferred_name, int start_position,
-      int end_position, int function_literal_id,
+      int end_position,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
@@ -126,7 +122,6 @@ class UncompiledData : public HeapObject {
   /* Raw data fields. */                                                  \
   V(kStartPositionOffset, kInt32Size)                                     \
   V(kEndPositionOffset, kInt32Size)                                       \
-  V(kFunctionLiteralIdOffset, kInt32Size)                                 \
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   /* Header size. */                                                      \
   V(kSize, 0)
@@ -172,8 +167,7 @@ class UncompiledDataWithPreparseData : public UncompiledData {
 
   inline static void Initialize(
       UncompiledDataWithPreparseData data, String inferred_name,
-      int start_position, int end_position, int function_literal_id,
-      PreparseData scope_data,
+      int start_position, int end_position, PreparseData scope_data,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
@@ -316,6 +310,11 @@ class SharedFunctionInfo : public HeapObject {
   // function. The value is only reliable when the function has been compiled.
   DECL_UINT16_ACCESSORS(expected_nof_properties)
 
+  // [function_literal_id] - uniquely identifies the FunctionLiteral this
+  // SharedFunctionInfo represents within its script, or -1 if this
+  // SharedFunctionInfo object doesn't correspond to a parsed FunctionLiteral.
+  DECL_INT32_ACCESSORS(function_literal_id)
+
 #if V8_SFI_HAS_UNIQUE_ID
   // [unique_id] - For --trace-maps purposes, an identifier that's persistent
   // even if the GC moves this SharedFunctionInfo.
@@ -384,9 +383,6 @@ class SharedFunctionInfo : public HeapObject {
   // assigned to object properties.
   inline bool HasInferredName();
   inline String inferred_name();
-
-  // Get the function literal id associated with this function, for parsing.
-  V8_EXPORT_PRIVATE int FunctionLiteralId(Isolate* isolate) const;
 
   // Break infos are contained in DebugInfo, this is a convenience method
   // to simplify access.
@@ -624,7 +620,7 @@ class SharedFunctionInfo : public HeapObject {
   // Returns the unique TraceID for this SharedFunctionInfo (within the
   // kTraceScope, works only for functions that have a Script and start/end
   // position).
-  uint64_t TraceID() const;
+  uint64_t TraceID(FunctionLiteral* literal = nullptr) const;
 
   // Returns the unique trace ID reference for this SharedFunctionInfo
   // (based on the |TraceID()| above).
@@ -634,16 +630,14 @@ class SharedFunctionInfo : public HeapObject {
   class ScriptIterator {
    public:
     V8_EXPORT_PRIVATE ScriptIterator(Isolate* isolate, Script script);
-    ScriptIterator(Isolate* isolate,
-                   Handle<WeakFixedArray> shared_function_infos);
+    explicit ScriptIterator(Handle<WeakFixedArray> shared_function_infos);
     V8_EXPORT_PRIVATE SharedFunctionInfo Next();
     int CurrentIndex() const { return index_ - 1; }
 
     // Reset the iterator to run on |script|.
-    void Reset(Script script);
+    void Reset(Isolate* isolate, Script script);
 
    private:
-    Isolate* isolate_;
     Handle<WeakFixedArray> shared_function_infos_;
     int index_;
     DISALLOW_COPY_AND_ASSIGN(ScriptIterator);
@@ -656,6 +650,7 @@ class SharedFunctionInfo : public HeapObject {
     V8_EXPORT_PRIVATE SharedFunctionInfo Next();
 
    private:
+    Isolate* isolate_;
     Script::Iterator script_iterator_;
     WeakArrayList::Iterator noscript_sfi_iterator_;
     SharedFunctionInfo::ScriptIterator sfi_iterator_;
@@ -743,10 +738,6 @@ class SharedFunctionInfo : public HeapObject {
   friend class Factory;
   friend class V8HeapExplorer;
   FRIEND_TEST(PreParserTest, LazyFunctionLength);
-
-  // Find the index of this function in the parent script. Slow path of
-  // FunctionLiteralId.
-  int FindIndexInScript(Isolate* isolate) const;
 
   OBJECT_CONSTRUCTORS(SharedFunctionInfo, HeapObject);
 };

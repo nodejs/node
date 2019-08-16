@@ -37,6 +37,7 @@ assertEquals(e31, -e31*(-1));
 
 var x = {toString : function() {return 1}}
 function add(a,b){return a+b;}
+%PrepareFunctionForOptimization(add);
 add(1,x);
 add(1,x);
 %OptimizeFunctionOnNextCall(add);
@@ -85,6 +86,7 @@ function test(fun,check_fun,a,b,does_throw) {
 function minus(a,b) { return a-b };
 function check_minus(a,b) { return a-b };
 function mod(a,b) { return a%b };
+%PrepareFunctionForOptimization(mod);
 function check_mod(a,b) { return a%b };
 
 test(minus,check_minus,1,2);
@@ -124,16 +126,20 @@ test(mod,check_mod,1,2);
 test(mod,check_mod,1,2);
 
 test(mod,check_mod,1<<30,1);
+%PrepareFunctionForOptimization(mod);
 %OptimizeFunctionOnNextCall(mod);
 test(mod,check_mod,1<<30,1);
 test(mod,check_mod,1,1<<30);
+%PrepareFunctionForOptimization(mod);
 %OptimizeFunctionOnNextCall(mod);
 test(mod,check_mod,1,1<<30);
 test(mod,check_mod,1<<30,-(1<<30));
+%PrepareFunctionForOptimization(mod);
 %OptimizeFunctionOnNextCall(mod);
 test(mod,check_mod,1<<30,-(1<<30));
 
 test(mod,check_mod,1,{},2);
+%PrepareFunctionForOptimization(mod);
 %OptimizeFunctionOnNextCall(mod);
 test(mod,check_mod,1,{},2);
 
@@ -172,6 +178,7 @@ function string_add(a,i) {
   var d = [0.1, ,0.3];
   return a + d[i];
 }
+%PrepareFunctionForOptimization(string_add);
 
 string_add(1.1, 0);
 string_add("", 0);

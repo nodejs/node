@@ -9,6 +9,7 @@
 #include <functional>
 #include <memory>
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/wasm/compilation-environment.h"
@@ -67,6 +68,33 @@ bool CompileLazy(Isolate*, NativeModule*, int func_index);
 
 int GetMaxBackgroundTasks();
 
+template <typename Key, typename Hash>
+class WrapperQueue {
+ public:
+  // Removes an arbitrary key from the queue and returns it.
+  // If the queue is empty, returns nullopt.
+  // Thread-safe.
+  base::Optional<Key> pop() {
+    base::Optional<Key> key = base::nullopt;
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    auto it = queue_.begin();
+    if (it != queue_.end()) {
+      key = *it;
+      queue_.erase(it);
+    }
+    return key;
+  }
+
+  // Add the given key to the queue and returns true iff the insert was
+  // successful.
+  // Not thread-safe.
+  bool insert(const Key& key) { return queue_.insert(key).second; }
+
+ private:
+  base::Mutex mutex_;
+  std::unordered_set<Key, Hash> queue_;
+};
+
 // Encapsulates all the state and steps of an asynchronous compilation.
 // An asynchronous compile job consists of a number of tasks that are executed
 // as foreground and background tasks. Any phase that touches the V8 heap or
@@ -90,6 +118,8 @@ class AsyncCompileJob {
   void CancelPendingForegroundTask();
 
   Isolate* isolate() const { return isolate_; }
+
+  Handle<Context> context() const { return native_context_; }
 
  private:
   class CompileTask;

@@ -23,42 +23,42 @@ void SerializerAllocator::UseCustomChunkSize(uint32_t chunk_size) {
   custom_chunk_size_ = chunk_size;
 }
 
-static uint32_t PageSizeOfSpace(int space) {
+static uint32_t PageSizeOfSpace(SnapshotSpace space) {
   return static_cast<uint32_t>(
       MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
           static_cast<AllocationSpace>(space)));
 }
 
-uint32_t SerializerAllocator::TargetChunkSize(int space) {
+uint32_t SerializerAllocator::TargetChunkSize(SnapshotSpace space) {
   if (custom_chunk_size_ == 0) return PageSizeOfSpace(space);
   DCHECK_LE(custom_chunk_size_, PageSizeOfSpace(space));
   return custom_chunk_size_;
 }
 
-SerializerReference SerializerAllocator::Allocate(AllocationSpace space,
+SerializerReference SerializerAllocator::Allocate(SnapshotSpace space,
                                                   uint32_t size) {
-  DCHECK(space >= 0 && space < kNumberOfPreallocatedSpaces);
+  const int space_number = static_cast<int>(space);
+  DCHECK(IsPreAllocatedSpace(space));
   DCHECK(size > 0 && size <= PageSizeOfSpace(space));
 
   // Maps are allocated through AllocateMap.
-  DCHECK_NE(MAP_SPACE, space);
-  // We tenure large object allocations.
-  DCHECK_NE(NEW_LO_SPACE, space);
+  DCHECK_NE(SnapshotSpace::kMap, space);
 
-  uint32_t old_chunk_size = pending_chunk_[space];
+  uint32_t old_chunk_size = pending_chunk_[space_number];
   uint32_t new_chunk_size = old_chunk_size + size;
   // Start a new chunk if the new size exceeds the target chunk size.
   // We may exceed the target chunk size if the single object size does.
   if (new_chunk_size > TargetChunkSize(space) && old_chunk_size != 0) {
     serializer_->PutNextChunk(space);
-    completed_chunks_[space].push_back(pending_chunk_[space]);
-    pending_chunk_[space] = 0;
+    completed_chunks_[space_number].push_back(pending_chunk_[space_number]);
+    pending_chunk_[space_number] = 0;
     new_chunk_size = size;
   }
-  uint32_t offset = pending_chunk_[space];
-  pending_chunk_[space] = new_chunk_size;
+  uint32_t offset = pending_chunk_[space_number];
+  pending_chunk_[space_number] = new_chunk_size;
   return SerializerReference::BackReference(
-      space, static_cast<uint32_t>(completed_chunks_[space].size()), offset);
+      space, static_cast<uint32_t>(completed_chunks_[space_number].size()),
+      offset);
 }
 
 SerializerReference SerializerAllocator::AllocateMap() {
@@ -83,23 +83,25 @@ SerializerReference SerializerAllocator::AllocateOffHeapBackingStore() {
 bool SerializerAllocator::BackReferenceIsAlreadyAllocated(
     SerializerReference reference) const {
   DCHECK(reference.is_back_reference());
-  AllocationSpace space = reference.space();
-  if (space == LO_SPACE) {
+  SnapshotSpace space = reference.space();
+  if (space == SnapshotSpace::kLargeObject) {
     return reference.large_object_index() < seen_large_objects_index_;
-  } else if (space == MAP_SPACE) {
+  } else if (space == SnapshotSpace::kMap) {
     return reference.map_index() < num_maps_;
-  } else if (space == RO_SPACE &&
+  } else if (space == SnapshotSpace::kReadOnlyHeap &&
              serializer_->isolate()->heap()->deserialization_complete()) {
     // If not deserializing the isolate itself, then we create BackReferences
-    // for all RO_SPACE objects without ever allocating.
+    // for all read-only heap objects without ever allocating.
     return true;
   } else {
+    const int space_number = static_cast<int>(space);
     size_t chunk_index = reference.chunk_index();
-    if (chunk_index == completed_chunks_[space].size()) {
-      return reference.chunk_offset() < pending_chunk_[space];
+    if (chunk_index == completed_chunks_[space_number].size()) {
+      return reference.chunk_offset() < pending_chunk_[space_number];
     } else {
-      return chunk_index < completed_chunks_[space].size() &&
-             reference.chunk_offset() < completed_chunks_[space][chunk_index];
+      return chunk_index < completed_chunks_[space_number].size() &&
+             reference.chunk_offset() <
+                 completed_chunks_[space_number][chunk_index];
     }
   }
 }
@@ -109,7 +111,7 @@ std::vector<SerializedData::Reservation>
 SerializerAllocator::EncodeReservations() const {
   std::vector<SerializedData::Reservation> out;
 
-  for (int i = FIRST_SPACE; i < kNumberOfPreallocatedSpaces; i++) {
+  for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
     for (size_t j = 0; j < completed_chunks_[i].size(); j++) {
       out.emplace_back(completed_chunks_[i][j]);
     }
@@ -120,11 +122,14 @@ SerializerAllocator::EncodeReservations() const {
     out.back().mark_as_last();
   }
 
-  STATIC_ASSERT(MAP_SPACE == kNumberOfPreallocatedSpaces);
+  STATIC_ASSERT(SnapshotSpace::kMap ==
+                SnapshotSpace::kNumberOfPreallocatedSpaces);
   out.emplace_back(num_maps_ * Map::kSize);
   out.back().mark_as_last();
 
-  STATIC_ASSERT(LO_SPACE == MAP_SPACE + 1);
+  STATIC_ASSERT(static_cast<int>(SnapshotSpace::kLargeObject) ==
+                static_cast<int>(SnapshotSpace::kNumberOfPreallocatedSpaces) +
+                    1);
   out.emplace_back(large_objects_total_size_);
   out.back().mark_as_last();
 
@@ -136,21 +141,24 @@ void SerializerAllocator::OutputStatistics() {
 
   PrintF("  Spaces (bytes):\n");
 
-  for (int space = FIRST_SPACE; space < kNumberOfSpaces; space++) {
+  for (int space = 0; space < kNumberOfSpaces; space++) {
     PrintF("%16s", Heap::GetSpaceName(static_cast<AllocationSpace>(space)));
   }
   PrintF("\n");
 
-  for (int space = FIRST_SPACE; space < kNumberOfPreallocatedSpaces; space++) {
+  for (int space = 0; space < kNumberOfPreallocatedSpaces; space++) {
     size_t s = pending_chunk_[space];
     for (uint32_t chunk_size : completed_chunks_[space]) s += chunk_size;
     PrintF("%16zu", s);
   }
 
-  STATIC_ASSERT(MAP_SPACE == kNumberOfPreallocatedSpaces);
+  STATIC_ASSERT(SnapshotSpace::kMap ==
+                SnapshotSpace::kNumberOfPreallocatedSpaces);
   PrintF("%16d", num_maps_ * Map::kSize);
 
-  STATIC_ASSERT(LO_SPACE == MAP_SPACE + 1);
+  STATIC_ASSERT(static_cast<int>(SnapshotSpace::kLargeObject) ==
+                static_cast<int>(SnapshotSpace::kNumberOfPreallocatedSpaces) +
+                    1);
   PrintF("%16d\n", large_objects_total_size_);
 }
 

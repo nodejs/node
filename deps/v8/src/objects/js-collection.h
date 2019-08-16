@@ -30,6 +30,8 @@ class JSCollection : public JSObject {
 
   static const int kAddFunctionDescriptorIndex = 3;
 
+  DECL_VERIFIER(JSCollection)
+
   OBJECT_CONSTRUCTORS(JSCollection, JSObject);
 };
 
@@ -113,6 +115,8 @@ class JSWeakCollection : public JSObject {
                      int32_t hash);
   static Handle<JSArray> GetEntries(Handle<JSWeakCollection> holder,
                                     int max_entries);
+
+  DECL_VERIFIER(JSWeakCollection)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_JSWEAK_COLLECTION_FIELDS)

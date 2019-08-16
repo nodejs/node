@@ -972,7 +972,7 @@ TEST(Regress436816) {
 
   Handle<Map> normalized_map =
       Map::Normalize(isolate, map, KEEP_INOBJECT_PROPERTIES, "testing");
-  JSObject::MigrateToMap(object, normalized_map);
+  JSObject::MigrateToMap(isolate, object, normalized_map);
   CHECK(!object->HasFastProperties());
   CHECK(object->map().HasFastPointerLayout());
 
@@ -1470,7 +1470,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
 
   // Migrate |obj| to |new_map| which should shift fields and put the
   // |boom_value| to the slot that was earlier recorded by write barrier.
-  JSObject::MigrateToMap(obj, new_map);
+  JSObject::MigrateToMap(isolate, obj, new_map);
 
   Address fake_object = obj_value->ptr() + kTaggedSize;
   uint64_t boom_value = bit_cast<uint64_t>(fake_object);
@@ -1553,7 +1553,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // Migrate |obj| to |new_map| which should shift fields and put the
   // |boom_value| to the slot that was earlier recorded by incremental write
   // barrier.
-  JSObject::MigrateToMap(obj, new_map);
+  JSObject::MigrateToMap(isolate, obj, new_map);
 
   uint64_t boom_value = UINT64_C(0xBAAD0176A37C28E1);
 

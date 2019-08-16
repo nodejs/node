@@ -12,7 +12,8 @@ namespace internal {
 // Actual value of root register is offset from the root array's start
 // to take advantage of negative displacement values.
 // TODO(sigurds): Choose best value.
-constexpr int kRootRegisterBias = 128;
+// TODO(ishell): Choose best value for ptr-compr.
+constexpr int kRootRegisterBias = kSystemPointerSize == kTaggedSize ? 128 : 0;
 
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 2048;
 }  // namespace internal

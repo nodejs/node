@@ -47,7 +47,7 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     *holder_lookup = kHolderIsReceiver;
     return Handle<JSObject>::null();
   }
-  if (object_map->has_hidden_prototype()) {
+  if (object_map->IsJSGlobalProxyMap() && !object_map->prototype().IsNull()) {
     JSObject raw_prototype = JSObject::cast(object_map->prototype());
     Handle<JSObject> prototype(raw_prototype, raw_prototype.GetIsolate());
     object_map = handle(prototype->map(), prototype->GetIsolate());
@@ -59,7 +59,6 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
   *holder_lookup = kHolderNotFound;
   return Handle<JSObject>::null();
 }
-
 
 bool CallOptimization::IsCompatibleReceiver(Handle<Object> receiver,
                                             Handle<JSObject> holder) const {

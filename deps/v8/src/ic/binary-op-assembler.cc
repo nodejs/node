@@ -176,16 +176,28 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
     Node* rhs_instance_type = LoadInstanceType(rhs);
     Node* rhs_is_oddball = InstanceTypeEqual(rhs_instance_type, ODDBALL_TYPE);
     GotoIf(rhs_is_oddball, &call_with_oddball_feedback);
-    Branch(IsBigIntInstanceType(rhs_instance_type), &bigint,
-           &call_with_any_feedback);
+    Goto(&call_with_any_feedback);
   }
 
   BIND(&bigint);
   {
+    // Both {lhs} and {rhs} are of BigInt type.
+    Label bigint_too_big(this);
+    var_result.Bind(
+        CallBuiltin(Builtins::kBigIntAddNoThrow, context, lhs, rhs));
+    // Check for sentinel that signals BigIntTooBig exception.
+    GotoIf(TaggedIsSmi(var_result.value()), &bigint_too_big);
+
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kBigInt));
-    var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
-                                SmiConstant(Operation::kAdd)));
     Goto(&end);
+
+    BIND(&bigint_too_big);
+    {
+      // Update feedback to prevent deopt loop.
+      UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                     feedback_vector, slot_id);
+      ThrowRangeError(context, MessageTemplate::kBigIntTooBig);
+    }
   }
 
   BIND(&call_with_oddball_feedback);
@@ -363,8 +375,12 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   BIND(&if_bigint);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kBigInt));
-    var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
-                                SmiConstant(op)));
+    if (op == Operation::kAdd) {
+      var_result.Bind(CallBuiltin(Builtins::kBigIntAdd, context, lhs, rhs));
+    } else {
+      var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
+                                  SmiConstant(op)));
+    }
     Goto(&end);
   }
 

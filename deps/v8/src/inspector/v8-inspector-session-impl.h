@@ -64,7 +64,6 @@ class V8InspectorSessionImpl : public V8InspectorSession,
 
   // V8InspectorSession implementation.
   void dispatchProtocolMessage(const StringView& message) override;
-  std::unique_ptr<StringBuffer> stateJSON() override;
   std::vector<uint8_t> state() override;
   std::vector<std::unique_ptr<protocol::Schema::API::Domain>> supportedDomains()
       override;
@@ -106,6 +105,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
                    const protocol::ProtocolMessage& message) override;
   void flushProtocolNotifications() override;
 
+  std::unique_ptr<StringBuffer> serializeForFrontend(
+      std::unique_ptr<protocol::Serializable> message);
   int m_contextGroupId;
   int m_sessionId;
   V8InspectorImpl* m_inspector;

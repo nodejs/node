@@ -68,7 +68,7 @@ struct SimpleArithmeticGrammar : Grammar {
 
 TEST(EarleyParser, SimpleArithmetic) {
   SimpleArithmeticGrammar grammar;
-  SourceFileMap::Scope source_file_map;
+  SourceFileMap::Scope source_file_map("");
   CurrentSourceFile::Scope current_source_file{
       SourceFileMap::AddSource("dummy_filename")};
   std::string result1 =

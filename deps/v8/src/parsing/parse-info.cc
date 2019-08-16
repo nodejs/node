@@ -97,7 +97,7 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
 
   set_start_position(shared->StartPosition());
   set_end_position(shared->EndPosition());
-  function_literal_id_ = shared->FunctionLiteralId(isolate);
+  function_literal_id_ = shared->function_literal_id();
   SetFunctionInfo(shared);
 
   Handle<Script> script(Script::cast(shared->script()), isolate);

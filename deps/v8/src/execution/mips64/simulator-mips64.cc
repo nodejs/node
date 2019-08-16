@@ -1285,8 +1285,8 @@ bool Simulator::set_fcsr_round64_error(float original, float rounded) {
 }
 
 // For cvt instructions only
-void Simulator::round_according_to_fcsr(double toRound, double& rounded,
-                                        int32_t& rounded_int, double fs) {
+void Simulator::round_according_to_fcsr(double toRound, double* rounded,
+                                        int32_t* rounded_int, double fs) {
   // 0 RN (round to nearest): Round a result to the nearest
   // representable value; if the result is exactly halfway between
   // two representable values, round to zero. Behave like round_w_d.
@@ -1302,32 +1302,32 @@ void Simulator::round_according_to_fcsr(double toRound, double& rounded,
   // the next representable value down. Behave like floor_w_d.
   switch (FCSR_ & 3) {
     case kRoundToNearest:
-      rounded = std::floor(fs + 0.5);
-      rounded_int = static_cast<int32_t>(rounded);
-      if ((rounded_int & 1) != 0 && rounded_int - fs == 0.5) {
+      *rounded = std::floor(fs + 0.5);
+      *rounded_int = static_cast<int32_t>(*rounded);
+      if ((*rounded_int & 1) != 0 && *rounded_int - fs == 0.5) {
         // If the number is halfway between two integers,
         // round to the even one.
-        rounded_int--;
-        rounded -= 1.;
+        *rounded_int -= 1;
+        *rounded -= 1.;
       }
       break;
     case kRoundToZero:
-      rounded = trunc(fs);
-      rounded_int = static_cast<int32_t>(rounded);
+      *rounded = trunc(fs);
+      *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      rounded = std::ceil(fs);
-      rounded_int = static_cast<int32_t>(rounded);
+      *rounded = std::ceil(fs);
+      *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      rounded = std::floor(fs);
-      rounded_int = static_cast<int32_t>(rounded);
+      *rounded = std::floor(fs);
+      *rounded_int = static_cast<int32_t>(*rounded);
       break;
   }
 }
 
-void Simulator::round64_according_to_fcsr(double toRound, double& rounded,
-                                          int64_t& rounded_int, double fs) {
+void Simulator::round64_according_to_fcsr(double toRound, double* rounded,
+                                          int64_t* rounded_int, double fs) {
   // 0 RN (round to nearest): Round a result to the nearest
   // representable value; if the result is exactly halfway between
   // two representable values, round to zero. Behave like round_w_d.
@@ -1343,33 +1343,33 @@ void Simulator::round64_according_to_fcsr(double toRound, double& rounded,
   // the next representable value down. Behave like floor_w_d.
   switch (FCSR_ & 3) {
     case kRoundToNearest:
-      rounded = std::floor(fs + 0.5);
-      rounded_int = static_cast<int64_t>(rounded);
-      if ((rounded_int & 1) != 0 && rounded_int - fs == 0.5) {
+      *rounded = std::floor(fs + 0.5);
+      *rounded_int = static_cast<int64_t>(*rounded);
+      if ((*rounded_int & 1) != 0 && *rounded_int - fs == 0.5) {
         // If the number is halfway between two integers,
         // round to the even one.
-        rounded_int--;
-        rounded -= 1.;
+        *rounded_int -= 1;
+        *rounded -= 1.;
       }
       break;
     case kRoundToZero:
-      rounded = trunc(fs);
-      rounded_int = static_cast<int64_t>(rounded);
+      *rounded = trunc(fs);
+      *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      rounded = std::ceil(fs);
-      rounded_int = static_cast<int64_t>(rounded);
+      *rounded = std::ceil(fs);
+      *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      rounded = std::floor(fs);
-      rounded_int = static_cast<int64_t>(rounded);
+      *rounded = std::floor(fs);
+      *rounded_int = static_cast<int64_t>(*rounded);
       break;
   }
 }
 
 // for cvt instructions only
-void Simulator::round_according_to_fcsr(float toRound, float& rounded,
-                                        int32_t& rounded_int, float fs) {
+void Simulator::round_according_to_fcsr(float toRound, float* rounded,
+                                        int32_t* rounded_int, float fs) {
   // 0 RN (round to nearest): Round a result to the nearest
   // representable value; if the result is exactly halfway between
   // two representable values, round to zero. Behave like round_w_d.
@@ -1385,32 +1385,32 @@ void Simulator::round_according_to_fcsr(float toRound, float& rounded,
   // the next representable value down. Behave like floor_w_d.
   switch (FCSR_ & 3) {
     case kRoundToNearest:
-      rounded = std::floor(fs + 0.5);
-      rounded_int = static_cast<int32_t>(rounded);
-      if ((rounded_int & 1) != 0 && rounded_int - fs == 0.5) {
+      *rounded = std::floor(fs + 0.5);
+      *rounded_int = static_cast<int32_t>(*rounded);
+      if ((*rounded_int & 1) != 0 && *rounded_int - fs == 0.5) {
         // If the number is halfway between two integers,
         // round to the even one.
-        rounded_int--;
-        rounded -= 1.f;
+        *rounded_int -= 1;
+        *rounded -= 1.f;
       }
       break;
     case kRoundToZero:
-      rounded = trunc(fs);
-      rounded_int = static_cast<int32_t>(rounded);
+      *rounded = trunc(fs);
+      *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      rounded = std::ceil(fs);
-      rounded_int = static_cast<int32_t>(rounded);
+      *rounded = std::ceil(fs);
+      *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      rounded = std::floor(fs);
-      rounded_int = static_cast<int32_t>(rounded);
+      *rounded = std::floor(fs);
+      *rounded_int = static_cast<int32_t>(*rounded);
       break;
   }
 }
 
-void Simulator::round64_according_to_fcsr(float toRound, float& rounded,
-                                          int64_t& rounded_int, float fs) {
+void Simulator::round64_according_to_fcsr(float toRound, float* rounded,
+                                          int64_t* rounded_int, float fs) {
   // 0 RN (round to nearest): Round a result to the nearest
   // representable value; if the result is exactly halfway between
   // two representable values, round to zero. Behave like round_w_d.
@@ -1426,33 +1426,33 @@ void Simulator::round64_according_to_fcsr(float toRound, float& rounded,
   // the next representable value down. Behave like floor_w_d.
   switch (FCSR_ & 3) {
     case kRoundToNearest:
-      rounded = std::floor(fs + 0.5);
-      rounded_int = static_cast<int64_t>(rounded);
-      if ((rounded_int & 1) != 0 && rounded_int - fs == 0.5) {
+      *rounded = std::floor(fs + 0.5);
+      *rounded_int = static_cast<int64_t>(*rounded);
+      if ((*rounded_int & 1) != 0 && *rounded_int - fs == 0.5) {
         // If the number is halfway between two integers,
         // round to the even one.
-        rounded_int--;
-        rounded -= 1.f;
+        *rounded_int -= 1;
+        *rounded -= 1.f;
       }
       break;
     case kRoundToZero:
-      rounded = trunc(fs);
-      rounded_int = static_cast<int64_t>(rounded);
+      *rounded = trunc(fs);
+      *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      rounded = std::ceil(fs);
-      rounded_int = static_cast<int64_t>(rounded);
+      *rounded = std::ceil(fs);
+      *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      rounded = std::floor(fs);
-      rounded_int = static_cast<int64_t>(rounded);
+      *rounded = std::floor(fs);
+      *rounded_int = static_cast<int64_t>(*rounded);
       break;
   }
 }
 
 template <typename T_fp, typename T_int>
-void Simulator::round_according_to_msacsr(T_fp toRound, T_fp& rounded,
-                                          T_int& rounded_int) {
+void Simulator::round_according_to_msacsr(T_fp toRound, T_fp* rounded,
+                                          T_int* rounded_int) {
   // 0 RN (round to nearest): Round a result to the nearest
   // representable value; if the result is exactly halfway between
   // two representable values, round to zero. Behave like round_w_d.
@@ -1468,26 +1468,26 @@ void Simulator::round_according_to_msacsr(T_fp toRound, T_fp& rounded,
   // the next representable value down. Behave like floor_w_d.
   switch (get_msacsr_rounding_mode()) {
     case kRoundToNearest:
-      rounded = std::floor(toRound + 0.5);
-      rounded_int = static_cast<T_int>(rounded);
-      if ((rounded_int & 1) != 0 && rounded_int - toRound == 0.5) {
+      *rounded = std::floor(toRound + 0.5);
+      *rounded_int = static_cast<T_int>(*rounded);
+      if ((*rounded_int & 1) != 0 && *rounded_int - toRound == 0.5) {
         // If the number is halfway between two integers,
         // round to the even one.
-        rounded_int--;
-        rounded -= 1.;
+        *rounded_int -= 1;
+        *rounded -= 1.;
       }
       break;
     case kRoundToZero:
-      rounded = trunc(toRound);
-      rounded_int = static_cast<T_int>(rounded);
+      *rounded = trunc(toRound);
+      *rounded_int = static_cast<T_int>(*rounded);
       break;
     case kRoundToPlusInf:
-      rounded = std::ceil(toRound);
-      rounded_int = static_cast<T_int>(rounded);
+      *rounded = std::ceil(toRound);
+      *rounded_int = static_cast<T_int>(*rounded);
       break;
     case kRoundToMinusInf:
-      rounded = std::floor(toRound);
-      rounded_int = static_cast<T_int>(rounded);
+      *rounded = std::floor(toRound);
+      *rounded_int = static_cast<T_int>(*rounded);
       break;
   }
 }
@@ -2507,18 +2507,18 @@ float FPAbs<float>(float a) {
 }
 
 template <typename T>
-static bool FPUProcessNaNsAndZeros(T a, T b, MaxMinKind kind, T& result) {
+static bool FPUProcessNaNsAndZeros(T a, T b, MaxMinKind kind, T* result) {
   if (std::isnan(a) && std::isnan(b)) {
-    result = a;
+    *result = a;
   } else if (std::isnan(a)) {
-    result = b;
+    *result = b;
   } else if (std::isnan(b)) {
-    result = a;
+    *result = a;
   } else if (b == a) {
     // Handle -0.0 == 0.0 case.
     // std::signbit() returns int 0 or 1 so subtracting MaxMinKind::kMax
     // negates the result.
-    result = std::signbit(b) - static_cast<int>(kind) ? b : a;
+    *result = std::signbit(b) - static_cast<int>(kind) ? b : a;
   } else {
     return false;
   }
@@ -2528,7 +2528,7 @@ static bool FPUProcessNaNsAndZeros(T a, T b, MaxMinKind kind, T& result) {
 template <typename T>
 static T FPUMin(T a, T b) {
   T result;
-  if (FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMin, result)) {
+  if (FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMin, &result)) {
     return result;
   } else {
     return b < a ? b : a;
@@ -2538,7 +2538,7 @@ static T FPUMin(T a, T b) {
 template <typename T>
 static T FPUMax(T a, T b) {
   T result;
-  if (FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMax, result)) {
+  if (FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMax, &result)) {
     return result;
   } else {
     return b > a ? b : a;
@@ -2548,7 +2548,7 @@ static T FPUMax(T a, T b) {
 template <typename T>
 static T FPUMinA(T a, T b) {
   T result;
-  if (!FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMin, result)) {
+  if (!FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMin, &result)) {
     if (FPAbs(a) < FPAbs(b)) {
       result = a;
     } else if (FPAbs(b) < FPAbs(a)) {
@@ -2563,7 +2563,7 @@ static T FPUMinA(T a, T b) {
 template <typename T>
 static T FPUMaxA(T a, T b) {
   T result;
-  if (!FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMin, result)) {
+  if (!FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMin, &result)) {
     if (FPAbs(a) > FPAbs(b)) {
       result = a;
     } else if (FPAbs(b) > FPAbs(a)) {
@@ -2829,7 +2829,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
     case CVT_L_S: {
       float rounded;
       int64_t result;
-      round64_according_to_fcsr(fs, rounded, result, fs);
+      round64_according_to_fcsr(fs, &rounded, &result, fs);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fs, rounded)) {
         set_fpu_register_invalid_result64(fs, rounded);
@@ -2839,7 +2839,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
     case CVT_W_S: {
       float rounded;
       int32_t result;
-      round_according_to_fcsr(fs, rounded, result, fs);
+      round_according_to_fcsr(fs, &rounded, &result, fs);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
         set_fpu_register_word_invalid_result(fs, rounded);
@@ -3189,7 +3189,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
     case CVT_W_D: {  // Convert double to word.
       double rounded;
       int32_t result;
-      round_according_to_fcsr(fs, rounded, result, fs);
+      round_according_to_fcsr(fs, &rounded, &result, fs);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
         set_fpu_register_word_invalid_result(fs, rounded);
@@ -3243,7 +3243,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
     case CVT_L_D: {  // Mips64r2: Truncate double to 64-bit long-word.
       double rounded;
       int64_t result;
-      round64_according_to_fcsr(fs, rounded, result, fs);
+      round64_according_to_fcsr(fs, &rounded, &result, fs);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fs, rounded)) {
         set_fpu_register_invalid_result64(fs, rounded);
@@ -5544,128 +5544,128 @@ void Simulator::DecodeTypeMsa3R() {
 }
 
 template <typename T_int, typename T_fp, typename T_reg>
-void Msa3RFInstrHelper(uint32_t opcode, T_reg ws, T_reg wt, T_reg& wd) {
+void Msa3RFInstrHelper(uint32_t opcode, T_reg ws, T_reg wt, T_reg* wd) {
   const T_int all_ones = static_cast<T_int>(-1);
   const T_fp s_element = *reinterpret_cast<T_fp*>(&ws);
   const T_fp t_element = *reinterpret_cast<T_fp*>(&wt);
   switch (opcode) {
     case FCUN: {
       if (std::isnan(s_element) || std::isnan(t_element)) {
-        wd = all_ones;
+        *wd = all_ones;
       } else {
-        wd = 0;
+        *wd = 0;
       }
     } break;
     case FCEQ: {
       if (s_element != t_element || std::isnan(s_element) ||
           std::isnan(t_element)) {
-        wd = 0;
+        *wd = 0;
       } else {
-        wd = all_ones;
+        *wd = all_ones;
       }
     } break;
     case FCUEQ: {
       if (s_element == t_element || std::isnan(s_element) ||
           std::isnan(t_element)) {
-        wd = all_ones;
+        *wd = all_ones;
       } else {
-        wd = 0;
+        *wd = 0;
       }
     } break;
     case FCLT: {
       if (s_element >= t_element || std::isnan(s_element) ||
           std::isnan(t_element)) {
-        wd = 0;
+        *wd = 0;
       } else {
-        wd = all_ones;
+        *wd = all_ones;
       }
     } break;
     case FCULT: {
       if (s_element < t_element || std::isnan(s_element) ||
           std::isnan(t_element)) {
-        wd = all_ones;
+        *wd = all_ones;
       } else {
-        wd = 0;
+        *wd = 0;
       }
     } break;
     case FCLE: {
       if (s_element > t_element || std::isnan(s_element) ||
           std::isnan(t_element)) {
-        wd = 0;
+        *wd = 0;
       } else {
-        wd = all_ones;
+        *wd = all_ones;
       }
     } break;
     case FCULE: {
       if (s_element <= t_element || std::isnan(s_element) ||
           std::isnan(t_element)) {
-        wd = all_ones;
+        *wd = all_ones;
       } else {
-        wd = 0;
+        *wd = 0;
       }
     } break;
     case FCOR: {
       if (std::isnan(s_element) || std::isnan(t_element)) {
-        wd = 0;
+        *wd = 0;
       } else {
-        wd = all_ones;
+        *wd = all_ones;
       }
     } break;
     case FCUNE: {
       if (s_element != t_element || std::isnan(s_element) ||
           std::isnan(t_element)) {
-        wd = all_ones;
+        *wd = all_ones;
       } else {
-        wd = 0;
+        *wd = 0;
       }
     } break;
     case FCNE: {
       if (s_element == t_element || std::isnan(s_element) ||
           std::isnan(t_element)) {
-        wd = 0;
+        *wd = 0;
       } else {
-        wd = all_ones;
+        *wd = all_ones;
       }
     } break;
     case FADD:
-      wd = bit_cast<T_int>(s_element + t_element);
+      *wd = bit_cast<T_int>(s_element + t_element);
       break;
     case FSUB:
-      wd = bit_cast<T_int>(s_element - t_element);
+      *wd = bit_cast<T_int>(s_element - t_element);
       break;
     case FMUL:
-      wd = bit_cast<T_int>(s_element * t_element);
+      *wd = bit_cast<T_int>(s_element * t_element);
       break;
     case FDIV: {
       if (t_element == 0) {
-        wd = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+        *wd = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
       } else {
-        wd = bit_cast<T_int>(s_element / t_element);
+        *wd = bit_cast<T_int>(s_element / t_element);
       }
     } break;
     case FMADD:
-      wd = bit_cast<T_int>(
-          std::fma(s_element, t_element, *reinterpret_cast<T_fp*>(&wd)));
+      *wd = bit_cast<T_int>(
+          std::fma(s_element, t_element, *reinterpret_cast<T_fp*>(wd)));
       break;
     case FMSUB:
-      wd = bit_cast<T_int>(
-          std::fma(-s_element, t_element, *reinterpret_cast<T_fp*>(&wd)));
+      *wd = bit_cast<T_int>(
+          std::fma(-s_element, t_element, *reinterpret_cast<T_fp*>(wd)));
       break;
     case FEXP2:
-      wd = bit_cast<T_int>(std::ldexp(s_element, static_cast<int>(wt)));
+      *wd = bit_cast<T_int>(std::ldexp(s_element, static_cast<int>(wt)));
       break;
     case FMIN:
-      wd = bit_cast<T_int>(std::min(s_element, t_element));
+      *wd = bit_cast<T_int>(std::min(s_element, t_element));
       break;
     case FMAX:
-      wd = bit_cast<T_int>(std::max(s_element, t_element));
+      *wd = bit_cast<T_int>(std::max(s_element, t_element));
       break;
     case FMIN_A: {
-      wd = bit_cast<T_int>(
+      *wd = bit_cast<T_int>(
           std::fabs(s_element) < std::fabs(t_element) ? s_element : t_element);
     } break;
     case FMAX_A: {
-      wd = bit_cast<T_int>(
+      *wd = bit_cast<T_int>(
           std::fabs(s_element) > std::fabs(t_element) ? s_element : t_element);
     } break;
     case FSOR:
@@ -5687,7 +5687,7 @@ void Msa3RFInstrHelper(uint32_t opcode, T_reg ws, T_reg wt, T_reg& wd) {
 }
 
 template <typename T_int, typename T_int_dbl, typename T_reg>
-void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt, T_reg& wd) {
+void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt, T_reg* wd) {
   //  using T_uint = typename std::make_unsigned<T_int>::type;
   using T_uint_dbl = typename std::make_unsigned<T_int_dbl>::type;
   const T_int max_int = std::numeric_limits<T_int>::max();
@@ -5705,16 +5705,16 @@ void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt, T_reg& wd) {
       if (product == min_fix_dbl) {
         product = max_fix_dbl;
       }
-      wd = static_cast<T_int>(product >> shift);
+      *wd = static_cast<T_int>(product >> shift);
     } break;
     case MADD_Q: {
-      result = (product + (static_cast<T_int_dbl>(wd) << shift)) >> shift;
-      wd = static_cast<T_int>(
+      result = (product + (static_cast<T_int_dbl>(*wd) << shift)) >> shift;
+      *wd = static_cast<T_int>(
           result > max_int ? max_int : result < min_int ? min_int : result);
     } break;
     case MSUB_Q: {
-      result = (-product + (static_cast<T_int_dbl>(wd) << shift)) >> shift;
-      wd = static_cast<T_int>(
+      result = (-product + (static_cast<T_int_dbl>(*wd) << shift)) >> shift;
+      *wd = static_cast<T_int>(
           result > max_int ? max_int : result < min_int ? min_int : result);
     } break;
     case MULR_Q: {
@@ -5722,23 +5722,23 @@ void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt, T_reg& wd) {
           bit_cast<T_uint_dbl>(std::numeric_limits<T_int_dbl>::min()) >> 1U;
       const T_int_dbl max_fix_dbl = std::numeric_limits<T_int_dbl>::max() >> 1U;
       if (product == min_fix_dbl) {
-        wd = static_cast<T_int>(max_fix_dbl >> shift);
+        *wd = static_cast<T_int>(max_fix_dbl >> shift);
         break;
       }
-      wd = static_cast<T_int>((product + (1 << (shift - 1))) >> shift);
+      *wd = static_cast<T_int>((product + (1 << (shift - 1))) >> shift);
     } break;
     case MADDR_Q: {
-      result = (product + (static_cast<T_int_dbl>(wd) << shift) +
+      result = (product + (static_cast<T_int_dbl>(*wd) << shift) +
                 (1 << (shift - 1))) >>
                shift;
-      wd = static_cast<T_int>(
+      *wd = static_cast<T_int>(
           result > max_int ? max_int : result < min_int ? min_int : result);
     } break;
     case MSUBR_Q: {
-      result = (-product + (static_cast<T_int_dbl>(wd) << shift) +
+      result = (-product + (static_cast<T_int_dbl>(*wd) << shift) +
                 (1 << (shift - 1))) >>
                shift;
-      wd = static_cast<T_int>(
+      *wd = static_cast<T_int>(
           result > max_int ? max_int : result < min_int ? min_int : result);
     } break;
     default:
@@ -5861,19 +5861,19 @@ void Simulator::DecodeTypeMsa3RF() {
 #undef PACK_FLOAT16
 #undef FEXDO_DF
     case FTQ:
-#define FTQ_DF(source, dst, fp_type, int_type)                 \
-  element = bit_cast<fp_type>(source) *                        \
-            (1U << (sizeof(int_type) * kBitsPerByte - 1));     \
-  if (element > std::numeric_limits<int_type>::max()) {        \
-    dst = std::numeric_limits<int_type>::max();                \
-  } else if (element < std::numeric_limits<int_type>::min()) { \
-    dst = std::numeric_limits<int_type>::min();                \
-  } else if (std::isnan(element)) {                            \
-    dst = 0;                                                   \
-  } else {                                                     \
-    int_type fixed_point;                                      \
-    round_according_to_msacsr(element, element, fixed_point);  \
-    dst = fixed_point;                                         \
+#define FTQ_DF(source, dst, fp_type, int_type)                  \
+  element = bit_cast<fp_type>(source) *                         \
+            (1U << (sizeof(int_type) * kBitsPerByte - 1));      \
+  if (element > std::numeric_limits<int_type>::max()) {         \
+    dst = std::numeric_limits<int_type>::max();                 \
+  } else if (element < std::numeric_limits<int_type>::min()) {  \
+    dst = std::numeric_limits<int_type>::min();                 \
+  } else if (std::isnan(element)) {                             \
+    dst = 0;                                                    \
+  } else {                                                      \
+    int_type fixed_point;                                       \
+    round_according_to_msacsr(element, &element, &fixed_point); \
+    dst = fixed_point;                                          \
   }
 
       switch (DecodeMsaDataFormat()) {
@@ -5896,13 +5896,13 @@ void Simulator::DecodeTypeMsa3RF() {
       }
       break;
 #undef FTQ_DF
-#define MSA_3RF_DF(T1, T2, Lanes, ws, wt, wd)      \
-  for (int i = 0; i < Lanes; i++) {                \
-    Msa3RFInstrHelper<T1, T2>(opcode, ws, wt, wd); \
+#define MSA_3RF_DF(T1, T2, Lanes, ws, wt, wd)         \
+  for (int i = 0; i < Lanes; i++) {                   \
+    Msa3RFInstrHelper<T1, T2>(opcode, ws, wt, &(wd)); \
   }
-#define MSA_3RF_DF2(T1, T2, Lanes, ws, wt, wd)      \
-  for (int i = 0; i < Lanes; i++) {                 \
-    Msa3RFInstrHelper2<T1, T2>(opcode, ws, wt, wd); \
+#define MSA_3RF_DF2(T1, T2, Lanes, ws, wt, wd)         \
+  for (int i = 0; i < Lanes; i++) {                    \
+    Msa3RFInstrHelper2<T1, T2>(opcode, ws, wt, &(wd)); \
   }
     case MADD_Q:
     case MSUB_Q:
@@ -6139,7 +6139,7 @@ static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
 #undef QUIET_BIT_D
 
 template <typename T_int, typename T_fp, typename T_src, typename T_dst>
-T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst& dst,
+T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst* dst,
                         Simulator* sim) {
   using T_uint = typename std::make_unsigned<T_int>::type;
   switch (opcode) {
@@ -6158,37 +6158,37 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst& dst,
       switch (std::fpclassify(element)) {
         case FP_INFINITE:
           if (std::signbit(element)) {
-            dst = NEG_INFINITY_BIT;
+            *dst = NEG_INFINITY_BIT;
           } else {
-            dst = POS_INFINITY_BIT;
+            *dst = POS_INFINITY_BIT;
           }
           break;
         case FP_NAN:
           if (isSnan(element)) {
-            dst = SNAN_BIT;
+            *dst = SNAN_BIT;
           } else {
-            dst = QNAN_BIT;
+            *dst = QNAN_BIT;
           }
           break;
         case FP_NORMAL:
           if (std::signbit(element)) {
-            dst = NEG_NORMAL_BIT;
+            *dst = NEG_NORMAL_BIT;
           } else {
-            dst = POS_NORMAL_BIT;
+            *dst = POS_NORMAL_BIT;
           }
           break;
         case FP_SUBNORMAL:
           if (std::signbit(element)) {
-            dst = NEG_SUBNORMAL_BIT;
+            *dst = NEG_SUBNORMAL_BIT;
           } else {
-            dst = POS_SUBNORMAL_BIT;
+            *dst = POS_SUBNORMAL_BIT;
           }
           break;
         case FP_ZERO:
           if (std::signbit(element)) {
-            dst = NEG_ZERO_BIT;
+            *dst = NEG_ZERO_BIT;
           } else {
-            dst = POS_ZERO_BIT;
+            *dst = POS_ZERO_BIT;
           }
           break;
         default:
@@ -6212,11 +6212,11 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst& dst,
       const T_int max_int = std::numeric_limits<T_int>::max();
       const T_int min_int = std::numeric_limits<T_int>::min();
       if (std::isnan(element)) {
-        dst = 0;
+        *dst = 0;
       } else if (element >= max_int || element <= min_int) {
-        dst = element >= max_int ? max_int : min_int;
+        *dst = element >= max_int ? max_int : min_int;
       } else {
-        dst = static_cast<T_int>(std::trunc(element));
+        *dst = static_cast<T_int>(std::trunc(element));
       }
       break;
     }
@@ -6224,49 +6224,49 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst& dst,
       T_fp element = bit_cast<T_fp>(src);
       const T_uint max_int = std::numeric_limits<T_uint>::max();
       if (std::isnan(element)) {
-        dst = 0;
+        *dst = 0;
       } else if (element >= max_int || element <= 0) {
-        dst = element >= max_int ? max_int : 0;
+        *dst = element >= max_int ? max_int : 0;
       } else {
-        dst = static_cast<T_uint>(std::trunc(element));
+        *dst = static_cast<T_uint>(std::trunc(element));
       }
       break;
     }
     case FSQRT: {
       T_fp element = bit_cast<T_fp>(src);
       if (element < 0 || std::isnan(element)) {
-        dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+        *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
       } else {
-        dst = bit_cast<T_int>(std::sqrt(element));
+        *dst = bit_cast<T_int>(std::sqrt(element));
       }
       break;
     }
     case FRSQRT: {
       T_fp element = bit_cast<T_fp>(src);
       if (element < 0 || std::isnan(element)) {
-        dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+        *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
       } else {
-        dst = bit_cast<T_int>(1 / std::sqrt(element));
+        *dst = bit_cast<T_int>(1 / std::sqrt(element));
       }
       break;
     }
     case FRCP: {
       T_fp element = bit_cast<T_fp>(src);
       if (std::isnan(element)) {
-        dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+        *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
       } else {
-        dst = bit_cast<T_int>(1 / element);
+        *dst = bit_cast<T_int>(1 / element);
       }
       break;
     }
     case FRINT: {
       T_fp element = bit_cast<T_fp>(src);
       if (std::isnan(element)) {
-        dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+        *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
       } else {
         T_int dummy;
-        sim->round_according_to_msacsr<T_fp, T_int>(element, element, dummy);
-        dst = bit_cast<T_int>(element);
+        sim->round_according_to_msacsr<T_fp, T_int>(element, &element, &dummy);
+        *dst = bit_cast<T_int>(element);
       }
       break;
     }
@@ -6275,19 +6275,19 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst& dst,
       switch (std::fpclassify(element)) {
         case FP_NORMAL:
         case FP_SUBNORMAL:
-          dst = bit_cast<T_int>(std::logb(element));
+          *dst = bit_cast<T_int>(std::logb(element));
           break;
         case FP_ZERO:
-          dst = bit_cast<T_int>(-std::numeric_limits<T_fp>::infinity());
+          *dst = bit_cast<T_int>(-std::numeric_limits<T_fp>::infinity());
           break;
         case FP_NAN:
-          dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+          *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
           break;
         case FP_INFINITE:
           if (element < 0) {
-            dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+            *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
           } else {
-            dst = bit_cast<T_int>(std::numeric_limits<T_fp>::infinity());
+            *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::infinity());
           }
           break;
         default:
@@ -6300,11 +6300,11 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst& dst,
       const T_int max_int = std::numeric_limits<T_int>::max();
       const T_int min_int = std::numeric_limits<T_int>::min();
       if (std::isnan(element)) {
-        dst = 0;
+        *dst = 0;
       } else if (element < min_int || element > max_int) {
-        dst = element > max_int ? max_int : min_int;
+        *dst = element > max_int ? max_int : min_int;
       } else {
-        sim->round_according_to_msacsr<T_fp, T_int>(element, element, dst);
+        sim->round_according_to_msacsr<T_fp, T_int>(element, &element, dst);
       }
       break;
     }
@@ -6312,22 +6312,22 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst& dst,
       T_fp element = bit_cast<T_fp>(src);
       const T_uint max_uint = std::numeric_limits<T_uint>::max();
       if (std::isnan(element)) {
-        dst = 0;
+        *dst = 0;
       } else if (element < 0 || element > max_uint) {
-        dst = element > max_uint ? max_uint : 0;
+        *dst = element > max_uint ? max_uint : 0;
       } else {
         T_uint res;
-        sim->round_according_to_msacsr<T_fp, T_uint>(element, element, res);
-        dst = *reinterpret_cast<T_int*>(&res);
+        sim->round_according_to_msacsr<T_fp, T_uint>(element, &element, &res);
+        *dst = *reinterpret_cast<T_int*>(&res);
       }
       break;
     }
     case FFINT_S:
-      dst = bit_cast<T_int>(static_cast<T_fp>(src));
+      *dst = bit_cast<T_int>(static_cast<T_fp>(src));
       break;
     case FFINT_U:
       using uT_src = typename std::make_unsigned<T_src>::type;
-      dst = bit_cast<T_int>(static_cast<T_fp>(bit_cast<uT_src>(src)));
+      *dst = bit_cast<T_int>(static_cast<T_fp>(bit_cast<uT_src>(src)));
       break;
     default:
       UNREACHABLE();
@@ -6437,12 +6437,12 @@ void Simulator::DecodeTypeMsa2RF() {
     switch (DecodeMsaDataFormat()) {
       case MSA_WORD:
         for (int i = 0; i < kMSALanesWord; i++) {
-          Msa2RFInstrHelper<int32_t, float>(opcode, ws.w[i], wd.w[i], this);
+          Msa2RFInstrHelper<int32_t, float>(opcode, ws.w[i], &wd.w[i], this);
         }
         break;
       case MSA_DWORD:
         for (int i = 0; i < kMSALanesDword; i++) {
-          Msa2RFInstrHelper<int64_t, double>(opcode, ws.d[i], wd.d[i], this);
+          Msa2RFInstrHelper<int64_t, double>(opcode, ws.d[i], &wd.d[i], this);
         }
         break;
       default:

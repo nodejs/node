@@ -5,8 +5,8 @@
 #ifndef V8_CODEGEN_SAFEPOINT_TABLE_H_
 #define V8_CODEGEN_SAFEPOINT_TABLE_H_
 
+#include "src/base/memory.h"
 #include "src/common/assert-scope.h"
-#include "src/common/v8memory.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-chunk-list.h"
@@ -76,22 +76,23 @@ class SafepointTable {
 
   unsigned GetPcOffset(unsigned index) const {
     DCHECK(index < length_);
-    return Memory<uint32_t>(GetPcOffsetLocation(index));
+    return base::Memory<uint32_t>(GetPcOffsetLocation(index));
   }
 
   int GetTrampolinePcOffset(unsigned index) const {
     DCHECK(index < length_);
-    return Memory<int>(GetTrampolineLocation(index));
+    return base::Memory<int>(GetTrampolineLocation(index));
   }
 
   unsigned find_return_pc(unsigned pc_offset);
 
   SafepointEntry GetEntry(unsigned index) const {
     DCHECK(index < length_);
-    unsigned deopt_index = Memory<uint32_t>(GetEncodedInfoLocation(index));
-    uint8_t* bits = &Memory<uint8_t>(entries_ + (index * entry_size_));
+    unsigned deopt_index =
+        base::Memory<uint32_t>(GetEncodedInfoLocation(index));
+    uint8_t* bits = &base::Memory<uint8_t>(entries_ + (index * entry_size_));
     int trampoline_pc =
-        has_deopt_ ? Memory<int>(GetTrampolineLocation(index)) : -1;
+        has_deopt_ ? base::Memory<int>(GetTrampolineLocation(index)) : -1;
     return SafepointEntry(deopt_index, bits, trampoline_pc);
   }
 

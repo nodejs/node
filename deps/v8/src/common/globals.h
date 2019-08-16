@@ -212,15 +212,6 @@ constexpr size_t kReservedCodeRangePages = 0;
 
 STATIC_ASSERT(kSystemPointerSize == (1 << kSystemPointerSizeLog2));
 
-// This macro is used for declaring and defining HeapObject getter methods that
-// are a bit more efficient for the pointer compression case than the default
-// parameterless getters because isolate root doesn't have to be computed from
-// arbitrary field address but it comes "for free" instead.
-// These alternatives are always defined (in order to avoid #ifdef mess but
-// are not supposed to be used when pointer compression is not enabled.
-#define ROOT_VALUE isolate_for_root
-#define ROOT_PARAM Isolate* const ROOT_VALUE
-
 #ifdef V8_COMPRESS_POINTERS
 static_assert(
     kSystemPointerSize == kInt64Size,
@@ -234,11 +225,6 @@ constexpr int kTaggedSizeLog2 = 2;
 using Tagged_t = int32_t;
 using AtomicTagged_t = base::Atomic32;
 
-#define DEFINE_ROOT_VALUE(isolate) ROOT_PARAM = isolate
-#define WITH_ROOT_PARAM(...) ROOT_PARAM, ##__VA_ARGS__
-#define WITH_ROOT_VALUE(...) ROOT_VALUE, ##__VA_ARGS__
-#define WITH_ROOT(isolate_for_root, ...) isolate_for_root, ##__VA_ARGS__
-
 #else
 
 constexpr int kTaggedSize = kSystemPointerSize;
@@ -249,16 +235,12 @@ constexpr int kTaggedSizeLog2 = kSystemPointerSizeLog2;
 using Tagged_t = Address;
 using AtomicTagged_t = base::AtomicWord;
 
-#define DEFINE_ROOT_VALUE(isolate)
-#define WITH_ROOT_PARAM(...) __VA_ARGS__
-#define WITH_ROOT_VALUE(...) __VA_ARGS__
-#define WITH_ROOT(isolate_for_root, ...) __VA_ARGS__
-
 #endif  // V8_COMPRESS_POINTERS
 
 // Defines whether the branchless or branchful implementation of pointer
 // decompression should be used.
-constexpr bool kUseBranchlessPtrDecompression = true;
+constexpr bool kUseBranchlessPtrDecompressionInRuntime = false;
+constexpr bool kUseBranchlessPtrDecompressionInGeneratedCode = false;
 
 STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
 STATIC_ASSERT((kTaggedSize == 8) == TAGGED_SIZE_8_BYTES);
@@ -667,7 +649,6 @@ struct SlotTraits;
 template <>
 struct SlotTraits<SlotLocation::kOffHeap> {
   using TObjectSlot = FullObjectSlot;
-  using TMapWordSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
 };
@@ -678,12 +659,10 @@ template <>
 struct SlotTraits<SlotLocation::kOnHeap> {
 #ifdef V8_COMPRESS_POINTERS
   using TObjectSlot = CompressedObjectSlot;
-  using TMapWordSlot = CompressedMapWordSlot;
   using TMaybeObjectSlot = CompressedMaybeObjectSlot;
   using THeapObjectSlot = CompressedHeapObjectSlot;
 #else
   using TObjectSlot = FullObjectSlot;
-  using TMapWordSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
 #endif
@@ -692,10 +671,6 @@ struct SlotTraits<SlotLocation::kOnHeap> {
 // An ObjectSlot instance describes a kTaggedSize-sized on-heap field ("slot")
 // holding Object value (smi or strong heap object).
 using ObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TObjectSlot;
-
-// An MapWordSlot instance describes a kTaggedSize-sized on-heap field ("slot")
-// holding HeapObject (strong heap object) value or a forwarding pointer.
-using MapWordSlot = SlotTraits<SlotLocation::kOnHeap>::TMapWordSlot;
 
 // A MaybeObjectSlot instance describes a kTaggedSize-sized on-heap field
 // ("slot") holding MaybeObject (smi or weak heap object or strong heap object).
@@ -1193,7 +1168,7 @@ enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
-enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };
+enum RequiresBrandCheckFlag : uint8_t { kNoBrandCheck, kRequiresBrandCheck };
 
 enum class InterpreterPushArgsMode : unsigned {
   kArrayFunction,
@@ -1553,6 +1528,12 @@ constexpr int kFunctionLiteralIdTopLevel = 0;
 
 constexpr int kSmallOrderedHashSetMinCapacity = 4;
 constexpr int kSmallOrderedHashMapMinCapacity = 4;
+
+// Opaque data type for identifying stack frames. Used extensively
+// by the debugger.
+// ID_MIN_VALUE and ID_MAX_VALUE are specified to ensure that enumeration type
+// has correct value range (see Issue 830 for more details).
+enum StackFrameId { ID_MIN_VALUE = kMinInt, ID_MAX_VALUE = kMaxInt, NO_ID = 0 };
 
 }  // namespace internal
 }  // namespace v8

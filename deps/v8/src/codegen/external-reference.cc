@@ -26,30 +26,10 @@
 #include "src/logging/log.h"
 #include "src/numbers/math-random.h"
 #include "src/objects/objects-inl.h"
+#include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/string-search.h"
 #include "src/wasm/wasm-external-refs.h"
-
-// Include native regexp-macro-assembler.
-#if V8_TARGET_ARCH_IA32
-#include "src/regexp/ia32/regexp-macro-assembler-ia32.h"  // NOLINT
-#elif V8_TARGET_ARCH_X64
-#include "src/regexp/x64/regexp-macro-assembler-x64.h"  // NOLINT
-#elif V8_TARGET_ARCH_ARM64
-#include "src/regexp/arm64/regexp-macro-assembler-arm64.h"  // NOLINT
-#elif V8_TARGET_ARCH_ARM
-#include "src/regexp/arm/regexp-macro-assembler-arm.h"  // NOLINT
-#elif V8_TARGET_ARCH_PPC
-#include "src/regexp/ppc/regexp-macro-assembler-ppc.h"  // NOLINT
-#elif V8_TARGET_ARCH_MIPS
-#include "src/regexp/mips/regexp-macro-assembler-mips.h"  // NOLINT
-#elif V8_TARGET_ARCH_MIPS64
-#include "src/regexp/mips64/regexp-macro-assembler-mips64.h"  // NOLINT
-#elif V8_TARGET_ARCH_S390
-#include "src/regexp/s390/regexp-macro-assembler-s390.h"  // NOLINT
-#else  // Unknown architecture.
-#error "Unknown architecture."
-#endif  // Target architecture.
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
@@ -671,6 +651,15 @@ static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,
 FUNCTION_REFERENCE(smi_lexicographic_compare_function,
                    LexicographicCompareWrapper)
 
+FUNCTION_REFERENCE(mutable_big_int_absolute_add_and_canonicalize_function,
+                   MutableBigInt_AbsoluteAddAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_absolute_compare_function,
+                   MutableBigInt_AbsoluteCompare)
+
+FUNCTION_REFERENCE(mutable_big_int_absolute_sub_and_canonicalize_function,
+                   MutableBigInt_AbsoluteSubAndCanonicalize)
+
 FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 
 #ifdef V8_INTL_SUPPORT
@@ -784,6 +773,12 @@ ExternalReference ExternalReference::fast_c_call_caller_pc_address(
     Isolate* isolate) {
   return ExternalReference(
       isolate->isolate_data()->fast_c_call_caller_pc_address());
+}
+
+ExternalReference ExternalReference::stack_is_iterable_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->stack_is_iterable_address());
 }
 
 FUNCTION_REFERENCE(call_enqueue_microtask_function,

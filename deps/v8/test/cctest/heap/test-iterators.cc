@@ -17,17 +17,8 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-TEST(HeapIteratorNullPastEnd) {
-  HeapIterator iterator(CcTest::heap());
-  while (!iterator.next().is_null()) {
-  }
-  for (int i = 0; i < 20; i++) {
-    CHECK(iterator.next().is_null());
-  }
-}
-
-TEST(ReadOnlyHeapIteratorNullPastEnd) {
-  ReadOnlyHeapIterator iterator(CcTest::heap()->read_only_heap());
+TEST(HeapObjectIteratorNullPastEnd) {
+  HeapObjectIterator iterator(CcTest::heap());
   while (!iterator.Next().is_null()) {
   }
   for (int i = 0; i < 20; i++) {
@@ -35,8 +26,17 @@ TEST(ReadOnlyHeapIteratorNullPastEnd) {
   }
 }
 
-TEST(CombinedHeapIteratorNullPastEnd) {
-  CombinedHeapIterator iterator(CcTest::heap());
+TEST(ReadOnlyHeapObjectIteratorNullPastEnd) {
+  ReadOnlyHeapObjectIterator iterator(CcTest::read_only_heap());
+  while (!iterator.Next().is_null()) {
+  }
+  for (int i = 0; i < 20; i++) {
+    CHECK(iterator.Next().is_null());
+  }
+}
+
+TEST(CombinedHeapObjectIteratorNullPastEnd) {
+  CombinedHeapObjectIterator iterator(CcTest::heap());
   while (!iterator.Next().is_null()) {
   }
   for (int i = 0; i < 20; i++) {
@@ -51,11 +51,11 @@ Object CreateWritableObject() {
 }
 }  // namespace
 
-TEST(ReadOnlyHeapIterator) {
+TEST(ReadOnlyHeapObjectIterator) {
   CcTest::InitializeVM();
   HandleScope handle_scope(CcTest::i_isolate());
   const Object sample_object = CreateWritableObject();
-  ReadOnlyHeapIterator iterator(CcTest::read_only_heap());
+  ReadOnlyHeapObjectIterator iterator(CcTest::read_only_heap());
 
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
@@ -65,15 +65,15 @@ TEST(ReadOnlyHeapIterator) {
   }
 }
 
-TEST(HeapIterator) {
+TEST(HeapObjectIterator) {
   CcTest::InitializeVM();
   HandleScope handle_scope(CcTest::i_isolate());
   const Object sample_object = CreateWritableObject();
-  HeapIterator iterator(CcTest::heap());
+  HeapObjectIterator iterator(CcTest::heap());
   bool seen_sample_object = false;
 
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     CHECK(!ReadOnlyHeap::Contains(obj));
     CHECK(CcTest::heap()->Contains(obj));
     if (sample_object == obj) seen_sample_object = true;
@@ -81,11 +81,11 @@ TEST(HeapIterator) {
   CHECK(seen_sample_object);
 }
 
-TEST(CombinedHeapIterator) {
+TEST(CombinedHeapObjectIterator) {
   CcTest::InitializeVM();
   HandleScope handle_scope(CcTest::i_isolate());
   const Object sample_object = CreateWritableObject();
-  CombinedHeapIterator iterator(CcTest::heap());
+  CombinedHeapObjectIterator iterator(CcTest::heap());
   bool seen_sample_object = false;
 
   for (HeapObject obj = iterator.Next(); !obj.is_null();
@@ -94,6 +94,24 @@ TEST(CombinedHeapIterator) {
     if (sample_object == obj) seen_sample_object = true;
   }
   CHECK(seen_sample_object);
+}
+
+TEST(PagedSpaceIterator) {
+  Heap* const heap = CcTest::heap();
+  PagedSpaceIterator iterator(heap);
+  CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->old_space()));
+  CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->code_space()));
+  CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->map_space()));
+  for (int i = 0; i < 20; i++) {
+    CHECK_NULL(iterator.Next());
+  }
+}
+
+TEST(SpaceIterator) {
+  auto* const read_only_space = CcTest::read_only_heap()->read_only_space();
+  for (SpaceIterator it(CcTest::heap()); it.HasNext();) {
+    CHECK_NE(it.Next(), reinterpret_cast<Space*>(read_only_space));
+  }
 }
 
 }  // namespace heap

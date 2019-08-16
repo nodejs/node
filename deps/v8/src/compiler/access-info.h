@@ -8,7 +8,6 @@
 #include <iosfwd>
 
 #include "src/codegen/machine-type.h"
-#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/types.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/field-index.h"
@@ -25,8 +24,10 @@ class Factory;
 namespace compiler {
 
 // Forward declarations.
+class CompilationDependencies;
+class CompilationDependency;
 class ElementAccessFeedback;
-class Type;
+class JSHeapBroker;
 class TypeCache;
 
 std::ostream& operator<<(std::ostream&, AccessMode);
@@ -74,16 +75,14 @@ class PropertyAccessInfo final {
                                      MaybeHandle<JSObject> holder);
   static PropertyAccessInfo DataField(
       Zone* zone, Handle<Map> receiver_map,
-      ZoneVector<CompilationDependencies::Dependency const*>&&
-          unrecorded_dependencies,
+      ZoneVector<CompilationDependency const*>&& unrecorded_dependencies,
       FieldIndex field_index, Representation field_representation,
       Type field_type, MaybeHandle<Map> field_map = MaybeHandle<Map>(),
       MaybeHandle<JSObject> holder = MaybeHandle<JSObject>(),
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
   static PropertyAccessInfo DataConstant(
       Zone* zone, Handle<Map> receiver_map,
-      ZoneVector<CompilationDependencies::Dependency const*>&&
-          unrecorded_dependencies,
+      ZoneVector<CompilationDependency const*>&& unrecorded_dependencies,
       FieldIndex field_index, Representation field_representation,
       Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
@@ -113,9 +112,9 @@ class PropertyAccessInfo final {
 
   Kind kind() const { return kind_; }
   MaybeHandle<JSObject> holder() const {
-    // This CHECK tries to protect against using the access info without
-    // recording its dependencies first.
-    CHECK(unrecorded_dependencies_.empty());
+    // TODO(neis): There was a CHECK here that tries to protect against
+    // using the access info without recording its dependencies first.
+    // Find a more suitable place for it.
     return holder_;
   }
   MaybeHandle<Map> transition_map() const { return transition_map_; }
@@ -127,7 +126,6 @@ class PropertyAccessInfo final {
   ZoneVector<Handle<Map>> const& receiver_maps() const {
     return receiver_maps_;
   }
-  Handle<Cell> export_cell() const;
 
  private:
   explicit PropertyAccessInfo(Zone* zone);
@@ -136,17 +134,16 @@ class PropertyAccessInfo final {
   PropertyAccessInfo(Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
                      Handle<Object> constant,
                      ZoneVector<Handle<Map>>&& receiver_maps);
-  PropertyAccessInfo(
-      Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
-      FieldIndex field_index, Representation field_representation,
-      Type field_type, MaybeHandle<Map> field_map,
-      ZoneVector<Handle<Map>>&& receiver_maps,
-      ZoneVector<CompilationDependencies::Dependency const*>&& dependencies);
+  PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
+                     MaybeHandle<Map> transition_map, FieldIndex field_index,
+                     Representation field_representation, Type field_type,
+                     MaybeHandle<Map> field_map,
+                     ZoneVector<Handle<Map>>&& receiver_maps,
+                     ZoneVector<CompilationDependency const*>&& dependencies);
 
   Kind kind_;
   ZoneVector<Handle<Map>> receiver_maps_;
-  ZoneVector<CompilationDependencies::Dependency const*>
-      unrecorded_dependencies_;
+  ZoneVector<CompilationDependency const*> unrecorded_dependencies_;
   Handle<Object> constant_;
   MaybeHandle<Map> transition_map_;
   MaybeHandle<JSObject> holder_;
@@ -215,7 +212,7 @@ class AccessInfoFactory final {
 
   CompilationDependencies* dependencies() const { return dependencies_; }
   JSHeapBroker* broker() const { return broker_; }
-  Isolate* isolate() const { return broker()->isolate(); }
+  Isolate* isolate() const;
   Zone* zone() const { return zone_; }
 
   JSHeapBroker* const broker_;

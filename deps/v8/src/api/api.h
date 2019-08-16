@@ -14,9 +14,9 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-proxy.h"
-#include "src/objects/module.h"
 #include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/source-text-module.h"
 #include "src/utils/detachable-vector.h"
 
 #include "src/objects/templates.h"

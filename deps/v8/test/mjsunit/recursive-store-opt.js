@@ -33,8 +33,8 @@ function g() {
 
 function f() {
   return new g();
-}
-
+};
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

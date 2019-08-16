@@ -18,32 +18,12 @@ using compiler::Node;
 template <class T>
 using TNode = compiler::TNode<T>;
 
-// This is needed for gc_mole which will compile this file without the full set
-// of GN defined macros.
-#ifndef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
-#define V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP 64
-#endif
-
 // -----------------------------------------------------------------------------
 // ES6 section 22.2 TypedArray Objects
 
-// Setup the TypedArray which is under construction.
-//  - Set the length.
-//  - Set the byte_offset.
-//  - Set the byte_length.
-//  - Set EmbedderFields to 0.
-void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
-                                                  TNode<UintPtrT> length,
-                                                  TNode<UintPtrT> byte_offset,
-                                                  TNode<UintPtrT> byte_length) {
-  StoreObjectFieldNoWriteBarrier(holder, JSTypedArray::kLengthOffset, length,
-                                 MachineType::PointerRepresentation());
-  StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteOffsetOffset,
-                                 byte_offset,
-                                 MachineType::PointerRepresentation());
-  StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteLengthOffset,
-                                 byte_length,
-                                 MachineType::PointerRepresentation());
+// Sets the embedder fields to 0 for a TypedArray which is under construction.
+void TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
+    TNode<JSTypedArray> holder) {
   for (int offset = JSTypedArray::kHeaderSize;
        offset < JSTypedArray::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectField(holder, offset, SmiConstant(0));
@@ -54,8 +34,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
 // elements.
 // TODO(bmeurer,v8:4153): Rename this and maybe fix up the implementation a bit.
 TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
-    TNode<Context> context, TNode<JSTypedArray> holder,
-    TNode<UintPtrT> byte_length) {
+    TNode<Context> context, TNode<UintPtrT> byte_length) {
   TNode<Context> native_context = LoadNativeContext(context);
   TNode<Map> map =
       CAST(LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX));
@@ -97,16 +76,6 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
        offset < JSArrayBuffer::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));
   }
-
-  StoreObjectField(holder, JSTypedArray::kBufferOffset, buffer);
-
-  TNode<ByteArray> elements = AllocateByteArray(byte_length);
-  StoreObjectField(holder, JSTypedArray::kElementsOffset, elements);
-  StoreObjectField(holder, JSTypedArray::kBasePointerOffset, elements);
-  StoreObjectFieldNoWriteBarrier(
-      holder, JSTypedArray::kExternalPointerOffset,
-      PointerConstant(JSTypedArray::ExternalPointerForOnHeapArray()),
-      MachineType::PointerRepresentation());
   return buffer;
 }
 
@@ -200,13 +169,13 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
   Return(ChangeUintPtrToTagged(length));
 }
 
-TNode<Word32T> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
+TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
     TNode<Word32T> kind) {
   return Word32Or(Word32Equal(kind, Int32Constant(UINT8_ELEMENTS)),
                   Word32Equal(kind, Int32Constant(UINT8_CLAMPED_ELEMENTS)));
 }
 
-TNode<Word32T> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
+TNode<BoolT> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
     TNode<Word32T> kind) {
   return Word32Or(Word32Equal(kind, Int32Constant(BIGINT64_ELEMENTS)),
                   Word32Equal(kind, Int32Constant(BIGUINT64_ELEMENTS)));
@@ -228,7 +197,12 @@ TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
 TorqueStructTypedArrayElementsInfo
 TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
     TNode<JSTypedArray> typed_array) {
-  TNode<Int32T> elements_kind = LoadElementsKind(typed_array);
+  return GetTypedArrayElementsInfo(LoadMap(typed_array));
+}
+
+TorqueStructTypedArrayElementsInfo
+TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(TNode<Map> map) {
+  TNode<Int32T> elements_kind = LoadMapElementsKind(map);
   TVARIABLE(UintPtrT, var_size_log2);
   TVARIABLE(Map, var_map);
   ReadOnlyRoots roots(isolate());
@@ -294,10 +268,9 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::GetBuffer(
   Label call_runtime(this), done(this);
   TVARIABLE(Object, var_result);
 
-  TNode<Object> buffer = LoadObjectField(array, JSTypedArray::kBufferOffset);
+  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array);
   GotoIf(IsDetachedBuffer(buffer), &call_runtime);
-  TNode<UintPtrT> backing_store = LoadObjectField<UintPtrT>(
-      CAST(buffer), JSArrayBuffer::kBackingStoreOffset);
+  TNode<RawPtrT> backing_store = LoadJSArrayBufferBackingStore(buffer);
   GotoIf(WordEqual(backing_store, IntPtrConstant(0)), &call_runtime);
   var_result = buffer;
   Goto(&done);
@@ -327,10 +300,10 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
     TNode<Context> context, TNode<JSTypedArray> source,
     TNode<JSTypedArray> target, TNode<IntPtrT> offset, Label* call_runtime,
     Label* if_source_too_large) {
-  CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(
-                       LoadObjectField(source, JSTypedArray::kBufferOffset))));
-  CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(
-                       LoadObjectField(target, JSTypedArray::kBufferOffset))));
+  CSA_ASSERT(this, Word32BinaryNot(
+                       IsDetachedBuffer(LoadJSArrayBufferViewBuffer(source))));
+  CSA_ASSERT(this, Word32BinaryNot(
+                       IsDetachedBuffer(LoadJSArrayBufferViewBuffer(target))));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(offset, IntPtrConstant(0)));
   CSA_ASSERT(this,
              IntPtrLessThanOrEqual(offset, IntPtrConstant(Smi::kMaxValue)));
@@ -774,8 +747,8 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
 
               // ToNumber/ToBigInt may execute JavaScript code, which could
               // detach the array's buffer.
-              Node* buffer =
-                  LoadObjectField(new_typed_array, JSTypedArray::kBufferOffset);
+              TNode<JSArrayBuffer> buffer =
+                  LoadJSArrayBufferViewBuffer(new_typed_array);
               GotoIf(IsDetachedBuffer(buffer), &if_detached);
 
               // GC may move backing store in ToNumber, thus load backing
@@ -997,8 +970,8 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
 
               // ToNumber/ToBigInt may execute JavaScript code, which could
               // detach the array's buffer.
-              Node* buffer = LoadObjectField(target_obj.value(),
-                                             JSTypedArray::kBufferOffset);
+              TNode<JSArrayBuffer> buffer =
+                  LoadJSArrayBufferViewBuffer(target_obj.value());
               GotoIf(IsDetachedBuffer(buffer), &if_detached);
 
               // GC may move backing store in map_fn, thus load backing
@@ -1026,8 +999,6 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   ThrowTypeError(context, MessageTemplate::kDetachedOperation,
                  "%TypedArray%.from");
 }
-
-#undef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
 
 }  // namespace internal
 }  // namespace v8

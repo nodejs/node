@@ -8,6 +8,7 @@
 
 #include "src/builtins/accessors.h"
 #include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/compilation-dependency.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
 #include "src/logging/counters.h"
@@ -78,7 +79,7 @@ PropertyAccessInfo PropertyAccessInfo::NotFound(Zone* zone,
 // static
 PropertyAccessInfo PropertyAccessInfo::DataField(
     Zone* zone, Handle<Map> receiver_map,
-    ZoneVector<CompilationDependencies::Dependency const*>&& dependencies,
+    ZoneVector<CompilationDependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
     Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
@@ -90,7 +91,7 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
 // static
 PropertyAccessInfo PropertyAccessInfo::DataConstant(
     Zone* zone, Handle<Map> receiver_map,
-    ZoneVector<CompilationDependencies::Dependency const*>&& dependencies,
+    ZoneVector<CompilationDependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
     Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
@@ -156,8 +157,7 @@ PropertyAccessInfo::PropertyAccessInfo(
     FieldIndex field_index, Representation field_representation,
     Type field_type, MaybeHandle<Map> field_map,
     ZoneVector<Handle<Map>>&& receiver_maps,
-    ZoneVector<CompilationDependencies::Dependency const*>&&
-        unrecorded_dependencies)
+    ZoneVector<CompilationDependency const*>&& unrecorded_dependencies)
     : kind_(kind),
       receiver_maps_(receiver_maps),
       unrecorded_dependencies_(std::move(unrecorded_dependencies)),
@@ -258,11 +258,6 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
   }
 }
 
-Handle<Cell> PropertyAccessInfo::export_cell() const {
-  DCHECK_EQ(kModuleExport, kind_);
-  return Handle<Cell>::cast(constant_);
-}
-
 AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
                                      CompilationDependencies* dependencies,
                                      Zone* zone)
@@ -336,11 +331,10 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
   MapRef map_ref(broker(), map);
-  ZoneVector<CompilationDependencies::Dependency const*>
-      unrecorded_dependencies(zone());
+  ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
+  map_ref.SerializeOwnDescriptor(descriptor);
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
-    map_ref.SerializeOwnDescriptor(descriptor);
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
                                                                   descriptor));
@@ -360,19 +354,23 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       // The field type was cleared by the GC, so we don't know anything
       // about the contents now.
     }
-    map_ref.SerializeOwnDescriptor(descriptor);
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
                                                                   descriptor));
     if (descriptors_field_type->IsClass()) {
-      unrecorded_dependencies.push_back(
-          dependencies()->FieldTypeDependencyOffTheRecord(map_ref, descriptor));
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map(descriptors_field_type->AsClass(), isolate());
       field_type = Type::For(MapRef(broker(), map));
       field_map = MaybeHandle<Map>(map);
     }
+  } else {
+    CHECK(details_representation.IsTagged());
   }
+  // TODO(turbofan): We may want to do this only depending on the use
+  // of the access info.
+  unrecorded_dependencies.push_back(
+      dependencies()->FieldTypeDependencyOffTheRecord(map_ref, descriptor));
+
   PropertyConstness constness;
   if (details.IsReadOnly() && !details.IsConfigurable()) {
     constness = PropertyConstness::kConst;
@@ -445,9 +443,6 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     DCHECK_IMPLIES(lookup == CallOptimization::kHolderIsReceiver,
                    holder.is_null());
     DCHECK_IMPLIES(lookup == CallOptimization::kHolderFound, !holder.is_null());
-    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {
-      return PropertyAccessInfo::Invalid(zone());
-    }
   }
   if (access_mode == AccessMode::kLoad) {
     Handle<Name> cached_property_name;
@@ -569,7 +564,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (map_prototype->map().is_deprecated()) {
       // Try to migrate the prototype object so we don't embed the deprecated
       // map into the optimized code.
-      JSObject::TryMigrateInstance(map_prototype);
+      JSObject::TryMigrateInstance(isolate(), map_prototype);
     }
     map = handle(map_prototype->map(), isolate());
     holder = map_prototype;
@@ -611,8 +606,7 @@ void AccessInfoFactory::ComputePropertyAccessInfos(
 
 void PropertyAccessInfo::RecordDependencies(
     CompilationDependencies* dependencies) {
-  for (CompilationDependencies::Dependency const* d :
-       unrecorded_dependencies_) {
+  for (CompilationDependency const* d : unrecorded_dependencies_) {
     dependencies->RecordDependency(d);
   }
   unrecorded_dependencies_.clear();
@@ -647,6 +641,8 @@ void AccessInfoFactory::MergePropertyAccessInfos(
   }
   CHECK(!result->empty());
 }
+
+Isolate* AccessInfoFactory::isolate() const { return broker()->isolate(); }
 
 namespace {
 
@@ -760,8 +756,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
   MapRef transition_map_ref(broker(), transition_map);
-  ZoneVector<CompilationDependencies::Dependency const*>
-      unrecorded_dependencies(zone());
+  ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     transition_map_ref.SerializeOwnDescriptor(number);
@@ -796,6 +791,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   unrecorded_dependencies.push_back(
       dependencies()->TransitionDependencyOffTheRecord(
           MapRef(broker(), transition_map)));
+  transition_map_ref.SerializeBackPointer();  // For BuildPropertyStore.
   // Transitioning stores *may* store to const fields. The resulting
   // DataConstant access infos can be distinguished from later, i.e. redundant,
   // stores to the same constant field by the presence of a transition map.

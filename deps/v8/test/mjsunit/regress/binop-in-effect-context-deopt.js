@@ -31,11 +31,14 @@
   function f(a, deopt, osr) {
     var result = (a + 10, "result");
     var dummy = deopt + 0;
-    for (var i = 0; osr && i < 2; i++) %OptimizeOsr();
+    for (var i = 0; osr && i < 2; i++) {
+      %PrepareFunctionForOptimization(f);
+      %OptimizeOsr();
+    }
     return result;
   }
-  %PrepareFunctionForOptimization(f);
 
+  %PrepareFunctionForOptimization(f);
   assertEquals("result", f(true, 3, false));
   assertEquals("result", f(true, 3, false));
   %OptimizeFunctionOnNextCall(f);

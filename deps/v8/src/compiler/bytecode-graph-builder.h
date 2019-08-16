@@ -11,6 +11,9 @@
 #include "src/handles/handles.h"
 
 namespace v8 {
+
+class TickCounter;
+
 namespace internal {
 
 class BytecodeArray;
@@ -25,6 +28,9 @@ class SourcePositionTable;
 
 enum class BytecodeGraphBuilderFlag : uint8_t {
   kSkipFirstStackCheck = 1 << 0,
+  // TODO(neis): Remove liveness flag here when concurrent inlining is always
+  // on, because then the serializer will be the only place where we perform
+  // bytecode analysis.
   kAnalyzeEnvironmentLiveness = 1 << 1,
   kBailoutOnUninitialized = 1 << 2,
 };
@@ -39,8 +45,9 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             BailoutId osr_offset, JSGraph* jsgraph,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
-                            Handle<Context> native_context, int inlining_id,
-                            BytecodeGraphBuilderFlags flags);
+                            Handle<NativeContext> native_context,
+                            int inlining_id, BytecodeGraphBuilderFlags flags,
+                            TickCounter* tick_counter);
 
 }  // namespace compiler
 }  // namespace internal

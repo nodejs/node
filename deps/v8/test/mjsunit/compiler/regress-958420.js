@@ -8,8 +8,8 @@ var a = [];
 
 function foo() {
   return a[Symbol.iterator]().next();
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 a.__proto__.push(5);
 a.bla = {};
 

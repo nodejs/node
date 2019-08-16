@@ -28,13 +28,16 @@ for (var i = 0.25; i < 6.25; i++) {
 
 // stirngs
 for (var i = 0; i < 6; i++) {
-  var f = new Foo(i + "", (i + 2) + "");
-  assertEquals((i + "") + ((i + 2) + ""), f.x);
+  var f = new Foo(i + '', i + 2 + '');
+  assertEquals(i + '' + (i + 2 + ''), f.x);
 }
 
 
 {
-  function Global(i) { this.bla = i }
+  function Global(i) {
+    this.bla = i;
+  };
+  %PrepareFunctionForOptimization(Global);
   Global(0);
   Global(1);
   %OptimizeFunctionOnNextCall(Global);
@@ -44,14 +47,20 @@ for (var i = 0; i < 6; i++) {
 
 
 {
-  function access(obj) { obj.bla = 42 }
+  function access(obj) {
+    obj.bla = 42;
+  }
   access({a: 0});
   access({b: 0});
   access({c: 0});
   access({d: 0});
   access({e: 0});
   var global = this;
-  function foo() { access(global) };
+  function foo() {
+    access(global);
+  };
+  %PrepareFunctionForOptimization(foo);
+  ;
   foo();
   foo();
   %OptimizeFunctionOnNextCall(foo);

@@ -30,6 +30,10 @@ class MaybeObject : public TaggedImpl<HeapObjectReferenceType::WEAK, Address> {
 #ifdef VERIFY_HEAP
   static void VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p);
 #endif
+
+ private:
+  template <typename TFieldType, int kFieldOffset>
+  friend class TaggedField;
 };
 
 // A HeapObjectReference is either a strong reference to a HeapObject, a weak

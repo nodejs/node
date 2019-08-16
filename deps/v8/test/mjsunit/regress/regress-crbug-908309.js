@@ -5,23 +5,29 @@
 // Flags: --allow-natives-syntax
 
 const p = Object.defineProperty(Promise.resolve(), 'then', {
-  value() { return 0; }
+  value() {
+    return 0;
+  }
 });
 
 (function() {
-  function foo() { return p.catch().catch(); }
-
-  assertThrows(foo, TypeError);
-  assertThrows(foo, TypeError);
-  %OptimizeFunctionOnNextCall(foo);
-  assertThrows(foo, TypeError);
+function foo() {
+  return p.catch().catch();
+};
+%PrepareFunctionForOptimization(foo);
+assertThrows(foo, TypeError);
+assertThrows(foo, TypeError);
+%OptimizeFunctionOnNextCall(foo);
+assertThrows(foo, TypeError);
 })();
 
 (function() {
-  function foo() { return p.finally().finally(); }
-
-  assertThrows(foo, TypeError);
-  assertThrows(foo, TypeError);
-  %OptimizeFunctionOnNextCall(foo);
-  assertThrows(foo, TypeError);
+function foo() {
+  return p.finally().finally();
+};
+%PrepareFunctionForOptimization(foo);
+assertThrows(foo, TypeError);
+assertThrows(foo, TypeError);
+%OptimizeFunctionOnNextCall(foo);
+assertThrows(foo, TypeError);
 })();

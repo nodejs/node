@@ -4,8 +4,8 @@
 
 #include "src/json/json-parser.h"
 
+#include "src/common/message-template.h"
 #include "src/debug/debug.h"
-#include "src/execution/message-template.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/field-type.h"
@@ -499,7 +499,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     Representation expected_representation = details.representation();
 
     if (!value->FitsRepresentation(expected_representation)) {
-      Representation representation = value->OptimalRepresentation();
+      Representation representation = value->OptimalRepresentation(isolate());
       representation = representation.generalize(expected_representation);
       if (!expected_representation.CanBeInPlaceChangedTo(representation)) {
         map = ParentOfDescriptorOwner(isolate_, map, target, descriptor);

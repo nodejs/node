@@ -19,7 +19,7 @@ nf = new Intl.NumberFormat("en", {style: 'currency', currency: 'TWD'});
 assertEquals(undefined, nf.resolvedOptions().unit);
 
 nf = new Intl.NumberFormat("en", {style: 'percent'});
-assertEquals('percent', nf.resolvedOptions().unit);
+assertEquals(undefined, nf.resolvedOptions().unit);
 
 assertThrows(() => new Intl.NumberFormat("en", {style: 'unit'}), TypeError);
 

@@ -50,6 +50,7 @@ float_array[0] = 1e51;
   function __f_14159(buffer) {
     try { return buffer.getUint16(Infinity, true); } catch(e) { return 0; }
   }
+  %PrepareFunctionForOptimization(__f_14159);
   __f_14159(buffer);
   %OptimizeFunctionOnNextCall(__f_14159);
   __f_14159(buffer);
@@ -67,6 +68,7 @@ float_array[0] = 1e51;
       }
     }
   }
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);

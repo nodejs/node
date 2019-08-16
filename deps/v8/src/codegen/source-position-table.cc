@@ -31,7 +31,7 @@ class MoreBit : public BitField8<bool, 7, 1> {};
 class ValueBits : public BitField8<unsigned, 0, 7> {};
 
 // Helper: Add the offsets from 'other' to 'value'. Also set is_statement.
-void AddAndSetEntry(PositionTableEntry& value,
+void AddAndSetEntry(PositionTableEntry& value,  // NOLINT(runtime/references)
                     const PositionTableEntry& other) {
   value.code_offset += other.code_offset;
   value.source_position += other.source_position;
@@ -39,7 +39,7 @@ void AddAndSetEntry(PositionTableEntry& value,
 }
 
 // Helper: Subtract the offsets from 'other' from 'value'.
-void SubtractFromEntry(PositionTableEntry& value,
+void SubtractFromEntry(PositionTableEntry& value,  // NOLINT(runtime/references)
                        const PositionTableEntry& other) {
   value.code_offset -= other.code_offset;
   value.source_position -= other.source_position;
@@ -47,7 +47,8 @@ void SubtractFromEntry(PositionTableEntry& value,
 
 // Helper: Encode an integer.
 template <typename T>
-void EncodeInt(std::vector<byte>& bytes, T value) {
+void EncodeInt(std::vector<byte>& bytes,  // NOLINT(runtime/references)
+               T value) {
   using unsigned_type = typename std::make_unsigned<T>::type;
   // Zig-zag encoding.
   static const int kShift = sizeof(T) * kBitsPerByte - 1;
@@ -65,7 +66,8 @@ void EncodeInt(std::vector<byte>& bytes, T value) {
 }
 
 // Encode a PositionTableEntry.
-void EncodeEntry(std::vector<byte>& bytes, const PositionTableEntry& entry) {
+void EncodeEntry(std::vector<byte>& bytes,  // NOLINT(runtime/references)
+                 const PositionTableEntry& entry) {
   // We only accept ascending code offsets.
   DCHECK_GE(entry.code_offset, 0);
   // Since code_offset is not negative, we use sign to encode is_statement.
@@ -113,8 +115,9 @@ Vector<const byte> VectorFromByteArray(ByteArray byte_array) {
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
-void CheckTableEquals(std::vector<PositionTableEntry>& raw_entries,
-                      SourcePositionTableIterator& encoded) {
+void CheckTableEquals(
+    std::vector<PositionTableEntry>& raw_entries,  // NOLINT(runtime/references)
+    SourcePositionTableIterator& encoded) {        // NOLINT(runtime/references)
   // Brute force testing: Record all positions and decode
   // the entire table to verify they are identical.
   auto raw = raw_entries.begin();

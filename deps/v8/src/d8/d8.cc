@@ -48,6 +48,10 @@
 #include "src/utils/utils.h"
 #include "src/wasm/wasm-engine.h"
 
+#ifdef V8_USE_PERFETTO
+#include "perfetto/tracing.h"
+#endif  // V8_USE_PERFETTO
+
 #ifdef V8_INTL_SUPPORT
 #include "unicode/locid.h"
 #endif  // V8_INTL_SUPPORT
@@ -247,15 +251,7 @@ namespace tracing {
 
 namespace {
 
-// String options that can be used to initialize TraceOptions.
-const char kRecordUntilFull[] = "record-until-full";
-const char kRecordContinuously[] = "record-continuously";
-const char kRecordAsMuchAsPossible[] = "record-as-much-as-possible";
-
-const char kRecordModeParam[] = "record_mode";
-const char kEnableSystraceParam[] = "enable_systrace";
-const char kEnableArgumentFilterParam[] = "enable_argument_filter";
-const char kIncludedCategoriesParam[] = "included_categories";
+static constexpr char kIncludedCategoriesParam[] = "included_categories";
 
 class TraceConfigParser {
  public:
@@ -273,30 +269,11 @@ class TraceConfigParser {
     Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
     Local<v8::Object> trace_config_object = Local<v8::Object>::Cast(result);
 
-    trace_config->SetTraceRecordMode(
-        GetTraceRecordMode(isolate, context, trace_config_object));
-    if (GetBoolean(isolate, context, trace_config_object,
-                   kEnableSystraceParam)) {
-      trace_config->EnableSystrace();
-    }
-    if (GetBoolean(isolate, context, trace_config_object,
-                   kEnableArgumentFilterParam)) {
-      trace_config->EnableArgumentFilter();
-    }
     UpdateIncludedCategoriesList(isolate, context, trace_config_object,
                                  trace_config);
   }
 
  private:
-  static bool GetBoolean(v8::Isolate* isolate, Local<Context> context,
-                         Local<v8::Object> object, const char* property) {
-    Local<Value> value = GetValue(isolate, context, object, property);
-    if (value->IsNumber()) {
-      return value->BooleanValue(isolate);
-    }
-    return false;
-  }
-
   static int UpdateIncludedCategoriesList(
       v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object,
       platform::tracing::TraceConfig* trace_config) {
@@ -315,23 +292,6 @@ class TraceConfigParser {
       return v8_array->Length();
     }
     return 0;
-  }
-
-  static platform::tracing::TraceRecordMode GetTraceRecordMode(
-      v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object) {
-    Local<Value> value = GetValue(isolate, context, object, kRecordModeParam);
-    if (value->IsString()) {
-      Local<String> v8_string = value->ToString(context).ToLocalChecked();
-      String::Utf8Value str(isolate, v8_string);
-      if (strcmp(kRecordUntilFull, *str) == 0) {
-        return platform::tracing::TraceRecordMode::RECORD_UNTIL_FULL;
-      } else if (strcmp(kRecordContinuously, *str) == 0) {
-        return platform::tracing::TraceRecordMode::RECORD_CONTINUOUSLY;
-      } else if (strcmp(kRecordAsMuchAsPossible, *str) == 0) {
-        return platform::tracing::TraceRecordMode::RECORD_AS_MUCH_AS_POSSIBLE;
-      }
-    }
-    return platform::tracing::TraceRecordMode::RECORD_UNTIL_FULL;
   }
 };
 
@@ -1927,7 +1887,7 @@ static void PrintNonErrorsMessageCallback(Local<Message> message,
   auto ToCString = [](const v8::String::Utf8Value& value) {
     return *value ? *value : "<string conversion failed>";
   };
-  Isolate* isolate = Isolate::GetCurrent();
+  Isolate* isolate = message->GetIsolate();
   v8::String::Utf8Value msg(isolate, message->Get());
   const char* msg_string = ToCString(msg);
   // Print (filename):(line number): (message).
@@ -2001,20 +1961,20 @@ int LineFromOffset(Local<debug::Script> script, int offset) {
   return location.GetLineNumber();
 }
 
-void WriteLcovDataForRange(std::vector<uint32_t>& lines, int start_line,
+void WriteLcovDataForRange(std::vector<uint32_t>* lines, int start_line,
                            int end_line, uint32_t count) {
   // Ensure space in the array.
-  lines.resize(std::max(static_cast<size_t>(end_line + 1), lines.size()), 0);
+  lines->resize(std::max(static_cast<size_t>(end_line + 1), lines->size()), 0);
   // Boundary lines could be shared between two functions with different
   // invocation counts. Take the maximum.
-  lines[start_line] = std::max(lines[start_line], count);
-  lines[end_line] = std::max(lines[end_line], count);
+  (*lines)[start_line] = std::max((*lines)[start_line], count);
+  (*lines)[end_line] = std::max((*lines)[end_line], count);
   // Invocation counts for non-boundary lines are overwritten.
-  for (int k = start_line + 1; k < end_line; k++) lines[k] = count;
+  for (int k = start_line + 1; k < end_line; k++) (*lines)[k] = count;
 }
 
 void WriteLcovDataForNamedRange(std::ostream& sink,
-                                std::vector<uint32_t>& lines,
+                                std::vector<uint32_t>* lines,
                                 const std::string& name, int start_line,
                                 int end_line, uint32_t count) {
   WriteLcovDataForRange(lines, start_line, end_line, count);
@@ -2064,7 +2024,7 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
           name_stream << start.GetColumnNumber() << ">";
         }
 
-        WriteLcovDataForNamedRange(sink, lines, name_stream.str(), start_line,
+        WriteLcovDataForNamedRange(sink, &lines, name_stream.str(), start_line,
                                    end_line, count);
       }
 
@@ -2074,7 +2034,7 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
         int start_line = LineFromOffset(script, block_data.StartOffset());
         int end_line = LineFromOffset(script, block_data.EndOffset() - 1);
         uint32_t count = block_data.Count();
-        WriteLcovDataForRange(lines, start_line, end_line, count);
+        WriteLcovDataForRange(&lines, start_line, end_line, count);
       }
     }
     // Write per-line coverage. LCOV uses 1-based line numbers.
@@ -3350,24 +3310,25 @@ int Shell::Main(int argc, char* argv[]) {
 
   std::unique_ptr<platform::tracing::TracingController> tracing;
   std::ofstream trace_file;
-#ifdef V8_USE_PERFETTO
-  std::ofstream perfetto_trace_file;
-#endif  // V8_USE_PERFETTO
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
     tracing = base::make_unique<platform::tracing::TracingController>();
-
     trace_file.open(options.trace_path ? options.trace_path : "v8_trace.json");
     DCHECK(trace_file.good());
+
+#ifdef V8_USE_PERFETTO
+    // Set up the in-process backend that the tracing controller will connect
+    // to.
+    perfetto::TracingInitArgs init_args;
+    init_args.backends = perfetto::BackendType::kInProcessBackend;
+    perfetto::Tracing::Initialize(init_args);
+
+    tracing->InitializeForPerfetto(&trace_file);
+#else
     platform::tracing::TraceBuffer* trace_buffer =
         platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
             platform::tracing::TraceBuffer::kRingBufferChunks,
             platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
     tracing->Initialize(trace_buffer);
-
-#ifdef V8_USE_PERFETTO
-    perfetto_trace_file.open("v8_perfetto_trace.json");
-    DCHECK(trace_file.good());
-    tracing->InitializeForPerfetto(&perfetto_trace_file);
 #endif  // V8_USE_PERFETTO
   }
 

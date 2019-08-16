@@ -225,7 +225,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ pop(at);  // Get continuation, leave pc on stack.
   __ pop(ra);
   __ Jump(at);
-  __ stop("Unreachable.");
+  __ stop();
 }
 
 // Maximum size of a table entry generated below.

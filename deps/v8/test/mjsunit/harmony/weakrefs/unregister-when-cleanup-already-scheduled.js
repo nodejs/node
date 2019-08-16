@@ -26,7 +26,8 @@ gc();
 assertEquals(0, cleanup_call_count);
 
 // Unregister the object from the FinalizationGroup before cleanup has ran.
-fg.unregister(key);
+let success = fg.unregister(key);
+assertTrue(success);
 
 // Assert that the cleanup function won't be called.
 let timeout_func = function() {

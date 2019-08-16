@@ -44,7 +44,8 @@ namespace compiler {
   V(IA32Tzcnt)                     \
   V(IA32Popcnt)                    \
   V(IA32Bswap)                     \
-  V(LFence)                        \
+  V(IA32MFence)                    \
+  V(IA32LFence)                    \
   V(SSEFloat32Cmp)                 \
   V(SSEFloat32Add)                 \
   V(SSEFloat32Sub)                 \

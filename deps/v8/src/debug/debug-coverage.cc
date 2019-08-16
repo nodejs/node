@@ -68,7 +68,8 @@ bool CompareCoverageBlock(const CoverageBlock& a, const CoverageBlock& b) {
   return a.start < b.start;
 }
 
-void SortBlockData(std::vector<CoverageBlock>& v) {
+void SortBlockData(
+    std::vector<CoverageBlock>& v) {  // NOLINT(runtime/references)
   // Sort according to the block nesting structure.
   std::sort(v.begin(), v.end(), CompareCoverageBlock);
 }
@@ -534,9 +535,9 @@ std::unique_ptr<Coverage> Coverage::Collect(
                   ->feedback_vectors_for_profiling_tools()
                   ->IsArrayList());
       DCHECK_EQ(v8::debug::CoverageMode::kBestEffort, collectionMode);
-      HeapIterator heap_iterator(isolate->heap());
-      for (HeapObject current_obj = heap_iterator.next();
-           !current_obj.is_null(); current_obj = heap_iterator.next()) {
+      HeapObjectIterator heap_iterator(isolate->heap());
+      for (HeapObject current_obj = heap_iterator.Next();
+           !current_obj.is_null(); current_obj = heap_iterator.Next()) {
         if (!current_obj.IsJSFunction()) continue;
         JSFunction func = JSFunction::cast(current_obj);
         SharedFunctionInfo shared = func.shared();
@@ -678,9 +679,9 @@ void Coverage::SelectMode(Isolate* isolate, debug::CoverageMode mode) {
 
       std::vector<Handle<JSFunction>> funcs_needing_feedback_vector;
       {
-        HeapIterator heap_iterator(isolate->heap());
-        for (HeapObject o = heap_iterator.next(); !o.is_null();
-             o = heap_iterator.next()) {
+        HeapObjectIterator heap_iterator(isolate->heap());
+        for (HeapObject o = heap_iterator.Next(); !o.is_null();
+             o = heap_iterator.Next()) {
           if (o.IsJSFunction()) {
             JSFunction func = JSFunction::cast(o);
             if (func.has_closure_feedback_cell_array()) {

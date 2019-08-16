@@ -253,7 +253,7 @@ void MicrotaskQueue::OnCompleted(Isolate* isolate) {
   // set is still open (whether to clear it after every microtask or once
   // during a microtask checkpoint). See also
   // https://github.com/tc39/proposal-weakrefs/issues/39 .
-  isolate->heap()->ClearKeepDuringJobSet();
+  isolate->heap()->ClearKeptObjects();
 
   FireMicrotasksCompletedCallback(isolate);
 }

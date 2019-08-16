@@ -31,11 +31,11 @@ void HeapNumberBase::set_value(double value) {
 
 uint64_t HeapNumberBase::value_as_bits() const {
   // Bug(v8:8875): HeapNumber's double may be unaligned.
-  return ReadUnalignedValue<uint64_t>(field_address(kValueOffset));
+  return base::ReadUnalignedValue<uint64_t>(field_address(kValueOffset));
 }
 
 void HeapNumberBase::set_value_as_bits(uint64_t bits) {
-  WriteUnalignedValue<uint64_t>(field_address(kValueOffset), bits);
+  base::WriteUnalignedValue<uint64_t>(field_address(kValueOffset), bits);
 }
 
 int HeapNumberBase::get_exponent() {

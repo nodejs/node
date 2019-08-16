@@ -20,8 +20,8 @@ function g(x) {
 
 function h(x) {
   g(x, 1);
-}
-
+};
+%PrepareFunctionForOptimization(h);
 %NeverOptimizeFunction(deopt_function);
 
 h(1);

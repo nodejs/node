@@ -645,7 +645,7 @@ void BaseConsumedPreparseData<Data>::RestoreDataForVariable(Variable* var) {
 #endif
   uint8_t variable_data = scope_data_->ReadQuarter();
   if (VariableMaybeAssignedField::decode(variable_data)) {
-    var->set_maybe_assigned();
+    var->SetMaybeAssigned();
   }
   if (VariableContextAllocatedField::decode(variable_data)) {
     var->set_is_used();

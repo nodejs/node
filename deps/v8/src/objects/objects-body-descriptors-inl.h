@@ -19,6 +19,8 @@
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/objects/source-text-module.h"
+#include "src/objects/synthetic-module.h"
 #include "src/objects/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -918,7 +920,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
-    case JS_VALUE_TYPE:
+    case JS_PRIMITIVE_WRAPPER_TYPE:
     case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
@@ -1043,6 +1045,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       } else if (type == WASM_CAPI_FUNCTION_DATA_TYPE) {
         return Op::template apply<WasmCapiFunctionData::BodyDescriptor>(p1, p2,
                                                                         p3, p4);
+      } else if (type == WASM_INDIRECT_FUNCTION_TABLE_TYPE) {
+        return Op::template apply<WasmIndirectFunctionTable::BodyDescriptor>(
+            p1, p2, p3, p4);
       } else {
         return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
       }
@@ -1051,6 +1056,12 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
       return Op::template apply<DataHandler::BodyDescriptor>(p1, p2, p3, p4);
+    case SOURCE_TEXT_MODULE_TYPE:
+      return Op::template apply<SourceTextModule::BodyDescriptor>(p1, p2, p3,
+                                                                  p4);
+    case SYNTHETIC_MODULE_TYPE:
+      return Op::template apply<SyntheticModule::BodyDescriptor>(p1, p2, p3,
+                                                                 p4);
     default:
       PrintF("Unknown type: %d\n", type);
       UNREACHABLE();

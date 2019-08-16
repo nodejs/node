@@ -82,6 +82,7 @@ failWithMessage = (msg) => %AbortJS(msg);
   function foo() {
     return new Promise((a, b) => { throw new Error(); });
   }
+  %PrepareFunctionForOptimization(foo);
 
   function bar(i) {
     let error = null;

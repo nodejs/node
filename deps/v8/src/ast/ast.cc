@@ -49,8 +49,6 @@ static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
   return "UnknownIntrinsicIndex";
 }
 
-void AstNode::Print() { Print(Isolate::Current()); }
-
 void AstNode::Print(Isolate* isolate) {
   AllowHandleDereference allow_deref;
   AstPrinter::PrintOut(isolate, this);
@@ -132,6 +130,10 @@ bool Expression::ToBooleanIsFalse() const {
   return IsLiteral() && AsLiteral()->ToBooleanIsFalse();
 }
 
+bool Expression::IsPrivateName() const {
+  return IsVariableProxy() && AsVariableProxy()->IsPrivateName();
+}
+
 bool Expression::IsValidReferenceExpression() const {
   return IsProperty() ||
          (IsVariableProxy() && AsVariableProxy()->IsValidReferenceExpression());
@@ -176,7 +178,7 @@ void VariableProxy::BindTo(Variable* var) {
   set_var(var);
   set_is_resolved();
   var->set_is_used();
-  if (is_assigned()) var->set_maybe_assigned();
+  if (is_assigned()) var->SetMaybeAssigned();
 }
 
 Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,
@@ -601,8 +603,8 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
       boilerplate_value = handle(Smi::kZero, isolate);
     }
 
-    kind = GetMoreGeneralElementsKind(kind,
-                                      boilerplate_value->OptimalElementsKind());
+    kind = GetMoreGeneralElementsKind(
+        kind, boilerplate_value->OptimalElementsKind(isolate));
     fixed_array->set(array_index, *boilerplate_value);
   }
 
@@ -832,6 +834,9 @@ Call::CallType Call::GetCallType() const {
 
   Property* property = expression()->AsProperty();
   if (property != nullptr) {
+    if (property->IsPrivateReference()) {
+      return PRIVATE_CALL;
+    }
     bool is_super = property->IsSuperAccess();
     if (property->key()->IsPropertyName()) {
       return is_super ? NAMED_SUPER_PROPERTY_CALL : NAMED_PROPERTY_CALL;

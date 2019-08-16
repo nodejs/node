@@ -91,7 +91,6 @@ CAST_ACCESSOR(UncompiledData)
 ACCESSORS(UncompiledData, inferred_name, String, kInferredNameOffset)
 INT32_ACCESSORS(UncompiledData, start_position, kStartPositionOffset)
 INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
-INT32_ACCESSORS(UncompiledData, function_literal_id, kFunctionLiteralIdOffset)
 
 void UncompiledData::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
@@ -106,9 +105,9 @@ CAST_ACCESSOR(UncompiledDataWithPreparseData)
 ACCESSORS(UncompiledDataWithPreparseData, preparse_data, PreparseData,
           kPreparseDataOffset)
 
-bool HeapObject::IsUncompiledData() const {
-  return IsUncompiledDataWithoutPreparseData() ||
-         IsUncompiledDataWithPreparseData();
+DEF_GETTER(HeapObject, IsUncompiledData, bool) {
+  return IsUncompiledDataWithoutPreparseData(isolate) ||
+         IsUncompiledDataWithPreparseData(isolate);
 }
 
 OBJECT_CONSTRUCTORS_IMPL(InterpreterData, Struct)
@@ -127,6 +126,9 @@ ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
           kNameOrScopeInfoOffset)
 ACCESSORS(SharedFunctionInfo, script_or_debug_info, Object,
           kScriptOrDebugInfoOffset)
+
+INT32_ACCESSORS(SharedFunctionInfo, function_literal_id,
+                kFunctionLiteralIdOffset)
 
 #if V8_SFI_HAS_UNIQUE_ID
 INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
@@ -629,7 +631,7 @@ void SharedFunctionInfo::ClearPreparseData() {
 // static
 void UncompiledData::Initialize(
     UncompiledData data, String inferred_name, int start_position,
-    int end_position, int function_literal_id,
+    int end_position,
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
   data.set_inferred_name(inferred_name);
@@ -637,26 +639,20 @@ void UncompiledData::Initialize(
       data, data.RawField(UncompiledData::kInferredNameOffset), inferred_name);
   data.set_start_position(start_position);
   data.set_end_position(end_position);
-  data.set_function_literal_id(function_literal_id);
   data.clear_padding();
 }
 
 void UncompiledDataWithPreparseData::Initialize(
     UncompiledDataWithPreparseData data, String inferred_name,
-    int start_position, int end_position, int function_literal_id,
-    PreparseData scope_data,
+    int start_position, int end_position, PreparseData scope_data,
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
   UncompiledData::Initialize(data, inferred_name, start_position, end_position,
-                             function_literal_id, gc_notify_updated_slot);
+                             gc_notify_updated_slot);
   data.set_preparse_data(scope_data);
   gc_notify_updated_slot(
       data, data.RawField(UncompiledDataWithPreparseData::kPreparseDataOffset),
       scope_data);
-}
-
-bool UncompiledData::has_function_literal_id() {
-  return function_literal_id() != kFunctionLiteralIdInvalid;
 }
 
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {

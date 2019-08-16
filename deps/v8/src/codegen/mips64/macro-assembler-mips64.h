@@ -234,8 +234,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             COND_ARGS);
   void Call(Label* target);
+  void LoadAddress(Register dst, Label* target);
 
-  void CallBuiltinPointer(Register builtin_pointer) override;
+  // Load the builtin given by the Smi in |builtin_index| into the same
+  // register.
+  void LoadEntryFromBuiltinIndex(Register builtin_index);
+  void CallBuiltinByIndex(Register builtin_index) override;
 
   void LoadCodeObjectEntry(Register destination,
                            Register code_object) override {
@@ -845,9 +849,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallCFunctionHelper(Register function, int num_reg_arguments,
                            int num_double_arguments);
 
-  bool CalculateOffset(Label* L, int32_t& offset, OffsetSize bits);
-  bool CalculateOffset(Label* L, int32_t& offset, OffsetSize bits,
-                       Register& scratch, const Operand& rt);
+  bool CalculateOffset(Label* L, int32_t& offset,  // NOLINT(runtime/references)
+                       OffsetSize bits);
+  bool CalculateOffset(Label* L, int32_t& offset,  // NOLINT(runtime/references)
+                       OffsetSize bits,
+                       Register& scratch,  // NOLINT(runtime/references)
+                       const Operand& rt);
 
   void BranchShortHelperR6(int32_t offset, Label* L);
   void BranchShortHelper(int16_t offset, Label* L, BranchDelaySlot bdslot);
