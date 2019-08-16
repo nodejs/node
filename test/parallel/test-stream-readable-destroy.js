@@ -198,6 +198,4 @@ const assert = require('assert');
   assert.strictEqual(read.readable, true);
   read.destroy();
   assert.strictEqual(read.readable, false);
-  read._undestroy();
-  assert.strictEqual(read.readable, true);
 }

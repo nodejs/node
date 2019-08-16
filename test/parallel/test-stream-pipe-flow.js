@@ -65,3 +65,18 @@ const { Readable, Writable, PassThrough } = require('stream');
   wrapper.resume();
   wrapper.on('end', common.mustCall());
 }
+
+{
+  const rs = new Readable({
+    objectMode: true,
+    read: () => {
+      rs.push({});
+    }
+  });
+
+  const pt = rs
+    .on('data', () => {
+      pt.destroy();
+    })
+    .pipe(new PassThrough({ objectMode: true }));
+}

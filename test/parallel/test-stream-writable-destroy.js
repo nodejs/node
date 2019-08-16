@@ -241,6 +241,4 @@ const assert = require('assert');
   assert.strictEqual(write.writable, true);
   write.destroy();
   assert.strictEqual(write.writable, false);
-  write._undestroy();
-  assert.strictEqual(write.writable, true);
 }
