@@ -3001,10 +3001,14 @@ changes:
 
 Synchronous rename(2). Returns `undefined`.
 
-## fs.rmdir(path, callback)
+## fs.rmdir(path[, options], callback)
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29168
+    description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
+                 now supported.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3019,7 +3023,21 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
+> Stability: 1 - Recursive removal is experimental.
+
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `emfileWait` {integer} If an `EMFILE` error is encountered, Node will retry
+  the operation with a linear backoff of 1ms longer on each try until the
+  timeout duration passes this limit. This option is ignored if the `recursive`
+  option is not `true`. **Default:** `1000`.
+  * `maxBusyTries` {integer} If an `EBUSY`, `ENOTEMPTY`, or `EPERM` error is
+  encountered, Node will retry the operation with a linear backoff wait of 100ms
+  longer on each try. This option represents the number of retries. This option
+  is ignored if the `recursive` option is not `true`. **Default:** `3`.
+  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
+  recursive mode, errors are not reported if `path` does not exist, and
+  operations are retried on failure. **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
 
@@ -3029,17 +3047,27 @@ to the completion callback.
 Using `fs.rmdir()` on a file (not a directory) results in an `ENOENT` error on
 Windows and an `ENOTDIR` error on POSIX.
 
-## fs.rmdirSync(path)
+## fs.rmdirSync(path[, options])
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29168
+    description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
+                 now supported.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameters can be a WHATWG `URL` object using
                  `file:` protocol. Support is currently still *experimental*.
 -->
 
+> Stability: 1 - Recursive removal is experimental.
+
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
+  recursive mode, errors are not reported if `path` does not exist, and
+  operations are retried on failure. **Default:** `false`.
 
 Synchronous rmdir(2). Returns `undefined`.
 
@@ -4678,12 +4706,31 @@ added: v10.0.0
 Renames `oldPath` to `newPath` and resolves the `Promise` with no arguments
 upon success.
 
-### fsPromises.rmdir(path)
+### fsPromises.rmdir(path[, options])
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29168
+    description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
+                  now supported.
 -->
 
+> Stability: 1 - Recursive removal is experimental.
+
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `emfileWait` {integer} If an `EMFILE` error is encountered, Node will retry
+  the operation with a linear backoff of 1ms longer on each try until the
+  timeout duration passes this limit. This option is ignored if the `recursive`
+  option is not `true`. **Default:** `1000`.
+  * `maxBusyTries` {integer} If an `EBUSY`, `ENOTEMPTY`, or `EPERM` error is
+  encountered, Node will retry the operation with a linear backoff wait of 100ms
+  longer on each try. This option represents the number of retries. This option
+  is ignored if the `recursive` option is not `true`. **Default:** `3`.
+  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
+  recursive mode, errors are not reported if `path` does not exist, and
+  operations are retried on failure. **Default:** `false`.
 * Returns: {Promise}
 
 Removes the directory identified by `path` then resolves the `Promise` with
@@ -5177,7 +5224,7 @@ the file contents.
 [`fs.readdir()`]: #fs_fs_readdir_path_options_callback
 [`fs.readdirSync()`]: #fs_fs_readdirsync_path_options
 [`fs.realpath()`]: #fs_fs_realpath_path_options_callback
-[`fs.rmdir()`]: #fs_fs_rmdir_path_callback
+[`fs.rmdir()`]: #fs_fs_rmdir_path_options_callback
 [`fs.stat()`]: #fs_fs_stat_path_options_callback
 [`fs.symlink()`]: #fs_fs_symlink_target_path_type_callback
 [`fs.utimes()`]: #fs_fs_utimes_path_atime_mtime_callback
