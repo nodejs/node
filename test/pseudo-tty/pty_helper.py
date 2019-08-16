@@ -25,8 +25,12 @@ def pipe(sfd, dfd):
   if dfd == STDOUT:
     # Work around platform quirks. Some platforms echo ^D as \x04
     # (AIX, BSDs) and some don't (Linux).
-    filt = lambda c: ord(c) > 31 or c in '\t\n\r\f'
+    #
+    # The comparison against b' '[0] is because |data| is
+    # a string in python2 but a bytes object in python3.
+    filt = lambda c: c >= b' '[0] or c in b'\t\n\r\f'
     data = filter(filt, data)
+    data = bytes(data)
 
   while data:
     try:
