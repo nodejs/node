@@ -1134,6 +1134,17 @@ This property contains the number of bytes (or objects) in the queue
 ready to be read. The value provides introspection data regarding
 the status of the `highWaterMark`.
 
+##### readable.readableListening
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+This property is a Getter for accessing `_readableState.readableListening`
+value of a given `Readable` stream.
+It indicates if any active listeners exist for the stream.
+
 ##### readable.readableObjectMode
 <!-- YAML
 added: v12.3.0
@@ -1142,15 +1153,6 @@ added: v12.3.0
 * {boolean}
 
 Getter for the property `objectMode` of a given `Readable` stream.
-
-##### readable.readableListening
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-Getter for the property `readableListening` of a given `Readable` stream.
 
 ##### readable.resume()
 <!-- YAML
