@@ -4,13 +4,6 @@
 
 #include <time.h>  // tzset(), _tzset()
 
-#ifdef __APPLE__
-#include <crt_externs.h>
-#define environ (*_NSGetEnviron())
-#elif !defined(_MSC_VER)
-extern char** environ;
-#endif
-
 namespace node {
 using v8::Array;
 using v8::Boolean;
@@ -123,12 +116,6 @@ int32_t RealEnvStore::Query(Isolate* isolate, Local<String> property) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
 
   node::Utf8Value key(isolate, property);
-#ifdef _WIN32
-  if (key[0] == L'=')
-    return static_cast<int32_t>(v8::ReadOnly) |
-           static_cast<int32_t>(v8::DontDelete) |
-           static_cast<int32_t>(v8::DontEnum);
-#endif
 
   char val[2];
   size_t init_sz = sizeof(val);
@@ -137,6 +124,14 @@ int32_t RealEnvStore::Query(Isolate* isolate, Local<String> property) const {
   if (ret == UV_ENOENT) {
     return -1;
   }
+
+#ifdef _WIN32
+  if (key[0] == L'=') {
+    return static_cast<int32_t>(v8::ReadOnly) |
+           static_cast<int32_t>(v8::DontDelete) |
+           static_cast<int32_t>(v8::DontEnum);
+  }
+#endif
 
   return 0;
 }
@@ -151,54 +146,31 @@ void RealEnvStore::Delete(Isolate* isolate, Local<String> property) {
 
 Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
-#ifdef __POSIX__
-  int env_size = 0;
-  while (environ[env_size]) {
-    env_size++;
-  }
-  std::vector<Local<Value>> env_v(env_size);
+  uv_env_item_t* items;
+  int count;
 
-  for (int i = 0; i < env_size; ++i) {
-    const char* var = environ[i];
-    const char* s = strchr(var, '=');
-    const int length = s ? s - var : strlen(var);
-    env_v[i] = String::NewFromUtf8(isolate, var, NewStringType::kNormal, length)
-                   .ToLocalChecked();
-  }
-#else  // _WIN32
-  std::vector<Local<Value>> env_v;
-  WCHAR* environment = GetEnvironmentStringsW();
-  if (environment == nullptr)
-    return Array::New(isolate);  // This should not happen.
-  WCHAR* p = environment;
-  while (*p) {
-    WCHAR* s;
-    if (*p == L'=') {
-      // If the key starts with '=' it is a hidden environment variable.
-      p += wcslen(p) + 1;
-      continue;
-    } else {
-      s = wcschr(p, L'=');
-    }
-    if (!s) {
-      s = p + wcslen(p);
-    }
-    const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(p);
-    const size_t two_byte_buffer_len = s - p;
-    v8::MaybeLocal<String> rc = String::NewFromTwoByte(
-        isolate, two_byte_buffer, NewStringType::kNormal, two_byte_buffer_len);
-    if (rc.IsEmpty()) {
+  OnScopeLeave cleanup([&]() { uv_os_free_environ(items, count); });
+  CHECK_EQ(uv_os_environ(&items, &count), 0);
+
+  MaybeStackBuffer<Local<Value>, 256> env_v(count);
+  int env_v_index = 0;
+  for (int i = 0; i < count; i++) {
+#ifdef _WIN32
+    // If the key starts with '=' it is a hidden environment variable.
+    // The '\0' check is a workaround for the bug behind
+    // https://github.com/libuv/libuv/pull/2473 and can be removed later.
+    if (items[i].name[0] == '=' || items[i].name[0] == '\0') continue;
+#endif
+    MaybeLocal<String> str = String::NewFromUtf8(
+        isolate, items[i].name, NewStringType::kNormal);
+    if (str.IsEmpty()) {
       isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
-      FreeEnvironmentStringsW(environment);
       return Local<Array>();
     }
-    env_v.push_back(rc.ToLocalChecked());
-    p = s + wcslen(s) + 1;
+    env_v[env_v_index++] = str.ToLocalChecked();
   }
-  FreeEnvironmentStringsW(environment);
-#endif
 
-  return Array::New(isolate, env_v.data(), env_v.size());
+  return Array::New(isolate, env_v.out(), env_v_index);
 }
 
 std::shared_ptr<KVStore> KVStore::Clone(v8::Isolate* isolate) const {
