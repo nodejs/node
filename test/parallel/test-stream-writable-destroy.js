@@ -232,3 +232,35 @@ const assert = require('assert');
   write._undestroy();
   write.end();
 }
+
+{
+  const w = new Writable({
+    write(data, enc, cb) {
+      cb();
+    }
+  });
+
+  w.destroy();
+  w.on('error', common.mustNotCall());
+  w.on('close', common.mustCall(() => {
+    w.write('asd', common.expectsError({ type: Error }));
+  }));
+}
+
+{
+  const w = new Writable({
+    write(data, enc, cb) {
+      cb();
+    },
+    emitClose: false
+  });
+
+  w.on('error', common.mustNotCall());
+  w._destroy = (err, cb) => {
+    process.nextTick(() => {
+      w.write('asd', common.expectsError({ type: Error }));
+    });
+    cb(err);
+  };
+  w.destroy();
+}
