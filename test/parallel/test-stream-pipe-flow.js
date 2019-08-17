@@ -28,6 +28,38 @@ const { Readable, Writable, PassThrough } = require('stream');
 }
 
 {
+  // Ensure unpipe is only called once.
+  function testUnpipeOnce(fn) {
+    const r = new Readable({
+      read: () => {}
+    });
+    const w = new PassThrough();
+    r.unpipe = common.mustCall();
+    r.pipe(w);
+    w.on('error', () => {});
+    fn(w);
+  }
+
+  function permute(arr) {
+    return arr.reduce((res, item, key, arr) => {
+      return res
+        .concat(arr.length > 1 && arr.slice(0, key)
+          .concat(arr.slice(key + 1))
+          .reduce(permute, []).map((perm) => {
+            return [item].concat(perm);
+          }) || item);
+    }, []);
+  }
+  for (const emits of permute([ 'error', 'finish', 'close' ])) {
+    testUnpipeOnce((w) => {
+      for (const emit of emits) {
+        w.emit(emit);
+      }
+    });
+  }
+}
+
+{
   let missing = 8;
 
   const rs = new Readable({
