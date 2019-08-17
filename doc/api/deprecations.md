@@ -2500,8 +2500,8 @@ Type: Runtime
 Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 `Promise` instead, or a listener to the worker’s `'exit'` event.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: http connection
+<a id="DEP0133"></a>
+### DEP0133: http connection
 <!-- YAML
 changes:
   - version: REPLACEME
