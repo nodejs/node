@@ -3876,21 +3876,21 @@ added: REPLACEME
   * `bytesWritten` {integer}
   * `buffers` {ArrayBufferView[]}
 
-Write an array of `ArrayBufferView` to the file specified by `fd` using `writev`.
+Write an array of `ArrayBufferView`s to the file specified by `fd` using
+`writev()`.
 
-`position` refers to the offset from the beginning of the file where this data
+`position` is the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'`, the data will be written
 at the current position.
 
-The callback will be given three arguments `(err, bytesWritten, buffers)` where
-`bytesWritten` specifies how many _bytes_ were written from `buffers`.
+The callback will be given three arguments: `err`, `bytesWritten`, and
+`buffers`. `bytesWritten` is how many bytes were written from `buffers`.
 
-If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a `Promise` for an `Object` with `bytesWritten` and `buffers` properties.
+If this method is [`util.promisify()`][]ed, it returns a `Promise` for an
+`Object` with `bytesWritten` and `buffers` properties.
 
 It is unsafe to use `fs.writev()` multiple times on the same file without
-waiting for the callback. For this scenario, [`fs.createWriteStream()`][] is
-recommended.
+waiting for the callback. For this scenario, use [`fs.createWriteStream()`][].
 
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
@@ -3907,7 +3907,7 @@ added: REPLACEME
 * Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
-this API: [`fs.writev(fd, buffers...)`][].
+this API: [`fs.writev()`][].
 
 ## fs Promises API
 
@@ -5159,7 +5159,7 @@ the file contents.
 [`fs.write(fd, buffer...)`]: #fs_fs_write_fd_buffer_offset_length_position_callback
 [`fs.write(fd, string...)`]: #fs_fs_write_fd_string_position_encoding_callback
 [`fs.writeFile()`]: #fs_fs_writefile_file_data_options_callback
-[`fs.writev(fd, buffers...)`]: #fs_fs_writev_fd_buffers_position_callback
+[`fs.writev()`]: #fs_fs_writev_fd_buffers_position_callback
 [`inotify(7)`]: http://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`net.Socket`]: net.html#net_class_net_socket
