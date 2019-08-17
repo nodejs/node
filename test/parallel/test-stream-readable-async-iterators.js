@@ -486,5 +486,46 @@ async function tests() {
   }
 }
 
+{
+  // AsyncIterator return should end even when destroy
+  // does not implement the callback API.
+
+  const r = new Readable({
+    objectMode: true,
+    read() {
+    }
+  });
+
+  const originalDestroy = r.destroy;
+  r.destroy = (err) => {
+    originalDestroy.call(r, err);
+  };
+  const it = r[Symbol.asyncIterator]();
+  const p = it.return();
+  r.push(null);
+  p.then(common.mustCall());
+}
+
+
+{
+  // AsyncIterator return should not error with
+  // premature close.
+
+  const r = new Readable({
+    objectMode: true,
+    read() {
+    }
+  });
+
+  const originalDestroy = r.destroy;
+  r.destroy = (err) => {
+    originalDestroy.call(r, err);
+  };
+  const it = r[Symbol.asyncIterator]();
+  const p = it.return();
+  r.emit('close');
+  p.then(common.mustCall()).catch(common.mustNotCall());
+}
+
 // To avoid missing some tests if a promise does not resolve
 tests().then(common.mustCall());
