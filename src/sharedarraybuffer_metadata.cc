@@ -1,7 +1,9 @@
 #include "sharedarraybuffer_metadata.h"
 
 #include "base_object-inl.h"
+#include "memory_tracker-inl.h"
 #include "node_errors.h"
+#include "node_worker.h"
 #include "util-inl.h"
 
 #include <utility>
@@ -91,8 +93,16 @@ SharedArrayBufferMetadata::ForSharedArrayBuffer(
     return nullptr;
   }
 
+  // If the SharedArrayBuffer is coming from a Worker, we need to make sure
+  // that the corresponding ArrayBuffer::Allocator lives at least as long as
+  // the SharedArrayBuffer itself.
+  worker::Worker* w = env->worker_context();
+  std::shared_ptr<v8::ArrayBuffer::Allocator> allocator =
+      w != nullptr ? w->array_buffer_allocator() : nullptr;
+
   SharedArrayBuffer::Contents contents = source->Externalize();
-  SharedArrayBufferMetadataReference r(new SharedArrayBufferMetadata(contents));
+  SharedArrayBufferMetadataReference r(
+      new SharedArrayBufferMetadata(contents, allocator));
   if (r->AssignToSharedArrayBuffer(env, context, source).IsNothing())
     return nullptr;
   return r;
@@ -114,8 +124,9 @@ Maybe<bool> SharedArrayBufferMetadata::AssignToSharedArrayBuffer(
 }
 
 SharedArrayBufferMetadata::SharedArrayBufferMetadata(
-    const SharedArrayBuffer::Contents& contents)
-  : contents_(contents) { }
+    const SharedArrayBuffer::Contents& contents,
+    std::shared_ptr<v8::ArrayBuffer::Allocator> allocator)
+  : contents_(contents), allocator_(allocator) { }
 
 SharedArrayBufferMetadata::~SharedArrayBufferMetadata() {
   contents_.Deleter()(contents_.Data(),
