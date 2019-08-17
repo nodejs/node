@@ -4212,6 +4212,32 @@ If one or more `filehandle.write()` calls are made on a file handle and then a
 current position till the end of the file. It doesn't always write from the
 beginning of the file.
 
+#### filehandle.writev(buffers[, position])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffers` {ArrayBufferView[]}
+* `position` {integer}
+* Returns: {Promise}
+
+Write an array of `ArrayBufferView`s to the file.
+
+The `Promise` is resolved with an object containing a `bytesWritten` property
+identifying the number of bytes written, and a `buffers` property containing
+a reference to the `buffers` input.
+
+`position` is the offset from the beginning of the file where this data
+should be written. If `typeof position !== 'number'`, the data will be written
+at the current position.
+
+It is unsafe to call `writev()` multiple times on the same file without waiting
+for the previous operation to complete.
+
+On Linux, positional writes don't work when the file is opened in append mode.
+The kernel ignores the position argument and always appends the data to
+the end of the file.
+
 ### fsPromises.access(path[, mode])
 <!-- YAML
 added: v10.0.0
