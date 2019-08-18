@@ -4877,15 +4877,7 @@ static AllocatedBuffer Node_SignFinal(Environment* env,
   return AllocatedBuffer();
 }
 
-Sign::SignResult Sign::SignFinal(
-    const ManagedEVPPKey& pkey,
-    int padding,
-    const Maybe<int>& salt_len) {
-  if (!mdctx_)
-    return SignResult(kSignNotInitialised);
-
-  EVPMDPointer mdctx = std::move(mdctx_);
-
+static inline bool ValidateDSAParameters(EVP_PKEY* key) {
 #ifdef NODE_FIPS_MODE
   /* Validate DSA2 parameters from FIPS 186-4 */
   if (FIPS_mode() && EVP_PKEY_DSA == EVP_PKEY_base_id(pkey.get())) {
@@ -4896,22 +4888,28 @@ Sign::SignResult Sign::SignFinal(
     const BIGNUM* q;
     DSA_get0_pqg(dsa, nullptr, &q, nullptr);
     size_t N = BN_num_bits(q);
-    bool result = false;
 
-    if (L == 1024 && N == 160)
-      result = true;
-    else if (L == 2048 && N == 224)
-      result = true;
-    else if (L == 2048 && N == 256)
-      result = true;
-    else if (L == 3072 && N == 256)
-      result = true;
-
-    if (!result) {
-      return SignResult(kSignPrivateKey);
-    }
+    return (L == 1024 && N == 160) ||
+           (L == 2048 && N == 224) ||
+           (L == 2048 && N == 256) ||
+           (L == 3072 && N == 256)
   }
 #endif  // NODE_FIPS_MODE
+
+  return true;
+}
+
+Sign::SignResult Sign::SignFinal(
+    const ManagedEVPPKey& pkey,
+    int padding,
+    const Maybe<int>& salt_len) {
+  if (!mdctx_)
+    return SignResult(kSignNotInitialised);
+
+  EVPMDPointer mdctx = std::move(mdctx_);
+
+  if (!ValidateDSAParameters(pkey.get()))
+    return SignResult(kSignPrivateKey);
 
   AllocatedBuffer buffer =
       Node_SignFinal(env(), std::move(mdctx), pkey, padding, salt_len);
@@ -4963,32 +4961,8 @@ void SignOneShot(const FunctionCallbackInfo<Value>& args) {
   if (!key)
     return;
 
-#ifdef NODE_FIPS_MODE
-  /* Validate DSA2 parameters from FIPS 186-4 */
-  if (FIPS_mode() && EVP_PKEY_DSA == EVP_PKEY_base_id(key.get())) {
-    DSA* dsa = EVP_PKEY_get0_DSA(key.get());
-    const BIGNUM* p;
-    DSA_get0_pqg(dsa, &p, nullptr, nullptr);
-    size_t L = BN_num_bits(p);
-    const BIGNUM* q;
-    DSA_get0_pqg(dsa, nullptr, &q, nullptr);
-    size_t N = BN_num_bits(q);
-    bool result = false;
-
-    if (L == 1024 && N == 160)
-      result = true;
-    else if (L == 2048 && N == 224)
-      result = true;
-    else if (L == 2048 && N == 256)
-      result = true;
-    else if (L == 3072 && N == 256)
-      result = true;
-
-    if (!result) {
-      return CheckThrow(env, SignBase::Error::kSignPrivateKey);
-    }
-  }
-#endif  // NODE_FIPS_MODE
+  if (!ValidateDSAParameters(key.get()))
+    return CheckThrow(env, SignBase::Error::kSignPrivateKey);
 
   ArrayBufferViewContents<char> data(args[offset]);
 
