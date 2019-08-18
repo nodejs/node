@@ -63,8 +63,7 @@ file
 
     callbacks.close++;
     console.error('write after end should not be allowed');
-    file.write('should not work anymore');
-    file.on('error', common.expectsError({
+    file.write('should not work anymore', common.expectsError({
       code: 'ERR_STREAM_WRITE_AFTER_END',
       name: 'Error',
       message: 'write after end'

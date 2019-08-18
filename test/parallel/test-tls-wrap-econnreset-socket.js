@@ -15,6 +15,7 @@ const server = net.createServer((c) => {
 
   const socket = new net.Socket();
 
+  let errored = false;
   tls.connect({ socket })
     .once('error', common.mustCall((e) => {
       assert.strictEqual(e.code, 'ECONNRESET');
@@ -22,7 +23,11 @@ const server = net.createServer((c) => {
       assert.strictEqual(e.host, undefined);
       assert.strictEqual(e.port, undefined);
       assert.strictEqual(e.localAddress, undefined);
+      errored = true;
       server.close();
+    }))
+    .on('close', common.mustCall(() => {
+      assert.strictEqual(errored, true);
     }));
 
   socket.connect(port);

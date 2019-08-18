@@ -23,7 +23,6 @@ const { Writable } = require('stream');
   w.write('asd');
   assert.strictEqual(w.writable, false);
   w.on('error', common.mustCall());
-  w.destroy();
 }
 
 {

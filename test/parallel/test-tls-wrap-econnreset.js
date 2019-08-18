@@ -13,6 +13,7 @@ const server = net.createServer((c) => {
 }).listen(common.mustCall(() => {
   const port = server.address().port;
 
+  let errored = false;
   tls.connect(port, common.localhostIPv4)
     .once('error', common.mustCall((e) => {
       assert.strictEqual(e.code, 'ECONNRESET');
@@ -21,5 +22,9 @@ const server = net.createServer((c) => {
       assert.strictEqual(e.port, port);
       assert.strictEqual(e.localAddress, undefined);
       server.close();
+      errored = true;
+    }))
+    .on('close', common.mustCall(() => {
+      assert.strictEqual(errored, true);
     }));
 }));

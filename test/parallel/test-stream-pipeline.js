@@ -505,9 +505,7 @@ const { promisify } = require('util');
         res,
         stream,
         common.mustCall((err) => {
-          assert.ok(err);
-          // TODO(ronag):
-          // assert.strictEqual(err.message, 'oh no');
+          assert.strictEqual(err.message, 'oh no');
           server.close();
         })
       );
