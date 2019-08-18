@@ -31,6 +31,7 @@ if (process.argv[2] !== 'child') {
 const server = net.createServer((c) => {
   c.end();
 }).listen(common.PIPE, common.mustCall(() => {
+  let errored = false;
   tls.connect({ path: common.PIPE })
     .once('error', common.mustCall((e) => {
       assert.strictEqual(e.code, 'ECONNRESET');
@@ -39,5 +40,9 @@ const server = net.createServer((c) => {
       assert.strictEqual(e.host, undefined);
       assert.strictEqual(e.localAddress, undefined);
       server.close();
+      errored = true;
+    }))
+    .on('close', common.mustCall(() => {
+      assert.strictEqual(errored, true);
     }));
 }));

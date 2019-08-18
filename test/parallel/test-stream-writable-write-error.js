@@ -43,7 +43,6 @@ function test(autoDestroy) {
       _write() {}
     });
     w.destroy();
-    expectError(w, 'asd', 'ERR_STREAM_DESTROYED');
   }
 
   {

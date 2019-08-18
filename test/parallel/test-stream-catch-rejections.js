@@ -8,11 +8,10 @@ const assert = require('assert');
   const r = new stream.Readable({
     captureRejections: true,
     read() {
-      this.push('hello');
-      this.push('world');
-      this.push(null);
     }
   });
+  r.push('hello');
+  r.push('world');
 
   const err = new Error('kaboom');
 

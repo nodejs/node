@@ -183,12 +183,12 @@ const assert = require('assert');
 
   let ticked = false;
   read.on('close', common.mustCall(() => {
-    assert.strictEqual(read._readableState.errorEmitted, false);
+    assert.strictEqual(read._readableState.errorEmitted, true);
     assert.strictEqual(ticked, true);
   }));
-  // 'error' should not be emitted since a callback is passed to
-  // destroy(err, callback);
-  read.on('error', common.mustNotCall());
+  read.on('error', common.mustCall((err) => {
+    assert.strictEqual(err, expected);
+  }));
 
   assert.strictEqual(read._readableState.errored, false);
   assert.strictEqual(read._readableState.errorEmitted, false);
@@ -217,7 +217,7 @@ const assert = require('assert');
   }));
   readable.on('error', common.mustCall((err) => {
     assert.strictEqual(ticked, true);
-    assert.strictEqual(err.message, 'kaboom 2');
+    assert.strictEqual(err.message, 'kaboom 1');
     assert.strictEqual(readable._readableState.errorEmitted, true);
   }));
 
@@ -230,7 +230,7 @@ const assert = require('assert');
   // the `_destroy()` callback is called.
   readable.destroy(new Error('kaboom 2'));
   assert.strictEqual(readable._readableState.errorEmitted, false);
-  assert.strictEqual(readable._readableState.errored, true);
+  assert.strictEqual(readable._readableState.errored, false);
 
   ticked = true;
 }

@@ -385,6 +385,10 @@ This is a destructive and immediate way to destroy a stream. Previous calls to
 `write()` may not have drained, and may trigger an `ERR_STREAM_DESTROYED` error.
 Use `end()` instead of destroy if data should flush before close, or wait for
 the `'drain'` event before destroying the stream.
+
+Once `destroy()` has been called any further calls will be a noop and no
+further errors except from `_destroy` may be emitted as `'error'`.
+
 Implementors should not override this method,
 but instead implement [`writable._destroy()`][writable-_destroy].
 
@@ -953,6 +957,10 @@ Destroy the stream. Optionally emit an `'error'` event, and emit a `'close'`
 event (unless `emitClose` is set to `false`). After this call, the readable
 stream will release any internal resources and subsequent calls to `push()`
 will be ignored.
+
+Once `destroy()` has been called any further calls will be a noop and no
+further errors except from `_destroy` may be emitted as `'error'`.
+
 Implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
 
@@ -1483,6 +1491,9 @@ Implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
 The default implementation of `_destroy()` for `Transform` also emit `'close'`
 unless `emitClose` is set in false.
+
+Once `destroy()` has been called any further calls will be a noop and no
+further errors except from `_destroy` may be emitted as `'error'`.
 
 ### `stream.finished(stream[, options], callback)`
 <!-- YAML
