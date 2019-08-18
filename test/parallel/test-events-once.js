@@ -4,6 +4,53 @@ const common = require('../common');
 const { once, EventEmitter } = require('events');
 const { strictEqual, deepStrictEqual } = require('assert');
 
+class EventTargetMock {
+  constructor() {
+    this.events = {};
+  }
+
+  addEventListener = common.mustCall(function(name, listener, options) {
+    if (!(name in this.events)) {
+      this.events[name] = { listeners: [], options };
+    }
+    this.events[name].listeners.push(listener);
+  });
+
+  removeEventListener = common.mustCall(function(name, callback) {
+    if (!(name in this.events)) {
+      return;
+    }
+    const event = this.events[name];
+    const stack = event.listeners;
+
+    for (let i = 0, l = stack.length; i < l; i++) {
+      if (stack[i] === callback) {
+        stack.splice(i, 1);
+        if (stack.length === 0) {
+          Reflect.deleteProperty(this.events, name);
+        }
+        return;
+      }
+    }
+  });
+
+  dispatchEvent = function(name, ...arg) {
+    if (!(name in this.events)) {
+      return true;
+    }
+    const event = this.events[name];
+    const stack = event.listeners.slice();
+
+    for (let i = 0, l = stack.length; i < l; i++) {
+      stack[i].apply(this, arg);
+      if (event.options.once) {
+        this.removeEventListener(name, stack[i]);
+      }
+    }
+    return !name.defaultPrevented;
+  };
+}
+
 async function onceAnEvent() {
   const ee = new EventEmitter();
 
@@ -84,10 +131,48 @@ async function onceError() {
   strictEqual(ee.listenerCount('myevent'), 0);
 }
 
+async function onceWithEventTarget() {
+  const et = new EventTargetMock();
+
+  process.nextTick(() => {
+    et.dispatchEvent('myevent', 42);
+  });
+  const [ value ] = await once(et, 'myevent');
+  strictEqual(value, 42);
+  strictEqual(Reflect.has(et.events, 'myevent'), false);
+}
+
+async function onceWithEventTargetTwoArgs() {
+  const et = new EventTargetMock();
+
+  process.nextTick(() => {
+    et.dispatchEvent('myevent', 42, 24);
+  });
+
+  const value = await once(et, 'myevent');
+  deepStrictEqual(value, [42, 24]);
+}
+
+async function onceWithEventTargetError() {
+  const et = new EventTargetMock();
+
+  const expected = new Error('kaboom');
+  process.nextTick(() => {
+    et.dispatchEvent('error', expected);
+  });
+
+  const [err] = await once(et, 'error');
+  strictEqual(err, expected);
+  strictEqual(Reflect.has(et.events, 'error'), false);
+}
+
 Promise.all([
   onceAnEvent(),
   onceAnEventWithTwoArgs(),
   catchesErrors(),
   stopListeningAfterCatchingError(),
-  onceError()
+  onceError(),
+  onceWithEventTarget(),
+  onceWithEventTargetTwoArgs(),
+  onceWithEventTargetError(),
 ]).then(common.mustCall());
