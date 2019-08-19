@@ -195,10 +195,27 @@ void SignalExit(int signo, siginfo_t* info, void* ucontext) {
 }
 #endif  // __POSIX__
 
+#if HAVE_INSPECTOR
+class InspectorPauseResetter {
+ public:
+  explicit InspectorPauseResetter(inspector::Agent* agent) : agent_(agent) {}
+  ~InspectorPauseResetter() {
+     if (agent_->options().break_node_first_line) {
+       agent_->PauseOnNextJavascriptStatement("Break at bootstrap");
+     }
+  }
+ private:
+  inspector::Agent* agent_;
+};
+#endif
+
 MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
                                       const char* id,
                                       std::vector<Local<String>>* parameters,
                                       std::vector<Local<Value>>* arguments) {
+#if HAVE_INSPECTOR
+  InspectorPauseResetter paus_resetter{env->inspector_agent()};
+#endif
   EscapableHandleScope scope(env->isolate());
   MaybeLocal<Function> maybe_fn =
       NativeModuleEnv::LookupAndCompile(env->context(), id, parameters, env);
