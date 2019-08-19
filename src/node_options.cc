@@ -758,6 +758,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             &PerProcessOptions::use_largepages,
             kAllowedInEnvironment);
 
+  AddOption("--trace-sigint",
+            "enable printing JavaScript stacktrace on SIGINT",
+            &PerProcessOptions::trace_sigint,
+            kAllowedInEnvironment);
+
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
 }
 
