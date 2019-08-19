@@ -48,12 +48,10 @@ for (const withPendingData of [ false, true ]) {
     w.destroy();
     assert.strictEqual(chunksWritten, 1);
     callbacks.shift()();
-    assert.strictEqual(chunksWritten, 2);
+    assert.strictEqual(chunksWritten, useEnd && !withPendingData ? 1 : 2);
     assert.strictEqual(callbacks.length, 0);
     assert.strictEqual(drains, 1);
 
-    // When we used `.end()`, we see the 'finished' event if and only if
-    // we actually finished processing the write queue.
-    assert.strictEqual(finished, !withPendingData && useEnd);
+    assert.strictEqual(finished, false);
   }
 }

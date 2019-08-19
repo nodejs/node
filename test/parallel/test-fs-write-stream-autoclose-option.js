@@ -25,10 +25,11 @@ function next() {
   stream = fs.createWriteStream(null, { fd: stream.fd, start: 0 });
   stream.write('Test2');
   stream.end();
+
   stream.on('finish', common.mustCall(function() {
     assert.strictEqual(stream.closed, false);
-    assert.strictEqual(stream.fd, null);
     stream.on('close', common.mustCall(function() {
+      assert.strictEqual(stream.fd, null);
       assert.strictEqual(stream.closed, true);
       process.nextTick(next2);
     }));
@@ -51,8 +52,8 @@ function next3() {
   stream.end();
   stream.on('finish', common.mustCall(function() {
     assert.strictEqual(stream.closed, false);
-    assert.strictEqual(stream.fd, null);
     stream.on('close', common.mustCall(function() {
+      assert.strictEqual(stream.fd, null);
       assert.strictEqual(stream.closed, true);
     }));
   }));

@@ -74,6 +74,7 @@ server.on('request', common.mustCall(function(request, response) {
   common.expectsError(() => request.socket.resume = noop, errMsg);
 
   request.stream.on('finish', common.mustCall(() => {
+    response.stream.destroy();
     setImmediate(() => {
       request.socket.setTimeout = noop;
       assert.strictEqual(request.stream.setTimeout, noop);
@@ -83,7 +84,7 @@ server.on('request', common.mustCall(function(request, response) {
       assert.strictEqual(request.stream._isProcessing, true);
     });
   }));
-  response.stream.destroy();
+  response.stream.end();
 }));
 
 server.listen(0, common.mustCall(function() {
