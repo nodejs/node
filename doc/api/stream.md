@@ -493,7 +493,7 @@ Is `true` if it is safe to call [`writable.write()`][stream-write].
 
 ##### writable.writableEnded
 <!-- YAML
-added: REPLACEME
+added: v12.9.0
 -->
 
 * {boolean}
@@ -1128,7 +1128,7 @@ property can be set using the [`readable.setEncoding()`][] method.
 
 ##### readable.readableEnded
 <!-- YAML
-added: REPLACEME
+added: v12.9.0
 -->
 
 * {boolean}

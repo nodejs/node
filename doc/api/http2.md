@@ -3271,7 +3271,7 @@ The [`Http2Stream`][] object backing the response.
 
 #### response.writableEnded
 <!-- YAML
-added: REPLACEME
+added: v12.9.0
 -->
 
 * {boolean}

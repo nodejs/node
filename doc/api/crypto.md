@@ -2307,7 +2307,7 @@ An array of supported digest functions can be retrieved using
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v12.9.0
     pr-url: https://github.com/nodejs/node/pull/28335
     description: The `oaepHash` option was added.
   - version: v11.6.0
@@ -2388,7 +2388,7 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v12.9.0
     pr-url: https://github.com/nodejs/node/pull/28335
     description: The `oaepHash` option was added.
   - version: v11.6.0

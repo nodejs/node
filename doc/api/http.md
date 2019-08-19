@@ -766,7 +766,7 @@ req.once('response', (res) => {
 
 ### request.writableEnded
 <!-- YAML
-added: REPLACEME
+added: v12.9.0
 -->
 
 * {boolean}
@@ -1457,7 +1457,7 @@ status message which was sent out.
 
 ### response.writableEnded
 <!-- YAML
-added: REPLACEME
+added: v12.9.0
 -->
 
 * {boolean}
