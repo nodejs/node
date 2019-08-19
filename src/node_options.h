@@ -239,6 +239,7 @@ class PerProcessOptions : public Options {
   bool force_fips_crypto = false;
 #endif
 #endif
+  bool trace_sigint = false;
 
 #ifdef NODE_REPORT
   std::vector<std::string> cmdline;
