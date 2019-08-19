@@ -313,13 +313,13 @@ coverage-run-js:
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
 test: all ## Runs default tests, linters, and builds docs.
+	$(MAKE) -s tooltest
 	$(MAKE) -s test-doc
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-js-native-api-tests
 	$(MAKE) -s build-node-api-tests
 	$(MAKE) -s cctest
 	$(MAKE) -s jstest
-	$(MAKE) -s tooltest
 
 .PHONY: test-only
 test-only: all  ## For a quick test, does not run linter or build docs.
