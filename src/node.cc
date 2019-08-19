@@ -214,7 +214,7 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
                                       std::vector<Local<String>>* parameters,
                                       std::vector<Local<Value>>* arguments) {
 #if HAVE_INSPECTOR
-  InspectorPauseResetter paus_resetter{env->inspector_agent()};
+  InspectorPauseResetter pause_resetter{env->inspector_agent()};
 #endif
   EscapableHandleScope scope(env->isolate());
   MaybeLocal<Function> maybe_fn =
