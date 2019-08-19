@@ -112,7 +112,7 @@
     # Enable embedded builtins.
     'v8_enable_embedded_builtins%': 1,
 
-    # Enable the registration of unwinding info for Windows/x64.
+    # Enable the registration of unwinding info for Windows/x64 and ARM64.
     'v8_win64_unwinding_info%': 1,
 
     # Enable code comments for builtins in the snapshot (impacts performance).
@@ -180,6 +180,21 @@
 
     # Enable minor mark compact.
     'v8_enable_minor_mc%': 1,
+
+    # Enable lazy source positions by default.
+    'v8_enable_lazy_source_positions%': 1,
+
+    # Disable write barriers when GCs are non-incremental and
+    # heap has single generation.
+    'v8_disable_write_barriers%': 0,
+
+    # Redirect allocation in young generation so that there will be
+    # only one single generation.
+    'v8_enable_single_generation%': 0,
+
+    # Use token threaded dispatch for the regular expression interpreter.
+    # Use switch-based dispatch if this is false.
+    'v8_enable_regexp_interpreter_threaded_dispatch%': 1,
 
     # Variables from v8.gni
 
@@ -280,8 +295,17 @@
           }],
         ],
       }],
+      ['v8_enable_single_generation==1', {
+        'defines': ['V8_ENABLE_SINGLE_GENERATION',],
+      }],
+      ['v8_disable_write_barriers==1', {
+        'defines': ['V8_DISABLE_WRITE_BARRIERS',],
+      }],
       ['v8_enable_concurrent_marking==1', {
         'defines': ['V8_CONCURRENT_MARKING',],
+      }],
+      ['v8_enable_lazy_source_positions==1', {
+        'defines': ['V8_ENABLE_LAZY_SOURCE_POSITIONS',],
       }],
       ['v8_check_microtasks_scopes_consistency==1', {
         'defines': ['V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY',],
@@ -306,6 +330,9 @@
       }],
       ['v8_win64_unwinding_info==1', {
         'defines': ['V8_WIN64_UNWINDING_INFO',],
+      }],
+      ['v8_enable_regexp_interpreter_threaded_dispatch==1', {
+        'defines': ['V8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH',],
       }],
     ],  # conditions
     'defines': [
