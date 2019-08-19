@@ -1177,7 +1177,7 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: REPLACEME
+  - version: v12.9.0
     pr-url: https://github.com/nodejs/node/pull/27836
     description: Support the `allowHalfOpen` option.
   - version: v12.4.0

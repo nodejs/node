@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#12.9.0">12.9.0</a><br/>
 <a href="#12.8.1">12.8.1</a><br/>
 <a href="#12.8.0">12.8.0</a><br/>
 <a href="#12.7.0">12.7.0</a><br/>
@@ -37,6 +38,132 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.9.0"></a>
+## 2019-08-20, Version 12.9.0 (Current), @targos
+
+### Notable changes
+
+* **crypto**:
+  * Added an oaepHash option to asymmetric encryption which allows users to specify a hash function when using OAEP padding (Tobias Nießen) [#28335](https://github.com/nodejs/node/pull/28335).
+* **deps**:
+  * Updated V8 to 7.6.303.29 (Michaël Zasso) [#28955](https://github.com/nodejs/node/pull/28955).
+    * Improves the performance of various APIs such as `JSON.parse` and methods
+      called on frozen arrays.
+    * Adds the [`Promise.allSettled`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) method.
+    * Improves support of `BigInt` in `Intl` methods.
+    * For more information: https://v8.dev/blog/v8-release-76
+  * Updated libuv to 1.31.0 (cjihrig) [#29070](https://github.com/nodejs/node/pull/29070).
+    * `UV_FS_O_FILEMAP` has been added for faster access to memory mapped files on Windows.
+    * `uv_fs_mkdir()` now returns `UV_EINVAL` for invalid filenames on Windows. It previously returned `UV_ENOENT`.
+    * The `uv_fs_statfs()` API has been added.
+    * The `uv_os_environ()` and `uv_os_free_environ()` APIs have been added.
+* **fs**:
+  * Added `fs.writev`, `fs.writevSync` and `filehandle.writev` (promise version) methods. They allow to write an array of `ArrayBufferView`s to a file descriptor (Anas Aboureada) [#25925](https://github.com/nodejs/node/pull/25925), (cjihrig) [#29186](https://github.com/nodejs/node/pull/29186).
+* **http**:
+  * Added three properties to `OutgoingMessage.prototype`: `writableObjectMode`, `writableLength` and `writableHighWaterMark` [#29018](https://github.com/nodejs/node/pull/29018).
+* **stream**:
+  * Added an new property `readableEnded` to readable streams. Its value is set to `true` when the `'end'` event is emitted. (Robert Nagy) [#28814](https://github.com/nodejs/node/pull/28814).
+  * Added an new property `writableEnded` to writable streams. Its value is set to `true` after `writable.end()` has been called. (Robert Nagy) [#28934](https://github.com/nodejs/node/pull/28934).
+
+### Commits
+
+* [[`5008b46159`](https://github.com/nodejs/node/commit/5008b46159)] - **benchmark**: allow easy passing of process flags (Brian White) [#28986](https://github.com/nodejs/node/pull/28986)
+* [[`9057814206`](https://github.com/nodejs/node/commit/9057814206)] - **buffer**: improve copy() performance (Brian White) [#29066](https://github.com/nodejs/node/pull/29066)
+* [[`c7a4525bbe`](https://github.com/nodejs/node/commit/c7a4525bbe)] - **buffer**: improve ERR\_BUFFER\_OUT\_OF\_BOUNDS default (cjihrig) [#29098](https://github.com/nodejs/node/pull/29098)
+* [[`f42eb01d1d`](https://github.com/nodejs/node/commit/f42eb01d1d)] - **build**: enable linux large pages LLVM lld linkage support (David Carlier) [#28938](https://github.com/nodejs/node/pull/28938)
+* [[`5c5ef4e858`](https://github.com/nodejs/node/commit/5c5ef4e858)] - **build**: remove unused option (Rich Trott) [#29173](https://github.com/nodejs/node/pull/29173)
+* [[`fbe25c7fb7`](https://github.com/nodejs/node/commit/fbe25c7fb7)] - **build**: remove unnecessary Python semicolon (MattIPv4) [#29170](https://github.com/nodejs/node/pull/29170)
+* [[`e51f924964`](https://github.com/nodejs/node/commit/e51f924964)] - **build**: add a testclean target (Daniel Bevenius) [#29094](https://github.com/nodejs/node/pull/29094)
+* [[`0a63e2d9ff`](https://github.com/nodejs/node/commit/0a63e2d9ff)] - **build**: support py3 for configure.py (cclauss) [#29106](https://github.com/nodejs/node/pull/29106)
+* [[`b04f9e1f57`](https://github.com/nodejs/node/commit/b04f9e1f57)] - **build**: reset embedder string to "-node.0" (Michaël Zasso) [#28955](https://github.com/nodejs/node/pull/28955)
+* [[`b085b94fce`](https://github.com/nodejs/node/commit/b085b94fce)] - **console**: minor timeLogImpl() refactor (cjihrig) [#29100](https://github.com/nodejs/node/pull/29100)
+* [[`54197eac4d`](https://github.com/nodejs/node/commit/54197eac4d)] - **(SEMVER-MINOR)** **crypto**: extend RSA-OAEP support with oaepHash (Tobias Nießen) [#28335](https://github.com/nodejs/node/pull/28335)
+* [[`a17d398989`](https://github.com/nodejs/node/commit/a17d398989)] - **deps**: V8: cherry-pick e3d7f8a (cclauss) [#29105](https://github.com/nodejs/node/pull/29105)
+* [[`2c91c65961`](https://github.com/nodejs/node/commit/2c91c65961)] - **deps**: upgrade to libuv 1.31.0 (cjihrig) [#29070](https://github.com/nodejs/node/pull/29070)
+* [[`53c7fac310`](https://github.com/nodejs/node/commit/53c7fac310)] - **deps**: patch V8 to be API/ABI compatible with 7.4 (from 7.6) (Michaël Zasso) [#28955](https://github.com/nodejs/node/pull/28955)
+* [[`7b8eb83895`](https://github.com/nodejs/node/commit/7b8eb83895)] - **(SEMVER-MINOR)** **deps**: patch V8 to be API/ABI compatible with 7.4 (from 7.5) (Michaël Zasso) [#28005](https://github.com/nodejs/node/pull/28005)
+* [[`7d411f47b2`](https://github.com/nodejs/node/commit/7d411f47b2)] - **deps**: V8: backport b33af60 (Gus Caplan) [#28671](https://github.com/nodejs/node/pull/28671)
+* [[`492b7cb8c3`](https://github.com/nodejs/node/commit/492b7cb8c3)] - **(SEMVER-MINOR)** **deps**: V8: cherry-pick d2ccc59 (Michaël Zasso) [#28016](https://github.com/nodejs/node/pull/28016)
+* [[`945955ff86`](https://github.com/nodejs/node/commit/945955ff86)] - **deps**: cherry-pick 13a04aba from V8 upstream (Jon Kunkee) [#28602](https://github.com/nodejs/node/pull/28602)
+* [[`9b3c115efb`](https://github.com/nodejs/node/commit/9b3c115efb)] - **(SEMVER-MINOR)** **deps**: V8: cherry-pick 3b8c624 (Michaël Zasso) [#28016](https://github.com/nodejs/node/pull/28016)
+* [[`533b2d4a08`](https://github.com/nodejs/node/commit/533b2d4a08)] - **(SEMVER-MINOR)** **deps**: V8: fix linking issue for MSVS (Refael Ackermann) [#28016](https://github.com/nodejs/node/pull/28016)
+* [[`c9f8d28f71`](https://github.com/nodejs/node/commit/c9f8d28f71)] - **(SEMVER-MINOR)** **deps**: V8: fix BUILDING\_V8\_SHARED issues (Refael Ackermann) [#27375](https://github.com/nodejs/node/pull/27375)
+* [[`f24caeff2f`](https://github.com/nodejs/node/commit/f24caeff2f)] - **(SEMVER-MINOR)** **deps**: V8: add workaround for MSVC optimizer bug (Refael Ackermann) [#28016](https://github.com/nodejs/node/pull/28016)
+* [[`94c8d068f8`](https://github.com/nodejs/node/commit/94c8d068f8)] - **(SEMVER-MINOR)** **deps**: V8: use ATOMIC\_VAR\_INIT instead of std::atomic\_init (Refael Ackermann) [#27375](https://github.com/nodejs/node/pull/27375)
+* [[`d940403c20`](https://github.com/nodejs/node/commit/d940403c20)] - **(SEMVER-MINOR)** **deps**: V8: forward declaration of `Rtl\*FunctionTable` (Refael Ackermann) [#27375](https://github.com/nodejs/node/pull/27375)
+* [[`ac0c075cad`](https://github.com/nodejs/node/commit/ac0c075cad)] - **(SEMVER-MINOR)** **deps**: V8: patch register-arm64.h (Refael Ackermann) [#27375](https://github.com/nodejs/node/pull/27375)
+* [[`eefbc0773f`](https://github.com/nodejs/node/commit/eefbc0773f)] - **(SEMVER-MINOR)** **deps**: V8: update postmortem metadata generation script (cjihrig) [#28016](https://github.com/nodejs/node/pull/28016)
+* [[`33f3e383da`](https://github.com/nodejs/node/commit/33f3e383da)] - **(SEMVER-MINOR)** **deps**: V8: silence irrelevant warning (Michaël Zasso) [#26685](https://github.com/nodejs/node/pull/26685)
+* [[`434c127651`](https://github.com/nodejs/node/commit/434c127651)] - **(SEMVER-MINOR)** **deps**: V8: un-cherry-pick bd019bd (Refael Ackermann) [#26685](https://github.com/nodejs/node/pull/26685)
+* [[`040e7dabe4`](https://github.com/nodejs/node/commit/040e7dabe4)] - **(SEMVER-MINOR)** **deps**: V8: fix filename manipulation for Windows (Refael Ackermann) [#28016](https://github.com/nodejs/node/pull/28016)
+* [[`cfe2484e04`](https://github.com/nodejs/node/commit/cfe2484e04)] - **deps**: update V8 to 7.6.303.29 (Michaël Zasso) [#28955](https://github.com/nodejs/node/pull/28955)
+* [[`6f7b561295`](https://github.com/nodejs/node/commit/6f7b561295)] - **dns**: update lookupService() first arg name (cjihrig) [#29040](https://github.com/nodejs/node/pull/29040)
+* [[`ad28f555a1`](https://github.com/nodejs/node/commit/ad28f555a1)] - **doc**: improve example single-test command (David Guttman) [#29171](https://github.com/nodejs/node/pull/29171)
+* [[`edbe38d52d`](https://github.com/nodejs/node/commit/edbe38d52d)] - **doc**: mention N-API as recommended approach (Michael Dawson) [#28922](https://github.com/nodejs/node/pull/28922)
+* [[`ebfe6367f0`](https://github.com/nodejs/node/commit/ebfe6367f0)] - **doc**: fix introduced\_in note in querystring.md (Ben Noordhuis) [#29014](https://github.com/nodejs/node/pull/29014)
+* [[`9ead4eceeb`](https://github.com/nodejs/node/commit/9ead4eceeb)] - **doc**: note that stream error can close stream (Robert Nagy) [#29082](https://github.com/nodejs/node/pull/29082)
+* [[`5ea9237d2b`](https://github.com/nodejs/node/commit/5ea9237d2b)] - **doc**: clarify async iterator leak (Robert Nagy) [#28997](https://github.com/nodejs/node/pull/28997)
+* [[`1b6d7c0d00`](https://github.com/nodejs/node/commit/1b6d7c0d00)] - **doc**: fix nits in child\_process.md (Vse Mozhet Byt) [#29024](https://github.com/nodejs/node/pull/29024)
+* [[`375d1ee58b`](https://github.com/nodejs/node/commit/375d1ee58b)] - **doc**: improve UV\_THREADPOOL\_SIZE description (Tobias Nießen) [#29033](https://github.com/nodejs/node/pull/29033)
+* [[`7b7b8f21cb`](https://github.com/nodejs/node/commit/7b7b8f21cb)] - **doc**: documented default statusCode (Natalie Fearnley) [#28982](https://github.com/nodejs/node/pull/28982)
+* [[`17d9495afa`](https://github.com/nodejs/node/commit/17d9495afa)] - **doc**: make unshift doc compliant with push doc (EduardoRFS) [#28953](https://github.com/nodejs/node/pull/28953)
+* [[`3bfca0b7e4`](https://github.com/nodejs/node/commit/3bfca0b7e4)] - **doc, lib, src, test, tools**: fix assorted typos (XhmikosR) [#29075](https://github.com/nodejs/node/pull/29075)
+* [[`b7696b41e5`](https://github.com/nodejs/node/commit/b7696b41e5)] - **events**: give subclass name in unhandled 'error' message (Anna Henningsen) [#28952](https://github.com/nodejs/node/pull/28952)
+* [[`d79d142e0c`](https://github.com/nodejs/node/commit/d79d142e0c)] - **fs**: use fs.writev() internally (Robert Nagy) [#29189](https://github.com/nodejs/node/pull/29189)
+* [[`82eeadb216`](https://github.com/nodejs/node/commit/82eeadb216)] - **fs**: use consistent buffer array validation (cjihrig) [#29186](https://github.com/nodejs/node/pull/29186)
+* [[`81f3eb5bb1`](https://github.com/nodejs/node/commit/81f3eb5bb1)] - **fs**: add writev() promises version (cjihrig) [#29186](https://github.com/nodejs/node/pull/29186)
+* [[`435683610b`](https://github.com/nodejs/node/commit/435683610b)] - **fs**: validate writev fds consistently (cjihrig) [#29185](https://github.com/nodejs/node/pull/29185)
+* [[`bb19d8212a`](https://github.com/nodejs/node/commit/bb19d8212a)] - **(SEMVER-MINOR)** **fs**: add fs.writev() which exposes syscall writev() (Anas Aboureada) [#25925](https://github.com/nodejs/node/pull/25925)
+* [[`178caa56ae`](https://github.com/nodejs/node/commit/178caa56ae)] - **fs**: add default options for \*stat() (Tony Brix) [#29114](https://github.com/nodejs/node/pull/29114)
+* [[`f194626ffb`](https://github.com/nodejs/node/commit/f194626ffb)] - **fs**: validate fds as int32s (cjihrig) [#28984](https://github.com/nodejs/node/pull/28984)
+* [[`c5edeb9776`](https://github.com/nodejs/node/commit/c5edeb9776)] - **http**: simplify drain() (Robert Nagy) [#29081](https://github.com/nodejs/node/pull/29081)
+* [[`6b9e372198`](https://github.com/nodejs/node/commit/6b9e372198)] - **http**: follow symbol naming convention (Robert Nagy) [#29091](https://github.com/nodejs/node/pull/29091)
+* [[`2e5008848e`](https://github.com/nodejs/node/commit/2e5008848e)] - **http**: remove redundant condition (Luigi Pinca) [#29078](https://github.com/nodejs/node/pull/29078)
+* [[`13a497912d`](https://github.com/nodejs/node/commit/13a497912d)] - **http**: remove duplicate check (Robert Nagy) [#29022](https://github.com/nodejs/node/pull/29022)
+* [[`16e001112c`](https://github.com/nodejs/node/commit/16e001112c)] - **(SEMVER-MINOR)** **http**: add missing stream-like properties to OutgoingMessage (Robert Nagy) [#29018](https://github.com/nodejs/node/pull/29018)
+* [[`c396b2a5b2`](https://github.com/nodejs/node/commit/c396b2a5b2)] - **http**: buffer writes even while no socket assigned (Robert Nagy) [#29019](https://github.com/nodejs/node/pull/29019)
+* [[`f9b61d2bc7`](https://github.com/nodejs/node/commit/f9b61d2bc7)] - **(SEMVER-MINOR)** **http,stream**: add writableEnded (Robert Nagy) [#28934](https://github.com/nodejs/node/pull/28934)
+* [[`964dff8a9e`](https://github.com/nodejs/node/commit/964dff8a9e)] - **http2**: remove unused FlushData() function (Anna Henningsen) [#29145](https://github.com/nodejs/node/pull/29145)
+* [[`66249bbcad`](https://github.com/nodejs/node/commit/66249bbcad)] - **inspector**: use const for contextGroupId (gengjiawen) [#29076](https://github.com/nodejs/node/pull/29076)
+* [[`cb162298eb`](https://github.com/nodejs/node/commit/cb162298eb)] - **module**: pkg exports validations and fallbacks (Guy Bedford) [#28949](https://github.com/nodejs/node/pull/28949)
+* [[`491b46d605`](https://github.com/nodejs/node/commit/491b46d605)] - **module**: refine package name validation (Guy Bedford) [#28965](https://github.com/nodejs/node/pull/28965)
+* [[`925e40cfa7`](https://github.com/nodejs/node/commit/925e40cfa7)] - **module**: add warning when import,export is detected in CJS context (Giorgos Ntemiris) [#28950](https://github.com/nodejs/node/pull/28950)
+* [[`17319e7f44`](https://github.com/nodejs/node/commit/17319e7f44)] - **net**: use callback to properly propagate error (Robert Nagy) [#29178](https://github.com/nodejs/node/pull/29178)
+* [[`7f11c72cc5`](https://github.com/nodejs/node/commit/7f11c72cc5)] - **readline**: close dumb terminals on Control+D (cjihrig) [#29149](https://github.com/nodejs/node/pull/29149)
+* [[`3c346b8bad`](https://github.com/nodejs/node/commit/3c346b8bad)] - **readline**: close dumb terminals on Control+C (cjihrig) [#29149](https://github.com/nodejs/node/pull/29149)
+* [[`e474c6776c`](https://github.com/nodejs/node/commit/e474c6776c)] - **(SEMVER-MINOR)** **readline**: establish y in cursorTo as optional (Gerhard Stoebich) [#29128](https://github.com/nodejs/node/pull/29128)
+* [[`2528dee674`](https://github.com/nodejs/node/commit/2528dee674)] - **report**: list envvars using uv\_os\_environ() (cjihrig) [#28963](https://github.com/nodejs/node/pull/28963)
+* [[`a6b9299039`](https://github.com/nodejs/node/commit/a6b9299039)] - **src**: rename --security-reverts to ...-revert (Sam Roberts) [#29153](https://github.com/nodejs/node/pull/29153)
+* [[`62a0e91d8c`](https://github.com/nodejs/node/commit/62a0e91d8c)] - **src**: simplify UnionBytes (Ben Noordhuis) [#29116](https://github.com/nodejs/node/pull/29116)
+* [[`b2936cff5d`](https://github.com/nodejs/node/commit/b2936cff5d)] - **src**: organize imports in inspector\_profiler.cc (pi1024e) [#29073](https://github.com/nodejs/node/pull/29073)
+* [[`a9f8b62b47`](https://github.com/nodejs/node/commit/a9f8b62b47)] - **(SEMVER-MINOR)** **stream**: add readableEnded (Robert Nagy) [#28814](https://github.com/nodejs/node/pull/28814)
+* [[`1e3e6da9b9`](https://github.com/nodejs/node/commit/1e3e6da9b9)] - **stream**: simplify howMuchToRead() (Robert Nagy) [#29155](https://github.com/nodejs/node/pull/29155)
+* [[`e2a2a3f4dd`](https://github.com/nodejs/node/commit/e2a2a3f4dd)] - **stream**: use lazy registration for drain for fast destinations (Robert Nagy) [#29095](https://github.com/nodejs/node/pull/29095)
+* [[`2a844599db`](https://github.com/nodejs/node/commit/2a844599db)] - **stream**: improve read() performance further (Brian White) [#29077](https://github.com/nodejs/node/pull/29077)
+* [[`e543d35f35`](https://github.com/nodejs/node/commit/e543d35f35)] - **stream**: inline and simplify onwritedrain (Robert Nagy) [#29037](https://github.com/nodejs/node/pull/29037)
+* [[`6bc4620d8b`](https://github.com/nodejs/node/commit/6bc4620d8b)] - **stream**: improve read() performance more (Brian White) [#28989](https://github.com/nodejs/node/pull/28989)
+* [[`647f3a8d01`](https://github.com/nodejs/node/commit/647f3a8d01)] - **stream**: encapsulate buffer-list (Robert Nagy) [#28974](https://github.com/nodejs/node/pull/28974)
+* [[`000999c06c`](https://github.com/nodejs/node/commit/000999c06c)] - **stream**: improve read() performance (Brian White) [#28961](https://github.com/nodejs/node/pull/28961)
+* [[`6bafd35369`](https://github.com/nodejs/node/commit/6bafd35369)] - **test**: deflake test-tls-passphrase (Luigi Pinca) [#29134](https://github.com/nodejs/node/pull/29134)
+* [[`aff1ef9d27`](https://github.com/nodejs/node/commit/aff1ef9d27)] - **test**: add required settings to test-benchmark-buffer (Rich Trott) [#29163](https://github.com/nodejs/node/pull/29163)
+* [[`18b711366a`](https://github.com/nodejs/node/commit/18b711366a)] - **test**: make exported method static (Rainer Poisel) [#29102](https://github.com/nodejs/node/pull/29102)
+* [[`0aa339e5e1`](https://github.com/nodejs/node/commit/0aa339e5e1)] - **test**: skip test-fs-access if root (Daniel Bevenius) [#29092](https://github.com/nodejs/node/pull/29092)
+* [[`e3b1243ea2`](https://github.com/nodejs/node/commit/e3b1243ea2)] - **test**: unskip tests that now pass on AIX (Sam Roberts) [#29054](https://github.com/nodejs/node/pull/29054)
+* [[`f9ed5f351b`](https://github.com/nodejs/node/commit/f9ed5f351b)] - **test**: assert: add failing deepEqual test for faked boxed primitives (Jordan Harband) [#29029](https://github.com/nodejs/node/pull/29029)
+* [[`43e444b07a`](https://github.com/nodejs/node/commit/43e444b07a)] - **test**: refactor test-sync-io-option (Anna Henningsen) [#29020](https://github.com/nodejs/node/pull/29020)
+* [[`82edebfebf`](https://github.com/nodejs/node/commit/82edebfebf)] - **(SEMVER-MINOR)** **test**: add test for OAEP hash mismatch (Tobias Nießen) [#28335](https://github.com/nodejs/node/pull/28335)
+* [[`f08f154fd6`](https://github.com/nodejs/node/commit/f08f154fd6)] - **(SEMVER-MINOR)** **test**: update postmortem metadata test for V8 7.6 (cjihrig) [#28016](https://github.com/nodejs/node/pull/28016)
+* [[`5b892c44d6`](https://github.com/nodejs/node/commit/5b892c44d6)] - **tls**: allow client-side sockets to be half-opened (Luigi Pinca) [#27836](https://github.com/nodejs/node/pull/27836)
+* [[`c4f6077994`](https://github.com/nodejs/node/commit/c4f6077994)] - **tools**: make code cache and snapshot deterministic (Ben Noordhuis) [#29142](https://github.com/nodejs/node/pull/29142)
+* [[`acdc21b832`](https://github.com/nodejs/node/commit/acdc21b832)] - **tools**: make pty\_helper.py python3-compatible (Ben Noordhuis) [#29167](https://github.com/nodejs/node/pull/29167)
+* [[`31c50e5c17`](https://github.com/nodejs/node/commit/31c50e5c17)] - **tools**: make nodedownload.py Python 3 compatible (cclauss) [#29104](https://github.com/nodejs/node/pull/29104)
+* [[`1011a1792c`](https://github.com/nodejs/node/commit/1011a1792c)] - **tools**: allow single JS file for --link-module (Daniel Bevenius) [#28443](https://github.com/nodejs/node/pull/28443)
+* [[`4d7a7957fc`](https://github.com/nodejs/node/commit/4d7a7957fc)] - **(SEMVER-MINOR)** **tools**: sync gypfiles with V8 7.6 (Michaël Zasso) [#28016](https://github.com/nodejs/node/pull/28016)
+* [[`a4e2549b87`](https://github.com/nodejs/node/commit/a4e2549b87)] - **util**: improve debuglog performance (Brian White) [#28956](https://github.com/nodejs/node/pull/28956)
+* [[`112ec73c95`](https://github.com/nodejs/node/commit/112ec73c95)] - **util**: isEqualBoxedPrimitive: ensure both values are actual boxed Symbols (Jordan Harband) [#29029](https://github.com/nodejs/node/pull/29029)
+* [[`8426077898`](https://github.com/nodejs/node/commit/8426077898)] - **util**: assert: fix deepEqual comparing fake-boxed to real boxed primitive (Jordan Harband) [#29029](https://github.com/nodejs/node/pull/29029)
+* [[`d4e397a900`](https://github.com/nodejs/node/commit/d4e397a900)] - **worker**: fix crash when SharedArrayBuffer outlives creating thread (Anna Henningsen) [#29190](https://github.com/nodejs/node/pull/29190)
 
 <a id="12.8.1"></a>
 ## 2019-08-15, Version 12.8.1 (Current), @targos

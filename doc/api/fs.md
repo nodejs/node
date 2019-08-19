@@ -3865,7 +3865,7 @@ this API: [`fs.write(fd, string...)`][].
 
 ## fs.writev(fd, buffers[, position], callback)
 <!-- YAML
-added: REPLACEME
+added: v12.9.0
 -->
 
 * `fd` {integer}
@@ -3898,7 +3898,7 @@ the end of the file.
 
 ## fs.writevSync(fd, buffers[, position])
 <!-- YAML
-added: REPLACEME
+added: v12.9.0
 -->
 
 * `fd` {integer}
@@ -4276,7 +4276,7 @@ beginning of the file.
 
 #### filehandle.writev(buffers[, position])
 <!-- YAML
-added: REPLACEME
+added: v12.9.0
 -->
 
 * `buffers` {ArrayBufferView[]}
