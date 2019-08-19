@@ -779,6 +779,13 @@ added: v13.5.0
 Prints a stack trace whenever an environment is exited proactively,
 i.e. invoking `process.exit()`.
 
+### `--trace-sigint`
+<!-- YAML
+added: REPLACEME
+-->
+
+Prints a stack trace on SIGINT.
+
 ### `--trace-sync-io`
 <!-- YAML
 added: v2.1.0
@@ -1122,6 +1129,7 @@ Node.js options that are allowed are:
 * `--trace-event-file-pattern`
 * `--trace-events-enabled`
 * `--trace-exit`
+* `--trace-sigint`
 * `--trace-sync-io`
 * `--trace-tls`
 * `--trace-uncaught`
