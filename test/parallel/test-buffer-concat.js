@@ -59,7 +59,7 @@ assert.strictEqual(flatLongLen.toString(), check);
     Buffer.concat(value);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "list[0]" argument must be one of type Array, Buffer, ' +
+    message: 'The "list[0]" argument must be one of type Buffer ' +
              `or Uint8Array. Received type ${typeof value[0]}`
   });
 });
@@ -68,7 +68,7 @@ assert.throws(() => {
   Buffer.concat([Buffer.from('hello'), 3]);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "list[1]" argument must be one of type Array, Buffer, ' +
+  message: 'The "list[1]" argument must be one of type Buffer ' +
            'or Uint8Array. Received type number'
 });
 
