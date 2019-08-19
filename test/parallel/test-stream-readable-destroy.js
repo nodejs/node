@@ -130,9 +130,7 @@ const assert = require('assert');
   });
 
   read.on('end', common.mustNotCall('no end event'));
-  read.on('error', common.mustCall((err) => {
-    assert.strictEqual(err, expected);
-  }));
+  read.on('error', common.mustNotCall());
 
   read.destroy();
   assert.strictEqual(read.destroyed, true);
@@ -175,6 +173,7 @@ const assert = require('assert');
   const expected = new Error('kaboom');
 
   read.on('close', common.mustCall());
+  read.on('error', common.mustCall());
   read.destroy(expected, common.mustCall(function(err) {
     assert.strictEqual(err, expected);
   }));
@@ -188,4 +187,30 @@ const assert = require('assert');
   read.destroy();
   read.push('hi');
   read.on('data', common.mustNotCall());
+}
+
+{
+  const read = new Readable({
+    read() {},
+    destroy: common.mustCall((err, cb) => {
+      cb(new Error('test'));
+    })
+  });
+
+  read.on('error', common.mustNotCall());
+  read.destroy();
+}
+
+{
+  const read = new Readable({
+    read() {},
+    destroy: common.mustCall((err, cb) => {
+      cb(new Error('test'))
+    })
+  });
+
+  read.on('error', common.mustCall(err => {
+    assert.strictEqual(err.message, 'destroyed');
+  }));
+  read.destroy(new Error('destroyed'));
 }

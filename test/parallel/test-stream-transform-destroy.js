@@ -135,9 +135,7 @@ const assert = require('assert');
   transform.on('close', common.mustCall());
   transform.on('finish', common.mustNotCall('no finish event'));
   transform.on('end', common.mustNotCall('no end event'));
-  transform.on('error', common.mustCall((err) => {
-    assert.strictEqual(err, expected);
-  }));
+  transform.on('error', common.mustNotCall());
 
   transform.destroy();
 }

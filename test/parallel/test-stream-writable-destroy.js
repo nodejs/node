@@ -129,9 +129,7 @@ const assert = require('assert');
 
   write.on('close', common.mustCall());
   write.on('finish', common.mustNotCall('no finish event'));
-  write.on('error', common.mustCall((err) => {
-    assert.strictEqual(err, expected);
-  }));
+  write.on('error', common.mustNotCall());
 
   write.destroy();
   assert.strictEqual(write.destroyed, true);
@@ -163,10 +161,7 @@ const assert = require('assert');
   });
 
   writable.on('close', common.mustCall());
-  writable.on('error', common.expectsError({
-    type: Error,
-    message: 'kaboom 2'
-  }));
+  writable.on('error', common.mustNotCall());
 
   writable.destroy();
   assert.strictEqual(writable.destroyed, true);
@@ -175,7 +170,7 @@ const assert = require('assert');
   // Test case where `writable.destroy()` is called again with an error before
   // the `_destroy()` callback is called.
   writable.destroy(new Error('kaboom 2'));
-  assert.strictEqual(writable._writableState.errorEmitted, true);
+  assert.strictEqual(writable._writableState.errorEmitted, false);
 }
 
 {

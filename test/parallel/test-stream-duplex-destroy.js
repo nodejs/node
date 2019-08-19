@@ -144,9 +144,7 @@ const assert = require('assert');
 
   duplex.on('finish', common.mustNotCall('no finish event'));
   duplex.on('end', common.mustNotCall('no end event'));
-  duplex.on('error', common.mustCall((err) => {
-    assert.strictEqual(err, expected);
-  }));
+  duplex.on('error', common.mustNotCall());
 
   duplex.destroy();
   assert.strictEqual(duplex.destroyed, true);
