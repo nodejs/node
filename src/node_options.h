@@ -237,6 +237,7 @@ class PerProcessOptions : public Options {
 #endif
 #endif
   std::string use_largepages = "off";
+  bool trace_sigint = false;
 
 #ifdef NODE_REPORT
   std::vector<std::string> cmdline;
