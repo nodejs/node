@@ -22,6 +22,7 @@ const expectedModules = new Set([
   'Internal Binding native_module',
   'Internal Binding options',
   'Internal Binding process_methods',
+  'Internal Binding string_decoder',
   'Internal Binding task_queue',
   'Internal Binding timers',
   'Internal Binding trace_events',
