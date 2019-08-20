@@ -2317,11 +2317,12 @@ void SSLWrap<Base>::GetSession(const FunctionCallbackInfo<Value>& args) {
     return;
 
   int slen = i2d_SSL_SESSION(sess, nullptr);
-  CHECK_GT(slen, 0);
+  if (slen <= 0)
+    return;  // Invalid or malformed session.
 
   AllocatedBuffer sbuf = env->AllocateManaged(slen);
   unsigned char* p = reinterpret_cast<unsigned char*>(sbuf.data());
-  i2d_SSL_SESSION(sess, &p);
+  CHECK_LT(0, i2d_SSL_SESSION(sess, &p));
   args.GetReturnValue().Set(sbuf.ToBuffer().ToLocalChecked());
 }
 
