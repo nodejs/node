@@ -285,7 +285,7 @@ class MacTool(object):
   def ExecPackageIosFramework(self, framework):
     # Find the name of the binary based on the part before the ".framework".
     binary = os.path.basename(framework).split('.')[0]
-    module_path = os.path.join(framework, 'Modules');
+    module_path = os.path.join(framework, 'Modules')
     if not os.path.exists(module_path):
       os.mkdir(module_path)
     module_template = 'framework module %s {\n' \
@@ -346,7 +346,7 @@ class MacTool(object):
     WriteHmap(out, filelist)
 
   def ExecCopyIosFrameworkHeaders(self, framework, *copy_headers):
-    header_path = os.path.join(framework, 'Headers');
+    header_path = os.path.join(framework, 'Headers')
     if not os.path.exists(header_path):
       os.makedirs(header_path)
     for header in copy_headers:
