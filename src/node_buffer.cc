@@ -63,6 +63,7 @@ using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::Global;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Just;
@@ -446,11 +447,9 @@ namespace {
 
 void CreateFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
-  CHECK(args[1]->IsString());
+  CHECK(args[1]->IsInt32());
 
-  enum encoding enc = ParseEncoding(args.GetIsolate(),
-                                    args[1].As<String>(),
-                                    UTF8);
+  enum encoding enc = static_cast<enum encoding>(args[1].As<Int32>()->Value());
   Local<Object> buf;
   if (New(args.GetIsolate(), args[0].As<String>(), enc).ToLocal(&buf))
     args.GetReturnValue().Set(buf);
@@ -786,9 +785,10 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[1]->IsString());
   CHECK(args[2]->IsNumber());
+  CHECK(args[3]->IsInt32());
   CHECK(args[4]->IsBoolean());
 
-  enum encoding enc = ParseEncoding(isolate, args[3], UTF8);
+  enum encoding enc = static_cast<enum encoding>(args[3].As<Int32>()->Value());
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   ArrayBufferViewContents<char> buffer(args[0]);
@@ -900,11 +900,10 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsObject());
   CHECK(args[2]->IsNumber());
+  CHECK(args[3]->IsInt32());
   CHECK(args[4]->IsBoolean());
 
-  enum encoding enc = ParseEncoding(args.GetIsolate(),
-                                    args[3],
-                                    UTF8);
+  enum encoding enc = static_cast<enum encoding>(args[3].As<Int32>()->Value());
 
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[1]);
