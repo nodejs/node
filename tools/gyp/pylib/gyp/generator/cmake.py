@@ -686,7 +686,7 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
   for src in srcs:
     _, ext = os.path.splitext(src)
     src_type = COMPILABLE_EXTENSIONS.get(ext, None)
-    src_norm_path = NormjoinPath(path_from_cmakelists_to_gyp, src);
+    src_norm_path = NormjoinPath(path_from_cmakelists_to_gyp, src)
 
     if src_type == 's':
       s_sources.append(src_norm_path)

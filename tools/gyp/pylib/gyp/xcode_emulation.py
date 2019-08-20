@@ -1076,7 +1076,7 @@ class XcodeSettings(object):
     # Xcode expects XCTests to be copied into the TEST_HOST dir.
     if self._IsXCTest():
       source = os.path.join("${BUILT_PRODUCTS_DIR}", product_name)
-      test_host = os.path.dirname(settings.get('TEST_HOST'));
+      test_host = os.path.dirname(settings.get('TEST_HOST'))
       xctest_destination = os.path.join(test_host, 'PlugIns', product_name)
       postbuilds.extend(['ditto %s %s' % (source, xctest_destination)])
 
@@ -1093,7 +1093,7 @@ class XcodeSettings(object):
 
     if self._IsXCTest():
       # For device xctests, Xcode copies two extra frameworks into $TEST_HOST.
-      test_host = os.path.dirname(settings.get('TEST_HOST'));
+      test_host = os.path.dirname(settings.get('TEST_HOST'))
       frameworks_dir = os.path.join(test_host, 'Frameworks')
       platform_root = self._XcodePlatformPath(configname)
       frameworks = \
