@@ -3,6 +3,7 @@
 const {
   mustCall,
   mustNotCall,
+  expectsError,
   hasCrypto,
   platformTimeout,
   skip
@@ -25,16 +26,22 @@ const {
   // but callback will only be called once
   const server = createServer(mustCall((request, response) => {
     response.end('end', 'utf8', mustCall(() => {
-      response.end(mustNotCall());
+      response.end(mustCall());
       process.nextTick(() => {
-        response.end(mustNotCall());
+        response.end(expectsError({
+          code: 'ERR_STREAM_ALREADY_FINISHED'
+        }));
         server.close();
       });
     }));
     response.on('finish', mustCall(() => {
-      response.end(mustNotCall());
+      response.end(expectsError({
+        code: 'ERR_STREAM_ALREADY_FINISHED'
+      }));
     }));
-    response.end(mustNotCall());
+    response.end(expectsError({
+      code: 'ERR_STREAM_ALREADY_FINISHED'
+    }));
   }));
   server.listen(0, mustCall(() => {
     let data = '';
@@ -292,7 +299,10 @@ const {
     }));
     response.end('data', mustCall(() => {
       strictEqual(finished, false);
-      response.end('data', mustNotCall());
+      strictEqual(response.end('data', expectsError({
+        code: 'ERR_STREAM_ALREADY_FINISHED'
+      })), response);
+      strictEqual(response.end(), response);
     }));
   }));
   server.listen(0, mustCall(() => {
@@ -326,7 +336,9 @@ const {
   // Should be able to respond to HEAD with just .end
   const server = createServer(mustCall((request, response) => {
     response.end('data', mustCall());
-    response.end(mustNotCall());
+    strictEqual(response.end('data', expectsError({
+      code: 'ERR_STREAM_ALREADY_FINISHED'
+    })), response);
   }));
   server.listen(0, mustCall(() => {
     const { port } = server.address();
