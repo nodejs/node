@@ -500,21 +500,75 @@ common.expectsError(
 });
 
 {
-  const privKey = fixtures.readKey('ec-key.pem');
   const data = Buffer.from('Hello world');
-  [
-    crypto.createSign('sha1').update(data).sign(privKey),
-    crypto.sign('sha1', data, privKey)
-  ].forEach((sig) => {
-    // Signature length variability due to DER encoding
-    assert.strictEqual(sig.length >= 68, true);
+  const keys = [['ec-key.pem', 64], ['dsa_private_1025.pem', 40]];
 
-    assert.strictEqual(
-      crypto.createVerify('sha1').update(data).verify(privKey, sig),
-      true
-    );
-    assert.strictEqual(crypto.verify('sha1', data, privKey, sig), true);
+  for (const [file, length] of keys) {
+    const privKey = fixtures.readKey(file);
+    [
+      crypto.createSign('sha1').update(data).sign(privKey),
+      crypto.sign('sha1', data, privKey),
+      crypto.sign('sha1', data, { key: privKey, dsaEncoding: 'der' })
+    ].forEach((sig) => {
+      // Signature length variability due to DER encoding
+      assert(sig.length >= length + 4 && sig.length <= length + 8);
+
+      assert.strictEqual(
+        crypto.createVerify('sha1').update(data).verify(privKey, sig),
+        true
+      );
+      assert.strictEqual(crypto.verify('sha1', data, privKey, sig), true);
+    });
+
+    // Test (EC)DSA signature conversion.
+    const opts = { key: privKey, dsaEncoding: 'ieee-p1363' };
+    let sig = crypto.sign('sha1', data, opts);
+    // Unlike DER signatures, IEEE P1363 signatures have a predictable length.
+    assert.strictEqual(sig.length, length);
+    assert.strictEqual(crypto.verify('sha1', data, opts, sig), true);
+
+    // Test invalid signature lengths.
+    for (const i of [-2, -1, 1, 2, 4, 8]) {
+      sig = crypto.randomBytes(length + i);
+      common.expectsError(() => {
+        crypto.verify('sha1', data, opts, sig);
+      }, {
+        message: 'Malformed signature'
+      });
+    }
+  }
+
+  // Non-(EC)DSA keys should ignore the option.
+  const sig = crypto.sign('sha1', data, {
+    key: keyPem,
+    dsaEncoding: 'ieee-p1363'
   });
+  assert.strictEqual(crypto.verify('sha1', data, certPem, sig), true);
+  assert.strictEqual(
+    crypto.verify('sha1', data, {
+      key: certPem,
+      dsaEncoding: 'ieee-p1363'
+    }, sig),
+    true
+  );
+  assert.strictEqual(
+    crypto.verify('sha1', data, {
+      key: certPem,
+      dsaEncoding: 'der'
+    }, sig),
+    true
+  );
+
+  for (const dsaEncoding of ['foo', null, {}, 5, true, NaN]) {
+    common.expectsError(() => {
+      crypto.sign('sha1', data, {
+        key: certPem,
+        dsaEncoding
+      });
+    }, {
+      code: 'ERR_INVALID_OPT_VALUE'
+    });
+  }
 }
 
 

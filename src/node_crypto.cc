@@ -4910,6 +4910,9 @@ void CheckThrow(Environment* env, SignBase::Error error) {
     case SignBase::Error::kSignNotInitialised:
       return env->ThrowError("Not initialised");
 
+    case SignBase::Error::kSignMalformedSignature:
+      return env->ThrowError("Malformed signature");
+
     case SignBase::Error::kSignInit:
     case SignBase::Error::kSignUpdate:
     case SignBase::Error::kSignPrivateKey:
@@ -5007,6 +5010,87 @@ static int GetDefaultSignPadding(const ManagedEVPPKey& key) {
                                                       RSA_PKCS1_PADDING;
 }
 
+static const unsigned int kNoDsaSignature = static_cast<unsigned int>(-1);
+
+// Returns the maximum size of each of the integers (r, s) of the DSA signature.
+static unsigned int GetBytesOfRS(const ManagedEVPPKey& pkey) {
+  int bits, base_id = EVP_PKEY_base_id(pkey.get());
+
+  if (base_id == EVP_PKEY_DSA) {
+    DSA* dsa_key = EVP_PKEY_get0_DSA(pkey.get());
+    // Both r and s are computed mod q, so their width is limited by that of q.
+    bits = BN_num_bits(DSA_get0_q(dsa_key));
+  } else if (base_id == EVP_PKEY_EC) {
+    EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(pkey.get());
+    const EC_GROUP* ec_group = EC_KEY_get0_group(ec_key);
+    bits = EC_GROUP_order_bits(ec_group);
+  } else {
+    return kNoDsaSignature;
+  }
+
+  return (bits + 7) / 8;
+}
+
+static AllocatedBuffer ConvertSignatureToP1363(Environment* env,
+                                               const ManagedEVPPKey& pkey,
+                                               AllocatedBuffer&& signature) {
+  unsigned int n = GetBytesOfRS(pkey);
+  if (n == kNoDsaSignature)
+    return std::move(signature);
+
+  const unsigned char* sig_data =
+      reinterpret_cast<unsigned char*>(signature.data());
+
+  ECDSA_SIG* asn1_sig = d2i_ECDSA_SIG(nullptr, &sig_data, signature.size());
+  if (asn1_sig == nullptr)
+    return AllocatedBuffer();
+
+  AllocatedBuffer buf = env->AllocateManaged(2 * n);
+  unsigned char* data = reinterpret_cast<unsigned char*>(buf.data());
+
+  const BIGNUM* r = ECDSA_SIG_get0_r(asn1_sig);
+  const BIGNUM* s = ECDSA_SIG_get0_s(asn1_sig);
+  CHECK_EQ(n, BN_bn2binpad(r, data, n));
+  CHECK_EQ(n, BN_bn2binpad(s, data + n, n));
+
+  return buf;
+}
+
+static ByteSource ConvertSignatureToDER(
+      const ManagedEVPPKey& pkey,
+      const ArrayBufferViewContents<char>& signature) {
+  unsigned int n = GetBytesOfRS(pkey);
+  if (n == kNoDsaSignature)
+    return ByteSource::Foreign(signature.data(), signature.length());
+
+  const unsigned char* sig_data =
+      reinterpret_cast<const  unsigned char*>(signature.data());
+
+  if (signature.length() != 2 * n)
+    return ByteSource();
+
+  ECDSA_SIG* asn1_sig = ECDSA_SIG_new();
+  CHECK_NOT_NULL(asn1_sig);
+  BIGNUM* r = BN_new();
+  CHECK_NOT_NULL(r);
+  BIGNUM* s = BN_new();
+  CHECK_NOT_NULL(s);
+  CHECK_EQ(r, BN_bin2bn(sig_data, n, r));
+  CHECK_EQ(s, BN_bin2bn(sig_data + n, n, s));
+  CHECK_EQ(1, ECDSA_SIG_set0(asn1_sig, r, s));
+
+  unsigned char* data = nullptr;
+  int len = i2d_ECDSA_SIG(asn1_sig, &data);
+  ECDSA_SIG_free(asn1_sig);
+
+  if (len <= 0)
+    return ByteSource();
+
+  CHECK_NOT_NULL(data);
+
+  return ByteSource::Allocated(reinterpret_cast<char*>(data), len);
+}
+
 static AllocatedBuffer Node_SignFinal(Environment* env,
                                       EVPMDPointer&& mdctx,
                                       const ManagedEVPPKey& pkey,
@@ -5066,7 +5150,8 @@ static inline bool ValidateDSAParameters(EVP_PKEY* key) {
 Sign::SignResult Sign::SignFinal(
     const ManagedEVPPKey& pkey,
     int padding,
-    const Maybe<int>& salt_len) {
+    const Maybe<int>& salt_len,
+    DSASigEnc dsa_sig_enc) {
   if (!mdctx_)
     return SignResult(kSignNotInitialised);
 
@@ -5078,6 +5163,10 @@ Sign::SignResult Sign::SignFinal(
   AllocatedBuffer buffer =
       Node_SignFinal(env(), std::move(mdctx), pkey, padding, salt_len);
   Error error = buffer.data() == nullptr ? kSignPrivateKey : kSignOk;
+  if (error == kSignOk && dsa_sig_enc == kSigEncP1363) {
+    buffer = ConvertSignatureToP1363(env(), pkey, std::move(buffer));
+    CHECK_NOT_NULL(buffer.data());
+  }
   return SignResult(error, std::move(buffer));
 }
 
@@ -5105,10 +5194,15 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
     salt_len = Just<int>(args[offset + 1].As<Int32>()->Value());
   }
 
+  CHECK(args[offset + 2]->IsInt32());
+  DSASigEnc dsa_sig_enc =
+      static_cast<DSASigEnc>(args[offset + 2].As<Int32>()->Value());
+
   SignResult ret = sign->SignFinal(
       key,
       padding,
-      salt_len);
+      salt_len,
+      dsa_sig_enc);
 
   if (ret.error != kSignOk)
     return sign->CheckThrow(ret.error);
@@ -5152,6 +5246,10 @@ void SignOneShot(const FunctionCallbackInfo<Value>& args) {
     rsa_salt_len = Just<int>(args[offset + 3].As<Int32>()->Value());
   }
 
+  CHECK(args[offset + 4]->IsInt32());
+  DSASigEnc dsa_sig_enc =
+      static_cast<DSASigEnc>(args[offset + 4].As<Int32>()->Value());
+
   EVP_PKEY_CTX* pkctx = nullptr;
   EVPMDPointer mdctx(EVP_MD_CTX_new());
   if (!mdctx ||
@@ -5178,6 +5276,10 @@ void SignOneShot(const FunctionCallbackInfo<Value>& args) {
   }
 
   signature.Resize(sig_len);
+
+  if (dsa_sig_enc == kSigEncP1363) {
+    signature = ConvertSignatureToP1363(env, key, std::move(signature));
+  }
 
   args.GetReturnValue().Set(signature.ToBuffer().ToLocalChecked());
 }
@@ -5284,6 +5386,17 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
     salt_len = Just<int>(args[offset + 2].As<Int32>()->Value());
   }
 
+  CHECK(args[offset + 3]->IsInt32());
+  DSASigEnc dsa_sig_enc =
+      static_cast<DSASigEnc>(args[offset + 3].As<Int32>()->Value());
+
+  ByteSource signature = ByteSource::Foreign(hbuf.data(), hbuf.length());
+  if (dsa_sig_enc == kSigEncP1363) {
+    signature = ConvertSignatureToDER(pkey, hbuf);
+    if (signature.get() == nullptr)
+      return verify->CheckThrow(Error::kSignMalformedSignature);
+  }
+
   bool verify_result;
   Error err = verify->VerifyFinal(pkey, hbuf.data(), hbuf.length(), padding,
                                   salt_len, &verify_result);
@@ -5327,6 +5440,10 @@ void VerifyOneShot(const FunctionCallbackInfo<Value>& args) {
     rsa_salt_len = Just<int>(args[offset + 4].As<Int32>()->Value());
   }
 
+  CHECK(args[offset + 5]->IsInt32());
+  DSASigEnc dsa_sig_enc =
+      static_cast<DSASigEnc>(args[offset + 5].As<Int32>()->Value());
+
   EVP_PKEY_CTX* pkctx = nullptr;
   EVPMDPointer mdctx(EVP_MD_CTX_new());
   if (!mdctx ||
@@ -5337,11 +5454,18 @@ void VerifyOneShot(const FunctionCallbackInfo<Value>& args) {
   if (!ApplyRSAOptions(key, pkctx, rsa_padding, rsa_salt_len))
     return CheckThrow(env, SignBase::Error::kSignPublicKey);
 
+  ByteSource sig_bytes = ByteSource::Foreign(sig.data(), sig.length());
+  if (dsa_sig_enc == kSigEncP1363) {
+    sig_bytes = ConvertSignatureToDER(key, sig);
+    if (!sig_bytes)
+      return CheckThrow(env, SignBase::Error::kSignMalformedSignature);
+  }
+
   bool verify_result;
   const int r = EVP_DigestVerify(
     mdctx.get(),
-    reinterpret_cast<const unsigned char*>(sig.data()),
-    sig.length(),
+    reinterpret_cast<const unsigned char*>(sig_bytes.get()),
+    sig_bytes.size(),
     reinterpret_cast<const unsigned char*>(data.data()),
     data.length());
   switch (r) {
@@ -7129,6 +7253,8 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kKeyTypeSecret);
   NODE_DEFINE_CONSTANT(target, kKeyTypePublic);
   NODE_DEFINE_CONSTANT(target, kKeyTypePrivate);
+  NODE_DEFINE_CONSTANT(target, kSigEncDER);
+  NODE_DEFINE_CONSTANT(target, kSigEncP1363);
   env->SetMethod(target, "randomBytes", RandomBytes);
   env->SetMethod(target, "signOneShot", SignOneShot);
   env->SetMethod(target, "verifyOneShot", VerifyOneShot);
