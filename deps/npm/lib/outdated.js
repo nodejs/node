@@ -421,7 +421,7 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, opts, cb, type
       var l = pickManifest(d, 'latest')
       var m = pickManifest(d, req)
     } catch (er) {
-      if (er.code === 'ETARGET') {
+      if (er.code === 'ETARGET' || er.code === 'E403') {
         return skip(er)
       } else {
         return skip()

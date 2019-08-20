@@ -2,14 +2,14 @@ var fs = require('fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var rimraf = require('rimraf')
+var which = require('which')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 var isWindows = require('../../lib/utils/is-windows.js')
 
-var pkg = path.resolve(__dirname, 'lifecycle-path')
+var pkg = common.pkg
 
 var PATH
 if (isWindows) {
@@ -21,9 +21,10 @@ if (isWindows) {
   PATH = '/bin:/usr/bin'
 }
 
+var systemNode = which.sync('node', { nothrow: true, path: PATH })
+// the path to the system wide node (null if none)
+
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify({}, null, 2)
@@ -183,6 +184,12 @@ function checkPath (testconfig, t) {
             'The node binary used for scripts is.*' +
             process.execPath.replace(/[/\\]/g, '.'))
           t.match(stderr, regex, 'reports the current binary vs conflicting')
+        } else if (systemNode !== null) {
+          var regexSystemNode = new RegExp(
+            'The node binary used for scripts is.*' +
+            systemNode.replace(/[/\\]/g, '.')
+          )
+          t.match(stderr, regexSystemNode, 'reports the system binary vs conflicting')
         } else {
           t.match(stderr, /there is no node binary in the current PATH/, 'informs user that there is no node binary in PATH')
         }
@@ -200,14 +207,4 @@ function checkPath (testconfig, t) {
     t.same(actual, expect)
     t.end()
   })
-}
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
 }

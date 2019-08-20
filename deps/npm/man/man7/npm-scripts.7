@@ -72,7 +72,7 @@ Run by the \fBnpm shrinkwrap\fP command\.
 Additionally, arbitrary scripts can be executed by running \fBnpm
 run\-script <stage>\fP\|\. \fIPre\fR and \fIpost\fR commands with matching
 names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP,
-\fBpostmyscript\fP)\. Scripts from dependencies can be run with
+\fBpostmyscript\fP)\. Scripts from dependencies can be run with 
 \fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
 .SH PREPUBLISH AND PREPARE
 .SS DEPRECATION NOTE
@@ -169,8 +169,8 @@ The package\.json fields are tacked onto the \fBnpm_package_\fP prefix\. So,
 for instance, if you had \fB{"name":"foo", "version":"1\.2\.5"}\fP in your
 package\.json file, then your package scripts would have the
 \fBnpm_package_name\fP environment variable set to "foo", and the
-\fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables
-in your code with \fBprocess\.env\.npm_package_name\fP and
+\fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables 
+in your code with \fBprocess\.env\.npm_package_name\fP and 
 \fBprocess\.env\.npm_package_version\fP, and so on for other fields\.
 .SS configuration
 .P
