@@ -41,7 +41,10 @@ server.listen(0, function() {
   });
 
   function write() {
-    req.write('hello', function() {
+    req.write('hello', function(err) {
+      if (err) {
+        return;
+      }
       setImmediate(write);
     });
   }
@@ -50,6 +53,10 @@ server.listen(0, function() {
     switch (er.code) {
       // This is the expected case
       case 'ECONNRESET':
+        break;
+
+      // This is also ok, depends on the operating system
+      case 'ERR_STREAM_DESTROYED':
         break;
 
       // On Windows, this sometimes manifests as ECONNABORTED
