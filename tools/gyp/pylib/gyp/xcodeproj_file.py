@@ -1994,7 +1994,7 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
 
     path_tree_match = self.path_tree_re.search(path)
     if path_tree_match:
-      path_tree = path_tree_match.group(1);
+      path_tree = path_tree_match.group(1)
       if path_tree in self.path_tree_first_to_subfolder:
         subfolder = self.path_tree_first_to_subfolder[path_tree]
         relative_path = path_tree_match.group(3)
@@ -2047,7 +2047,7 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
             # subfolder = 16 from above
             # The second element of the path is an unrecognized variable.
             # Include it and any remaining elements in relative_path.
-            relative_path = path_tree_match.group(3);
+            relative_path = path_tree_match.group(3)
 
       else:
         # The path starts with an unrecognized Xcode variable
