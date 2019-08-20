@@ -839,9 +839,6 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 > 1. Let _packageSubpath_ be *undefined*.
 > 1. If _packageSpecifier_ is an empty string, then
 >    1. Throw an _Invalid Specifier_ error.
-> 1. If _packageSpecifier_ does not start with _"@"_, then
->    1. Set _packageName_ to the substring of _packageSpecifier_ until the
->       first _"/"_ separator or the end of the string.
 > 1. Otherwise,
 >    1. If _packageSpecifier_ does not contain a _"/"_ separator, then
 >       1. Throw an _Invalid Specifier_ error.
@@ -855,7 +852,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >    1. Set _packageSubpath_ to _"."_ concatenated with the substring of
 >       _packageSpecifier_ from the position at the length of _packageName_.
 > 1. If _packageSubpath_ contains any _"."_ or _".."_ segments or percent
->    encoded strings for _"/"_ or _"\\"_ then,
+>    encoded strings for _"/"_ or _"\\"_, then
 >    1. Throw an _Invalid Specifier_ error.
 > 1. If _packageSubpath_ is _undefined_ and _packageName_ is a Node.js builtin
 >    module, then
@@ -878,7 +875,30 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >             1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_,
 >                _packageSubpath_, _pjson.exports_).
 >       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
+> 1. Set _selfUrl_ to the result of
+>    **SELF_REFERENCE_RESOLE**(_packageSpecifier_, _parentURL_).
+> 1. If _selfUrl_ isn't empty, return _selfUrl_.
 > 1. Throw a _Module Not Found_ error.
+
+**SELF_REFERENCE_RESOLVE**(_specifier_, _parentURL_)
+
+> 1. Let _packageURL_ be the result of **READ_PACKAGE_SCOPE**(_parentURL_).
+> 1. If _packageURL_ is **null**, then
+>    1. Return an empty result.
+> 1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
+> 1. Set _name_ to _pjson.name_.
+> 1. If _name_ is empty, then return an empty result.
+> 1. If _name_ is equal to _specifier_, then
+>    1. Return the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_, _pjson_).
+> 1. If _specifier_ starts with _name_ followed by "/", then
+>    1. Set _subpath_ to everything after the "/".
+>    1. If _pjson_ is not **null** and _pjson_ has an _"exports"_ key, then
+>       1. Let _exports_ be _pjson.exports_.
+>       1. If _exports_ is not **null** or **undefined**, then
+>          1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _subpath_,
+>             _pjson.exports_).
+>    1. Return the URL resolution of _subpath_ in _packageURL_.
+> 1. Otherwise return an empty result.
 
 **PACKAGE_MAIN_RESOLVE**(_packageURL_, _pjson_)
 
